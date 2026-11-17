@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
+import type { HeldWords } from '../../reader/heldNotes';
 import { counts, firstReady } from '../../reader/noteQueue';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
@@ -66,17 +67,42 @@ function NoteRow({ note, first, onOpen, onRetry, onRemove }: {
   );
 }
 
+/** A word held on the phone while offline (heldNotes.ts): not on the server yet, so there's nothing to open. */
+function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; meaning: string; deck: string; first: boolean; onRemove: () => void }) {
+  const c = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
+      <View accessible accessibilityLabel={`${entry}. ${meaning ? `${meaning}. ` : ''}Not sent yet`} style={{ flex: 1, gap: 2, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l, justifyContent: 'center' }}>
+        <Text style={{ ...type.headline, color: c.text }}>{entry}</Text>
+        {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
+        <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{deck}</Text>
+      </View>
+      <Tappable
+        onPress={() => { haptic.tap(); onRemove(); }}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${entry}`}
+        style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Icon name="xmark" size={14} color={c.textSecondary} />
+      </Tappable>
+    </View>
+  );
+}
+
 /**
  * The words in the note queue, by state. A ready note (or a failed one, to fill in by hand) opens in the
  * note editor with what Claude wrote in it; saving there is the approval, and the word leaves the queue
  * once it's saved. "Review" goes through the ready notes one after another until one is cancelled. This
  * screen writes nothing to the deck itself (CLAUDE.md, Read & Listen).
  */
-export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRemove, onRefresh }: {
+export function ReadNoteQueue({ queue, error, held, getItems, onReview, onRetry, onRemove, onRemoveHeld, onRefresh }: {
   /** Null until the server has answered. */
   queue: NoteQueue | null;
   /** The last problem reaching the server, if the last ask failed. */
   error: string | null;
+  /** Words added while offline, sent to the server when the connection comes back (useNoteQueue). */
+  held: HeldWords[];
+  onRemoveHeld: (deck: string, entry: string) => void;
   /** The queue as it is now, since the screen's own copy is stale once an editor has closed. */
   getItems: () => QueuedNote[];
   /** Opens the note editor with the word filled in, resolving true once the note is saved. */
@@ -141,7 +167,18 @@ export function ReadNoteQueue({ queue, error, getItems, onReview, onRetry, onRem
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
         {!queue && !error ? <ActivityIndicator color={c.accent} style={{ padding: space.xl }} /> : null}
-        {queue && !items.length ? <Help>Nothing is queued. Use Quick add on the deck list to add words, and Claude fills in the rest.</Help> : null}
+        {held.map((group, g) => (
+          <View key={`held-${g}`} style={{ gap: space.s }}>
+            <SectionTitle>{`${group.problem ? "Couldn't send to Claude" : 'Waiting to send'} (${group.entries.length})`}</SectionTitle>
+            {group.problem ? <ErrorNote message={group.problem} /> : <Help>{"Your server couldn't be reached when these were added. They go to Claude once it can."}</Help>}
+            <Group accessibilityRole="list">
+              {group.entries.map((e, i) => (
+                <HeldRow key={e.entry} entry={e.entry} meaning={e.meaning} deck={group.deck} first={i === 0} onRemove={() => onRemoveHeld(group.deck, e.entry)} />
+              ))}
+            </Group>
+          </View>
+        ))}
+        {queue && !items.length && !held.length ? <Help>Nothing is queued. Use Quick add on the deck list to add words, and Claude fills in the rest.</Help> : null}
         {sections.map((section) => (
           <View key={section.key} style={{ gap: space.s }}>
             <SectionTitle>{`${section.title} (${section.rows.length})`}</SectionTitle>

@@ -3,6 +3,7 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
+import { normalizeEndpoint } from '../anki/sync/client';
 import { studyDayStart } from '../core/day';
 import { listedDecks } from '../core/deckNames';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
@@ -18,6 +19,7 @@ import { boostFor } from '../core/priority';
 import { applyPriorityStamps } from '../db/priorityStamps';
 import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
+import { useConnection } from './connection';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
 import { useStudyReminder } from './studyReminder';
@@ -150,6 +152,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [sync, refresh]);
 
+  useConnection(syncSettings?.enabled ? normalizeEndpoint(syncSettings.server) : undefined);
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);

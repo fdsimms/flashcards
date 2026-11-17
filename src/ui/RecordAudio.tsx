@@ -4,11 +4,14 @@ import { Alert } from 'react-native';
 import { makeRecording, recordNote, sendRecording, type RecordDeps, type Recording } from '../anki/recordService';
 import { isOmnilanguage, speechLangFor } from '../core/cards';
 import { failureText } from '../core/failure';
+import { holdRecording, isOffline } from '../core/held';
 import { needsRecording, recordingText, recordingVoice } from '../core/recording';
 import type { Note } from '../core/types';
 import { azureVoiceName, languageKey, languageName, type VoiceSettings } from '../core/voices';
 import type { Repo } from '../db/repo';
 import { mediaFileUri } from '../media/mediaFiles';
+import { connection, useConnectionProblem } from './connection';
+import { heldRecordings, useHeldRecordings } from './held';
 import { Button, ErrorNote, Help } from './kit';
 
 /**
@@ -27,7 +30,8 @@ export function useVoiceSettings(repo: Repo): VoiceSettings {
 /**
  * After a save: a recording made here goes on the list the next sync sends, if the saved note
  * still has it; a new note without one is recorded now, in the background, with an alert if that
- * fails (the note is saved either way).
+ * fails (the note is saved either way). Offline it's held instead, and recorded when the connection
+ * comes back (HeldWork.tsx).
  */
 export function afterSave(recorder: RecordDeps | null, saved: Note, opts: { added: boolean; recording?: Recording; settings: VoiceSettings }) {
   if (!recorder) return;
@@ -35,7 +39,10 @@ export function afterSave(recorder: RecordDeps | null, saved: Note, opts: { adde
   if (r && saved.fields.Audio?.includes(`[sound:${r.name}]`)) sendRecording(recorder, r).catch(() => undefined);
   const voice = recordingVoice(saved, opts.settings);
   if (opts.added && voice && needsRecording(saved)) {
+    const hold = () => { void heldRecordings.update((list) => holdRecording(list, { noteId: saved.id, voice })); };
+    if (connection.cantReachHome()) { hold(); return; }
     recordNote(recorder, saved.id, voice).catch((e) => {
+      if (isOffline(e)) { hold(); return; }
       Alert.alert('Saved without a recording', failureText(e, { next: "Record it later with Record audio in the note editor, or from the deck's options." }));
     });
   }
@@ -51,6 +58,8 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const held = useHeldRecordings();
+  const problem = useConnectionProblem();
   const player = useRef<AudioPlayer | null>(null);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
 
@@ -84,6 +93,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
     <>
       <Button label={`Record audio with ${azureVoiceName(voice)}`} variant="secondary" onPress={record} busy={busy} />
       {error ? <ErrorNote message={error} onRetry={record} /> : null}
+      {!error && held.some((h) => h.noteId === note.id) ? <Help>{problem === 'server' ? `Your server isn't answering. This note will be recorded with ${azureVoiceName(voice)} once it does.` : `Offline. This note will be recorded with ${azureVoiceName(voice)} when you're back online.`}</Help> : null}
     </>
   );
 }

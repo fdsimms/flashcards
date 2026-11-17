@@ -73,3 +73,21 @@ export function speakingErrorText(code: string): string | undefined {
     default: return "Couldn't turn what you said into text. Try again, or type it instead.";
   }
 }
+
+/**
+ * Whether the microphone is offered: answering by speaking is on, the language can be heard, and,
+ * offline, it's heard on the phone (`onDevice`; null when that can't be told, which keeps it).
+ * One heard only by Apple's servers is hidden offline rather than failing after a tap.
+ */
+export function canListen(o: { on: boolean; locale: string | undefined; offline: boolean; onDevice: boolean | null }): boolean {
+  return o.on && !!o.locale && !(o.offline && o.onDevice === false);
+}
+
+/** Settings, Speaking: whether a language can be heard, and whether with no connection too. */
+export function hearingText(heard: boolean | null, onDevice: boolean | null): string {
+  if (heard === null) return '';
+  if (!heard) return "Can't be heard";
+  if (onDevice === true) return 'Can be heard, also offline';
+  if (onDevice === false) return 'Can be heard when online';
+  return 'Can be heard';
+}

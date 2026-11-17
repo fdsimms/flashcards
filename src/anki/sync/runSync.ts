@@ -147,6 +147,37 @@ export function reportText(r: SyncReport): string {
   }
 }
 
+/**
+ * What Today and the deck list say about sync: the status line, with the answers not sent yet,
+ * and whether it's a failure to warn about. Offline isn't one: Franki syncs by itself when the
+ * connection comes back (useSync), so it's said calmly, and the header's Offline button has more.
+ */
+export function syncLine(
+  s: { lastSyncAt: string | null; lastError: string | null },
+  { problem, unsent }: { problem: 'offline' | 'server' | null; unsent: number },
+  now: Date,
+): { status: string; failed: boolean } {
+  if (problem === 'server') {
+    // Unlike being offline, this may need fixing (the server is down, or its address changed), so it's a warning.
+    return {
+      status: unsent
+        ? `Can't reach your server. ${count(unsent, 'answer', 'answers')} will sync once it answers.`
+        : "Can't reach your server. Franki will sync once it answers.",
+      failed: true,
+    };
+  }
+  if (problem === 'offline') {
+    return {
+      status: unsent
+        ? `Offline. ${count(unsent, 'answer', 'answers')} will sync when you're back online.`
+        : "Offline. Franki will sync when you're back online.",
+      failed: false,
+    };
+  }
+  const waiting = unsent ? ` ${unsent} ${unsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : '';
+  return { status: syncStatusText(s, now) + waiting, failed: !!s.lastError };
+}
+
 /** The deck list's line about sync: when it last worked, or why it didn't. */
 export function syncStatusText(s: { lastSyncAt: string | null; lastError: string | null }, now: Date): string {
   if (s.lastError) return s.lastError;

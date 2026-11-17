@@ -1,8 +1,9 @@
+import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
 import type { Api, Language, Word } from '../reader/api';
-import { cardLanguage, glossesOf, glossKey, glossRequests } from '../reader/cardGlosses';
+import { cardLanguage, glossesOf, glossKey, glossRequests, keptForDisk, parseKept } from '../reader/cardGlosses';
 import type { Pronunciation } from '../reader/mining';
 
 /** What a card needs to gloss its example sentence: Read & Listen's server, its decks, and what a popover's buttons do. */
@@ -19,9 +20,33 @@ export type CardGlossing = {
 /** One card's example sentence as words to tap, with what the popover's buttons do. */
 export type SentenceGloss = Omit<CardGlossing, 'decks'> & { language: Language; words: Word[] };
 
-// Kept for as long as the app runs, so a sentence studied again later in the day needs no call,
-// and a session that can't reach the server still shows what an earlier one fetched.
+// Kept on the phone (the newest KEPT_SENTENCES, in the documents folder), so a sentence studied
+// again needs no call, and a session that can't reach the server (the subway) still shows what an
+// earlier one fetched, after the app has been closed too.
 const kept = new Map<string, Word[]>();
+const keptFile = () => new File(Paths.document, 'card-glosses.json');
+let loaded: Promise<void> | null = null;
+const loadKept = () => {
+  loaded ??= (async () => {
+    try {
+      const f = keptFile();
+      // Fetched before the file was read wins: it's the newer answer.
+      if (f.exists) for (const [key, words] of parseKept(JSON.parse(await f.text()))) if (!kept.has(key)) kept.set(key, words);
+    } catch {
+      // Nothing kept: the server is asked as before.
+    }
+  })();
+  return loaded;
+};
+const saveKept = () => {
+  try {
+    const f = keptFile();
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(keptForDisk(kept)));
+  } catch {
+    // Still kept for as long as the app runs.
+  }
+};
 
 /**
  * The words of each card's example sentence, asked for once when the session's cards are known
@@ -33,6 +58,7 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
   const mounted = useRef(true);
   const [, setVersion] = useState(0);
   useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => { loadKept().then(() => { if (mounted.current) setVersion((v) => v + 1); }); }, []);
 
   useEffect(() => {
     if (!glossing || !cards?.length) return;
@@ -44,7 +70,8 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
       const askAgain = () => { for (const key of keys) asked.current.delete(key); };
       glossing.api.glosses(request.language, request.sentences).then((answer) => {
         if (!answer.ready) { askAgain(); return; }
-        for (const [key, words] of glossesOf(request, answer.sentences)) kept.set(key, words);
+        for (const [key, words] of glossesOf(request, answer.sentences)) { kept.delete(key); kept.set(key, words); }
+        void loadKept().then(saveKept);
         if (mounted.current) setVersion((v) => v + 1);
       }, askAgain);
     }
