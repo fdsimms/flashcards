@@ -3,8 +3,12 @@
  * (CLAUDE.md, Read & Listen). Its code, logic, screens and routes alike, imports nothing that
  * answers, schedules or writes cards and notes: not the scheduler, not the Anki writeback, not the
  * repo.
+ *
+ * Every screen, hook and route that imports from `src/reader/` is scanned, not a list of names, so
+ * a new one is checked without anyone remembering to add it. The ones that may import a writer are
+ * named in `EXEMPT` with the reason, the way a coverage test names what it leaves out.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -15,6 +19,37 @@ const ROUTES = join(ROOT, 'src', 'app');
 const READ_TAB = join(ROUTES, '(tabs)', '(read)');
 // Anything that answers, schedules or writes cards and notes.
 const FORBIDDEN = /from '[^']*(core\/scheduler|core\/session|anki\/writeback|anki\/noteWrites|anki\/noteService|db\/[a-zA-Z]+)'/;
+// A screen, hook or route that uses something from src/reader/.
+const USES_READER = /from '(\.\.\/)+reader\//;
+
+/** Files that import from src/reader/ and may import a writer, by group, with the reason. Paths from the repo root. */
+const EXEMPT: Record<string, string[]> = {
+  // The review screen is the answer button: grading is its job. It uses Read & Listen's practice
+  // and production checks, which never rate (CLAUDE.md, "Nothing feeds FSRS but the answer button").
+  'the review screen': ['src/ui/Review.tsx', 'src/ui/SessionMisses.tsx'],
+  // Practice's screens and the voice settings, which use Read & Listen's server (the grammar
+  // catalog, recordings, voices) and import only the Repo type, for the repo they're handed.
+  // The tools' own logic is held to the rule by tests/tools/noGrading.test.ts.
+  'Practice, voices and speaking, which import only the Repo type': [
+    'src/ui/FormsDrill.tsx', 'src/ui/FormsPractice.tsx', 'src/ui/Practice.tsx', 'src/ui/SpeakingSettings.tsx',
+    'src/ui/Voices.tsx', 'src/ui/tools/GrammarDrill.tsx', 'src/ui/tools/ToolScreen.tsx', 'src/ui/tools/index.tsx',
+    'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts',
+  ],
+  // Add to deck saves a note itself in one case: after a verb is saved in the note editor, linking
+  // its aspect partner already in the deck, once "Link them" is tapped in the alert that names
+  // both. That tap is the approval; every new note still opens in the note editor.
+  'approved by an alert': ['src/ui/useAddMinedWord.ts'],
+};
+const ALL_EXEMPT = Object.values(EXEMPT).flat();
+
+/** Every .ts/.tsx file under `dir`, at any depth. */
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((f) => {
+    const path = join(dir, f);
+    if (statSync(path).isDirectory()) return walk(path);
+    return /\.tsx?$/.test(f) ? [path] : [];
+  });
+}
 
 describe('Read & Listen', () => {
   const files = [
@@ -25,6 +60,9 @@ describe('Read & Listen', () => {
     // The Read & Listen tab's home (and its stack layout) lives in its own route group.
     ...readdirSync(READ_TAB).filter((f) => /\.tsx$/.test(f)).map((f) => join(READ_TAB, f)),
   ];
+  for (const f of [...walk(UI), ...walk(ROUTES)]) {
+    if (!files.includes(f) && USES_READER.test(readFileSync(f, 'utf8'))) files.push(f);
+  }
 
   it('scans its logic, its screens and its routes', () => {
     expect(files.some((f) => f.endsWith('Reader.tsx'))).toBe(true);
@@ -35,6 +73,8 @@ describe('Read & Listen', () => {
     expect(files.some((f) => f.endsWith(join('app', 'read-words.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'reader.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('(read)', 'read.tsx')))).toBe(true);
+    // Found by its import of src/reader/, not by name.
+    expect(files.some((f) => f.endsWith('useAddMinedWord.ts'))).toBe(true);
   });
 
   it('matches what it is meant to catch', () => {
@@ -46,6 +86,15 @@ describe('Read & Listen', () => {
 
   it('imports nothing that grades or writes cards', () => {
     const hits = files.filter((f) => FORBIDDEN.test(readFileSync(f, 'utf8'))).map((f) => relative(ROOT, f));
-    expect(hits).toEqual([]);
+    expect(hits.filter((f) => !ALL_EXEMPT.includes(f))).toEqual([]);
+  });
+
+  it('keeps the exemptions honest', () => {
+    const scanned = files.map((f) => relative(ROOT, f));
+    // Each one is still scanned and still needs its exemption, and none is listed twice.
+    const gone = ALL_EXEMPT.filter((f) => !scanned.includes(f));
+    const clean = ALL_EXEMPT.filter((f) => scanned.includes(f) && !FORBIDDEN.test(readFileSync(join(ROOT, f), 'utf8')));
+    const twice = ALL_EXEMPT.filter((f, i) => ALL_EXEMPT.indexOf(f) !== i);
+    expect({ gone, clean, twice }).toEqual({ gone: [], clean: [], twice: [] });
   });
 });
