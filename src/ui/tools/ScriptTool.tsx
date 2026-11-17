@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
+import { japaneseFont } from '../../core/script';
 import { LANGUAGES } from '../../reader/languages';
 import type { Phrase } from '../../tools/phrase';
 import { randomWord, type ScriptMode } from '../../tools/script';
@@ -97,7 +98,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
       actions={actions}
     >
       <Card style={{ minHeight: 140, alignItems: 'center', justifyContent: 'center', gap: space.xs }}>
-        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, color: c.text }}>{word?.shown}</Text>
+        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...japaneseFont(word?.shown ?? ''), color: c.text }}>{word?.shown}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
       </Card>
 

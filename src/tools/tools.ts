@@ -17,6 +17,7 @@ import { sayGreekDate } from './greek/date';
 import { sayGreekMoney } from './greek/money';
 import { sayGreekNumber } from './greek/number';
 import { sayGreekTime } from './greek/time';
+import { JAPANESE_SCRIPT } from './japanese/script';
 import { JAPANESE_COUNTING } from './japanese/counting';
 import { sayJapaneseDate } from './japanese/date';
 import { sayJapaneseMoney } from './japanese/money';
@@ -145,12 +146,13 @@ export const COUNTING: Partial<Record<Language, CountingLanguage>> = {
 };
 
 /**
- * Each language Reading the script can be read in: Thai's tones, and Russian's and Greek's
- * letters and stress. Japanese is left out, as WaniKani covers reading it.
+ * Each language Reading the script can be read in: Thai's tones, Russian's and Greek's letters and
+ * stress, and Japanese's kana (small っ and ゃ, long vowels, katakana's ー). Kanji are left to WaniKani.
  */
 export const SCRIPTS: Partial<Record<Language, ScriptLanguage>> = {
   th: THAI_SCRIPT,
   el: GREEK_SCRIPT,
+  ja: JAPANESE_SCRIPT,
   ru: RUSSIAN_SCRIPT,
 };
 
