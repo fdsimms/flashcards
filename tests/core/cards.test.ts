@@ -138,6 +138,19 @@ describe('cards', () => {
     expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'te spodnie', Gender: '' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
     expect(renderCard({ ...note, fields: { ...note.fields, Language: 'italian' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
+  it('puts te before a plural-only Polish noun (Gender pl) and ci before a plural of men (Gender mpl)', () => {
+    const note = omniNote({ Entry: 'spodnie', Meaning: 'pants', Language: 'polish', Gender: 'pl', Transliteration: '' });
+    const men = { ...note, fields: { ...note.fields, Entry: 'ludzie', Gender: 'mpl' } };
+    expect(renderCard(note, 'forward').front.blocks[0]).toMatchObject({ text: 'spodnie', prefix: 'te' });
+    expect(renderCard(note, 'forward').front.speak).toBe('spodnie');
+    expect(renderCard(men, 'forward').front.blocks[0]).toMatchObject({ text: 'ludzie', prefix: 'ci' });
+  });
+  it('adds no Polish gender word before an Entry that already starts with one, whichever it is', () => {
+    const note = omniNote({ Entry: 'ci ludzie', Meaning: 'people', Language: 'polish', Gender: 'm', Transliteration: '' });
+    for (const entry of ['ci ludzie', 'te drzwi', 'ten mężczyzna', 'ta kobieta', 'to dziecko']) {
+      expect(renderCard({ ...note, fields: { ...note.fields, Entry: entry } }, 'forward').front.blocks[0].prefix, entry).toBeUndefined();
+    }
+  });
   it('puts el / la and en / ei / et before a Spanish or Norwegian noun by its Gender, speaks it, and leaves an Entry that has its own article alone', () => {
     const es = omniNote({ Entry: 'blindaje', Meaning: 'armor plating', Language: 'spanish', Gender: 'm', Transliteration: '' });
     const forward = renderCard(es, 'forward');
