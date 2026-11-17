@@ -1444,7 +1444,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
-            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} />
+            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} register={tapped.word.register} />
             {trying ? (
               <GuessPrompt
                 mode={mode}

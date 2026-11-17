@@ -2677,6 +2677,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
         # as unmarked.
         unset=exposure.unset_points(store.load_grammar(engine.conn), text.language),
         ai_ipa=engine.ai_ipa(text.language),
+        deck_registers={e.text: e.register for e in entries if e.register},
     )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
@@ -2707,6 +2708,7 @@ def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
         engine.meanings(text.language),
         {e.text: e.translit for e in entries if e.translit},
         ai_ipa=engine.ai_ipa(text.language),
+        deck_registers={e.text: e.register for e in entries if e.register},
     )
     first: dict[str, dict[str, Any]] = {}
     for line in out["lines"]:
