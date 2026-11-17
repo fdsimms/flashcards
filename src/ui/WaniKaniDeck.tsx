@@ -3,8 +3,10 @@ import { ActionSheetIOS, Linking } from 'react-native';
 import type { WaniKaniProblem } from '../wanikani/api';
 import { offlineText } from '../wanikani/offline';
 import { droppedLine } from '../wanikani/prefs';
+import { levelLine, stagesLabel } from '../wanikani/stats';
 import { DeckRowView } from './DeckList';
 import { Group, SwipeAction, SwipeToReveal } from './kit';
+import { StageBar } from './WaniKaniStageBar';
 import type { WaniKaniState } from './useWaniKani';
 
 /** The line under the name when the last read failed: short, since Options says the rest. */
@@ -18,9 +20,9 @@ const PROBLEM_LINE: Record<WaniKaniProblem, string> = {
 
 /**
  * WaniKani in the deck list: one more deck, after the Anki ones, with its reviews as due and
- * today's lessons as new. Swipe for Options, as on any deck; the menu also opens wanikani.com.
+ * today's lessons as new, a bar of its items by stage, and its stats from the menu. Swipe for Options, as on any deck; the menu also opens wanikani.com.
  */
-export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKaniState; onOpen: () => void; onOptions: () => void }) {
+export function WaniKaniDeck({ wanikani, onOpen, onOptions, onStats }: { wanikani: WaniKaniState; onOpen: () => void; onOptions: () => void; onStats: () => void }) {
   const [open, setOpen] = useState(false);
   const due = wanikani.counts?.reviews ?? 0;
   const fresh = wanikani.counts?.lessons ?? 0;
@@ -33,12 +35,13 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
     // Shown until the review screen has said it in full (it marks them seen there).
     : wanikani.dropped
     ? { text: droppedLine(wanikani.dropped), warning: true }
-    : { text: (wanikani.user ? `Level ${wanikani.user.level}${wanikani.user.onVacation ? ', on vacation' : ''}` : 'Loading…') + unsent };
+    : { text: (wanikani.user ? `${levelLine(wanikani.user.level, wanikani.stats?.progress ?? null)}${wanikani.user.onVacation ? ', on vacation' : ''}` : 'Loading…') + unsent };
   const menu = () => {
-    const options = ['Options', 'Open wanikani.com', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: 'WaniKani', options, cancelButtonIndex: 2 }, (i) => {
-      if (i === 0) onOptions();
-      if (i === 1) Linking.openURL('https://www.wanikani.com/dashboard').catch(() => undefined);
+    const options = ['Stats', 'Options', 'Open wanikani.com', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: 'WaniKani', options, cancelButtonIndex: 3 }, (i) => {
+      if (i === 0) onStats();
+      if (i === 1) onOptions();
+      if (i === 2) Linking.openURL('https://www.wanikani.com/dashboard').catch(() => undefined);
     });
   };
   return (
@@ -54,7 +57,9 @@ export function WaniKaniDeck({ wanikani, onOpen, onOptions }: { wanikani: WaniKa
           // Reserves the room the Anki rows keep for the show/hide button, so the counts line up with theirs.
           toggleSlot
           detail={detail}
-          menuHint="Options, or open wanikani.com"
+          menuHint="Stats, options, or open wanikani.com"
+          below={wanikani.stats ? <StageBar stages={wanikani.stats.stages} /> : undefined}
+          belowLabel={wanikani.stats ? stagesLabel(wanikani.stats.stages) : undefined}
           onOpen={() => (open ? setOpen(false) : onOpen())}
           onMenu={menu}
         />
