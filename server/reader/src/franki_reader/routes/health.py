@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from franki_reader import store
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.languages import LANGUAGES
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES
 from franki_reader.routes.context import AppContext
 from franki_reader.routes.views import instant
 
@@ -58,6 +58,23 @@ def router(ctx: AppContext) -> APIRouter:
         def naive_utc(at: datetime) -> datetime:
             return at.astimezone(UTC).replace(tzinfo=None)
 
+        # Every language the app can show, with what is waiting in it (often nothing), so the other
+        # app can offer a choice per language and decide which get a task today.
+        ready = store.ready_counts(engine.conn)
+        languages = []
+        for code, lang in LANGUAGES.items():
+            if code in HIDDEN_LANGUAGES:
+                continue
+            read_at = store.last_finished_reading(engine.conn, code)
+            languages.append(
+                {
+                    "language": code,
+                    "name": lang.name,
+                    "waiting": ready.get(code, 0),
+                    "last_read_at": instant(read_at) if read_at else None,
+                }
+            )
+
         return {
             "reviews": due.reviews,
             "learning": due.learning,
@@ -69,9 +86,10 @@ def router(ctx: AppContext) -> APIRouter:
             "read_and_listen": {
                 "language": language,
                 "name": LANGUAGES[language].name,
-                "waiting": store.ready_counts(engine.conn).get(language, 0),
+                "waiting": ready.get(language, 0),
                 "last_read_at": instant(last_read) if last_read else None,
             },
+            "read_and_listen_languages": languages,
             "study_days": [
                 {
                     "starts_at": instant(d.starts_at),

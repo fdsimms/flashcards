@@ -16,7 +16,7 @@ from franki_reader import cast, store
 from franki_reader.app import MAX_WRONG, client_source, create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.languages import Code
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
 from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
@@ -1305,6 +1305,11 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
         ],
         "day_ends_at": "2026-10-20T04:00:00+00:00",
         "read_and_listen": {"language": "th", "name": "Thai", "waiting": 0, "last_read_at": None},
+        "read_and_listen_languages": [
+            {"language": code, "name": LANGUAGES[code].name, "waiting": 0, "last_read_at": None}
+            for code in LANGUAGES
+            if code not in HIDDEN_LANGUAGES
+        ],
         "study_days": [
             {
                 "starts_at": "2026-10-18T04:00:00+00:00",
@@ -1331,10 +1336,21 @@ def test_status_counts_texts_waiting_and_the_last_one_read() -> None:
     write_asked(c, "Haggling")  # one asked for, written in the background
     shelf_settled(c, 1)
 
-    reading = c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen"]
+    body = c.get("/api/status", headers=STATUS_KEY).json()
+    reading = body["read_and_listen"]
 
     assert reading["last_read_at"] == "2026-10-19T09:00:00+00:00"
     assert reading["waiting"] >= 1
+    # The same read, for every language: the current one agrees with the single field above.
+    thai = next(x for x in body["read_and_listen_languages"] if x["language"] == "th")
+    assert thai == {
+        "language": "th",
+        "name": "Thai",
+        **{k: reading[k] for k in ("waiting", "last_read_at")},
+    }
+    assert all(
+        x["waiting"] == 0 for x in body["read_and_listen_languages"] if x["language"] != "th"
+    )
 
 
 def test_the_status_key_opens_status_and_nothing_else() -> None:
@@ -1686,7 +1702,6 @@ def test_a_sample_or_scene_counts_as_a_recording_and_needs_azure() -> None:
 
 def test_every_language_has_a_scene() -> None:
     from franki_reader.cast_samples import SCENES, sample_line
-    from franki_reader.languages import LANGUAGES
 
     assert set(SCENES) == set(LANGUAGES)
     assert all(all(line.strip() for line in lines) for lines in SCENES.values())
