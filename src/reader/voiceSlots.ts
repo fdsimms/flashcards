@@ -43,14 +43,27 @@ export function voicesForSlot(voices: AzureVoice[], slot: VoiceSlot): AzureVoice
 const NARRATOR_LOCALES = ['en-us', 'en-gb', 'en-au'];
 
 /**
- * The voices the narrator list shows: those of `gender` in American, British and Australian English,
- * not the Multilingual voices of other languages. The voice chosen now stays listed whatever it is,
- * so the checkmark never vanishes.
+ * The voices the narrator list shows: those of `gender` (either, for null) in American, British and
+ * Australian English, not the Multilingual voices of other languages. The voice chosen now stays
+ * listed whatever it is, so the checkmark never vanishes.
  */
-export function narratorVoices(voices: AzureVoice[], gender: Gender, chosen?: string): AzureVoice[] {
+export function narratorVoices(voices: AzureVoice[], gender: Gender | null, chosen?: string): AzureVoice[] {
   return voices.filter(
-    (v) => v.voice === chosen || (v.gender?.toLowerCase() === gender && NARRATOR_LOCALES.includes(v.locale.toLowerCase())),
+    (v) => v.voice === chosen || (!!v.gender && (gender === null || v.gender.toLowerCase() === gender) && NARRATOR_LOCALES.includes(v.locale.toLowerCase())),
   );
+}
+
+/**
+ * The voices that match a search: every word typed has to be in the voice's name, its id, its
+ * locale or its gender, whatever the case ("isla flash", "en-gb female"). Nothing typed matches all.
+ */
+export function searchVoices(voices: AzureVoice[], query: string): AzureVoice[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return voices;
+  return voices.filter((v) => {
+    const text = [v.name, v.voice, v.locale, v.gender].filter(Boolean).join(' ').toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
 }
 
 /** "Niwat and Premwadee": the man's and the woman's voice, for a row that opens the voices. */
