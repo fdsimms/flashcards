@@ -1,3 +1,4 @@
+import { genderOf } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, isTruthyField, soundFiles } from './html';
 import { hasThai } from './script';
@@ -181,7 +182,7 @@ export function thaiCountingWords(entry: string, classifier: string): string[] {
   return words.length && hasThai(entry) && words.every(hasThai) ? words : [];
 }
 
-const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
+export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
 const RUSSIAN_PRONOUNS: Record<string, string> = { m: 'мой', f: 'моя', n: 'моё' };
 
 function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): RenderedCard {
@@ -192,6 +193,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // English. A recording (`audioFile`) still plays.
   const say = speechLang ? entry : undefined;
   const translit = t(note, 'Transliteration');
+  // A Thai romanization's tone marks are colored by tone (toneColors.ts).
+  const isThai = !!speechLang?.startsWith('th');
   // The IPA, shown plainly with the word (the note type may not have the field yet: then it's empty).
   const pronunciation = t(note, 'Pronunciation');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
@@ -205,7 +208,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     const gender = t(note, 'Gender');
     const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, t(note, 'Register'), t(note, 'Dialect'), t(note, 'VerbClass')]
       .filter(Boolean);
-    pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta });
+    pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta, gender: genderOf(gender) });
     // The word's other forms, as Anki's template shows them in pills and its key forms line.
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
@@ -220,7 +223,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
     pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(note.fields.Context, entry) });
-    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(note.fields.ContextRomanized, translit) });
+    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(note.fields.ContextRomanized, translit), tones: isThai });
     pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
     pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
     pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
@@ -231,14 +234,14 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
 
   // Anki's template puts мой / моя / моё before a Russian noun wherever the word is shown.
   const prefix = speechLang?.startsWith('ru') ? RUSSIAN_PRONOUNS[t(note, 'Gender').toLowerCase()] : undefined;
-  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, prefix ? { prefix } : undefined);
+  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')) });
 
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, meaning, undefined, true);
     pushIf(back, pronunciation);
-    pushIf(back, translit, undefined, undefined, 'Show transliteration');
+    pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
     // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
@@ -252,7 +255,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
     pushIf(back, pronunciation);
-    pushIf(back, translit, undefined, undefined, 'Show transliteration');
+    pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
     pushIf(back, kana, undefined, undefined, 'Show reading');
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
@@ -271,7 +274,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
   pushIf(back, pronunciation);
-  pushIf(back, translit, undefined, undefined, 'Show transliteration');
+  pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
   pushIf(back, kana, undefined, undefined, 'Show reading');
   back.push(...detail());
   return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };
