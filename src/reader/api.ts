@@ -203,6 +203,9 @@ export type PhraseExplanation = {
   meaning: string;
   /** A word-for-word rendering, only when it differs from `meaning`. Absent from an answer kept before it existed. */
   literal?: string;
+  /** How formal the phrase is, and one sentence on where it fits. '' when the model wasn't sure; absent from an answer kept before it existed. */
+  register?: Register | '';
+  register_note?: string;
   points: ExplainPoint[];
 };
 
