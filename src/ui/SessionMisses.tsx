@@ -85,7 +85,7 @@ export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[];
       {rows.length > SHOWN ? <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>{`And ${rows.length - SHOWN} more.`}</Text> : null}
       {practicable ? (
         <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
-          Each word comes up among the ones it's mixed up with. Practicing doesn't change when its cards come back.
+          Practice these alongside similar words. It doesn't change when the cards come back.
         </Text>
       ) : null}
     </View>
