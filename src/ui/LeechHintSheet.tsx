@@ -3,7 +3,7 @@ import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { failureText } from '../core/failure';
 
 /**
@@ -112,7 +112,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
             onPress={() => { haptic.select(); setHint(idea); }}
             accessibilityRole="button"
             accessibilityLabel={`Use this hint: ${idea}`}
-            style={{ backgroundColor: c.accentFill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.s }}
+            style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}
           >
             <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
           </Tappable>

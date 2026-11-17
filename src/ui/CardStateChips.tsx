@@ -37,7 +37,7 @@ export function CardStateChips({ chip, leech }: { chip?: StateChip; leech: boole
       {leech ? (
         <View accessible accessibilityLabel="Leech: this card keeps being forgotten" style={{ ...pill, backgroundColor: c.warningFill }}>
           <Icon name="exclamationmark.triangle.fill" size={12} color={c.warning} />
-          <Text style={{ ...type.overline, color: c.warning }}>Leech</Text>
+          <Text style={{ ...type.overline, color: c.warningInk }}>Leech</Text>
         </View>
       ) : null}
     </View>

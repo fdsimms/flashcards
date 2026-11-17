@@ -68,9 +68,9 @@ class ReaderClient:
         return r.json()
 
 
-def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.AsyncClient | None = None) -> None:
-    """Adds Read & Listen's tools. `http` is for tests; the server makes its own."""
-    get = ReaderClient(settings, http).get
+def register(server: MCPServer, client: ReaderClient) -> None:
+    """Adds Read & Listen's tools."""
+    get = client.get
 
     @server.tool(annotations=READ)
     async def read_and_listen_costs(days: int = 30) -> dict[str, Any]:

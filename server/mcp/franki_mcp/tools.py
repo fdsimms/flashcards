@@ -30,6 +30,7 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from .collection import CollectionManager
+from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .speech import (
     TARGET_LUFS,
     TOLERANCE_LU,
@@ -137,7 +138,7 @@ def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]
     return out
 
 
-def _search_text(text: str) -> str:
+def search_text(text: str) -> str:
     """`text` as a literal inside a quoted Anki search term: \\ " * _ are escaped, so a deck called
     "A_B" or one with a quote in it matches itself and doesn't raise a search error."""
     return re.sub(r'([\\"*_])', r"\\\1", text)
@@ -252,6 +253,11 @@ reaches their devices at their next sync.
   own new-card positions, so every device follows and no schedule changes). It needs Read &
   Listen running. Preview first, show the user the start of the order and how many words had no
   place, and apply only once they agree: the old order isn't kept.
+- Tiers: tier_deck_by_frequency files a language deck's notes into `Tier 1`, `Tier 2`, `Tier 3`
+  subdecks by word frequency, each on its own preset with its own desired retention (common words
+  higher), and keeps new notes filed daily. tier_all_languages_by_frequency does it for every
+  language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
+  only once the user agrees. Franki shows the tiers as the one deck.
 """
 
 
@@ -532,7 +538,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         def run(col: Collection) -> dict[str, Any]:
             query = f"flag:{AGENT_FLAG}"
             if deck:
-                query += f' "deck:{_search_text(_deck_name(col, _deck_id(col, deck)))}"'
+                query += f' "deck:{search_text(_deck_name(col, _deck_id(col, deck)))}"'
             ids = list(col.find_cards(query))
             page = ids[: max(1, min(limit, 100))]
             out = []
@@ -654,7 +660,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         remembered (not Again) over the last 30 days, mature cards (interval 21+ days) apart."""
 
         def run(col: Collection) -> dict[str, Any]:
-            search = f'"deck:{_search_text(deck)}"' if deck else ""
+            search = f'"deck:{search_text(deck)}"' if deck else ""
             if deck:
                 _deck_id(col, deck)
             cids = list(col.find_cards(search))
@@ -750,6 +756,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     # effect only once those are cleared.
                     conf["fsrsParams5"], conf["fsrsParams6"] = params, []
             col.decks.update_config(conf)
+            # A deck filed into frequency tiers (tiers.py): its tiers' presets keep these parameters.
+            if params is not None:
+                share_params(col, conf)
             return {"preset": conf["name"], "decks_affected": sharing}
 
         return await cm.write(run)
@@ -762,8 +771,13 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
         def run(col: Collection) -> dict[str, Any]:
             conf, sharing = _preset(col, deck)
+            if TIER_PRESET_KEY in conf:
+                raise ToolError(f'"{deck}" is one of a deck\'s frequency tiers, which use the parent deck\'s FSRS parameters. Optimize the parent deck (the one above "Tier N") instead.')
             current = conf.get("fsrsParams6") or conf.get("fsrsParams5") or []
-            search = f'preset:"{conf["name"]}" -is:suspended'
+            # Its tiers' presets too: a deck filed into tiers keeps its cards under them, not under this one.
+            names = [conf["name"], *(t["name"] for t in tier_presets_for(col, conf))]
+            terms = " OR ".join('preset:"%s"' % n for n in names)
+            search = f"({terms}) -is:suspended"
             ignore = conf.get("ignoreRevlogsBeforeDate") or ""
             ignore_ms = int(datetime.fromisoformat(ignore).timestamp() * 1000) if ignore else 0
             resp = col._backend.compute_fsrs_params(
@@ -776,6 +790,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if apply and new and new != current:
                 conf["fsrsParams6"] = new
                 col.decks.update_config(conf)
+                share_params(col, conf)
                 out["applied"] = True
             return out
 

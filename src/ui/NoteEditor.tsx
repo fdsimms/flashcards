@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
+import { untiered } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
@@ -119,7 +120,7 @@ export function NoteEditor(props: {
   }, [props.repo, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const decks = useMemo(
-    () => [...new Set([...notes.map((n) => n.deck), ...(props.decks ?? []).filter((d) => !filteredDecks.has(d))])].sort((a, b) => a.localeCompare(b)),
+    () => [...new Set([...notes.map((n) => untiered(n.deck)), ...(props.decks ?? []).filter((d) => !filteredDecks.has(d))])].sort((a, b) => a.localeCompare(b)),
     [notes, props.decks, filteredDecks],
   );
   const models = useMemo(() => [...new Set([...noteTypes.keys(), ...notes.map((n) => n.model)])].sort((a, b) => a.localeCompare(b)), [noteTypes, notes]);
@@ -235,7 +236,8 @@ export function NoteEditor(props: {
             </View>
           ) : null}
           <Card>
-            <Select label="Deck" options={decks} value={deck} onChange={(d) => { setDeck(d); setError(undefined); }} />
+            {/* A note in a frequency tier shows as its language's deck, and choosing that deck again leaves it where it is. */}
+            <Select label="Deck" options={decks} value={untiered(deck)} onChange={(d) => { setDeck(original && d === untiered(original.deck) ? original.deck : d); setError(undefined); }} />
             {editing ? (
               // A note keeps its note type, as in Anki without its Change Note Type tool.
               <View style={{ gap: space.xs }}>
@@ -283,7 +285,7 @@ export function NoteEditor(props: {
           </Card>
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
-              Another {model} note in {duplicate.deck} already has this {fieldNames[0]}.
+              Another {model} note in {untiered(duplicate.deck)} already has this {fieldNames[0]}.
             </Text>
           ) : null}
           <Help>

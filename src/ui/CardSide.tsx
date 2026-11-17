@@ -39,7 +39,7 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
     <Text style={style}>
       {(segments ?? [{ text, marked: false }]).map((s, k) => (
         s.marked
-          ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{plain(s.text)}</Text>
+          ? <Text key={k} style={{ color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' }}>{plain(s.text)}</Text>
           : <React.Fragment key={k}>{plain(s.text)}</React.Fragment>
       ))}
     </Text>

@@ -4,7 +4,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson } from '../../reader/api';
 import { atEnd, clock, SKIP_SECONDS, skipTo } from '../../reader/lessons';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
+import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 
@@ -90,7 +90,7 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
     <Screen title={lesson.title}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
         <View style={{ gap: space.xs }}>
-          <View style={{ height: 6, borderRadius: 3, backgroundColor: c.fill, overflow: 'hidden' }}>
+          <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
             <View style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: c.accent }} />
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -150,7 +150,8 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
 function PhraseRow({ text, english, speaker, first }: { text: string; english: string; speaker?: 'A' | 'B'; first?: boolean }) {
   const c = useTheme();
   return (
-    <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, borderTopWidth: first ? 0 : 1, borderTopColor: c.border }}>
+    <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2 }}>
+      {first ? null : <Divider inset={space.l} />}
       <Text style={{ ...type.body, color: c.text }}>{speaker ? `${speaker}: ${text}` : text}</Text>
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{english}</Text>
     </View>

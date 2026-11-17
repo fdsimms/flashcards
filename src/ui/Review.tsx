@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
@@ -21,7 +21,7 @@ import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
-import { bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
+import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
 import { reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
@@ -80,7 +80,7 @@ import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
-import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
+import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -88,27 +88,6 @@ import { useHeaderInset } from './useHeaderInset';
 
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
 export { CardSurface };
-
-/** How far through the session is, as a thin line under the header. */
-export function ProgressBar({ value, label = 'Progress through this session', style }: { value: number; label?: string; style?: StyleProp<ViewStyle> }) {
-  const c = useTheme();
-  const reduce = useReduceMotion();
-  const v = useRef(new Animated.Value(value)).current;
-  useEffect(() => {
-    // Width can't use the native driver; the bar is one view, so the JS-driven animation is cheap.
-    Animated.timing(v, { toValue: value, duration: reduce ? 0 : 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
-      style={[{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }, style]}
-    >
-      <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
-    </View>
-  );
-}
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
 const AUDIO_MODE = { playsInSilentMode: true };
@@ -322,16 +301,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return () => { show.remove(); hide.remove(); };
   }, []);
   const typedShown = revealed ? typed : '';
+  // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
+  const autoplay = cardParams?.autoplay ?? true;
   const page = useMemo(() => {
     if (!note || !noteType || !current) return undefined;
     const ord = Number(current.kind.slice(1));
     const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
     const opts = {
-      css: noteType.css, ord, dark, autoplay: true, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
+      css: noteType.css, ord, dark, autoplay, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
-  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay]); // eslint-disable-line react-hooks/exhaustive-deps
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
@@ -407,7 +388,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [speechLang, phoneSpeech, self.stopTake]);
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
-  // recording is shown (a recording plays instead, in the page), and from each play button.
+  // recording is shown and the preset autoplays (a recording plays instead, in the page), and
+  // from each play button.
   const readAloud = useCallback((tags: TtsTag[]) => {
     Speech.stop();
     phoneSpeech.readTags(tags);
@@ -415,7 +397,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
   useEffect(() => {
     if (!pageAudio) return;
-    if (pageAudio.hasSound || !pageAudio.tts.length) Speech.stop();
+    if (pageAudio.hasSound || !pageAudio.tts.length || !autoplay) Speech.stop();
     else readAloud(pageAudio.tts);
   }, [current?.id, revealed]); // eslint-disable-line react-hooks/exhaustive-deps
   const onPageMessage = (data: string) => {
@@ -462,6 +444,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     haptic.answer();
     cardMotion.current?.flash(rating);
     try {
+      // Rebuilding the queue for the next card blocks JS for a while on a big deck, and the haptic's
+      // native call isn't sent until that's done. One frame here lets the haptic and the flash out first.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const when = new Date();
       // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
       // was, and it goes home to its own deck (Anki would show it again after a short delay first).
@@ -486,13 +471,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
-      // Time capped at a minute, as Anki's maximum answer time is, so a phone put down mid-card doesn't swell the summary.
+      // Time capped at the preset's maximum answer time, as Anki caps it, so a phone put down mid-card doesn't swell the summary.
       // `reviewId` and `anki` are filled in by the write below; undo waits for it (`reviewWrites.idle()`).
+      const takenMs = answerTimeMs(when.getTime() - shownAt.current, cardParams);
       const record: AnswerRecord = {
         before: current, deck: cardDeck(current, note.deck), buried: siblings,
-        rating, takenMs: Math.min(when.getTime() - shownAt.current, 60000), preview, ...(rating === 1 && miss ? { miss } : {}),
+        rating, takenMs, preview, ...(rating === 1 && miss ? { miss } : {}),
       };
-      const takenMs = when.getTime() - shownAt.current;
       const stepCounts = { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
       const desiredRetention = cardParams?.desiredRetention;
       const wasInFilteredDeck = current.filteredDeck;
@@ -1139,7 +1124,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
-      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
+      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} /> : null}
       {page ? (
         <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>

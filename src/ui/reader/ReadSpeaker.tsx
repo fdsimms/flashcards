@@ -18,7 +18,7 @@ export function speakerSize(text: Pick<ReaderText, 'characters' | 'genders'>, wh
 }
 
 function speakerColors(c: Colors, who: Who) {
-  return who === 'A' ? { bg: c.accentFill, fg: c.accent } : { bg: c.speakerB, fg: c.onSpeakerB };
+  return who === 'A' ? { bg: c.accentFill, fg: c.accentInk } : { bg: c.speakerB, fg: c.onSpeakerB };
 }
 
 function tones(c: Colors, who: Who): Record<Tone, string> {

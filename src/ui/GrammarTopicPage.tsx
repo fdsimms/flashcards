@@ -7,7 +7,7 @@ import { TOPIC_POLL_MS, topicWriting } from '../reader/topics';
 import { GrammarExamples } from './GrammarExamples';
 import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, SectionTitle } from './kit';
 import { MakingCard } from './MakingCard';
-import { hairline, radius, space, type, useTheme, readable } from './theme';
+import { hairline, radius, space, type, useTheme, readable, smooth } from './theme';
 
 /**
  * A grammar topic's page (Your topics): what Claude wrote for the topic, laid out as a point's page is, with
@@ -105,7 +105,7 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
 
         {topic && hasPage ? (
           <>
-            <View style={{ backgroundColor: c.accentFill, borderRadius: radius.l, padding: space.l, gap: space.xs }}>
+            <View style={{ backgroundColor: c.accentFill, borderRadius: radius.l, ...smooth, padding: space.l, gap: space.xs }}>
               <Text style={{ ...type.subhead, color: c.text }}>{`Written by Claude on ${written}. It isn't checked against a grammar book, so check it against what you hear and read.`}</Text>
               {topic.note ? <Text style={{ ...type.subhead, color: c.danger }}>{topic.note}</Text> : null}
             </View>

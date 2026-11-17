@@ -65,7 +65,7 @@ export function MissReminder({ text }: { text: string }) {
       accessibilityLabel={text}
       style={{
         alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.s, ...smooth,
-        borderRadius: radius.m, backgroundColor: c.highlight, paddingHorizontal: space.m, paddingVertical: space.s,
+        borderRadius: radius.m, ...smooth, backgroundColor: c.highlight, paddingHorizontal: space.m, paddingVertical: space.s,
       }}
     >
       <Icon name="exclamationmark.circle.fill" size={16} color={c.warning} />

@@ -67,8 +67,6 @@ export interface AnkiRevlogRow {
 
 /** Anki's default step counts (learn 1m 10m, relearn 10m), for a deck with no preset. */
 const DEFAULT_STEP_COUNTS = { learn: 2, relearn: 1 };
-/** Anki caps a review's recorded time at a minute by default ("Maximum answer seconds"). */
-const MAX_ANSWER_MS = 60_000;
 
 const secs = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
 
@@ -168,7 +166,10 @@ function stepInterval(fromSecs: number, toSecs: number, clock?: AnkiClock): numb
   return -Math.max(1, toSecs - fromSecs);
 }
 
-/** The review log row for one answer. `id` must be unique in the table: the answer's time in ms. */
+/**
+ * The review log row for one answer. `id` must be unique in the table: the answer's time in ms.
+ * `takenMs` comes already capped at the preset's maximum answer time (`answerTimeMs`).
+ */
 export function revlogEntry(
   before: Card,
   after: Card,
@@ -189,7 +190,7 @@ export function revlogEntry(
     ivl: revlogInterval(after, ctx.now, ctx.clock),
     lastIvl,
     factor: revlogDifficulty(after.sched.difficulty),
-    time: Math.min(MAX_ANSWER_MS, Math.max(0, Math.round(ctx.takenMs))),
+    time: Math.max(0, Math.round(ctx.takenMs)),
     type,
   };
 }

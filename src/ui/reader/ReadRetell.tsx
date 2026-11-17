@@ -85,7 +85,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                       hitSlop={{ top: space.xs, bottom: space.xs }}
                       style={{ minHeight: MIN_TAP - 8, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, backgroundColor: c.accentFill }}
                     >
-                      <Text style={{ ...type.subhead, color: c.accent }}>{`${w.word} · ${w.english}`}</Text>
+                      <Text style={{ ...type.subhead, color: c.accentInk }}>{`${w.word} · ${w.english}`}</Text>
                     </Tappable>
                   ))}
                 </View>

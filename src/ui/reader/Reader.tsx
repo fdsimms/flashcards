@@ -884,7 +884,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               }}
               style={{
                 flexDirection: 'row', gap: space.m, paddingHorizontal: space.l, paddingVertical: space.m,
-                borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
+                borderBottomWidth: hairline, borderBottomColor: c.border,
                 backgroundColor: shaded === i ? c.surface : undefined,
               }}
             >
@@ -1188,7 +1188,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }:
   onPress: () => void;
 }) {
   const c = useTheme();
-  const fg = on ? c.accent : c.textSecondary;
+  const fg = on ? c.accentInk : c.textSecondary;
   return (
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
@@ -1285,7 +1285,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       <Pop
         ready={popHeight > 0}
         style={{
-          backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.l,
+          backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth,
           padding: space.l, gap: space.xs, ...lift(c, 'high'),
         }}
       >
@@ -1398,7 +1398,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       }}
     >
       <Icon name="repeat" size={14} color={repeating ? c.accent : c.textSecondary} weight="semibold" />
-      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accent : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
+      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accentInk : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
     </Tappable>
   );
   return (
@@ -1467,7 +1467,7 @@ function SkipButton({ icon, label, onPress }: { icon: SFSymbol; label: string; o
 function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, padding: space.m }}>
+    <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, ...smooth, padding: space.m }}>
       <Text style={{ ...type.title, color: c.text }}>{value}</Text>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
     </View>

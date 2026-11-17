@@ -19,9 +19,9 @@ import { nextStage, outcomeText, stageChange, type StageChange } from '../wanika
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
-import { Button, Count, ErrorNote, Icon, Screen, Tappable } from './kit';
+import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
 import { Reveal } from './motion';
-import { CardSurface, ProgressBar } from './Review';
+import { CardSurface } from './Review';
 import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -529,7 +529,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
         ) : null}
         {droppedNote()}
-        <ProgressBar value={sessionProgress(study.session)} />
+        <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
         <CardSurface color={subjectColor(c, subject.type)} overlay={popup ? <StagePopup key={popup.id} change={popup.change} /> : null}>
           <ScrollView
             keyboardShouldPersistTaps="handled"

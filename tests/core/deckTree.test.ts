@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
-import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, isTierDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, untiered, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -210,6 +210,44 @@ describe('deckRows', () => {
       ['Languages::Polski', 0, 0, 0],
       ['Languages::Thai', 0, 2, 2],
     ]);
+  });
+});
+
+describe('frequency tier subdecks', () => {
+  const decks = {
+    'Languages::Thai::Tier 1': [...reviewCards(2, 10), ...newCards(3)],
+    'Languages::Thai::Tier 2': [...reviewCards(1, 10), ...newCards(2)],
+    'Languages::Thai::Tier 3': newCards(1),
+    'Languages::Polski': reviewCards(1, 10),
+    'Languages::Polski::Odmiana': reviewCards(2, 10),
+  };
+  it('are not listed, and the deck above them counts their cards', () => {
+    const rows = deckRows(input(decks));
+    expect(rows.map((r) => [r.deck, r.due, r.fresh, r.total])).toEqual([
+      ['Languages', 6, 6, 12],
+      ['Languages::Polski', 3, 0, 3],
+      ['Languages::Polski::Odmiana', 2, 0, 2],
+      ['Languages::Thai', 3, 6, 9],
+    ]);
+  });
+  it('leave the language with no subdecks to show or hide', () => {
+    const shown = shownDeckRows(deckRows(input(decks)), new Set());
+    expect(shown.find((r) => r.deck === 'Languages::Thai')?.hasSubdecks).toBe(false);
+    expect(shown.find((r) => r.deck === 'Languages::Polski')?.hasSubdecks).toBe(true);
+  });
+  it('are studied with their parent, each card in the deck it is in', () => {
+    expect(treeQueue('Languages::Thai', input(decks)).due).toHaveLength(3);
+    expect(treeQueue('Languages::Thai', input(decks)).fresh).toHaveLength(6);
+  });
+  it('are recognized by name only below the top level', () => {
+    expect(['Thai::Tier 1', 'A::B::Tier 12', 'Thai::Tier 2::Odmiana'].map(isTierDeck)).toEqual([true, true, true]);
+    expect(['Tier 1', 'Thai::Tiers', 'Thai::Tier', 'Thai::My Tier 1', 'Thai::Tier 1b'].map(isTierDeck)).toEqual([false, false, false, false, false]);
+  });
+  it('show as the deck above them wherever a deck is named, and other decks as themselves', () => {
+    expect(['Thai::Tier 2', 'Languages::Thai::Tier 1', 'Thai::Tier 1::Odmiana', 'Languages::Thai', 'Tier 1', 'Thai::Tiers'].map(untiered)).toEqual(['Thai', 'Languages::Thai', 'Thai', 'Languages::Thai', 'Tier 1', 'Thai::Tiers']);
+  });
+  it('are not listed even when they are empty decks Anki lists', () => {
+    expect(deckRows(input({ 'Languages::Thai': newCards(1) }), ['Languages::Thai::Tier 1']).map((r) => r.deck)).toEqual(['Languages', 'Languages::Thai']);
   });
 });
 

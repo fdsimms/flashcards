@@ -7,7 +7,7 @@ import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../../reade
 import { haptic } from '../haptics';
 import { HeaderAction } from '../kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
-import { hairline, MIN_TAP, radius, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * What the marks on the words mean, with a switch for each, in a sheet the reader's header button
@@ -58,7 +58,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange, onCl
                     pointerEvents="none"
                     accessibilityElementsHidden
                     importantForAccessibility="no-hide-descendants"
-                    style={{ flexShrink: 1, backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.xs + 2 }}
+                    style={{ flexShrink: 1, backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs + 2 }}
                   >
                     <WordView
                       word={{ ...e.word, stretch: e.mark === 'stretch' }}

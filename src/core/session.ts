@@ -1,7 +1,19 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
 import type { AnkiUndo } from '../anki/writeback';
 import type { RatingValue } from './scheduler';
-import type { Card } from './types';
+import type { Card, DeckParams } from './types';
+
+/** Anki's "Maximum answer seconds" for a deck without a preset. */
+const DEFAULT_MAX_ANSWER_SECS = 60;
+
+/**
+ * The time one answer records: how long the card was up, capped at the card's preset's "Maximum
+ * answer seconds" as Anki's `Card.time_taken` caps it, so a phone put down mid-card doesn't count.
+ * The review log, the deck's studied-today time and the session summary all use this.
+ */
+export function answerTimeMs(shownForMs: number, params: Pick<DeckParams, 'maxAnswerSecs'> | undefined): number {
+  return Math.max(0, Math.min(shownForMs, (params?.maxAnswerSecs ?? DEFAULT_MAX_ANSWER_SECS) * 1000));
+}
 
 /**
  * Bookkeeping for one review session, kept out of the screen so it can be tested: today's counts

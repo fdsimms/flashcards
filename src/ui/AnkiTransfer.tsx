@@ -118,7 +118,8 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
         : `Couldn't import ${name}. Franki imports a collection exported from AnkiMobile (.colpkg).`);
       return;
     }
-    if (lower.endsWith('.txt') || lower.endsWith('.tsv')) {
+    // The three extensions Anki's own text import takes (rslib's CSV importer reads them all alike).
+    if (lower.endsWith('.txt') || lower.endsWith('.tsv') || lower.endsWith('.csv')) {
       importTsvFile(picked, name);
       return;
     }

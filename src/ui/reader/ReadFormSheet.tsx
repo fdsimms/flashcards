@@ -5,7 +5,7 @@ import type { Api, FormPrimer, Language, Word } from '../../reader/api';
 import { aboutWord, pieces } from '../../reader/formPrimer';
 import { haptic } from '../haptics';
 import { ErrorNote, HeaderAction, Icon, Tappable } from '../kit';
-import { hairline, radius, space, type, useTheme } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 import { failureText } from '../../core/failure';
 
 /**
@@ -22,9 +22,9 @@ export function ReadFormChip({ name, onPress }: { name: string; onPress: () => v
       accessibilityLabel={`${name}. Open an explanation.`}
       scaleTo={0.96}
       hitSlop={{ top: space.m, bottom: space.m }}
-      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.s, paddingHorizontal: space.s, paddingVertical: 2 }}
+      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.s, ...smooth, paddingHorizontal: space.s, paddingVertical: 2 }}
     >
-      <Text style={{ ...type.footnote, color: c.accent }}>{name}</Text>
+      <Text style={{ ...type.footnote, color: c.accentInk }}>{name}</Text>
       <Icon name="chevron.right" size={10} color={c.accent} weight="semibold" />
     </Tappable>
   );
@@ -54,7 +54,7 @@ function Marked({ text, style }: { text: string; style: StyleProp<TextStyle> }) 
   return (
     <Text style={style}>
       {pieces(text).map((p, i) => (
-        <Text key={i} style={p.marked ? { color: c.accent, fontWeight: '700', backgroundColor: c.accentFill } : undefined}>{p.text}</Text>
+        <Text key={i} style={p.marked ? { color: c.accentInk, fontWeight: '700', backgroundColor: c.accentFill } : undefined}>{p.text}</Text>
       ))}
     </Text>
   );
@@ -65,7 +65,7 @@ function Table({ table }: { table: NonNullable<FormPrimer['table']> }) {
   // The first column names the row, so it's wider than the endings beside it.
   const flex = (i: number) => (i === 0 ? 1.4 : 1);
   return (
-    <View style={{ backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.s }}>
+    <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
       <View style={{ flexDirection: 'row', gap: space.s, paddingBottom: space.xs }}>
         {table.head.map((h, i) => <Text key={i} style={{ ...type.caption, flex: flex(i), color: c.textSecondary }}>{h}</Text>)}
       </View>
@@ -109,7 +109,7 @@ export function ReadFormSheet({ api, language, word, onClose }: { api: Api; lang
             {primer.table ? <Table table={primer.table} /> : null}
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.overline, color: c.textSecondary }}>Examples</Text>
-              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, paddingHorizontal: space.m }}>
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m }}>
                 {primer.examples.map((e, i) => (
                   <View key={i} style={{ paddingVertical: space.s, gap: 2, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
                     <Marked text={e.text} style={{ ...type.body, color: c.text }} />

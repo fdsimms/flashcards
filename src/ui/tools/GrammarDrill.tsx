@@ -11,8 +11,8 @@ import { ApiError, type Api } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Segments, Tappable } from '../kit';
-import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
+import { Button, Card, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
+import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
@@ -165,14 +165,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
-        <View
-          accessibilityRole="progressbar"
-          accessibilityLabel="Progress through this drill"
-          accessibilityValue={{ min: 0, max: prompts.length, now: index }}
-          style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}
-        >
-          <View style={{ width: `${(index / prompts.length) * 100}%`, height: 4, borderRadius: 2, backgroundColor: c.accent }} />
-        </View>
+        <ProgressBar value={index / prompts.length} label="Progress through this drill" />
         {prompt.typable ? (
           <Segments<AnswerMode> options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]} value={mode} onChange={switchMode} />
         ) : null}
@@ -244,7 +237,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
               : <Status tone="bad">{`${current.almost ? 'Almost' : 'Not quite'}. It's ${prompt.answer}.`}</Status>}
             {current.almost ? <Help>Only an accent or a mark differs, and here that makes it another form, so it counts as wrong.</Help> : null}
             {point ? (
-              <View style={{ borderTopWidth: 1, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
+              <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
                   <Text style={{ fontWeight: '600', color: c.text }}>{`${point.name}.`}</Text>
                   {` ${noteWithExample(point)}.`}

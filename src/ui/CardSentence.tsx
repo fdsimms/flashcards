@@ -4,7 +4,7 @@ import type { Segment } from '../core/highlight';
 import { dotOffsets, sentencePieces, wordBreaks } from '../reader/cardGlosses';
 import { LANGUAGES } from '../reader/languages';
 import { GlossPopover, type Tapped } from './reader/Reader';
-import { radius, useTheme } from './theme';
+import { radius, useTheme, smooth } from './theme';
 import type { SentenceGloss } from './useCardGlosses';
 
 const DOT = 2;
@@ -79,14 +79,14 @@ export function CardSentence({ gloss, segments, style }: { gloss: SentenceGloss;
               accessibilityRole="button"
               accessibilityLabel={piece.word.text}
               accessibilityHint="Shows what this word means"
-              style={{ paddingBottom: UNDERLINE_SPACE, borderRadius: radius.s - 2, backgroundColor: ringed ? c.accentFill : undefined }}
+              style={{ paddingBottom: UNDERLINE_SPACE, borderRadius: radius.s - 2, ...smooth, backgroundColor: ringed ? c.accentFill : undefined }}
             >
               {ringed ? (
-                <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }} />
+                <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, ...smooth, borderWidth: 1.5, borderColor: c.accent }} />
               ) : null}
               <Text style={style}>
                 {piece.parts.map((p, k) => (p.marked
-                  ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
+                  ? <Text key={k} style={{ color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
                   : p.text))}
               </Text>
               {box ? dotOffsets(box.width - left - right, DOT).map((x, k) => (

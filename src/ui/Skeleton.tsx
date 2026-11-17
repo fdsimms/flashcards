@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { Card } from './kit';
 import { useReduceMotion } from './motion';
-import { radius, space, useTheme } from './theme';
+import { radius, space, useTheme, smooth } from './theme';
 
 /**
  * Placeholder rows for a list that's still loading, pulsing gently, so the screen has its shape
@@ -22,7 +22,7 @@ export function SkeletonList({ rows = 3 }: { rows?: number }) {
     loop.start();
     return () => loop.stop();
   }, [reduce]); // eslint-disable-line react-hooks/exhaustive-deps
-  const bar = (width: `${number}%`, height: number) => <View style={{ width, height, borderRadius: radius.s, backgroundColor: c.fill }} />;
+  const bar = (width: `${number}%`, height: number) => <View style={{ width, height, borderRadius: radius.s, ...smooth, backgroundColor: c.fill }} />;
   return (
     <Animated.View
       accessibilityElementsHidden
