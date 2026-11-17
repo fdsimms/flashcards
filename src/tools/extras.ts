@@ -5,7 +5,7 @@ import { liveMisses, markList, type Marks } from './marks';
 import { TOOLS, type ToolId } from './tools';
 
 /**
- * Daily extras: what the deck list suggests besides flashcards each study day, a short drill from
+ * Daily extras: what Today suggests besides flashcards each study day, a short drill from
  * the Practice tab or a text to read, picked from what's been missed lately. A language set to
  * Always (a focus language) gets two a day; the others take turns, the one practiced longest ago
  * first. Pure, so it's tested; src/ui/useDailyExtras.ts reads the phone's side (extrasStorage.ts).

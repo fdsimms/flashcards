@@ -51,7 +51,7 @@ import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
-import { PlayButton } from './PlayButton';
+import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
@@ -371,6 +371,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
     [rendered, phoneSpeech, self.stopTake],
   );
 
+  // The Example sentence's speaker button: the phone's voice for the note's language, at the speed chosen
+  // for it (Settings, Voices). Never the note's recording, which is of the word and not the sentence.
+  const speechLang = rendered?.speechLang;
+  const speakSentence = useCallback((text: string) => {
+    if (!speechLang) return;
+    self.stopTake();
+    player.current?.pause();
+    ttsRunning.current = true;
+    phoneSpeech.sayLine(text, speechLang, false);
+  }, [speechLang, phoneSpeech, self.stopTake]);
+
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown (a recording plays instead, in the page), and from each play button.
   const readAloud = useCallback((tags: TtsTag[]) => {
@@ -417,7 +428,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
-  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups);
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes);
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -788,7 +799,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
           {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
-              <SessionMissList rows={sessionMisses.rows} practicable={mixing > 0} />
+              <SessionMissList rows={sessionMisses.rows} />
               <FormsCheck items={forms.toCheck} />
               {extraCard}
               <NextSteps steps={steps} />
@@ -1064,7 +1075,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
       {page && current.sched.state === 0 ? <NewCardChip /> : null}
       {page ? (
-        <SwipeCard enabled={false} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
               again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
@@ -1076,14 +1087,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               {current.sched.state === 0 ? <NewCardChip /> : null}
-              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} />
+              <Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speakSentence={speechLang ? speakSentence : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
@@ -1094,7 +1105,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, glossing
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} />
+                <Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} />
                 {extras}
               </Reveal>
             ) : null}

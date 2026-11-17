@@ -28,10 +28,13 @@ describe('options', () => {
   it('holds lessons back only while more items are at Apprentice than the limit', () => {
     expect(DEFAULT_PREFS.maxApprentice).toBeNull();
     expect(apprenticeBlocks(500, null)).toBe(false);
-    expect(apprenticeBlocks(100, 100)).toBe(false);
+    expect(apprenticeBlocks(99, 100)).toBe(false);
+    expect(apprenticeBlocks(100, 100)).toBe(true);
     expect(apprenticeBlocks(101, 100)).toBe(true);
     expect(lessonsToday(40, 15, 0, 101, 100)).toBe(0);
-    expect(lessonsToday(40, 15, 0, 100, 100)).toBe(15);
+    expect(lessonsToday(40, 15, 0, 100, 100)).toBe(0);
+    expect(lessonsToday(40, 15, 0, 17, 25)).toBe(8);
+    expect(lessonsToday(40, 15, 0, 5, 25)).toBe(15);
     expect(lessonsToday(40, 15, 0, 500, null)).toBe(15);
   });
 

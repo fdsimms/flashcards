@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import { parseSnapshot, type Snapshot } from './offline';
+import { parseStats, type WaniKaniStats } from './stats';
 import { parsePrefs, parseState, type WaniKaniPrefs, type WaniKaniState } from './prefs';
 
 /**
@@ -71,6 +72,28 @@ export async function saveSnapshot(snapshot: Snapshot): Promise<void> {
   await f.write(JSON.stringify(snapshot));
 }
 
+const STATS_FILE = 'wanikani-stats.json';
+
+/** The stage counts, level progress and forecast as last read (stats.ts), so the row and its screen have them offline. */
+export async function loadStats(): Promise<WaniKaniStats | null> {
+  try {
+    const f = new File(Paths.document, STATS_FILE);
+    return parseStats(f.exists ? await f.text() : null);
+  } catch {
+    return null;
+  }
+}
+
+export function saveStats(stats: WaniKaniStats): void {
+  try {
+    const f = new File(Paths.document, STATS_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(stats));
+  } catch {
+    // Nothing to do: the next read writes it again.
+  }
+}
+
 function audioFolder(): Directory {
   const dir = new Directory(Paths.document, AUDIO_FOLDER);
   dir.create({ idempotent: true, intermediates: true });
@@ -116,6 +139,8 @@ export function clearOffline(): void {
   try {
     const f = new File(Paths.document, OFFLINE_FILE);
     if (f.exists) f.delete();
+    const stats = new File(Paths.document, STATS_FILE);
+    if (stats.exists) stats.delete();
     const dir = new Directory(Paths.document, AUDIO_FOLDER);
     if (dir.exists) dir.delete();
   } catch {

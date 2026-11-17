@@ -17,7 +17,7 @@ const MODE_HELP: Record<LanguageMode, string> = {
 };
 
 /**
- * Settings, Daily extras: whether the deck list suggests drills and texts each day, which
+ * Settings, Daily extras: whether Today suggests drills and texts each day, which
  * languages always get them (focus languages) and which take turns (src/tools/extras.ts), and
  * what today's list is. This phone's own settings; nothing here changes when a card is due.
  */

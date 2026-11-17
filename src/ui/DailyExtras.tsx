@@ -14,7 +14,7 @@ import type { ExtraItem, useDailyExtras } from './useDailyExtras';
 type Extras = ReturnType<typeof useDailyExtras>;
 
 /**
- * Today's extras on the deck list (src/tools/extras.ts): a strip of chips under the day's count,
+ * Today's extras on the Today tab (src/tools/extras.ts): a strip of chips under the day's count,
  * one per extra, checked off once it's done. A tap opens the drill or the text. Grammar due today
  * (`grammarDue`, from the same schedule as the Grammar screen) is a chip for each language that has
  * some; it isn't one of the day's planned extras, so it isn't counted in "done". Nothing shows when
@@ -73,7 +73,7 @@ const chipLabel = (item: ExtraItem) => item.title.replace(': ', ' ');
 
 /**
  * The end of a deck's session: the next extra for that deck's language, if it has one today and
- * it isn't done, above the usual next steps. The same plan as the deck list's strip.
+ * it isn't done, above the usual next steps. The same plan as Today's strip.
  */
 export function ExtraCard({ extras, language }: { extras: Extras; language: keyof typeof LANGUAGES }) {
   const c = useTheme();

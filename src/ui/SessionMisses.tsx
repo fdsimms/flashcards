@@ -4,7 +4,8 @@ import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
 import { missReasonsFor } from '../core/misses';
 import type { AnswerRecord } from '../core/session';
-import type { Card, Note } from '../core/types';
+import { missedCardText, type MissedCardText } from '../core/missedCard';
+import type { Card, Note, NoteType } from '../core/types';
 import type { Language } from '../reader/api';
 import { missedPracticeLabel, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
@@ -24,19 +25,26 @@ export interface MixupRequest {
  * sounds by ear, the rest by meaning, each among the words it's confused with. Practicing changes
  * nothing about when the cards come back. `practicable` false (no route to the tool) offers none.
  */
-export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean) {
-  const missed = useMemo(() => history.filter((h) => h.rating === 1).map((h) => ({ noteId: h.before.noteId, miss: h.miss })), [history]);
-  // Each note once, with its latest reason.
+export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean, noteTypes: Map<string, NoteType>) {
+  const missed = useMemo(() => history.filter((h) => h.rating === 1).map((h) => ({ noteId: h.before.noteId, kind: h.before.kind, cardId: h.before.id, miss: h.miss })), [history]);
+  // An Anki note type's card once (its question and answer say which card), any other note once,
+  // each with its latest reason.
   const rows = useMemo(() => {
-    const latest = new Map<string, string | undefined>();
-    for (const m of missed) { latest.delete(m.noteId); latest.set(m.noteId, m.miss); }
-    return [...latest].flatMap(([noteId, miss]) => {
-      const note = notes.get(noteId);
+    const latest = new Map<string, (typeof missed)[number] & { card?: MissedCardText }>();
+    for (const m of missed) {
+      const note = notes.get(m.noteId);
+      const card = note ? missedCardText(note, noteTypes.get(note.model), m.kind) : undefined;
+      const key = card ? m.cardId : m.noteId;
+      latest.delete(key);
+      latest.set(key, { ...m, card });
+    }
+    return [...latest].flatMap(([key, m]) => {
+      const note = notes.get(m.noteId);
       if (!note) return [];
-      const reason = miss ? missReasonsFor(note).find((r) => r.key === miss)?.label : undefined;
-      return [{ noteId, word: headword(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim(), reason }];
+      const reason = m.miss ? missReasonsFor(note).find((r) => r.key === m.miss)?.label : undefined;
+      return [{ key, noteId: m.noteId, word: headword(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim(), card: m.card, reason }];
     });
-  }, [missed, notes]);
+  }, [missed, notes, noteTypes]);
   const practice = useMemo(() => {
     if (!practicable || !missed.length || !cards) return [];
     const studied = new Set(cards.filter((card) => card.sched.state !== 0).map((card) => card.noteId));
@@ -54,8 +62,8 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
 
 export type SessionMissRow = ReturnType<typeof useSessionMisses>['rows'][number];
 
-/** The list of words missed this session, with a line under it when some can be practiced. */
-export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[]; practicable: boolean }) {
+/** The list of words missed this session. */
+export function SessionMissList({ rows }: { rows: SessionMissRow[] }) {
   const c = useTheme();
   if (!rows.length) return null;
   return (
@@ -64,16 +72,28 @@ export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[];
       <View style={{ backgroundColor: c.surface, borderRadius: radius.m, ...smooth, borderWidth: hairline, borderColor: c.border, overflow: 'hidden' }}>
         {rows.slice(0, SHOWN).map((r, i) => (
           <View
-            key={r.noteId}
+            key={r.key}
             accessible
-            accessibilityLabel={`${r.word}, ${r.meaning}${r.reason ? `, missed on ${r.reason.toLowerCase()}` : ''}`}
+            accessibilityLabel={`${r.card ? `${r.card.question}, ${r.card.answer}` : `${r.word}, ${r.meaning}`}${r.reason ? `, missed on ${r.reason.toLowerCase()}` : ''}`}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: space.m, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: 44,
               borderTopWidth: i ? hairline : 0, borderTopColor: c.border,
             }}
           >
-            <Text style={{ ...type.body, color: c.text }}>{r.word}</Text>
-            <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{r.meaning}</Text>
+            {r.card ? (
+              <View style={{ flex: 1, gap: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.s }}>
+                  <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary, flexShrink: 1 }}>{r.card.question}</Text>
+                  {r.card.cardName ? <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary, flexShrink: 1 }}>{r.card.cardName}</Text> : null}
+                </View>
+                <Text style={{ ...type.body, color: c.text }}>{r.card.answer}</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={{ ...type.body, color: c.text }}>{r.word}</Text>
+                <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{r.meaning}</Text>
+              </>
+            )}
             {r.reason ? (
               <View style={{ backgroundColor: c.dangerFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>
                 <Text style={{ ...type.footnote, color: c.danger }}>{r.reason}</Text>
@@ -83,11 +103,6 @@ export function SessionMissList({ rows, practicable }: { rows: SessionMissRow[];
         ))}
       </View>
       {rows.length > SHOWN ? <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>{`And ${rows.length - SHOWN} more.`}</Text> : null}
-      {practicable ? (
-        <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
-          Each word comes up among the ones it's mixed up with. Practicing doesn't change when its cards come back.
-        </Text>
-      ) : null}
     </View>
   );
 }

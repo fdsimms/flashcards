@@ -22,7 +22,7 @@ export function vacationDetail(prefs: VacationPrefs, today: string): string {
   return prefs.until ? `${name} until ${vacationDate(prefs.until)}` : `${name}, with no end date`;
 }
 
-/** What the deck list says about the vacation, or undefined. */
+/** What Today says about the vacation, or undefined. */
 export function useVacationBanner(): VacationNotice | undefined {
   const prefs = useVacationPrefs();
   const { dayStartsAtHour } = useStudyToday();
@@ -30,8 +30,8 @@ export function useVacationBanner(): VacationNotice | undefined {
 }
 
 /**
- * The deck list's card while a vacation applies, and for two days after it ends. A tap opens the
- * setting (to end it early, extend it, or change the level). `due` is the deck list's review total.
+ * Today's card while a vacation applies, and for two days after it ends. A tap opens the
+ * setting (to end it early, extend it, or change the level). `due` is Today's review total.
  */
 export function VacationCard({ notice, due }: { notice: VacationNotice; due: number }) {
   const c = useTheme();

@@ -6,7 +6,7 @@ import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 
 /**
- * The deck list's "Studied today" line (src/core/todaySummary.ts), read again whenever the deck
+ * Today's "Studied today" line (src/core/todaySummary.ts), read again whenever the deck
  * list is recounted (after a study session, a sync, coming back to the screen), so it follows the
  * counts above it. WaniKani's answers given here count with the rest, as they do on Stats.
  * Undefined until the first read, and when it fails: the line is only a convenience.
