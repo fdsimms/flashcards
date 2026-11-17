@@ -124,6 +124,15 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     return null;
   };
 
+  // The shown translation sits under the same hairline its Show translation row has, labeled with its language
+  // (ContextTranslation is English), so a translation that reads like a question isn't taken for a prompt.
+  const translationRow = (it: Item) => (
+    <View key={it.i} style={{ borderTopWidth: hairline, borderTopColor: c.border, marginTop: space.xs, padding: space.m, gap: 2 }}>
+      <Text style={{ ...type.footnote, fontWeight: '600', color: c.textDim }}>English</Text>
+      {line(it)}
+    </View>
+  );
+
   return (
     <View style={{ gap: space.l }}>
       {groups.map((group) => {
@@ -151,6 +160,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.map((it) => (hidden(it)
                   ? hintRow(it)
+                  : it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : space.s }}>{line(it)}</View>))}
               </View>
             </View>
