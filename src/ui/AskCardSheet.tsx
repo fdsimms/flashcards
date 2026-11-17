@@ -16,6 +16,7 @@ import { MIN_TAP, radius, space, type, useTheme } from './theme';
  *
  * `onUseAnswer` (present only for a note that can take a mnemonic) closes this sheet and opens the
  * mnemonic sheet with the answer filled in, so nothing is written to the note until it's saved there.
+ * The button and its line say it's the Mnemonic field, which is where the answer ends up.
  * A swipe down closes the sheet, except while an answer is on its way.
  */
 export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
@@ -100,10 +101,12 @@ export function AskCardSheet({ card, ask, onUseAnswer, onClose }: {
           </View>
         ) : null}
         {onUseAnswer && lastAnswer && !asking ? (
-          <Tappable onPress={() => { haptic.select(); onUseAnswer(lastAnswer); }} accessibilityRole="button" accessibilityLabel="Save this answer as a mnemonic on the note" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
-            <Icon name="square.and.arrow.down" size={18} color={c.accent} />
-            <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Save this answer to the note</Text>
-          </Tappable>
+          <View style={{ gap: space.xs }}>
+            <Button label="Save as mnemonic" variant="secondary" onPress={() => { haptic.select(); onUseAnswer(lastAnswer); }} accessibilityLabel="Save this answer as the note's mnemonic" />
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>
+              Opens the mnemonic editor with this answer filled in, so you can change it first. It's saved in the note's Mnemonic field, which shows on the back of the card.
+            </Text>
+          </View>
         ) : null}
         <Field label="Question" value={text} onChangeText={setText} placeholder={turns.length ? 'Ask a follow-up' : 'Why is it used this way?'} multiline />
         <View style={{ flexDirection: 'row', gap: space.m }}>
