@@ -64,27 +64,28 @@ export function reasonLabel(text: ShelfText): string {
 }
 
 /**
- * What Up next's Play all goes through, over the list: "The episode and 3 texts · 16 min". The
- * story's episode is on its own card above, so it's named apart. Null when there's nothing to play.
+ * What Up next's Play all goes through, over the list: "3 texts · 12 min". Only the list's texts:
+ * the story's episode is played from its own card above. Null when the list is empty.
  */
-export function upNextSummary(shelf: Pick<Shelf, 'story' | 'texts'>): string | null {
-  const episode = !!shelf.story?.next;
+export function upNextSummary(shelf: Pick<Shelf, 'texts'>): string | null {
   const n = shelf.texts.length;
-  if (!episode && n === 0) return null;
-  const texts = n === 1 ? '1 text' : `${n} texts`;
-  const what = !episode ? texts : n === 0 ? 'The episode' : `The episode and ${texts}`;
-  return `${what} · ${playMinutes(shelf)} min`;
+  if (n === 0) return null;
+  return `${n === 1 ? '1 text' : `${n} texts`} · ${playMinutes(shelf)} min`;
 }
 
-/** The texts Play all goes through, in order: the story's next episode, then the shelf. */
+/** The texts Up next's Play all goes through, in order: the shelf's texts, never the story's episode. */
+export function upNextOrder(shelf: Pick<Shelf, 'texts'>): number[] {
+  return shelf.texts.map((t) => t.id);
+}
+
+/** The shelf's reading order, for Next and for downloads: the story's next episode, then the shelf. */
 export function playOrder(shelf: Pick<Shelf, 'story' | 'texts'>): number[] {
   return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id)];
 }
 
-/** How long Play all takes, in minutes. */
-export function playMinutes(shelf: Pick<Shelf, 'story' | 'texts'>): number {
-  const texts = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts];
-  return texts.reduce((sum, t) => sum + minutesFor(t.lines), 0);
+/** How long Play all takes, in minutes: the shelf's texts, without the story's episode. */
+export function playMinutes(shelf: Pick<Shelf, 'texts'>): number {
+  return shelf.texts.reduce((sum, t) => sum + minutesFor(t.lines), 0);
 }
 
 /** After `current`, the text to open next from `order`, or null at the end. */

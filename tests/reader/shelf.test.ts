@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, episodeLabel, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
+import { cardDetail, episodeLabel, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -43,14 +43,10 @@ describe('the shelf', () => {
     expect(episodeLabel({}, 5)).toBe('Episode 5');
   });
 
-  it('says what Play all goes through, naming the episode apart from the texts', () => {
-    const episode = { id: 1, title: '', about: '', read: 0, last_recap: '', next: text({ id: 9, lines: 12 }), writing: false, failed: null };
-    expect(upNextSummary({ story: null, texts: [] })).toBeNull();
-    expect(upNextSummary({ story: { ...episode, next: null }, texts: [] })).toBeNull();
-    expect(upNextSummary({ story: null, texts: [text({ lines: 12 })] })).toBe('1 text · 4 min');
-    expect(upNextSummary({ story: null, texts: [text({ lines: 12 }), text({ lines: 6 })] })).toBe('2 texts · 6 min');
-    expect(upNextSummary({ story: episode, texts: [] })).toBe('The episode · 4 min');
-    expect(upNextSummary({ story: episode, texts: [text({ lines: 12 }), text({ lines: 12 }), text({ lines: 12 })] })).toBe('The episode and 3 texts · 16 min');
+  it('says what Play all goes through: the texts in Up next, without the story card episode', () => {
+    expect(upNextSummary({ texts: [] })).toBeNull();
+    expect(upNextSummary({ texts: [text({ lines: 12 })] })).toBe('1 text · 4 min');
+    expect(upNextSummary({ texts: [text({ lines: 12 }), text({ lines: 6 })] })).toBe('2 texts · 6 min');
   });
 
   it('plays the story first, then the shelf in order', () => {
@@ -59,6 +55,9 @@ describe('the shelf', () => {
     expect(playMinutes(shelf)).toBe(7);
     const withStory = { ...shelf, story: { id: 1, title: '', about: '', read: 0, last_recap: '', next: text({ id: 9 }), writing: false, failed: null } };
     expect(playOrder(withStory)).toEqual([9, 3, 5]);
+    // Play all leaves the episode to its own card.
+    expect(upNextOrder(withStory)).toEqual([3, 5]);
+    expect(playMinutes(withStory)).toBe(7);
     expect(nextInOrder([9, 3, 5], 3)).toBe(5);
     expect(nextInOrder([9, 3, 5], 5)).toBeNull();
     expect(nextInOrder([9, 3, 5], 4)).toBeNull();

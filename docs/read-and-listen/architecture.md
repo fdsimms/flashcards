@@ -1217,14 +1217,16 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   with Dialogue or Story chosen there) and joins the shelf when it's ready, beyond the 3
   (`asked`). The owner still picks whenever they want to (brief, principle 10); the shelf only means
   they don't have to every time.
-- **Play all** plays the story's next episode and then the shelf, one text after another, with
+- **Play all** plays the shelf's texts (Up next), one text after another, with
   background audio. A text whose last line has played is logged as read, unrated, and the next one
   opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
   is unverified.
 - **The layout** (17 November 2026, the owner chose from a mock: the shelf showed too much at once).
   Top to bottom: the reviews-due row, the story card (its name and episode, the title, its length
   with the practice words, Read and listen, Last time), **Up next** (the shelf's texts, with a quieter
-  Play all whose line says what it covers, "The episode and 3 texts · 16 min"), the Hear again row, and
+  Play all whose line says what it covers, "3 texts · 12 min"). Play all no longer starts with the
+  story's episode, which is played from its own card; the reader's Next after the episode still
+  goes on to the shelf (`playOrder`), while Play all moving on stays within Up next (`upNextOrder`), the Hear again row, and
   **Library** (Past episodes, Past texts, Audio lessons, Marked words). A row's second line is its
   length, model and reason ("Story · 4 min · Sonnet · Because you liked ..."); the line count is gone.
   Writing a text (Surprise me, or a topic as Dialogue or Story, and Written by) moved off the shelf

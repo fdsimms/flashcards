@@ -13,7 +13,7 @@ import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, s
 import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
 import { firstLine, paragraphs, rangeOf, repeatChipLabel } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
-import { minutesFor, nextInOrder, playOrder, stepLength, type LengthStep } from '../../reader/shelf';
+import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
 import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../../reader/phrase';
 import { choicesView, holdsPlayAll } from '../../reader/choices';
@@ -399,12 +399,14 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
 
   // What Next opens: the next text in the shelf's order, else whatever the shelf has now (a text
-  // written since). Looked up when the end view shows, and when Play all moves on. Throws when the
-  // shelf can't be reached, so the end view can say so rather than look like there's nothing next.
-  const findNext = async (): Promise<UpNext | null> => {
+  // written since). Looked up when the end view shows, and when Play all moves on. Play all goes
+  // through Up next's texts only (`upNextOrder`): the story's episode has its own card and isn't
+  // part of it. Throws when the shelf can't be reached, so the end view can say so rather than look
+  // like there's nothing next.
+  const findNext = async (playingAll = false): Promise<UpNext | null> => {
     if (source.kind !== 'shelf' || !text) return null;
     const shelf = await api.shelf();
-    const order = playOrder(shelf).filter((id) => id !== text.id);
+    const order = (playingAll ? upNextOrder(shelf) : playOrder(shelf)).filter((id) => id !== text.id);
     const listed = nextInOrder(source.order, text.id);
     const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
     const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
@@ -444,7 +446,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     } catch {
       // The reading is lost, not your place: carry on either way.
     }
-    const next = await within(findNext(), BETWEEN_TEXTS_MS).catch(() => null);
+    const next = await within(findNext(true), BETWEEN_TEXTS_MS).catch(() => null);
     if (!mounted.current) return;
     if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
     else setEnded(true);

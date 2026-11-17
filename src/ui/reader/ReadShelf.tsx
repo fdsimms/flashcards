@@ -9,7 +9,7 @@ import { lessonsOffered } from '../../reader/lessons';
 import { textSteps } from '../../reader/making';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { cardDetail, episodeLabel, playOrder, reasonLabel, shelfDetail, upNextSummary } from '../../reader/shelf';
+import { cardDetail, episodeLabel, playOrder, reasonLabel, shelfDetail, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { haptic } from '../haptics';
 import { Button, Card, Divider, ErrorNote, Field, Group, HeaderAction, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from '../kit';
 import { MakingBody } from '../MakingCard';
@@ -162,7 +162,12 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
 
   const order = shelf ? playOrder(shelf) : [];
   const summary = shelf ? upNextSummary(shelf) : null;
-  const open = (textId: number, playAll = false) => onOpen({ textId, order, playAll });
+  const open = (textId: number) => onOpen({ textId, order });
+  // Up next's texts only: the story's episode is played from its own card.
+  const playAll = () => {
+    const texts = shelf ? upNextOrder(shelf) : [];
+    if (texts.length > 0) onOpen({ textId: texts[0], order: texts, playAll: true });
+  };
 
   const textActions = (text: ShelfText) => {
     ActionSheetIOS.showActionSheetWithOptions(
@@ -261,7 +266,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
               </View>
               {summary ? (
                 <Tappable
-                  onPress={() => { haptic.tap(); open(order[0], true); }}
+                  onPress={() => { haptic.tap(); playAll(); }}
                   accessibilityRole="button"
                   accessibilityLabel={`Play all: ${summary}`}
                   style={{ minHeight: MIN_TAP, paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.accentFill, flexDirection: 'row', alignItems: 'center', gap: space.s }}
