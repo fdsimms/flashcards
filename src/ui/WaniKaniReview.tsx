@@ -27,7 +27,7 @@ import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup, stagePopupMs } from './StagePopup';
-import { SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
+import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -450,7 +450,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const label = lesson
     ? `New ${SUBJECT_TYPE_NAMES[subject.type].toLowerCase()} · Level ${subject.level}`
-    : `${item.lesson ? 'Lesson quiz · ' : ''}${SUBJECT_TYPE_NAMES[subject.type]}${question.kind === 'meaning' && item.asksReading ? ' meaning' : question.kind === 'reading' ? ' reading' : ''}${item.lesson ? '' : ` · Level ${subject.level}`}`;
+    : `${item.lesson ? 'Lesson quiz · ' : ''}${SUBJECT_TYPE_NAMES[subject.type]}${item.lesson ? '' : ` · Level ${subject.level}`}`;
   const system = srs.get(subject.srsId);
   const wrong = wrongSoFar(study.session, item.assignmentId);
   // Whether a right answer now finishes the item (and so what Good does to it).
@@ -521,7 +521,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          {kind === 'reviews' ? <Count value={left.reviews} label="due" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
+          {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
         {copySavedAt || wanikani.offline ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
@@ -554,6 +554,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
               ) : null}
             </Reveal>
           </ScrollView>
+          {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
+          {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
           {answerFlash.overlay}
         </CardSurface>
       </Screen>

@@ -49,6 +49,24 @@ export function SubjectFront({ subject, label }: { subject: Subject; label: stri
   );
 }
 
+/**
+ * What a question asks, as a band across the card's foot: light for the meaning, dark for the
+ * reading (WaniKani's own cue), split in two when one question asks both.
+ */
+export function QuestionBand({ kind }: { kind: 'meaning' | 'reading' | 'both' }) {
+  const c = useTheme();
+  const half = (k: 'meaning' | 'reading') => (
+    <View key={k} style={{ flex: 1, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', backgroundColor: k === 'meaning' ? c.wkMeaningBand : c.wkReadingBand }}>
+      <Text style={{ ...type.subhead, fontWeight: '600', color: k === 'meaning' ? c.onWkMeaningBand : c.onWkReadingBand }}>{k === 'meaning' ? 'Meaning' : 'Reading'}</Text>
+    </View>
+  );
+  return (
+    <View style={{ flexDirection: 'row' }} accessible accessibilityLabel={kind === 'both' ? 'Meaning and reading' : kind === 'meaning' ? 'Meaning' : 'Reading'}>
+      {kind === 'both' ? [half('meaning'), half('reading')] : half(kind)}
+    </View>
+  );
+}
+
 function FieldLabel({ children }: { children: string }) {
   const c = useTheme();
   return <Text style={{ ...type.overline, color: c.onWkSoft, textAlign: 'center' }}>{children}</Text>;
