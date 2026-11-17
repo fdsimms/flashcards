@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
 import { castFor, isCastKind } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
-import { ReadCastAudition } from '../ui/ReadCastAudition';
+import { ReadCastAudition } from '../ui/reader/ReadCastAudition';
 
 /** The voices of a language played side by side for one kind of story character (`kind`: man, woman, boy, girl, elder_man or elder_woman). */
 export default function ReadCastAuditionRoute() {

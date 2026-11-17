@@ -2,7 +2,7 @@ import { Redirect } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
-import { ReadWords } from '../ui/ReadWords';
+import { ReadWords } from '../ui/reader/ReadWords';
 
 /**
  * Words marked unknown while reading. Add to deck opens the note editor with the word filled in:

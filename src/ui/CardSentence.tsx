@@ -3,7 +3,7 @@ import { PixelRatio, Pressable, Text, View, type TextStyle } from 'react-native'
 import type { Segment } from '../core/highlight';
 import { dotOffsets, sentencePieces, wordBreaks } from '../reader/cardGlosses';
 import { LANGUAGES } from '../reader/languages';
-import { GlossPopover, type Tapped } from './Reader';
+import { GlossPopover, type Tapped } from './reader/Reader';
 import { radius, useTheme } from './theme';
 import type { SentenceGloss } from './useCardGlosses';
 

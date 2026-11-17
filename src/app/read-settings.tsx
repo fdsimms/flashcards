@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
-import { ReadSettings } from '../ui/ReadSettings';
+import { ReadSettings } from '../ui/reader/ReadSettings';
 
 /** Turning Read & Listen on (its passphrase) or off. */
 export default function ReadSettingsRoute() {

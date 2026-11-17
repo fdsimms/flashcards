@@ -2,7 +2,7 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import type { Language } from '../../../reader/api';
 import { useApp } from '../../../ui/AppContext';
-import { ReadShelf } from '../../../ui/ReadShelf';
+import { ReadShelf } from '../../../ui/reader/ReadShelf';
 import { useWordAudio } from '../../../ui/useWordAudio';
 
 /**

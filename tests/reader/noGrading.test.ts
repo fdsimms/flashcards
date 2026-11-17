@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = join(__dirname, '..', '..');
 const READER = join(ROOT, 'src', 'reader');
 const UI = join(ROOT, 'src', 'ui');
+const UI_READER = join(UI, 'reader');
 const ROUTES = join(ROOT, 'src', 'app');
 const READ_TAB = join(ROUTES, '(tabs)', '(read)');
 // Anything that answers, schedules or writes cards and notes.
@@ -19,12 +20,19 @@ const FORBIDDEN = /from '[^']*(core\/scheduler|core\/session|anki\/writeback|ank
 describe('Read & Listen', () => {
   const files = [
     ...readdirSync(READER).filter((f) => /\.tsx?$/.test(f)).map((f) => join(READER, f)),
-    ...readdirSync(UI).filter((f) => /^(Read[A-Z]?.*\.tsx|useReader\.ts|useFormQuiz\.ts|useCardGlosses\.ts|CardSentence\.tsx)$/.test(f)).map((f) => join(UI, f)),
+    // Its screens and the hooks only they use (src/ui/reader/), and the pieces of it other screens hold.
+    ...readdirSync(UI_READER, { recursive: true, encoding: 'utf8' }).filter((f) => /\.tsx?$/.test(f)).map((f) => join(UI_READER, f)),
+    ...readdirSync(UI).filter((f) => /^(useReader\.ts|useCardGlosses\.ts|CardSentence\.tsx)$/.test(f)).map((f) => join(UI, f)),
     // read-words opens the note editor for a marked word: saving there is the approval step.
     ...readdirSync(ROUTES).filter((f) => /^read(er|-.*)?\.tsx$/.test(f)).map((f) => join(ROUTES, f)),
     // The Read & Listen tab's home (and its stack layout) lives in its own route group.
     ...readdirSync(READ_TAB).filter((f) => /\.tsx$/.test(f)).map((f) => join(READ_TAB, f)),
   ];
+
+  it('keeps its screens in src/ui/reader/, where this test looks', () => {
+    const strays = readdirSync(UI).filter((f) => /^Read/.test(f));
+    expect(strays, 'move these into src/ui/reader/').toEqual([]);
+  });
 
   it('scans its logic, its screens and its routes', () => {
     expect(files.some((f) => f.endsWith('Reader.tsx'))).toBe(true);
@@ -32,6 +40,7 @@ describe('Read & Listen', () => {
     expect(files.some((f) => f.endsWith('ReadLanguage.tsx'))).toBe(true);
     expect(files.some((f) => f.endsWith('session.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('useReader.ts'))).toBe(true);
+    expect(files.some((f) => f.endsWith('useFormQuiz.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'read-words.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('app', 'reader.tsx')))).toBe(true);
     expect(files.some((f) => f.endsWith(join('(read)', 'read.tsx')))).toBe(true);

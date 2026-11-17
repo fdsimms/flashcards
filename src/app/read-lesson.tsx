@@ -2,7 +2,7 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import type { AudioLesson } from '../reader/api';
 import { useApp } from '../ui/AppContext';
-import { ReadLesson } from '../ui/ReadLesson';
+import { ReadLesson } from '../ui/reader/ReadLesson';
 
 /** One audio lesson, playing. `lesson` is the lesson as the list showed it. */
 export default function ReadLessonRoute() {
