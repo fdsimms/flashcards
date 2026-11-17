@@ -34,6 +34,7 @@ export default function ReadRoute() {
         router.setParams({ practice: '' });
         router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'topic', topic, words }) } });
       }}
+      onWrite={() => router.push('/read-write')}
       onLanguagePage={() => router.push('/read-language')}
       onPast={() => router.push('/read-past')}
       onLessons={() => router.push('/read-lessons')}

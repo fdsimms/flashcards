@@ -178,7 +178,7 @@ Franki's (Client, below).
 - **Listen again** (15 November 2026, the owner chose from a mock). Hearing a text again a few days
   later, with the words hidden, is the spaced, repeated listening the research supports, and by then
   it's easy to follow, so the listen-only gate (rated "About right") is lifted for a text already read.
-  The shelf shows a card, "2 texts to hear again", for the finished texts due, up to three at a
+  The shelf shows a Hear again row ("2 texts", with a play button and Not now) for the finished texts due, up to three at a
   time, oldest first, and let go 30 days after it was read (`relisten.py`, `GET /api/relisten`).
   **How often is a setting, Hear texts again** (15 November 2026, the owner's: reading a new episode
   every day, three more listens each is a daily pile, and the research gives 3 to 4 passes for
@@ -983,11 +983,11 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   they already did. Texts, drills, sentences, topics, the note queue, the writing check and Situations
   stay on Sonnet, where a wrong answer is taught back to the learner. Watch the spot checks in
   `/api/costs` and Russian word forms first.
-- **Written by** (15 November 2026, a trial): the shelf's write card has a Sonnet or Haiku switch,
+- **Written by** (15 November 2026, a trial): the write sheet (the shelf's +) has a Sonnet or Haiku switch,
   sent as `model` on `POST /api/shelf/write` (Sonnet when left out, 422 for any other model) and used
   by Surprise me too. It's per text, so the same topic can be asked of both and compared. The model
-  that answered is kept with the text (`texts.model`), shown after the card's length ("Dialogue ·
-  8 lines · 3 min · Haiku"), and priced in `/api/costs`. Haiku sends no refusal fallback, so a refusal
+  that answered is kept with the text (`texts.model`), shown after the shelf row's length ("Dialogue ·
+  3 min · Haiku"), and priced in `/api/costs`. Haiku sends no refusal fallback, so a refusal
   fails that attempt as it does when a fallback also declines. Practice texts, story episodes and
   topic-queue texts stay on Sonnet. Remove the switch once one model is chosen.
 - **A listed stretch word missing from the text** sends it back too, even at full coverage (15 November 2026: a word used once is enough; it was 2).
@@ -1221,6 +1221,14 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   background audio. A text whose last line has played is logged as read, unrated, and the next one
   opens. Whether iOS keeps the app running across the gap between two texts with the screen locked
   is unverified.
+- **The layout** (17 November 2026, the owner chose from a mock: the shelf showed too much at once).
+  Top to bottom: the reviews-due row, the story card (its name and episode, the title, its length
+  with the practice words, Read and listen, Last time), **Up next** (the shelf's texts, with a quieter
+  Play all whose line says what it covers, "The episode and 3 texts · 16 min"), the Hear again row, and
+  **Library** (Past episodes, Past texts, Audio lessons, Marked words). A row's second line is its
+  length, model and reason ("Story · 4 min · Sonnet · Because you liked ..."); the line count is gone.
+  Writing a text (Surprise me, or a topic as Dialogue or Story, and Written by) moved off the shelf
+  into a sheet behind the header's +, which isn't shown offline.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
   common words, voices, grammar, the story, practice words, and the progress
   summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
@@ -1277,10 +1285,10 @@ next episode is the top of the shelf.
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
   The shelf's story sends where the card's episode falls (`season`, `season_episode`, `season_length`),
-  and the card shows it under the story's name ("Season 2 · Episode 8 of 8 · Finale"); an older server
+  and the card shows it beside the story's name ("Episode 8 of 8 · Finale"); an older server
   sends none and the card keeps its running episode number.
-  Every shelf text also sends `created_at` (when it was written, with its UTC offset), and the story
-  card ends its detail line with "Released Nov 16"; an older server sends none and the line stays as it was.
+  Every shelf text also sends `created_at` (when it was written, with its UTC offset). The story card
+  showed it as "Released Nov 16" until the shelf's layout was simplified (17 November 2026, Shelf).
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to

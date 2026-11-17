@@ -1,6 +1,5 @@
 // The shelf's cards in words, and the small decisions the shelf and the reader's end view make
 // (docs/read-and-listen/architecture.md, Shelf). Pure, so they're tested.
-import { shortDate } from './lessons';
 import type { Form, GrammarList, Length, Shelf, ShelfStory, ShelfText, Suggestion } from './api';
 
 // About how long a line takes to read and listen to, at a learner's pace with the audio.
@@ -13,19 +12,19 @@ export function minutesFor(lines: number): number {
 
 const FORM_NAME: Record<Form, string> = { dialogue: 'Dialogue', story: 'Story' };
 
-/** A card's second line: "Dialogue · 8 lines · 3 min". */
+/** A card's length: "Dialogue · 3 min". */
 export function cardDetail(text: Pick<ShelfText, 'form' | 'lines'>): string {
-  return `${FORM_NAME[text.form]} · ${text.lines} lines · ${minutesFor(text.lines)} min`;
+  return `${FORM_NAME[text.form]} · ${minutesFor(text.lines)} min`;
 }
 
 /**
- * The story card's line for where the episode falls: "Season 2 · Episode 8 of 8 · Finale". Null
- * from a server older than seasons, and the card keeps its running episode number.
+ * Where the story card's episode falls, beside the story's name: "Episode 8 of 8 · Finale". From a
+ * server older than seasons, the running episode number `episode`.
  */
-export function seasonLabel(story: Pick<ShelfStory, 'season' | 'season_episode' | 'season_length'>): string | null {
-  const { season, season_episode: episode, season_length: length } = story;
-  if (!season || !episode || !length) return null;
-  return `Season ${season} · Episode ${episode} of ${length}${episode === length ? ' · Finale' : ''}`;
+export function episodeLabel(story: Pick<ShelfStory, 'season' | 'season_episode' | 'season_length'>, episode: number): string {
+  const { season, season_episode: at, season_length: length } = story;
+  if (!season || !at || !length) return `Episode ${episode}`;
+  return `Episode ${at} of ${length}${at === length ? ' · Finale' : ''}`;
 }
 
 /** The model that wrote a text, as its card names it; null for one the card has nothing to say about. */
@@ -35,16 +34,10 @@ export function modelLabel(text: Pick<ShelfText, 'model'>): string | null {
   return null;
 }
 
-/** A card's second line with the model that wrote it: "Dialogue · 8 lines · 3 min · Haiku". */
+/** A shelf row's length with the model that wrote it: "Dialogue · 3 min · Haiku". */
 export function shelfDetail(text: Pick<ShelfText, 'form' | 'lines' | 'model'>): string {
   const model = modelLabel(text);
   return model ? `${cardDetail(text)} · ${model}` : cardDetail(text);
-}
-
-/** The story card's second line: the detail line and when the episode was written, "... · Sonnet · Released Nov 16". */
-export function storyDetail(text: Pick<ShelfText, 'form' | 'lines' | 'model' | 'created_at'>): string {
-  const date = text.created_at ? shortDate(text.created_at) : '';
-  return date ? `${shelfDetail(text)} · Released ${date}` : shelfDetail(text);
 }
 
 /** Why a text is on the shelf, as its card says it. */
@@ -68,6 +61,19 @@ export function reasonLabel(text: ShelfText): string {
       // Written for a topic before the shelf existed.
       return text.topic;
   }
+}
+
+/**
+ * What Up next's Play all goes through, over the list: "The episode and 3 texts · 16 min". The
+ * story's episode is on its own card above, so it's named apart. Null when there's nothing to play.
+ */
+export function upNextSummary(shelf: Pick<Shelf, 'story' | 'texts'>): string | null {
+  const episode = !!shelf.story?.next;
+  const n = shelf.texts.length;
+  if (!episode && n === 0) return null;
+  const texts = n === 1 ? '1 text' : `${n} texts`;
+  const what = !episode ? texts : n === 0 ? 'The episode' : `The episode and ${texts}`;
+  return `${what} · ${playMinutes(shelf)} min`;
 }
 
 /** The texts Play all goes through, in order: the story's next episode, then the shelf. */
