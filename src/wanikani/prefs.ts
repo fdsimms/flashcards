@@ -11,7 +11,7 @@ export interface WaniKaniPrefs {
   separate: boolean;
   /** Lessons a study day, counting lessons done on WaniKani itself that day. */
   newPerDay: number;
-  /** Lessons aren't offered while more than this many items are at Apprentice; null for no limit. */
+  /** Lessons are offered only while they'd keep Apprentice at or under this many items; null for no limit. */
   maxApprentice: number | null;
   /** Play WaniKani's recording when a vocabulary answer is shown. */
   autoplay: boolean;
@@ -55,18 +55,24 @@ export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
   };
 }
 
-/** Whether the Apprentice limit holds lessons back: more items at Apprentice than the limit allows. */
+/** How many more items the Apprentice limit lets in: the limit less those at Apprentice now; null for no limit. */
+export function apprenticeRoom(apprentice: number, maxApprentice: number | null): number | null {
+  return maxApprentice === null ? null : Math.max(0, maxApprentice - apprentice);
+}
+
+/** Whether the Apprentice limit holds lessons back: no room left under it. */
 export function apprenticeBlocks(apprentice: number, maxApprentice: number | null): boolean {
-  return maxApprentice !== null && apprentice > maxApprentice;
+  return apprenticeRoom(apprentice, maxApprentice) === 0;
 }
 
 /**
  * Lessons still to offer today: the day's limit less those already done (here or on WaniKani),
- * never more than are up, and none while the Apprentice limit holds them back.
+ * never more than are up, and never more than fit under the Apprentice limit (a limit of 25 with 17
+ * at Apprentice leaves room for 8).
  */
 export function lessonsToday(available: number, newPerDay: number, startedToday: number, apprentice = 0, maxApprentice: number | null = null): number {
-  if (apprenticeBlocks(apprentice, maxApprentice)) return 0;
-  return Math.max(0, Math.min(available, newPerDay - startedToday));
+  const room = apprenticeRoom(apprentice, maxApprentice);
+  return Math.max(0, Math.min(available, newPerDay - startedToday, room ?? Infinity));
 }
 
 /**
