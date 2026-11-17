@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareTyped, comparisonLine } from '../../src/core/typedCompare';
+import { compareTyped, compareTypedAnswer, comparisonLine } from '../../src/core/typedCompare';
 
 describe('compareTyped', () => {
   it('is exact whatever the case', () => {
@@ -67,5 +67,31 @@ describe('compareTyped spelling variants', () => {
   });
   it('still marks a real difference', () => {
     expect(compareTyped('Straße', 'Strase').exact).toBe(false);
+  });
+});
+
+describe('Japanese answers', () => {
+  it('counts a missing voicing mark as a wrong letter, not a wrong accent', () => {
+    const c = compareTyped('かいがん', 'かいかん');
+    expect(c.sameLetters).toBe(false);
+    expect(comparisonLine(c)).toBe('1 letter off.');
+  });
+  it('takes katakana for hiragana as right, and says so', () => {
+    const c = compareTyped('らーめん', 'ラーメン');
+    expect(c).toMatchObject({ exact: false, sameWords: true, otherKana: true, off: 0 });
+    expect(comparisonLine(c)).toBe('Right, but written in the other kana.');
+  });
+  it('takes the word or its reading, and keeps the closer', () => {
+    expect(compareTypedAnswer(['食べる', 'たべる'], '食べる').exact).toBe(true);
+    expect(compareTypedAnswer(['食べる', 'たべる'], 'たべる').exact).toBe(true);
+    expect(compareTypedAnswer(['食べる', 'たべる'], 'たべた').off).toBe(1);
+  });
+  it('reads romaji as kana in Japanese only', () => {
+    expect(compareTypedAnswer(['食べる', 'たべる'], 'taberu', 'ja-JP').exact).toBe(true);
+    expect(compareTypedAnswer(['いっしょ'], 'issho', 'ja-JP').exact).toBe(true);
+    expect(compareTypedAnswer(['taberu'], 'taberu', 'es-MX').exact).toBe(true);
+  });
+  it('compares one answer as compareTyped does', () => {
+    expect(compareTypedAnswer(['esperar'], 'espera')).toEqual(compareTyped('esperar', 'espera'));
   });
 });

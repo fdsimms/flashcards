@@ -160,7 +160,7 @@ cut off silently. A field that's shown gets honored, refused inline with the rea
 
 ```
 src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, Anki templates,
-             session bookkeeping (undo), stats, config (pure TS)
+             session bookkeeping (undo), stats, config, kana input and romaji (pure TS)
 src/import   TSV + Anki JSON importers, re-import matching (reconcile.ts)
 src/db       Repo interface + MemoryRepo (tests), SQLite repo (app), backup planning
 src/media    the media folder (expo-file-system)
@@ -170,7 +170,7 @@ src/ui       screens, the shared pieces they're built from (kit.tsx), the theme,
 src/reader   Read & Listen's side of the app: its server's API, the reading session, playback (pure,
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
-             checking, kana input, production notes (pure, tested; storage.ts keeps the token in the Keychain)
+             checking, production notes (pure, tested; storage.ts keeps the token in the Keychain)
 src/tools    the Practice tab's tools (similar words, sentences, situations, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts and extrasStorage.ts. Daily extras (extras.ts) plan the Today tab's strip of drills and texts from the miss tallies; screens are DailyExtras.tsx and DailyExtrasSettings.tsx. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card

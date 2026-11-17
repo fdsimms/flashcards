@@ -215,6 +215,34 @@ class TestThai:
         assert lesson.clean_mix({"text": "ผมอยากได้ชา", "english": "Tea."}, known) is None
 
 
+class TestJapanese:
+    def test_counts_japanese_words_as_the_reader_splits_them(self) -> None:
+        assert lesson.tokens("すみません、駅はどこですか？") == [
+            "すみません",
+            "駅",
+            "は",
+            "どこ",
+            "です",
+            "か",
+        ]
+        assert lesson.word_count("お茶を飲みたいです。") == 3  # お茶 | を | 飲みたいです
+
+    def test_a_japanese_phrase_is_built_up_with_no_space_between_parts(self) -> None:
+        p = phrase("コーヒーを一つください", "One coffee, please.", "コーヒーを", "一つください")
+        assert lesson.build_up(p) == ["一つください", "コーヒーを一つください"]
+
+    def test_keeps_a_japanese_phrase_whose_parts_make_it_up(self) -> None:
+        raw = raw_phrase("コーヒーをください。", "Coffee, please.", ["コーヒーを", "ください"])
+        assert lesson.clean_phrase(raw) is not None
+        other = raw_phrase("コーヒーをください。", "Coffee, please.", ["お茶を", "ください"])
+        assert lesson.clean_phrase(other) is None
+
+    def test_a_mix_may_only_use_taught_japanese_words(self) -> None:
+        known = lesson.words_of("コーヒーをください") | lesson.words_of("お茶です")
+        assert lesson.clean_mix({"text": "お茶をください", "english": "Tea, please."}, known)
+        assert lesson.clean_mix({"text": "水をください", "english": "Water."}, known) is None
+
+
 class TestBuildUp:
     def test_builds_from_the_last_part_to_the_whole(self) -> None:
         three = Phrase("Je voudrais un café noir.", "x", ("Je voudrais", "un café", "noir"))

@@ -4,8 +4,8 @@
 // slots, the sentence around one, and the check of what was typed. Practice only: nothing here grades a
 // card or reaches the scheduler, and what's typed is compared (core/typedCompare.ts) but never rated.
 // Pure, so it's tested; ui/useFormQuiz.ts holds the state and ui/ReaderFormQuiz.tsx shows the sheet.
-import { compareTyped } from '../core/typedCompare';
-import type { ReaderText, Word } from './api';
+import { compareTypedAnswer } from '../core/typedCompare';
+import type { Language, ReaderText, Word } from './api';
 import { helperNote } from './formPrimer';
 
 /** How a slot has ended: answered right, answered wrong and then closed, or skipped. An open one has no entry. */
@@ -36,9 +36,13 @@ export function slotView(word: Word, settled: Settled | undefined, enabled: bool
   return linePlaying ? null : 'open';
 }
 
-/** The pill's width: about the word's, so the line wraps where it would have, and never under a tap target. */
+/**
+ * The pill's width: about the word's, so the line wraps where it would have, and never under a tap
+ * target. A letter is about 0.6 of the font size; a full-width one (kana, kanji) is a whole one.
+ */
 export function slotWidth(word: Word, fontSize: number, minWidth: number): number {
-  return Math.max(minWidth, Math.round(Array.from(word.text).length * fontSize * 0.6));
+  const ems = Array.from(word.text).reduce((n, ch) => n + (/[\u3000-\u9fff\uff00-\uffef]/.test(ch) ? 1 : 0.6), 0);
+  return Math.max(minWidth, Math.round(ems * fontSize));
 }
 
 /** A line's text before and after one of its words, spaces and punctuation included, for the sentence with a blank. */
@@ -54,11 +58,14 @@ export type FormCheck = 'empty' | 'right' | 'accents' | 'wrong';
 /**
  * What was typed against the word's form in the text. Case, spacing and punctuation don't matter; accents
  * do, since the form is often told apart by them (Polish ę against e). `accents` is the right letters with
- * the marks off, which is a miss, said so.
+ * the marks off, which is a miss, said so. A Japanese form may also be typed as its reading (たべました
+ * for 食べました), in either kana or romaji.
  */
-export function checkForm(typed: string, word: Pick<Word, 'text'>): FormCheck {
+export function checkForm(typed: string, word: Pick<Word, 'text' | 'translit'>, language?: Language): FormCheck {
   if (!typed.trim()) return 'empty';
-  const compared = compareTyped(word.text, typed.trim());
+  const japanese = language === 'ja';
+  const answers = japanese && word.translit ? [word.text, word.translit] : [word.text];
+  const compared = compareTypedAnswer(answers, typed.trim(), japanese ? 'ja-JP' : undefined);
   if (compared.sameWords) return 'right';
   return compared.sameLetters ? 'accents' : 'wrong';
 }

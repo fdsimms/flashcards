@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Repo } from '../../db/repo';
+import { japaneseFont } from '../../core/script';
 import type { Language } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { FLAG_IMAGES } from '../flagImages';
@@ -15,6 +16,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
+import { useFont } from '../AppFont';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
@@ -204,6 +206,7 @@ export function AnswerCard({ shown, prompt, answer, rule, onPlay }: {
   onPlay: (p: Phrase) => void;
 }) {
   const c = useTheme();
+  const ja = useJapaneseFont();
   return (
     <Card style={{ minHeight: 120 }}>
       {!shown || !answer ? (
@@ -212,8 +215,8 @@ export function AnswerCard({ shown, prompt, answer, rule, onPlay }: {
         <Reveal style={{ gap: space.m }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
             <View style={{ flex: 1, gap: space.xs }}>
-              <Text selectable style={{ ...type.cardBack, color: c.text }}>{answer.everyday.text}</Text>
-              {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{answer.everyday.roman}</Text> : null}
+              <Text selectable style={{ ...type.cardBack, color: c.text, ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
+              {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
             </View>
             <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />
           </View>
@@ -240,6 +243,13 @@ export function RuleLine({ rule }: { rule: string }) {
 /** The language a Practice tool is in, for the play buttons below its ToolScreen. */
 const ToolLanguage = React.createContext<Language | null>(null);
 
+/** Japanese's face for a phrase of the tool's language (script.ts): a time or a price can be all kanji. */
+function useJapaneseFont() {
+  const language = React.useContext(ToolLanguage);
+  const font = useFont();
+  return (text: string) => japaneseFont(text, language === 'ja' ? 'ja' : undefined, font);
+}
+
 /** The play button beside a phrase, with a link to the language's voice. `label` says what it plays, for VoiceOver ("Play the answer"). */
 export function PlayButton({ label, onPress }: { label: string; onPress: () => void }) {
   const language = React.useContext(ToolLanguage);
@@ -249,6 +259,7 @@ export function PlayButton({ label, onPress }: { label: string; onPress: () => v
 /** Other ways to say it, under a small heading: each tappable to hear it, with a speaker at its end to say so. */
 export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
+  const ja = useJapaneseFont();
   return (
     <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
@@ -262,9 +273,9 @@ export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phras
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ ...type.body, color: c.text }}>{p.text}</Text>
+            <Text style={{ ...type.body, color: c.text, ...ja(p.text) }}>{p.text}</Text>
             {p.roman || p.note ? (
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
+              <Text style={{ ...type.footnote, color: c.textSecondary, ...ja(p.roman ?? '') }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
             ) : null}
           </View>
           <Icon name="speaker.wave.2.fill" size={16} color={c.accent} />

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import { comparisonLine, type DiffPart, type TypedComparison } from '../core/typedCompare';
-import { hasThai, thaiTextStyle } from '../core/script';
+import { hasThai, japaneseFont, thaiTextStyle } from '../core/script';
 import { Reveal } from './motion';
 import { space, type, useTheme } from './theme';
+import { useFont } from './AppFont';
 
 /** One line of a comparison: matched text plain, the rest picked out (red and struck through where typed, green where missed). */
 function Parts({ parts, style, typed, lang }: { parts: DiffPart[]; style: TextStyle; typed: boolean; lang?: string }) {
@@ -42,14 +43,16 @@ export function TypedDiff({ comparison, showExpected, size = 'title', lang, expe
   showLine?: boolean;
   /** `title` for a word, `body` for a sentence. */
   size?: 'title' | 'body';
-  /** The text's language, for VoiceOver. */
+  /** The text's language, for VoiceOver and Japanese's face. */
   lang?: string;
 }) {
   const c = useTheme();
+  const font = useFont();
   const whole = comparison.typed.map((p) => p.text).join('') + comparison.expected.map((p) => p.text).join('');
-  const base: TextStyle = hasThai(whole)
-    ? thaiTextStyle('large')
-    : size === 'title' ? { ...type.title, fontWeight: '400', lineHeight: 30 } : { ...type.reading };
+  const base: TextStyle = {
+    ...(hasThai(whole) ? thaiTextStyle('large') : size === 'title' ? { ...type.title, fontWeight: '400', lineHeight: 30 } : { ...type.reading }),
+    ...japaneseFont(whole, lang, font),
+  };
   const label = { ...type.overline, color: c.textSecondary };
   return (
     <View style={{ gap: space.s }}>

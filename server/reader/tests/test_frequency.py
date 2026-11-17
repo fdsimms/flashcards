@@ -74,3 +74,19 @@ def test_thai_words_written_with_a_leading_vowel_and_one_letter_are_on_the_list(
     th = lexicon_from([], "th")
     assert (rank_of("ไป", th) or 10**6) < 100
     assert (rank_of("ใน", th) or 10**6) < 100
+
+
+def test_a_japanese_phrase_is_a_phrase_and_never_ranked_as_one_of_its_words() -> None:
+    # 気を失う ranked as 気 (#87) before, so it was tiered and ordered as a very common word.
+    ja = lexicon_from([], "ja")
+    for phrase in ("約束を破る", "気を失う", "暗くなる"):
+        assert entry_place(phrase, ja) == EntryPlace(None, phrase=True)
+        assert rank_of(phrase, ja) is None
+    assert rank_of("約束を破った", ja) is None
+
+
+def test_a_japanese_word_with_its_endings_or_affixes_is_still_a_word() -> None:
+    ja = lexicon_from([], "ja")
+    assert entry_place("経験する", ja).rank == rank_of("経験", ja)
+    for word in ("経験する", "静かな", "学生たち", "見せびらかす", "お茶"):
+        assert not entry_place(word, ja).phrase, word

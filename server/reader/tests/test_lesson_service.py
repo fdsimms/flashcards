@@ -350,8 +350,14 @@ def test_the_request_names_the_language_and_scene() -> None:
     assert "French" in message and "ordering a coffee" in message
 
 
-def test_every_language_but_japanese_and_english() -> None:
-    assert lesson_service.LESSON_LANGUAGES == ("fr", "th", "es", "de", "ru", "el", "pl", "nb")
+def test_a_japanese_request_asks_for_kana_and_kanji_and_polite_forms() -> None:
+    message = lesson_writer.request_message("ja", "buying a train ticket")
+    assert "Japanese" in message and "never romaji" in message and "です/ます" in message
+    assert "never romaji" not in lesson_writer.request_message("fr", "ordering a coffee")
+
+
+def test_every_language_but_english() -> None:
+    assert lesson_service.LESSON_LANGUAGES == ("fr", "th", "es", "de", "ru", "el", "pl", "nb", "ja")
 
 
 class TestStore:

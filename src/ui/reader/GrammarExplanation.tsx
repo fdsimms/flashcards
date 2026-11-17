@@ -82,7 +82,7 @@ export function GrammarExplanation({ language, explanation, glossing }: { langua
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the page.
           const { text, gloss: meaning } = tapped.word;
-          const pronunciation = { ipa: tapped.word.ipa, ipa_source: tapped.word.ipa_source };
+          const pronunciation = { ipa: tapped.word.ipa, ipa_source: tapped.word.ipa_source, translit: tapped.word.translit };
           setTapped(null);
           void glossing.onAddWord(text, meaning ?? '', language, pronunciation);
         } : null}

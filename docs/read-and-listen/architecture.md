@@ -360,10 +360,12 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
 ## Audio lessons
 
 Decided 15 November 2026, the owner's idea: a guided audio course in the manner of a prompt-and-answer
-language course, for the car or a walk. French first, as an experiment, then Thai and every other language but Japanese and English (`LESSON_LANGUAGES` in
-`lesson_service.py`; another language written with spaces needs only its voices). Thai has no spaces, so
-`lesson.tokens` cuts it into words with newmm (for pauses and for checking mixes), its parts are
-joined with no space, and every phrase carries the learner's chosen polite particle (ครับ or ค่ะ, below). Not a replay of the
+language course, for the car or a walk. French first, as an experiment, then Thai and every other language but English, whose
+speaker is the narrator (`LESSON_LANGUAGES` in `lesson_service.py`, and the app's in `src/reader/lessons.ts`; another
+language written with spaces needs only its voices). Thai and Japanese have no spaces, so `lesson.tokens` cuts Thai into
+words with newmm and Japanese as the reader splits a line (`japanese.words`), for pauses and for checking mixes; their
+parts are joined with no space; Japanese's request asks for kanji and kana, never romaji, and the polite です/ます form
+(Japanese added 17 November 2026, the owner's decision); and every phrase carries the learner's chosen polite particle (ครับ or ค่ะ, below). Not a replay of the
 texts: a lesson teaches 3 to 5 new phrases on a scene the owner types ("ordering a coffee"), from
 outside the deck. Nothing here grades a card or writes a note (the deck is read only for the dialogue's
 vocabulary check, below); what the learner says
@@ -698,9 +700,9 @@ spaced languages do, with these differences:
   also tries a form's ending as its deck entry (`Rules.guesses`), against deck entries only.
 - **No Practice tools and no grammar points**: telling the time or money in English is something the
   learner already does (`TOOL_LANGUAGES` leaves it out), and the grammar catalog has none for it.
-- **Hidden until the app is rebuilt with it**, as Japanese is: `HIDDEN_LANGUAGES` in
+- **Hidden until the app was rebuilt with it**, as Japanese was: `HIDDEN_LANGUAGES` in
   `languages.py` keeps a language out of the shelf and settings for a build that has no entry for
-  it. Empty it once the app is rebuilt.
+  it. Emptied on 17 November 2026, once the owner's build had both (the owner's confirmation).
 
 ### Japanese
 
@@ -764,12 +766,23 @@ rather than `Transliteration` (`Language.translit_field`).
   know grammar through N_" sets Know it at that level or easier (Practice kept) and Don't know it
   above it. The owner chose this over a level stored on the server, so a point added later isn't
   affected by it. Levels offered are the ones the language's points have.
+- **Phrases in new-card order and tiers** (17 November 2026): a deck entry is a phrase when the
+  lexicon would file it as one (`japanese.is_phrase`: several words once what conjugates the last is
+  set aside, a prefix or suffix not counting), so 約束を破る and 気を失う have no rank and go first
+  and in Tier 1. Before, a phrase was ranked by its head word (気を失う as 気, #87).
 - **Practice** (`src/tools/japanese/`): telling the time, dates and money, each answer in kanji
   with its reading in hiragana where the other languages show a romanization. The counters' sound
   changes are worked out in `numbers.ts` (四時 よじ, 六分 ろっぷん, 一日 ついたち, 四円 よえん). A
   date's other forms are the short weekday and the era year (令和, 平成, 昭和, by the day each
   began, first year 元年), and a date typed in kana is accepted as its reading. Prices are whole
-  yen.
+  yen. Reading the script has kana words (`script.ts`, 17 November 2026, the owner's decision; it was
+  left to WaniKani before): small っ and ゃ, long vowels, ん on its own and katakana's small
+  vowels, answered in Hepburn romaji.
+- **Answers in kana** (17 November 2026): Type it, Answer by speaking, Say it back, Write what you
+  hear and the form quiz take a word or line as its reading in kana, romaji read as kana and
+  katakana for hiragana (`compareTypedAnswer`, `src/core/kana.ts`). A missing ゛ or ゜ is a wrong
+  letter, not a missing accent (`stripMarks`). Japanese text is drawn in Hiragino Sans
+  (`japaneseFont`), so kanji keep their Japanese forms.
 
 ## Grammar
 

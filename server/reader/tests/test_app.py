@@ -17,6 +17,7 @@ from franki_reader.app import MAX_WRONG, client_source, create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import Code
+from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
 from franki_reader.tts import Spoken
@@ -1370,9 +1371,13 @@ def test_only_the_passphrase_reports_counts() -> None:
 
 
 @pytest.mark.parametrize("hidden", ["ja", "en"])
-def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(hidden: Code) -> None:
+def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(
+    hidden: Code, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # An app built before a language has no entry for it and crashes on one, so a saved setting
     # for it reads as Thai and the shelf doesn't list it (languages.HIDDEN_LANGUAGES).
+    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset({hidden}))
+    monkeypatch.setattr(views, "HIDDEN_LANGUAGES", frozenset({hidden}))
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
     store.save_settings(conn, Settings(language=hidden))
@@ -1382,6 +1387,19 @@ def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(hidden: Co
     shelf = c.get("/api/shelf", headers=AUTH).json()
     assert shelf["language"] == "th"
     assert hidden not in [language["code"] for language in shelf["languages"]]
+
+
+@pytest.mark.parametrize("shown", ["ja", "en"])
+def test_japanese_and_english_are_shown_now_the_app_has_them(shown: Code) -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    store.save_settings(conn, Settings(language=shown))
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    assert c.get("/api/settings", headers=AUTH).json()["language"] == shown
+    assert shown in [
+        language["code"] for language in c.get("/api/shelf", headers=AUTH).json()["languages"]
+    ]
 
 
 def test_glosses_split_a_cards_sentences_in_the_order_sent() -> None:

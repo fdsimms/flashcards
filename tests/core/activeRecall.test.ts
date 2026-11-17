@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asksOwnHook, typeItAnswer } from '../../src/core/activeRecall';
+import { asksOwnHook, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -20,6 +20,19 @@ describe('typeItAnswer', () => {
   });
   it('offers nothing when the note has no word', () => {
     expect(typeItAnswer(omniNote({ Entry: '' }), card('reverse'))).toBeUndefined();
+  });
+});
+
+describe('typeItAnswers', () => {
+  const japanese = (over: Record<string, string> = {}) =>
+    ({ ...omniNote({ Entry: '食べる', Language: 'japanese', KanaReading: 'たべる', Transliteration: '', ...over }), deck: '👅 Languages::🍥 日本語' });
+  it("takes a Japanese word's reading as well", () => {
+    expect(typeItAnswers(japanese(), card('reverse'))).toEqual(['食べる', 'たべる']);
+    expect(typeItAnswers(japanese({ KanaReading: 'きょう、こんにち' }), card('reverse'))).toEqual(['食べる', 'きょう', 'こんにち']);
+  });
+  it('takes only the word in another language, and nothing without Type it', () => {
+    expect(typeItAnswers(omniNote(), card('reverse'))).toEqual(['หนังสือ']);
+    expect(typeItAnswers(japanese(), card('forward'))).toEqual([]);
   });
 });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
-import { hasThai, thaiTextStyle } from '../../core/script';
+import { hasThai, japaneseFont, thaiTextStyle } from '../../core/script';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { MIXUP_MODES, mixupQuestion, mixupSet, nextMixup, type MixupMode, type MixupQuestion, type MixupSet, type MixupWord } from '../../tools/mixups';
@@ -9,6 +9,7 @@ import { haptic } from '../haptics';
 import { Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { useFont } from '../AppFont';
 import { useWordAudio } from '../useWordAudio';
 import type { ToolScreenProps } from './index';
 import { ChipChoice, PlayButton, Status, ToolScreen, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
@@ -175,7 +176,8 @@ function Choice({ word, state, onPress, onPlay }: {
   const c = useTheme();
   const marked = state === 'right' || state === 'wrong';
   const tint = state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border;
-  const wordStyle = hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 26 } : { ...type.title, fontWeight: '400' as const };
+  const font = useFont();
+  const wordStyle = { ...(hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 26 } : { ...type.title, fontWeight: '400' as const }), ...japaneseFont(word.word, word.language, font) };
   return (
     <Tappable
       onPress={onPress}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasJapanese, isKana, toHiragana, toKana } from '../../src/wanikani/kana';
+import { hasJapanese, isKana, toHiragana, toKana } from '../../src/core/kana';
 
 describe('romaji to kana', () => {
   it('converts syllables, including y-combinations and the shi/chi/tsu spellings', () => {

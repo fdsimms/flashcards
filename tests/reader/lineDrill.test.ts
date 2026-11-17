@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReaderText, TextLine } from '../../src/reader/api';
-import { drillLines, lineText, markLine, MAX_RETURNS, roundLine, roundProgress, roundScore, skipLine, startRound } from '../../src/reader/lineDrill';
+import { drillLines, lineAnswers, lineText, markLine, MAX_RETURNS, roundLine, roundProgress, roundScore, skipLine, startRound } from '../../src/reader/lineDrill';
 
 const line = (words: string[], over: Partial<TextLine> = {}): TextLine =>
   ({ speaker: 'A', english: 'English', words: words.map((text) => ({ text })) as TextLine['words'], audio: true, ...over });
@@ -26,6 +26,18 @@ describe('drillLines', () => {
 describe('lineText', () => {
   it('joins the words as the reader shows them', () => {
     expect(lineText(text.lines[0])).toBe('¿Me trae la cuenta?');
+  });
+});
+
+describe('lineAnswers', () => {
+  it('takes a Japanese line in kana too, each word as the text reads it', () => {
+    const ja = { ...text.lines[0], words: [{ text: '水' , translit: 'みず' }, { text: 'を' }, { text: 'ください', translit: null }, { text: '。' }] } as TextLine;
+    expect(lineAnswers(ja, 'ja')).toEqual(['水をください。', 'みずをください。']);
+  });
+  it('takes only the line in another language, or when the reading is the line', () => {
+    expect(lineAnswers(text.lines[0], 'es')).toEqual(['¿Me trae la cuenta?']);
+    const kana = { ...text.lines[0], words: [{ text: 'はい', translit: 'はい' }, { text: '。' }] } as TextLine;
+    expect(lineAnswers(kana, 'ja')).toEqual(['はい。']);
   });
 });
 

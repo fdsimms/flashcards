@@ -30,7 +30,7 @@ const PLAYBACK = { playsInSilentMode: true, allowsRecording: false } as const;
  */
 export function useSpokenAnswer(speechTag: string | undefined, opts: {
   onHeard: (text: string, final: boolean) => void;
-  expected?: string;
+  expected?: string | readonly string[];
   /** Called before listening starts, so the screen can stop its own audio. */
   onBeforeListen?: () => void;
   /** Runs until stopped (hold to talk) rather than stopping on a pause. */

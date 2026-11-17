@@ -92,7 +92,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
         // The server refused it (no Claude key): the editor still works by hand. Offline it was held instead.
       }
     }
-    const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair));
+    const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair, language));
     if (!saved) return false;
     if (pair?.partner) void offer(saved, pair);
     return true;

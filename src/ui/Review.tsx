@@ -84,8 +84,8 @@ import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
-import { compareTyped } from '../core/typedCompare';
+import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { compareTypedAnswer } from '../core/typedCompare';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
@@ -436,7 +436,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typeInExpected = page?.typeAnswer?.expected;
   const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
   const spoken = useSpokenAnswer(rendered?.speechLang, {
-    expected: rendered && note && current ? typeItAnswer(note, current) : undefined,
+    expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
     onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
     onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
   });
@@ -860,7 +860,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Under the answer: what was typed against the word, the offer to show the card sooner, the suggestion to practice its forms, and the hook.
   const extras = revealed ? (
     <>
-      {typing && typeItWord ? <TypedDiff comparison={compareTyped(typeItWord, typed)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
+      {typing && typeItWord ? <TypedDiff comparison={compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang)} showExpected={false} lang={rendered?.speechLang} typedLabel={spokenIn ? 'You said' : 'Yours'} /> : null}
       {typing && typeItWord && spokenIn ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{spokenAnswerNote(rendered?.speechLang)}</Text> : null}
       <AnswerExtras
         word={headword(note)}
@@ -1158,7 +1158,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. */}
             <Reveal key={showing} rise={10} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
-              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
+              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
@@ -1169,7 +1169,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

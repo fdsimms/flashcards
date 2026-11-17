@@ -120,6 +120,11 @@ export function AppFontScope({ repo, children }: { repo: Repo; children: React.R
   );
 }
 
+/** The font text draws in here: the app's, or a card's inside `CardFontScope`. */
+export function useFont(): AppFont {
+  return useContext(FontContext);
+}
+
 /** The settings with only the fonts that can be used now: a random pick comes from the pool's available ones. */
 function usable(s: FontSettings, installed: ReadonlySet<AppFont>): FontSettings {
   const pool = availableFonts(s.pool, installed);

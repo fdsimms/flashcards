@@ -60,8 +60,8 @@ describe('the Practice tools', () => {
     }
   });
 
-  it('offers Reading the script in Thai, Greek and Russian, in the app order', () => {
-    expect(toolById('script')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ru'].includes(l)));
+  it('offers Reading the script in Thai, Greek, Japanese and Russian, in the app order', () => {
+    expect(toolById('script')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ja', 'ru'].includes(l)));
   });
 
   it('offers Which case in the languages with cases, in the app order', () => {

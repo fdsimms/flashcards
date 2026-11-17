@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
+import { japaneseFont } from '../../core/script';
 import { LANGUAGES } from '../../reader/languages';
 import type { Phrase } from '../../tools/phrase';
 import { randomWord, type ScriptMode } from '../../tools/script';
@@ -10,6 +11,7 @@ import { haptic } from '../haptics';
 import { Card, Icon, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { useFont } from '../AppFont';
 import type { ToolScreenProps } from './index';
 import { AnswerCard, ChipChoice, nextOnly, PlayButton, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
 import { useMarks } from './useMarks';
@@ -26,6 +28,7 @@ const MODES: { value: ScriptMode; label: string }[] = [{ value: 'tone', label: '
  */
 export function ScriptTool({ tool, repo }: ToolScreenProps) {
   const c = useTheme();
+  const font = useFont();
   const [language, setLanguage] = useToolLanguage(tool);
   const answer = useAnswer(repo, language);
   const marks = useMarks(tool.id, language);
@@ -97,7 +100,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
       actions={actions}
     >
       <Card style={{ minHeight: 140, alignItems: 'center', justifyContent: 'center', gap: space.xs }}>
-        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, color: c.text }}>{word?.shown}</Text>
+        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text }}>{word?.shown}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
       </Card>
 

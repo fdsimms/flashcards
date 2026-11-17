@@ -2,8 +2,11 @@ import { htmlToText } from '../core/html';
 import type { Note } from '../core/types';
 import type { AspectPair, Language, Word } from './api';
 
-/** A word's IPA and where it's from, as the server sends them (both absent from a server older than IPA). */
-export type Pronunciation = Partial<Pick<Word, 'ipa' | 'ipa_source'>>;
+/**
+ * A word's IPA and where it's from, as the server sends them (both absent from a server older than IPA), and its
+ * `translit`: a Japanese word's reading in kana (a Thai word's romanization, which isn't used here).
+ */
+export type Pronunciation = Partial<Pick<Word, 'ipa' | 'ipa_source' | 'translit'>>;
 
 // Adding a marked word, a phrase selected in the reader or a word from the vocabulary check to the deck ("mining"). Each one is a new note made in Franki's note editor,
 // where saving it is the approval step (brief, design principle 13). There is no daily cap: how many new cards come up
@@ -22,7 +25,8 @@ const AI_NOTE = 'Written by AI. Check it before saving.';
  * With the word's IPA, the Pronunciation field starts as it, to check before saving. The editor leaves out a field the note
  * type doesn't have, so a collection with no Pronunciation field simply doesn't show it.
  * With an aspect pair (a Russian or Polish verb), the AspectPartner field starts as the partner and the note is tagged
- * perfective or imperfective, as the deck's verbs are.
+ * perfective or imperfective, as the deck's verbs are. A Japanese word's reading starts KanaReading, as the note queue
+ * writes it (note_queue.py), unless the word is already all kana.
  */
 export function minedNote(
   word: string,
@@ -30,13 +34,21 @@ export function minedNote(
   deck: string,
   pronunciation?: Pronunciation,
   aspect?: AspectPair | null,
+  language?: Language,
 ): MinedNote {
   const ipa = pronunciation?.ipa;
   const pair = aspect?.partner && aspect.aspect ? { partner: aspect.partner, aspect: aspect.aspect } : null;
+  const reading = language === 'ja' && pronunciation?.translit && pronunciation.translit !== word ? pronunciation.translit : null;
   return {
     deck,
     model: 'Omnilanguage',
-    fields: { Entry: word, Meaning: gloss ?? '', ...(ipa ? { Pronunciation: ipa } : {}), ...(pair ? { AspectPartner: pair.partner } : {}) },
+    fields: {
+      Entry: word,
+      Meaning: gloss ?? '',
+      ...(ipa ? { Pronunciation: ipa } : {}),
+      ...(reading ? { KanaReading: reading } : {}),
+      ...(pair ? { AspectPartner: pair.partner } : {}),
+    },
     // IPA and an aspect pair written by AI aren't checked against anything, so the editor says so under the field.
     ...((ipa && pronunciation?.ipa_source === 'ai') || pair ? {
       fieldNotes: {

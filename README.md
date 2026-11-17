@@ -149,14 +149,14 @@ If App Store Connect says the name "Franki" is taken, register it as something l
 
 ```
 src/core     types, FSRS wrapper, queue, deck tree, study day, card rendering, Anki templates,
-             session bookkeeping, config (pure TS, unit-tested)
+             session bookkeeping, config, kana input (pure TS, unit-tested)
 src/import   TSV + Anki JSON importers, re-import matching
 src/db       Repo interface, in-memory repo (tests), SQLite repo (app), backup planning
 src/media    the images and sounds folder
 src/app      the routes (Expo Router)
 src/ui       deck list, review, import, backup and Read & Listen screens, the card WebView
 src/reader   Read & Listen: its server's API, the reading session, playback
-src/wanikani WaniKani: its API, the study session, answer checking, kana input, production cards
+src/wanikani WaniKani: its API, the study session, answer checking, production cards
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
 modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
 server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy), the MCP for Claude, and

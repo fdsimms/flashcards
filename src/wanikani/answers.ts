@@ -1,4 +1,4 @@
-import { hasJapanese, isKana, toHiragana, toKana } from './kana';
+import { hasJapanese, isKana, toHiragana, toKana } from '../core/kana';
 import type { Subject } from './subjects';
 
 /**

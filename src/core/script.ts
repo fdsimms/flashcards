@@ -1,3 +1,5 @@
+import { fontCovers, type AppFont } from './fonts';
+
 /** True when `text` contains Thai script, which is hard to read at body size and gets a larger one. */
 export const hasThai = (text: string): boolean => /[\u0E00-\u0E7F]/.test(text);
 
@@ -31,4 +33,23 @@ export function withThaiLineHeight<T extends { fontSize: number }>(base: T, text
 /** A stored setting read back; anything unrecognized is the default. */
 export function parseThaiTextSize(raw: string | null | undefined): ThaiTextSize {
   return THAI_TEXT_CHOICES.some((c) => c.value === raw) ? (raw as ThaiTextSize) : DEFAULT_THAI_TEXT_SIZE;
+}
+
+/**
+ * The system's Japanese face. Kanji drawn in the default face fall back to whichever CJK face the
+ * phone's languages pick, often a Chinese one, where 直, 骨 and 今 take their Chinese forms.
+ */
+export const JAPANESE_FONT = 'Hiragino Sans';
+
+/**
+ * Japanese's face for `text`, to spread into a style: when it has kana, or kanji in a Japanese
+ * context (`speechLang` ja-*), since kanji alone may be Chinese. Empty otherwise, so the style's own
+ * face stays, and empty when `font` (the app's or the card's, AppFont.tsx) is a chosen one that draws
+ * Japanese itself (Yomogi, Zen Maru Gothic), which a named face would override.
+ */
+export function japaneseFont(text: string, speechLang: string | null | undefined, font: AppFont): { fontFamily?: string } {
+  if (font !== 'system' && fontCovers(font, ['japanese'])) return {};
+  const kana = /[぀-ヿ]/.test(text);
+  const kanji = /[㐀-䶿一-鿿]/.test(text);
+  return kana || (kanji && !!speechLang?.toLowerCase().startsWith('ja')) ? { fontFamily: JAPANESE_FONT } : {};
 }

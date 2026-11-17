@@ -194,6 +194,32 @@ def _common(count: int) -> frozenset[str]:
     return frozenset(common_words()[:count])
 
 
+def _alternatives(text: str) -> list[str]:
+    """A deck entry's alternatives (split on / and commas), without its notes in parentheses, its
+    〜 marks or its spaces."""
+    text = _MARKS.sub("", _PARENTHESES.sub(" ", text))
+    return [a for part in re.split(r"[/／;；、,]", text) if (a := "".join(part.split()))]
+
+
+def _core(ms: list[Morpheme]) -> list[Morpheme]:
+    """The word itself, without what conjugates it (静かな) or the する of a suru verb (経験する)."""
+    core = list(ms)
+    while len(core) > 1 and (core[-1].pos in _FUNCTION or core[-1].dictionary in _SURU):
+        core.pop()
+    return core
+
+
+def is_phrase(entry: str) -> bool:
+    """Whether a deck entry (or a word of a text) is a phrase: an alternative of several words once
+    what conjugates the last is set aside, as the lexicon files phrases, and not counting a prefix
+    or suffix, which the reader joins to its word (約束を破る, 気を失う; not 経験する, 静かな or お茶)."""
+    for alternative in _alternatives(entry):
+        ms = [m for m in morphemes(alternative) if m.is_word]
+        if len([m for m in _core(ms) if m.pos not in (_PREFIX, _SUFFIX)]) > 1:
+            return True
+    return False
+
+
 @dataclass
 class _Index:
     """Words and phrases by key, each with the deck entry it came from (None for a WaniKani or
@@ -205,11 +231,8 @@ class _Index:
     phrase_words: set[str] = field(default_factory=set)  # content words inside phrases
 
     def add(self, text: str, entry: str | None) -> None:
-        text = _MARKS.sub("", _PARENTHESES.sub(" ", text))
-        for alternative in re.split(r"[/／;；、,]", text):
-            alternative = "".join(alternative.split())
-            if alternative:
-                self._add_one(alternative, entry)
+        for alternative in _alternatives(text):
+            self._add_one(alternative, entry)
 
     def _add_one(self, text: str, entry: str | None) -> None:
         ms = [m for m in morphemes(text) if m.is_word]
@@ -225,10 +248,7 @@ class _Index:
         if all(k != key for k, _ in options):
             options.append((key, entry))
             options.sort(key=lambda o: -len(o[0]))
-        # The word itself, without what conjugates it (静かな) or the する of a suru verb (経験する).
-        core = list(ms)
-        while len(core) > 1 and (core[-1].pos in _FUNCTION or core[-1].dictionary in _SURU):
-            core.pop()
+        core = _core(ms)
         if len(core) == 1:
             for form in core[0].forms:
                 self.singles.setdefault(form, entry)
@@ -404,6 +424,17 @@ class JapaneseLexicon:
             return None
         word = self._word(token)
         return hiragana("".join(m.reading for m in word.morphemes)) or None
+
+
+@cache
+def _no_deck() -> JapaneseLexicon:
+    return JapaneseLexicon(())
+
+
+def words(text: str) -> list[str]:
+    """The words of `text` as the reader splits a line (a verb with what conjugates it, a prefix
+    with its word), with no deck phrase joined and no punctuation: for counting words (lesson.py)."""
+    return [w.surface for w in _no_deck()._split(text) if any(m.is_word for m in w.morphemes)]
 
 
 def _conjugates(m: Morpheme, before: Morpheme) -> bool:

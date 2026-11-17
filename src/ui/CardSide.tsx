@@ -3,12 +3,13 @@ import { Text, View, type TextStyle } from 'react-native';
 import { GENDER_WORDS } from '../core/cards';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
-import { DEFAULT_THAI_TEXT_SIZE, hasThai, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, hasThai, japaneseFont, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
 import { toneSpans, type Tone } from '../core/toneColors';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { useFont } from './AppFont';
 import { CardSentence } from './CardSentence';
 import type { SentenceGloss } from './useCardGlosses';
 
@@ -56,12 +57,16 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * be tapped for their meanings (CardSentence).
  * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss | null;
   speakSentence?: (text: string) => void;
+  /** The card's language, so Japanese text takes Japanese's face (script.ts). */
+  speechLang?: string;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
+  const font = useFont();
+  const ja = (text: string) => japaneseFont(text, speechLang, font);
   // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card,
   // so what was tapped open is closed again on the next card.
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
@@ -109,7 +114,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
-      const style = { ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), color: c.text };
+      const style = { ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), ...ja(b.text), color: c.text };
       if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
@@ -200,7 +205,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {(b.rows ?? []).map((r) => (
                 <View key={r.label} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.m }}>
                   <Text style={{ ...type.footnote, color: c.textTertiary, minWidth: 104 }}>{r.label}</Text>
-                  <Text style={{ ...(hasThai(r.value) ? thai : { ...type.body, lineHeight: 24 }), color: c.text, flex: 1 }}>{r.value}</Text>
+                  <Text style={{ ...(hasThai(r.value) ? thai : { ...type.body, lineHeight: 24 }), ...ja(r.value), color: c.text, flex: 1 }}>{r.value}</Text>
                 </View>
               ))}
             </View>
@@ -215,7 +220,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         }
         if (b.role === 'wanted') {
           return (
-            <Text key={i} style={{ ...(hasThai(b.text) ? thai : { ...type.subhead, lineHeight: 21 }), color: c.textSecondary, textAlign: 'center' }}>
+            <Text key={i} style={{ ...(hasThai(b.text) ? thai : { ...type.subhead, lineHeight: 21 }), ...ja(b.text), color: c.textSecondary, textAlign: 'center' }}>
               {b.text}
             </Text>
           );
@@ -234,7 +239,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis ? (
-                <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text, textAlign: 'center' }}>
+                <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}
                   <EntryText text={b.text} gender={b.gender} c={c} />
                 </Text>
@@ -246,7 +251,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
                     ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
+                    : <Text key={k} style={{ ...type.body, ...ja(ln), color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>

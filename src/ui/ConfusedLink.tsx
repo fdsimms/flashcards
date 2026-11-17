@@ -6,13 +6,14 @@ import { partnerIndex, partnerSummary, type ConfusedPair } from '../core/confuse
 import { failureText } from '../core/failure';
 import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
-import { hasThai, thaiTextStyle } from '../core/script';
+import { hasThai, japaneseFont, thaiTextStyle } from '../core/script';
 import type { Card, Note } from '../core/types';
 import { LANGUAGES } from '../reader/languages';
 import { linkCandidates, mixupLanguage, mixupSet, searchWords, type MixupWord } from '../tools/mixups';
 import { haptic } from './haptics';
 import { Button, Divider, ErrorNote, Field, Group, Help, Icon, Tag, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { useFont } from './AppFont';
 
 /**
  * Confused words in Review (src/core/confusedPairs.ts): the sheet that links the card on screen
@@ -30,7 +31,8 @@ const text = (field: string | undefined) => htmlToText(field ?? '').replace(/\s+
 /** One word in a list: the word large, its romanization and meaning under it, and whatever goes at the end. */
 function WordRow({ word, onPress, label, children }: { word: MixupWord; onPress?: () => void; label: string; children?: React.ReactNode }) {
   const c = useTheme();
-  const wordStyle = hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 24 } : { ...type.title, fontWeight: '400' as const };
+  const font = useFont();
+  const wordStyle = { ...(hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 24 } : { ...type.title, fontWeight: '400' as const }), ...japaneseFont(word.word, word.language, font) };
   return (
     <Tappable
       onPress={onPress}

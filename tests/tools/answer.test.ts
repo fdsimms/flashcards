@@ -30,6 +30,10 @@ describe('checking a typed answer', () => {
     expect(checkTyped('einunddreissigste', [{ text: 'einunddreißigste' }]).verdict).toBe('exact');
   });
 
+  it("counts a kana's missing voicing mark as a different letter, not a near miss", () => {
+    expect(checkTyped('きんようひ', [{ text: 'きんようび' }]).verdict).toBe('different');
+  });
+
   it('takes a Japanese date in kana only, never the digits or the kanji an IME writes', () => {
     const ja = acceptedForms(sayJapaneseDate({ year: 2026, month: 11, day: 13 }, { weekday: true, year: true }));
     expect(checkTyped('にせんにじゅうろくねん じゅういちがつ じゅうさんにち きんようび', ja).verdict).toBe('exact');

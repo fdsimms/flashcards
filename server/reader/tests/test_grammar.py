@@ -528,15 +528,7 @@ def test_choices_reach_the_request_for_their_own_language_only() -> None:
 # ==== JLPT levels (Japanese) ====
 
 
-@pytest.fixture
-def japanese_shown(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Japanese is hidden from the app for now (languages.HIDDEN_LANGUAGES); these test it as shown."""
-    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset())
-
-
-def test_each_japanese_point_has_a_jlpt_level_and_other_languages_have_none(
-    japanese_shown: None,
-) -> None:
+def test_each_japanese_point_has_a_jlpt_level_and_other_languages_have_none() -> None:
     assert {p.id: p.jlpt for p in points_for("ja")} == {
         "ja.masu": 5,
         "ja.past": 5,
@@ -555,9 +547,7 @@ def test_each_japanese_point_has_a_jlpt_level_and_other_languages_have_none(
     assert "jlpt" not in client("es")[0].get("/api/grammar", headers=AUTH).json()["points"][0]
 
 
-def test_knowing_through_a_level_sets_what_is_above_it_to_dont_know_it(
-    japanese_shown: None,
-) -> None:
+def test_knowing_through_a_level_sets_what_is_above_it_to_dont_know_it() -> None:
     c, e = client("ja")
     body = c.put("/api/grammar/level", json={"through": 5}, headers=AUTH).json()
     states = {p["id"]: p["state"] for p in body["points"]}
@@ -580,7 +570,7 @@ def test_knowing_through_a_level_sets_what_is_above_it_to_dont_know_it(
     assert store.load_grammar(e.conn)["ja.keigo"] == "normal"
 
 
-def test_a_level_keeps_practice_at_or_below_it_but_not_above_it(japanese_shown: None) -> None:
+def test_a_level_keeps_practice_at_or_below_it_but_not_above_it() -> None:
     c, _ = client("ja")
     c.put("/api/grammar/ja.tai", json={"state": "practice"}, headers=AUTH)
     c.put("/api/grammar/ja.causative", json={"state": "practice"}, headers=AUTH)
@@ -590,7 +580,7 @@ def test_a_level_keeps_practice_at_or_below_it_but_not_above_it(japanese_shown: 
     assert states["ja.causative"] == "avoid"
 
 
-def test_a_level_leaves_other_languages_choices_alone(japanese_shown: None) -> None:
+def test_a_level_leaves_other_languages_choices_alone() -> None:
     c, e = client("es")
     c.put("/api/grammar/es.preterite", json={"state": "practice"}, headers=AUTH)
     c.put("/api/grammar/level", json={"through": 4}, headers=AUTH)  # Spanish has none: refused

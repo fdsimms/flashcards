@@ -1,4 +1,5 @@
 // The typeface the reader draws a text in. Pure, so it's tested; Reader.tsx spreads the result into a Text style.
+import { JAPANESE_FONT } from '../core/script';
 import type { Language } from './api';
 
 /** Thai comes in looped letters (the system face) and loopless ones (Prompt, bundled in app.json). */
@@ -38,5 +39,7 @@ export function readFont(language: Language, thaiFont: ThaiFont): ReadFont {
   if (language === 'th' && thaiFont === 'loopless') {
     return { fontFamily: PROMPT_REGULAR, emphasis: { fontFamily: PROMPT_MEDIUM, fontWeight: 'normal' } };
   }
+  // Japanese's own face, so kanji keep their Japanese forms (script.ts); it has real bold weights.
+  if (language === 'ja') return { fontFamily: JAPANESE_FONT, emphasis: { fontFamily: JAPANESE_FONT, fontWeight: '700' } };
   return { emphasis: { fontWeight: '700' } };
 }

@@ -1,4 +1,4 @@
-import { compareTyped } from './typedCompare';
+import { compareTypedAnswer } from './typedCompare';
 
 /**
  * Answer by speaking (Settings, Speaking; off until turned on): what's said is turned into text by
@@ -32,17 +32,19 @@ export function recognitionLocale(tag: string | undefined, locales: readonly str
 
 /**
  * What was heard, from the recognizer's guesses (best first): with an expected answer, the guess
- * closest to it, since telling apart two words that sound the same is the recognizer's job, not
- * the learner's; else the first. Empty guesses are skipped.
+ * closest to it (or to any of them: a Japanese word or its reading, which the recognizer may write
+ * in kana), since telling apart two words that sound the same is the recognizer's job, not the
+ * learner's; else the first. Empty guesses are skipped.
  */
-export function bestHeard(guesses: readonly string[], expected?: string): string {
+export function bestHeard(guesses: readonly string[], expected?: string | readonly string[]): string {
   const heard = guesses.map((g) => g.trim()).filter(Boolean);
+  const answers = typeof expected === 'string' ? [expected] : expected ?? [];
   if (!heard.length) return '';
-  if (!expected) return heard[0];
+  if (!answers.some((a) => a.trim())) return heard[0];
   let best = heard[0];
   let bestOff = Infinity;
   for (const g of heard) {
-    const c = compareTyped(expected, g);
+    const c = compareTypedAnswer(answers, g);
     const off = c.sameWords ? -1 : c.off;
     if (off < bestOff) { best = g; bestOff = off; }
   }
@@ -51,11 +53,14 @@ export function bestHeard(guesses: readonly string[], expected?: string): string
 
 /**
  * The note under a spoken answer. Thai gets a line on tones: the recognizer guesses them from the
- * words around, so a wrong tone can still come back as the right word.
+ * words around, so a wrong tone can still come back as the right word. Japanese gets one on pitch
+ * accent, which the recognizer doesn't check at all.
  */
 export function spokenAnswerNote(speechTag: string | undefined): string {
   const base = 'The phone hears what you say, not how you say it.';
-  const tones = speechTag?.toLowerCase().startsWith('th') ? ' It also guesses tones from context, so it can miss a wrong one.' : '';
+  const tag = speechTag?.toLowerCase() ?? '';
+  const tones = tag.startsWith('th') ? ' It also guesses tones from context, so it can miss a wrong one.'
+    : tag.startsWith('ja') ? " It doesn't check pitch accent, so it can miss a wrong one." : '';
   return `${base}${tones} Rate it as you would any answer.`;
 }
 

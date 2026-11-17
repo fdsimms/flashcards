@@ -4,7 +4,7 @@
 // marked Missed it or Got it by the reader; a missed line comes back at the end of the round. Built
 // from the text's own lines, English and audio, so it costs nothing, and nothing is logged or
 // graded. Pure, so it's tested; ReaderLineDrill.tsx shows it.
-import type { ReaderText, TextLine } from './api';
+import type { Language, ReaderText, TextLine } from './api';
 import { choiceText } from './choices';
 
 export type LineDrillKind = 'say' | 'hear';
@@ -19,6 +19,18 @@ const wordy = (text: string) => /[\p{L}\p{N}]/u.test(text);
 /** A line's text as written, its words joined as the reader shows them. */
 export function lineText(line: TextLine): string {
   return choiceText(line);
+}
+
+/**
+ * Every way a line can be written back that counts as right: the line, and in Japanese the line in
+ * kana too, each word read as the text reads it (its `translit`), so a line typed without
+ * converting to kanji is checked against what it spells.
+ */
+export function lineAnswers(line: TextLine, language: Language): string[] {
+  const text = lineText(line);
+  if (language !== 'ja') return [text];
+  const reading = line.words.map((w) => w.translit || w.text).join('').trim();
+  return reading && reading !== text ? [text, reading] : [text];
 }
 
 /** The lines a round asks, in the text's order: ones with their English and enough words, and for Write what you hear, a recording. */

@@ -7,6 +7,10 @@ test('loopless Thai uses Prompt, and a practice word its Medium face rather than
   expect(font.emphasis).toEqual({ fontFamily: 'Prompt-Medium', fontWeight: 'normal' });
 });
 
+test("Japanese takes Japanese's face, with its own bold", () => {
+  expect(readFont('ja', 'loopless')).toEqual({ fontFamily: 'Hiragino Sans', emphasis: { fontFamily: 'Hiragino Sans', fontWeight: '700' } });
+});
+
 test('looped Thai and every other language keep the system face', () => {
   expect(readFont('th', 'looped')).toEqual({ emphasis: { fontWeight: '700' } });
   expect(readFont('es', 'loopless')).toEqual({ emphasis: { fontWeight: '700' } });
