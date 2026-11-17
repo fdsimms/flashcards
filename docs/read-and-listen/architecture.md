@@ -1693,3 +1693,20 @@ in the current language, with when one was last read to the end. Nothing else le
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+
+## Ask Claude about a card
+
+The review screen's ⋯ menu has Ask Claude (`src/ui/AskCardSheet.tsx`, `src/core/askCard.ts`). The
+learner types a question about the card on screen and `POST /api/ask-card` (`ask_card.py`) answers
+it with Haiku; nothing is asked until a question is sent. The card goes as plain text (an
+Omnilanguage note's word, meaning, example and mnemonic; any other note type as its template
+renders), so a card of any note type can be asked about, and the language is sent only when the
+note has one Read & Listen writes in. The conversation is kept only while the sheet is open and
+sent again with each follow-up (cut to the latest 12 turns). Answers are text only: they never
+grade a card. An answer isn't necessarily a mnemonic (it may be grammar or an example), so the
+button "Add to the note's Notes" adds it to the Notes field under what's there (`withNotesAnswer`),
+only for Omnilanguage notes; tapping the button, which names the field, is the approval. "Open in the Claude app instead" opens a
+claude.ai/new link with the card and the typed question in the message box, for asking on the
+learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
+`q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
+browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.
