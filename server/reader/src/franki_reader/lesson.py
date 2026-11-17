@@ -8,7 +8,7 @@ parts. Everything about how it runs is code (`build_script`), never the model's,
 exact and the same every time:
 
 1. The dialogue is played once, to listen to.
-2. Each phrase is taught: said by the native voice, its meaning given, then built up from its last
+2. Each phrase is taught: said by the native voice (a bit slower, `TEACH_RATE`), its meaning given, then built up from its last
    part to the whole (backward build-up), the learner repeating each step in a silence.
 3. Each phrase is then asked for in English, after a silence, and answered by the native voice.
 4. Earlier phrases come back at widening gaps (`RECALL_GAPS`: after 1, then 3, then 6 more phrases
@@ -56,6 +56,10 @@ PAUSE_BASE_MS = 2000
 PAUSE_PER_WORD_MS = 700
 PAUSE_MIN_MS = 3000
 PAUSE_MAX_MS = 15000
+# How fast the native voice speaks while a phrase is being taught (the first hearing and the
+# repeat-after build-up), where 1.0 is normal. A bit slower so each sound can be copied; asking for
+# a phrase and its answer, the dialogue and the role-play stay at normal speed.
+TEACH_RATE = 0.8
 # The breath between one thing said and the next.
 BEAT_MS = 700
 # The silence after a native voice speaks, before the narrator (or the next line) comes in: longer
@@ -75,6 +79,9 @@ class Say:
 
     voice: Voice
     text: str
+    # Spoken at `TEACH_RATE`. Part of the clip's identity, so a phrase heard slowly while taught and
+    # at normal speed when asked for is two recordings.
+    slow: bool = False
 
 
 @dataclass(frozen=True)
@@ -285,7 +292,7 @@ def _ask(phrase: Phrase, learner: Learner) -> list[Step]:
 def _teach(phrase: Phrase, learner: Learner) -> list[Step]:
     steps: list[Step] = [
         Say("narrator", "Listen."),
-        Say(learner, phrase.text),
+        Say(learner, phrase.text, slow=True),
         Silence(AFTER_NATIVE_MS),
         Say("narrator", f"That means: {phrase.english}"),
         Silence(BEAT_MS),
@@ -293,7 +300,7 @@ def _teach(phrase: Phrase, learner: Learner) -> list[Step]:
     steps.append(Say("narrator", "Listen and repeat."))
     for chunk in build_up(phrase):
         steps += [
-            Say(learner, chunk),
+            Say(learner, chunk, slow=True),
             Silence(pause_ms(word_count(chunk))),
         ]
     return steps

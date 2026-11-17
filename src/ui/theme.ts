@@ -14,6 +14,9 @@ const light = {
   surface: '#ffffff',
   /** A quieter fill inside a surface: chips, inputs, the guide line of a subdeck. */
   fill: '#efebe2',
+  /** Something floating over a surface (the change-rating strip over the review card): set apart from it by its fill and edge, not only its shadow. */
+  raised: '#f1ede4',
+  raisedEdge: '#d6d0c2',
   text: '#1b1b1b',
   textSecondary: '#5f636b',
   /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
@@ -141,6 +144,8 @@ const dark: typeof light = {
   bg: '#0f1115',
   surface: '#1a1d24',
   fill: '#242833',
+  raised: '#272b36',
+  raisedEdge: '#3a3f4c',
   text: '#f1f1f1',
   textSecondary: '#a2a8b3',
   textTertiary: '#6c727d',
