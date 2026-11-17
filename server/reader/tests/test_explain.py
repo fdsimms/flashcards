@@ -304,6 +304,8 @@ def test_clean_phrase_needs_a_meaning() -> None:
     assert clean_phrase({"meaning": " I know ", "points": [{"phrase": "ya", "note": " n "}]}) == {
         "meaning": "I know",
         "literal": "",
+        "register": "",
+        "register_note": "",
         "points": [{"phrase": "ya", "note": "n"}],
     }
     assert clean_phrase({"meaning": " ", "points": []}) is None
@@ -318,8 +320,23 @@ def test_clean_phrase_keeps_a_literal_only_when_it_differs() -> None:
     assert clean_phrase({"meaning": "Hi", "literal": 3, "points": []}) == {
         "meaning": "Hi",
         "literal": "",
+        "register": "",
+        "register_note": "",
         "points": [],
     }
+
+
+def test_clean_phrase_keeps_a_register_only_from_the_list() -> None:
+    got = clean_phrase(
+        {"meaning": "Hi", "register": "casual", "register_note": " With friends. ", "points": []}
+    )
+    assert got is not None and got["register"] == "casual"
+    assert got["register_note"] == "With friends."
+    # An answer outside the list, or a reason with no register, is dropped rather than shown.
+    odd = clean_phrase(
+        {"meaning": "Hi", "register": "rude", "register_note": "Blunt.", "points": []}
+    )
+    assert odd is not None and odd["register"] == "" and odd["register_note"] == ""
 
 
 def test_the_phrase_request_names_the_phrase_and_its_line() -> None:
@@ -540,6 +557,8 @@ def test_both_prompts_keep_frequency_and_register_to_what_is_certain() -> None:
 def test_a_phrase_meaning_translates_only_the_selection() -> None:
     # The whole text is in the prompt, and the model once tacked the story onto a meaning.
     assert "add no clause, detail or explanation that the phrase doesn't say" in PHRASE_SYSTEM
+    # What the text adds is welcome, in a note under the meaning.
+    assert "never in `meaning`" in PHRASE_SYSTEM
 
 
 def test_the_notes_in_the_language_are_asked_and_kept_apart() -> None:

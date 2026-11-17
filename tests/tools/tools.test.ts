@@ -64,6 +64,10 @@ describe('the Practice tools', () => {
     expect(toolById('script')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ru'].includes(l)));
   });
 
+  it('offers Which case in the languages with cases, in the app order', () => {
+    expect(toolById('cases')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['pl', 'ru', 'de', 'el'].includes(l)));
+  });
+
   it('leaves English out, which the app is already in', () => {
     expect(TOOL_LANGUAGES).not.toContain('en');
     expect(TOOL_LANGUAGES.length).toBe(LANGUAGE_ORDER.length - 1);

@@ -65,6 +65,45 @@ export function isMultilingual(voice: string): boolean {
   return voice.includes('Multilingual');
 }
 
+/** A kind of Azure voice named in its id, beyond the plain Neural ones. */
+export type VoiceFamily = 'hd' | 'hd-flash' | 'hd-omni' | 'mai' | 'mai-flash';
+
+/** The family of a voice from its id (en-US-Ava:DragonHDLatestNeural, en-AU-Isla:MAI-Voice-2-Flash), or none for a plain one. */
+export function voiceFamily(voice: string): VoiceFamily | undefined {
+  if (voice.includes('DragonHDOmni')) return 'hd-omni';
+  if (voice.includes('DragonHDFlash')) return 'hd-flash';
+  if (voice.includes('DragonHD')) return 'hd';
+  if (voice.includes('MAI-Voice')) return voice.includes('Flash') ? 'mai-flash' : 'mai';
+  return undefined;
+}
+
+// What each family is, as Microsoft describes them (learn.microsoft.com, Azure Speech, high definition voices).
+const FAMILIES: Record<VoiceFamily, { tag: string; term: string; note: string }> = {
+  hd: { tag: 'HD', term: 'HD (Dragon HD)', note: 'High definition voices. They read the whole text for context and set the tone to match it.' },
+  'hd-flash': { tag: 'HD Flash', term: 'Flash', note: 'A lighter HD voice that is made quickly, for fast replies.' },
+  'hd-omni': { tag: 'HD Omni', term: 'Omni', note: 'A newer HD model that Microsoft is rolling out.' },
+  mai: { tag: 'MAI', term: 'MAI', note: "Voices made by Microsoft AI, separate from the HD ones. Standard MAI voices are for expressive, longer reading." },
+  'mai-flash': { tag: 'MAI Flash', term: 'MAI Flash', note: 'The quick, low-delay version of an MAI voice.' },
+};
+
+/** The short tag a voice's row shows (HD Omni), or none for a plain voice. */
+export function voiceTag(voice: string): string | undefined {
+  const family = voiceFamily(voice);
+  return family && FAMILIES[family].tag;
+}
+
+/**
+ * What the qualifiers in these voices' names mean, one note for each kind present (the term, shown
+ * in bold, and what it means), so a list is explained only by what's in it. Empty when they are all
+ * plain voices.
+ */
+export function voiceNotes(voices: { voice: string }[]): { term: string; note: string }[] {
+  const present = new Set(voices.map((v) => voiceFamily(v.voice)));
+  const notes = (Object.keys(FAMILIES) as VoiceFamily[]).filter((f) => present.has(f)).map((f) => ({ term: FAMILIES[f].term, note: FAMILIES[f].note }));
+  if (present.has('hd') || present.has('hd-flash') || present.has('hd-omni')) notes.push({ term: 'Latest', note: 'In a name, it means Microsoft updates the voice as new versions come out.' });
+  return notes;
+}
+
 /** What the audition lists: the kind's voices, or only the Multilingual ones among them. */
 export type AuditionFilter = 'all' | 'multilingual';
 

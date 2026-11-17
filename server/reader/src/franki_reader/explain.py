@@ -17,7 +17,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
@@ -102,20 +102,25 @@ PHRASE_SYSTEM = (
     "dictionary senses. It translates only the selected words: add no clause, detail or "
     "explanation that the phrase doesn't say, and never describe the situation, who is doing "
     "what to whom, or why. Context may only decide which English word renders a pronoun or an "
-    "omitted subject. Give `literal`: a word-for-word English rendering that keeps the "
+    "omitted subject. What the text adds belongs in a point, not here. Give `literal`: a word-for-word English rendering that keeps the "
     "phrase's own word order and structure, even where that sounds odd in English (leave out "
     "articles the language doesn't have). Give an empty string when it would read the same as "
-    f"`meaning`. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
+    f"`meaning`. Give `register`: how formal the phrase is when a native speaker says it, one of "
+    f"{', '.join(REGISTERS)}, or an empty string when you are not confident. Give `register_note`: "
+    "one short sentence on where it fits (with friends, in writing, in a polite request), or an "
+    f"empty string when `register` is empty. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
     "naming part of the phrase (`phrase`, copied exactly from it) and what to know about it "
     f"(`note`, one to three short sentences, under {MAX_CHARS} characters): whether it is a set "
     "expression or idiom and how it is used, how its words work together where that isn't word "
-    "for word, and its tone or register when that matters. If the selection is part of a longer "
+    "for word, and its tone when that matters. If the selection is part of a longer "
     "set expression in the line, name the whole expression. If it isn't a set phrase, say so "
     "briefly and explain how the words combine. Give a literal translation only when it shows "
     "how the phrase works. The whole text is there only so you can see what the phrase refers to. "
     'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
-    "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
-    "line, say nothing about the rest of the text, and never retell or summarize it. "
+    "to, what a reply answers, the speaker's tone). When the story around the phrase sharpens "
+    "what it means (who is saying it to whom, what is at stake), say so in one short point whose "
+    "`phrase` is the selection itself, never in `meaning`. If the phrase can be explained from "
+    "its own line, say nothing about the rest of the text, and never retell or summarize it. "
     "Do not use em dashes." + ENGLISH + CALIBRATION
 )
 
@@ -124,9 +129,11 @@ PHRASE_SCHEMA: dict[str, Any] = {
     "properties": {
         "meaning": {"type": "string"},
         "literal": {"type": "string"},
+        "register": {"type": "string", "enum": [*REGISTERS, ""]},
+        "register_note": {"type": "string"},
         "points": SCHEMA["properties"]["points"],
     },
-    "required": ["meaning", "literal", "points"],
+    "required": ["meaning", "literal", "register", "register_note", "points"],
     "additionalProperties": False,
 }
 
@@ -429,8 +436,8 @@ def claude_check(client: anthropic.AsyncAnthropic) -> CheckNatural:
 
 
 def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
-    """The meaning, literal rendering and points the model gave, trimmed; None without a meaning.
-    The literal is "" when it was left out or only repeats the meaning, so the app shows it only
+    """The meaning, literal rendering, register and points the model gave, trimmed; None without a
+    meaning. The register is "" unless it is one of REGISTERS. The literal is "" when it was left out or only repeats the meaning, so the app shows it only
     when it adds something."""
     meaning = answer.get("meaning")
     if not isinstance(meaning, str) or not meaning.strip():
@@ -444,7 +451,18 @@ def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
 
     if same(literal) == same(meaning):
         literal = ""
-    return {"meaning": meaning, "literal": literal, "points": clean(answer.get("points"))}
+    register = answer.get("register")
+    register = register if register in REGISTERS else ""
+    note = answer.get("register_note")
+    # A reason without a register has nothing to explain, so it isn't kept.
+    note = note.strip()[:MAX_CHARS] if register and isinstance(note, str) else ""
+    return {
+        "meaning": meaning,
+        "literal": literal,
+        "register": register,
+        "register_note": note,
+        "points": clean(answer.get("points")),
+    }
 
 
 def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:

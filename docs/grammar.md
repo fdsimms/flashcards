@@ -165,6 +165,14 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
      the screen asks again every few seconds (`TOPIC_POLL_MS`). A failed rewrite or more-examples
      keeps the old page and shows the reason. Caps (`topics.py`) stop a runaway cost: topics per
      language, and Claude writes per study day.
+   - **A topic can start from an image** (a photo of a grammar book's page, or a screenshot; off until
+     Settings, Read & Listen, "Start a topic from an image" is on). New topic's "From an image" takes a
+     photo, a library picture or a pasted image, shrinks it on the phone (`src/reader/topicImage.ts`) and
+     sends it to `POST /api/grammar-topics/read-image` (`topic_image.py`), where Claude names the one grammar
+     point on it. That only fills the title, which the owner can edit; the page is then written and checked
+     as a typed topic is, so nothing about it follows the book and nothing is graded. The image isn't kept
+     on the phone or the server (only the call's cost is, under `topic_images` in `/api/costs`), and reads
+     are capped a day (`MAX_READS_PER_DAY`, in memory).
    - **Practice is Situations only**, opened with the topic as its `focus`: the other person works
      the structure in naturally and the end-of-scene feedback says how the owner's lines used it.
      Sentences stocks one sentence per reviewed word, so it can't be steered by a topic and isn't

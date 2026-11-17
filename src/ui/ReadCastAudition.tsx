@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
@@ -5,7 +6,8 @@ import { azureVoiceName } from '../core/voices';
 import type { Api, CastKind, CastVoice, Language, Settings } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { auditionVoices, audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH_STEP, type AuditionFilter } from '../reader/storyCast';
-import { AzureVoiceRows, useAzureVoices } from './AzureVoices';
+import { searchVoices } from '../reader/voiceSlots';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from './AzureVoices';
 import { haptic } from './haptics';
 import { Button, Chip, ErrorNote, Group, Help, Screen, SectionTitle } from './kit';
 import { PitchButton } from './ReadCastKind';
@@ -67,13 +69,16 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
     }
   };
 
-  const options = azure.voices ? auditionVoices(azure.voices, kind, filter) : undefined;
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
+  const options = azure.voices ? searchVoices(auditionVoices(azure.voices, kind, filter), query) : undefined;
   const listed = azure.voices?.some((v) => v.voice === voice);
   const people = gender === 'male' ? "men's" : "women's";
 
   return (
     <Screen title="Audition">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <Stack.SearchBar placeholder="Search voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
@@ -105,7 +110,9 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
             />
           </Group>
         ) : null}
-        {options && options.length === 0 ? <Help>{`Azure lists no ${filter === 'multilingual' ? 'Multilingual ' : ''}${people} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
+        {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${filter === 'multilingual' ? 'Multilingual ' : ''}${people} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        {options ? <AzureVoiceTerms voices={options} /> : null}
         <Button
           label={`Use ${azureVoiceName(voice)} at ${pitchLabel(pitch)} for ${label}`}
           onPress={use}

@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, ScrollView } from 'react-native';
@@ -9,7 +9,8 @@ import {
 import { failureText } from '../core/failure';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
-import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
+import { searchVoices } from '../reader/voiceSlots';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
 import { space, useTheme, readable } from './theme';
 
@@ -120,6 +121,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
   const lang = languages?.find((l) => l.key === languageKey);
   const azure = useAzureVoices(api, lang?.key);
   const sample = useAzureSample(api);
+  const [query, setQuery] = useState('');
   if (!lang) {
     return (
       <Screen title="">
@@ -145,7 +147,8 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
 
   return (
     <Screen title={lang.name}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      {api ? <Stack.SearchBar placeholder="Search Azure voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} /> : null}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <SectionTitle>Recordings</SectionTitle>
         {!api ? (
           <Help>Recording cards with Azure's voices needs Read & Listen turned on (Settings, Read & Listen), since its server holds the Azure key.</Help>
@@ -157,16 +160,18 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api
           <>
             <Group accessibilityRole="radiogroup">
               <AzureVoiceRows
-                voices={azure.voices}
+                voices={searchVoices(azure.voices, query)}
                 selected={choice?.azureVoice}
-                none={{ label: 'Don\'t record', hint: 'Cards without a recording are read with the iPhone voice below' }}
+                none={query.trim() ? undefined : { label: 'Don\'t record', hint: 'Cards without a recording are read with the iPhone voice below' }}
                 onChoose={(v) => {
                   if (v) sample.play(lang.sample ?? lang.name, v.voice, lang.sample ? lang.lang : undefined);
                   choose(lang.key, { azureVoice: v?.voice });
                 }}
               />
             </Group>
+            {query.trim() && !searchVoices(azure.voices, query).length ? <Help>{`No Azure voices match "${query.trim()}".`}</Help> : null}
             {sample.error ? <ErrorNote message={sample.error} /> : null}
+            <AzureVoiceTerms voices={azure.voices} />
             <Help>
               {`${lang.name} notes without a recording get one in this voice: when a note is added, from Record audio in the note editor, and for a whole deck from its options. Read & Listen's server records it, and it goes to Anki with the note at the next sync. Only Omnilanguage notes are recorded, from their Entry.`}
             </Help>

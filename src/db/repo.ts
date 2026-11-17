@@ -2,6 +2,7 @@ import { isInDeck } from '../core/deckTree';
 import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { isLinked, withoutPair, type ConfusedPair } from '../core/confusedPairs';
 import type { PracticeRecord } from '../core/forms';
 import type { GrammarAnswer } from '../core/grammarDrills';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
@@ -87,6 +88,12 @@ export interface Repo {
   /** Grammar drills' answers (src/core/grammarDrills.ts): Franki's own, never sent to Anki. */
   addGrammarAnswer(answer: GrammarAnswer): Promise<void>;
   listGrammarAnswers(): Promise<GrammarAnswer[]>;
+  /** Words linked as ones the learner mixes up (src/core/confusedPairs.ts): Franki's own, never sent to Anki. Earliest first. */
+  listConfusedPairs(): Promise<ConfusedPair[]>;
+  /** Links two notes; one already linked stays as it was. */
+  saveConfusedPair(pair: ConfusedPair): Promise<void>;
+  /** Takes the link between two notes away. */
+  deleteConfusedPair(x: string, y: string): Promise<void>;
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
@@ -115,6 +122,7 @@ export class MemoryRepo implements Repo {
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   practice: PracticeRecord[] = [];
   grammarAnswers: GrammarAnswer[] = [];
+  confusedPairs: ConfusedPair[] = [];
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
   grammarHintsDismissedSetting: Record<string, string> = {};
   voiceSettingsValue = '{}';
@@ -156,6 +164,7 @@ export class MemoryRepo implements Repo {
     for (const cid of cardIds) this.cards.delete(cid);
     for (const [rid, r] of this.reviews) if (cardIds.has(r.cardId)) this.reviews.delete(rid);
     this.practice = this.practice.filter((p) => p.noteId !== id);
+    this.confusedPairs = this.confusedPairs.filter((p) => p.a !== id && p.b !== id);
   }
   async getNote(id: string) { return this.notes.get(id); }
   async deleteNotesAndCards(noteIds: string[], cardIds: string[]) {
@@ -218,6 +227,11 @@ export class MemoryRepo implements Repo {
   }
   async addGrammarAnswer(answer: GrammarAnswer) { this.grammarAnswers.push({ ...answer }); }
   async listGrammarAnswers() { return [...this.grammarAnswers].sort((a, b) => a.answeredAt.localeCompare(b.answeredAt)); }
+  async listConfusedPairs() { return [...this.confusedPairs].sort((x, y) => x.linkedAt.localeCompare(y.linkedAt)); }
+  async saveConfusedPair(pair: ConfusedPair) {
+    if (!isLinked(this.confusedPairs, pair.a, pair.b)) this.confusedPairs.push({ ...pair });
+  }
+  async deleteConfusedPair(x: string, y: string) { this.confusedPairs = withoutPair(this.confusedPairs, x, y); }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
   async grammarHintsDismissed() { return { ...this.grammarHintsDismissedSetting }; }

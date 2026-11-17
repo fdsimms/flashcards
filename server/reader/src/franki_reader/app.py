@@ -242,6 +242,12 @@ marked words, ideas) is in the current language, the `language` setting.
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}
+    POST  /api/ask-card               {language?, front, back, details?, turns: [{role, content}]} the
+                                      answer to the owner's question about the card on screen, from
+                                      the conversation so far (the last turn is the new question):
+                                      {answer}. Asked only when a question is sent. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature "ask_card"),
+                                      not yet in /api/costs
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
@@ -274,6 +280,7 @@ from pydantic import BaseModel, Field
 
 from franki_reader import (
     ai_ipa,
+    ask_card,
     aspect,
     audit,
     cast,
@@ -296,6 +303,7 @@ from franki_reader import (
     situations,
     store,
     timing,
+    topic_image,
     vocab_check,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
@@ -536,6 +544,12 @@ class GrammarTopicIn(BaseModel):
     title: str = Field(min_length=1, max_length=grammar_topics.MAX_TITLE)
 
 
+class TopicImageIn(BaseModel):
+    language: Code
+    image: str = Field(min_length=1, max_length=topic_image.MAX_IMAGE_CHARS)  # base64
+    media_type: Literal["image/jpeg", "image/png", "image/webp", "image/gif"]
+
+
 class SituationIn(BaseModel):
     language: Code
     scene: str = Field(min_length=1, max_length=200)
@@ -613,6 +627,20 @@ class FormExplainIn(BaseModel):
     lemma: str = Field(min_length=1, max_length=100)
     form: str = Field(min_length=1, max_length=100)
     helper: str = Field(default="", max_length=100)
+
+
+class CardTurnIn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class AskCardIn(BaseModel):
+    # The card's language when the app knows it (an Omnilanguage note); other note types send none.
+    language: Code | None = None
+    front: str = Field(max_length=1500)
+    back: str = Field(max_length=1500)
+    details: str = Field(default="", max_length=2000)
+    turns: list[CardTurnIn] = Field(min_length=1, max_length=40)
 
 
 class AspectIn(BaseModel):
@@ -761,10 +789,12 @@ def create_app(
     play: situations.Play | None = None,
     give_feedback: situations.GiveFeedback | None = None,
     write_topic: grammar_topics.WriteTopic | None = None,
+    read_topic_image: topic_image.ReadTopic | None = None,
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
+    ask_about_card: ask_card.AskCard | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
     # Points whose drill questions are being written, shared by every request (drills.top_up).
@@ -780,8 +810,10 @@ def create_app(
     sentences_writing: set[Code] = set()
     # Your topics' pages being written (grammar_topics.write_page), shared by every request.
     grammar_topics_writing: set[int] = set()
+    # Images read for a topic's title in each study day (topic_image.py); a restart resets it.
+    topic_image_reads: dict[datetime, int] = {}
 
-    def keep_failed_cost(feature: store.CallFeature, language: Code, used: Usage) -> None:
+    def keep_failed_cost(feature: store.CallFeature, language: str, used: Usage) -> None:
         """What a call that failed after Claude answered cost: no answer is kept to carry it, so
         it goes in `call_costs`. A call Claude never answered cost nothing."""
         if used != Usage():
@@ -1617,6 +1649,35 @@ def create_app(
         start_grammar_topic_write(topic, "page", background)
         return JSONResponse(grammar_topic_json(topic), status_code=202)
 
+    @app.post("/api/grammar-topics/read-image", dependencies=authed)
+    async def read_grammar_topic_image(body: TopicImageIn) -> dict[str, str]:
+        """The grammar point an image (a photo of a book's page, a screenshot) is about, as a title
+        to put in the New topic screen. Nothing is stored: the topic is made by a separate call
+        once the owner has looked at the title."""
+        if read_topic_image is None:
+            raise HTTPException(503, no_claude.replace("check your writing", "read an image"))
+        since = study_day_start(engine.clock(), engine.rollover(), engine.zone)
+        if topic_image_reads.get(since, 0) >= topic_image.MAX_READS_PER_DAY:
+            raise HTTPException(
+                429,
+                f"You've read {topic_image.MAX_READS_PER_DAY} images today. "
+                "Type the topic, or try again after your study day starts.",
+            )
+        if since not in topic_image_reads:
+            topic_image_reads.clear()  # an earlier day's count is no use
+        topic_image_reads[since] = topic_image_reads.get(since, 0) + 1
+        try:
+            title, used = await read_topic_image(body.language, body.image, body.media_type)
+        except topic_image.ReadFailed as e:
+            keep_failed_cost("topic_image", body.language, e.usage)
+            raise HTTPException(502, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "topic_image", body.language, engine.clock(), used.cost_usd()
+        )
+        if title is None:
+            raise HTTPException(422, topic_image.NOT_FOUND)
+        return {"title": title}
+
     @app.get("/api/grammar-topics/{topic_id}", dependencies=authed)
     async def get_grammar_topic(topic_id: int) -> dict[str, Any]:
         topic = store.get_grammar_topic(engine.conn, topic_id)
@@ -1810,8 +1871,8 @@ def create_app(
         lesson_id = store.add_lesson(engine.conn, body.language, scene, engine.clock())
         synthesize = engine.synthesize
 
-        async def speak_bytes(text: str, voice: str, locale: str) -> bytes:
-            return (await synthesize(text, voice, locale)).audio
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
 
         background.add_task(
             lesson_service.make_lesson,
@@ -1879,6 +1940,34 @@ def create_app(
             engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
         )
         return {"hints": hints}
+
+    @app.post("/api/ask-card", dependencies=authed)
+    async def ask_card_route(body: AskCardIn) -> dict[str, str]:
+        if ask_about_card is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't answer questions about a card"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        if body.turns[-1].role != "user":
+            raise HTTPException(422, "The last turn has to be your question.")
+        language = body.language or ""
+        try:
+            answer, used = await ask_about_card(
+                ask_card.CardQuestion(
+                    body.language,
+                    body.front.strip(),
+                    body.back.strip(),
+                    body.details.strip(),
+                    [ask_card.Turn(t.role, t.content.strip()) for t in body.turns],
+                )
+            )
+        except ask_card.AskCardFailed as e:
+            keep_failed_cost("ask_card", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "ask_card", language, engine.clock(), used.cost_usd())
+        return {"answer": answer}
 
     @app.post("/api/aspect-pair", dependencies=authed)
     async def aspect_pair(body: AspectIn) -> dict[str, Any]:
@@ -2031,6 +2120,7 @@ def create_app(
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
         topic_writes = store.grammar_topic_spending(engine.conn, since)
+        topic_images = store.topic_image_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
         queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
@@ -2090,6 +2180,20 @@ def create_app(
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in topic_writes.items()
+                ],
+            },
+            # Images read for a topic's title (topic_image.py), failed calls included.
+            "topic_images": {
+                "read": sum(n for n, _ in topic_images.values()),
+                "cost_usd": round(sum(c for _, c in topic_images.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "read": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in topic_images.items()
                 ],
             },
             "drills": {
@@ -2623,6 +2727,7 @@ def _rendered(text: StoredText, engine: Engine) -> dict[str, Any]:
         # as unmarked.
         unset=exposure.unset_points(store.load_grammar(engine.conn), text.language),
         ai_ipa=engine.ai_ipa(text.language),
+        deck_registers={e.text: e.register for e in entries if e.register},
     )
     speaks = engine.audio is not None and engine.synthesize is not None
     for i, line in enumerate(out["lines"]):
@@ -2653,6 +2758,7 @@ def _practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
         engine.meanings(text.language),
         {e.text: e.translit for e in entries if e.translit},
         ai_ipa=engine.ai_ipa(text.language),
+        deck_registers={e.text: e.register for e in entries if e.register},
     )
     first: dict[str, dict[str, Any]] = {}
     for line in out["lines"]:
@@ -2784,6 +2890,7 @@ def production_app() -> FastAPI:
     give_feedback: situations.GiveFeedback | None = None
     write_drills: drills.WriteDrills | None = None
     write_topic: grammar_topics.WriteTopic | None = None
+    read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
@@ -2792,6 +2899,7 @@ def production_app() -> FastAPI:
     write_lesson: WritePlan | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
+    ask_about_card: ask_card.AskCard | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -2806,6 +2914,7 @@ def production_app() -> FastAPI:
         give_feedback = situations.claude_feedback(client)
         write_drills = drills.claude_drills(client)
         write_topic = grammar_topics.claude_topics(client)
+        read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
@@ -2814,6 +2923,7 @@ def production_app() -> FastAPI:
         write_lesson = lesson_writer.claude_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
+        ask_about_card = ask_card.claude_ask_card(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -2893,9 +3003,11 @@ def production_app() -> FastAPI:
         play=play,
         give_feedback=give_feedback,
         write_topic=write_topic,
+        read_topic_image=read_topic_image,
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
+        ask_about_card=ask_about_card,
     )

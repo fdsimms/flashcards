@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { Stack } from 'expo-router';
+import { ActivityIndicator, ScrollView, Text } from 'react-native';
 import { azureVoiceName } from '../core/voices';
 import type { Api, AzureVoice } from '../reader/api';
 import { saveNarrator } from '../reader/lessonStorage';
-import { narratorVoices, sampleLine, type Gender } from '../reader/voiceSlots';
-import { AzureVoiceRows, useAzureSample, useAzureVoices } from './AzureVoices';
+import { narratorVoices, sampleLine, searchVoices, type Gender } from '../reader/voiceSlots';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { ErrorNote, Group, Help, Screen, Segments } from './kit';
-import { space, useTheme, readable } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 /**
  * The English voice that narrates audio lessons ("How do you say..."), from Azure's English voices.
@@ -31,7 +32,14 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
   // Which gender's voices are listed: the one chosen, unless the toggle was used; men's until the list loads.
   const chosenGender = azure.voices?.find((v) => v.voice === chosen)?.gender?.toLowerCase();
   const gender: Gender = pickedGender ?? (chosenGender === 'female' ? 'female' : 'male');
-  const options = azure.voices ? narratorVoices(azure.voices, gender, chosen || undefined) : undefined;
+  // A search looks through both genders, so the toggle and the Default row step aside while one is typed.
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
+  const options = azure.voices
+    ? searching
+      ? searchVoices(narratorVoices(azure.voices, null), query)
+      : narratorVoices(azure.voices, gender, chosen || undefined)
+    : undefined;
 
   const choose = (picked: AzureVoice | undefined) => {
     const voice = picked?.voice ?? '';
@@ -42,27 +50,32 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
 
   return (
     <Screen title="Narrator">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <Stack.SearchBar placeholder="Name, region or gender" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
         {!azure.voices && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {options ? (
+        {options && !searching ? (
           <Segments<Gender>
             options={[{ value: 'male', label: 'Men' }, { value: 'female', label: 'Women' }]}
             value={gender}
             onChange={setGender}
           />
         ) : null}
-        {options ? (
+        {options && searching && !options.length ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>No voices match "{query.trim()}".</Text>
+        ) : null}
+        {options && options.length ? (
           <Group accessibilityRole="radiogroup">
             <AzureVoiceRows
               voices={options}
               selected={chosen || undefined}
               onChoose={choose}
-              none={{ label: 'Default', hint: serverDefault ? azureVoiceName(serverDefault) : "The server's own voice" }}
+              none={searching ? undefined : { label: 'Default', hint: serverDefault ? azureVoiceName(serverDefault) : "The server's own voice" }}
             />
           </Group>
         ) : null}
+        {options ? <AzureVoiceTerms voices={options} /> : null}
         <Help>Choosing a voice plays a line in it. American, British and Australian voices are listed. The narrator speaks the English in a lesson. It applies to lessons you make from now on.</Help>
       </ScrollView>
     </Screen>

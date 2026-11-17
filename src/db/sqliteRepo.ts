@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS grammar_answers (
   id INTEGER PRIMARY KEY AUTOINCREMENT, point_id TEXT NOT NULL, drill_id TEXT NOT NULL,
   kind TEXT NOT NULL, correct INTEGER NOT NULL, answered_at TEXT NOT NULL
 );
+-- Words the learner linked as ones they mix up (src/core/confusedPairs.ts), the smaller note id
+-- first. Franki's own, never sent to Anki.
+CREATE TABLE IF NOT EXISTS confused_pairs (
+  note_a TEXT NOT NULL, note_b TEXT NOT NULL, linked_at TEXT NOT NULL,
+  PRIMARY KEY (note_a, note_b)
+);
 -- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
 -- a restore clears it, so the next sync checks the restored files again.
 CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
@@ -210,6 +216,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       await db.withTransactionAsync(async () => {
         await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
         await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
+        await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? OR note_b = ?', id, id);
         await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
         await db.runAsync('DELETE FROM notes WHERE id = ?', id);
       });
@@ -223,6 +230,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         for (const id of noteIds) {
           await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
           await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
+          await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? OR note_b = ?', id, id);
           await db.runAsync('DELETE FROM cards WHERE note_id = ?', id);
           await db.runAsync('DELETE FROM notes WHERE id = ?', id);
         }
@@ -316,6 +324,17 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         'SELECT point_id, drill_id, kind, correct, answered_at FROM grammar_answers ORDER BY answered_at',
       );
       return rows.map((r) => ({ pointId: r.point_id, drillId: r.drill_id, kind: r.kind === 'which' ? 'which' : 'gap', correct: !!r.correct, answeredAt: r.answered_at }));
+    },
+    async listConfusedPairs() {
+      const rows = await db.getAllAsync<{ note_a: string; note_b: string; linked_at: string }>('SELECT note_a, note_b, linked_at FROM confused_pairs ORDER BY linked_at');
+      return rows.map((r) => ({ a: r.note_a, b: r.note_b, linkedAt: r.linked_at }));
+    },
+    async saveConfusedPair(pair) {
+      await db.runAsync('INSERT OR IGNORE INTO confused_pairs (note_a, note_b, linked_at) VALUES (?, ?, ?)', pair.a, pair.b, pair.linkedAt);
+    },
+    async deleteConfusedPair(x, y) {
+      const [a, b] = x < y ? [x, y] : [y, x];
+      await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? AND note_b = ?', a, b);
     },
     async formsAnswerMode() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");

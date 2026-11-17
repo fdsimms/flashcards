@@ -102,6 +102,16 @@ Franki's (Client, below).
   on every line when a text is written (a cost on every text for lines never questioned), to be
   reconsidered if the taps show lines are often off, and coloring the chip when it disagrees with the
   situation.
+- **Register on words and phrases** (17 November 2026, by the owner's decision after a mock). A
+  phrase explanation carries `register` (one of the four, or "" when the model isn't sure) and a
+  one-sentence `register_note`, shown as a **Register** line (`explain.py`; answers kept before it
+  have none). A word's popup shows the same chip beside its title: the deck note's own Register field
+  first (`lexicon.normalize_register` maps neutral, formal, informal or colloquial or casual, slang;
+  "vulgar", "literary" and the like show no chip rather than a wrong one; kept in `lexicon.register`,
+  read with the snapshot), else the one the meanings pass gave the word in its line
+  (`texts.registers`, asked in the same call as the meaning, so no extra call). Words glossed by the
+  text's writer (off the list) have no chip, and a text whose meanings were asked before this keeps
+  none for them. Card example sentences and recaps show none. It only shows text, like the line chip.
 - **Check what you understood** (13 November 2026, the owner chose from a mock). After Done, the end
   view offers a few multiple-choice questions, one at a time, each marked at once
   with the line that answers it (its words, English and audio). Three kinds, built when Done is
@@ -377,6 +387,7 @@ aloud is never heard by the phone.
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
+- **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
@@ -1682,3 +1693,20 @@ in the current language, with when one was last read to the end. Nothing else le
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+
+## Ask Claude about a card
+
+The review screen's ⋯ menu has Ask Claude (`src/ui/AskCardSheet.tsx`, `src/core/askCard.ts`). The
+learner types a question about the card on screen and `POST /api/ask-card` (`ask_card.py`) answers
+it with Haiku; nothing is asked until a question is sent. The card goes as plain text (an
+Omnilanguage note's word, meaning, example and mnemonic; any other note type as its template
+renders), so a card of any note type can be asked about, and the language is sent only when the
+note has one Read & Listen writes in. The conversation is kept only while the sheet is open and
+sent again with each follow-up (cut to the latest 12 turns). Answers are text only: they never
+grade a card. An answer isn't necessarily a mnemonic (it may be grammar or an example), so the
+button "Add to the note's Notes" adds it to the Notes field under what's there (`withNotesAnswer`),
+only for Omnilanguage notes; tapping the button, which names the field, is the approval. "Open in the Claude app instead" opens a
+claude.ai/new link with the card and the typed question in the message box, for asking on the
+learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
+`q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
+browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.

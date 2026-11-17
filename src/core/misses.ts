@@ -1,4 +1,5 @@
 import { isOmnilanguage, speechLangFor } from './cards';
+import { CONFUSED_REASON } from './confusedPairs';
 import type { Note } from './types';
 
 /**
@@ -16,6 +17,8 @@ export interface MissReason {
   key: string;
   /** The menu item and, lowercased, the reminder. */
   label: string;
+  /** The reminder's own wording, for a reason that isn't something that "was wrong" ("mixed up with another word"). */
+  reminder?: string;
 }
 
 const MEANING: MissReason = { key: 'meaning', label: 'Meaning' };
@@ -66,11 +69,17 @@ const REASONS_BY_LANGUAGE: Record<string, MissReason[]> = {
   ja: JAPANESE,
 };
 
-/** The reasons Again's menu offers for this note: only Omnilanguage notes in a language listed above. */
+/**
+ * Last in every language's list: it offers to link the word to the one it was mixed up with
+ * (src/core/confusedPairs.ts), so it applies to every language.
+ */
+const CONFUSED: MissReason = { key: CONFUSED_REASON, label: 'Mixed up with another word', reminder: 'mixed up with another word' };
+
+/** The reasons Again's menu offers for this note: only Omnilanguage notes, the language's own list and then the mix-up. */
 export function missReasonsFor(note: Note): MissReason[] {
   if (!isOmnilanguage(note)) return [];
   const code = speechLangFor(note)?.split('-')[0];
-  return (code && REASONS_BY_LANGUAGE[code]) || [];
+  return [...((code && REASONS_BY_LANGUAGE[code]) || []), CONFUSED];
 }
 
 /** How many answers in a row without a reason it takes for its reminder to go. */
@@ -98,12 +107,17 @@ export function activeMisses(answers: MissAnswers): string[] {
  * language no longer offers is left out rather than shown with no name.
  */
 export function missReminder(answers: MissAnswers, offered: MissReason[]): string | null {
-  const names = activeMisses(answers)
-    .map((key) => offered.find((r) => r.key === key)?.label.toLowerCase())
-    .filter((name): name is string => !!name);
-  if (!names.length) return null;
+  const active = activeMisses(answers)
+    .map((key) => offered.find((r) => r.key === key))
+    .filter((r): r is MissReason => !!r);
+  if (!active.length) return null;
   // One reason per answer and a window of `MISS_CLEAR_AFTER` answers: never more than two at once.
-  return `Last time: ${names.join(' and ')} ${names.length === 1 ? 'was' : 'were'} wrong`;
+  const wrong = active.filter((r) => !r.reminder).map((r) => r.label.toLowerCase());
+  const parts = [
+    ...(wrong.length ? [`${wrong.join(' and ')} ${wrong.length === 1 ? 'was' : 'were'} wrong`] : []),
+    ...active.filter((r) => r.reminder).map((r) => r.reminder!),
+  ];
+  return `Last time: ${parts.join(', ')}`;
 }
 
 /** Every card's answers, as the screen keeps them while it's open. */

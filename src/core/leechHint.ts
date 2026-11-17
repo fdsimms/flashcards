@@ -19,14 +19,20 @@ export type MnemonicQuestion = { language: Language; entry: string; meaning: str
 
 const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
 
-export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
+/** The note's language when Read & Listen writes in it. */
+export function readerLanguageOf(note: Note): Language | undefined {
   const code = speechLangFor(note)?.split('-')[0];
-  if (!code || !READER_LANGUAGES.includes(code)) return undefined;
+  return code && READER_LANGUAGES.includes(code) ? (code as Language) : undefined;
+}
+
+export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
+  const code = readerLanguageOf(note);
+  if (!code) return undefined;
   const entry = htmlToText(note.fields.Entry ?? '');
   const meaning = htmlToText(note.fields.Meaning ?? '');
   if (!entry || !meaning) return undefined;
   return {
-    language: code as Language, entry, meaning,
+    language: code, entry, meaning,
     // A Japanese note keeps its reading in KanaReading.
     transliteration: htmlToText(note.fields.Transliteration || note.fields.KanaReading || ''),
     context: htmlToText(note.fields.Context ?? ''),
