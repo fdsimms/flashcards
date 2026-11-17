@@ -27,6 +27,8 @@ const light = {
   controlEdge: '#8c887c',
   border: '#e3dfd4',
   accent: '#876a1e',
+  /** Text in the accent's gold on `accentFill` (a HeaderAction, a marked word, a practice word's pill): the accent itself is 4:1 there in light mode. */
+  accentInk: '#765c18',
   /** Text and icons drawn on an accent-colored fill. */
   onAccent: '#ffffff',
   danger: '#b3443b',
@@ -55,7 +57,10 @@ const light = {
   /** A grammar point being practiced: its chip's text and fill, in the Grammar tool's violet. */
   violetInk: '#6b43a3',
   violetFill: 'rgba(122, 79, 181, 0.12)',
-  /** Text on `goodFill` and on `warningFill` (a known or a not-known grammar point's tag): the count colors are under 4.5:1 there in light mode. */
+  /**
+   * Text in the good or the warning color, on its fill or on a surface (a known or a not-known grammar point's tag, the right letters of a typed answer).
+   * `good` is a button's fill, under 4.5:1 as text in dark mode, and `warning` is under it on `warningFill` in light mode.
+   */
   goodInk: '#2f6a45',
   warningInk: '#7a4f12',
   /**
@@ -162,6 +167,7 @@ const dark: typeof light = {
   controlEdge: '#6e7480',
   border: '#2a2e38',
   accent: '#d4b46a',
+  accentInk: '#d4b46a',
   // Gold is light in dark mode, so what sits on it is dark.
   onAccent: '#1b1407',
   danger: '#e0766c',

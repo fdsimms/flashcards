@@ -11,7 +11,7 @@ import { radius, space, type, useTheme } from '../theme';
  */
 export function PracticeWordPill({ word, onPress }: { word: string; onPress?: (x: number, y: number) => void }) {
   const c = useTheme();
-  const pill = <TintPill text={word} bg={c.accentFill} fg={c.accent} />;
+  const pill = <TintPill text={word} bg={c.accentFill} fg={c.accentInk} />;
   if (!onPress) return pill;
   return (
     <Tappable

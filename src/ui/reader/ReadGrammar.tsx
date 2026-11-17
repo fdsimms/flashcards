@@ -3,10 +3,10 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { noteWithExample } from '../../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../../reader/api';
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '../../reader/grammar';
-import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from '../kit';
+import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tag, Tappable } from '../kit';
 import { haptic } from '../haptics';
 import { ReadGrammarLevel } from './ReadGrammarLevel';
-import { hairline, radius, space, type, useTheme, readable } from '../theme';
+import { hairline, space, type, useTheme, readable } from '../theme';
 
 /**
  * The current language's grammar points, each practiced (used at least twice in every text), known
@@ -134,9 +134,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                       <Text style={{ ...type.subhead, color: c.textSecondary }}>{noteWithExample(p)}</Text>
                     </View>
                     {p.jlpt ? (
-                      <View style={{ backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }}>
-                        <Text accessibilityLabel={`JLPT ${jlptName(p.jlpt)}`} style={{ ...type.footnote, fontWeight: '700', color: c.accent }}>{jlptName(p.jlpt)}</Text>
-                      </View>
+                      <Tag text={jlptName(p.jlpt)} color={c.accentInk} fill={c.accentFill} accessibilityLabel={`JLPT ${jlptName(p.jlpt)}`} />
                     ) : null}
                     <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
                   </Tappable>

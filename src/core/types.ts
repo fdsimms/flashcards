@@ -123,6 +123,10 @@ export interface DeckParams {
   presetId?: number;
   /** The preset's easy days, Monday to Sunday (1 normal, 0 minimum, anything else reduced). */
   easyDays?: number[];
+  /** Whether an Anki template card plays its sounds on its own when a side is shown. Missing means yes, Anki's default. */
+  autoplay?: boolean;
+  /** The most time one answer records, in seconds (Anki's "Maximum answer seconds"). Missing means 60, Anki's default. */
+  maxAnswerSecs?: number;
   /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
   newLimitToday?: DayLimit;
   reviewLimitToday?: DayLimit;

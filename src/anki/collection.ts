@@ -27,7 +27,7 @@ import { decodeMessage, float, floats, message, string, uint } from './protobuf'
 /** DeckConfig.Config */
 const CONFIG = {
   learnSteps: 1, relearnSteps: 2, fsrsParams4: 3, easyDays: 4, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10,
-  maxInterval: 16, leechAction: 21, leechThreshold: 22, buryNew: 27, buryReviews: 28, buryInterdayLearning: 29,
+  maxInterval: 16, leechAction: 21, leechThreshold: 22, disableAutoplay: 23, capAnswerSecs: 24, buryNew: 27, buryReviews: 28, buryInterdayLearning: 29,
   newMix: 30, interdayLearningMix: 31, newSortOrder: 32, reviewOrder: 33, newGatherPriority: 34, desiredRetention: 37,
 };
 /** Notetype.Config and Notetype.Template.Config */
@@ -111,6 +111,9 @@ export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 
     reviewOrder: uint(msg, CONFIG.reviewOrder) ?? 0,
     newGatherPriority: uint(msg, CONFIG.newGatherPriority) ?? 0,
     easyDays: floats(msg, CONFIG.easyDays),
+    autoplay: uint(msg, CONFIG.disableAutoplay) !== 1,
+    // Anki's own default when it's missing (and its deck options don't go below 30).
+    maxAnswerSecs: uint(msg, CONFIG.capAnswerSecs) || 60,
   };
 }
 

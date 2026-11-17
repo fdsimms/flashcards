@@ -9,7 +9,7 @@ import { registerLabel } from '../../reader/register';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Pop } from '../motion';
-import { hairline, lift, MIN_TAP, radius, space, type, useTheme } from '../theme';
+import { hairline, lift, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
 
 /** Adding the phrase to the deck: the note editor opens with it, and saving there is the approval. */
 export type PhraseMining = {
@@ -110,7 +110,7 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
       >
         <Pop
           from={0.96}
-          style={{ maxHeight, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.l, padding: space.m, gap: space.s, ...lift(c, 'high') }}
+          style={{ maxHeight, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.l, ...smooth, padding: space.m, gap: space.s, ...lift(c, 'high') }}
         >
           <View accessibilityLabel={`Explanation of ${phrase}`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <View style={{ flex: 1 }}>
@@ -200,7 +200,7 @@ export function PhrasePickBanner({ first, onCancel }: { first: string; onCancel:
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.s }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, ...smooth, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.s }}
     >
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>Tap the last word of the phrase</Text>

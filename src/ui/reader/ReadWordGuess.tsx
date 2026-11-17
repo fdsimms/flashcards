@@ -49,7 +49,7 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
             borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill,
           }}
         >
-          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accentInk, fontWeight: '600' }}>I don't know</Text>
         </Tappable>
         <View style={{ height: hairline, backgroundColor: c.border, marginVertical: space.xs }} />
       </View>
@@ -97,7 +97,7 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             {note ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} effect={gotIt ? 'bounce' : undefined} /> : null}
-                <Text style={{ ...type.footnote, color: right ? c.good : c.danger }}>{note}</Text>
+                <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text>
               </View>
             ) : null}
           </View>

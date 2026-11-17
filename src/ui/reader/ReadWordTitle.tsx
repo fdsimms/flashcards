@@ -3,8 +3,9 @@ import { ipaNote } from '../../reader/languages';
 import type { Pronunciation } from '../../reader/mining';
 import { prefs } from '../../reader/storage';
 import { thaiToneMarks } from '../../reader/thaiTones';
+import { Tag } from '../kit';
 import { RegisterChip } from './ReaderNatural';
-import { radius, space, type, useTheme } from '../theme';
+import { space, type, useTheme } from '../theme';
 
 /**
  * A word with its IPA beside it (the gloss popover's title, the marked words list's rows), wrapping the
@@ -29,9 +30,7 @@ export function ReadWordTitle({ text, pronunciation, register, titleStyle }: {
       ) : null}
       <RegisterChip register={register} inline />
       {ai ? (
-        <View style={{ backgroundColor: c.warningFill, borderRadius: radius.pill, paddingHorizontal: space.s, paddingVertical: 2 }} accessible accessibilityLabel="Written by AI">
-          <Text style={{ ...type.caption, fontWeight: '600', color: c.warning }}>AI</Text>
-        </View>
+        <Tag text="AI" color={c.warningInk} fill={c.warningFill} accessibilityLabel="Written by AI" />
       ) : null}
     </View>
   );

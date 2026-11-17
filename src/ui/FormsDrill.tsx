@@ -9,9 +9,8 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Field, HeaderAction, Help, Icon, Loading, Screen, Segments, Tappable } from './kit';
+import { Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
 import { Reveal } from './motion';
-import { ProgressBar } from './Review';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { usePhoneSpeech } from './usePhoneSpeech';
@@ -201,7 +200,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
         {...scrollProps}
       >
         <View style={{ gap: space.xl }}>
-          <ProgressBar value={index / prompts.length} label="Progress through this practice" style={{ marginHorizontal: 0, marginTop: 0 }} />
+          <ProgressBar value={index / prompts.length} label="Progress through this practice" />
           {typeOnly ? null : (
             <Segments<AnswerMode>
               options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}

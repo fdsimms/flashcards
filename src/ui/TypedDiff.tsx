@@ -17,7 +17,7 @@ function Parts({ parts, style, typed, lang }: { parts: DiffPart[]; style: TextSt
             key={i}
             style={typed
               ? { color: c.danger, backgroundColor: c.dangerFill, textDecorationLine: 'line-through' }
-              : { color: c.good, backgroundColor: c.goodFill, fontWeight: '600' }}
+              : { color: c.goodInk, backgroundColor: c.goodFill, fontWeight: '600' }}
           >
             {p.text}
           </Text>
@@ -66,7 +66,7 @@ export function TypedDiff({ comparison, showExpected, size = 'title', lang, expe
           <Parts parts={comparison.expected} typed={false} lang={lang} style={{ ...base, color: c.text, fontWeight: '600' }} />
         </Reveal>
       ) : null}
-      {showLine ? <Reveal rise={0} delay={400}><Text style={{ ...type.footnote, color: comparison.exact || comparison.sameWords ? c.good : c.textSecondary }}>{comparisonLine(comparison)}</Text></Reveal> : null}
+      {showLine ? <Reveal rise={0} delay={400}><Text style={{ ...type.footnote, color: comparison.exact || comparison.sameWords ? c.goodInk : c.textSecondary }}>{comparisonLine(comparison)}</Text></Reveal> : null}
     </View>
   );
 }

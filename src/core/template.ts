@@ -330,11 +330,19 @@ export function templateOrdinals(note: Note, noteType: NoteType): number[] {
 
 const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-/** [sound:x.mp3] -> a play button; the first one on a side plays on its own when shown. */
+/** [sound:x.mp3] -> a play button. With autoplay, a side's sounds play on their own in turn when it's shown. */
 function soundButtons(html: string): string {
   return html.replace(/\[sound:([^\]]+)\]/g, (_, file: string) =>
     `<a class="replay-button" href="#" data-sound="${escapeAttr(file)}" onclick="playSound(this.dataset.sound);return false;">▶</a>`);
 }
+
+/**
+ * Plays each of a side's sounds in turn, as Anki's autoplay does. Tapping a play button pauses the
+ * one playing, and a paused sound never ends, so the rest don't follow it.
+ */
+const AUTOPLAY_SCRIPT = `var queued = Array.prototype.map.call(document.querySelectorAll('[data-sound]'), function (a) { return a.dataset.sound; });
+function playFrom(i) { if (i >= queued.length) return; playSound(queued[i]); player.onended = function () { playFrom(i + 1); }; }
+playFrom(0);`;
 
 /** [anki:tts] -> a play button that asks the app to read it (`sideAudio` lists them in the same order). */
 function ttsButtons(html: string): string {
@@ -406,6 +414,6 @@ body.card { background: ${colors.background}; color: ${colors.text}; }` : ''}
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }
 function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
-${opts.autoplay ? "var first = document.querySelector('[data-sound]'); if (first) playSound(first.dataset.sound);" : ''}
+${opts.autoplay ? AUTOPLAY_SCRIPT : ''}
 </script>${math ? mathjaxScripts(math) : ''}</body></html>`;
 }
