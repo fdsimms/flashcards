@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -11,6 +11,7 @@ import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
+import { useConnectionProblem } from './connection';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
@@ -96,13 +97,25 @@ export function Screen(props: {
   floating?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
   lockGesture?: boolean;
+  /** False to leave out the header's Offline button, shown while the user's server can't be reached (the Offline sheet itself). */
+  offlineButton?: boolean;
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const problem = useConnectionProblem();
+  const label = problem === 'offline' ? 'Offline' : 'Server down';
+  const toolbar = problem && props.offlineButton !== false
+    ? withOfflineButton(props.toolbar, (
+      <Stack.Toolbar.Button key="offline" separateBackground accessibilityLabel={problem === 'offline' ? 'Offline' : "Can't reach your server"} accessibilityHint="Shows what's waiting to be sent" onPress={() => { haptic.tap(); router.push('/offline'); }}>
+        {label}
+      </Stack.Toolbar.Button>
+    ))
+    : props.toolbar;
   const head = (
     <>
       <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false, gestureEnabled: !props.lockGesture }} />
-      {props.toolbar}
+      {toolbar}
     </>
   );
   if (!props.footer) return <>{head}{props.children}</>;
@@ -118,6 +131,26 @@ export function Screen(props: {
       </View>
     </View>
   );
+}
+
+/**
+ * The screen's toolbar with `button` added to its right-hand items, or a right-hand toolbar holding
+ * just it when the screen has none. A screen gets one toolbar per side (the last one drawn wins),
+ * so the button goes inside the screen's own rather than beside it.
+ */
+function withOfflineButton(toolbar: React.ReactNode, button: React.ReactElement): React.ReactNode {
+  let placed = false;
+  const visit = (node: React.ReactNode): React.ReactNode => React.Children.map(node, (child) => {
+    if (!React.isValidElement<{ children?: React.ReactNode; placement?: string }>(child)) return child;
+    if (child.type === React.Fragment) return React.cloneElement(child, undefined, visit(child.props.children));
+    if (child.type === Stack.Toolbar && child.props.placement === 'right') {
+      placed = true;
+      return React.cloneElement(child, undefined, ...React.Children.toArray(child.props.children), button);
+    }
+    return child;
+  });
+  const out = visit(toolbar);
+  return placed ? out : <>{out}<Stack.Toolbar placement="right">{button}</Stack.Toolbar></>;
 }
 
 /**

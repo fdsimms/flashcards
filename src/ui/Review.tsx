@@ -760,17 +760,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           : undefined;
       },
     ) : [];
-    const checking = forms.toCheck.length;
     const mixing = sessionMisses.practice.length;
     // What can be done with the session just finished: rows in the list, so the footer stays two buttons.
     const steps: NextStep[] = [
       ...sessionMisses.practice.map((p) => ({
         key: `${p.request.mode}|${p.request.language}`, label: p.label, icon: { name: 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMixups?.(p.request),
       })),
-      ...(checking ? [{
-        key: 'forms', label: checking === 1 ? 'Practice its forms' : `Practice these ${checking}`, icon: { name: 'list.bullet' as const, color: c.teal },
-        onPress: () => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck)),
-      }] : []),
       ...(reading ? [{
         key: 'read', label: 'Read a text with these words', icon: { name: 'book' as const, color: c.easy }, busy: openingText,
         onPress: () => {
@@ -829,7 +824,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
               <SessionMissList rows={sessionMisses.rows} />
-              <FormsCheck items={forms.toCheck} />
+              <FormsCheck items={forms.toCheck} onPractice={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))} />
               {extraCard}
               <NextSteps steps={steps} />
             </Reveal>
@@ -1089,7 +1084,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           ) : null}
           {undoButton}
           <Stack.Toolbar.Button
-            icon="pencil"
+            icon="square.and.pencil"
             accessibilityLabel="Edit this card's note"
             onPress={() => onEditNote({ noteId: note.id }, (result) => {
               if (!result) return;
@@ -1131,7 +1126,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
-      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} /> : null}
+      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} style={{ marginTop: space.m }} /> : null}
       {page ? (
         <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than

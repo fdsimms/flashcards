@@ -1,22 +1,28 @@
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { syncStatusText } from '../../../anki/sync/runSync';
+import { syncLine } from '../../../anki/sync/runSync';
+import { useConnectionProblem } from '../../../ui/connection';
 import { quickAddDecks } from '../../../reader/noteQueue';
 import { useApp } from '../../../ui/AppContext';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { DeckList } from '../../../ui/DeckList';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
+import { useReadWhileShown } from '../../../ui/useReadWhileShown';
 
 /** The Decks tab: every deck, to study, organize and edit. What's for today is on Today. */
 export default function DecksRoute() {
   const router = useRouter();
   const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  const problem = useConnectionProblem();
   // Counts change while studying, so load them again each time this screen comes back into view.
   // `decks` starts empty until the first load from the database finishes, which is not the same as
   // having no decks: the empty state waits for it.
   const [loaded, setLoaded] = useState(false);
-  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); wanikani.refresh(); }, [refresh, wanikani.refresh]));
+  useFocusEffect(useCallback(() => { refresh().finally(() => setLoaded(true)); }, [refresh]));
+  // Read again when the app comes back too, or the count stays as it was when it went away.
+  // `refresh` keeps to its own limit (COUNTS_EVERY_MS in useWaniKani.ts).
+  useReadWhileShown(useCallback(() => { wanikani.refresh(); }, [wanikani.refresh]));
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   return (
@@ -46,8 +52,7 @@ export default function DecksRoute() {
       } : undefined}
       sync={syncSettings?.enabled ? {
         syncing,
-        status: syncStatusText(syncSettings, new Date()),
-        failed: !!syncSettings.lastError,
+        ...syncLine(syncSettings, { problem, unsent: ankiUnsent }, new Date()),
         onSync: () => sync(),
       } : undefined}
     />

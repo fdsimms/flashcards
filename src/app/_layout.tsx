@@ -4,6 +4,7 @@ import React from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from '../ui/AppContext';
+import { HeldWork } from '../ui/HeldWork';
 import { ReaderPlayerProvider } from '../ui/useReaderPlayer';
 import { useStackScreenOptions } from '../ui/stackOptions';
 import { useTheme } from '../ui/theme';
@@ -36,8 +37,11 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
           {/* The note editor opens over Review and Browse as a sheet: half height first, pulled up to full. */}
           <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
+          {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
+          <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
         </Stack>
         <VocabReadyBanner />
+        <HeldWork />
         </ReaderPlayerProvider>
       </AppProvider>
       <StatusBar style="auto" />

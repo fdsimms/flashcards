@@ -202,7 +202,7 @@ def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:
 
 
 def test_languages_with_no_extras_get_only_the_common_fields() -> None:
-    for language in ("es", "nb", "en"):
+    for language in ("en",):
         fields = got_fields(
             language, "x", part_of_speech="noun", gender="m", key_forms="x", classifier="x"
         )
@@ -211,6 +211,12 @@ def test_languages_with_no_extras_get_only_the_common_fields() -> None:
             "PartOfSpeech",
         }  # fmt: skip
         assert fields["Language"] == {"es": "spanish", "nb": "norwegian", "en": "english"}[language]
+
+
+def test_a_spanish_or_norwegian_noun_gets_its_gender() -> None:
+    assert got_fields("es", "agua", part_of_speech="noun", gender="f")["Gender"] == "f"
+    assert got_fields("nb", "bil", part_of_speech="noun", gender="m")["Gender"] == "m"
+    assert got_fields("nb", "hus", part_of_speech="noun", gender="n")["Gender"] == "n"
 
 
 def test_every_extra_is_a_field_of_the_note_type_and_asked_for_in_its_language() -> None:

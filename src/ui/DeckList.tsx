@@ -465,13 +465,13 @@ export function DeckList(props: {
           {props.extra?.node}
           {props.sync ? (
             // Today warns when a sync didn't finish; here the line says why, in the warning color.
+            // The line already counts the answers not synced yet (syncLine).
             <Pressable onPress={syncTap.tap} accessibilityRole="button" accessibilityHint="Syncs now"
               // A line of footnote text is about 18pt tall; the slop makes it a full tap target without moving the list.
               hitSlop={{ top: space.l, bottom: space.l }}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
               <Text style={{ ...type.footnote, color: props.sync.failed ? c.warning : c.textSecondary, textAlign: 'center' }}>
                 {props.sync.status}
-                {props.ankiUnsent ? ` ${props.ankiUnsent} ${props.ankiUnsent === 1 ? "answer isn't" : "answers aren't"} synced yet.` : ''}
               </Text>
             </Pressable>
           ) : props.ankiUnsent ? (
