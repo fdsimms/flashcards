@@ -93,7 +93,7 @@ describe('one sync, start to finish', () => {
 });
 
 describe('what a sync says', async () => {
-  const { reportText, syncStatusText, fullSyncPrompt } = await import('../../../src/anki/sync/runSync');
+  const { reportText, syncStatusText, syncLine, fullSyncPrompt } = await import('../../../src/anki/sync/runSync');
 
   it('sums up a sync in a line', () => {
     expect(reportText({ collection: 'synced', sent: 3, media: { downloaded: 1, deleted: 0, skipped: [], uploaded: 0 } }))
@@ -111,6 +111,15 @@ describe('what a sync says', async () => {
     expect(syncStatusText({ lastSyncAt: new Date(2026, 10, 11, 9).toISOString(), lastError: null }, now)).toBe('Synced 3 hours ago.');
     expect(syncStatusText({ lastSyncAt: new Date(2026, 10, 9, 12).toISOString(), lastError: null }, now)).toBe('Last synced 2 days ago.');
     expect(syncStatusText({ lastSyncAt: null, lastError: "Couldn't reach the server." }, now)).toBe("Couldn't reach the server.");
+
+    // Offline is said calmly, not as a failure, with the answers waiting.
+    const failedOffline = { lastSyncAt: null, lastError: "Couldn't reach the server." };
+    expect(syncLine(failedOffline, { problem: 'offline', unsent: 12 }, now)).toEqual({ status: "Offline. 12 answers will sync when you're back online.", failed: false });
+    expect(syncLine(failedOffline, { problem: 'offline', unsent: 0 }, now)).toEqual({ status: "Offline. Franki will sync when you're back online.", failed: false });
+    expect(syncLine(failedOffline, { problem: null, unsent: 1 }, now)).toEqual({ status: "Couldn't reach the server. 1 answer isn't synced yet.", failed: true });
+    expect(syncLine({ lastSyncAt: null, lastError: null }, { problem: null, unsent: 0 }, now)).toEqual({ status: 'Not synced yet.', failed: false });
+    // A server that doesn't answer while the internet does may need fixing, so it's a warning.
+    expect(syncLine(failedOffline, { problem: 'server', unsent: 2 }, now)).toEqual({ status: "Can't reach your server. 2 answers will sync once it answers.", failed: true });
   });
 
   it('says what a download would lose', () => {

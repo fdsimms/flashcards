@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { ApiError, type Language } from '../../reader/api';
 import { MAX_WORDS, parseWords } from '../../reader/noteQueue';
 import { Button, Card, ErrorNote, Field, Help, Screen, Select } from '../kit';
 import { space, readable } from '../theme';
+import { connection } from '../connection';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /**
@@ -16,7 +17,8 @@ export function ReadQuickAdd({ decks, initial, onAdd, onDone }: {
   decks: { deck: string; language: Language }[];
   /** The deck chosen to begin with. */
   initial: string;
-  onAdd: (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<void>;
+  /** 'held' when offline: the words wait on the phone and go to Claude when it's back (useNoteQueue). */
+  onAdd: (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
   onDone: () => void;
 }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
@@ -34,7 +36,10 @@ export function ReadQuickAdd({ decks, initial, onAdd, onDone }: {
     setBusy(true);
     setError(null);
     try {
-      await onAdd(language, deck, entries);
+      const added = await onAdd(language, deck, entries);
+      if (added === 'held') {
+        Alert.alert(entries.length === 1 ? 'Added 1 word' : `Added ${entries.length} words`, `${connection.offline() ? "You're offline, so they go to Claude when you're back online" : "Your server isn't answering, so they go to Claude once it does"}. Then they'll be ready to review on Today.`);
+      }
       onDone();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't add these words. Try again.");

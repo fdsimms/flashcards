@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { ApiError, type Api, type Language, type NoteQueue } from '../reader/api';
+import { isOffline } from '../core/held';
+import { holdWords } from '../reader/heldNotes';
 import { noteQueueStore } from '../reader/noteQueueStore';
+import { connection } from './connection';
+import { heldWords } from './held';
 
 const POLL_MS = 4000;
 
@@ -58,10 +62,27 @@ export function useNoteQueue(api: Api | null) {
   useEffect(() => (api ? acquire(api) : undefined), [api]);
 
   const refresh = useCallback(() => { look(); }, []);
-  const add = useCallback(async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => {
-    if (!api) return;
-    noteQueueStore.set({ queue: await api.queueNotes(language, deck, entries), error: null });
+  /**
+   * Queues words for Claude. Offline they're held on the phone instead ('held') and sent when the
+   * connection comes back (HeldWork.tsx); a refusal from the server is thrown as before.
+   */
+  const add = useCallback(async (language: Language, deck: string, entries: { entry: string; meaning: string }[]): Promise<'queued' | 'held' | undefined> => {
+    if (!api) return undefined;
+    const hold = async () => {
+      await heldWords.update((list) => holdWords(list, language, deck, entries));
+      return 'held' as const;
+    };
+    if (connection.cantReachHome()) return hold();
+    let queue: NoteQueue;
+    try {
+      queue = await api.queueNotes(language, deck, entries);
+    } catch (e) {
+      if (isOffline(e)) return hold();
+      throw e;
+    }
+    noteQueueStore.set({ queue, error: null });
     schedule();
+    return 'queued';
   }, [api]);
   const retry = useCallback(async (id: number) => {
     if (!api) return;

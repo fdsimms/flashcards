@@ -1709,3 +1709,20 @@ claude.ai/new link with the card and the typed question in the message box, for 
 learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
 browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.
+
+## Offline
+
+The brief left offline mode out of milestone 1; it came back because the app is used on the subway.
+Every request goes through the app's connection guard (`guardedFetch`, `src/core/connection.ts`):
+with no network nothing is tried, and a request that stalls checks the server at once, giving up
+in seconds when nothing answers, while a slow answer (a Claude explanation) is left to finish.
+
+- **What the phone keeps:** the server's settings (`saveSettingsCopy`), so an offline launch still
+  knows each language's deck for Today's extras and Review's glosses, and card glosses
+  (`useCardGlosses`, the newest 3,000 sentences). Each copy is replaced when the server is read again.
+- **Words added offline** (a gloss's Add, Quick add) are held on the phone (`src/reader/heldNotes.ts`)
+  and sent to the note queue when the server can be reached; Today's queue card counts them. One
+  the server refuses stays on the queue screen with its reason.
+- **A new note's recording** is held the same way and made when the server answers.
+- **Texts and their audio downloaded ahead of time, and readings finished offline sent later,** are
+  the next step: until then, a text needs the connection.

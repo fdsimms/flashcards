@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../../reader/api';
+import { guardedFetch } from '../connection';
 import { LANGUAGE_ORDER, flaggedName } from '../../reader/languages';
 import type { ListenAgain } from '../../reader/prefs';
 import { prefs, savePassphrase, savePrefs } from '../../reader/storage';
@@ -62,7 +63,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
     setBusy(true);
     setError(null);
     try {
-      await createApi(address, passphrase).check();
+      await createApi(address, passphrase, guardedFetch(`${address}/api/check`)).check();
       await savePassphrase(passphrase);
       setValue('');
       onSignedIn(passphrase);

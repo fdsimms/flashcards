@@ -1,4 +1,6 @@
+import { File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
+import type { Settings } from './api';
 import { parseSeen } from './vocabCheck';
 import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
@@ -45,4 +47,32 @@ export async function loadVocabSeen(language: string): Promise<string[]> {
 
 export function saveVocabSeen(language: string, words: string[]): void {
   SecureStore.setItemAsync(VOCAB_SEEN_KEY + language, JSON.stringify(words)).catch(() => undefined);
+}
+
+const SETTINGS_FILE = 'reader-settings.json';
+
+/**
+ * The server's settings for Read & Listen (each language's deck, voices) as last read, kept in the
+ * documents folder for the server at `address`, so a launch with no connection still knows each
+ * language's deck: Today's extras and Review's glosses read it. The server's copy is the record;
+ * this is replaced each time it's read.
+ */
+export async function loadSettingsCopy(address: string): Promise<Settings | null> {
+  try {
+    const f = new File(Paths.document, SETTINGS_FILE);
+    const o = f.exists ? JSON.parse(await f.text()) : null;
+    return o?.address === address && o.settings && typeof o.settings === 'object' ? (o.settings as Settings) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSettingsCopy(address: string, settings: Settings): void {
+  try {
+    const f = new File(Paths.document, SETTINGS_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify({ address, settings }));
+  } catch {
+    // Read from the server again next launch.
+  }
 }

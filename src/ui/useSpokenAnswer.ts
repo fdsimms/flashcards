@@ -1,8 +1,10 @@
 import { setAudioModeAsync, type AudioMode } from 'expo-audio';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { bestHeard, recognitionLocale, speakingErrorText } from '../core/speaking';
+import { supportsOnDevice } from '../../modules/speech-on-device';
+import { bestHeard, canListen, recognitionLocale, speakingErrorText } from '../core/speaking';
 import { useApp } from './AppContext';
+import { useOffline } from './connection';
 import { haptic } from './haptics';
 
 /** The locales iOS can recognize, read once. */
@@ -21,7 +23,7 @@ const PLAYBACK = { playsInSilentMode: true, allowsRecording: false } as const;
 
 /**
  * Answer by speaking (src/core/speaking.ts) for one place on a screen: whether it's on (Settings,
- * Speaking) and the language can be heard, `start` and `stop`, what's been heard so far, and a
+ * Speaking) and the language can be heard (offline, on the phone: `canListen`), `start` and `stop`, what's been heard so far, and a
  * message when something went wrong. `onHeard` gets the text as it comes, and again once it's
  * final (the guess closest to `expected`, when there is one). Recognition stops by itself on a
  * pause; the audio session goes back to playback as soon as it does.
@@ -42,6 +44,7 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   if (!id.current) id.current = nextId++;
   const [on, setOn] = useState(false);
   const [locale, setLocale] = useState<string | undefined>();
+  const offline = useOffline();
   const [listening, setListening] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const latest = useRef(opts);
@@ -128,5 +131,7 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   const stop = useCallback(() => { stopAsked.current = true; if (mine()) ExpoSpeechRecognitionModule.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const cancel = useCallback(() => { stopAsked.current = true; cancelled.current = true; if (mine()) ExpoSpeechRecognitionModule.abort(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { available: on && !!locale, listening, problem, start, stop, cancel, clearProblem: () => setProblem(null) };
+  // Read when it's asked (cheap, and no permission): only offline does it matter.
+  const onDevice = offline && locale ? supportsOnDevice(locale) : null;
+  return { available: canListen({ on, locale, offline, onDevice }), listening, problem, start, stop, cancel, clearProblem: () => setProblem(null) };
 }

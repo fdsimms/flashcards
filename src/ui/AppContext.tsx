@@ -3,6 +3,7 @@ import { usePathname, useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
+import { normalizeEndpoint } from '../anki/sync/client';
 import { studyDayStart } from '../core/day';
 import { listedDecks } from '../core/deckNames';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
@@ -18,6 +19,7 @@ import { boostFor } from '../core/priority';
 import { applyPriorityStamps } from '../db/priorityStamps';
 import { loadHeld } from './lookalikeHold';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
+import { useConnection } from './connection';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
 import { useStudyReminder } from './studyReminder';
@@ -127,10 +129,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     collapse.load();
   }), [repo, collapse.load, snapshot.save, load.guard]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync, when it's on: at launch, on coming back to the app (from the deck list, so a deck being
-  // studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
+  // Sync, when it's on: at launch, on coming back to the app (to Today or the deck list, so a deck
+  // being studied isn't changed under it), after studying a deck (Review's screen asks), and on leaving the app.
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
-  const onDecks = pathname === '/';
+  const onDecks = pathname === '/' || pathname === '/decks';
   const onDecksRef = useRef(onDecks);
   onDecksRef.current = onDecks;
   useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -141,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [sync]);
 
+  useConnection(syncSettings?.enabled ? normalizeEndpoint(syncSettings.server) : undefined);
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useCountsReport(reader, decks, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);

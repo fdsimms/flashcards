@@ -1,0 +1,62 @@
+import { File, Paths } from 'expo-file-system';
+import { useEffect, useSyncExternalStore } from 'react';
+import { parseRecordings, type HeldRecording } from '../core/held';
+import { parseHeldWords, type HeldWords } from '../reader/heldNotes';
+
+/**
+ * The work held while offline (src/core/held.ts), one copy for every screen, kept in the documents
+ * folder so a word or a recording held on the subway is still waiting after the app is closed.
+ * Read once, by the first screen or change that needs it; every change is written straight back.
+ */
+function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
+  let value: T[] = [];
+  let loaded: Promise<void> | null = null;
+  const listeners = new Set<() => void>();
+  const file = () => new File(Paths.document, fileName);
+  return {
+    get: (): T[] => value,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    load(): Promise<void> {
+      loaded ??= (async () => {
+        try {
+          const f = file();
+          value = parse(f.exists ? JSON.parse(await f.text()) : null);
+          listeners.forEach((l) => l());
+        } catch {
+          // An unreadable file holds nothing to send.
+        }
+      })();
+      return loaded;
+    },
+    /** Changes the list, once it's been read, so a change can't write over what was in the file. */
+    async update(change: (list: T[]) => T[]): Promise<void> {
+      await this.load();
+      const next = change(value);
+      value = next;
+      listeners.forEach((l) => l());
+      try {
+        const f = file();
+        if (!f.exists) f.create();
+        f.writeSync(JSON.stringify(next));
+      } catch {
+        // Still held in memory, and sent while the app is open.
+      }
+    },
+  };
+}
+
+export const heldWords = persistedList<HeldWords>('held-words.json', parseHeldWords);
+export const heldRecordings = persistedList<HeldRecording>('held-recordings.json', parseRecordings);
+
+export function useHeldWords(): HeldWords[] {
+  useEffect(() => { void heldWords.load(); }, []);
+  return useSyncExternalStore(heldWords.subscribe, heldWords.get);
+}
+
+export function useHeldRecordings(): HeldRecording[] {
+  useEffect(() => { void heldRecordings.load(); }, []);
+  return useSyncExternalStore(heldRecordings.subscribe, heldRecordings.get);
+}

@@ -493,11 +493,12 @@ export class ApiError extends Refusal {
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 // `onUnauthorized` runs when the server rejects the passphrase (it was changed on the server), so
-// the app can forget it and ask again instead of failing every call.
+// the app can forget it and ask again instead of failing every call. `fetchImpl` has no default:
+// the app's goes through the connection guard (`guardedFetch`, src/ui/connection.ts).
 export function createApi(
   baseUrl: string,
   passphrase: string,
-  fetchImpl: Fetch = fetch,
+  fetchImpl: Fetch,
   onUnauthorized?: () => void,
 ) {
   const root = baseUrl.replace(/\/+$/, '');
@@ -520,8 +521,9 @@ export function createApi(
         },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
-    } catch {
-      throw new ApiError("Couldn't reach the server. Check your connection and try again.", 0);
+    } catch (e) {
+      // The guard's own reason (offline, or a server too slow) says more than a bare failure.
+      throw new ApiError(e instanceof Refusal ? e.message : "Couldn't reach the server. Check your connection and try again.", 0);
     }
     if (response.status === 401) onUnauthorized?.();
     if (!response.ok) throw new ApiError(await errorMessage(response), response.status);

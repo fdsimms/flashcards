@@ -4,12 +4,21 @@ import { fullSyncPrompt, reportText, syncErrorText, type FullSyncQuestion } from
 import { syncNow } from '../anki/syncService';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
+import { normalizeEndpoint } from '../anki/sync/client';
+import { SyncError } from '../anki/sync/protocol';
+import { originOf } from '../core/connection';
+import { connection, probe, useBackOnline } from './connection';
 
 /**
  * Sync as the app runs it: one at a time, its settings and progress for the screens, and the
  * question asked when one collection has to replace the other. That question needs someone
  * looking at the screen, so a sync that runs as the app goes to the background cancels instead,
  * and the next one asks.
+ *
+ * Offline it doesn't try: with no network at all, nothing; on a network that may lead nowhere, the
+ * server is asked for anything first (a few seconds), so a sync never holds the collection (and
+ * Review's answers behind it) waiting on a dead connection. It syncs again when the connection
+ * comes back (src/ui/connection.ts).
  */
 export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
   const [settings, setSettings] = useState<SyncSettings>();
@@ -43,9 +52,19 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
     }
     if (!enabled) return undefined;
     setSyncing(true);
+    let origin: string | undefined;
     try {
+      const address = normalizeEndpoint((await repo.syncSettings()).server);
+      origin = originOf(address);
+      if (connection.get().path === 'none') return "Offline. Franki syncs by itself when you're back online.";
+      if (!(await probe(address))) {
+        connection.report(origin, false);
+        return "Couldn't reach your server. Franki syncs by itself once it can.";
+      }
+      connection.report(origin, true);
       return reportText(await syncNow(repo, choose));
     } catch (e) {
+      if (origin && e instanceof SyncError && e.kind === 'network') connection.report(origin, false);
       return syncErrorText(e);
     } finally {
       running.current = false;
@@ -57,6 +76,8 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
       }
     }
   }, [repo, reload, onSynced]);
+
+  useBackOnline(() => { void sync(); });
 
   return { settings, syncing, sync, reload };
 }

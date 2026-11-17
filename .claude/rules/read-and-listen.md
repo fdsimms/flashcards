@@ -54,5 +54,8 @@ they win and this is stale. The rules that must not break:
   words, grammar choices, each language's deck); the screens fetch and show it, and keep nothing but
   the passphrase, the reader's own settings (`src/reader/prefs.ts`, which include whether the deck
   list's counts are shared for dundundun, off by default) and today's count of words added to the
-  deck (`src/reader/storage.ts`). The address is the sync server's plus
+  deck (`src/reader/storage.ts`). For offline use the phone also keeps copies, each replaced when
+  the server is read again: the server's settings (`saveSettingsCopy`), card glosses
+  (`useCardGlosses`), and words added offline until they're sent to the note queue
+  (`src/reader/heldNotes.ts`). The address is the sync server's plus
   `/reader` (`readerAddress`), so it's on only while sync is.
