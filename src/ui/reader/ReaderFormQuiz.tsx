@@ -149,7 +149,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
             ) : null}
             {why?.state === 'failed' ? <Text style={{ ...type.subhead, color: c.danger }}>{why.message}</Text> : null}
             {why?.state === 'done' ? (
-              <View accessibilityLiveRegion="polite" style={{ backgroundColor: c.fill, borderRadius: radius.m, padding: space.m, gap: space.s }}>
+              <View accessibilityLiveRegion="polite" style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.s }}>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>Why {word.text}</Text>
                 {why.paragraphs.map((p, i) => <Text key={i} style={{ ...type.body, color: c.text }}>{p}</Text>)}
               </View>

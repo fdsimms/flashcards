@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Animated, Easing, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
@@ -79,7 +79,7 @@ import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer } from '../core/activeRecall';
 import { compareTyped } from '../core/typedCompare';
-import { Button, Count, Icon, Loading, Screen, Tappable } from './kit';
+import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -87,27 +87,6 @@ import { useHeaderInset } from './useHeaderInset';
 
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
 export { CardSurface };
-
-/** How far through the session is, as a thin line under the header. */
-export function ProgressBar({ value, label = 'Progress through this session', style }: { value: number; label?: string; style?: StyleProp<ViewStyle> }) {
-  const c = useTheme();
-  const reduce = useReduceMotion();
-  const v = useRef(new Animated.Value(value)).current;
-  useEffect(() => {
-    // Width can't use the native driver; the bar is one view, so the JS-driven animation is cheap.
-    Animated.timing(v, { toValue: value, duration: reduce ? 0 : 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
-      style={[{ height: 4, marginHorizontal: space.l, marginTop: space.xs, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }, style]}
-    >
-      <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
-    </View>
-  );
-}
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
 const AUDIO_MODE = { playsInSilentMode: true };
@@ -1130,7 +1109,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Count value={queue.fresh.length} label="new" color={c.countNew} />
         </View>
       ) : null}
-      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} /> : null}
+      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} /> : null}
       {page ? (
         <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>

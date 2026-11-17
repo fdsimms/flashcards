@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { pieceLabel, type Currency, type Piece } from '../../tools/money';
-import { hairline, radius, space, type, useTheme } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * Notes and coins laid out to count: plain tints with the amount on, never a picture of a real
@@ -15,7 +15,7 @@ export function Cash({ pieces, currency }: { pieces: Piece[]; currency: Currency
     <View accessible accessibilityLabel={`Notes and coins: ${label}`} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, justifyContent: 'center', alignItems: 'center' }}>
       {pieces.map((p, i) => p.kind === 'note' ? (
         <View key={i} style={{
-          minWidth: 88, minHeight: 46, paddingHorizontal: space.s, borderRadius: radius.s - 2, alignItems: 'center', justifyContent: 'center',
+          minWidth: 88, minHeight: 46, paddingHorizontal: space.s, borderRadius: radius.s - 2, ...smooth, alignItems: 'center', justifyContent: 'center',
           backgroundColor: c.cashNotes[currency.notes.indexOf(p.value) % c.cashNotes.length], borderWidth: hairline, borderColor: c.border,
         }}>
           <Text style={{ ...type.subhead, fontWeight: '700', color: c.onCash }}>{pieceLabel(p.value, currency)}</Text>

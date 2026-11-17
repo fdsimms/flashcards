@@ -9,7 +9,7 @@ import { grammarTag } from '../grammarTag';
 import { HeaderAction, Tappable, ErrorNote, Segments, Tag } from '../kit';
 import { haptic } from '../haptics';
 import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
-import { hairline, radius, space, type, useTheme } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * A line's explanation, opened under it by the reader's explain button. It asks the server when it
@@ -59,7 +59,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
   return (
     <View
       accessibilityLabel={`Explanation of line ${line + 1}`}
-      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, padding: space.m, gap: space.s }}
+      style={{ marginTop: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.s }}
     >
       {error ? (
         <ErrorNote message={error} onRetry={() => load(simple)} />

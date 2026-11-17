@@ -24,7 +24,9 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box
-  holding text gets padding or a `minHeight`, never a fixed `height`.
+  holding text gets padding or a `minHeight`, never a fixed `height`. Words take the ink tokens,
+  not the fills: `goodInk`, `danger` or `warningInk` rather than a rating color
+  (`tests/noRatingColorText.test.ts`), and `accentInk` for gold text on `accentFill`.
 - **Mock up a proposed UI change before building it, so the owner can see it.** There are no
   screen tests and no renderer, so a description in prose isn't something they can react to. For a
   new screen, a layout change or a change to how a card or row is presented, publish a small HTML

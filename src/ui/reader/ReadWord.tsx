@@ -7,7 +7,7 @@ import { slotWidth, type SlotView } from '../../reader/formQuiz';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
 import { FadeIn } from '../motion';
-import { MIN_TAP, radius, useTheme } from '../theme';
+import { MIN_TAP, radius, useTheme, smooth } from '../theme';
 
 /**
  * One word of a text, with the marks it wears (the key in ReaderKey.tsx explains them): a fill
@@ -126,13 +126,13 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
     >
       {band ? (
         // Fades in as the voice reaches the word; it clears when the next one takes over.
-        <FadeIn style={{ position: 'absolute', top: bandInset, bottom: bandInset, left: 0, right: 0, borderRadius: radius.s - 2, backgroundColor: band }} />
+        <FadeIn style={{ position: 'absolute', top: bandInset, bottom: bandInset, left: 0, right: 0, borderRadius: radius.s - 2, ...smooth, backgroundColor: band }} />
       ) : null}
       {phrasePart && !ringed ? <PhraseBar /> : null}
       {ringed ? (
         <View
           pointerEvents="none"
-          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, borderWidth: 1.5, borderColor: c.accent }}
+          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.s - 2, ...smooth, borderWidth: 1.5, borderColor: c.accent }}
         />
       ) : null}
       <Text

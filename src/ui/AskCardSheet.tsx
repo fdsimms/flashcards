@@ -5,7 +5,7 @@ import { claudeChatLink, SUGGESTED_QUESTIONS, withQuestion, type AskTurn, type C
 import { failureText } from '../core/failure';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 
 /**
  * Ask Claude about the card on screen, from Review's ⋯ menu. It opens over the card as iOS's own
@@ -101,8 +101,8 @@ export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
           <View
             key={i}
             style={t.role === 'user'
-              ? { alignSelf: 'flex-end', backgroundColor: c.accent, borderRadius: radius.l, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '85%' }
-              : { alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.l, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '92%' }}
+              ? { alignSelf: 'flex-end', backgroundColor: c.accent, borderRadius: radius.l, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '85%' }
+              : { alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.l, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '92%' }}
           >
             <Text selectable={t.role === 'assistant'} style={{ ...type.subhead, color: t.role === 'user' ? c.onAccent : c.text }}>{t.content}</Text>
           </View>
@@ -112,7 +112,7 @@ export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
         {ask && !asking && !turns.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {SUGGESTED_QUESTIONS.map((q) => (
-              <Tappable key={q} onPress={() => void send(q)} accessibilityRole="button" accessibilityLabel={`Ask: ${q}`} style={{ backgroundColor: c.accentFill, borderRadius: radius.m, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP, justifyContent: 'center' }}>
+              <Tappable key={q} onPress={() => void send(q)} accessibilityRole="button" accessibilityLabel={`Ask: ${q}`} style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP, justifyContent: 'center' }}>
                 <Text style={{ ...type.subhead, color: c.text }}>{q}</Text>
               </Tappable>
             ))}
@@ -121,7 +121,7 @@ export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
         {onSaveAnswer && lastAnswer && !asking ? (
           <View style={{ gap: space.xs }}>
             {addedAnswer === lastAnswer ? (
-              <Text style={{ ...type.callout, fontWeight: '600', color: c.good }}>Added to the note's Notes</Text>
+              <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Added to the note's Notes</Text>
             ) : (
               <>
                 <Button label="Add to the note's Notes" variant="secondary" onPress={() => void addToNote(lastAnswer)} busy={adding} accessibilityLabel="Add this answer to the note's Notes field" />

@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
+  ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
@@ -213,16 +213,16 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, first, i
   );
 }
 
-type TagProps = { text: string; color: string; fill: string };
+type TagProps = { text: string; color: string; fill: string; /** What VoiceOver says when the text alone is cryptic ("AI", "N5"). */ accessibilityLabel?: string };
 
 /**
  * A short colored label (a grammar point's state, a count beside a heading): its text in a color
  * on a faint fill of the same color, which the theme pairs to pass 4.5:1 (`violetInk` on
  * `violetFill`, `goodInk` on `goodFill`).
  */
-export function Tag({ text, color, fill }: TagProps) {
+export function Tag({ text, color, fill, accessibilityLabel }: TagProps) {
   return (
-    <View style={{ borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+    <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel} style={{ borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
       <Text style={{ ...type.footnote, fontWeight: '600', color, fontVariant: ['tabular-nums'] }}>{text}</Text>
     </View>
   );
@@ -396,7 +396,7 @@ export function HeaderAction({ label, onPress, accessibilityLabel }: { label: st
         backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
       }}
     >
-      <Text style={{ ...type.body, fontWeight: '600', color: c.accent }}>{label}</Text>
+      <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>
     </Tappable>
   );
 }
@@ -658,6 +658,30 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * How far through a session or a drill is, as a thin line: Review's under its header, a quiz's over
+ * its question. The fill eases to each new value (at once with Reduce Motion). `value` is 0 to 1.
+ */
+export function ProgressBar({ value, label = 'Progress through this session', style }: { value: number; label?: string; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(value)).current;
+  useEffect(() => {
+    // Width can't use the native driver; the bar is one view, so the JS-driven animation is cheap.
+    Animated.timing(v, { toValue: value, duration: reduce ? 0 : 320, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      style={[{ height: 4, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }, style]}
+    >
+      <Animated.View style={{ height: '100%', borderRadius: radius.pill, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
     </View>
   );
 }
