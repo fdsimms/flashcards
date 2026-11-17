@@ -86,6 +86,36 @@ export function FadeIn({ children, style, duration = 140, delay = 0 }: { childre
   return <Animated.View pointerEvents="none" style={[style, { opacity: v }]}>{children}</Animated.View>;
 }
 
+/**
+ * Fades its content out and shrinks it to nothing after `delay`, so what's below moves up into the
+ * space (a row that has served its purpose). The height is animated, not just the opacity, so the
+ * box around it shrinks with it; that needs the JS driver. Draws nothing once finished. Give the
+ * content its own bottom padding rather than a parent gap, so no space is left behind.
+ */
+export function Collapse({ children, delay = 0, duration = 220 }: { children: React.ReactNode; delay?: number; duration?: number }) {
+  const reduce = useReduceMotion();
+  const v = useRef(new Animated.Value(1)).current;
+  const [h, setH] = useState<number | null>(null);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    if (reduce) { setGone(true); return undefined; }
+    if (h === null) return undefined;
+    const run = Animated.timing(v, { toValue: 0, duration, delay, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    run.start(({ finished }) => { if (finished) setGone(true); });
+    return () => run.stop();
+  }, [h === null, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (gone) return null;
+  return (
+    <Animated.View
+      // The natural height is measured once, before anything shrinks.
+      onLayout={h === null ? (e) => setH(e.nativeEvent.layout.height) : undefined}
+      style={h === null ? undefined : { height: v.interpolate({ inputRange: [0, 1], outputRange: [0, h] }), opacity: v, overflow: 'hidden' }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 /** A bar or block that grows from its baseline (scaleY) when it first appears; `delay` staggers a row of them. */
 export function Grow({ children, style, delay = 0 }: { children?: React.ReactNode; style?: StyleProp<ViewStyle>; delay?: number }) {
   const reduce = useReduceMotion();
