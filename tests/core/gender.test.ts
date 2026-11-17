@@ -19,6 +19,14 @@ describe('gender for coloring', () => {
     expect(leadingArticle('ο άνθρωπος')).toEqual({ article: 'ο', rest: ' άνθρωπος' });
   });
 
+  it('splits off the plural article a plural-only noun keeps, so it is colored and gets no second one', () => {
+    expect(leadingArticle('los modales')).toEqual({ article: 'los', rest: ' modales' });
+    expect(leadingArticle('οι ειδήσεις')).toEqual({ article: 'οι', rest: ' ειδήσεις' });
+    expect(leadingArticle('les tripes')).toEqual({ article: 'les', rest: ' tripes' });
+    expect(genderArticle('es', 'm', 'los modales')).toBeUndefined();
+    expect(genderArticle('el', 'n', 'τα δεδομένα')).toBeUndefined();
+  });
+
   it('finds no article in a word that has none, or an article alone', () => {
     expect(leadingArticle('kot')).toBeNull();
     expect(leadingArticle('die')).toBeNull();
@@ -81,6 +89,6 @@ describe('a noun without the article its Gender gives', () => {
     expect(bareNoun('fr', 'm', "l'homme")).toBe("l'homme");
     expect(bareNoun('de', 'm', 'Tisch')).toBe('Tisch');
     expect(bareNoun('de', undefined, 'der Tisch')).toBe('der Tisch');
-    expect(bareNoun('ru', 'm', 'мой стол')).toBe('мой стол');
+    expect(bareNoun('ru', 'm', 'этот стол')).toBe('этот стол');
   });
 });

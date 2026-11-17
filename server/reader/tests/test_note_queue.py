@@ -152,12 +152,12 @@ def test_a_german_verb_gets_class_auxiliary_and_key_forms() -> None:
     assert "Auxiliary" not in got_fields("de", "abwerfen", part_of_speech="verb", auxiliary="have")
 
 
-def test_french_gender_is_m_or_f_and_russian_gender_is_in_cyrillic() -> None:
+def test_french_gender_is_m_or_f_and_russian_gender_is_m_f_or_n() -> None:
     assert got_fields("fr", "le boulot", part_of_speech="noun", gender="m")["Gender"] == "m"
     assert "Gender" not in got_fields("fr", "le boulot", part_of_speech="noun", gender="n")
     ru: dict[str, Any] = {"romanization": "oblik", "transliteration": "oblik"}
-    assert got_fields("ru", "облик", part_of_speech="noun", gender="ж", **ru)["Gender"] == "ж"
-    assert "Gender" not in got_fields("ru", "облик", part_of_speech="noun", gender="f", **ru)
+    assert got_fields("ru", "облик", part_of_speech="noun", gender="m", **ru)["Gender"] == "m"
+    assert "Gender" not in got_fields("ru", "облик", part_of_speech="noun", gender="ж", **ru)
 
 
 def test_a_russian_verb_gets_its_aspect_partner_and_first_person() -> None:
