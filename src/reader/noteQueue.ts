@@ -71,7 +71,7 @@ export function reviewTarget(note: QueuedNote): { deck: string; model: string; f
 
 const notes = (n: number) => (n === 1 ? '1 note' : `${n} notes`);
 
-/** What the deck list's card says about the queue, or null when it's empty. */
+/** What Today's card says about the queue, or null when it's empty. */
 export function bannerOf(queue: NoteQueue | null): { tone: 'ready' | 'waiting' | 'failed'; message: string; hint: string } | null {
   if (!queue) return null;
   const { ready, waiting, failed } = counts(queue.items);

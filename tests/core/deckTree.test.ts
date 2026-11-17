@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
-import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, nextDeckToStudy, queueInput, shownDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
+import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, type TreeQueueInput } from '../../src/core/deckTree';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -296,6 +296,30 @@ describe('collapsed decks on the deck list', () => {
 
   it("ignores a collapsed flag on a deck with no subdecks to hide", () => {
     expect(shown(['E', 'A::D'])).toEqual(['A-', 'A::B-', 'A::B::C', 'A::D', 'E']);
+  });
+});
+
+describe('todayDeckRows', () => {
+  const rows = (counts: Record<string, [number, number]>) => Object.entries(counts).map(([deck, [due, fresh]]) => ({ deck, name: deck.split('::').pop()!, depth: deck.split('::').length - 1, due, fresh }));
+  const shown = (r: ReturnType<typeof rows>, collapsed: string[] = []) => todayDeckRows(r, new Set(collapsed)).map((x) => `${x.deck}${x.hasSubdecks ? (x.collapsed ? '+' : '-') : ''}`);
+
+  it('keeps only the decks with something due or new, under their parents', () => {
+    const r = rows({ Languages: [260, 1], 'Languages::Deutsch': [0, 0], 'Languages::Polski': [120, 0], 'Languages::Thai': [140, 1], Trivia: [0, 0] });
+    expect(shown(r)).toEqual(['Languages-', 'Languages::Polski', 'Languages::Thai']);
+  });
+
+  it("keeps a parent whose own limit shows nothing while a subdeck has cards, so the subdeck isn't orphaned", () => {
+    const r = rows({ A: [0, 0], 'A::B': [0, 0], 'A::B::C': [0, 3], D: [2, 0] });
+    expect(shown(r)).toEqual(['A-', 'A::B-', 'A::B::C', 'D']);
+  });
+
+  it("drops the show/hide button of a deck whose subdecks have nothing, and keeps collapsed decks collapsed", () => {
+    const r = rows({ A: [5, 0], 'A::B': [0, 0], E: [1, 0], 'E::F': [1, 0] });
+    expect(shown(r, ['A', 'E'])).toEqual(['A', 'E+']);
+  });
+
+  it('is empty when nothing is due or new', () => {
+    expect(shown(rows({ A: [0, 0], 'A::B': [0, 0] }))).toEqual([]);
   });
 });
 
