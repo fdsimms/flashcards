@@ -164,6 +164,15 @@ export function retrievability(card: Card, now: Date, weights: number[]): number
   return forgetting_curve(weights.length ? weights : default_w, elapsed, card.sched.stability);
 }
 
+/** A sort asks for a card's key on every comparison, so each card's is worked out once. */
+function perCard<T>(key: (c: Card) => T): (c: Card) => T {
+  const seen = new Map<string, T>();
+  return (c) => {
+    if (!seen.has(c.id)) seen.set(c.id, key(c));
+    return seen.get(c.id)!;
+  };
+}
+
 /**
  * Due cards (reviews, or day-long learning) in a preset's review order. Every order ends on a
  * stable shuffle, as Anki's does.
@@ -173,7 +182,7 @@ export function sortReviews(cards: Card[], order: number, ctx: SortContext): Car
   const shuffle = new Map(cards.map((c) => [c.id, c.ankiId && c.ankiMod !== undefined
     ? signed(fnvHash(BigInt(c.ankiId), BigInt(c.ankiMod)))
     : signed(fnvHash(idValue(c.ankiId ?? c.id), studyDayKey(ctx.now, ctx.dayStartsAtHour)))]));
-  const r = (c: Card) => retrievability(c, ctx.now, ctx.weightsOf(c));
+  const r = perCard((c) => retrievability(c, ctx.now, ctx.weightsOf(c)));
   // NULL first ascending, last descending, as SQLite sorts it.
   const byR = (dir: 1 | -1) => (a: Card, b: Card) => {
     const ra = r(a);
@@ -181,15 +190,16 @@ export function sortReviews(cards: Card[], order: number, ctx: SortContext): Car
     if (ra === undefined || rb === undefined) return ra === rb ? 0 : (ra === undefined ? -1 : 1) * dir;
     return (ra - rb) * dir;
   };
-  const overdueness = (c: Card) =>
-    -(Math.floor((ctx.now.getTime() - (dueMs(c) - c.sched.scheduledDays * dayMs)) / dayMs) + 0.001) / Math.max(c.sched.scheduledDays, 1);
+  const overdueness = perCard((c: Card) =>
+    -(Math.floor((ctx.now.getTime() - (dueMs(c) - c.sched.scheduledDays * dayMs)) / dayMs) + 0.001) / Math.max(c.sched.scheduledDays, 1));
   const noteNum = (c: Card) => idValue(ctx.noteOf(c));
   const cmpNote = (a: Card, b: Card) => {
     const na = noteNum(a);
     const nb = noteNum(b);
     return typeof na === 'bigint' && typeof nb === 'bigint' ? cmpBig(na, nb) : String(na).localeCompare(String(nb));
   };
-  const byDay = (a: Card, b: Card) => dueDay(a, ctx.dayStartsAtHour) - dueDay(b, ctx.dayStartsAtHour);
+  const dayOf = perCard((c) => dueDay(c, ctx.dayStartsAtHour));
+  const byDay = (a: Card, b: Card) => dayOf(a) - dayOf(b);
   const byDeck = (a: Card, b: Card) => compareDeckNames(ctx.deckOf(a), ctx.deckOf(b));
   const keys: ((a: Card, b: Card) => number)[] = {
     [REVIEW.day]: [byDay],
@@ -228,8 +238,10 @@ export function gatherNew(cards: Card[], priority: number, ctx: SortContext, adm
   const hash = (id: string | undefined) => signed(fnvHash(idValue(id), salt));
   const pos = (c: Card) => (inFilteredOrder(c) ? c.filteredDue! : c.position) ?? Number.MAX_SAFE_INTEGER;
   const byPosition = (a: Card, b: Card) => pos(a) - pos(b) || cardOrd(a) - cardOrd(b) || byCardId(a, b);
-  const byRandomNote = (a: Card, b: Card) => cmpBig(hash(ctx.noteOf(a)), hash(ctx.noteOf(b))) || cardOrd(a) - cardOrd(b) || byCardId(a, b);
-  const byRandomCard = (a: Card, b: Card) => cmpBig(hash(a.ankiId ?? a.id), hash(b.ankiId ?? b.id)) || byCardId(a, b);
+  const noteHash = perCard((c) => hash(ctx.noteOf(c)));
+  const cardHash = perCard((c) => hash(c.ankiId ?? c.id));
+  const byRandomNote = (a: Card, b: Card) => cmpBig(noteHash(a), noteHash(b)) || cardOrd(a) - cardOrd(b) || byCardId(a, b);
+  const byRandomCard = (a: Card, b: Card) => cmpBig(cardHash(a), cardHash(b)) || byCardId(a, b);
   const taken: Card[] = [];
   const take = (list: Card[]) => { for (const c of list) if (admit(c)) taken.push(c); };
   if (priority === GATHER.deck || priority === GATHER.deckThenRandomNotes) {
