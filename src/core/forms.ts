@@ -2,6 +2,7 @@ import { speechLangFor, isOmnilanguage } from './cards';
 import { studyDayKey, studyDayStart } from './day';
 import { inheritedSetting, isInDeck } from './deckTree';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
+import { elidesBefore } from './gender';
 import { htmlToText } from './html';
 import { foldUndecomposed, foldYo } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
@@ -81,7 +82,7 @@ const ENTRY_ARTICLES: Record<string, Record<string, string[]>> = {
  */
 function takesOtherArticle(lang: string, g: Gender, word: string): boolean {
   const w = word.toLocaleLowerCase();
-  if ((lang === 'fr' || lang === 'it') && /^[aeiouàâäéèêëìíîïòóôöùúûüœæ]/u.test(w)) return true;
+  if (elidesBefore(lang, w)) return true;
   return lang === 'it' && g === 'm' && /^(s[^aeiouàèéìíòóùú]|z|gn|ps|pn|x|y)/u.test(w);
 }
 

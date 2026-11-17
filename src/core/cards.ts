@@ -1,4 +1,4 @@
-import { genderOf, leadingArticle } from './gender';
+import { genderArticle, genderOf, spokenEntry } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
@@ -186,32 +186,16 @@ export function thaiCountingWords(entry: string, classifier: string): string[] {
 }
 
 export const GENDER_WORDS: Record<string, string> = { m: 'masculine', f: 'feminine', n: 'neuter' };
-/**
- * The word shown dimmed before a noun, by the noun's Gender and its language (the first two letters of
- * its speech language): мой / моя / моё before a Russian noun, ten / ta / to before a Polish one. The
- * Entry is the bare noun; Anki's template (Omnilanguage) puts the same word before it.
- */
-const GENDER_PREFIXES: Record<string, Record<string, string>> = {
-  ru: { m: 'мой', f: 'моя', n: 'моё' },
-  pl: { m: 'ten', f: 'ta', n: 'to' },
-  es: { m: 'el', f: 'la' },
-  nb: { m: 'en', f: 'ei', n: 'et' },
-};
-/** Languages whose article is part of the word as it's said (el agua), so a recording or the voice includes it. Russian's and Polish's are only a reminder. */
-const SPOKEN_PREFIX = new Set(['es', 'nb']);
-
 function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): RenderedCard {
   const speechLang = speechLangFor(note);
 
   const entry = t(note, 'Entry');
   // What the phone's voice may say: nothing in a language that isn't known, which it would read as
   // English. A recording (`audioFile`) still plays.
-  // A noun's article from its Gender (el / la, en / ei / et), unless the Entry already starts with one: that
-  // is how an exception is written (el agua is feminine, en bok may be feminine), and it must not get a second.
+  // A noun's article from its Gender (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
-  const genderWord = GENDER_PREFIXES[lang2]?.[t(note, 'Gender').toLowerCase()];
-  const prefix = genderWord && !leadingArticle(entry) && !entry.toLowerCase().startsWith(`${genderWord} `) ? genderWord : undefined;
-  const say = speechLang ? (prefix && SPOKEN_PREFIX.has(lang2) ? `${prefix} ${entry}` : entry) : undefined;
+  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry);
+  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');

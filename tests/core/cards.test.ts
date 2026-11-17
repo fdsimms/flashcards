@@ -156,6 +156,21 @@ describe('cards', () => {
     // No Gender (a plural-only noun, or not a noun): nothing is added.
     expect(renderCard({ ...es, fields: { ...es.fields, Gender: '' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
+  it('puts der / die / das, le / la / l\' and ο / η / το before a German, French or Greek noun by its Gender, and speaks it', () => {
+    const de = omniNote({ Entry: 'Einstellung', Meaning: 'attitude', Language: 'german', Gender: 'f', Transliteration: '' });
+    expect(renderCard(de, 'forward').front.blocks[0]).toMatchObject({ text: 'Einstellung', prefix: 'die', gender: 'f' });
+    expect(renderCard(de, 'forward').front.speak).toBe('die Einstellung');
+    const fr = omniNote({ Entry: 'morceau', Meaning: 'piece', Language: 'french', Gender: 'm', Transliteration: '' });
+    expect(renderCard(fr, 'forward').front.blocks[0].prefix).toBe('le');
+    const elided = renderCard({ ...fr, fields: { ...fr.fields, Entry: 'amertume', Gender: 'f' } }, 'forward');
+    expect(elided.front.blocks[0]).toMatchObject({ text: 'amertume', prefix: "l'" });
+    expect(elided.front.speak).toBe("l'amertume");
+    // An h noun keeps its article in the Entry, so it gets no second one.
+    expect(renderCard({ ...fr, fields: { ...fr.fields, Entry: "l'homme" } }, 'forward').front.blocks[0].prefix).toBeUndefined();
+    const el = omniNote({ Entry: 'γειτονιά', Meaning: 'neighborhood', Language: 'greek', Gender: 'f', Transliteration: '' });
+    expect(renderCard(el, 'forward').front.blocks[0].prefix).toBe('η');
+    expect(renderCard(el, 'forward').front.speak).toBe('η γειτονιά');
+  });
   it("shows which word is wanted under a reverse card's meaning, and nowhere else", () => {
     const note = omniNote({ Entry: 'esperar', Meaning: 'to wait', Language: 'Spanish', LeechHint: 'hint' });
     expect(renderCard(note, 'reverse', 'Not: aguardar').front.blocks.map((b) => [b.text, b.role]))
