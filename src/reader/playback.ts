@@ -13,9 +13,9 @@ export function nextRepeatCount(count: number): RepeatCount {
   return REPEAT_COUNTS[(at + 1) % REPEAT_COUNTS.length];
 }
 
-/** The chip's text: 'Repeat: Off', '3×' or '∞'. */
-export function repeatChipLabel(count: number): string {
-  return count <= 1 ? 'Repeat: Off' : count === Infinity ? '∞' : `${count}×`;
+/** The repeat button's badge: '3' or '∞', and null while repeat is off (the button then has no badge). */
+export function repeatBadge(count: number): string | null {
+  return count <= 1 ? null : count === Infinity ? '∞' : String(count);
 }
 
 /** A run of lines, by index, both ends included. */

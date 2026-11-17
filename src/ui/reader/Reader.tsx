@@ -11,7 +11,7 @@ import { scrollTarget, type Box } from '../../reader/follow';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
 import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
-import { firstLine, paragraphs, rangeOf, repeatChipLabel } from '../../reader/playback';
+import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
@@ -1392,42 +1392,39 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
   const label = current === null && !note ? null : (
-    <View style={{ flex: 1 }}>
+    <View style={{ alignItems: 'center' }}>
       {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
-      {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
+      {note ? <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{note}</Text> : null}
     </View>
   );
-  // One tap steps Off, 2×, 3×, 5×, ∞ (playback.ts), so the choices share one chip.
+  // One tap steps Off, 2×, 3×, 5×, ∞ (playback.ts), so the choices share one button: unfilled when off,
+  // filled with the count in a badge when on.
+  const badge = repeatBadge(repeat);
   const chip = (
     <Tappable
       onPress={() => { haptic.select(); onRepeat(); }}
       accessibilityRole="button"
       accessibilityLabel="Repeat line"
       accessibilityValue={{ text: repeating ? (repeat === Infinity ? 'Until turned off' : `${repeat} times`) : 'Off' }}
-      scaleTo={0.95}
-      style={{
-        minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, borderRadius: radius.pill,
-        backgroundColor: repeating ? c.accentFill : c.fill,
-      }}
+      scaleTo={0.92}
+      style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: repeating ? c.accent : c.fill }}
     >
-      <Icon name="repeat" size={14} color={repeating ? c.accent : c.textSecondary} weight="semibold" />
-      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accentInk : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
+      <Icon name="repeat" size={18} color={repeating ? c.onAccent : c.textSecondary} weight="semibold" />
+      {badge ? (
+        <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, minHeight: 18, paddingHorizontal: 4, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.text, borderWidth: 2, borderColor: c.surface }}>
+          <Text style={{ ...type.caption, fontWeight: '700', color: c.bg }}>{badge}</Text>
+        </View>
+      ) : null}
     </Tappable>
   );
   return (
     <View style={{ gap: space.m }}>
-      {skippable ? (
-        <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-            <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} />
-            {play}
-            <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} />
-          </View>
-          {label ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{label}</View> : null}
-        </>
-      ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>{play}{label}</View>
-      )}
+      {label}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.m }}>
+        {skippable ? <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} /> : null}
+        {play}
+        {skippable ? <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} /> : null}
+      </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}
