@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../reader/guess';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
-import { Pop } from './motion';
+import { Collapse, Pop } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -62,15 +62,23 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
   );
 }
 
+/** How long the answer is seen among all four choices before the other wrong ones fold away, and the gap between each. */
+const FOLD_AFTER_MS = 600;
+const FOLD_STAGGER_MS = 90;
+
 /**
  * The quiz's choices once answered: the right one marked (and springing in, with a check, when it
- * was picked), a wrong pick marked, the rest dimmed. Each mark has a word as well as a color.
+ * was picked) and a wrong pick marked, each with a word as well as a color. The wrong choices that
+ * weren't picked are dimmed, then fold away top to bottom, giving the popover its space back.
  */
 export function QuizChoices({ choices, answer, picked }: { choices: string[]; answer: number; picked: number | null }) {
   const c = useTheme();
   const gotIt = picked === answer;
+  let folded = 0;
   return (
-    <View style={{ gap: space.s, marginTop: space.xs }}>
+    // Each row carries its own bottom padding (not a gap) so a folded row leaves no space; the
+    // negative margin takes back the last row's.
+    <View style={{ marginTop: space.xs, marginBottom: -space.s }}>
       {choices.map((choice, i) => {
         const right = i === answer;
         const wrongPick = i === picked && !right;
@@ -94,7 +102,10 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             ) : null}
           </View>
         );
-        return right && gotIt ? <Pop key={`${i}:${choice}`} from={0.96} bounciness={10}>{row}</Pop> : <React.Fragment key={`${i}:${choice}`}>{row}</React.Fragment>;
+        const key = `${i}:${choice}`;
+        const padded = (inner: React.ReactNode) => <View key={key} style={{ paddingBottom: space.s }}>{inner}</View>;
+        if (right || wrongPick) return padded(right && gotIt ? <Pop from={0.96} bounciness={10}>{row}</Pop> : row);
+        return <Collapse key={key} delay={FOLD_AFTER_MS + FOLD_STAGGER_MS * folded++}>{padded(row)}</Collapse>;
       })}
     </View>
   );

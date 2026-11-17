@@ -102,7 +102,7 @@ PHRASE_SYSTEM = (
     "dictionary senses. It translates only the selected words: add no clause, detail or "
     "explanation that the phrase doesn't say, and never describe the situation, who is doing "
     "what to whom, or why. Context may only decide which English word renders a pronoun or an "
-    "omitted subject. Give `literal`: a word-for-word English rendering that keeps the "
+    "omitted subject. What the text adds belongs in a point, not here. Give `literal`: a word-for-word English rendering that keeps the "
     "phrase's own word order and structure, even where that sounds odd in English (leave out "
     "articles the language doesn't have). Give an empty string when it would read the same as "
     f"`meaning`. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
@@ -114,8 +114,10 @@ PHRASE_SYSTEM = (
     "briefly and explain how the words combine. Give a literal translation only when it shows "
     "how the phrase works. The whole text is there only so you can see what the phrase refers to. "
     'Use it only when it changes or sharpens the meaning (what a pronoun or "one thing" points '
-    "to, what a reply answers, the speaker's tone). If the phrase can be explained from its own "
-    "line, say nothing about the rest of the text, and never retell or summarize it. "
+    "to, what a reply answers, the speaker's tone). When the story around the phrase sharpens "
+    "what it means (who is saying it to whom, what is at stake), say so in one short point whose "
+    "`phrase` is the selection itself, never in `meaning`. If the phrase can be explained from "
+    "its own line, say nothing about the rest of the text, and never retell or summarize it. "
     "Do not use em dashes." + ENGLISH + CALIBRATION
 )
 

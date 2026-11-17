@@ -140,6 +140,9 @@ marked words, ideas) is in the current language, the `language` setting.
                                       inflection
     GET   /api/words                  words marked unknown and not cleared, newest first
     POST  /api/words/clear            {word} takes a word off that list until it's marked again
+    POST  /api/ranks                  {language, words: [...]} each word's place among the language's
+                                      most common words (frequency.py): {ranks: {word: place | null}},
+                                      null past the list's end. Read-only; the MCP orders new cards by it
     GET   /api/texts/{id}/lines/{n}/audio   one line's MP3, made now if it isn't cached yet;
                                       `?speed=slow` is the one Azure speaks slowly (tts.SLOW_RATE)
     GET   /api/texts/{id}/lines/{n}/slow    records the slow one if needed, and `{times}` for its words
@@ -321,6 +324,7 @@ from franki_reader.explain import (
     claude_explain_form,
     claude_explain_phrase,
 )
+from franki_reader.frequency import rank_of
 from franki_reader.gateway import (
     AnkiUnavailable,
     ReadDue,
@@ -418,6 +422,14 @@ class GrammarStretchIn(BaseModel):
 
 class ClearWord(BaseModel):
     word: str = Field(min_length=1, max_length=100)
+
+
+MAX_RANKED = 1000
+
+
+class RanksIn(BaseModel):
+    language: Code
+    words: list[str] = Field(min_length=1, max_length=MAX_RANKED)
 
 
 CastType = Literal["man", "woman", "boy", "girl", "elder_man", "elder_woman"]
@@ -1820,8 +1832,8 @@ def create_app(
         lesson_id = store.add_lesson(engine.conn, body.language, scene, engine.clock())
         synthesize = engine.synthesize
 
-        async def speak_bytes(text: str, voice: str, locale: str) -> bytes:
-            return (await synthesize(text, voice, locale)).audio
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
 
         background.add_task(
             lesson_service.make_lesson,
@@ -2620,6 +2632,14 @@ def create_app(
             # Drilled from now on (docs/grammar.md, step 5): its questions are written ahead.
             background.add_task(top_up_drills, (point_id,))
         return grammar_points()
+
+    @app.post("/api/ranks", dependencies=authed)
+    async def ranks(body: RanksIn) -> dict[str, dict[str, int | None]]:
+        """Each word's place in its language's list of most common words (1 is the most common),
+        None past the list's end or for something that isn't a word. Reads only: it never touches
+        the deck or a card."""
+        _, lexicon = engine.snapshot(body.language)
+        return {"ranks": {w: rank_of(w, lexicon) for w in dict.fromkeys(body.words)}}
 
     @app.post("/api/words/clear", status_code=204, dependencies=authed)
     async def clear_word(body: ClearWord) -> Response:

@@ -246,6 +246,10 @@ reaches their devices at their next sync.
   Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
   only when asked, in the same lines, tagged forms-unverified.
+- New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
+  own new-card positions, so every device follows and no schedule changes). It needs Read &
+  Listen running. Preview first, show the user the start of the order and how many words had no
+  place, and apply only once they agree: the old order isn't kept.
 """
 
 

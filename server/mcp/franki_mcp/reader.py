@@ -23,22 +23,32 @@ class ReaderSettings:
     passphrase: str
 
 
-def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.AsyncClient | None = None) -> None:
-    """Adds Read & Listen's tools. `http` is for tests; the server makes its own."""
-    client = http or httpx.AsyncClient(timeout=30)
+class ReaderClient:
+    """Calls Read & Listen's API with the passphrase, saying plainly the errors a caller can fix."""
 
-    async def get(path: str, params: dict[str, Any] | None = None) -> Any:
-        """One GET against Read & Listen's API, with the errors a caller can fix said plainly."""
+    def __init__(self, settings: ReaderSettings | None, http: httpx.AsyncClient | None = None):
+        self.settings = settings
+        self.http = http or httpx.AsyncClient(timeout=30)
+
+    async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        return await self.send("GET", path, params=params)
+
+    async def post(self, path: str, body: dict[str, Any]) -> Any:
+        return await self.send("POST", path, json=body)
+
+    async def send(self, method: str, path: str, **kwargs: Any) -> Any:
+        settings = self.settings
         if settings is None:
             raise ToolError(
                 "Read & Listen isn't connected to the MCP. It needs READER_PASSPHRASE in server/.env "
                 "(the passphrase the app uses) and reader in COMPOSE_PROFILES, then a restart."
             )
         try:
-            r = await client.get(
+            r = await self.http.request(
+                method,
                 f"{settings.url.rstrip('/')}{path}",
-                params=params,
                 headers={"Authorization": f"Bearer {settings.passphrase}"},
+                **kwargs,
             )
         except httpx.HTTPError as e:
             raise ToolError(
@@ -51,9 +61,16 @@ def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.Asy
             raise ToolError("No such text. list_read_and_listen_texts has the ids.")
         if r.status_code == 404:
             raise ToolError("Read & Listen's server is older than this tool. It updates itself within about 15 minutes of a merge.")
+        if r.status_code == 422:
+            raise ToolError(f"Read & Listen refused the request: {r.text[:300]}")
         if r.status_code != 200:
             raise ToolError(f"Read & Listen answered {r.status_code}: {r.text[:200]}")
         return r.json()
+
+
+def register(server: MCPServer, settings: ReaderSettings | None, http: httpx.AsyncClient | None = None) -> None:
+    """Adds Read & Listen's tools. `http` is for tests; the server makes its own."""
+    get = ReaderClient(settings, http).get
 
     @server.tool(annotations=READ)
     async def read_and_listen_costs(days: int = 30) -> dict[str, Any]:
