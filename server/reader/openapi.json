@@ -2414,6 +2414,67 @@
         }
       }
     },
+    "/api/grammar-topics/read-image": {
+      "post": {
+        "summary": "Read Grammar Topic Image",
+        "description": "The grammar point an image (a photo of a book's page, a screenshot) is about, as a title\nto put in the New topic screen. Nothing is stored: the topic is made by a separate call\nonce the owner has looked at the title.",
+        "operationId": "read_grammar_topic_image_api_grammar_topics_read_image_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicImageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Read Grammar Topic Image Api Grammar Topics Read Image Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grammar-topics/{topic_id}": {
       "get": {
         "summary": "Get Grammar Topic",
@@ -5745,6 +5806,49 @@
           "fit"
         ],
         "title": "SuggestionOut"
+      },
+      "TopicImageIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 6000000,
+            "minLength": 1,
+            "title": "Image"
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "image/gif"
+            ],
+            "title": "Media Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "image",
+          "media_type"
+        ],
+        "title": "TopicImageIn"
       },
       "TopicOut": {
         "properties": {

@@ -549,6 +549,8 @@ export function createApi(
     topics: (language: Language) => call<{ topics: GrammarTopicRow[] }>('GET', `/api/grammar-topics?language=${language}`),
     topic: (id: number) => call<GrammarTopic>('GET', `/api/grammar-topics/${id}`),
     createTopic: async (language: Language, title: string): Promise<GrammarTopic> => (await send('POST', '/api/grammar-topics', { language, title })).json(),
+    // The grammar point an image (base64, its media type) is about, as a title for New topic. Nothing is kept: the topic is made by createTopic once the title has been looked at.
+    readTopicImage: (language: Language, image: string, mediaType: 'image/jpeg' | 'image/png') => call<{ title: string }>('POST', '/api/grammar-topics/read-image', { language, image, media_type: mediaType }),
     moreTopicExamples: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/examples`)).json(),
     rewriteTopic: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/rewrite`)).json(),
     deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),

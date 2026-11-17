@@ -678,6 +678,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/grammar-topics/read-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Grammar Topic Image
+         * @description The grammar point an image (a photo of a book's page, a screenshot) is about, as a title
+         *     to put in the New topic screen. Nothing is stored: the topic is made by a separate call
+         *     once the owner has looked at the title.
+         */
+        post: operations["read_grammar_topic_image_api_grammar_topics_read_image_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/grammar-topics/{topic_id}": {
         parameters: {
             query?: never;
@@ -1703,6 +1725,21 @@ export interface components {
             name: string;
             /** Fit */
             fit: number;
+        };
+        /** TopicImageIn */
+        TopicImageIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Image */
+            image: string;
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/jpeg" | "image/png" | "image/webp" | "image/gif";
         };
         /**
          * TopicOut
@@ -3172,6 +3209,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_grammar_topic_image_api_grammar_topics_read_image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicImageIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

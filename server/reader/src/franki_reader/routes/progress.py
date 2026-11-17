@@ -116,6 +116,7 @@ def router(ctx: AppContext) -> APIRouter:
         explained = store.explanation_spending(engine.conn, since)
         drilled = store.drill_spending(engine.conn, since)
         topic_writes = store.grammar_topic_spending(engine.conn, since)
+        topic_images = store.topic_image_spending(engine.conn, since)
         vocab = store.vocab_spending(engine.conn, since)
         queued = store.queue_spending(engine.conn, since)
         glossed = store.meaning_spending(engine.conn, since)
@@ -175,6 +176,20 @@ def router(ctx: AppContext) -> APIRouter:
                         "cost_usd": round(c, 4),
                     }
                     for code, (n, c) in topic_writes.items()
+                ],
+            },
+            # Images read for a topic's title (topic_image.py), failed calls included.
+            "topic_images": {
+                "read": sum(n for n, _ in topic_images.values()),
+                "cost_usd": round(sum(c for _, c in topic_images.values()), 4),
+                "languages": [
+                    {
+                        "language": code,
+                        "name": LANGUAGES[code].name,
+                        "read": n,
+                        "cost_usd": round(c, 4),
+                    }
+                    for code, (n, c) in topic_images.items()
                 ],
             },
             "drills": {

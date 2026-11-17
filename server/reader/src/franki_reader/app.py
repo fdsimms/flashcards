@@ -283,6 +283,7 @@ from franki_reader import (
     sentences,
     situations,
     store,
+    topic_image,
     vocab_check,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
@@ -353,6 +354,7 @@ def create_app(
     play: situations.Play | None = None,
     give_feedback: situations.GiveFeedback | None = None,
     write_topic: grammar_topics.WriteTopic | None = None,
+    read_topic_image: topic_image.ReadTopic | None = None,
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
     lessons_dir: Path | None = None,
@@ -400,6 +402,7 @@ def create_app(
         play=play,
         give_feedback=give_feedback,
         write_topic=write_topic,
+        read_topic_image=read_topic_image,
         clips=clips,
         write_lesson=write_lesson,
         lessons_dir=lessons_dir,
@@ -432,6 +435,7 @@ def production_app() -> FastAPI:
     give_feedback: situations.GiveFeedback | None = None
     write_drills: drills.WriteDrills | None = None
     write_topic: grammar_topics.WriteTopic | None = None
+    read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
     write_meanings: meanings.WriteMeanings | None = None
@@ -454,6 +458,7 @@ def production_app() -> FastAPI:
         give_feedback = situations.claude_feedback(client)
         write_drills = drills.claude_drills(client)
         write_topic = grammar_topics.claude_topics(client)
+        read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
         write_meanings = meanings.claude_meanings(client)
@@ -541,6 +546,7 @@ def production_app() -> FastAPI:
         play=play,
         give_feedback=give_feedback,
         write_topic=write_topic,
+        read_topic_image=read_topic_image,
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,

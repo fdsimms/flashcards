@@ -15,6 +15,7 @@ from franki_reader import (
     sentences,
     situations,
     store,
+    topic_image,
     vocab_check,
 )
 from franki_reader.engine import Engine
@@ -52,6 +53,7 @@ class AppContext:
     play: situations.Play | None
     give_feedback: situations.GiveFeedback | None
     write_topic: grammar_topics.WriteTopic | None
+    read_topic_image: topic_image.ReadTopic | None
     clips: ClipCache | None
     write_lesson: WritePlan | None
     lessons_dir: Path | None

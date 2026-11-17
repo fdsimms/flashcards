@@ -1,0 +1,51 @@
+import type { CaseLanguage } from '../cases';
+
+/**
+ * Polish words and the case after them, from the owner's Rekcja deck and the common prepositions
+ * beside it. A preposition taking two cases is listed once for each, with its sense (na, w, za).
+ */
+export const POLISH_CASES: CaseLanguage = {
+  cases: ['genitive', 'dative', 'accusative', 'instrumental', 'locative'],
+  governors: [
+    { word: 'bez', meaning: 'without', kind: 'preposition', case: 'genitive' },
+    { word: 'dla', meaning: 'for', kind: 'preposition', case: 'genitive' },
+    { word: 'od', meaning: 'from', kind: 'preposition', case: 'genitive' },
+    { word: 'do', meaning: 'to, until', kind: 'preposition', case: 'genitive' },
+    { word: 'u', meaning: "at (someone's place)", kind: 'preposition', case: 'genitive', person: true },
+    { word: 'obok', meaning: 'next to', kind: 'preposition', case: 'genitive' },
+    { word: 'podczas', meaning: 'during', kind: 'preposition', case: 'genitive' },
+    { word: 'według', meaning: 'according to', kind: 'preposition', case: 'genitive', person: true },
+    { word: 'nie ma', meaning: "there isn't", kind: 'phrase', case: 'genitive' },
+    { word: 'potrzebować', meaning: 'to need', kind: 'verb', case: 'genitive' },
+    { word: 'słuchać', meaning: 'to listen to', kind: 'verb', case: 'genitive' },
+    { word: 'szukać', meaning: 'to look for', kind: 'verb', case: 'genitive' },
+    { word: 'bać się', meaning: 'to be afraid of', kind: 'verb', case: 'genitive' },
+    { word: 'dzwonić do', meaning: 'to call (someone)', kind: 'verb', case: 'genitive', person: true, entry: 'dzwonić' },
+    { word: 'dzięki', meaning: 'thanks to', kind: 'preposition', case: 'dative' },
+    { word: 'przeciwko', meaning: 'against', kind: 'preposition', case: 'dative' },
+    { word: 'pomagać', meaning: 'to help', kind: 'verb', case: 'dative', person: true },
+    { word: 'dziękować', meaning: 'to thank', kind: 'verb', case: 'dative', person: true },
+    { word: 'wierzyć', meaning: 'to believe (someone)', kind: 'verb', case: 'dative', person: true },
+    { word: 'podobać się', meaning: 'to be liked by', kind: 'verb', case: 'dative', person: true },
+    { word: 'pożyczać', meaning: 'to lend (to someone)', kind: 'verb', case: 'dative', person: true },
+    { word: 'przez', meaning: 'through, because of', kind: 'preposition', case: 'accusative' },
+    { word: 'na', meaning: 'onto', kind: 'preposition', case: 'accusative', sense: 'motion' },
+    { word: 'za', meaning: 'for (in exchange)', kind: 'preposition', case: 'accusative', sense: 'in exchange' },
+    { word: 'mieć', meaning: 'to have', kind: 'verb', case: 'accusative' },
+    { word: 'kochać', meaning: 'to love', kind: 'verb', case: 'accusative' },
+    { word: 'z', meaning: 'with', kind: 'preposition', case: 'instrumental' },
+    { word: 'nad', meaning: 'above, by (a river, the sea)', kind: 'preposition', case: 'instrumental' },
+    { word: 'pod', meaning: 'under', kind: 'preposition', case: 'instrumental', sense: 'location' },
+    { word: 'przed', meaning: 'in front of, before', kind: 'preposition', case: 'instrumental' },
+    { word: 'za', meaning: 'behind', kind: 'preposition', case: 'instrumental', sense: 'location' },
+    { word: 'między', meaning: 'between', kind: 'preposition', case: 'instrumental' },
+    { word: 'być', meaning: 'to be (a role)', kind: 'verb', case: 'instrumental', person: true },
+    { word: 'zostać', meaning: 'to become', kind: 'verb', case: 'instrumental', person: true },
+    { word: 'interesować się', meaning: 'to be interested in', kind: 'verb', case: 'instrumental' },
+    { word: 'o', meaning: 'about', kind: 'preposition', case: 'locative' },
+    { word: 'w', meaning: 'in', kind: 'preposition', case: 'locative', sense: 'location' },
+    { word: 'na', meaning: 'on, at', kind: 'preposition', case: 'locative', sense: 'location' },
+    { word: 'przy', meaning: 'by, near', kind: 'preposition', case: 'locative' },
+    { word: 'po', meaning: 'after', kind: 'preposition', case: 'locative' },
+  ],
+};

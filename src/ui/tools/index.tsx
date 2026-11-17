@@ -4,6 +4,7 @@ import type { Repo } from '../../db/repo';
 import type { Api } from '../../reader/api';
 import type { ToolId, ToolInfo } from '../../tools/tools';
 import type { Colors } from '../theme';
+import { CasesTool } from './CasesTool';
 import { CountingTool } from './CountingTool';
 import { DateTool } from './DateTool';
 import { MixupsTool } from './MixupsTool';
@@ -47,4 +48,5 @@ export const TOOL_SCREENS: Record<ToolId, {
   counting: { Screen: CountingTool, icon: 'square.stack.3d.up.fill', color: (c) => c.teal },
   script: { Screen: ScriptTool, icon: 'character.book.closed.fill', color: (c) => c.rose },
   grammar: { Screen: GrammarTool, icon: 'text.book.closed.fill', color: (c) => c.violet },
+  cases: { Screen: CasesTool, icon: 'arrow.right.square.fill', color: (c) => c.indigo },
 };
