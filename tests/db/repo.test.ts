@@ -208,4 +208,22 @@ describe('repo', () => {
     await repo.saveGrammarHintsDismissed({ 'es.preterite': '2026-11-11T09:00' });
     expect(await repo.grammarHintsDismissed()).toEqual({ 'es.preterite': '2026-11-11T09:00' });
   });
+
+  it('keeps linked words once each, oldest first, and takes a link away in either order', async () => {
+    const repo = new MemoryRepo();
+    await repo.saveConfusedPair({ a: 'b', b: 'c', linkedAt: '2026-11-11T10:00:00.000Z' });
+    await repo.saveConfusedPair({ a: 'a', b: 'b', linkedAt: '2026-11-11T09:00:00.000Z' });
+    await repo.saveConfusedPair({ a: 'a', b: 'b', linkedAt: '2026-11-12T09:00:00.000Z' });
+    expect((await repo.listConfusedPairs()).map((p) => `${p.a}${p.b}`)).toEqual(['ab', 'bc']);
+    await repo.deleteConfusedPair('c', 'b');
+    expect((await repo.listConfusedPairs()).map((p) => `${p.a}${p.b}`)).toEqual(['ab']);
+  });
+
+  it('drops the links of a deleted note', async () => {
+    const repo = new MemoryRepo();
+    await repo.saveConfusedPair({ a: 'a', b: 'b', linkedAt: '2026-11-11T09:00:00.000Z' });
+    await repo.saveConfusedPair({ a: 'b', b: 'c', linkedAt: '2026-11-11T10:00:00.000Z' });
+    await repo.deleteNote('b');
+    expect(await repo.listConfusedPairs()).toEqual([]);
+  });
 });

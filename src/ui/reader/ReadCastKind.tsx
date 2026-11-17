@@ -6,7 +6,7 @@ import type { Api, CastKind, CastVoice, Language, Settings } from '../../reader/
 import { LANGUAGES } from '../../reader/languages';
 import { audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH_STEP, voicesForKind } from '../../reader/storyCast';
 import { searchVoices } from '../../reader/voiceSlots';
-import { AzureVoiceRows, useAzureVoices } from '../AzureVoices';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from '../AzureVoices';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
@@ -112,6 +112,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
         ) : null}
         {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
         {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+        {options ? <AzureVoiceTerms voices={options} /> : null}
         <Group>
           <NavRow first label="Audition voices" detail="Play one line in each voice to compare them" onPress={onAudition} />
         </Group>

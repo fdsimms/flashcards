@@ -5,7 +5,7 @@ import { azureVoiceName } from '../../core/voices';
 import type { Api, AzureVoice } from '../../reader/api';
 import { saveNarrator } from '../../reader/lessonStorage';
 import { narratorVoices, sampleLine, searchVoices, type Gender } from '../../reader/voiceSlots';
-import { AzureVoiceRows, useAzureSample, useAzureVoices } from '../AzureVoices';
+import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from '../AzureVoices';
 import { ErrorNote, Group, Help, Screen, Segments } from '../kit';
 import { space, type, useTheme, readable } from '../theme';
 
@@ -75,6 +75,7 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
             />
           </Group>
         ) : null}
+        {options ? <AzureVoiceTerms voices={options} /> : null}
         <Help>Choosing a voice plays a line in it. American, British and Australian voices are listed. The narrator speaks the English in a lesson. It applies to lessons you make from now on.</Help>
       </ScrollView>
     </Screen>
