@@ -23,7 +23,8 @@ function sideText(html: string): string {
  * The question and answer of a missed card of an Anki note type (every type but Omnilanguage, whose
  * rows show the word and its meaning instead), as its template renders them. A back that repeats
  * the front ({{FrontSide}}) is cut at Anki's answer line so only the answer is left. Undefined when
- * the card has no template to render or a side comes out empty, so the caller falls back.
+ * the card has no template to render or a side comes out empty or the same as the other, so the
+ * caller falls back.
  */
 export function missedCardText(note: Note, noteType: NoteType | undefined, kind: CardKind): MissedCardText | undefined {
   if (!noteType || !kind.startsWith('t')) return undefined;
@@ -31,7 +32,9 @@ export function missedCardText(note: Note, noteType: NoteType | undefined, kind:
   const { front, back } = renderTemplateCard(note, noteType, ord);
   const question = sideText(front);
   const answer = sideText(back.split(ANSWER_RULE).pop() ?? back);
-  if (!question || !answer) return undefined;
+  // A card whose two sides read the same has its question and answer told apart by CSS (a template
+  // that shows a whole table and hides parts), which text can't see: the caller falls back.
+  if (!question || !answer || question === answer) return undefined;
   const cardName = noteType.kind === 'normal' && noteType.templates.length > 1
     ? noteType.templates.find((t) => t.ord === ord)?.name
     : undefined;
