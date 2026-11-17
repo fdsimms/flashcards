@@ -49,7 +49,7 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
             borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill,
           }}
         >
-          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accentInk, fontWeight: '600' }}>I don't know</Text>
         </Tappable>
         <View style={{ height: hairline, backgroundColor: c.border, marginVertical: space.xs }} />
       </View>

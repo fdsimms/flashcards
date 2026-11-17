@@ -24,7 +24,7 @@ export function ReadFormChip({ name, onPress }: { name: string; onPress: () => v
       hitSlop={{ top: space.m, bottom: space.m }}
       style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, backgroundColor: c.accentFill, borderRadius: radius.s, ...smooth, paddingHorizontal: space.s, paddingVertical: 2 }}
     >
-      <Text style={{ ...type.footnote, color: c.accent }}>{name}</Text>
+      <Text style={{ ...type.footnote, color: c.accentInk }}>{name}</Text>
       <Icon name="chevron.right" size={10} color={c.accent} weight="semibold" />
     </Tappable>
   );
@@ -54,7 +54,7 @@ function Marked({ text, style }: { text: string; style: StyleProp<TextStyle> }) 
   return (
     <Text style={style}>
       {pieces(text).map((p, i) => (
-        <Text key={i} style={p.marked ? { color: c.accent, fontWeight: '700', backgroundColor: c.accentFill } : undefined}>{p.text}</Text>
+        <Text key={i} style={p.marked ? { color: c.accentInk, fontWeight: '700', backgroundColor: c.accentFill } : undefined}>{p.text}</Text>
       ))}
     </Text>
   );

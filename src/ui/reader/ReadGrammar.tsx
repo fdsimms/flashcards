@@ -134,7 +134,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                       <Text style={{ ...type.subhead, color: c.textSecondary }}>{noteWithExample(p)}</Text>
                     </View>
                     {p.jlpt ? (
-                      <Tag text={jlptName(p.jlpt)} color={c.accent} fill={c.accentFill} accessibilityLabel={`JLPT ${jlptName(p.jlpt)}`} />
+                      <Tag text={jlptName(p.jlpt)} color={c.accentInk} fill={c.accentFill} accessibilityLabel={`JLPT ${jlptName(p.jlpt)}`} />
                     ) : null}
                     <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
                   </Tappable>

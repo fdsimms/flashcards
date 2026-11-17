@@ -136,7 +136,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Use</Text>
               <View style={{ backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.m - 2, paddingVertical: 3 }}>
-                <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{`${prompt.word} · ${prompt.meaning}`}</Text>
+                <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, fontWeight: '600', color: c.accentInk }}>{`${prompt.word} · ${prompt.meaning}`}</Text>
               </View>
               {prompt.reviewed_today ? <Text style={{ ...type.footnote, color: c.textSecondary }}>reviewed today</Text> : null}
             </View>

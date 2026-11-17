@@ -144,7 +144,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
           accessibilityLabel="I don't know"
           style={{ minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill }}
         >
-          <Text style={{ ...type.body, color: c.accent, fontWeight: '600' }}>I don't know</Text>
+          <Text style={{ ...type.body, color: c.accentInk, fontWeight: '600' }}>I don't know</Text>
         </Tappable>
       )}
     </ScrollView>

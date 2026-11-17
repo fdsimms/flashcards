@@ -396,7 +396,7 @@ export function HeaderAction({ label, onPress, accessibilityLabel }: { label: st
         backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
       }}
     >
-      <Text style={{ ...type.body, fontWeight: '600', color: c.accent }}>{label}</Text>
+      <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>
     </Tappable>
   );
 }

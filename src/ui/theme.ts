@@ -27,6 +27,8 @@ const light = {
   controlEdge: '#8c887c',
   border: '#e3dfd4',
   accent: '#876a1e',
+  /** Text in the accent's gold on `accentFill` (a HeaderAction, a marked word, a practice word's pill): the accent itself is 4:1 there in light mode. */
+  accentInk: '#765c18',
   /** Text and icons drawn on an accent-colored fill. */
   onAccent: '#ffffff',
   danger: '#b3443b',
@@ -165,6 +167,7 @@ const dark: typeof light = {
   controlEdge: '#6e7480',
   border: '#2a2e38',
   accent: '#d4b46a',
+  accentInk: '#d4b46a',
   // Gold is light in dark mode, so what sits on it is dark.
   onAccent: '#1b1407',
   danger: '#e0766c',

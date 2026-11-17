@@ -1182,7 +1182,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }:
   onPress: () => void;
 }) {
   const c = useTheme();
-  const fg = on ? c.accent : c.textSecondary;
+  const fg = on ? c.accentInk : c.textSecondary;
   return (
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
@@ -1392,7 +1392,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       }}
     >
       <Icon name="repeat" size={14} color={repeating ? c.accent : c.textSecondary} weight="semibold" />
-      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accent : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
+      <Text style={{ ...type.footnote, fontWeight: '600', color: repeating ? c.accentInk : c.textSecondary }}>{repeatChipLabel(repeat)}</Text>
     </Tappable>
   );
   return (

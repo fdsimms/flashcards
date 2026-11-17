@@ -86,7 +86,7 @@ export function CardSentence({ gloss, segments, style }: { gloss: SentenceGloss;
               ) : null}
               <Text style={style}>
                 {piece.parts.map((p, k) => (p.marked
-                  ? <Text key={k} style={{ color: c.accent, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
+                  ? <Text key={k} style={{ color: c.accentInk, backgroundColor: c.accentFill, fontWeight: '600' }}>{p.text}</Text>
                   : p.text))}
               </Text>
               {box ? dotOffsets(box.width - left - right, DOT).map((x, k) => (
