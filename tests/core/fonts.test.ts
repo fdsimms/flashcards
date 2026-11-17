@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  APP_FONT_OPTIONS, CYCLE_FONTS, DEFAULT_FONT_SETTINGS, cardFontFor, fontFileName, fontFileNames, launchFont, normalizeFontWeight,
+  APP_FONT_OPTIONS, CYCLE_FONTS, coverageLine, fontCovers, fontOption, fontsCovering, missingScripts, DEFAULT_FONT_SETTINGS, cardFontFor, fontFileName, fontFileNames, launchFont, normalizeFontWeight,
   parseFontSettings, resolveFontFace, togglePoolFont, type AppFont,
 } from '../../src/core/fonts';
 import { deckCardFonts } from '../../src/core/deckTree';
@@ -87,7 +87,7 @@ describe('the font list', () => {
   it('has the system font first and every other one bundled', () => {
     expect(APP_FONT_OPTIONS[0].id).toBe('system');
     expect(CYCLE_FONTS).not.toContain('system');
-    for (const id of CYCLE_FONTS) expect(fontFileNames(id)).toHaveLength(3);
+    for (const id of CYCLE_FONTS) expect(fontFileNames(id)).toHaveLength(fontOption(id).weights.length);
   });
 });
 
@@ -103,5 +103,41 @@ describe('deckCardFonts', () => {
   });
   it('drops a font that is no longer shipped', () => {
     expect(deckCardFonts('A', all({ A: ['outfit' as AppFont, 'lora'] }))).toEqual(['lora']);
+  });
+});
+
+describe('a family with fewer faces', () => {
+  it('draws every weight in its only face', () => {
+    expect(resolveFontFace('yomogi', '700')).toBe('Yomogi-Regular');
+    expect(resolveFontFace('yomogi', '600')).toBe('Yomogi-Regular');
+    expect(fontFileNames('yomogi')).toEqual(['Yomogi_400Regular.ttf']);
+  });
+  it('takes the nearest face, the heavier when two are as near', () => {
+    expect(resolveFontFace('charmonman', '400')).toBe('Charmonman-Regular');
+    expect(resolveFontFace('charmonman', '600')).toBe('Charmonman-Bold');
+    expect(resolveFontFace('charmonman', '700')).toBe('Charmonman-Bold');
+  });
+});
+
+describe('script coverage', () => {
+  it('knows what each font covers', () => {
+    expect(fontCovers('nunito', ['cyrillic'])).toBe(true);
+    expect(fontCovers('nunito', ['greek'])).toBe(false);
+    expect(fontCovers('comfortaa', ['cyrillic', 'greek'])).toBe(true);
+    expect(fontCovers('mali', ['thai'])).toBe(true);
+    expect(fontCovers('mali', ['cyrillic'])).toBe(false);
+    expect(fontCovers('system', ['thai', 'japanese', 'greek'])).toBe(true);
+    expect(missingScripts('lora', ['cyrillic', 'greek'])).toEqual(['greek']);
+  });
+  it('lists the fonts for a deck, and none when nothing covers it', () => {
+    expect(fontsCovering([])).toEqual(CYCLE_FONTS);
+    expect(fontsCovering(['greek'])).toEqual(['inter', 'manrope', 'comfortaa', 'sourceSerif', 'alegreya', 'zenKurenaido', 'zenMaru']);
+    expect(fontsCovering(['thai']).sort()).toEqual(['charmonman', 'mali', 'mitr', 'sriracha']);
+    expect(fontsCovering(['thai', 'japanese'])).toEqual([]);
+  });
+  it('describes coverage for a row', () => {
+    expect(coverageLine('inter')).toBe('Latin, Cyrillic, Greek');
+    expect(coverageLine('system')).toBe('Every script');
+    expect(fontOption('zenMaru').scripts).toContain('japanese');
   });
 });
