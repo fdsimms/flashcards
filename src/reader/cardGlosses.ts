@@ -120,3 +120,21 @@ export function dotOffsets(width: number, size = 2, pitch = 5): number[] {
   const step = (width - size) / (n - 1);
   return Array.from({ length: n }, (_, i) => i * step);
 }
+
+/** The most sentences' glosses kept on the phone between launches (useCardGlosses), newest kept. */
+export const KEPT_SENTENCES = 3000;
+
+/**
+ * The glosses as they're written to the phone: the newest `max` of them (a Map keeps the order
+ * they were added), so the file can't grow without end.
+ */
+export function keptForDisk(kept: ReadonlyMap<string, Word[]>, max = KEPT_SENTENCES): [string, Word[]][] {
+  const all = [...kept];
+  return all.slice(Math.max(0, all.length - max));
+}
+
+/** The file read back, leaving out anything that isn't a sentence's words. */
+export function parseKept(raw: unknown): [string, Word[]][] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((e): e is [string, Word[]] => Array.isArray(e) && typeof e[0] === 'string' && Array.isArray(e[1]));
+}

@@ -150,7 +150,8 @@ export interface WaniKaniApi {
   download(url: string): Promise<Uint8Array>;
 }
 
-export function createWaniKaniApi(token: string, fetchFn: Fetch = fetch): WaniKaniApi {
+/** `fetchFn` has no default: the app's goes through the connection guard (`guardedFetch`, src/ui/connection.ts). */
+export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
   async function request(url: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);

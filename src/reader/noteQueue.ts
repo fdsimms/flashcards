@@ -71,11 +71,22 @@ export function reviewTarget(note: QueuedNote): { deck: string; model: string; f
 
 const notes = (n: number) => (n === 1 ? '1 note' : `${n} notes`);
 
-/** What Today's card says about the queue, or null when it's empty. */
-export function bannerOf(queue: NoteQueue | null): { tone: 'ready' | 'waiting' | 'failed'; message: string; hint: string } | null {
-  if (!queue) return null;
-  const { ready, waiting, failed } = counts(queue.items);
+const words = (n: number) => (n === 1 ? '1 word' : `${n} words`);
+
+/**
+ * What Today's card says about the queue, or null when it's empty. `held` counts the words added
+ * while offline (heldNotes.ts), which the server's queue doesn't have yet.
+ */
+export function bannerOf(
+  queue: NoteQueue | null,
+  held: { waiting: number; refused: number } = { waiting: 0, refused: 0 },
+  /** The server is down rather than the phone offline: the held words wait for it instead. */
+  serverDown = false,
+): { tone: 'ready' | 'waiting' | 'failed'; message: string; hint: string } | null {
+  const { ready, waiting, failed } = counts(queue?.items ?? []);
   if (ready) return { tone: 'ready', message: `${notes(ready)} ready to review`, hint: 'Tap to start' };
+  if (held.refused) return { tone: 'failed', message: `Couldn't send ${words(held.refused)} to Claude`, hint: 'Tap to see why' };
+  if (held.waiting) return { tone: 'waiting', message: `${words(held.waiting)} waiting for Claude`, hint: serverDown ? "They'll be sent once your server answers" : "They'll be sent when you're back online" };
   if (waiting) return { tone: 'waiting', message: `Filling in ${notes(waiting)}`, hint: 'Usually ready in a few minutes' };
   if (failed) return { tone: 'failed', message: `Couldn't fill in ${notes(failed)}`, hint: 'Tap to see why and try again' };
   return null;

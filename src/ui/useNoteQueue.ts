@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { ApiError, type Api, type Language, type NoteQueue } from '../reader/api';
+import { isOffline } from '../core/held';
+import { holdWords } from '../reader/heldNotes';
 import { noteQueueStore } from '../reader/noteQueueStore';
+import { connection } from './connection';
+import { heldWords } from './held';
 
 const POLL_MS = 4000;
 
@@ -17,6 +21,17 @@ const anyWaiting = (queue: NoteQueue | null) => !!queue?.items.some((n) => n.sta
 // its answer was read before the change, and would put back what the change took away.
 function supersede() {
   poll.token++;
+}
+
+/**
+ * Sends words to the queue and shows the server's answer: for `add`, and for words held offline
+ * (HeldWork.tsx), so both make a look on its way out of date.
+ */
+export async function queueWords(api: Api, language: Language, deck: string, entries: { entry: string; meaning: string }[]): Promise<void> {
+  const queue = await api.queueNotes(language, deck, entries);
+  supersede();
+  noteQueueStore.set({ queue, error: null });
+  schedule();
 }
 
 function schedule() {
@@ -64,12 +79,24 @@ export function useNoteQueue(api: Api | null) {
   useEffect(() => (api ? acquire(api) : undefined), [api]);
 
   const refresh = useCallback(() => { look(); }, []);
-  const add = useCallback(async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => {
-    if (!api) return;
-    const queue = await api.queueNotes(language, deck, entries);
-    supersede();
-    noteQueueStore.set({ queue, error: null });
-    schedule();
+  /**
+   * Queues words for Claude. Offline they're held on the phone instead ('held') and sent when the
+   * connection comes back (HeldWork.tsx); a refusal from the server is thrown as before.
+   */
+  const add = useCallback(async (language: Language, deck: string, entries: { entry: string; meaning: string }[]): Promise<'queued' | 'held' | undefined> => {
+    if (!api) return undefined;
+    const hold = async () => {
+      await heldWords.update((list) => holdWords(list, language, deck, entries));
+      return 'held' as const;
+    };
+    if (connection.cantReachHome()) return hold();
+    try {
+      await queueWords(api, language, deck, entries);
+    } catch (e) {
+      if (isOffline(e)) return hold();
+      throw e;
+    }
+    return 'queued';
   }, [api]);
   const retry = useCallback(async (id: number) => {
     if (!api) return;

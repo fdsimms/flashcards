@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Card, Note } from '../../src/core/types';
 import type { Word } from '../../src/reader/api';
-import { dotOffsets, glossesOf, glossKey, glossRequests, MAX_SENTENCES, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
+import { dotOffsets, glossesOf, glossKey, glossRequests, keptForDisk, MAX_SENTENCES, parseKept, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
 
 const DECKS = { th: 'Languages::Thai', es: 'Languages::Spanish' };
 
@@ -89,5 +89,18 @@ describe('the dots under a word', () => {
   it('are one centered dot under a narrow word, and none under nothing', () => {
     expect(dotOffsets(4)).toEqual([1]);
     expect(dotOffsets(1)).toEqual([]);
+  });
+});
+
+describe('glosses kept on the phone', () => {
+  it('keeps the newest sentences, up to the most', () => {
+    const kept = new Map<string, Word[]>([['a', []], ['b', []], ['c', []]]);
+    expect(keptForDisk(kept, 2).map(([k]) => k)).toEqual(['b', 'c']);
+    expect(keptForDisk(kept).map(([k]) => k)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('reads back only what it wrote', () => {
+    expect(parseKept([['th:x', []], ['bad'], 3])).toEqual([['th:x', []]]);
+    expect(parseKept(null)).toEqual([]);
   });
 });

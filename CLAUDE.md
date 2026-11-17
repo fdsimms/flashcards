@@ -259,8 +259,9 @@ sync with the user's own Anki sync server (`src/anki/sync/`), off until they sig
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
 (Settings, Read & Listen). **Answer by speaking** (Settings, Speaking; `src/core/speaking.ts`, `useSpokenAnswer`) is off
 until turned on: iOS's recognizer runs with on-device required, which iOS keeps on the phone where
-it can for a language and otherwise sends to Apple. iOS doesn't say which, so the app doesn't
-either; it only says whether a language can be heard at all. WaniKani talks to api.wanikani.com only once its token is entered
+it can for a language and otherwise sends to Apple. The app asks iOS which, per language
+(`modules/speech-on-device`): Settings, Speaking says so, and a language heard only by Apple has no
+microphone while offline. WaniKani talks to api.wanikani.com only once its token is entered
 (Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
 notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
 recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
@@ -268,6 +269,13 @@ outbox and are sent later, and the copy leaves out items answered since it was m
 through Read & Listen's server, so it's off while Read & Listen is. A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
 that defaults to off.
+
+**Every request goes through the connection guard** (`guardedFetch`, `src/core/connection.ts`;
+`tests/noBareFetch.test.ts`), so on a subway platform it gives up in seconds instead of iOS's
+minute, and every screen learns the servers are out of reach (the header's Offline button). Work
+for a server is held on the phone while it can't be reached and sent when it can
+(`src/core/held.ts`, `HeldWork`), never dropped or shown as an error. When a server doesn't answer,
+one request to Apple's connection-check page tells offline from that server being down.
 
 ### The study day
 
