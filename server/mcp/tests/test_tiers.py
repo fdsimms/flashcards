@@ -69,6 +69,8 @@ def retention_of(desktop, deck: str) -> tuple[str, float]:
 def reader_http(seen: list[httpx.Request] | None = None) -> httpx.AsyncClient:
     def handler(request: httpx.Request) -> httpx.Response:
         (seen if seen is not None else []).append(request)
+        if request.url.path == "/api/settings":
+            return httpx.Response(200, json={"decks": {"es": "Español", "th": THAI, "pl": "Polski"}})
         body = json.loads(request.content)
         known = RANKS if body["language"] == "es" else {}
         return httpx.Response(200, json={"ranks": {w: known.get(w) for w in body["words"]}})
@@ -180,3 +182,26 @@ async def test_optimizing_a_tiered_deck_reads_its_tiers_and_hands_the_result_bac
         await call(c, "set_fsrs_settings", deck=THAI, params=p6)
         got = await call(c, "get_fsrs_settings", deck=f"{THAI}::Tier 2")
         assert got["params"] == pytest.approx(p6) and got["desired_retention"] == 0.8
+
+
+async def test_files_every_language_that_can_be_and_says_why_it_skipped_the_others(cm, desktop):
+    esperar, inventadear, casa, hola = omni(desktop)
+    # A note of another type in the deck is left where it is, not a reason to refuse the deck.
+    basic = desktop.run("add-note", "Español", "front", "back", "+", "sync")
+    async with client_for(cm) as c:
+        preview = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET)
+        assert preview["preview"] is True and [x["language"] for x in preview["languages"]] == ["es"]
+        assert {x["language"] for x in preview["skipped"]} == {"th", "pl"}
+        assert "no deck called" in next(x["reason"] for x in preview["skipped"] if x["language"] == "pl")
+        assert decks_of(desktop, [esperar]) == ["Español"]  # a preview moves nothing
+
+        done = await call(c, "tier_all_languages_by_frequency", bands=BANDS, retentions=RET, preview=False)
+        assert done["languages"][0]["moved"] == 3 and done["languages"][0]["left_alone"] >= 1
+    assert decks_of(desktop, [casa, esperar, inventadear]) == ["Español::Tier 1", "Español::Tier 2", "Español::Tier 3"]
+    assert basic  # the Basic note's card never moved
+    desktop.run("sync")
+    col = Collection(str(desktop.path))
+    try:
+        assert {col.decks.name(c.did) for c in map(col.get_card, col.find_cards("front:front"))} == {"Español"}
+    finally:
+        col.close()

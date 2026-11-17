@@ -101,10 +101,12 @@ def _gather(col: Collection, deck: str, field: str) -> tuple[int, list[tuple[int
     for nid, cards in by_note.items():
         note = col.get_note(nid)
         if field not in note:
-            raise ToolError(f'The note type "{note.note_type()["name"]}" has no field "{field}". Pass the field that holds the word.')
+            # Another note type in the deck (a cloze, a basic card): left where it is.
+            skipped += len(cards)
+            continue
         out.append((nid, entry_word(note[field]), cards))
     if not out:
-        raise ToolError(f'"{deck}" has no cards of its own to file.')
+        raise ToolError(f'None of "{deck}"\'s notes has a field "{field}" in the deck itself, so there\'s nothing to file. Pass the field that holds the word.')
     return did, out, skipped
 
 
@@ -217,6 +219,34 @@ async def daily_loop(cm: CollectionManager, client: ReaderClient, first_delay: f
 
 def register(server: MCPServer, cm: CollectionManager, settings: ReaderSettings | None, http: Any = None) -> None:
     client = ReaderClient(settings, http)
+
+    @server.tool(annotations=WRITE)
+    async def tier_all_languages_by_frequency(
+        field: str = "Entry",
+        bands: list[int] | None = None,
+        retentions: list[float] | None = None,
+        daily: bool = True,
+        preview: bool = True,
+    ) -> dict[str, Any]:
+        """tier_deck_by_frequency for every language Read & Listen has a deck for (its settings say
+        which deck each language reads; the Omnilanguage notes' word is `field`), with the same
+        `bands`, `retentions` and `daily` for all of them. Returns each language's preview or
+        result under `languages`; one that can't be filed (no such deck, no cards of its own, no
+        place for any word) is listed with the reason under `skipped` and the others go ahead.
+        Each deck gets its own tier presets copied from its own preset: say which decks, and
+        apply with preview=false only once the user agrees to the preview."""
+        if bands and not retentions:
+            raise ToolError(f"Pass retentions too: one value per tier ({len(bands) + 1}), most common first.")
+        decks: dict[str, str] = (await client.get("/api/settings"))["decks"]
+        done: list[dict[str, Any]] = []
+        skipped: list[dict[str, str]] = []
+        for language, deck in decks.items():
+            s = Settings(language, field, tuple(bands or DEFAULT_BANDS), tuple(retentions or DEFAULT_RETENTIONS), daily)
+            try:
+                done.append({"language": language, **await file_deck(cm, client, deck, s, apply=not preview)})
+            except ToolError as e:
+                skipped.append({"language": language, "deck": deck, "reason": str(e)[:200]})
+        return {"preview": preview, "languages": done, "skipped": skipped}
 
     @server.tool(annotations=WRITE)
     async def tier_deck_by_frequency(

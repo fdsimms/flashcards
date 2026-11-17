@@ -259,8 +259,9 @@ reaches their devices at their next sync.
   place, and apply only once they agree: the old order isn't kept.
 - Tiers: tier_deck_by_frequency files a language deck's notes into `Tier 1`, `Tier 2`, `Tier 3`
   subdecks by word frequency, each on its own preset with its own desired retention (common words
-  higher), and keeps new notes filed daily. Preview first, say which deck gets new presets, and
-  apply only once the user agrees. Franki shows the tiers as the one deck.
+  higher), and keeps new notes filed daily. tier_all_languages_by_frequency does it for every
+  language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
+  only once the user agrees. Franki shows the tiers as the one deck.
 """
 
 
