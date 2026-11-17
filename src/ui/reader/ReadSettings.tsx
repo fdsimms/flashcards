@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../../reader/api';
 import { guardedFetch } from '../connection';
+import { ReadOfflineSettings } from './ReadOfflineSettings';
 import { LANGUAGE_ORDER, flaggedName } from '../../reader/languages';
 import type { ListenAgain } from '../../reader/prefs';
 import { prefs, savePassphrase, savePrefs } from '../../reader/storage';
@@ -168,6 +169,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
               with its words hidden and shows them once every line has played, so you hear it first and read it second.
               Listen twice first waits for every line to play twice. Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
             </Help>
+            <ReadOfflineSettings />
             <SectionTitle>Slow speed</SectionTitle>
             <Group>
               {LANGUAGE_ORDER.map((l, i) => (

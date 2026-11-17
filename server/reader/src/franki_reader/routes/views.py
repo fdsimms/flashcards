@@ -16,6 +16,7 @@ from franki_reader.generator import (
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
+    Code,
 )
 from franki_reader.reader import (
     render,
@@ -128,8 +129,9 @@ def recap_json(text: StoredText, engine: Engine) -> dict[str, Any] | None:
     return {"english": text.recap_english, "words": words}
 
 
-def shelf_json(engine: Engine) -> dict[str, Any]:
-    language = engine.language()
+def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
+    """The shelf of `language`, the reader's own language when none is given."""
+    language = language or engine.language()
     writing = engine.writing(language)
     story = store.active_story(engine.conn, language)
     story_out = None

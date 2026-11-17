@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useSyncExternalStore } from 'react';
 import { parseRecordings, type HeldRecording } from '../core/held';
+import { parseHeldReader, type HeldReaderAction } from '../reader/downloads';
 import { parseHeldWords, type HeldWords } from '../reader/heldNotes';
 
 /**
@@ -50,10 +51,17 @@ function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
 
 export const heldWords = persistedList<HeldWords>('held-words.json', parseHeldWords);
 export const heldRecordings = persistedList<HeldRecording>('held-recordings.json', parseRecordings);
+/** Readings, listens and story choices made in Read & Listen offline (reader/downloads.ts), sent in order. */
+export const heldReader = persistedList<HeldReaderAction>('held-reader.json', parseHeldReader);
 
 export function useHeldWords(): HeldWords[] {
   useEffect(() => { void heldWords.load(); }, []);
   return useSyncExternalStore(heldWords.subscribe, heldWords.get);
+}
+
+export function useHeldReader(): HeldReaderAction[] {
+  useEffect(() => { void heldReader.load(); }, []);
+  return useSyncExternalStore(heldReader.subscribe, heldReader.get);
 }
 
 export function useHeldRecordings(): HeldRecording[] {

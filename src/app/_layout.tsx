@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider } from '../ui/AppContext';
 import { HeldWork } from '../ui/HeldWork';
+import { ShelfDownloads } from '../ui/reader/ShelfDownloads';
 import { ReaderPlayerProvider } from '../ui/useReaderPlayer';
 import { useStackScreenOptions } from '../ui/stackOptions';
 import { useTheme } from '../ui/theme';
@@ -42,6 +43,7 @@ export default function RootLayout() {
         </Stack>
         <VocabReadyBanner />
         <HeldWork />
+        <ShelfDownloads />
         </ReaderPlayerProvider>
       </AppProvider>
       <StatusBar style="auto" />

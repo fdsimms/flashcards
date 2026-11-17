@@ -48,6 +48,7 @@ import { ReaderKey } from './ReaderKey';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useLinePlayback } from './useLinePlayback';
+import { useConnectionProblem } from '../connection';
 import { RecordYourself } from '../RecordYourself';
 import type { SelfRecording } from '../useSelfRecording';
 import { recordExtraRead } from '../../tools/extrasStorage';
@@ -194,6 +195,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // the lookup failed (`nextFailed`).
   const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
   const [nextFailed, setNextFailed] = useState(false);
+  // Offline the text and its audio come from the phone, and the reading is held to send later
+  // (reader/offlineApi.ts); what needs the server is left out of the end view.
+  const problem = useConnectionProblem();
   // Writing the story's next episode from the end view (Write episode N): none asked for yet, being
   // written, or not written in time. Once it's written it becomes `upNext` and this is 'ready'.
   const [nextEpisode, setNextEpisode] = useState<'idle' | 'writing' | 'ready' | 'failed'>('idle');
@@ -1024,7 +1028,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
               </Card>
             ) : null}
-            {source.kind === 'shelf' ? (
+            {problem && source.kind === 'shelf' && !review ? (
+              <Help>{problem === 'offline'
+                ? "Offline. This reading is saved on this iPhone and sent when you're back online."
+                : "Your server isn't answering. This reading is saved on this iPhone and sent once it does."}</Help>
+            ) : null}
+            {source.kind === 'shelf' && !problem ? (
               <Card style={{ gap: space.m }}>
                 <View style={{ gap: 2 }}>
                   <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
@@ -1052,8 +1061,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 comes. With none, Save fades in where Next would have been, as the main button. */}
             {source.kind === 'shelf' && (text.episode ?? 0) > 0 && nextEpisode === 'idle' ? (
               <View style={{ gap: space.xs }}>
-                <Button label={`Write episode ${(text.episode ?? 0) + 1}`} variant={upNext ? 'secondary' : 'primary'} onPress={writeNextEpisode} />
-                <Help>Saves this one as read, then writes the next episode. This takes about half a minute.</Help>
+                <Button label={`Write episode ${(text.episode ?? 0) + 1}`} variant={upNext || problem ? 'secondary' : 'primary'} onPress={writeNextEpisode} disabled={!!problem} />
+                <Help>{problem === 'offline' ? "You can write the next episode once you're back online."
+                  : problem ? 'You can write the next episode once your server answers.'
+                  : 'Saves this one as read, then writes the next episode. This takes about half a minute.'}</Help>
               </View>
             ) : null}
             {nextEpisode === 'writing' ? (

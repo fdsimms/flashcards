@@ -1725,5 +1725,28 @@ in seconds when nothing answers, while a slow answer (a Claude explanation) is l
   and sent to the note queue when the server can be reached; Today's queue card counts them. One
   the server refuses stays on the queue screen with its reason.
 - **A new note's recording** is held the same way and made when the server answers.
-- **Texts and their audio downloaded ahead of time, and readings finished offline sent later,** are
-  the next step: until then, a text needs the connection.
+- **The shelf's texts are kept on the phone with their line audio** (`src/reader/downloads.ts`,
+  `src/ui/reader/readerDownloads.ts`, under the documents folder), downloaded by `ShelfDownloads` as
+  Settings, Read & Listen, Download for offline says: Wi-Fi only by default, any connection, or
+  off. It reads the shelves at launch, on coming back to the app and when the connection returns,
+  and plans again whenever a screen reads one: the reader's own language (reading it is what opening
+  the shelf does, so nothing is written that wasn't asked for), then every other language with
+  texts ready, through `GET /api/shelf?language=`, which only reads that shelf: the reader's
+  language stays, and nothing is topped up for it. A language with Slow speed on keeps the slow recordings
+  too, made by Azure the first time as when played slowly; the rest play the normal recording at
+  0.8x offline, as when slow can't be fetched. A text is kept whole or shown as not saved, and its
+  copy is deleted once it leaves the shelf, or when the server gives the text differently (a voice
+  change recorded it again).
+- **Every screen gets the server through `withOffline`** (`src/reader/offlineApi.ts`, in
+  `useReader`): a kept text opens from the phone when the server can't be reached, its lines play
+  from the files online too, and the shelf shown offline is the kept texts under the heading
+  Downloaded, less those read since. Switching language offline shows that language's kept texts;
+  the switch is held and sent when the server answers, and until then the shelf stays the kept one,
+  so it doesn't jump back to the server's language. Readings, listens and story choices made offline are held
+  (`heldReader`) and sent in order by `HeldWork`, a choice before its reading, since the server
+  refuses a choice for an episode already read. A reading sent late is dated when it arrives (the
+  log has no time of its own) and counted once however often it's sent.
+- **Audio lessons are kept when Download is tapped**, asking first on cellular unless the setting is
+  Any connection, and deleted when removed or when the server's list no longer has them.
+- What needs the server is left out offline: writing a text or the next episode, Past texts, the
+  end view's "For the next ones".

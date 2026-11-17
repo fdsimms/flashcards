@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true });
+  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -111,4 +111,10 @@ test('Thai IPA shows tone letters unless the reader chose accent marks', () => {
   expect(DEFAULT_PREFS.thaiToneMarks).toBe(false);
   expect(parsePrefs(JSON.stringify({ thaiToneMarks: true, topicImages: true })).thaiToneMarks).toBe(true);
   expect(parsePrefs(JSON.stringify({ thaiToneMarks: 1 })).thaiToneMarks).toBe(false);
+});
+
+test('downloads for offline on Wi-Fi only until told otherwise', () => {
+  expect(parsePrefs(null).offlineDownloads).toBe('wifi');
+  expect(parsePrefs(JSON.stringify({ offlineDownloads: 'off' })).offlineDownloads).toBe('off');
+  expect(parsePrefs(JSON.stringify({ offlineDownloads: 'always' })).offlineDownloads).toBe('wifi');
 });
