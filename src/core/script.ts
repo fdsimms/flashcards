@@ -1,3 +1,5 @@
+import { fontCovers, type AppFont } from './fonts';
+
 /** True when `text` contains Thai script, which is hard to read at body size and gets a larger one. */
 export const hasThai = (text: string): boolean => /[\u0E00-\u0E7F]/.test(text);
 
@@ -42,9 +44,11 @@ export const JAPANESE_FONT = 'Hiragino Sans';
 /**
  * Japanese's face for `text`, to spread into a style: when it has kana, or kanji in a Japanese
  * context (`speechLang` ja-*), since kanji alone may be Chinese. Empty otherwise, so the style's own
- * face stays.
+ * face stays, and empty when `font` (the app's or the card's, AppFont.tsx) is a chosen one that draws
+ * Japanese itself (Yomogi, Zen Maru Gothic), which a named face would override.
  */
-export function japaneseFont(text: string, speechLang?: string | null): { fontFamily?: string } {
+export function japaneseFont(text: string, speechLang: string | null | undefined, font: AppFont): { fontFamily?: string } {
+  if (font !== 'system' && fontCovers(font, ['japanese'])) return {};
   const kana = /[぀-ヿ]/.test(text);
   const kanji = /[㐀-䶿一-鿿]/.test(text);
   return kana || (kanji && !!speechLang?.toLowerCase().startsWith('ja')) ? { fontFamily: JAPANESE_FONT } : {};

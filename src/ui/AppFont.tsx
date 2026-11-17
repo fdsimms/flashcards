@@ -104,6 +104,11 @@ export function AppFontScope({ repo, children }: { repo: Repo; children: React.R
   );
 }
 
+/** The font text draws in here: the app's, or a card's inside `CardFontScope`. */
+export function useFont(): AppFont {
+  return useContext(FontContext);
+}
+
 /** A card's own font, over the app's: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */
 export function CardFontScope({ font, children }: { font: AppFont; children: React.ReactNode }) {
   return <FontContext.Provider value={font}>{children}</FontContext.Provider>;

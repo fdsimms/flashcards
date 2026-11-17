@@ -16,6 +16,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
+import { useFont } from '../AppFont';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
@@ -245,7 +246,8 @@ const ToolLanguage = React.createContext<Language | null>(null);
 /** Japanese's face for a phrase of the tool's language (script.ts): a time or a price can be all kanji. */
 function useJapaneseFont() {
   const language = React.useContext(ToolLanguage);
-  return (text: string) => japaneseFont(text, language === 'ja' ? 'ja' : undefined);
+  const font = useFont();
+  return (text: string) => japaneseFont(text, language === 'ja' ? 'ja' : undefined, font);
 }
 
 /** The play button beside a phrase, with a link to the language's voice. `label` says what it plays, for VoiceOver ("Play the answer"). */

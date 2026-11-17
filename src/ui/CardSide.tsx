@@ -9,6 +9,7 @@ import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { useFont } from './AppFont';
 import { CardSentence } from './CardSentence';
 import type { SentenceGloss } from './useCardGlosses';
 
@@ -64,7 +65,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
-  const ja = (text: string) => japaneseFont(text, speechLang);
+  const font = useFont();
+  const ja = (text: string) => japaneseFont(text, speechLang, font);
   // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card,
   // so what was tapped open is closed again on the next card.
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());

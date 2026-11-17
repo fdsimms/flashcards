@@ -32,6 +32,11 @@ describe('withThaiLineHeight', () => {
   it('gives Thai text a line height of 1.5 times its font size', () => {
     expect(withThaiLineHeight({ fontSize: 34, fontWeight: '600' }, 'กรกฎาคม')).toEqual({ fontSize: 34, fontWeight: '600', lineHeight: 51 });
   });
+  it('leaves Japanese to a chosen font that draws it, and gives it its face under one that has none', () => {
+    expect(japaneseFont('食べる', 'ja-JP', 'yomogi')).toEqual({});
+    expect(japaneseFont('食べる', 'ja-JP', 'zenMaru')).toEqual({});
+    expect(japaneseFont('食べる', 'ja-JP', 'nunito')).toEqual({ fontFamily: 'Hiragino Sans' });
+  });
   it('leaves other text alone', () => {
     const base = { fontSize: 34 };
     expect(withThaiLineHeight(base, 'July')).toBe(base);
@@ -40,17 +45,22 @@ describe('withThaiLineHeight', () => {
 
 describe('japaneseFont', () => {
   it("gives text with kana Japanese's face", () => {
-    expect(japaneseFont('食べる')).toEqual({ fontFamily: 'Hiragino Sans' });
-    expect(japaneseFont('ラーメン, ramen')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('食べる', undefined, 'system')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('ラーメン, ramen', undefined, 'system')).toEqual({ fontFamily: 'Hiragino Sans' });
   });
   it('gives kanji alone the face only in Japanese, since it may be Chinese', () => {
-    expect(japaneseFont('四時', 'ja-JP')).toEqual({ fontFamily: 'Hiragino Sans' });
-    expect(japaneseFont('四時', 'ja')).toEqual({ fontFamily: 'Hiragino Sans' });
-    expect(japaneseFont('四时', 'zh-CN')).toEqual({});
-    expect(japaneseFont('四時')).toEqual({});
+    expect(japaneseFont('四時', 'ja-JP', 'system')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('四時', 'ja', 'system')).toEqual({ fontFamily: 'Hiragino Sans' });
+    expect(japaneseFont('四时', 'zh-CN', 'system')).toEqual({});
+    expect(japaneseFont('四時', undefined, 'system')).toEqual({});
+  });
+  it('leaves Japanese to a chosen font that draws it, and gives it its face under one that has none', () => {
+    expect(japaneseFont('食べる', 'ja-JP', 'yomogi')).toEqual({});
+    expect(japaneseFont('食べる', 'ja-JP', 'zenMaru')).toEqual({});
+    expect(japaneseFont('食べる', 'ja-JP', 'nunito')).toEqual({ fontFamily: 'Hiragino Sans' });
   });
   it('leaves other text alone', () => {
-    expect(japaneseFont('theater company', 'ja-JP')).toEqual({});
-    expect(japaneseFont('หนังสือ')).toEqual({});
+    expect(japaneseFont('theater company', 'ja-JP', 'system')).toEqual({});
+    expect(japaneseFont('หนังสือ', undefined, 'system')).toEqual({});
   });
 });
