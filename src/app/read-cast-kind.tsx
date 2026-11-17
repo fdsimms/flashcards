@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
 import { castFor, isCastKind } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
-import { ReadCastKind } from '../ui/ReadCastKind';
+import { ReadCastKind } from '../ui/reader/ReadCastKind';
 
 /** One kind of story character (`kind`: man, woman, boy, girl, elder_man or elder_woman) of a Read & Listen language (`language`). */
 export default function ReadCastKindRoute() {

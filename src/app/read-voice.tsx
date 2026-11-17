@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import type { Language } from '../reader/api';
 import { isVoiceSlot } from '../reader/voiceSlots';
 import { useApp } from '../ui/AppContext';
-import { ReadVoicePick } from '../ui/ReadVoicePick';
+import { ReadVoicePick } from '../ui/reader/ReadVoicePick';
 
 /** One voice slot (`slot`: male, male2, female or female2) of a Read & Listen language (`language`). */
 export default function ReadVoiceRoute() {

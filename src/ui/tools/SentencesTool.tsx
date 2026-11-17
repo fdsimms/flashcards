@@ -8,7 +8,7 @@ import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { markLine, roundLine, roundProgress, roundScore, skipLine, startRound, type LineRound } from '../../reader/lineDrill';
 import { Button, Card, ErrorNote, Help, Loading } from '../kit';
 import { Reveal } from '../motion';
-import { WritingResult } from '../ReadWritingResult';
+import { WritingResult } from '../reader/ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
 import { ListeningNote, SpeakButton } from '../SpeakButton';

@@ -1,7 +1,7 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 import React from 'react';
 import { useApp } from '../../ui/AppContext';
-import { ReaderMiniPlayer } from '../../ui/ReaderMiniPlayer';
+import { ReaderMiniPlayer } from '../../ui/reader/ReaderMiniPlayer';
 import { useReaderPlayerHost } from '../../ui/useReaderPlayer';
 
 /**
