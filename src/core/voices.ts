@@ -113,16 +113,20 @@ export function voiceQuality(v: PhoneVoice): 'Premium' | 'Enhanced' | 'Default' 
   return 'Default';
 }
 
+const ROBOT_VOICE_PREFIXES = ['com.apple.speech.synthesis.voice.', 'com.apple.eloquence.'];
+
 const QUALITY_RANK = { Premium: 0, Enhanced: 1, Default: 2 };
 
 /**
- * The phone's voices in a language, the best sounding first, then by name. The novelty voices
- * (Albert, Bubbles, Zarvox: macOS's old voices, identified as com.apple.speech.synthesis.voice.*)
- * are left out; they aren't meant for reading words.
+ * The phone's voices in a language, the best sounding first, then by name. The old robotic voices
+ * are left out, as they aren't meant for reading words: the novelty voices (Albert, Bubbles,
+ * Zarvox: macOS's, identified as com.apple.speech.synthesis.voice.*) and the Eloquence voices
+ * (Eddy, Flo, Grandma, Grandpa, Reed, Rocko, Sandy, Shelley: com.apple.eloquence.*, listed once
+ * per language and region).
  */
 export function voicesIn(available: PhoneVoice[], key: string): PhoneVoice[] {
   return available
-    .filter((v) => languageKey(v.language) === key && !v.identifier.startsWith('com.apple.speech.synthesis.voice.'))
+    .filter((v) => languageKey(v.language) === key && !ROBOT_VOICE_PREFIXES.some((p) => v.identifier.startsWith(p)))
     .sort((a, b) => QUALITY_RANK[voiceQuality(a)] - QUALITY_RANK[voiceQuality(b)] || a.name.localeCompare(b.name) || a.language.localeCompare(b.language));
 }
 
