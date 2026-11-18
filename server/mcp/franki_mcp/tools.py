@@ -234,6 +234,8 @@ reaches their devices at their next sync.
 - In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
   ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
   Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
+- In a note's Notes field, give each part of a word's breakdown its meaning ("กลับ (return) + บ้าน
+  (home)"). Never write "already known": say what the part means, or leave it out.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
