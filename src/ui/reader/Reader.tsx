@@ -224,7 +224,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   useEffect(() => () => { mounted.current = false; }, []);
 
   // The audio, line by line (useLinePlayback.ts): this screen counts what's heard and moves on.
-  const { player, status, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, reset: resetPlayback } = useLinePlayback({
+  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, reset: resetPlayback } = useLinePlayback({
     api,
     playerHost,
     text,
@@ -725,7 +725,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
           ) : null}
           {hasAudio ? (
-            <PlayerBar playing={status.playing} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
+            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
