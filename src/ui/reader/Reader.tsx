@@ -8,9 +8,11 @@ import { ApiError, type Api, type GrammarChoice, type Language, type Length, typ
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
 import { scrollTarget, type Box } from '../../reader/follow';
+import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { wordFrequency } from '../../reader/frequency';
 import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
@@ -64,7 +66,7 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * check after it (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
  * Layout: the title, practice words, the lines (each with
- * its own replay button, an EN button that shows that line's English alone, and an explain button
+ * a "Show translation" link that shows that line's English alone under its words, its own replay button, and an explain button
  * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (the check, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
@@ -144,7 +146,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   /** Adding a selected phrase to the deck through the note editor; missing when there's no deck to add to. */
   mining?: PhraseMining;
   /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
   settings: Settings | null;
   onSettings: (settings: Settings) => void;
@@ -907,15 +909,18 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
                 // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
-                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                <View style={{ paddingTop: listenOnly ? 0 : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
                   <Speaker text={text} who={line.speaker} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
-                    {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
-                  </Text>
+                  // As tall as the speaker's mark beside it, with the name centered in that height.
+                  <View style={{ minHeight: line.speaker === 'N' ? undefined : speakerSize(text, line.speaker), justifyContent: 'center', paddingVertical: line.speaker === 'N' ? space.s : 0 }}>
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>
+                      {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
+                    </Text>
+                  </View>
                 ) : (
                   <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {wrapGroups(line.words).map((group, j) => (
@@ -944,19 +949,33 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     ))}
                   </View>
                 )}
-                {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
+                {/* The translation sits right under the words, above the buttons. While it's hidden, a
+                    "Show translation" link holds its place (tap the English again to hide it), so the
+                    buttons below only move down when it opens. With Show English on it's always shown. */}
+                {!listenOnly && (english || lineEnglish.includes(i)) ? (
+                  <Tappable
+                    onPress={() => { haptic.tap(); toggleLineEnglish(i); }}
+                    disabled={english}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Hide translation for line ${i + 1}`}
+                    style={{ alignSelf: 'flex-start', marginTop: space.xs }}
+                  >
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text>
+                  </Tappable>
+                ) : !listenOnly ? (
+                  <Tappable
+                    onPress={() => { haptic.tap(); toggleLineEnglish(i); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show translation for line ${i + 1}`}
+                    hitSlop={{ top: space.s, bottom: space.s }}
+                    style={{ alignSelf: 'flex-start', marginTop: space.xs }}
+                  >
+                    <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
+                  </Tappable>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.s }}>
                   {line.audio ? (
                     <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
-                  ) : null}
-                  {!english && !listenOnly ? (
-                    <RoundButton
-                      label="EN"
-                      accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
-                      on={lineEnglish.includes(i)}
-                      expanded={lineEnglish.includes(i)}
-                      onPress={() => toggleLineEnglish(i)}
-                    />
                   ) : null}
                   {!listenOnly ? (
                     <RoundButton
@@ -969,9 +988,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                   ) : null}
                   {!listenOnly ? <RegisterChip register={line.register} /> : null}
                 </View>
-                {!listenOnly && (english || lineEnglish.includes(i)) ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
-                ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
               </View>
             </View>
@@ -1133,7 +1149,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
           player.pause();
-          onPlayWord(tapped.word.text, text.language);
+          onPlayWord(tapped.word.text, text.language, saidAs(text.language, tapped.word.text, tapped.word.translit));
         }}
         // A word of "Last time" isn't in the text's lines, so there's no phrase to start from it.
         onSelectPhrase={listenOnly || (tapped && text && !locate(text.lines, tapped.word)) ? null : startPhrase}
@@ -1210,13 +1226,12 @@ function ToggleRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-/** A line's replay and EN buttons: a full tap target, filled when on. One of `icon` or `label`. */
-function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }: {
-  icon?: SFSymbol;
-  label?: string;
+/** A line's replay and explain buttons: a full tap target, filled when on. */
+function RoundButton({ icon, accessibilityLabel, on, expanded, onPress }: {
+  icon: SFSymbol;
   accessibilityLabel: string;
   on: boolean;
-  /** For a button that shows something under the line (English, an explanation): whether it's showing. */
+  /** For a button that shows something under the line (an explanation): whether it's showing. */
   expanded?: boolean;
   onPress: () => void;
 }) {
@@ -1234,7 +1249,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }:
         backgroundColor: on ? c.accentFill : c.fill,
       }}
     >
-      {icon ? <Icon name={icon} size={16} color={fg} weight="semibold" /> : <Text style={{ ...type.footnote, fontWeight: '700', color: fg }}>{label}</Text>}
+      <Icon name={icon} size={16} color={fg} weight="semibold" />
     </Tappable>
   );
 }
@@ -1357,7 +1372,9 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 {tapped.word.kanji?.length ? <ReadKanji kanji={tapped.word.kanji} /> : null}
                 <ReadFrequency word={tapped.word} />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                {wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word) ? null : (
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                )}
                 {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}
               </>
             )}

@@ -28,7 +28,9 @@ export function useWordAudio(repo: Repo) {
     return () => { player.current?.remove(); player.current = null; Speech.stop(); };
   }, [repo]);
 
-  return useCallback(async (word: string, language: Language) => {
+  // `say`: what to speak in place of the word when there's no recording, e.g. a Japanese word's kana,
+  // since a phone voice reads kanji one at a time (絶対 as ぜつ たい).
+  return useCallback(async (word: string, language: Language, say?: string) => {
     let index = indexes.current.get(language);
     if (!index) {
       // Without the notes the word is still read by the phone's voice.
@@ -47,6 +49,6 @@ export function useWordAudio(repo: Repo) {
       return;
     }
     speaking.current = true;
-    phone.sayWord(what.text, LANGUAGES[language].speech);
+    phone.sayWord(say ?? what.text, LANGUAGES[language].speech);
   }, [phone]);
 }

@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    lesson,
     lesson_service,
     lesson_writer,
     store,
@@ -22,6 +23,11 @@ from franki_reader.routes.views import instant
 MAX_MAKING = 2
 
 
+class GivenIn(BaseModel):
+    text: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+    english: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+
+
 class LessonIn(BaseModel):
     language: Code
     scene: str = Field(min_length=1, max_length=lesson_writer.MAX_SCENE)
@@ -31,6 +37,9 @@ class LessonIn(BaseModel):
     # decides the voice they repeat after, who speaks as A in the role-play, and the particle every
     # phrase carries. Left out, khrap; any other language ignores it.
     particle: Literal["khrap", "kha"] | None = None
+    # The learner's own words and phrases to teach, each with its meaning (a cram's, in the app),
+    # rather than phrases Claude picks for the scene. The scene is then the situation they're for.
+    phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -38,6 +47,7 @@ def router(ctx: AppContext) -> APIRouter:
     authed = ctx.authed
     engine = ctx.engine
     write_lesson = ctx.write_lesson
+    write_given_lesson = ctx.write_given_lesson
     lessons_dir = ctx.lessons_dir
 
     def lesson_out(row: store.StoredLesson) -> dict[str, Any]:
@@ -81,6 +91,11 @@ def router(ctx: AppContext) -> APIRouter:
             raise HTTPException(
                 422, "The narrator has to be an English voice, such as en-US-GuyNeural."
             )
+        given = lesson.given_phrases([(p.text, p.english) for p in body.phrases or []])
+        if body.phrases is not None and not given:
+            raise HTTPException(422, "Give at least one word or phrase to teach, with its meaning.")
+        if given and write_given_lesson is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "write a lesson"))
         if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
             raise HTTPException(
                 409, "Two lessons are already being made. Wait for one to finish, then ask again."
@@ -105,6 +120,8 @@ def router(ctx: AppContext) -> APIRouter:
             narrator=narrator,
             lexicon=engine.snapshot(body.language)[1],
             learner="female" if body.language == "th" and body.particle == "kha" else "male",
+            given=given,
+            write_given=write_given_lesson,
         )
         return {"id": lesson_id}
 

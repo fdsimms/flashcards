@@ -56,6 +56,15 @@ export function dueCounts(queue: Pick<Queue, 'due'>): { learning: number; review
   return { learning, reviews: queue.due.length - learning };
 }
 
+/**
+ * Which of the review screen's three counts (due, again, new) a card is in: the same split as
+ * `dueCounts` and `queue.fresh`, so the count underlined is the one the card was counted in.
+ */
+export function countKind(card: Card): 'due' | 'again' | 'new' {
+  if (card.sched.state === 0) return 'new';
+  return isLearning(card) ? 'again' : 'due';
+}
+
 /** A learning card on a step of a day or more (Anki's queue 3): it's due on a later study day than its last answer. */
 export function isInterdayLearning(card: Card, dayStartsAtHour: number): boolean {
   if (!isLearning(card) || !card.sched.lastReview) return false;
