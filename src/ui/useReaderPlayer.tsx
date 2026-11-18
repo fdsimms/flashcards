@@ -6,6 +6,7 @@ import { lineAudio } from '../reader/lineAudio';
 import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
 import { createPreloader, type Preloader } from '../reader/preload';
 import { preloadFiles } from './preloadFiles';
+import { lessonAudioMode, useLessonTurns, type LessonTurns } from './useLessonTurns';
 import { useLessonWaits, type LessonWaits } from './useLessonWaits';
 
 /**
@@ -62,6 +63,10 @@ export interface ReaderPlayerHost {
   stop: () => void;
   /** Wait for my answer: a lesson on this player stops at each place the learner speaks (useLessonWaits). */
   waits: LessonWaits;
+  /** The learner's turns: listening for the end of an answer, playing it back, Again (useLessonTurns). */
+  turns: LessonTurns;
+  /** A lesson is now on the player (or none, null): its pauses are waited at and its turns followed. */
+  watchLesson: (lesson: AudioLesson | null, api?: Api | null) => void;
 }
 
 const BACKGROUND_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
@@ -80,6 +85,13 @@ function useReaderPlayer(): ReaderPlayerHost {
   const starting = useRef(0);
   const [mini, setMini] = useState<MiniPlayer | null>(null);
   const waits = useLessonWaits(player.current);
+  const turns = useLessonTurns(player.current, waits);
+  const wantsRecording = useRef(turns.wantsRecording);
+  wantsRecording.current = turns.wantsRecording;
+  const watchLesson = useCallback((lesson: AudioLesson | null, api?: Api | null) => {
+    waits.watch(lesson);
+    turns.watch(lesson, api);
+  }, [waits.watch, turns.watch]); // eslint-disable-line react-hooks/exhaustive-deps -- both are stable
 
   const show = useCallback((playing: boolean) => {
     const c = carrying.current;
@@ -103,10 +115,10 @@ function useReaderPlayer(): ReaderPlayerHost {
     if (pause) player.current!.pause();
     player.current!.clearLockScreenControls();
     preloader.current!.clear();
-    waits.watch(null);
+    watchLesson(null);
     setMini(null);
     setAudioModeAsync(FOREGROUND_MODE).catch(() => undefined);
-  }, [waits.watch]);
+  }, [watchLesson]);
 
   const playLine = useCallback(async (line: number) => {
     const c = carrying.current;
@@ -164,7 +176,8 @@ function useReaderPlayer(): ReaderPlayerHost {
     carrying.current = null;
     carryingLesson.current = lesson;
     listener.current = player.current!.addListener('playbackStatusUpdate', onLessonStatus);
-    setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);
+    // Recording stays allowed while a microphone setting needs it: iOS won't start a recording in the background otherwise.
+    setAudioModeAsync(lessonAudioMode(wantsRecording.current())).catch(() => undefined);
     // Playing, or stopped at a pause waiting for the learner, where Play goes on.
     show(player.current!.playing);
   }, [onLessonStatus, show]);
@@ -219,7 +232,7 @@ function useReaderPlayer(): ReaderPlayerHost {
 
   useEffect(() => () => { listener.current?.remove(); player.current?.remove(); }, []);
 
-  return { player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop, waits };
+  return { player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop, waits, turns, watchLesson };
 }
 
 const Host = createContext<ReaderPlayerHost | null>(null);

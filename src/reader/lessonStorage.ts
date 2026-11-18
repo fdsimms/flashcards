@@ -47,3 +47,25 @@ export async function loadWait(): Promise<boolean> {
 export function saveWait(on: boolean): void {
   SecureStore.setItemAsync(WAIT_KEY, on ? 'on' : 'off').catch(() => undefined);
 }
+
+/**
+ * The lesson player's microphone settings, kept the same way and off unless turned on: Carry on when
+ * I stop talking (`listen`) and Play my answer back (`playBack`), useLessonTurns.
+ */
+export type TurnPrefs = { listen: boolean; playBack: boolean };
+const TURN_KEYS: Record<keyof TurnPrefs, string> = { listen: 'reader.lessonListen', playBack: 'reader.lessonPlayBack' };
+
+export async function loadTurnPrefs(): Promise<TurnPrefs> {
+  const read = async (key: string) => {
+    try {
+      return parseWait(await SecureStore.getItemAsync(key));
+    } catch {
+      return false;
+    }
+  };
+  return { listen: await read(TURN_KEYS.listen), playBack: await read(TURN_KEYS.playBack) };
+}
+
+export function saveTurnPref(pref: keyof TurnPrefs, on: boolean): void {
+  SecureStore.setItemAsync(TURN_KEYS[pref], on ? 'on' : 'off').catch(() => undefined);
+}

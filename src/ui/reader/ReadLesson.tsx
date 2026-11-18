@@ -4,17 +4,17 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Word } from '../../reader/api';
 import { glossesOf, glossKey } from '../../reader/cardGlosses';
 import { atEnd, clock, SKIP_SECONDS, skipTo } from '../../reader/lessons';
-import { waitHint } from '../../reader/lessonWaits';
+import { scriptOf } from '../../reader/lessonScript';
 import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
-import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, SwitchRow, Tappable } from '../kit';
+import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
+import { lessonAudioMode } from '../useLessonTurns';
 import { useReaderPlayerHost } from '../useReaderPlayer';
-
-// Background playback is on once a lesson plays, so it goes on with the screen locked. The player
-// host turns it off again when the lesson stops (Review's card audio doesn't need it).
-const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+import { LessonTranscript } from './LessonTranscript';
+import { LessonTurnPanel } from './LessonTurnPanel';
+import { LessonTurnSettings } from './LessonTurnSettings';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
@@ -34,6 +34,9 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   const player = host.player;
   const live = useAudioPlayerStatus(player);
   const [showPhrases, setShowPhrases] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const script = scriptOf(lesson);
+  const turns = host.turns;
   const [error, setError] = useState<string | null>(null);
   // Whatever the shared player carries on in the mini-player (Play all, or this lesson) keeps going
   // while a lesson is only open; the lesson takes the player over (stops that one, and has the lock
@@ -85,11 +88,13 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
     owned.current = true;
     setMine(true);
     host.claim();
-    waits.watch(lesson);
+    host.watchLesson(lesson, api);
     player.replace(api.lessonAudio(lesson.id));
     // Play all leaves the player at its line's speed.
     player.setPlaybackRate(1, 'high');
-    await setAudioModeAsync(LESSON_AUDIO_MODE).catch(() => undefined);
+    // Background playback is on once a lesson plays, so it goes on with the screen locked, and recording
+    // too while a microphone setting needs it. The player host turns both off when the lesson stops.
+    await setAudioModeAsync(lessonAudioMode(turns.wantsRecording())).catch(() => undefined);
     player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
   };
 
@@ -154,7 +159,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
 
         {held ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            <Text style={{ fontWeight: '600', color: c.text }}>Your turn.</Text> Say it, then tap Continue.
+            <Text style={{ fontWeight: '600', color: c.text }}>Your turn.</Text>{turns.recording && turns.listen ? ' Say it.' : ' Say it, then tap Continue.'}
           </Text>
         ) : null}
 
@@ -188,14 +193,30 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
           </Tappable>
         </View>
 
+        {mine ? <LessonTurnPanel turns={turns} held={held} /> : null}
+
         <Group>
-          <SwitchRow first label="Wait for my answer" hint={waitHint(lesson)} value={waits.on} onValueChange={waits.setOn} />
+          <LessonTurnSettings lesson={lesson} waits={waits} turns={turns} />
+          <NavRow
+            label={showTranscript ? 'Hide the transcript' : 'Show the transcript'}
+            detail={script ? 'What has been said so far' : 'Not kept for lessons made before transcripts'}
+            disabled={!script}
+            onPress={() => setShowTranscript((v) => !v)}
+          />
           <NavRow
             label={showPhrases ? 'Hide the phrases' : 'Show the phrases'}
             detail={`${lesson.phrases.length} phrases and the conversation`}
             onPress={() => setShowPhrases((v) => !v)}
           />
         </Group>
+
+        {showTranscript && script ? (
+          <LessonTranscript entries={script} seconds={status.currentTime} onSeek={(ms) => {
+            if (!owned.current) return;
+            waits.moved();
+            player.seekTo(ms / 1000).catch(() => undefined);
+          }} />
+        ) : null}
 
         {showPhrases ? (
           <>

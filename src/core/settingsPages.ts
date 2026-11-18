@@ -24,7 +24,7 @@ export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
   { id: 'today', title: 'Today', summary: 'Study reminder, vacation mode' },
   { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana' },
   { id: 'read', title: 'Read & Listen', summary: 'Turn it on or off, language' },
-  { id: 'lessons', title: 'Lessons', summary: 'Narrator, waiting for your answer, Thai polite ending' },
+  { id: 'lessons', title: 'Lessons', summary: 'Narrator, waiting for and hearing your answers, Thai polite ending' },
   { id: 'practice', title: 'Practice', summary: 'Daily extras' },
 ];
 
@@ -66,6 +66,8 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
 
   { id: 'narrator', page: 'lessons', label: 'Narrator', keywords: ['voice', 'audio lessons'], route: '/read-narrator' },
   { id: 'lessonWait', page: 'lessons', label: 'Wait for my answer', keywords: ['pause', 'continue', 'stop', 'respond', 'audio lessons'] },
+  { id: 'lessonListen', page: 'lessons', label: 'Carry on when I stop talking', keywords: ['microphone', 'hands-free', 'listen', 'audio lessons'] },
+  { id: 'lessonPlayBack', page: 'lessons', label: 'Play my answer back', keywords: ['microphone', 'record', 'hear yourself', 'take', 'audio lessons'] },
   { id: 'particle', page: 'lessons', label: 'Thai polite ending', keywords: ['khrap', 'kha', 'krap', 'ครับ', 'ค่ะ', 'man', 'woman', 'politeness'] },
 
   { id: 'extras', page: 'practice', label: 'Daily extras', keywords: ['drills', 'text', 'today'], route: '/extras' },
