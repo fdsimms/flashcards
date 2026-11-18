@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' }))).toEqual({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' });
+  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest' }))).toEqual({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest' });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -117,4 +117,10 @@ test('downloads for offline on Wi-Fi only until told otherwise', () => {
   expect(parsePrefs(null).offlineDownloads).toBe('wifi');
   expect(parsePrefs(JSON.stringify({ offlineDownloads: 'off' })).offlineDownloads).toBe('off');
   expect(parsePrefs(JSON.stringify({ offlineDownloads: 'always' })).offlineDownloads).toBe('wifi');
+});
+
+test('episodeOrder is newest first unless saved otherwise, and ignores anything else', () => {
+  expect(parsePrefs(null).episodeOrder).toBe('newest');
+  expect(parsePrefs(JSON.stringify({ episodeOrder: 'oldest' })).episodeOrder).toBe('oldest');
+  expect(parsePrefs(JSON.stringify({ episodeOrder: 'random' })).episodeOrder).toBe('newest');
 });

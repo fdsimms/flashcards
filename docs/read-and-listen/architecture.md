@@ -1250,8 +1250,10 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   me, or a topic, and Written by; it isn't shown offline, and neither are the rows that need the
   server. The app says "Series" for the running kind, while the server's routes and tables keep
   `story`. A series' own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
-  episode, Last time, and its episodes by season, and its ••• pins it to the top, ends it or
-  continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
+  episode, Last time, and its episodes by season, and its ••• sets the order, pins it to the top, ends it or
+  continues it. The newest season and episode come first (••• sets newest or oldest first, kept in the
+  reader's settings as `episodeOrder`). With several seasons each folds under its header: the latest
+  starts open and earlier ones closed, and what the reader opens or closes is kept per series on the phone. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
   common words, voices, grammar, practice words, and the progress
