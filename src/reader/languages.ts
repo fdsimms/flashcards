@@ -11,13 +11,12 @@ type LanguageInfo = {
   lineHeight: number; // Thai needs room for marks above and below
   highlightLabel: string; // what the highlighted words are, as the key names them
   speech: string; // the phone voice's language for a tapped word, the same as Review reads these decks in
-  translitLabel: string; // the gloss popover's button that shows a word's pronunciation
 };
 
-const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Might be new to you', translitLabel: 'Show transliteration' };
+const SPACED = { fontSize: 20, lineHeight: 1.5, highlightLabel: 'Might be new to you' };
 
 export const LANGUAGES: Record<Language, LanguageInfo> = {
-  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Not in your deck', speech: 'th-TH', translitLabel: 'Show transliteration' },
+  th: { name: 'Thai', flag: '🇹🇭', fontSize: 23, lineHeight: 1.75, highlightLabel: 'Not in your deck', speech: 'th-TH' },
   es: { name: 'Spanish', flag: '🇲🇽', ...SPACED, speech: 'es-MX' },
   de: { name: 'German', flag: '🇩🇪', ...SPACED, speech: 'de-DE' },
   fr: { name: 'French', flag: '🇫🇷', ...SPACED, speech: 'fr-FR' },
@@ -27,7 +26,7 @@ export const LANGUAGES: Record<Language, LanguageInfo> = {
   nb: { name: 'Norwegian', flag: '🇳🇴', ...SPACED, speech: 'nb-NO' },
   en: { name: 'English', flag: '🇺🇸', ...SPACED, speech: 'en-US' },
   // Written without spaces, and kanji want room for their strokes; a word's reading is its kana.
-  ja: { name: 'Japanese', flag: '🇯🇵', fontSize: 21, lineHeight: 1.7, highlightLabel: 'Might be new to you', speech: 'ja-JP', translitLabel: 'Show reading' },
+  ja: { name: 'Japanese', flag: '🇯🇵', fontSize: 21, lineHeight: 1.7, highlightLabel: 'Might be new to you', speech: 'ja-JP' },
 };
 
 // Thai and Spanish came first; the rest are in alphabetical order.
@@ -67,17 +66,22 @@ export function meaningOf(word: Pick<Word, 'gloss' | 'parts'>): string {
 // The popover leaves this line out when the frequency meter already says the word is common.
 export const COMMON_WORD_STATUS = 'A common word';
 
-// For the gloss popover and the marked words list.
+/** Whether the word's note is in the deck: the popover shows an icon for it, the marked words list says it. */
+export function inDeck(word: Pick<Word, 'status' | 'deck'>): boolean {
+  return !!word.deck && word.status !== 'name' && word.status !== 'partial' && word.status !== 'unknown';
+}
+
+// For the marked words list, and the gloss popover where `inDeck` has no icon to say it.
 export function wordStatus(word: Pick<Word, 'status' | 'deck' | 'wanikani'>): string {
   if (word.status === 'name') return 'A name';
   if (word.status === 'partial') return 'Only inside a longer phrase in your deck';
   if (word.status === 'unknown') return 'Not in your deck';
-  if (word.deck) return 'In your deck';
+  if (inDeck(word)) return 'In your deck';
   return word.wanikani ? 'Learned in WaniKani' : COMMON_WORD_STATUS;
 }
 
 /**
- * Where a word's IPA is from, for the gloss popover's status line: Wiktionary's, or written by AI,
+ * Where a word's IPA is from, for the tooltip on the gloss popover's IPA: Wiktionary's, or written by AI,
  * which can be wrong (stress most of all), so it says so. None when the word has no IPA.
  */
 export function ipaNote(word: Pick<Word, 'ipa' | 'ipa_source'>): string | null {

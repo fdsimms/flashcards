@@ -1,7 +1,7 @@
 import type { Word } from './api';
 
 // Selecting a phrase in the reader, to have Claude explain it: hold a word and drag to the last
-// one, or tap a word, choose "Select a phrase" in its gloss, then tap the last word. A phrase
+// one (a word's gloss once had a "Select a phrase" button; the pick-the-last-word-by-tap state is its leftover). A phrase
 // stays within one line, so it has the line's context and the server can check it's really there. Indexes are into the line's
 // `words`, the pieces the server split it into (spaces and punctuation included).
 

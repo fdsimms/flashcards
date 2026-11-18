@@ -462,7 +462,6 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       <GlossPopover
         tapped={tapped}
         language={shelf.language}
-        translitLabel={LANGUAGES[shelf.language].translitLabel}
         grammar={null}
         api={api}
         grammarChosen={{}}
@@ -470,7 +469,6 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
         flagged={false}
         onToggleFlag={null}
         onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language, saidAs(shelf.language, tapped.word.text, tapped.word.translit)); }}
-        onSelectPhrase={null}
         onAddToDeck={null}
         onClose={() => setTapped(null)}
       />
