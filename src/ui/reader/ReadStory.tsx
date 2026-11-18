@@ -58,7 +58,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
       setRead(episodes);
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't load this story. Pull down to try again.");
+      setError(e instanceof ApiError ? e.message : "Couldn't load this series. Pull down to try again.");
     }
   }, [api, storyId]);
   // On focus too: reading its episode changes what's next.
@@ -91,14 +91,14 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
     setOrder(next);
     savePrefs({ episodeOrder: next });
   };
-  const name = story ? story.title || 'Your story' : 'Story';
+  const name = story ? story.title || 'Your series' : 'Series';
   const end = () => Alert.alert(`End "${name}"?`, 'No more episodes are written. The ones you have stay on this page, and you can continue it later.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'End story', style: 'destructive', onPress: () => change(() => api.endStory(storyId), "Couldn't end this story. Try again.") },
+    { text: 'End series', style: 'destructive', onPress: () => change(() => api.endStory(storyId), "Couldn't end this series. Try again.") },
   ]);
 
   const next = story?.next ?? null;
-  const overline = !story ? '' : !story.running ? 'Story · Ended' : story.pinned ? `${bannerOverline(story)} · Pinned` : bannerOverline(story);
+  const overline = !story ? '' : !story.running ? 'Series · Ended' : story.pinned ? `${bannerOverline(story)} · Pinned` : bannerOverline(story);
 
   return (
     <Screen
@@ -112,12 +112,12 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               <Stack.Toolbar.MenuAction isOn={order === 'oldest'} onPress={() => chooseOrder('oldest')}>Oldest first</Stack.Toolbar.MenuAction>
             </Stack.Toolbar.Menu>
             {story.running && !story.pinned ? (
-              <Stack.Toolbar.MenuAction icon="pin" onPress={() => change(() => api.pinStory(storyId), "Couldn't pin this story. Try again.")}>Pin to the top</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="pin" onPress={() => change(() => api.pinStory(storyId), "Couldn't pin this series. Try again.")}>Pin to the top</Stack.Toolbar.MenuAction>
             ) : null}
             {story.running ? (
-              <Stack.Toolbar.MenuAction icon="stop.circle" destructive onPress={end}>End story</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="stop.circle" destructive onPress={end}>End series</Stack.Toolbar.MenuAction>
             ) : (
-              <Stack.Toolbar.MenuAction icon="play.circle" onPress={() => change(() => api.continueStory(storyId), "Couldn't continue this story. Try again.")}>Continue story</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="play.circle" onPress={() => change(() => api.continueStory(storyId), "Couldn't continue this series. Try again.")}>Continue series</Stack.Toolbar.MenuAction>
             )}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
@@ -179,7 +179,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
                 );
               });
             })()}
-            {story.running ? <Help>Each episode is written once you've read the one before, so a story you leave alone writes nothing more.</Help> : null}
+            {story.running ? <Help>Each episode is written once you've read the one before, so a series you leave alone writes nothing more.</Help> : null}
           </>
         ) : null}
       </ScrollView>
