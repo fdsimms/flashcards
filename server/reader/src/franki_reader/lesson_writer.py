@@ -35,15 +35,17 @@ what you give. Give:
 
 - title: a short English title for the lesson (two to five words)
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
-  between A ({a}) and B ({b}). Each line: speaker (A or B), text ({language}), english. The
-  phrases below should come up in it. The learner hears it first and acts it out last, so build it
-  from the phrases taught and very basic everyday words, with no rarer vocabulary.
+  between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
+  english. The phrases below should come up in it, in A's lines where they fit. The learner hears
+  it first and acts out A's part last, so build it from the phrases taught and very basic everyday
+  words, with no rarer vocabulary, and keep A's lines short.
 - phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
   something a person would really say in that situation. Each: text ({language}), english (what it
   means, in natural English), and parts.
 - mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
   appear in the phrases above (a word may be reused, none may be new), for example the first piece
-  of one phrase with the last piece of another. Each: text and english.
+  of one phrase with the last piece of another. Each must be one complete sentence a person would
+  really say, never two phrases put side by side. Each: text and english.
 
 Rules for the phrases:
 - 2 to 8 words each, and not a lone "Yes." or "Thanks."
@@ -79,15 +81,17 @@ learner to say each phrase aloud. Give:
 
 - title: a short English title for the lesson (two to five words)
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
-  between A ({a}) and B ({b}). Each line: speaker (A or B), text ({language}), english. Use as many
-  of the words and phrases above as fit naturally, mostly in A's lines, and otherwise only very
-  basic everyday words.
+  between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
+  english. Use every one of the words and phrases above that fits naturally, in A's lines, and
+  otherwise only very basic everyday words. The learner acts out A's part at the end, so keep A's
+  lines short and made mostly of those words and phrases.
 - phrases: every one of the words and phrases above, written exactly as given (the same text,
   letter for letter: don't correct, complete or add to one, even a single word), in the order they
   come up in the dialogue, any that don't come up last. Each: text, english (as given), and parts.
 - mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
-  appear in the phrases above (a word may be reused, none may be new). Each: text and english.
-  Fewer, or none, when the phrases don't make any.
+  appear in the phrases above (a word may be reused, none may be new). Each must be one complete
+  sentence a person would really say, never two of the phrases put side by side. Each: text and
+  english. Fewer, or none, when the phrases don't make any.
 
 Rules for the parts: the phrase split in order into 1 to {parts} pieces at natural breaks, so that
 the learner can build it up from its end (the last piece first). Put back together, the parts must
