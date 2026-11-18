@@ -53,9 +53,14 @@ Rules for the phrases:
   can be one part.
 - Polite, everyday register (use the formal "you" where the language has one), unless the situation
   is between friends.
-{gender_rule}- The phrases are a ladder, in the order they come up in the dialogue: each one reuses words or a
-  piece from an earlier phrase (a word, a verb, a polite ending) and adds only one or two new
-  things, so the lesson builds on itself instead of teaching separate phrases.
+{gender_rule}- Each phrase does a different job in the situation, so the lesson covers it rather than repeating
+  one thing: for example asking, answering, asking back, reacting, thanking, saying you didn't
+  understand. Never two phrases that say nearly the same thing with a word added or changed ("How
+  are you?" and "How are you today?"). A narrow situation still needs {few} to {many} different
+  things a person says in it, so go to what comes right before and after it.
+- The phrases are a ladder, in the order they come up in the dialogue: a phrase may reuse a word or
+  a piece from an earlier one (a verb, a polite ending), but it means something new and has at
+  least two words the earlier phrases don't.
 
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
 

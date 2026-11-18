@@ -388,6 +388,7 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **Each phrase does a different job** (18 November 2026, the owner: "How Are You?" came out as "how are you" said over and over). A narrow scene gave four phrases that were one question with a word added, and every phrase is heard many times (taught, built up, asked, recalled), so the repeats filled the lesson. The request now asks for different jobs (ask, answer, ask back, react, thank), reaching to what comes before and after a narrow scene, and the ladder rule asks for at least two words the earlier phrases lack. Prompt only: a code check on word overlap was tried and flagged real ladders ("Please" then "The check, please"), so it was dropped.
 - **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
   from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
   word and meaning, up to `lesson.MAX_GIVEN`, 15), and the scene is then the situation they're for (the
