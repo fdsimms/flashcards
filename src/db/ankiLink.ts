@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
-import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
+import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
@@ -203,18 +203,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     // Attached again so SQLite reads the edited schema.
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
     try {
-      const all = <T,>(sql: string) => db.getAllAsync<T>(inSchema(sql, 'scratch'));
-      return {
-        col: (await db.getFirstAsync<{ crt: number }>(inSchema(COLLECTION_QUERIES.col, 'scratch')))!,
-        notetypes: await all(COLLECTION_QUERIES.notetypes),
-        fields: await all(COLLECTION_QUERIES.fields),
-        templates: await all(COLLECTION_QUERIES.templates),
-        notes: await all(COLLECTION_QUERIES.notes),
-        cards: await all(COLLECTION_QUERIES.cards),
-        decks: await all(COLLECTION_QUERIES.decks),
-        deckConfigs: await all(COLLECTION_QUERIES.deckConfigs),
-        lastReviews: await all(COLLECTION_QUERIES.lastReviews),
-      } as CollectionRows;
+      return await queryCollectionRows((sql) => db.getAllAsync(inSchema(sql, 'scratch')));
     } finally {
       await db.execAsync('DETACH DATABASE scratch');
       scratch.delete();
