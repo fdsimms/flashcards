@@ -30,7 +30,7 @@ import { SavedMark } from './SavedMark';
  * and not yet read (with Play all), texts to hear again, and texts read before. Nothing is
  * written unasked, so opening a text never waits, since it's written already; the header's + has a
  * series, dialogue or story written (`onNew`, a sheet). The language is a menu in the header, and its
- * settings are behind the sliders button.
+ * settings are behind the gear button.
  *
  * A text is written in the background after it's asked for, so this asks again while something is
  * being written, to show it as it lands.
@@ -41,7 +41,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onLanguagePage, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
@@ -56,7 +56,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onNew: () => void;
   /** Opens having a series written, past the choice of kind. */
   onNewSeries: () => void;
-  onLanguagePage: () => void;
+  onSettings: () => void;
   /** Every text read before, from the Reread row's See all. */
   onPast: () => void;
   /** Opens a text read before, to read or listen to again. */
@@ -240,7 +240,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
           <Stack.Toolbar placement="right">
             {/* Writing needs the server, so offline there's no +. */}
             {problem ? null : <Stack.Toolbar.Button icon="plus" accessibilityLabel={`New ${name} series, dialogue or story`} onPress={onNew} />}
-            <Stack.Toolbar.Button icon="slider.horizontal.3" accessibilityLabel={`${name} settings`} onPress={onLanguagePage} />
+            <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Read & Listen settings" onPress={onSettings} />
           </Stack.Toolbar>
         </>
       )}
@@ -462,7 +462,6 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       <GlossPopover
         tapped={tapped}
         language={shelf.language}
-        translitLabel={LANGUAGES[shelf.language].translitLabel}
         grammar={null}
         api={api}
         grammarChosen={{}}
@@ -470,7 +469,6 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
         flagged={false}
         onToggleFlag={null}
         onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language, saidAs(shelf.language, tapped.word.text, tapped.word.translit)); }}
-        onSelectPhrase={null}
         onAddToDeck={null}
         onClose={() => setTapped(null)}
       />

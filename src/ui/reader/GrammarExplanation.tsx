@@ -3,7 +3,6 @@ import { Text } from 'react-native';
 import { explanationParagraphs } from '../../core/grammar';
 import type { Api, Language, Word } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
-import { LANGUAGES } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
 import { explanationGlosses, explanationRequest } from '../../reader/grammarGlosses';
 import { haptic } from '../haptics';
@@ -71,7 +70,6 @@ export function GrammarExplanation({ language, explanation, glossing }: { langua
       ))}
       <GlossPopover
         tapped={tapped}
-        translitLabel={LANGUAGES[language].translitLabel}
         grammar={null}
         api={api}
         grammarChosen={{}}
@@ -79,7 +77,6 @@ export function GrammarExplanation({ language, explanation, glossing }: { langua
         flagged={false}
         onToggleFlag={null}
         onPlay={() => { if (tapped) glossing.onPlayWord(tapped.word.text, language, saidAs(language, tapped.word.text, tapped.word.translit)); }}
-        onSelectPhrase={null}
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the page.
           const { text, gloss: meaning } = tapped.word;

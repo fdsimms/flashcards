@@ -39,7 +39,7 @@ function PhraseBar() {
 
 export type ReadTextStyle = { fontSize: number; lineHeight: number; font: ReadFont };
 
-export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, phraseStart = false, dimmed = false, playing = false, spoken = false, slot = null, onPress, onLongPress, viewRef }: {
+export function WordView({ word, grammar, textStyle, flagged, highlighted, named, selected, hidden = [], phrasePart = null, playing = false, spoken = false, slot = null, onPress, onLongPress, viewRef }: {
   word: Word;
   grammar: TextGrammar | null;
   textStyle: ReadTextStyle;
@@ -53,9 +53,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   /** Where it sits in the selected phrase, if it's in one. */
   phrasePart?: PhrasePart | null;
   /** The phrase's first word, while its last is being chosen: ringed like a tapped word. */
-  phraseStart?: boolean;
   /** In a line the phrase being selected can't reach. */
-  dimmed?: boolean;
   /** In the line being played, in a story read as continuous text (a line row is shaded as a whole). */
   playing?: boolean;
   /** Being spoken now, as the line plays (useSpokenWords). */
@@ -79,14 +77,13 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
     const piece = word.text.trim()
       ? <Text style={{ ...textBox, color: c.text }}>{word.text}</Text>
       : <View style={{ width: textStyle.fontSize * 0.3 }} />;
-    if (!phrasePart && !dimmed && !playing) return piece;
+    if (!phrasePart && !playing) return piece;
     const filled = phrasePart || playing;
     const boxed = word.text.trim()
       ? <Text style={{ ...textBox, color: c.text, borderBottomWidth: 1.5, borderBottomColor: 'transparent' }}>{word.text}</Text>
       : <Text style={{ ...textBox, width: textStyle.fontSize * 0.3, borderBottomWidth: 1.5, borderBottomColor: 'transparent' }}>{' '}</Text>;
     return (
       <View style={[
-        { opacity: dimmed ? 0.35 : 1 },
         filled ? { backgroundColor: phrasePart ? c.accentFill : c.fill, paddingVertical: 1.5 } : null,
       ]}>
         {filled ? boxed : piece}
@@ -94,8 +91,8 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
       </View>
     );
   }
-  if (slot === 'open') return <QuizSlot word={word} textStyle={textStyle} dimmed={dimmed} onPress={onPress} />;
-  const ringed = selected || phraseStart;
+  if (slot === 'open') return <QuizSlot word={word} textStyle={textStyle} onPress={onPress} />;
+  const ringed = selected;
   const stretch = word.stretch && !hidden.includes('stretch');
   const showFlag = flagged && !hidden.includes('marked');
   const role = grammar && !hidden.includes(grammar.role === 'practice' ? 'practice' : grammar.role === 'avoid' ? 'avoid' : 'known') ? grammar.role : null;
@@ -119,7 +116,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
         // text show as gaps. The selection ring is an overlay inside the word's own box: a border
         // cancelled by a negative margin pushed each box past its slot and overlapped its neighbors.
         // A playing line is one band, so its words are square and flush; a phrase or a ring inside it keeps its own corners.
-        borderRadius: playing && !phrasePart && !ringed ? 0 : radius.s - 2, paddingVertical: 1.5, opacity: dimmed ? 0.35 : 1,
+        borderRadius: playing && !phrasePart && !ringed ? 0 : radius.s - 2, paddingVertical: 1.5,
         backgroundColor: ringed || phrasePart ? c.accentFill : playing ? c.fill : undefined,
         ...(phrasePart && !ringed ? phraseCorners(phrasePart) : null),
       }}
@@ -168,7 +165,7 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
  * wraps where it would have, and as tall as a line of text so it sits in the row like a word. It says
  * nothing of the word (VoiceOver included), since the word is the answer. A tap opens the sheet.
  */
-function QuizSlot({ word, textStyle, dimmed, onPress }: { word: Word; textStyle: ReadTextStyle; dimmed: boolean; onPress: (word: Word, x: number, y: number) => void }) {
+function QuizSlot({ word, textStyle, onPress }: { word: Word; textStyle: ReadTextStyle; onPress: (word: Word, x: number, y: number) => void }) {
   const c = useTheme();
   return (
     <Tappable
@@ -180,7 +177,7 @@ function QuizSlot({ word, textStyle, dimmed, onPress }: { word: Word; textStyle:
       hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       style={{
         width: slotWidth(word, textStyle.fontSize, MIN_TAP), height: Math.round(textStyle.fontSize * 1.4), borderRadius: radius.pill,
-        marginHorizontal: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, opacity: dimmed ? 0.35 : 1,
+        marginHorizontal: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent,
       }}
     >
       <Icon name="questionmark" size={Math.round(textStyle.fontSize * 0.7)} color={c.onAccent} weight="bold" />

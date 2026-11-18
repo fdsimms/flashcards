@@ -61,7 +61,8 @@ SYSTEM = (
     "Say what the learner is most likely to be unsure of: grammar (tense, mood, agreement, word "
     "order, particles, reflexive or separable verbs), a phrase that isn't word for word, an idiom "
     "or register. Skip words and structures a learner at this level would already know. "
-    f"Give at most {MAX_POINTS} points, most useful first, each naming the part of the line "
+    f"Give at most {MAX_POINTS} points, choosing the most useful ones, but list them in the "
+    "order their parts appear in the line, first word first. Each names the part of the line "
     "(`phrase`, copied exactly from the line) and what to know about it (`note`, one to three "
     f"short sentences, under {MAX_CHARS} characters). Give a literal translation only when it "
     "shows how the phrase works. Do not use em dashes. Do not repeat the whole line's translation: "
@@ -108,8 +109,9 @@ PHRASE_SYSTEM = (
     f"`meaning`. Give `register`: how formal the phrase is when a native speaker says it, one of "
     f"{', '.join(REGISTERS)}, or an empty string when you are not confident. Give `register_note`: "
     "one short sentence on where it fits (with friends, in writing, in a polite request), or an "
-    f"empty string when `register` is empty. Then at most {MAX_POINTS - 2} points (`points`), most useful first, each "
-    "naming part of the phrase (`phrase`, copied exactly from it) and what to know about it "
+    f"empty string when `register` is empty. Then at most {MAX_POINTS - 2} points (`points`), choosing the "
+    "most useful ones, but list them in the order their parts appear in the phrase, first word "
+    "first. Each names part of the phrase (`phrase`, copied exactly from it) and what to know about it "
     f"(`note`, one to three short sentences, under {MAX_CHARS} characters): whether it is a set "
     "expression or idiom and how it is used, how its words work together where that isn't word "
     "for word, and its tone when that matters. If the selection is part of a longer "
@@ -355,8 +357,22 @@ def clean_check(answer: dict[str, Any]) -> dict[str, str] | None:
     }
 
 
-def clean(points: object) -> list[dict[str, str]]:
-    """The points the model gave, trimmed, without blanks, at most MAX_POINTS."""
+def in_reading_order(points: list[dict[str, str]], within: str) -> list[dict[str, str]]:
+    """`points` ordered by where each one's phrase first appears in `within`, so the notes read
+    in the order of the sentence whatever order the model gave them. A point about the whole
+    of `within`, or one whose phrase isn't found in it, goes last, in the order given."""
+
+    def position(point: dict[str, str]) -> int:
+        found = within.find(point["phrase"])
+        whole = point["phrase"] == within.strip()
+        return len(within) + 1 if found < 0 or whole else found
+
+    return sorted(points, key=position)
+
+
+def clean(points: object, within: str = "") -> list[dict[str, str]]:
+    """The points the model gave, trimmed, without blanks, at most MAX_POINTS, in the order of
+    their parts in `within` (the line or phrase they explain) when it is given."""
     if not isinstance(points, list):
         return []
     out: list[dict[str, str]] = []
@@ -366,7 +382,8 @@ def clean(points: object) -> list[dict[str, str]]:
         phrase, note = p.get("phrase"), p.get("note")
         if isinstance(phrase, str) and isinstance(note, str) and phrase.strip() and note.strip():
             out.append({"phrase": phrase.strip(), "note": note.strip()[:MAX_CHARS]})
-    return out[:MAX_POINTS]
+    out = out[:MAX_POINTS]
+    return in_reading_order(out, within) if within else out
 
 
 async def _ask(
@@ -413,7 +430,7 @@ def claude_explain(client: anthropic.AsyncAnthropic) -> Explain:
         if request.in_language:
             system = in_language(system)
         answer, used = await _ask(client, system, request_message(request), SCHEMA, "this line")
-        points = clean(answer.get("points"))
+        points = clean(answer.get("points"), request.line)
         if not points:
             raise ExplainFailed("Claude didn't explain this line. Try again in a moment.", used)
         return points, used
@@ -434,7 +451,7 @@ def claude_check(client: anthropic.AsyncAnthropic) -> CheckNatural:
     return check
 
 
-def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
+def clean_phrase(answer: dict[str, Any], phrase: str = "") -> dict[str, Any] | None:
     """The meaning, literal rendering, register and points the model gave, trimmed; None without a
     meaning. The register is "" unless it is one of REGISTERS. The literal is "" when it was left out or only repeats the meaning, so the app shows it only
     when it adds something."""
@@ -460,7 +477,7 @@ def clean_phrase(answer: dict[str, Any]) -> dict[str, Any] | None:
         "literal": literal,
         "register": register,
         "register_note": note,
-        "points": clean(answer.get("points")),
+        "points": clean(answer.get("points"), phrase),
     }
 
 
@@ -472,7 +489,7 @@ def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
         answer, used = await _ask(
             client, system, phrase_message(request), PHRASE_SCHEMA, "this phrase"
         )
-        cleaned = clean_phrase(answer)
+        cleaned = clean_phrase(answer, request.phrase)
         if cleaned is None:
             raise ExplainFailed("Claude didn't explain this phrase. Try again in a moment.", used)
         return cleaned, used

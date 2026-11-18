@@ -1,0 +1,81 @@
+/**
+ * What Settings contains, as data: the pages (one per tab, each reached from Settings or from the
+ * gear in that tab's header) and one entry per setting, so a search can find a setting without
+ * knowing which page it's on.
+ *
+ * This is a search index, not a description of the UI: the rows stay written out in
+ * `src/ui/SettingsPage.tsx` and `src/ui/Settings.tsx`, which is where a control's own state and
+ * save-failure alert live. Its one obligation is to stay in step with them, so a row added there
+ * gets an entry here (`tests/core/settingsPages.test.ts` holds the ids and pages to a list).
+ */
+
+export type SettingsPageId = 'today' | 'decks' | 'read' | 'lessons' | 'practice';
+
+export interface SettingsPageInfo {
+  id: SettingsPageId;
+  /** The page's title, and the name of the tab or screen it belongs to. */
+  title: string;
+  /** What's on it, one line, under its row in Settings. */
+  summary: string;
+}
+
+/** In the order Settings lists them: the tab bar's. */
+export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
+  { id: 'today', title: 'Today', summary: 'Study reminder, vacation mode' },
+  { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana' },
+  { id: 'read', title: 'Read & Listen', summary: 'Turn it on or off, language' },
+  { id: 'lessons', title: 'Lessons', summary: 'Narrator, Thai polite ending' },
+  { id: 'practice', title: 'Practice', summary: 'Daily extras' },
+];
+
+export function settingsPage(id: string | undefined): SettingsPageInfo | undefined {
+  return SETTINGS_PAGES.find((p) => p.id === id);
+}
+
+export interface SettingsEntry {
+  id: string;
+  /** The page it's on, or `settings` for a row on Settings itself (Font, Voices, Anki...). */
+  page: SettingsPageId | 'settings';
+  label: string;
+  /** Words that should find it that its label doesn't have. */
+  keywords?: readonly string[];
+  /** The screen the row opens, when it opens one of its own (a switch has none: its page is the destination). */
+  route?: string;
+}
+
+export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
+  { id: 'anki', page: 'settings', label: 'Anki', keywords: ['sync', 'import', 'export', 'apkg', 'server'], route: '/anki' },
+  { id: 'backup', page: 'settings', label: 'Backup', keywords: ['restore', 'save', 'export'], route: '/backup' },
+  { id: 'wanikani', page: 'settings', label: 'WaniKani', keywords: ['token', 'japanese', 'kanji'], route: '/wanikani-settings' },
+  { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text'], route: '/app-font' },
+  { id: 'voices', page: 'settings', label: 'Voices', keywords: ['text to speech', 'tts', 'azure', 'read aloud'], route: '/voices' },
+  { id: 'speaking', page: 'settings', label: 'Speaking', keywords: ['answer by speaking', 'microphone', 'dictation', 'recognizer'], route: '/speaking' },
+
+  { id: 'reminder', page: 'today', label: 'Study reminder', keywords: ['notification', 'daily'], route: '/reminder' },
+  { id: 'vacation', page: 'today', label: 'Vacation mode', keywords: ['pause', 'break', 'away'], route: '/vacation' },
+
+  { id: 'answerButtons', page: 'decks', label: 'Answer buttons', keywords: ['again', 'hard', 'good', 'easy', 'rating'], route: '/answer-buttons' },
+  { id: 'swipe', page: 'decks', label: 'Swipe to answer', keywords: ['gesture', 'drag', 'good', 'again'] },
+  { id: 'hints', page: 'decks', label: 'Show romanization and translation', keywords: ['romaji', 'hint', 'answer'] },
+  { id: 'hook', page: 'decks', label: 'Ask for your own hook', keywords: ['mnemonic'] },
+  { id: 'thaiSize', page: 'decks', label: 'Thai text size', keywords: ['script', 'larger', 'bigger'], route: '/thai-text-size' },
+  { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
+
+  { id: 'readerOn', page: 'read', label: 'Read & Listen', keywords: ['passphrase', 'sign in', 'texts', 'stories', 'server'], route: '/read-settings' },
+  { id: 'readLanguage', page: 'read', label: 'Language settings', keywords: ['grammar', 'vocabulary', 'level', 'voices'], route: '/read-language' },
+
+  { id: 'narrator', page: 'lessons', label: 'Narrator', keywords: ['voice', 'audio lessons'], route: '/read-narrator' },
+  { id: 'particle', page: 'lessons', label: 'Thai polite ending', keywords: ['khrap', 'kha', 'krap', 'ครับ', 'ค่ะ', 'man', 'woman', 'politeness'] },
+
+  { id: 'extras', page: 'practice', label: 'Daily extras', keywords: ['drills', 'text', 'today'], route: '/extras' },
+];
+
+/** The entries whose label or keywords have every word of `query` in them (a prefix of a word counts), in list order. A blank query finds nothing. */
+export function searchSettings(query: string, entries: readonly SettingsEntry[] = SETTINGS_ENTRIES): SettingsEntry[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return entries.filter((e) => {
+    const have = [e.label, ...(e.keywords ?? [])].join(' ').toLowerCase().split(/[\s,]+/);
+    return words.every((w) => have.some((h) => h.startsWith(w)));
+  });
+}

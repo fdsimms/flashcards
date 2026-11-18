@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, ipaNote, languageNamed, meaningOf, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, inDeck, ipaNote, languageNamed, meaningOf, wordStatus } from '../../src/reader/languages';
 
 test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
   expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
@@ -15,6 +15,13 @@ test("a word says whether it's a deck word, a common word, or neither", () => {
   expect(wordStatus({ status: 'name', deck: false })).toBe('A name');
   expect(wordStatus({ status: 'partial', deck: false })).toBe('Only inside a longer phrase in your deck');
   expect(wordStatus({ status: 'unknown', deck: false })).toBe('Not in your deck');
+});
+
+test("the popover's deck icon is for a word whose note is in the deck, and only that", () => {
+  expect(inDeck({ status: 'known', deck: true })).toBe(true);
+  expect(inDeck({ status: 'known', deck: false })).toBe(false);
+  // A name, a word only inside a longer phrase, and an unknown word keep their text, even with a deck flag.
+  for (const status of ['name', 'partial', 'unknown'] as const) expect(inDeck({ status, deck: true })).toBe(false);
 });
 
 test("a word's IPA says where it's from, and AI-written IPA says it may be wrong", () => {

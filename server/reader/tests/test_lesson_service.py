@@ -241,7 +241,7 @@ def test_a_failure_to_speak_fails_the_lesson_and_keeps_no_file(tmp_path: Path) -
     kept = store.get_lesson(conn, lesson_id)
     assert kept is not None
     assert kept.state == "failed"
-    assert "Azure couldn't speak the lesson (Azure answered 429)" in kept.error
+    assert "Azure couldn't speak the lesson. Azure answered 429." in kept.error
     assert not lesson_service.audio_path(tmp_path, lesson_id).exists()
 
 

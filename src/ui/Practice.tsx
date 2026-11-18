@@ -15,7 +15,7 @@ import { useGrammarDue } from './useGrammarDue';
 import { usePracticeLanguage } from './usePracticeLanguage';
 
 /** The Practice tab: small drills outside the decks (src/tools/tools.ts), one row each. */
-export function Practice({ onOpen, onCram, readerApi, repo }: { onOpen: (tool: ToolInfo) => void; onCram: () => void; readerApi: Api | null; repo: Repo }) {
+export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOpen: (tool: ToolInfo) => void; onCram: () => void; onSettings: () => void; readerApi: Api | null; repo: Repo }) {
   const c = useTheme();
   const grammarDue = useGrammarDue(readerApi, repo);
   const problem = useConnectionProblem();
@@ -25,6 +25,7 @@ export function Practice({ onOpen, onCram, readerApi, repo }: { onOpen: (tool: T
     <Screen
       title="Practice"
       toolbar={(
+        <>
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Menu icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
             {TOOL_LANGUAGES.map((l) => (
@@ -32,6 +33,10 @@ export function Practice({ onOpen, onCram, readerApi, repo }: { onOpen: (tool: T
             ))}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={onSettings} />
+        </Stack.Toolbar>
+        </>
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>

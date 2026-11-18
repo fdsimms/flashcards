@@ -155,7 +155,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo, onSettings }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -195,6 +195,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   onCustomStudy: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
   onCardInfo: (cardId: string) => void;
+  /** Opens the card settings (Settings, Decks and cards) from the header's menu. */
+  onSettings: () => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -1301,6 +1303,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onCardInfo={() => { setPreferId(current.id); onCardInfo(current.id); }}
             timingOn={timing.on}
             onTiming={timing.toggle}
+            onSettings={onSettings}
           />
         </Stack.Toolbar>
       }
