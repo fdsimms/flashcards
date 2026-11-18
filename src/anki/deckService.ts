@@ -88,19 +88,19 @@ export async function moveDeck(store: NoteStore, move: DeckMove, refresh: () => 
   return name;
 }
 
-/** What deleting a deck deletes: its cards, whether the deck is Anki's, and whether it stays (Anki's Default). */
-export interface DeckDeletionPreview { cards: number; inAnki: boolean; keepsDeck: boolean }
+/** What deleting a deck deletes: its cards, the cards of other decks it sends home (from a filtered deck), whether the deck is Anki's, and whether it stays (Anki's Default). */
+export interface DeckDeletionPreview { cards: number; returned: number; inAnki: boolean; keepsDeck: boolean }
 
 /** What deleting `deck` deletes, to ask first. */
 export async function deckDeletionPreview(store: NoteStore, deck: string): Promise<DeckDeletionPreview> {
   const [notes, cards] = await Promise.all([store.listNotes(), store.listCards()]);
-  const { studied } = deckDeletion(notes, cards, deck);
+  const { studied, returnHome } = deckDeletion(notes, cards, deck);
   const anki = (await store.keptCollection())
     ? await store.lockAnki(() => store.withSyncConnection((db) => ankiDeckDeletion(db, deck)))
     : null;
   // Anki counts its own cards (some may be of a note type Franki shows only in part); Franki adds its own.
-  if (anki) return { cards: anki.cards + studied.filter((c) => !c.ankiId).length, inAnki: true, keepsDeck: anki.keepsDeck };
-  return { cards: studied.length, inAnki: false, keepsDeck: false };
+  if (anki) return { cards: anki.cards + studied.filter((c) => !c.ankiId).length, returned: anki.returned + returnHome.filter((c) => !c.ankiId).length, inAnki: true, keepsDeck: anki.keepsDeck };
+  return { cards: studied.length, returned: returnHome.length, inAnki: false, keepsDeck: false };
 }
 
 /**

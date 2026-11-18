@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { refreshFromKeptCollection } from '../anki/transfer';
@@ -7,10 +7,13 @@ import {
   CRAM_CHOICES, CUSTOM_STUDY_OPTIONS, customStudyFrom, customStudyProblem, type CramSelect, type CustomStudyKind,
 } from '../core/customStudy';
 import { failureText } from '../core/failure';
+import { parseTags } from '../core/noteEditing';
+import { tagCounts, type TagSuggestion } from '../core/priority';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
 import { Button, CheckRow, Card, ErrorNote, Field, Group, Help, Screen, Select } from './kit';
+import { TagTokenField } from './TagTokenField';
 import { space, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -34,6 +37,13 @@ export function CustomStudy({ repo, deck, onStarted }: {
   const [select, setSelect] = useState<CramSelect>('new');
   const [include, setInclude] = useState('');
   const [exclude, setExclude] = useState('');
+  // Every tag in the collection, to suggest in the two tag fields.
+  const [counts, setCounts] = useState<TagSuggestion[]>([]);
+  useEffect(() => {
+    let current = true;
+    repo.listNotes().then((notes) => { if (current) setCounts(tagCounts(notes)); }).catch(() => undefined);
+    return () => { current = false; };
+  }, [repo]);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
@@ -97,8 +107,8 @@ export function CustomStudy({ repo, deck, onStarted }: {
                 value={CRAM_CHOICES.find((x) => x.select === select)!.label}
                 onChange={(label) => setSelect(CRAM_CHOICES.find((x) => x.label === label)!.select)}
               />
-              <Field label="Only these tags (optional)" value={include} onChangeText={setInclude} autoCapitalize="none" autoCorrect={false} placeholder="verb noun" />
-              <Field label="Leave out these tags (optional)" value={exclude} onChangeText={setExclude} autoCapitalize="none" autoCorrect={false} />
+              <TagTokenField label="Only these tags (optional)" tags={parseTags(include)} onChange={(t) => setInclude(t.join(' '))} counts={counts} placeholder="Add a tag" />
+              <TagTokenField label="Leave out these tags (optional)" tags={parseTags(exclude)} onChange={(t) => setExclude(t.join(' '))} counts={counts} placeholder="Add a tag" />
             </>
           ) : null}
         </Card>

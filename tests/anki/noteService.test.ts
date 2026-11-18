@@ -47,6 +47,15 @@ describe('saving a note', () => {
     db.close();
   });
 
+  it('refuses a note whose first field another note of its type already has, saving nothing', async () => {
+    const { store } = await franki();
+    const draft = { deck: '🧠 Trivia', model: 'Basic (and reversed card)', fields: { Front: 'Capital of Uruguay?', Back: 'Montevideo' }, tags: [] };
+    await saveNote(store, draft, NOW);
+    const before = store.cards.size;
+    await expect(saveNote(store, { ...draft, fields: { ...draft.fields, Front: ' capital of <i>uruguay</i>? ' } }, NOW)).rejects.toBeInstanceOf(NoteRefused);
+    expect(store.cards.size).toBe(before);
+  });
+
   it('edits a note, keeping each card\'s schedule and Anki link, and adding a card it now generates', async () => {
     const { store, anki } = await franki();
     const n = await saveNote(store, { deck: '🧠 Trivia', model: 'Basic (and reversed card)', fields: { Front: 'Capital of Paraguay?', Back: '' }, tags: [] }, NOW);

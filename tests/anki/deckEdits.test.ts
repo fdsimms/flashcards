@@ -119,10 +119,10 @@ describe('renaming a deck', () => {
 describe('deleting a deck', () => {
   it('says how many cards go with it, those studied in a filtered deck included', async () => {
     const db = await kept();
-    expect(await ankiDeckDeletion(db, '🧠 Trivia')).toEqual({ cards: 6, keepsDeck: false });
-    expect(await ankiDeckDeletion(db, '👅 Languages')).toEqual({ cards: 4, keepsDeck: false });
-    expect(await ankiDeckDeletion(db, 'Filtered Deck 1')).toEqual({ cards: 0, keepsDeck: false });
-    expect(await ankiDeckDeletion(db, 'Default')).toEqual({ cards: 0, keepsDeck: true });
+    expect(await ankiDeckDeletion(db, '🧠 Trivia')).toEqual({ cards: 6, returned: 0, keepsDeck: false });
+    expect(await ankiDeckDeletion(db, '👅 Languages')).toEqual({ cards: 4, returned: 0, keepsDeck: false });
+    expect(await ankiDeckDeletion(db, 'Filtered Deck 1')).toEqual({ cards: 0, returned: 1, keepsDeck: false });
+    expect(await ankiDeckDeletion(db, 'Default')).toEqual({ cards: 0, returned: 0, keepsDeck: true });
     expect(await ankiDeckDeletion(db, 'Nope')).toBeNull();
     expect(await removeAnkiDeck(db, 'Nope', NOW)).toBeNull();
     expect(await removeAnkiDeck(db, '🧠 Trivia', NOW)).toBe(6);

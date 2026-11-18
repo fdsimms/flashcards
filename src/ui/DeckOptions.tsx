@@ -6,7 +6,7 @@ import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
-import type { DeckSettings } from '../core/types';
+import type { DeckSettings, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
@@ -37,6 +37,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
   const [all, setAll] = useState<Map<string, DeckSettings>>(new Map());
   // The scripts this deck's cards are written in, for the card fonts that can draw them (`deckScripts`).
   const [scripts, setScripts] = useState<Script[]>([]);
+  // Every note, for Tagged cards first's tag suggestions and counts.
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
       const [all, cards, notes, params] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes(), repo.listDeckParams()]);
       setFiltered(!!paramsForDeck(deck, params)?.filtered);
       setScripts(deckScripts(deck, notes));
+      setAllNotes(notes);
       const s = all.get(deck) ?? {};
       setAll(all);
       setSettings(s);
@@ -133,7 +136,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
             <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
           </Group>
         )}
-        {settings ? <DeckPriorityOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {settings ? <DeckPriorityOptions deck={deck} notes={allNotes} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFontOptions deck={deck} scripts={scripts} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
