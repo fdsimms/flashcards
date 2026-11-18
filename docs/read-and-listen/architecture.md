@@ -1429,6 +1429,10 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
 (fdsimms/flashcards#79). It says what's due in Anki now and whether a Read & Listen text is waiting
 in the current language, with when one was last read to the end. Nothing else leaves the server.
 
+- **Every language** (`read_and_listen_languages`, 17 November 2026): each language the app can show,
+  with `waiting` (often 0) and `last_read_at`, so dundundun can make one task per language and
+  choose which get one today (its Settings, Franki). `read_and_listen` stays as the current
+  language's entry, for a build of dundundun from before this.
 - **Its own key.** It opens with the passphrase or with `STATUS_TOKEN` (`READER_STATUS_TOKEN` in
   `server/.env`), a key that opens this route and nothing else, so the other app never holds the
   passphrase that writes texts and spends on Claude and Azure.
