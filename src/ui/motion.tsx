@@ -40,16 +40,18 @@ export function CountingText({ value, style }: { value: number; style?: StylePro
 }
 
 /** Fades its content in, rising a few points, when it first appears. Key it to replay. */
-export function Reveal({ children, style, rise = 8, delay = 0 }: {
+export function Reveal({ children, style, rise = 8, delay = 0, duration = 240 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   rise?: number;
   delay?: number;
+  /** How long the fade takes (ms). */
+  duration?: number;
 }) {
   const reduce = useReduceMotion();
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(v, { toValue: 1, duration: reduce ? 0 : 240, delay: reduce ? 0 : delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(v, { toValue: 1, duration: reduce ? 0 : duration, delay: reduce ? 0 : delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [rise, 0] }) }] }]}>
