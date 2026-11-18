@@ -12,6 +12,11 @@ export function decodeEntities(s: string): string {
   });
 }
 
+/** Plain text as an Anki field holds it: escaped, with each line break a `<br>` (the inverse of `htmlToText` for text with no markup). */
+export function textToHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+}
+
 /** Anki fields are HTML. Reduce to readable plain text, keeping line breaks. */
 export function htmlToText(html: string): string {
   return html
