@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { NoteStore } from '../../anki/noteService';
 import { LESSON_MAX_WORDS, lessonIsCurrent, lessonPhrases, type Cram } from '../../core/cram';
 import { failureText } from '../../core/failure';
@@ -43,8 +43,11 @@ export function CramListen({ repo, api, cram, notes, language }: { repo: NoteSto
     return () => clearInterval(t);
   }, [lesson?.state, load]);
 
+  // A second tap before the first is drawn would ask for (and pay for) a second lesson.
+  const asking = useRef(false);
   const make = async () => {
-    if (!api || !language || busy) return;
+    if (!api || !language || asking.current) return;
+    asking.current = true;
     haptic.tap();
     setBusy(true);
     setProblem(undefined);
@@ -55,6 +58,7 @@ export function CramListen({ repo, api, cram, notes, language }: { repo: NoteSto
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't ask for the lesson.", next: 'Try again.' }));
     } finally {
+      asking.current = false;
       setBusy(false);
     }
   };

@@ -53,6 +53,13 @@ describe('the cram day', () => {
     expect(daysUntil(cram(), new Date(2026, 10, 20, 2), H)).toBe(1);
     expect(daysUntil(cram(), new Date(2026, 10, 20, 9), H)).toBe(0);
   });
+  it('follows a rollover after noon', () => {
+    // With the day starting at 2 PM, 1 PM on the 20th is still the 19th's study day.
+    expect(daysUntil(cram(), new Date(2026, 10, 20, 13), 14)).toBe(1);
+    expect(daysUntil(cram(), new Date(2026, 10, 20, 15), 14)).toBe(0);
+    expect(isRunning(cram(), new Date(2026, 10, 21, 13), 14)).toBe(true);
+    expect(isRunning(cram(), new Date(2026, 10, 21, 14), 14)).toBe(false);
+  });
   it('names the day as the screens say it', () => {
     expect(dayName(cram({ date: '2026-11-18' }), WED, H)).toBe('Today');
     expect(dayName(cram({ date: '2026-11-19' }), WED, H)).toBe('Tomorrow');
@@ -149,7 +156,7 @@ describe('the review cap', () => {
 
   const reviewCard = (id: string, noteId: string, due: Date, over: Partial<Card> = {}): Card => {
     const [c] = makeCards(omniNote(), WED);
-    return { ...c, id, noteId, ...over, sched: { ...c.sched, state: 2, due: due.toISOString(), scheduledDays: 10, stability: 20 } };
+    return { ...c, id, noteId, ...over, sched: { ...c.sched, state: 2, due: due.toISOString(), scheduledDays: 10, stability: 20, lastReview: new Date(2026, 10, 10).toISOString() } };
   };
   it('finds reviews scheduled after the day, and nothing else', () => {
     const late = reviewCard('late', 'a', new Date(2026, 10, 25, 9));
@@ -157,8 +164,10 @@ describe('the review cap', () => {
     const other = reviewCard('other', 'b', new Date(2026, 10, 25, 9));
     const suspended = reviewCard('susp', 'a', new Date(2026, 10, 25, 9), { suspended: true });
     const filtered = reviewCard('filt', 'a', new Date(2026, 10, 25, 9), { filteredDeck: 'Custom Study Session' });
+    const neverAnswered = reviewCard('never', 'a', new Date(2026, 10, 25, 9));
+    neverAnswered.sched.lastReview = null;
     const [fresh] = makeCards(omniNote(), WED);
-    const plan = cardsToCap([cram()], [tagged, note('b', [])], [late, onDay, other, suspended, filtered, { ...fresh, noteId: 'a' }], WED, H);
+    const plan = cardsToCap([cram()], [tagged, note('b', [])], [late, onDay, other, suspended, filtered, neverAnswered, { ...fresh, noteId: 'a' }], WED, H);
     expect([...plan.entries()].map(([d, cs]) => [d, cs.map((c) => c.id)])).toEqual([[2, ['late']]]);
   });
 });
@@ -198,6 +207,7 @@ describe('Read & Listen', () => {
     const phrases = lessonPhrases(notes, 'th');
     expect(phrases[0]).toEqual({ noteId: 'a', text: 'เกือบ', english: 'almost' });
     expect(phrases).toHaveLength(15);
+    expect(lessonPhrases([thai('long', 'เกือบ', 'x'.repeat(201))], 'th')).toEqual([]);
     expect(meaningOf(notes[0])).toBe('almost');
     const c = cram({ lesson: { id: 3, noteIds: ['a', 'b'] } });
     expect(lessonIsCurrent(c, ['b', 'a'])).toBe(true);

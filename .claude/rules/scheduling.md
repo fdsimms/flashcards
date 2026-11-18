@@ -101,10 +101,12 @@ shifts a due date or adds a review: FSRS must see the real time since each revie
 weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
-Cram): until a running cram's day, a review of one of its words isn't put off past that day. Review
+Cram): until a running cram's day, a review of one of its words (or a day-long learning step) isn't
+put off past that day. Review
 passes `capDays` to `review`, which shortens the interval after fuzz and balancing (so the buttons,
 the stored interval and the revlog agree), and `capCramCards` moves reviews already scheduled later
-with Set Due Date (memory state kept, a Manual revlog entry, as Anki writes). FSRS still sees the
+with Set Due Date (memory state kept, a Manual revlog entry, as Anki writes; one at a time, and
+never a review with no last answer, whose memory state Set Due Date would make up). FSRS still sees the
 real time between reviews; it just gets one sooner. A cram's rounds are practice: their Missed it /
 Got it stay in the cram (`cramRound.ts` imports nothing that schedules, `tests/core/cramRound.test.ts`).
 

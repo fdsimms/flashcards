@@ -9,7 +9,7 @@ import {
 } from 'ts-fsrs';
 import { fsrsGraduatingDays, fsrsReviewDays, fuzzFactor, learningStepWithFuzz, type Balancer } from './ankiFuzz';
 import { DAY_STARTS_AT_HOUR } from './config';
-import { addCalendarDays, nextStudyDayStart } from './day';
+import { addCalendarDays, nextStudyDayStart, studyDayStart } from './day';
 import type { DeckParams, ReviewLogEntry, SchedState } from './types';
 
 type Engine = ReturnType<typeof fsrs>;
@@ -157,7 +157,8 @@ export interface AnswerContext {
   /**
    * The most days from today a review may be put off (a cram's day, `capDays` in cram.ts): an
    * interval longer than this is shortened to it, after fuzz and balancing, so the card is due on
-   * that day. Only ever shortens; at least 1.
+   * that day, and so is a day-long learning step that would land after it. Only ever shortens; at
+   * least 1.
    */
   capDays?: number;
 }
@@ -201,7 +202,12 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   const step = (secs: number) => {
     const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
     const untilRollover = Math.floor((nextDay - now.getTime()) / 1000);
-    if (secs >= untilRollover) return addCalendarDays(new Date(nextDay), Math.floor((secs - untilRollover) / 86400)).toISOString();
+    if (secs >= untilRollover) {
+      const day = addCalendarDays(new Date(nextDay), Math.floor((secs - untilRollover) / 86400));
+      // A day-long step past a cram's day lands on that day instead, as a review would.
+      const capDay = ctx.capDays !== undefined && ctx.capDays >= 1 ? studyDayStart(addCalendarDays(now, ctx.capDays), ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR) : undefined;
+      return (capDay && day > capDay ? capDay : day).toISOString();
+    }
     return new Date(now.getTime() + learningStepWithFuzz(ctx.seed, secs) * 1000).toISOString();
   };
 

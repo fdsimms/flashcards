@@ -21,11 +21,29 @@ let loaded: Promise<void> | undefined;
 let isLoaded = false;
 const listeners = new Set<() => void>();
 const notify = () => { for (const l of listeners) l(); };
+// Bumped by every save and delete, so a read started before one doesn't put back what it replaced.
+let changes = 0;
 
 /** Reads the crams once; later calls wait on the same read. */
 export function loadCrams(repo: NoteStore): Promise<Cram[]> {
   loaded ??= repo.listCrams().then((c) => { crams = c; isLoaded = true; notify(); }, (e) => { loaded = undefined; throw e; });
   return loaded.then(() => crams);
+}
+
+/**
+ * Reads the crams again, replacing what's held: the deck list's refresh calls this (through
+ * `useCramCap`), so a backup restored under the screens, or a sync, shows its crams.
+ */
+export async function reloadCrams(repo: NoteStore): Promise<Cram[]> {
+  const started = changes;
+  const fresh = await repo.listCrams();
+  // A save or delete while it read is newer than what it read: keep that.
+  if (started !== changes) return crams;
+  crams = fresh;
+  isLoaded = true;
+  loaded = Promise.resolve();
+  notify();
+  return crams;
 }
 
 /** The crams as last read or saved, for code that can't wait (the note editor's starting tags). */
@@ -81,6 +99,7 @@ export function useCollection(repo: NoteStore): { notes: Note[]; cards: Card[]; 
 /** Saves a cram (SQLite first), then shows it. */
 export async function saveCram(repo: NoteStore, cram: Cram): Promise<void> {
   await repo.saveCram(cram);
+  changes++;
   crams = [...crams.filter((c) => c.id !== cram.id), cram].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   notify();
 }
@@ -99,12 +118,12 @@ export async function setCramTag(repo: NoteStore, cram: Cram, noteIds: Iterable<
   }
 }
 
-/** A new cram: saved, its words tagged, the last cram's words it took marked as taken, and its cards capped. */
+/** A new cram: saved, its words tagged, and the last cram's words it took marked as taken. Its page caps its cards. */
 export async function startCram(repo: NoteStore, cram: Cram, noteIds: string[], carriedFrom?: Cram): Promise<void> {
   await saveCram(repo, cram);
   await setCramTag(repo, cram, noteIds, true);
+  // Last, so a try that failed before here still offers the same words again.
   if (carriedFrom) await saveCram(repo, { ...carriedFrom, carriedTo: cram.id });
-  await capCramCards(repo);
 }
 
 /** At the lesson's Finish: the checked words are kept as used, the rest for the next cram, and the tag comes off. */
@@ -118,6 +137,7 @@ export async function finishCram(repo: NoteStore, cram: Cram, notes: Note[], use
 export async function deleteCram(repo: NoteStore, cram: Cram, notes: Note[]): Promise<void> {
   await setCramTag(repo, cram, notes.map((n) => n.id), false);
   await repo.deleteCram(cram.id);
+  changes++;
   crams = crams.filter((c) => c.id !== cram.id);
   notify();
 }
@@ -127,7 +147,17 @@ export async function deleteCram(repo: NoteStore, cram: Cram, notes: Note[]): Pr
  * Date (memory state kept; a Manual entry in the review log, as Anki writes). Waits for Review's
  * answers to be written first, so it reads each card as answered. Returns how many cards it moved.
  */
-export async function capCramCards(repo: NoteStore): Promise<number> {
+export function capCramCards(repo: NoteStore): Promise<number> {
+  // One pass at a time: each reads the cards after the one before has moved them, so a card isn't
+  // given Set Due Date twice (a second Manual row in Anki's review log).
+  const run = capping.then(() => capOnce(repo), () => capOnce(repo));
+  capping = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+let capping: Promise<void> = Promise.resolve();
+
+async function capOnce(repo: NoteStore): Promise<number> {
   const all = await loadCrams(repo);
   const now = new Date();
   const { dayStartsAtHour } = await repo.collectionSettings();
@@ -142,15 +172,14 @@ export async function capCramCards(repo: NoteStore): Promise<number> {
 }
 
 /**
- * Runs the cap whenever the deck list is counted again (after a sync, a new study day, an import),
- * so words tagged elsewhere (in Anki, or by Claude) are capped too. AppContext calls this in one
- * line. A failure is left for the cram's page to show, which runs the cap itself when opened.
+ * Reads the crams again and runs the cap whenever the deck list is counted again (after a sync, a
+ * new study day, an import, a backup restored), so words tagged elsewhere (in Anki, or by Claude)
+ * are capped too. AppContext calls this in one line. A failure is left for the cram's page to
+ * show, which runs the cap itself when opened.
  */
 export function useCramCap(repo: NoteStore | null, decks: DeckRow[]): void {
-  const running = useRef(false);
   useEffect(() => {
-    if (!repo || running.current) return;
-    running.current = true;
-    capCramCards(repo).catch(() => undefined).finally(() => { running.current = false; });
+    if (!repo) return;
+    reloadCrams(repo).then(() => capCramCards(repo)).catch(() => undefined);
   }, [repo, decks]);
 }

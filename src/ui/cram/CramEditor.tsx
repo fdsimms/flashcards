@@ -65,7 +65,8 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
     try {
       if (editing) {
         await saveCram(repo, { ...editing, name: name.trim(), date: dateKey, addNew });
-        await capCramCards(repo);
+        // Saved either way; the cram's page runs the cap again and says if it can't.
+        capCramCards(repo).catch(() => undefined);
         router.back();
         return;
       }
@@ -83,6 +84,7 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
       };
       const words = [...(carried && carry ? carried.noteIds : []), ...tagged.map((n) => n.id)];
       await startCram(repo, cram, words, carried && carry ? carried.from : undefined);
+      capCramCards(repo).catch(() => undefined);
       router.replace({ pathname: source === 'pick' ? '/cram-words' : '/cram', params: { id: cram.id } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't save the cram.", next: 'Try again.' }));

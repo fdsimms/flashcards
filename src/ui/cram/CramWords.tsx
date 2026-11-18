@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { cramNotes, cramTag, meaningOf, noteAddedAt } from '../../core/cram';
@@ -25,8 +25,10 @@ export function CramWords({ repo, id }: { repo: NoteStore; id: string }) {
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
   const [query, setQuery] = useState('');
-  // Taps not yet saved, by note: what the check shows meanwhile.
-  const [pending, setPending] = useState<Map<string, boolean>>(new Map());
+  // What each tap asked for, shown until the notes are read again and agree; a note being saved
+  // takes no second tap, so an add and a take-out of one note can't race.
+  const [asked, setAsked] = useState<Map<string, boolean>>(new Map());
+  const saving = useRef(new Set<string>());
   const [problem, setProblem] = useState<string>();
 
   const inCram = useMemo(() => new Set(cram ? cramNotes(cram, collection.notes).map((n) => n.id) : []), [cram, collection.notes]);
@@ -39,20 +41,23 @@ export function CramWords({ repo, id }: { repo: NoteStore; id: string }) {
 
   if (!cram || !collection.loaded) return <Screen title="Add words"><Loading /></Screen>;
   const tag = cramTag(cram);
-  const checked = (note: Note) => pending.get(note.id) ?? inCram.has(note.id);
+  const checked = (note: Note) => asked.get(note.id) ?? inCram.has(note.id);
   const toggle = async (note: Note) => {
+    if (saving.current.has(note.id)) return;
     const on = !checked(note);
+    saving.current.add(note.id);
     haptic.select();
     setProblem(undefined);
-    setPending((p) => new Map(p).set(note.id, on));
+    setAsked((p) => new Map(p).set(note.id, on));
     try {
       await setCramTag(repo, cram, [note.id], on);
       collection.reload();
       if (on) capCramCards(repo).catch(() => undefined);
     } catch (e) {
+      setAsked((p) => { const next = new Map(p); next.delete(note.id); return next; });
       setProblem(failureText(e, { what: `Couldn't ${on ? 'add' : 'take out'} ${headword(note)}.`, next: 'Try again.' }));
     } finally {
-      setPending((p) => { const next = new Map(p); next.delete(note.id); return next; });
+      saving.current.delete(note.id);
     }
   };
 

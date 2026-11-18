@@ -95,8 +95,14 @@ export function cramDay(cram: Pick<Cram, 'date'>): Date {
   return new Date(y, m - 1, d, 12);
 }
 
+/** The start of the cram's study day: its date at the hour the study day starts (a 1 PM rollover too). */
+export function cramDayStart(cram: Pick<Cram, 'date'>, dayStartsAtHour: number): Date {
+  const [y, m, d] = cram.date.split('-').map(Number);
+  return new Date(y, m - 1, d, dayStartsAtHour);
+}
+
 /** When the cram's day ends: the start of the study day after it. */
-export const cramEnd = (cram: Pick<Cram, 'date'>, dayStartsAtHour: number) => nextStudyDayStart(cramDay(cram), dayStartsAtHour);
+export const cramEnd = (cram: Pick<Cram, 'date'>, dayStartsAtHour: number) => nextStudyDayStart(cramDayStart(cram, dayStartsAtHour), dayStartsAtHour);
 
 /** Running: not finished, and its day hasn't ended. Rounds, the cap and adding new cards apply only then. */
 export const isRunning = (cram: Cram, now: Date, dayStartsAtHour: number) => !cram.finishedAt && now < cramEnd(cram, dayStartsAtHour);
@@ -107,7 +113,7 @@ export const isAwaitingFinish = (cram: Cram, now: Date, dayStartsAtHour: number)
 /** Study days from today to the cram's day: 0 on the day itself. */
 export function daysUntil(cram: Pick<Cram, 'date'>, now: Date, dayStartsAtHour: number): number {
   const from = studyDayStart(now, dayStartsAtHour);
-  const to = studyDayStart(cramDay(cram), dayStartsAtHour);
+  const to = cramDayStart(cram, dayStartsAtHour);
   // Whole days between two day starts, rounded so a DST change's 23 or 25 hours count as one.
   return Math.round((to.getTime() - from.getTime()) / (24 * HOUR_MS));
 }
@@ -195,15 +201,17 @@ export function capDays(crams: Cram[], note: Note | undefined, now: Date, daySta
 
 /**
  * Cards already scheduled after a running cram's day, with the days from today to put them at:
- * reviews only (a learning card is due within the day, a new one isn't scheduled), not suspended,
- * not in an Anki filtered deck. Set with Anki's Set Due Date, which keeps the memory state.
+ * reviews only (a learning card is due within the day, a new one isn't scheduled) with a last
+ * answer recorded, not suspended, not in an Anki filtered deck. Set with Anki's Set Due Date, which keeps the memory state.
  */
 export function cardsToCap(crams: Cram[], notes: Iterable<Note>, cards: Iterable<Card>, now: Date, dayStartsAtHour: number): Map<number, Card[]> {
   const byNote = new Map<string, Note>();
   for (const n of notes) byNote.set(n.id, n);
   const out = new Map<number, Card[]>();
   for (const card of cards) {
-    if (card.sched.state !== 2 || card.suspended || card.retired || card.filteredDeck) continue;
+    // A review with no last answer recorded would have its memory state made up by Set Due Date
+    // (`setDueCard`), so it's left as it is.
+    if (card.sched.state !== 2 || !card.sched.lastReview || card.suspended || card.retired || card.filteredDeck) continue;
     const days = capDays(crams, byNote.get(card.noteId), now, dayStartsAtHour);
     if (days === undefined) continue;
     const dueDay = studyDayStart(new Date(card.sched.due), dayStartsAtHour);
@@ -243,13 +251,15 @@ export function textWords(notes: Note[], cards: Iterable<Card>, language: Langua
 
 /** The most words an audio lesson teaches (the server's `lesson.MAX_GIVEN`). */
 export const LESSON_MAX_WORDS = 15;
+/** The longest word or meaning it takes (the server's `lesson.MAX_CHARS`): a longer one is left out, not sent to be refused. */
+export const LESSON_MAX_CHARS = 200;
 
-/** What Listen's audio lesson teaches: each word in `language` with its meaning, at most `LESSON_MAX_WORDS`. */
+/** What Listen's audio lesson teaches: each word in `language` with its meaning, at most `LESSON_MAX_WORDS`, leaving out any too long to send. */
 export function lessonPhrases(notes: Note[], language: Language): { noteId: string; text: string; english: string }[] {
   return notes
     .filter((n) => readerLanguageOf(n) === language)
     .map((n) => ({ noteId: n.id, text: headword(n), english: meaningOf(n) }))
-    .filter((p) => p.text && p.english)
+    .filter((p) => p.text && p.english && p.text.length <= LESSON_MAX_CHARS && p.english.length <= LESSON_MAX_CHARS)
     .slice(0, LESSON_MAX_WORDS);
 }
 

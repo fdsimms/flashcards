@@ -23,6 +23,15 @@ describe('scheduler', () => {
     // A learning step isn't a review interval: Again still waits on its step.
     expect(review(sched, 1, NOW, undefined, { capDays: 2 }).sched.state).toBe(3);
   });
+  it('brings a day-long learning step back to the cram day too', () => {
+    const [card] = makeCards(omniNote(), NOW);
+    const params: DeckParams = { weights: [], desiredRetention: 0.9, maxInterval: 36500, learnSteps: [1, 4 * 1440] };
+    const free = review(card.sched, 3, NOW, params, { dayStartsAtHour: 4 });
+    expect(studyDayKey(new Date(free.sched.due), 4)).toBe('2026-11-15');
+    const capped = review(card.sched, 3, NOW, params, { dayStartsAtHour: 4, capDays: 2 });
+    expect(capped.sched.state).toBe(1);
+    expect(studyDayKey(new Date(capped.sched.due), 4)).toBe('2026-11-13');
+  });
 
   it('moves a new card forward and spaces Good further than Again', () => {
     const [card] = makeCards(omniNote(), NOW);
