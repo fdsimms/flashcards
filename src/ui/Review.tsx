@@ -68,7 +68,7 @@ import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
-import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
@@ -78,6 +78,7 @@ import { CONFUSED_REASON } from '../core/confusedPairs';
 import { canLinkConfused, ConfusedLinkSheet, ConfusedRow } from './ConfusedLink';
 import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
+import { useFieldEdit } from './useFieldEdit';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
 import { keyboardLanguageForText } from '../core/keyboardLanguage';
@@ -513,6 +514,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
+  const fieldEdit = useFieldEdit(repo, writes, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
 
@@ -1295,7 +1297,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
-      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} style={{ marginTop: space.m }} /> : null}
+      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
       {page ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1314,13 +1316,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
-              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
+              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               <LanguageCue kind={current.kind} speechLang={speechLang} />
               {reminder ? <MissReminder text={reminder} /> : null}
@@ -1333,7 +1335,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

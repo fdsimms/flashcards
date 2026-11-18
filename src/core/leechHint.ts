@@ -1,5 +1,5 @@
 import { isOmnilanguage, speechLangFor } from './cards';
-import { htmlToText } from './html';
+import { htmlToText, textToHtml } from './html';
 import type { Language } from '../reader/api';
 import type { Note } from './types';
 
@@ -12,6 +12,11 @@ import type { Note } from './types';
 /** Only Omnilanguage notes have a Mnemonic field; another note type is tagged but not asked. */
 export function canAddMnemonic(note: Note): boolean {
   return isOmnilanguage(note);
+}
+
+/** Whether the note's Mnemonic field has text: the front of a leech card says so without showing it, since it may name the answer. */
+export function hasMnemonic(note: Note): boolean {
+  return htmlToText(note.fields.Mnemonic ?? '') !== '';
 }
 
 /** What a hint suggestion is asked about; undefined for a note whose language Read & Listen doesn't write in. */
@@ -39,8 +44,6 @@ export function mnemonicQuestion(note: Note): MnemonicQuestion | undefined {
   };
 }
 
-const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 /**
  * The note's fields with `hint` in Mnemonic: on a new line under one already there, so a
  * mnemonic written earlier isn't lost. A blank hint changes nothing.
@@ -48,7 +51,7 @@ const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export function withMnemonic(fields: Record<string, string>, hint: string): Record<string, string> {
   const text = hint.trim();
   if (!text) return fields;
-  const added = escapeHtml(text).replace(/\n/g, '<br>');
+  const added = textToHtml(text);
   const existing = fields.Mnemonic ?? '';
   return { ...fields, Mnemonic: htmlToText(existing) ? `${existing}<br>${added}` : added };
 }

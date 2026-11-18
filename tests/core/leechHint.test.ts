@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { canAddMnemonic, mnemonicQuestion, withMnemonic } from '../../src/core/leechHint';
+import { canAddMnemonic, hasMnemonic, mnemonicQuestion, withMnemonic } from '../../src/core/leechHint';
 import { omniNote } from '../support/fixtures';
 
 describe('canAddMnemonic', () => {
   it('is true for an Omnilanguage note and false for another note type', () => {
     expect(canAddMnemonic(omniNote())).toBe(true);
     expect(canAddMnemonic({ id: 'b', deck: 'Trivia', model: 'Basic', fields: { Front: 'a', Back: 'b' }, tags: [] })).toBe(false);
+  });
+});
+
+describe('hasMnemonic', () => {
+  it('is true when the Mnemonic field has text', () => {
+    expect(hasMnemonic(omniNote({ Mnemonic: 'a <b>ring</b> around the word' }))).toBe(true);
+  });
+
+  it('is false when it is empty or only markup and whitespace', () => {
+    expect(hasMnemonic(omniNote({ Mnemonic: '' }))).toBe(false);
+    expect(hasMnemonic(omniNote({ Mnemonic: '<br> <div></div>' }))).toBe(false);
+    expect(hasMnemonic(omniNote({ Mnemonic: undefined as unknown as string }))).toBe(false);
   });
 });
 
