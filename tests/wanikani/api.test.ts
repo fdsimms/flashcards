@@ -96,6 +96,32 @@ describe('requests', () => {
     expect(await api.synonyms([2467])).toEqual(new Map([[2467, ['big kid']]]));
   });
 
+  it('adds a synonym to the existing study material, or makes one', async () => {
+    const mat = (id: number, syn: string[]) => ({ id, data: { subject_id: 2467, meaning_synonyms: syn } });
+    const put = fakeFetch((url, init) => (init?.method === 'PUT' ? { body: {} } : { body: { data: [mat(55, ['big kid'])], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', put.fn).addSynonym(2467, 'one stand');
+    expect(put.calls[1].url).toBe('https://api.wanikani.com/v2/study_materials/55');
+    expect(put.calls[1].init?.method).toBe('PUT');
+    expect(JSON.parse(put.calls[1].init!.body as string)).toEqual({ study_material: { meaning_synonyms: ['big kid', 'one stand'] } });
+    const post = fakeFetch((_url, init) => (init?.method === 'POST' ? { body: {} } : { body: { data: [], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', post.fn).addSynonym(2467, 'one stand');
+    expect(post.calls[1].url).toBe('https://api.wanikani.com/v2/study_materials');
+    expect(JSON.parse(post.calls[1].init!.body as string)).toEqual({ study_material: { subject_id: 2467, meaning_synonyms: ['one stand'] } });
+    const same = fakeFetch(() => ({ body: { data: [mat(55, ['one stand'])], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', same.fn).addSynonym(2467, 'one stand');
+    expect(same.calls).toHaveLength(1);
+  });
+
+  it('takes a synonym off, and leaves a word without it alone', async () => {
+    const mat = { id: 55, data: { subject_id: 2467, meaning_synonyms: ['big kid', 'one stand'] } };
+    const put = fakeFetch((_url, init) => (init?.method === 'PUT' ? { body: {} } : { body: { data: [mat], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', put.fn).removeSynonym(2467, 'One Stand');
+    expect(JSON.parse(put.calls[1].init!.body as string)).toEqual({ study_material: { meaning_synonyms: ['big kid'] } });
+    const none = fakeFetch(() => ({ body: { data: [], pages: { next_url: null } } }));
+    await createWaniKaniApi('t', none.fn).removeSynonym(2467, 'x');
+    expect(none.calls).toHaveLength(1);
+  });
+
   it('turns a failed status into a problem', async () => {
     const { fn } = fakeFetch(() => ({ status: 401, body: { error: 'Unauthorized', code: 401 } }));
     await expect(createWaniKaniApi('t', fn).user()).rejects.toEqual(new WaniKaniError('unauthorized', 401));

@@ -6,13 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
 import { problemText, WaniKaniError, type WaniKaniApi, type WaniKaniUser } from '../wanikani/api';
+import { withPending } from '../wanikani/synonyms';
 import { toKana } from '../core/kana';
 import { offlineText } from '../wanikani/offline';
 import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canMarkCorrect, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
   dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
@@ -92,7 +93,7 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
 export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: WaniKaniState; onDone: () => void; onOptions: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const { api, prefs, srs, send, seenDropped, skip } = wanikani;
+  const { api, prefs, srs, send, seenDropped, skip, changeSynonym, synonymsWithPending } = wanikani;
   const [subjects, setSubjects] = useState<Map<number, Subject>>(new Map());
   const [synonyms, setSynonyms] = useState<Map<number, string[]>>(new Map());
   const [study, setStudy] = useState<Study | null>(null);
@@ -163,7 +164,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
-        setSynonyms(syn);
+        // Saved on this phone and not sent yet counts too.
+        setSynonyms(new Map(items.map((i): [number, string[]] => [i.subjectId, synonymsWithPending(i.subjectId, syn.get(i.subjectId) ?? [])])));
         setCopySavedAt(src.savedAt ?? null);
         setKind(lessonKind ? 'lessons' : 'reviews');
         setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
@@ -267,6 +269,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
+    // Undoing the answer that saved a synonym takes the synonym back too.
+    const saved = savedFrom.current;
+    if (saved && back.session.queue === saved.queue) {
+      savedFrom.current = null;
+      changeSynonym({ subjectId: saved.subjectId, synonym: saved.synonym, remove: true });
+      setSynonyms((m) => new Map(m).set(saved.subjectId, withPending(saved.subjectId, m.get(saved.subjectId) ?? [], [{ subjectId: saved.subjectId, synonym: saved.synonym, remove: true }])));
+    }
     haptic.tap();
     answeredFrom.current = null;
     setStudy(back);
@@ -327,6 +336,28 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       checkPopup.current = missPopup(question.assignmentId);
     }
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
+  };
+
+  // A wrong typed answer the learner knows was right: counted right, and for a meaning optionally kept as a synonym on WaniKani too.
+  // The save counts at once here and is sent when WaniKani can be reached (useWaniKani's `changeSynonym`).
+  // `savedFrom` is the queue the saving answer was given from, so undoing that answer takes the synonym back.
+  const savedFrom = useRef<{ queue: Study['session']['queue']; subjectId: number; synonym: string } | null>(null);
+  const notRight = () => {
+    if (!study || !question || !subject) return;
+    const text = typed.trim();
+    const canSave = canSaveMeaning(question) && !!text;
+    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
+      const picked = options[i];
+      if (picked === 'Mark as correct') answer(true);
+      if (!canSave || picked !== options[1]) return;
+      // The screen may have moved on while the sheet was open: only this question is marked correct.
+      if (studyRef.current !== study) return;
+      savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
+      changeSynonym({ subjectId: subject.id, synonym: text });
+      setSynonyms((m) => new Map(m).set(subject.id, [...(m.get(subject.id) ?? []), text]));
+      answer(true);
+    });
   };
 
   // The word is left out of this session and every later one; WaniKani still has it, and the options list it to bring it back.
@@ -466,6 +497,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       <>
         {retry ? <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>{retry}</Text> : null}
         {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
+        <View>
         <TextInput
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
@@ -485,13 +517,27 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           keyboardAppearance={dark ? 'dark' : 'light'}
           style={{
             ...type.body, textAlign: 'center', ...smooth, borderRadius: radius.m, borderWidth: hairline, minHeight: MIN_TAP,
-            paddingHorizontal: space.m, paddingVertical: space.s,
+            paddingHorizontal: space.m + (result === 'wrong' && canMarkCorrect(question) ? MIN_TAP - space.s : 0), paddingVertical: space.s,
             color: result ? c.onRating : c.text,
             backgroundColor: result === 'correct' ? c.good : result === 'wrong' ? c.again : c.surface,
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {result === 'wrong' && canMarkCorrect(question) ? <Button label="Mark as correct" variant="secondary" onPress={() => answer(true)} /> : null}
+        {/* A wrong answer can be counted right (a typo, a slip of the keys): a round button at the box's end opens the choices. */}
+        {result === 'wrong' && canMarkCorrect(question) ? (
+          <Tappable
+            onPress={notRight}
+            accessibilityRole="button"
+            accessibilityLabel="Count my answer as right"
+            scaleTo={0.92}
+            style={{ position: 'absolute', right: space.xs, top: 0, bottom: 0, width: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkLine }}>
+              <Icon name="ellipsis" size={18} color={c.onRating} weight="bold" />
+            </View>
+          </Tappable>
+        ) : null}
+        </View>
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}

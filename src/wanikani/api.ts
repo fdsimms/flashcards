@@ -148,6 +148,10 @@ export interface WaniKaniApi {
   srsSystems(): Promise<SrsSystem[]>;
   /** The user's own synonyms for each subject (study materials), by subject id. */
   synonyms(subjectIds: number[]): Promise<Map<number, string[]>>;
+  /** Adds `synonym` to the user's own meaning synonyms for a subject (its study material, made if there isn't one). */
+  addSynonym(subjectId: number, synonym: string): Promise<void>;
+  /** Takes `synonym` off the user's own meaning synonyms for a subject; nothing happens when it isn't there. */
+  removeSynonym(subjectId: number, synonym: string): Promise<void>;
   /** Sends a finished review or a lesson's start. */
   send(outcome: Outcome): Promise<void>;
   /** A pronunciation recording, for a production note's Audio field. */
@@ -210,6 +214,20 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
   const apprenticeCount = (maxLevel: number) => total(`/assignments${query({ srs_stages: APPRENTICE_STAGES, hidden: false, levels: levels(maxLevel) })}`);
   const assignments = async (params: Parameters<typeof query>[0]) => (await collection(`/assignments${query(params)}`))
     .map(parseAssignment).filter((a): a is Assignment => !!a && !a.hidden);
+
+  /** Reads the word's study material (WaniKani keeps the synonyms there), then writes its synonyms back with `synonym` added or taken off. */
+  async function changeSynonym(subjectId: number, synonym: string, remove: boolean): Promise<void> {
+    const found = await collection(`/study_materials${query({ subject_ids: [subjectId] })}`);
+    const existing = found.map((r) => r as { id?: unknown; data?: { subject_id?: unknown; meaning_synonyms?: unknown } })
+      .find((r) => r?.data?.subject_id === subjectId && typeof r.id === 'number');
+    const have = Array.isArray(existing?.data?.meaning_synonyms) ? existing!.data!.meaning_synonyms.filter((x): x is string => typeof x === 'string') : [];
+    const key = (x: string) => x.trim().toLowerCase();
+    const meaning_synonyms = remove ? have.filter((x) => key(x) !== key(synonym)) : have.some((x) => key(x) === key(synonym)) ? have : [...have, synonym];
+    // Already as wanted: nothing to write.
+    if (meaning_synonyms.length === have.length) return;
+    if (existing) await request(`${API_BASE}/study_materials/${existing.id}`, { method: 'PUT', body: { study_material: { meaning_synonyms } } });
+    else if (!remove) await request(`${API_BASE}/study_materials`, { method: 'POST', body: { study_material: { subject_id: subjectId, meaning_synonyms } } });
+  }
 
   return {
     async user() {
@@ -282,6 +300,8 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
       }
       return out;
     },
+    addSynonym: (subjectId, synonym) => changeSynonym(subjectId, synonym, false),
+    removeSynonym: (subjectId, synonym) => changeSynonym(subjectId, synonym, true),
     async send(outcome) {
       const r = outcomeRequest(outcome);
       await request(`${API_BASE}${r.path}`, { method: r.method, body: r.body });

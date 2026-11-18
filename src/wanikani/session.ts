@@ -220,11 +220,19 @@ function missed(p: Progress, kind: QuestionKind): Progress {
 }
 
 /**
- * Whether a typed answer judged wrong may be marked correct: only a meaning, where it covers a typo
- * past the allowance or a synonym WaniKani would take. A reading is right or wrong in kana, and
- * WaniKani has no override, so marking one correct would turn a real mistake into a pass.
+ * Whether a typed answer judged wrong may be marked correct: a meaning or a reading, for a typo or a
+ * slip of the keys. It's the learner's own call, as Good is on a rated answer; WaniKani is told
+ * only that the question was answered right.
  */
 export function canMarkCorrect(q: Question | undefined): boolean {
+  return q?.kind === 'meaning' || q?.kind === 'reading';
+}
+
+/**
+ * Whether a wrong typed answer may be saved as a correct one: only a meaning, as WaniKani keeps
+ * the user's own synonyms for meanings and has nothing like it for readings.
+ */
+export function canSaveMeaning(q: Question | undefined): boolean {
   return q?.kind === 'meaning';
 }
 
