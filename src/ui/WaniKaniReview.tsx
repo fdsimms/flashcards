@@ -33,6 +33,9 @@ import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
+/** The longest the card's resize after the keyboard may take (ms). */
+const KEYBOARD_SLIDE_MS = 150;
+
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
   user: WaniKaniUser;
@@ -186,7 +189,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  const keyboard = useKeyboardInset();
+  // Capped: the keyboard comes up on every question, and its full slide made each new card feel slow.
+  const keyboard = useKeyboardInset(KEYBOARD_SLIDE_MS);
 
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -324,6 +328,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRetry(null);
     setVerdict(v);
     setRevealed(true);
+    // The keyboard comes down once the answer is judged so the whole card shows; the next question brings it back (autoFocus).
+    Keyboard.dismiss();
     if (v.result === 'correct') {
       haptic.select();
       // The stage popup comes with the right answer, not with the Next press after it.
@@ -513,14 +519,15 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          // Stays editable after Check (input is ignored once judged): a non-editable box drops the keyboard, and the next question's autofocus brings it back, resizing the card under the stage popup.
+          // Not editable once judged, so a tap on the box doesn't bring the keyboard back over the answer.
+          editable={!verdict}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
-          returnKeyType={verdict ? 'next' : 'done'}
+          returnKeyType="done"
           placeholder={question.kind === 'reading' ? 'Reading' : 'Meaning'}
           accessibilityLabel={question.kind === 'reading' ? 'Type the reading' : 'Type the meaning'}
           placeholderTextColor={result ? c.onRating : c.textTertiary}
