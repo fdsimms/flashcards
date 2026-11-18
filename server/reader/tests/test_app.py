@@ -871,6 +871,22 @@ def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
     assert c.post("/api/conjugations", json=body).status_code == 401
 
 
+def test_pronunciations_for_the_pronunciation_field() -> None:
+    c = voice_client(FakeSpeech())
+    body = {
+        "entries": [
+            {"language": "ru", "entry": "дом"},
+            {"language": "ru", "entry": "дом и сад"},
+            {"language": "ja", "entry": "大人", "reading": "おとな"},
+        ]
+    }
+    found = c.post("/api/pronunciations", json=body, headers=AUTH).json()["pronunciations"]
+    assert found[0]["ipa"] and found[0]["source"] == "wiktionary"
+    assert found[1] is None
+    assert found[2]["source"] == "rules"
+    assert c.post("/api/pronunciations", json=body).status_code == 401
+
+
 def test_lists_the_reading_each_japanese_word_is_recorded_from() -> None:
     c = voice_client(FakeSpeech())
     words = [{"text": "今日", "reading": "こんにち"}, {"text": "劇団", "reading": "げきだん"}]

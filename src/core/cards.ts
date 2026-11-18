@@ -201,10 +201,13 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
-  // The IPA, shown plainly with the word (the note type may not have the field yet: then it's empty).
   const pronunciation = t(note, 'Pronunciation');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
+  // The IPA (the note type may not have the field yet: then it's empty). A card that already keeps a
+  // reading behind a tap (a transliteration, kana) keeps the IPA behind one too, so a word's sound
+  // isn't given away while its reading is still hidden; any other card shows it plainly.
+  const pronunciationTap = translit || kana ? 'Show pronunciation' : undefined;
   const meaning = t(note, 'Meaning');
   const front: Block[] = [];
   const back: Block[] = [];
@@ -246,8 +249,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, meaning, undefined, true);
-    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
@@ -260,8 +263,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
-    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
@@ -279,8 +282,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   pushEntry(back);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
-  pushIf(back, pronunciation);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+  pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
   back.push(...detail());
   return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };

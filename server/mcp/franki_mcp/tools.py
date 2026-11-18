@@ -256,6 +256,10 @@ reaches their devices at their next sync.
   where a language has them) for Franki's forms practice, from Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
   only when asked, in the same lines, tagged forms-unverified.
+- Pronunciation: fill_pronunciation fills the Pronunciation field (IPA) of Omnilanguage notes that
+  have it empty, from Read & Listen (Wiktionary's tables; Japanese by rule from KanaReading; IPA Claude
+  wrote, tagged ipa-unverified). It needs the field (add_field, after every device is synced) and
+  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree.
 - New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
   own new-card positions, so every device follows and no schedule changes). It needs Read &
   Listen running. Preview first, show the user the start of the order and how many words had no

@@ -563,11 +563,18 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
     meanings, one call of up to 150 words with the line each is in, and kept for the language
     (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
     asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
-  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving,
-  and the card back shows that field plainly. The field isn't in `omnilanguageFieldNames` yet: it
-  has to be added to the live note type first (AnkiMCP's `add_field`, which makes every device download the
-  whole collection once, so sync every device first), and only then there. Until then the editor leaves
-  the prefilled key out, since it only shows the note type's fields.
+  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving.
+  **On a card** (18 November 2026, by the owner's decision) the back shows that field after the answer:
+  behind a "Show pronunciation" tap when the card already keeps a reading behind one (a Transliteration, a
+  KanaReading: Thai, Japanese), so the sound isn't given away while the reading is hidden, and plainly
+  otherwise (`renderCard`). The MCP's `fill_pronunciation` fills the field for notes already in the deck,
+  from `/api/pronunciations` (`ipa.ipa_of_entry`, the same lookup a text's token gets, so a card and the
+  popup agree): previewed first, never over a field with anything in it, and a note whose IPA is `ai`
+  is tagged `ipa-unverified`. It reads only and never asks Claude for a word's IPA, so it costs nothing.
+  The field is in `omnilanguageFieldNames`, after Forms, where `add_field` puts it: the live note type
+  needs it too (`add_field`, which makes every device download the whole collection once, so sync every
+  device first), or a TSV with no `#columns` header maps by position onto a field that isn't there.
+  The editor leaves the prefilled key out of a note type that has no such field.
 
 ## Languages
 
