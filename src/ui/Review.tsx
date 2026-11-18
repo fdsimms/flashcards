@@ -50,7 +50,9 @@ import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
+import { useCrams } from './useCrams';
 import { useStudyDay } from './useStudyDay';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
@@ -305,6 +307,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
   const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
+  // Running crams: a review of one of their words isn't put off past the cram's day (src/core/cram.ts).
+  const { crams } = useCrams(repo as NoteStore);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const rebuilt = useMemo(() => {
     if (!cards || settle) return null;
@@ -398,7 +402,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       preset: params?.presetId, seed, easyDays: params?.easyDays, buryReviews: !!params?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
-    return { seed, dayStartsAtHour: H, balance };
+    return { seed, dayStartsAtHour: H, balance, capDays: capDays(crams, notes.get(card.noteId), when, H) };
   };
   // What Good would bring the current card back in, counted from `from` (a lookalike) or its last review.
   const goodFrom = (from?: Date) => (current ? previewIntervals(current.sched, now, cardParams, { ...baseContext(current, now), countFrom: from })[3] : '');

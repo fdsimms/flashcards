@@ -27,6 +27,7 @@ describe('restorePlan', () => {
     expect(RESTORED_TABLES).toContain('form_practice');
     expect(RESTORED_TABLES).toContain('grammar_answers');
     expect(RESTORED_TABLES).toContain('confused_pairs');
+    expect(RESTORED_TABLES).toContain('crams');
   });
   it('refuses a file that is not one of our backups', () => {
     expect(() => restorePlan(current, new Map([['notes', ['id']]]))).toThrow(NotABackupError);

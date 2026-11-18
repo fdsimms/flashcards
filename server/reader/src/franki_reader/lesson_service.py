@@ -19,7 +19,7 @@ from franki_reader import lesson, lesson_audio, lesson_writer, store
 from franki_reader.coverage import Checker
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson_audio import LessonAudioFailed, Rendered, Speak
-from franki_reader.lesson_writer import LessonFailed, WritePlan
+from franki_reader.lesson_writer import LessonFailed, WriteGiven, WritePlan
 from franki_reader.tts import TtsFailed, billed_chars
 
 log = logging.getLogger(__name__)
@@ -82,11 +82,19 @@ async def make_lesson(
     learner: lesson.Learner = "male",
     renderer: Renderer = lesson_audio.render,
     lexicon: Checker | None = None,
+    given: tuple[lesson.Phrase, ...] = (),
+    write_given: WriteGiven | None = None,
 ) -> None:
     """Writes, speaks and keeps lesson `lesson_id`, and says in its row how it went. Never raises:
-    a failure is the lesson's `error`, shown as it is."""
+    a failure is the lesson's `error`, shown as it is. With `given` (the learner's own words and
+    phrases, a cram's) and `write_given`, the lesson teaches those rather than phrases Claude picks."""
     try:
-        plan, used = await lesson_writer.write_plan(write, language, scene, learner, lexicon)
+        if given and write_given is not None:
+            plan, used = await lesson_writer.write_given_plan(
+                write_given, language, scene, given, learner, lexicon
+            )
+        else:
+            plan, used = await lesson_writer.write_plan(write, language, scene, learner, lexicon)
     except LessonFailed as e:
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))

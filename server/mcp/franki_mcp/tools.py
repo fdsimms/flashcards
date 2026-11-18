@@ -262,6 +262,11 @@ reaches their devices at their next sync.
   language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
   only once the user agrees. Franki shows the tiers as the one deck.
   untier_deck undoes it for a deck (cards back in the deck, tier subdecks and presets removed).
+- Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
+  are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
+  date (`cram::thai-lesson-2026-11-20`); Franki shows the tag on the cram's page. To add words to a
+  cram, add its tag to their notes (or to new notes with add_notes); find_notes "tag:cram::*"
+  lists the words of every cram. The date and the practice rounds are kept in Franki only.
 """
 
 

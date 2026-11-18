@@ -16,7 +16,8 @@ from franki_reader import store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
-from franki_reader.lesson_writer import LessonFailed, WritePlan
+from franki_reader.lesson import Phrase
+from franki_reader.lesson_writer import LessonFailed, WriteGiven, WritePlan
 from franki_reader.tts import Spoken
 
 PLAN: dict[str, Any] = {
@@ -75,6 +76,7 @@ def lesson_client(
     folder: bool = True,
     mp3: bytes = b"",
     writer: WritePlan = write_plan,
+    given_writer: WriteGiven | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> TestClient:
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
@@ -94,6 +96,7 @@ def lesson_client(
         engine,
         "open sesame",
         write_lesson=writer if claude else None,
+        write_given_lesson=given_writer if claude else None,
         lessons_dir=tmp_path / "lessons" if folder else None,
     )
     c = TestClient(app)
@@ -289,3 +292,46 @@ def test_deleting_a_lesson_forgets_it_and_its_file(tmp_path: Path) -> None:
     assert c.delete(f"/api/lessons/{lesson_id}", headers=AUTH).status_code == 204
     assert not file.exists()
     assert c.get("/api/lessons", headers=AUTH).json()["lessons"] == []
+
+
+async def write_given(
+    language: str, scene: str, given: tuple[Phrase, ...], feedback: str, learner: str = "male"
+) -> tuple[Any, Usage]:
+    return PLAN, Usage(input_tokens=1000, output_tokens=400, model="claude-sonnet-5-5")
+
+
+def test_refuses_given_phrases_that_are_empty_or_too_many(tmp_path: Path) -> None:
+    c = lesson_client(tmp_path, given_writer=write_given)
+    body = {"language": "fr", "scene": "a lesson"}
+    assert c.post("/api/lessons", json={**body, "phrases": []}, headers=AUTH).status_code == 422
+    blank = [{"text": " ", "english": " "}]
+    assert c.post("/api/lessons", json={**body, "phrases": blank}, headers=AUTH).status_code == 422
+    many = [{"text": f"mot {i}", "english": f"word {i}"} for i in range(16)]
+    assert c.post("/api/lessons", json={**body, "phrases": many}, headers=AUTH).status_code == 422
+
+
+def test_given_phrases_need_claude(tmp_path: Path) -> None:
+    c = lesson_client(tmp_path)
+    phrases = [{"text": "presque", "english": "almost"}]
+    made = c.post(
+        "/api/lessons", json={"language": "fr", "scene": "x", "phrases": phrases}, headers=AUTH
+    )
+    assert made.status_code == 503
+
+
+@needs_ffmpeg
+def test_makes_a_lesson_from_given_phrases(tmp_path: Path) -> None:
+    c = lesson_client(tmp_path, mp3=tone(), given_writer=write_given)
+    phrases = [
+        {"text": "Un café.", "english": "a coffee"},
+        {"text": "presque", "english": "almost"},
+    ]
+    made = c.post(
+        "/api/lessons",
+        json={"language": "fr", "scene": "Thai lesson", "phrases": phrases},
+        headers=AUTH,
+    )
+    assert made.status_code == 202
+    row = wait_for(c, made.json()["id"])
+    assert row["state"] == "ready", row
+    assert [p["text"] for p in row["phrases"]] == ["Un café.", "presque"]

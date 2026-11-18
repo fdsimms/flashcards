@@ -100,6 +100,14 @@ the review screen agree, and the setting is the phone's own (Keychain), never wr
 shifts a due date or adds a review: FSRS must see the real time since each review. After it ends the
 weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
 
+**A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
+Cram): until a running cram's day, a review of one of its words isn't put off past that day. Review
+passes `capDays` to `review`, which shortens the interval after fuzz and balancing (so the buttons,
+the stored interval and the revlog agree), and `capCramCards` moves reviews already scheduled later
+with Set Due Date (memory state kept, a Manual revlog entry, as Anki writes). FSRS still sees the
+real time between reviews; it just gets one sooner. A cram's rounds are practice: their Missed it /
+Got it stay in the cram (`cramRound.ts` imports nothing that schedules, `tests/core/cramRound.test.ts`).
+
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced

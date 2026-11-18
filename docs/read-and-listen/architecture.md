@@ -388,6 +388,16 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
+  from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
+  word and meaning, up to `lesson.MAX_GIVEN`, 15), and the scene is then the situation they're for (the
+  cram's name). Claude still writes the title, the dialogue (up to `MAX_GIVEN_DIALOGUE` lines, to fit
+  more of them), the parts and the mixes (`lesson_writer.write_given_plan`), but the code decides what's
+  taught (`lesson.clean_given_plan`): every given phrase, as the learner has it and with their
+  meaning, with Claude's parts only where it wrote the phrase back exactly, and any it left out or
+  changed taught whole at the end; phrases Claude added are dropped. A Thai phrase isn't sent back for
+  lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
+  keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer

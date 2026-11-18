@@ -6,6 +6,24 @@ import type { DeckParams } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
 describe('scheduler', () => {
+  it("shortens a review's interval to a cram's day (capDays), and only ever shortens it", () => {
+    const [card] = makeCards(omniNote(), NOW);
+    const sched = { ...card.sched, state: 2, stability: 40, difficulty: 5, reps: 5, scheduledDays: 30, lastReview: new Date(2026, 9, 12, 12).toISOString() };
+    const free = review(sched, 3, NOW);
+    expect(free.sched.scheduledDays).toBeGreaterThan(2);
+    const capped = review(sched, 3, NOW, undefined, { capDays: 2 });
+    expect(capped.sched.scheduledDays).toBe(2);
+    expect(studyDayKey(new Date(capped.sched.due), 4)).toBe('2026-11-13');
+    expect(capped.log.due).toBe(capped.sched.due);
+    expect(capped.sched.stability).toBe(free.sched.stability);
+    expect(previewIntervals(sched, NOW, undefined, { capDays: 2 })[3]).toBe('2d');
+    // A cap past the interval changes nothing; a cap of 0 (the day itself) is ignored.
+    expect(review(sched, 3, NOW, undefined, { capDays: 9999 }).sched.due).toBe(free.sched.due);
+    expect(review(sched, 3, NOW, undefined, { capDays: 0 }).sched.due).toBe(free.sched.due);
+    // A learning step isn't a review interval: Again still waits on its step.
+    expect(review(sched, 1, NOW, undefined, { capDays: 2 }).sched.state).toBe(3);
+  });
+
   it('moves a new card forward and spaces Good further than Again', () => {
     const [card] = makeCards(omniNote(), NOW);
     const good = review(card.sched, 3, NOW);

@@ -154,6 +154,12 @@ export interface AnswerContext {
    * ts-fsrs works out the elapsed time from `last_review`. Ignored unless later than the real one.
    */
   countFrom?: Date;
+  /**
+   * The most days from today a review may be put off (a cram's day, `capDays` in cram.ts): an
+   * interval longer than this is shortened to it, after fuzz and balancing, so the card is due on
+   * that day. Only ever shortens; at least 1.
+   */
+  capDays?: number;
 }
 
 /**
@@ -190,6 +196,7 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   const raw = (r: RatingValue) => rawInterval(outcomes[r as Grade].card.stability, retention, weights);
   // Calendar days, not 24-hour blocks (addCalendarDays).
   const onDay = (days: number) => addCalendarDays(now, days).toISOString();
+  const capped = (days: number) => (ctx.capDays !== undefined && ctx.capDays >= 1 ? Math.min(days, ctx.capDays) : days);
   /** A wait of `secs`: fuzzed within the day, or a day-long step from the start of the day it lands on. */
   const step = (secs: number) => {
     const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
@@ -212,13 +219,13 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
     next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: 0, learningSteps: 0 };
   } else if (sched.state === 2 && rating === 1) {
     // Forgotten, with no relearning steps: FSRS's interval as it is, as Anki does.
-    const days = Math.min(Math.max(Math.round(raw(1)), 1), Math.max(maxInterval, 1));
+    const days = capped(Math.min(Math.max(Math.round(raw(1)), 1), Math.max(maxInterval, 1)));
     next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
   } else if (sched.state === 2) {
-    const days = fsrsReviewDays([raw(2), raw(3), raw(4)], sched.scheduledDays, maxInterval, factor, ctx.balance)[rating - 2];
+    const days = capped(fsrsReviewDays([raw(2), raw(3), raw(4)], sched.scheduledDays, maxInterval, factor, ctx.balance)[rating - 2]);
     next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
   } else {
-    const days = fsrsGraduatingDays(rating, { chosen: raw(rating), good: raw(3) }, maxInterval, factor, ctx.balance);
+    const days = capped(fsrsGraduatingDays(rating, { chosen: raw(rating), good: raw(3) }, maxInterval, factor, ctx.balance));
     next = { ...next, state: 2, due: onDay(days), scheduledDays: days, learningSteps: 0 };
   }
   return {
