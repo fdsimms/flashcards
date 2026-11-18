@@ -35,7 +35,7 @@ export interface ToolPrefs {
   /** Counting things: said aloud or picked, and how high the number goes. */
   countMode: CountMode;
   countMax: CountMax;
-  /** Reading the script: read a word aloud, or (Thai) name a syllable's tone. */
+  /** Reading the script: read a word aloud, or (Thai) name a syllable's tone, a consonant's class or a vowel's length. */
   scriptMode: ScriptMode;
   /** Similar words: told apart by meaning or by ear. */
   mixupMode: MixupMode;

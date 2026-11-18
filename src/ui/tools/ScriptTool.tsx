@@ -8,22 +8,25 @@ import { toolPrefs } from '../../tools/storage';
 import { SYLLABLES, TONE_NAMES, TONES, toneOf, toneSteps, type Tone } from '../../tools/thai/script';
 import { SCRIPTS, toolLanguage } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Card, Icon, Tappable } from '../kit';
+import { Card } from '../kit';
 import { Reveal } from '../motion';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { hairline, space, type, useTheme } from '../theme';
 import { useFont } from '../AppFont';
 import type { ToolScreenProps } from './index';
 import { AnswerCard, ChipChoice, nextOnly, PlayButton, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
+import { LetterDrill } from './LetterDrill';
+import { OptionChoices } from './OptionChoices';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
-const MODES: { value: ScriptMode; label: string }[] = [{ value: 'tone', label: 'Name the tone' }, { value: 'read', label: 'Read it aloud' }];
+const MODES: { value: ScriptMode; label: string }[] = [{ value: 'tone', label: 'Name the tone' }, { value: 'read', label: 'Read it aloud' }, { value: 'consonants', label: 'Consonants' }, { value: 'vowels', label: 'Vowels' }];
 
 /**
  * Reading the script: a word in the language's own letters. Read it aloud, then show the answer
  * (with its stress, or tone, and a romanization) and mark it Missed it or Got it; a miss shows
  * what's worth knowing to read it. In Thai, Name the tone asks for the syllable's tone, worked
- * out from how it's written (thai/script.ts), and shows the steps. A new word leans toward the
+ * out from how it's written (thai/script.ts), and shows the steps; Consonants and Vowels are
+ * LetterDrill's. A new word leans toward the
  * letters and tone rules missed lately (useMarks), and one missed comes back a few words later.
  */
 export function ScriptTool({ tool, repo }: ToolScreenProps) {
@@ -34,8 +37,9 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
   const marks = useMarks(tool.id, language);
   const retries = useRetries<number>();
   const [savedMode, setMode] = useToolPref('scriptMode');
-  // Only Thai's tones can be named; the other languages are read aloud.
+  // Only Thai has tones to name and letters to place; the other languages are read aloud.
   const mode: ScriptMode = language === 'th' ? savedMode : 'read';
+  const practice = language === 'th' ? <ChipChoice label="Practice" options={MODES} value={mode} onChange={(m) => { setMode(m); answer.hide(); }} /> : null;
   const script = SCRIPTS[language];
   const [held, setHeld] = useState(() => {
     const l = toolLanguage(tool, toolPrefs().language);
@@ -83,6 +87,10 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
   let actions: ToolActions | undefined;
   if (mode === 'tone') actions = pick ? { primary: { label: 'Next', onPress: next } } : { secondary: { label: 'Another one', onPress: next }, primary: { label: 'Show answer', onPress: () => chooseTone(null) } };
   else if (answer.missed) actions = nextOnly(next);
+
+  if (mode === 'consonants' || mode === 'vowels') {
+    return <LetterDrill tool={tool} repo={repo} language={language} onLanguage={setLanguage} mode={mode} practice={practice} />;
+  }
 
   return (
     <ToolScreen
@@ -138,40 +146,12 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
         />
       )}
 
-      {language === 'th' ? <ChipChoice label="Practice" options={MODES} value={mode} onChange={(m) => { setMode(m); answer.hide(); }} /> : null}
+      {practice}
     </ToolScreen>
   );
 }
 
 /** The five tones to choose from, the right one and a wrong pick marked once chosen. */
 function ToneChoices({ tone, picked, onChoose }: { tone: Tone; picked: { tone: Tone | null } | null; onChoose: (t: Tone) => void }) {
-  const c = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-      {TONES.map((t) => {
-        const isRight = !!picked && t === tone;
-        const isWrong = picked?.tone === t && t !== tone;
-        return (
-          <Tappable
-            key={t}
-            onPress={() => onChoose(t)}
-            disabled={!!picked}
-            accessibilityRole="button"
-            accessibilityLabel={`${TONE_NAMES[t]}${isRight ? ', right' : isWrong ? ', wrong' : ''}`}
-            accessibilityState={{ selected: picked?.tone === t, disabled: !!picked }}
-            scaleTo={0.97}
-            style={{
-              flexGrow: 1, flexBasis: 60, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs,
-              paddingHorizontal: space.s, backgroundColor: c.surface, borderRadius: radius.m, ...smooth,
-              borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
-            }}
-          >
-            <Text style={{ ...type.subhead, color: c.text, fontWeight: isRight ? '600' : '400' }}>{TONE_NAMES[t]}</Text>
-            {isRight ? <Icon name="checkmark.circle.fill" size={16} color={c.countDue} /> : null}
-            {isWrong ? <Icon name="xmark.circle.fill" size={16} color={c.danger} /> : null}
-          </Tappable>
-        );
-      })}
-    </View>
-  );
+  return <OptionChoices options={TONES.map((t) => ({ value: t, label: TONE_NAMES[t] }))} right={tone} picked={picked && { choice: picked.tone }} onChoose={onChoose} />;
 }

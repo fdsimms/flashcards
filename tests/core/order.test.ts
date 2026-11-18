@@ -19,6 +19,29 @@ describe("Anki's study order", () => {
     expect(BigInt.asIntN(64, fnvHash(7n))).toBe(5465015992139406178n);
   });
 
+  it('hashes as FNV-1a over 64-bit BigInts, for any mix of numbers and text', () => {
+    // fnvHash works in 16-bit limbs for speed; this is the definition it has to match.
+    const reference = (...values: (bigint | string)[]) => {
+      const MASK = (1n << 64n) - 1n;
+      let h = 0xcbf29ce484222325n;
+      const step = (byte: number) => { h = ((h ^ BigInt(byte)) * 0x100000001b3n) & MASK; };
+      for (const v of values) {
+        if (typeof v === 'string') for (let i = 0; i < v.length; i++) step(v.charCodeAt(i) & 0xff);
+        else { let x = BigInt.asUintN(64, v); for (let i = 0; i < 8; i++) { step(Number(x & 0xffn)); x >>= 8n; } }
+      }
+      return h;
+    };
+    let seed = 0x2545f491;
+    const next = () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed; };
+    const inputs: (bigint | string)[][] = [[], [''], [0n], [-1n], [(1n << 63n) - 1n], [-(1n << 63n)], ['2026-11-11'], ['ภาษาไทย', 42n]];
+    for (let i = 0; i < 300; i++) {
+      const big = (BigInt(next()) << 32n | BigInt(next())) - (1n << 63n);
+      const text = String.fromCharCode(...Array.from({ length: next() % 12 }, () => next() % 0x3000));
+      inputs.push([big], [big, BigInt(next() % 100000)], [text], [big, text]);
+    }
+    for (const values of inputs) expect(fnvHash(...values)).toBe(reference(...values));
+  });
+
   it("spaces one list through another as Anki's Intersperser does", () => {
     // Anki's own test vectors (rslib intersperser.rs).
     expect(intersperse([1, 2, 3], [11, 22])).toEqual([1, 11, 2, 22, 3]);
@@ -59,6 +82,22 @@ describe("Anki's study order", () => {
     expect(sortReviews(ivl, 4, ctx()).map((c) => c.id)).toEqual(['l', 's']);
     // The same shuffle all day.
     expect(sortReviews(cards, 8, ctx())).toEqual(sortReviews([...cards].reverse(), 8, ctx()));
+  });
+
+  it("works a card's shuffle out again when its mod or the day changes, not from the last sort's", () => {
+    // The shuffle is kept per card object between sorts; a card changed in place mustn't keep its old one.
+    const ids = (cs: Card[]) => cs.map((c) => c.id);
+    const anki = Array.from({ length: 12 }, (_, i) => card(`a${i}`, { ankiId: String(1700000000000 + i), ankiMod: 1 }, { state: 2 }));
+    const before = ids(sortReviews(anki, 8, ctx()));
+    for (const c of anki) c.ankiMod = 2;
+    const fresh = anki.map((c) => ({ ...c }));
+    expect(ids(sortReviews(anki, 8, ctx()))).toEqual(ids(sortReviews(fresh, 8, ctx())));
+    expect(ids(sortReviews(anki, 8, ctx()))).not.toEqual(before);
+    // Franki's own cards shuffle by the study day (a later one: FNV mixes its last bytes only lightly, as Anki's does).
+    const own = Array.from({ length: 12 }, (_, i) => card(`f${i}`, {}, { state: 2 }));
+    const later = { ...ctx(), now: new Date(2027, 4, 20, 12) };
+    expect(ids(sortReviews(own, 8, later))).toEqual(ids(sortReviews(own.map((c) => ({ ...c })), 8, later)));
+    expect(ids(sortReviews(own, 8, ctx()))).not.toEqual(ids(sortReviews(own, 8, later)));
   });
 });
 

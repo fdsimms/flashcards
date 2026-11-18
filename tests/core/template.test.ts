@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardDocument, fieldIsEmpty, renderTemplate, renderTemplateCard, sideAudio, templateOrdinals } from '../../src/core/template';
+import { cardDocument, fieldIsEmpty, holdMediaAutoplay, renderTemplate, renderTemplateCard, sideAudio, START_AUTOPLAY, templateOrdinals } from '../../src/core/template';
 import type { Note, NoteType } from '../../src/core/types';
 import vectors from '../fixtures/anki/template-vectors.json';
 
@@ -186,7 +186,8 @@ describe('cardDocument', () => {
     expect(doc).toContain('<body class="card card2 nightMode night_mode">');
     expect(doc).toContain('.card { color: red; }');
     expect(doc).toContain('data-sound="hello.mp3"');
-    expect(doc).toContain('playFrom(0)');
+    expect(doc).toContain('window.startAutoplay = function () {');
+    expect(doc).toContain('  playFrom(0);\n};');
   });
 
   it("defines anki.imageOcclusion before the card's own script calls it, with Anki's layout for it", () => {
@@ -218,8 +219,31 @@ describe('cardDocument', () => {
 });
 
 describe('autoplay', () => {
-  /** Runs a page's player script with a stand-in Audio, and says which files played, in order. */
-  function runPlayer(page: string) {
+  it("holds a deck's own <audio autoplay> and <video autoplay> until the page is shown", () => {
+    expect(holdMediaAutoplay('<audio src="a.mp3" autoplay></audio>')).toBe('<audio src="a.mp3" data-autoplay></audio>');
+    expect(holdMediaAutoplay('<VIDEO autoplay="autoplay" muted src=v.mp4>')).toBe('<VIDEO data-autoplay muted src=v.mp4>');
+    expect(holdMediaAutoplay("<audio autoplay='' controls/>")).toBe('<audio data-autoplay controls/>');
+    // Only the attribute, and only on media.
+    expect(holdMediaAutoplay('<audio data-autoplayer="x" src="autoplay.mp3"></audio>')).toBe('<audio data-autoplayer="x" src="autoplay.mp3"></audio>');
+    expect(holdMediaAutoplay('<div autoplay>autoplay</div>')).toBe('<div autoplay>autoplay</div>');
+  });
+
+  it('plays the held media once the page is shown, even with the preset not autoplaying', () => {
+    const page = cardDocument('<audio src="a.mp3" autoplay></audio>', { css: '', ord: 0, dark: false, autoplay: false });
+    let plays = 0;
+    const media = { play: () => { plays++; return Promise.resolve(); } };
+    const document = { querySelectorAll: (sel: string) => (sel === '[data-autoplay]' ? [media] : []) };
+    const window: { startAutoplay?: () => void } = {};
+    const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
+    new Function('document', 'Audio', 'window', script)(document, undefined, window);
+    expect(plays).toBe(0);
+    new Function('window', START_AUTOPLAY)(window);
+    new Function('window', START_AUTOPLAY)(window);
+    expect(plays).toBe(1);
+  });
+
+  /** Runs a page's player script with a stand-in Audio, and says which files played, in order. `shown` runs START_AUTOPLAY, as the app does once the page is on screen. */
+  function runPlayer(page: string, shown = true) {
     const played: string[] = [];
     const players: { file: string; onended?: () => void; paused: boolean; pause(): void; play(): void }[] = [];
     function Audio(this: (typeof players)[number], file: string) {
@@ -227,11 +251,14 @@ describe('autoplay', () => {
       players.push(this);
     }
     const files = [...page.matchAll(/data-sound="([^"]+)"/g)].map((m) => m[1]);
-    const document = { querySelectorAll: () => files.map((sound) => ({ dataset: { sound } })) };
+    const document = { querySelectorAll: (sel: string) => (sel === '[data-sound]' ? files.map((sound) => ({ dataset: { sound } })) : []) };
     const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const playSound = new Function('document', 'Audio', 'window', `${script}; return playSound;`)(document, Audio, {}) as (f: string) => void;
-    return { played, players, playSound };
+    const window: { startAutoplay?: () => void } = {};
+    const playSound = new Function('document', 'Audio', 'window', `${script}; return playSound;`)(document, Audio, window) as (f: string) => void;
+    const start = () => new Function('window', START_AUTOPLAY)(window);
+    if (shown) start();
+    return { played, players, playSound, start };
   }
   const opts = { css: '', ord: 0, dark: false };
 
@@ -242,6 +269,15 @@ describe('autoplay', () => {
     expect(played).toEqual(['word.mp3', 'sentence.mp3']);
     players[1].onended!();
     expect(played).toEqual(['word.mp3', 'sentence.mp3']);
+  });
+
+  it('waits to be shown before playing, and plays once however often it is told to', () => {
+    // The next card's page is loaded out of sight while the current card is studied.
+    const page = runPlayer(cardDocument('[sound:a.mp3][sound:b.mp3]', { ...opts, autoplay: true }), false);
+    expect(page.played).toEqual([]);
+    page.start();
+    page.start();
+    expect(page.played).toEqual(['a.mp3']);
   });
 
   it('stops the rest when a play button is tapped, and plays nothing on its own without autoplay', () => {

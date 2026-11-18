@@ -34,7 +34,7 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Screen title="Read before">
+    <Screen title="Reread">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}

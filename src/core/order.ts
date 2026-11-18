@@ -1,6 +1,7 @@
 import { default_w, forgetting_curve } from 'ts-fsrs';
 import { omnilanguageKindByOrd } from '../import/models';
 import { studyDayKey, studyDayStart } from './day';
+import { dueMs } from './queue';
 import type { Card, StudyOrder } from './types';
 
 /**
@@ -27,18 +28,31 @@ export const REVIEW = {
 
 /** FNV-1a, 64 bits, over each value's bytes (as Anki's SQL `fnvhash` does over little-endian i64s). */
 export function fnvHash(...values: (bigint | string)[]): bigint {
-  const MASK = (1n << 64n) - 1n;
-  let h = 0xcbf29ce484222325n;
-  const step = (byte: number) => { h = ((h ^ BigInt(byte)) * 0x100000001b3n) & MASK; };
+  // The 64-bit state as four 16-bit limbs (h0 lowest), multiplied in plain numbers: the queue hashes
+  // every due card on every rebuild, and a BigInt multiply per byte was most of an answer's wait on
+  // the phone, whose engine (Hermes) does BigInt slowly. The offset basis is 0xcbf29ce484222325.
+  let h0 = 0x2325, h1 = 0x8422, h2 = 0x9ce4, h3 = 0xcbf2;
+  const step = (byte: number) => {
+    h0 ^= byte;
+    // h * 0x100000001b3 = h * 0x1b3 + (h << 40); the shift moves limbs 0 and 1 up into 2 and 3, by 8 bits.
+    const t0 = h0 * 0x1b3;
+    const t1 = h1 * 0x1b3 + (t0 >>> 16);
+    const t2 = h2 * 0x1b3 + (h0 << 8) + (t1 >>> 16);
+    const t3 = h3 * 0x1b3 + (h1 << 8) + (t2 >>> 16);
+    h0 = t0 & 0xffff; h1 = t1 & 0xffff; h2 = t2 & 0xffff; h3 = t3 & 0xffff;
+  };
   for (const v of values) {
     if (typeof v === 'string') {
       for (let i = 0; i < v.length; i++) step(v.charCodeAt(i) & 0xff);
     } else {
-      let x = BigInt.asUintN(64, v);
-      for (let i = 0; i < 8; i++) { step(Number(x & 0xffn)); x >>= 8n; }
+      // Little-endian bytes, as Anki's i64.
+      const x = BigInt.asUintN(64, v);
+      for (const half of [Number(x & 0xffffffffn), Number(x >> 32n)]) {
+        step(half & 0xff); step((half >>> 8) & 0xff); step((half >>> 16) & 0xff); step(half >>> 24);
+      }
     }
   }
-  return h;
+  return (BigInt(h3 * 0x10000 + h2) << 32n) | BigInt(h1 * 0x10000 + h0);
 }
 
 /** A card's or note's id as Anki's number when it has one, else the id's text. */
@@ -140,7 +154,6 @@ export interface SortContext {
 }
 
 const dayMs = 86400000;
-const dueMs = (c: Card) => new Date(c.sched.due).getTime();
 
 /**
  * A card in a filtered deck takes its place in that deck's order as its due (Anki stores it
@@ -153,7 +166,7 @@ function dueDay(c: Card, h: number): number {
   if (inFilteredOrder(c)) return c.filteredDue!;
   // The local date as a day number: dividing the local instant by a day's milliseconds lands on
   // .5 in some zones (UTC-8 with a 4 AM rollover), where rounding gave two days the same number.
-  const d = studyDayStart(new Date(c.sched.due), h);
+  const d = studyDayStart(new Date(dueMs(c)), h);
   return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / dayMs;
 }
 
@@ -168,9 +181,28 @@ export function retrievability(card: Card, now: Date, weights: number[]): number
 function perCard<T>(key: (c: Card) => T): (c: Card) => T {
   const seen = new Map<string, T>();
   return (c) => {
-    if (!seen.has(c.id)) seen.set(c.id, key(c));
-    return seen.get(c.id)!;
+    const hit = seen.get(c.id);
+    if (hit !== undefined || seen.has(c.id)) return hit!;
+    const k = key(c);
+    seen.set(c.id, k);
+    return k;
   };
+}
+
+/**
+ * Anki's tie-break for every review order, fnvhash(id, mod), kept per card between rebuilds of the
+ * queue (each answer rebuilds it): a card not answered meanwhile is the same object, with the same
+ * hash. The id, mod and day it was worked out from are kept with it and checked.
+ */
+const shuffleCache = new WeakMap<Card, { ankiId?: string; ankiMod?: number; day: string; hash: bigint }>();
+function shuffleKey(c: Card, day: string): bigint {
+  const hit = shuffleCache.get(c);
+  if (hit && hit.ankiId === c.ankiId && hit.ankiMod === c.ankiMod && hit.day === day) return hit.hash;
+  const hash = c.ankiId && c.ankiMod !== undefined
+    ? signed(fnvHash(BigInt(c.ankiId), BigInt(c.ankiMod)))
+    : signed(fnvHash(idValue(c.ankiId ?? c.id), day));
+  shuffleCache.set(c, { ankiId: c.ankiId, ankiMod: c.ankiMod, day, hash });
+  return hash;
 }
 
 /**
@@ -179,9 +211,8 @@ function perCard<T>(key: (c: Card) => T): (c: Card) => T {
  */
 export function sortReviews(cards: Card[], order: number, ctx: SortContext): Card[] {
   // Anki's last key for every review order: fnvhash(id, mod), sorted signed.
-  const shuffle = new Map(cards.map((c) => [c.id, c.ankiId && c.ankiMod !== undefined
-    ? signed(fnvHash(BigInt(c.ankiId), BigInt(c.ankiMod)))
-    : signed(fnvHash(idValue(c.ankiId ?? c.id), studyDayKey(ctx.now, ctx.dayStartsAtHour)))]));
+  const today = studyDayKey(ctx.now, ctx.dayStartsAtHour);
+  const shuffle = new Map(cards.map((c) => [c.id, shuffleKey(c, today)]));
   const r = perCard((c) => retrievability(c, ctx.now, ctx.weightsOf(c)));
   // NULL first ascending, last descending, as SQLite sorts it.
   const byR = (dir: 1 | -1) => (a: Card, b: Card) => {

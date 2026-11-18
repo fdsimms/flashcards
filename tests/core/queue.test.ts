@@ -41,6 +41,14 @@ describe('queue', () => {
     expect(isDue(card, new Date(2026, 10, 12, 2, 0), H)).toBe(false);
     expect(isDue(card, new Date(2026, 10, 11, 22, 0), H)).toBe(false);
   });
+  it("reads a card's due again when it changes in place", () => {
+    // The parsed due is kept per schedule object; a schedule edited in place mustn't answer from the old one.
+    const [base] = makeCards(omniNote(), NOW);
+    const card = withSched(base, { state: 2, due: new Date(2026, 10, 11, 9).toISOString() });
+    expect(isDue(card, NOW, H)).toBe(true);
+    card.sched.due = new Date(2026, 10, 20, 9).toISOString();
+    expect(isDue(card, NOW, H)).toBe(false);
+  });
   it('holds a learning card to its exact due time', () => {
     const [base] = makeCards(omniNote(), NOW);
     const card = withSched(base, { state: 1, due: new Date(2026, 10, 12, 9, 10).toISOString() });
