@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     lesson,
     lesson_service,
+    lesson_topics,
     lesson_writer,
     store,
 )
@@ -42,12 +43,21 @@ class LessonIn(BaseModel):
     phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
 
 
+class TopicsIn(BaseModel):
+    language: Code
+    # The learner's own words (as for a lesson), so the ideas are situations they'd come up in.
+    phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
+    # Ideas already on screen, so asking again gives different ones.
+    shown: list[str] = Field(default_factory=list, max_length=lesson_topics.MAX_AVOID)
+
+
 def router(ctx: AppContext) -> APIRouter:
     routes = APIRouter()
     authed = ctx.authed
     engine = ctx.engine
     write_lesson = ctx.write_lesson
     write_given_lesson = ctx.write_given_lesson
+    write_lesson_topics = ctx.write_lesson_topics
     lessons_dir = ctx.lessons_dir
 
     def lesson_out(row: store.StoredLesson) -> dict[str, Any]:
@@ -124,6 +134,35 @@ def router(ctx: AppContext) -> APIRouter:
             write_given=write_given_lesson,
         )
         return {"id": lesson_id}
+
+    @routes.post("/api/lessons/topics", dependencies=authed)
+    async def lesson_topics_route(body: TopicsIn) -> dict[str, list[str]]:
+        """Ideas for a lesson's scene. Never makes a lesson, and only reads which scenes exist."""
+        if write_lesson_topics is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "suggest a topic"))
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        words = lesson_topics.words_of(
+            lesson.given_phrases([(p.text, p.english) for p in body.phrases or []])
+        )
+        made = [row.scene for row in store.lessons(engine.conn, body.language)]
+        avoid = tuple(
+            " ".join(s.split())[: lesson_topics.MAX_IDEA * 2] for s in [*body.shown, *made]
+        )[: lesson_topics.MAX_AVOID]
+        try:
+            raw, used = await write_lesson_topics(body.language, words, avoid)
+        except lesson_topics.TopicsFailed as e:
+            ctx.keep_failed_cost("lesson_topics", body.language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        topics = lesson_topics.clean_topics(raw, avoid)
+        store.save_call_cost(
+            engine.conn, "lesson_topics", body.language, engine.clock(), used.cost_usd()
+        )
+        if not topics:
+            raise HTTPException(503, "Claude had no new ideas. Try again.")
+        return {"topics": topics}
 
     @routes.get("/api/lessons", dependencies=authed)
     async def lessons_route(language: Code | None = None) -> dict[str, Any]:
