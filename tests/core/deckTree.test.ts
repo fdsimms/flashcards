@@ -319,6 +319,12 @@ describe("Anki's v3 limits and gathering", () => {
     expect(q({ ...waiting, previewDue: at(10) }).order.map((c) => c.id)).toEqual([other.id]);
   });
 
+  it("doesn't offer a card again once Review ahead sent it home, whatever place its row still holds", () => {
+    const [home] = reviewCards(1, 20).map((c) => ({ ...c, filteredDue: -100000 }));
+    expect(treeQueue('D', input({ D: [home] })).due).toHaveLength(0);
+    expect(treeQueue('D', input({ D: [{ ...home, filteredDeck: 'Cram' }] })).due).toHaveLength(1);
+  });
+
   it("holds back a sibling of a card gathered before it, by the sibling's preset", () => {
     const [front] = newCards(1);
     const back = { ...front, id: `${front.noteId}:reverse`, kind: 'reverse' as const };
