@@ -293,6 +293,27 @@ class TestBuildScript:
         assert last_taught < asked < role
         assert steps[asked + 2] == Say("male", MIX.text)
 
+    def test_marks_each_silence_the_learner_speaks_in(self) -> None:
+        steps = lesson.build_script(PLAN_WITH_MIXES)
+        for i, step in enumerate(steps):
+            if not isinstance(step, Silence):
+                continue
+            before = steps[i - 1]
+            assert isinstance(before, Say)
+            # A repeat-after step (slow, after the first hearing), a question, or a cue for the
+            # learner's line.
+            first_hearing = steps[i - 2] == Say("narrator", "Listen.")
+            prompts = (before.slow and not first_hearing) or before.text.startswith(
+                ("How do you say:", "You say:")
+            )
+            assert step.answer == prompts, (before, step)
+            # An old lesson's pauses are found by length (lesson_audio.find_pauses): every answer
+            # is longer than any other gap.
+            if step.answer:
+                assert step.ms >= lesson.PAUSE_MIN_MS
+            else:
+                assert step.ms <= lesson.AFTER_NATIVE_MS
+
     def test_a_plan_without_mixes_has_no_mix_introduction(self) -> None:
         steps = lesson.build_script(PLAN)
         assert not any(isinstance(s, Say) and "put them together" in s.text for s in steps)

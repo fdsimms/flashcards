@@ -426,6 +426,22 @@ aloud is never heard by the phone.
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
   lesson is made. Chosen over a phone that times each clip because one MP3 plays with the screen
   locked, in a car, with the lock screen's controls, and a stall between clips can't happen.
+- **Wait for my answer** (18 November 2026, the owner's request): a switch on the lesson's screen and
+  in Settings, Lessons (the same setting, kept on the phone, off by default so a lesson still plays
+  straight through in the car). On, the lesson stops at each place the learner speaks (each
+  repeat-after step, each "How do you say", each line of theirs in the role-play) and goes on when
+  they tap Continue, which skips the rest of the silence so the answer plays at once. The MP3 is
+  unchanged: the script marks those silences (`Silence.answer`, `lesson.answer`), `render` keeps
+  where each falls (`pauses`, start and end in milliseconds, in the lessons table and in
+  `GET /api/lessons`), and the app pauses the shared player on reaching one (`lessonWaits.ts`,
+  `useLessonWaits`, the owner chose the layout from a mock: the play button becomes Continue, with
+  "Your turn" above it). A lesson left while it waits carries on in the mini-player, which says
+  "Your turn"; Play there or on the lock screen goes on as Continue does, and skipping back or forward
+  lets the wait go. A lesson made before pauses were kept has them found by length the first time the
+  list is read (`lesson_audio.find_pauses`, in the background: an answer silence is at least 3 s and
+  every other gap at most 1.4 s, so a quiet run of 2.7 s is an answer's), and its pauses are null
+  until then. Kept lessons are brought up to date from the list, so the found pauses reach one
+  played offline. Nothing the learner says is heard: Continue is the only signal.
 - **One MP3 per lesson** (`lesson_audio.py`, `<audio dir>/lessons/<id>.mp3`). Each distinct clip is
   spoken once by Azure (the narrator in an English voice chosen for the lesson, else the settings'
   English male voice; the dialogue's A and the teaching in the language's male voice, B in its female

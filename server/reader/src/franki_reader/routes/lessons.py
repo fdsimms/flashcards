@@ -1,5 +1,6 @@
 """Audio lessons on a scene (lesson.py)."""
 
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Response
@@ -63,7 +64,19 @@ def router(ctx: AppContext) -> APIRouter:
             "created_at": instant(row.created_at),
             "phrases": row.plan.get("phrases", []),
             "dialogue": row.plan.get("dialogue", []),
+            # Where the learner speaks, [start, end] in milliseconds, so the app can wait there;
+            # null while not yet known (a lesson made before they were kept).
+            "pauses": None if row.pauses is None else [list(p) for p in row.pauses],
         }
+
+    # Lessons made before their pauses were kept, being listened to now (find_old_pauses).
+    finding: set[int] = set()
+
+    async def find_pauses(lesson_id: int, folder: Path) -> None:
+        try:
+            await lesson_service.find_old_pauses(engine.conn, lesson_id, folder)
+        finally:
+            finding.discard(lesson_id)
 
     @routes.post("/api/lessons", status_code=202, dependencies=authed)
     async def make_lesson(body: LessonIn, background: BackgroundTasks) -> dict[str, Any]:
@@ -126,10 +139,18 @@ def router(ctx: AppContext) -> APIRouter:
         return {"id": lesson_id}
 
     @routes.get("/api/lessons", dependencies=authed)
-    async def lessons_route(language: Code | None = None) -> dict[str, Any]:
+    async def lessons_route(
+        background: BackgroundTasks, language: Code | None = None
+    ) -> dict[str, Any]:
+        rows = store.lessons(engine.conn, language)
+        if lessons_dir is not None:
+            for row in rows:
+                if row.state == "ready" and row.pauses is None and row.id not in finding:
+                    finding.add(row.id)
+                    background.add_task(find_pauses, row.id, lessons_dir)
         return {
             "languages": list(lesson_service.LESSON_LANGUAGES),
-            "lessons": [lesson_out(row) for row in store.lessons(engine.conn, language)],
+            "lessons": [lesson_out(row) for row in rows],
         }
 
     @routes.get("/api/lessons/{lesson_id}/audio", dependencies=authed)

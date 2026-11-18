@@ -434,6 +434,8 @@ export type AudioLesson = {
   created_at: string;
   phrases: { text: string; english: string }[];
   dialogue: { speaker: 'A' | 'B'; text: string; english: string }[];
+  /** Where the learner speaks, [start, end] in milliseconds (lessonWaits.ts). Null while the server is still finding them in a lesson made before they were kept; a server from before sends none. */
+  pauses?: [number, number][] | null;
 };
 
 // A text read to the end, to read or listen to again.

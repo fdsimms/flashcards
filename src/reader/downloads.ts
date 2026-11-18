@@ -94,6 +94,19 @@ export function lessonsGone(language: Language, listed: readonly AudioLesson[], 
   return index.lessons.filter((s) => s.lesson.language === language && !ids.has(s.lesson.id)).map((s) => s.lesson.id);
 }
 
+/** The kept lessons with what the server just listed for each in place of the copy saved with it (the pauses an older lesson has had found since, `AudioLesson.pauses`); null when nothing changed. */
+export function lessonsRefreshed(listed: readonly AudioLesson[], index: Pick<DownloadIndex, 'lessons'>): DownloadIndex['lessons'] | null {
+  const byId = new Map(listed.map((l) => [l.id, l]));
+  let changed = false;
+  const lessons = index.lessons.map((s) => {
+    const now = byId.get(s.lesson.id);
+    if (!now || JSON.stringify(now) === JSON.stringify(s.lesson)) return s;
+    changed = true;
+    return { ...s, lesson: now };
+  });
+  return changed ? lessons : null;
+}
+
 /** A kept text's file for a line: its normal or its slow recording. */
 export const lineFile = (textId: number, line: number, slow: boolean) => `text-${textId}/line-${line}${slow ? '.slow' : ''}.mp3`;
 export const lessonFile = (lessonId: number) => `lesson-${lessonId}.mp3`;

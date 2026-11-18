@@ -12,6 +12,8 @@ lesson.
 import asyncio
 import logging
 import shutil
+import sys
+from array import array
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
@@ -41,10 +43,16 @@ class LessonAudioFailed(Exception):
     """A lesson couldn't be made into audio; the message says why, to be shown as it is."""
 
 
+# Where the learner speaks, as (start, end) in milliseconds from the start of the MP3: the app can
+# stop at each and wait for a tap (docs/read-and-listen/architecture.md, Audio lessons).
+Pause = tuple[int, int]
+
+
 @dataclass(frozen=True)
 class Rendered:
     audio: bytes
     duration_ms: int
+    pauses: tuple[Pause, ...] = ()
 
 
 async def _ffmpeg(data: bytes, *args: str) -> bytes:
@@ -122,7 +130,55 @@ async def render(
     if on_joining is not None:
         on_joining()
     pcm = bytearray()
+    pauses: list[Pause] = []
     for step in steps:
-        pcm += silence(step.ms) if isinstance(step, Silence) else audio[step]
+        if isinstance(step, Silence):
+            if step.answer:
+                start = len(pcm) // BYTES_PER_MS
+                pauses.append((start, start + step.ms))
+            pcm += silence(step.ms)
+        else:
+            pcm += audio[step]
     mp3 = await encode(bytes(pcm))
-    return Rendered(mp3, len(pcm) // BYTES_PER_MS)
+    return Rendered(mp3, len(pcm) // BYTES_PER_MS, tuple(pauses))
+
+
+# Finding the answer silences in a lesson made before they were recorded (`find_pauses`). An answer
+# silence is at least lesson.PAUSE_MIN_MS of generated zeros; every other gap is lesson.AFTER_NATIVE_MS
+# or shorter, plus whatever quiet a voice's clip has at its ends. A run of quiet this long is an
+# answer's, and a few hundred milliseconds of it falling on a clip's quiet ends doesn't matter.
+FIND_MIN_MS = 2700
+FRAME_MS = 10
+# The loudest sample in a quiet frame, of 32767: about -40 dBFS, under any voice but over MP3's
+# rounding of the generated zeros.
+QUIET_PEAK = 330
+
+
+def quiet_runs(pcm: bytes, min_ms: int = FIND_MIN_MS) -> list[Pause]:
+    """Each run of quiet at least `min_ms` long in raw 16-bit mono audio at RATE, as (start, end),
+    with something heard after it."""
+    samples = array("h")
+    samples.frombytes(pcm[: len(pcm) - len(pcm) % 2])
+    if sys.byteorder == "big":
+        samples.byteswap()
+    per = RATE * FRAME_MS // 1000
+    runs: list[Pause] = []
+    start: int | None = None
+    frames = (len(samples) + per - 1) // per
+    for i in range(frames):
+        chunk = samples[i * per : (i + 1) * per]
+        quiet = max(chunk) <= QUIET_PEAK and min(chunk) >= -QUIET_PEAK
+        if quiet and start is None:
+            start = i
+        elif not quiet and start is not None:
+            if (i - start) * FRAME_MS >= min_ms:
+                runs.append((start * FRAME_MS, i * FRAME_MS))
+            start = None
+    # Quiet running to the end isn't an answer: a lesson ends on the narrator's last words.
+    return runs
+
+
+async def find_pauses(mp3: bytes, decode: Decode = ffmpeg_decode) -> tuple[Pause, ...]:
+    """The answer silences of a lesson's MP3, found by listening for them, for a lesson made before
+    `render` kept them."""
+    return tuple(quiet_runs(await decode(mp3)))

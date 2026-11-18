@@ -125,7 +125,26 @@ async def make_lesson(
         store.fail_lesson(conn, lesson_id, f"Couldn't save the lesson ({e.strerror or e}).")
         return
     _keep_cost(conn, language, used.cost_usd(), chars, now)
-    store.finish_lesson(conn, lesson_id, plan.title, lesson.describe(plan), rendered.duration_ms)
+    store.finish_lesson(
+        conn, lesson_id, plan.title, lesson.describe(plan), rendered.duration_ms, rendered.pauses
+    )
+
+
+async def find_old_pauses(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    lessons_dir: Path,
+    find: Callable[[bytes], Awaitable[tuple[lesson_audio.Pause, ...]]] = lesson_audio.find_pauses,
+) -> None:
+    """Listens for the answer silences of a lesson made before they were kept, and keeps them, so
+    it can wait for the learner too. Never raises: a lesson whose audio can't be read is left as it
+    was, playing straight through, and is tried again the next time the list is read."""
+    try:
+        found = await find(audio_path(lessons_dir, lesson_id).read_bytes())
+    except (OSError, LessonAudioFailed) as e:
+        log.warning("Couldn't find the pauses in lesson %s: %s", lesson_id, e)
+        return
+    store.set_lesson_pauses(conn, lesson_id, found)
 
 
 def _spoken_error(e: Exception) -> str:

@@ -92,6 +92,14 @@ class Say:
 @dataclass(frozen=True)
 class Silence:
     ms: int
+    # Where the learner speaks (repeats, answers, says their line), as opposed to a breath between
+    # two things said. The app can stop at these and wait for a tap (`lesson_audio.Rendered.pauses`).
+    answer: bool = False
+
+
+def answer(text: str) -> Silence:
+    """The silence for saying `text`: sized to it (`pause_ms`), and marked as the learner's turn."""
+    return Silence(pause_ms(word_count(text)), answer=True)
 
 
 Step = Say | Silence
@@ -353,7 +361,7 @@ def _ask(phrase: Phrase, learner: Learner) -> list[Step]:
     native voice answers."""
     return [
         Say("narrator", f"How do you say: {phrase.english}"),
-        Silence(pause_ms(word_count(phrase.text))),
+        answer(phrase.text),
         Say(learner, phrase.text),
         Silence(AFTER_NATIVE_MS),
     ]
@@ -371,7 +379,7 @@ def _teach(phrase: Phrase, learner: Learner) -> list[Step]:
     for chunk in build_up(phrase):
         steps += [
             Say(learner, chunk, slow=True),
-            Silence(pause_ms(word_count(chunk))),
+            answer(chunk),
         ]
     return steps
 
@@ -399,7 +407,7 @@ def _role_play(lines: tuple[Line, ...], learner: Learner) -> list[Step]:
         else:
             steps += [
                 Say("narrator", f"You say: {line.english}"),
-                Silence(pause_ms(word_count(line.text))),
+                answer(line.text),
                 Say(learner, line.text),
                 Silence(AFTER_NATIVE_MS),
             ]

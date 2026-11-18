@@ -254,7 +254,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
                                       state: making | ready | failed, stage: writing | recording |
                                       joining (while making), error, duration_ms,
-                                      created_at, phrases, dialogue}]}, newest first
+                                      created_at, phrases, dialogue, pauses: [[start, end]]
+                                      ms where the learner speaks, or null until found in an older
+                                      lesson (found in the background)}]}, newest first
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three

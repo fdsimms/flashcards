@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
@@ -530,6 +530,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "stage" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
         # Where a lesson being made has got to (LessonStage); a lesson already kept is past it.
         conn.execute("ALTER TABLE lessons ADD COLUMN stage TEXT NOT NULL DEFAULT 'writing'")
+    if "pauses" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # Where the learner speaks in a lesson's MP3 (lesson_audio.Pause), as JSON; NULL for a lesson
+        # made before they were kept, until lesson_service.find_old_pauses has listened for them.
+        conn.execute("ALTER TABLE lessons ADD COLUMN pauses TEXT")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -2637,10 +2641,29 @@ class StoredLesson:
     duration_ms: int
     created_at: datetime
     stage: LessonStage
+    # Where the learner speaks, (start, end) in milliseconds; None until known (a lesson made before
+    # they were kept, not yet listened to).
+    pauses: list[tuple[int, int]] | None = None
+
+
+def _pauses(raw: str | None) -> list[tuple[int, int]] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return [
+        (int(p[0]), int(p[1]))
+        for p in parsed
+        if isinstance(p, list) and len(p) == 2 and all(isinstance(n, int) for n in p)
+    ]
 
 
 def _lesson(row: tuple[Any, ...]) -> StoredLesson:
-    id_, language, scene, title, plan, state, error, duration_ms, created_at, stage = row
+    id_, language, scene, title, plan, state, error, duration_ms, created_at, stage, pauses = row
     try:
         parsed = json.loads(plan)
     except ValueError:
@@ -2656,10 +2679,13 @@ def _lesson(row: tuple[Any, ...]) -> StoredLesson:
         duration_ms,
         datetime.fromisoformat(created_at),
         stage,
+        _pauses(pauses),
     )
 
 
-_LESSON_COLUMNS = "id, language, scene, title, plan, state, error, duration_ms, created_at, stage"
+_LESSON_COLUMNS = (
+    "id, language, scene, title, plan, state, error, duration_ms, created_at, stage, pauses"
+)
 
 
 def add_lesson(conn: sqlite3.Connection, language: Code, scene: str, now: datetime) -> int:
@@ -2682,13 +2708,35 @@ def set_lesson_stage(conn: sqlite3.Connection, lesson_id: int, stage: LessonStag
 
 
 def finish_lesson(
-    conn: sqlite3.Connection, lesson_id: int, title: str, plan: dict[str, Any], duration_ms: int
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    title: str,
+    plan: dict[str, Any],
+    duration_ms: int,
+    pauses: Sequence[tuple[int, int]] = (),
 ) -> None:
     with conn:
         conn.execute(
-            "UPDATE lessons SET state = 'ready', title = ?, plan = ?, duration_ms = ?, error = ''"
-            " WHERE id = ?",
-            (title, json.dumps(plan, ensure_ascii=False), duration_ms, lesson_id),
+            "UPDATE lessons SET state = 'ready', title = ?, plan = ?, duration_ms = ?, error = '',"
+            " pauses = ? WHERE id = ?",
+            (
+                title,
+                json.dumps(plan, ensure_ascii=False),
+                duration_ms,
+                json.dumps([list(p) for p in pauses]),
+                lesson_id,
+            ),
+        )
+
+
+def set_lesson_pauses(
+    conn: sqlite3.Connection, lesson_id: int, pauses: Sequence[tuple[int, int]]
+) -> None:
+    """Keeps the pauses found in a lesson made before they were kept."""
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET pauses = ? WHERE id = ? AND pauses IS NULL",
+            (json.dumps([list(p) for p in pauses]), lesson_id),
         )
 
 
