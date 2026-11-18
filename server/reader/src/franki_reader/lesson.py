@@ -12,7 +12,8 @@ exact and the same every time:
    part to the whole (backward build-up), the learner repeating each step in a silence.
 3. Each phrase is then asked for in English, after a silence, and answered by the native voice.
 4. Earlier phrases come back at widening gaps (`RECALL_GAPS`: after 1, then 3, then 6 more phrases
-   have been taught), each asked in English with a silence to answer.
+   have been taught), each asked in English with a silence to answer. A recall the phrases run
+   out before reaching is dropped, not made up in a closing pass.
 5. A few new sentences, never taught whole, are asked for in English: built only from words the
    phrases already used, so the learner puts the pieces together (`Plan.mixes`).
 6. The learner then takes speaker A's part in the dialogue (the narrator says whether that is the
@@ -466,9 +467,8 @@ def build_script(plan: Plan, learner: Learner = "male") -> list[Step]:
             s for index, at in due if at == taught for s in _ask(plan.phrases[index], learner)
         ]
         due = [d for d in due if d[1] > taught]
-    # What the gaps didn't reach before the phrases ran out: each of those phrases once more, in order.
-    for index in sorted({i for i, _ in due}):
-        steps += _ask(plan.phrases[index], learner)
+    # Recalls the phrases ran out before reaching are dropped: the mixes and the role-play bring
+    # the phrases back, and a closing pass was only the same question asked once more.
     if plan.mixes:
         steps.append(
             Say(

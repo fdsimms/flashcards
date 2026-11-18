@@ -390,7 +390,7 @@ class TestBuildScript:
             for s in steps
             if isinstance(s, Say) and s.text.startswith("How do you say")
         ]
-        # Each phrase when taught, then after 1 and 3 more have been taught, then the rest at the end.
+        # Each phrase when taught, then after 1 and 3 more have been taught, and nothing after.
         assert asks == [
             "I'd like a coffee.",
             "Please.",
@@ -400,10 +400,6 @@ class TestBuildScript:
             "A jug of water.",
             "I'd like a coffee.",  # three phrases on
             "The check, please.",  # one phrase on
-            "I'd like a coffee.",  # what the gaps didn't reach, in order
-            "Please.",
-            "The check, please.",
-            "A jug of water.",
         ]
 
     def test_a_recall_never_comes_before_the_phrase_is_taught(self) -> None:
@@ -421,12 +417,14 @@ class TestBuildScript:
         assert len(means) == len(PLAN.phrases)
         assert len(set(means)) == len(means)
 
-    def test_a_short_lesson_still_ends_with_every_phrase_recalled(self) -> None:
+    def test_a_short_lesson_adds_no_closing_pass_for_recalls_it_never_reached(self) -> None:
         small = Plan("T", "s", PLAN.dialogue, PLAN.phrases[:3])
         steps = lesson.build_script(small)
         asks = [s.text for s in steps if isinstance(s, Say) and s.text.startswith("How do you say")]
-        for p in small.phrases:
-            assert asks.count(f"How do you say: {p.english}") >= 2
+        # Each phrase is asked when taught, and the gaps (1, 3, 6 more taught) bring back only the
+        # first two once; the third has no later phrase to recall it after.
+        counts = [asks.count(f"How do you say: {p.english}") for p in small.phrases]
+        assert counts == [2, 2, 1]
 
 
 class TestClips:

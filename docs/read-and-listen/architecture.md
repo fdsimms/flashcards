@@ -394,7 +394,7 @@ aloud is never heard by the phone.
   the dialogue is played once; each phrase is said, its meaning given, built up from its last part
   to the whole (backward build-up) with a silence after each step to repeat, then asked for in
   English with a silence to answer; earlier phrases are asked again after 1, then 3 more phrases
-  are taught, and once more at the end. Five phrases make about four to five minutes.
+  are taught (a recall the phrases run out before reaching is dropped, 18 November 2026, the owner: the closing pass felt like the same question over and over). Five phrases make about four to five minutes.
 - **The lesson builds on itself** (16 November 2026, the owner: it felt like five separate phrases).
   The phrases are written as a ladder in the order they come up in the dialogue, each reusing words
   from an earlier one. After the last is taught, up to 3 `mixes` are asked: new sentences made only
