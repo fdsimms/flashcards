@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, skipTo, stageSteps } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, progressOf, scrubTo, skipTo, stageSteps } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -115,5 +115,31 @@ describe('parseParticle', () => {
     expect(parseParticle('khrap')).toBe('khrap');
     expect(parseParticle(null)).toBe('khrap');
     expect(parseParticle('x')).toBe('khrap');
+  });
+});
+
+describe('progressOf', () => {
+  it('is how far in, kept between 0 and 1', () => {
+    expect(progressOf(30, 120)).toBe(0.25);
+    expect(progressOf(130, 120)).toBe(1);
+    expect(progressOf(-5, 120)).toBe(0);
+  });
+  it('is 0 while the length is unknown', () => {
+    expect(progressOf(30, 0)).toBe(0);
+  });
+});
+
+describe('scrubTo', () => {
+  it('maps a finger position on the line to a position in the lesson', () => {
+    expect(scrubTo(50, 200, 120)).toBe(30);
+    expect(scrubTo(0, 200, 120)).toBe(0);
+  });
+  it('stays inside the lesson when the finger leaves either end of the line', () => {
+    expect(scrubTo(-40, 200, 120)).toBe(0);
+    expect(scrubTo(500, 200, 120)).toBe(120);
+  });
+  it('is 0 before the line has a width or the lesson a length', () => {
+    expect(scrubTo(50, 0, 120)).toBe(0);
+    expect(scrubTo(50, 200, 0)).toBe(0);
   });
 });
