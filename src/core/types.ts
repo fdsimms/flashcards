@@ -303,7 +303,7 @@ export interface DeckSettings {
   offerSooner?: boolean;
   /** Tagged cards first (`prioritySettings`): the switch. Set on a subdeck, it overrides the deck above. */
   priorityFirst?: boolean;
-  /** The tag whose notes' new cards come first. */
+  /** The tags whose notes' new cards come first, separated by spaces as Anki writes them (one tag is all an older version saved). */
   priorityTag?: string;
   /** Days after Franki first saw the tag on a note that its new cards still come first (default 14). */
   priorityDays?: number;
