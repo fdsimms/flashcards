@@ -111,8 +111,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       const records = await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, records, counted: false }]);
-      // The right form, heard once after a miss; nothing when the note's language isn't known.
-      if (verdict !== 'right' && prompt.say) { Speech.stop(); speech.sayWord(prompt.say.text, prompt.say.lang); }
+      // The right form, heard once after every answer; nothing when the note's language isn't known.
+      if (prompt.say) { Speech.stop(); speech.sayWord(prompt.say.text, prompt.say.lang); }
       // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
       answeredIndex.current = index;
     } catch (e) {

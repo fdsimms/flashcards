@@ -519,7 +519,7 @@ export interface FormPrompt {
   /** Every form key it stands for, when it's several asked as one (`mergeSentencePrompts`); else only `key`. */
   keys?: string[];
   /**
-   * The right answer read aloud after a miss, with the phone's voice for the note's language. Absent
+   * The right answer read aloud after every answer, with the phone's voice for the note's language. Absent
    * when the language isn't known, or for a gender asked as a word ("feminine"), which isn't in it.
    */
   say?: { text: string; lang: string };
