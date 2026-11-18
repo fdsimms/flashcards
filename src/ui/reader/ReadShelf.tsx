@@ -40,7 +40,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onLanguagePage, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onLanguagePage, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
@@ -53,6 +53,8 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onPractice: (topic: { id: number; name: string }) => void;
   /** Opens having a series, dialogue or story written. */
   onNew: () => void;
+  /** Opens having a series written, past the choice of kind. */
+  onNewSeries: () => void;
   onLanguagePage: () => void;
   /** Every text read before, from the Reread row's See all. */
   onPast: () => void;
@@ -270,7 +272,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             <View style={{ paddingHorizontal: space.l }}>
               <ReadReviewFirst language={shelf.language} onReview={onReview} />
             </View>
-            <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNew} offline={!!problem} />
+            <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNewSeries} offline={!!problem} />
 
             {others.length > 0 ? (
               <CoverRow title="Your series" action={{ label: 'See all', accessibilityLabel: 'See all series', onPress: onStories }}>
@@ -429,7 +431,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       <View style={{ marginHorizontal: space.l, padding: space.l, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.m }}>
         <Text style={{ ...type.overline, color: c.accentInk }}>Series</Text>
         <Text style={{ fontSize: 28, fontWeight: '800', color: c.text }}>Start a series</Text>
-        <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back.</Help>
+        <Help>A story told in episodes. Each one picks up where the last ended, with the same people and places, and is written from the words in your deck.</Help>
         <Button label="Start a series" onPress={onNew} />
       </View>
     );

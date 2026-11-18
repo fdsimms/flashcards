@@ -4,7 +4,7 @@ through `GET /api/status` (docs/read-and-listen/architecture.md, Status).
 Every count is Anki's own (`deck_due_tree`, the numbers Anki's deck list shows, each deck's daily
 review limit included), so this never predicts Anki's queue with a lookalike of it. New cards are
 left out on purpose: Franki's progress gate (`DeckSettings.gateCap`) is Franki's own and Anki
-doesn't know it, so Anki's new count can differ from the one Franki's deck list shows. Reviews and
+keeps it without applying it, so Anki's new count can differ from the one Franki's deck list shows. Reviews and
 learning cards are counted the same way by both.
 
 Anki decides which study day it is from the process's time zone (the `TZ` setting in server/.env),

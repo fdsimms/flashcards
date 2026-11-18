@@ -5318,6 +5318,28 @@
         ],
         "title": "FrankiCountsIn"
       },
+      "GivenIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "GivenIn"
+      },
       "GlossSentence": {
         "properties": {
           "text": {
@@ -5516,6 +5538,21 @@
               }
             ],
             "title": "Particle"
+          },
+          "phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GivenIn"
+                },
+                "type": "array",
+                "maxItems": 15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phrases"
           }
         },
         "type": "object",
