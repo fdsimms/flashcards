@@ -264,6 +264,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
 
   if (kind === 'reverse') {
     pushIf(front, meaning, undefined, true);
+    pushIf(front, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);

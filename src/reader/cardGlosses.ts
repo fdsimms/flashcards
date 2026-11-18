@@ -4,7 +4,7 @@
 // for as long as the app runs. Only reads: nothing here grades or writes a card. Pure, so it's tested;
 // ui/useCardGlosses.ts asks the server and ui/CardSentence.tsx draws the words.
 import { cardHomeDeck } from '../core/deckTree';
-import { firstExample } from '../core/examples';
+import { examplesOf } from '../core/examples';
 import type { Segment } from '../core/highlight';
 import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
@@ -43,15 +43,17 @@ export function glossRequests(
   for (const card of cards) {
     const note = notes.get(card.noteId);
     if (!note) continue;
-    const example = firstExample(note);
-    const text = htmlToText(example.context);
-    if (!text) continue;
     const language = cardLanguage(card, note, decks);
-    if (!language || seen.has(glossKey(language, text))) continue;
-    seen.add(glossKey(language, text));
-    const request = out.get(language) ?? { language, sentences: [] };
-    out.set(language, request);
-    if (request.sentences.length < MAX_SENTENCES) request.sentences.push({ text, english: htmlToText(example.translation) });
+    if (!language) continue;
+    // Each of a note's examples (examples.ts) is a sentence of its own, as its box on the card shows it.
+    for (const example of examplesOf(note)) {
+      const text = htmlToText(example.context);
+      if (!text || seen.has(glossKey(language, text))) continue;
+      seen.add(glossKey(language, text));
+      const request = out.get(language) ?? { language, sentences: [] };
+      out.set(language, request);
+      if (request.sentences.length < MAX_SENTENCES) request.sentences.push({ text, english: htmlToText(example.translation) });
+    }
   }
   return [...out.values()];
 }

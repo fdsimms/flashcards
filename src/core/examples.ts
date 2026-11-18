@@ -37,11 +37,3 @@ export function examplesOf(note: Note): Example[] {
     .filter((e) => htmlToText(e.context));
   return each.length ? each : [whole];
 }
-
-/**
- * The example everything that asks about "the sentence" uses: the first. Card glosses are fetched
- * for one sentence and the forms drill blanks one, so a note's other examples are left to the card.
- */
-export function firstExample(note: Note): Example {
-  return examplesOf(note)[0];
-}

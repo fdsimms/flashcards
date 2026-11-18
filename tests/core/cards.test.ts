@@ -270,6 +270,10 @@ describe('cards', () => {
       expect(back[at - 1]?.text).toBe('experience');
     }
     expect(renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks.some((b) => b.role === 'sense')).toBe(false);
+    // The reverse card's prompt is the meaning, so the sense goes with it there, not on its answer.
+    const reverse = renderCard(omniNote({ Meaning: 'experience', Sense: 'a skill, or something lived through', GenerateReverse: 'y' }), 'reverse');
+    expect(reverse.front.blocks.map((b) => b.role)).toEqual([undefined, 'sense']);
+    expect(reverse.back.blocks.some((b) => b.role === 'sense')).toBe(false);
   });
   it('renders one example box per line of Context when ContextLabels is set, each with its own romanization, translation and tag', () => {
     const note = omniNote({

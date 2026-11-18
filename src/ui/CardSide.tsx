@@ -58,14 +58,14 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * are a labeled list, an example sentence's lines sit close together with the word highlighted,
  * and a note, mnemonic, kanji or etymology is set off in a box under its label, laid out like the Example's.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
- * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
+ * With `gloss` (each example sentence's words from Read & Listen's server), an example sentence's words can
  * be tapped for their meanings (CardSentence).
  * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
  * With `furigana` (once the answer shows), a Japanese word is drawn with `wordRuns`, its reading over
  * its kanji, and the sentence's words with theirs; the "Show reading" line goes, as it says the same.
  */
 export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing }: {
-  side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss | null;
+  side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss[] | null;
   speakSentence?: (text: string) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
   speechLang?: string;
@@ -152,7 +152,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     if (b.role === 'example') {
       const plain = hasCyrillic(b.text) ? { fontSize: 19, lineHeight: 28 } : { fontSize: type.title.fontSize, lineHeight: 34 };
       const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.textBody };
-      if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} furigana={furigana} />;
+      const sentenceGloss = gloss?.find((g) => g.words.map((w) => w.text).join('') === b.text);
+      if (sentenceGloss) return <CardSentence key={i} gloss={sentenceGloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
     // The romanization is a small italic pronunciation guide, so it reads differently from the word's transliteration above and from the translation.

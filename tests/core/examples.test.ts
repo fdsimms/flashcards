@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { examplesOf, fieldLines, firstExample } from '../../src/core/examples';
+import { examplesOf, fieldLines } from '../../src/core/examples';
 import { omniNote } from '../support/fixtures';
 
 describe('fieldLines', () => {
@@ -40,9 +40,5 @@ describe('examplesOf', () => {
   });
   it('falls back to the fields as written when ContextLabels is set but Context is empty', () => {
     expect(examplesOf(omniNote({ Context: '', ContextLabels: 'skill' }))).toEqual([{ context: '', romanized: '', translation: '', tag: '' }]);
-  });
-  it('gives the first example for what asks about "the sentence"', () => {
-    const note = omniNote({ Context: 'one<br>two', ContextTranslation: 't1<br>t2', ContextLabels: 'a<br>b' });
-    expect(firstExample(note)).toMatchObject({ context: 'one', translation: 't1' });
   });
 });
