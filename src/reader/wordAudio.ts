@@ -29,6 +29,19 @@ export function recordingIndex(notes: Note[], language: Language): Map<string, s
   return index;
 }
 
+const KANJI = /[㐀-䶿一-鿿々〆]/;
+
+/**
+ * What a phone voice should say in place of a Japanese word that has kanji: its reading (the
+ * gloss's `translit`, or a deck note's KanaReading with alternatives, the first said). A phone voice
+ * reads kanji one at a time (絶対 as ぜつ たい). Undefined says the word as written.
+ */
+export function saidAs(language: Language, word: string, translit?: string | null): string | undefined {
+  if (language !== 'ja' || !KANJI.test(word)) return undefined;
+  const first = (translit ?? '').split(/[/／;；、,，]/).map((p) => p.replace(/\s+/g, '')).find(Boolean);
+  return first || undefined;
+}
+
 /**
  * What to play for a word: the deck's recording (`file`), and the text to speak when it isn't here.
  * A word capitalized to start a sentence ("Casa") takes the recording of its entry ("casa").

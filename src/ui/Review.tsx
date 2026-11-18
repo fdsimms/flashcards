@@ -13,7 +13,7 @@ import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
+import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -50,7 +50,9 @@ import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
+import { useCrams } from './useCrams';
 import { useStudyDay } from './useStudyDay';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
@@ -77,6 +79,7 @@ import { CONFUSED_REASON } from '../core/confusedPairs';
 import { canLinkConfused, ConfusedLinkSheet, ConfusedRow } from './ConfusedLink';
 import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
+import { useFieldEdit } from './useFieldEdit';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
 import { keyboardLanguageForText } from '../core/keyboardLanguage';
@@ -307,6 +310,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
   const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
+  // Running crams: a review of one of their words isn't put off past the cram's day (src/core/cram.ts).
+  const { crams } = useCrams(repo as NoteStore);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const rebuilt = useMemo(() => {
     if (!cards || settle) return null;
@@ -321,6 +326,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
+  // The count the card on screen is in, underlined in the header's counts.
+  const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
   const showing = current ? `${current.id}:${history.length}` : undefined;
@@ -400,7 +407,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       preset: params?.presetId, seed, easyDays: params?.easyDays, buryReviews: !!params?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
-    return { seed, dayStartsAtHour: H, balance };
+    return { seed, dayStartsAtHour: H, balance, capDays: capDays(crams, notes.get(card.noteId), when, H) };
   };
   // What Good would bring the current card back in, counted from `from` (a lookalike) or its last review.
   const goodFrom = (from?: Date) => (current ? previewIntervals(current.sched, now, cardParams, { ...baseContext(current, now), countFrom: from })[3] : '');
@@ -509,6 +516,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
+  const fieldEdit = useFieldEdit(repo, writes, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
 
@@ -1300,9 +1308,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
-          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} />
-          <Count value={queue.fresh.length} label="new" color={c.countNew} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} current={shownCount === 'due'} />
+          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} current={shownCount === 'again'} />
+          <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
@@ -1326,10 +1334,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
@@ -1345,7 +1353,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

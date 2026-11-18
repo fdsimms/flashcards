@@ -18,6 +18,7 @@ import { useTheme } from './theme';
 import { boostFor } from '../core/priority';
 import { applyPriorityStamps } from '../db/priorityStamps';
 import { loadHeld } from './lookalikeHold';
+import { useCramCap } from './useCrams';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useConnection } from './connection';
 import { useReader, type ReaderState } from './useReader';
@@ -159,6 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useStudyReminder(decks, dayStartsAtHour);
   useBackupReminder(repo ?? undefined, decks, dayStartsAtHour);
   useVacationRefresh(refresh);
+  useCramCap(repo, decks);
   const wanikani = useWaniKani(repo, dayStartsAtHour);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);

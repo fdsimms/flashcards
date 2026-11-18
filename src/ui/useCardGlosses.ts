@@ -12,7 +12,7 @@ export type CardGlossing = {
   /** Each language's deck, as Read & Listen's settings name them. */
   decks: Partial<Record<Language, string>>;
   /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   /** Opens the note editor on a word not in the deck; true once it's saved. */
   onAddWord: (word: string, meaning: string, language: Language, pronunciation?: Pronunciation) => Promise<boolean>;
 };

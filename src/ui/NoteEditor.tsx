@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
+import { runningCramTags } from '../core/cram';
 import { untiered } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
@@ -17,6 +18,7 @@ import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
 import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
+import { cramsNow, loadCrams } from './useCrams';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
 const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
@@ -113,7 +115,11 @@ export function NoteEditor(props: {
         const asked = props.target.model;
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
         if (props.target.fields) setFields(props.target.fields);
-        if (props.target.tags?.length) setTags(props.target.tags.join(' '));
+        // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
+        const cs = await props.repo.collectionSettings();
+        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), new Date(), cs.dayStartsAtHour);
+        const startTags = [...new Set([...(props.target.tags ?? []), ...crams])];
+        if (startTags.length) setTags(startTags.join(' '));
       }
       setLoaded(true);
     })().catch((e) => setLoadError(failureText(e, { what: "Couldn't open the note.", next: 'Try again.' })));

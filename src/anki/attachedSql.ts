@@ -1,4 +1,5 @@
 import { STRIP_UNICASE_SQL } from './collection';
+import { PROGRESS_GATES_KEY } from './progressGates';
 import { BURY_CARD_SQL, CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL } from './writeback';
 
 /**
@@ -41,6 +42,8 @@ export const keptSql = (schema = 'anki') => ({
   revlogSince: `SELECT id, cid, ease, lastIvl, time, type FROM ${schema}.revlog WHERE id >= ? ORDER BY id`,
   // Every deck, for the deck list, which shows a deck with no cards too. Read by scanning, so no collation is needed.
   decks: `SELECT id, name FROM ${schema}.decks NOT INDEXED`,
+  // Franki's progress gates (progressGates.ts), a config value Anki keeps without knowing it.
+  gates: `SELECT val FROM ${schema}.config WHERE KEY = '${PROGRESS_GATES_KEY}'`,
   // An answer's "studied today" counts (deckStats.ts). Only `common` and the stamps change, which no index covers.
   deckStats: `SELECT id, name, mtime_secs, usn, common FROM ${schema}.decks NOT INDEXED`,
   deckStatsUpdate: `UPDATE ${schema}.decks SET common = ?, mtime_secs = ?, usn = ? WHERE id = ?`,

@@ -60,6 +60,12 @@ export function Tappable({ style, scaleTo = 0.97, dimTo = 1, restOpacity = 1, on
 }) {
   const down = useRef(new Animated.Value(0)).current;
   const to = (toValue: number) => Animated.spring(down, { toValue, useNativeDriver: true, speed: 60, bounciness: 0 }).start();
+  // restOpacity changes (a button enabling as its field fills) but a native-driven interpolation
+  // is built once, so a range that depends on it kept the first value: a button mounted disabled
+  // stayed dimmed. It's its own Value, set on change, and multiplied in.
+  const restValue = useRef(new Animated.Value(restOpacity)).current;
+  useEffect(() => { restValue.setValue(restOpacity); }, [restValue, restOpacity]);
+  const dim = down.interpolate({ inputRange: [0, 1], outputRange: [1, dimTo] });
   return (
     <AnimatedPressable
       {...rest}
@@ -68,7 +74,7 @@ export function Tappable({ style, scaleTo = 0.97, dimTo = 1, restOpacity = 1, on
       style={[
         style,
         {
-          opacity: down.interpolate({ inputRange: [0, 1], outputRange: [restOpacity, restOpacity * dimTo] }),
+          opacity: Animated.multiply(dim, restValue),
           transform: [{ scale: down.interpolate({ inputRange: [0, 1], outputRange: [1, scaleTo] }) }],
         },
       ]}
@@ -504,10 +510,10 @@ export function Help({ children }: { children: React.ReactNode }) {
 }
 
 /** A count with its label, e.g. "12 due": dimmed when zero so the decks with work stand out. */
-export function Count({ value, label, color }: { value: number; label: string; color: string }) {
+export function Count({ value, label, color, current }: { value: number; label: string; color: string; /** Underlines the count, for the one the card on screen is counted in. */ current?: boolean }) {
   const c = useTheme();
   return (
-    <Text style={{ ...type.subhead, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>
+    <Text style={{ ...type.subhead, color: value ? color : c.textDim, fontVariant: ['tabular-nums'], ...(current ? { textDecorationLine: 'underline' as const, textDecorationColor: value ? color : c.textDim } : null) }}>
       <Text style={{ fontWeight: '700' }}>{value}</Text> {label}
     </Text>
   );

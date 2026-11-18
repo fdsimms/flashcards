@@ -1564,6 +1564,13 @@ export interface components {
             /** New */
             new: number;
         };
+        /** GivenIn */
+        GivenIn: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+        };
         /** GlossSentence */
         GlossSentence: {
             /** Text */
@@ -1630,6 +1637,8 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+            /** Phrases */
+            phrases?: components["schemas"]["GivenIn"][] | null;
         };
         /** MnemonicIn */
         MnemonicIn: {
