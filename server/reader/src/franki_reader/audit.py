@@ -114,6 +114,8 @@ def compact(
                 "english": line.english,
                 "register": line.register,
                 "paragraph": line.paragraph,
+                # Who the model named for each quotation, in order (a story episode's voices).
+                "quotes": list(line.quotes),
                 "unknown": [w["text"] for w in words if w["status"] == "unknown"],
                 "partial": [w["text"] for w in words if w["status"] == "partial"],
             }
@@ -141,6 +143,10 @@ def compact(
                 "about": story.about,
                 "cast": story.cast,
                 "plan": story.plan,
+                "voices": {
+                    name: {"gender": v.gender, "age": v.age, "voice": v.voice, "pitch": v.pitch}
+                    for name, v in story.voices.items()
+                },
             }
             if story
             else None
