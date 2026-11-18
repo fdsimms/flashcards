@@ -10,6 +10,7 @@ import type { StudiedToday } from './useTodaySummary';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, readable, smooth, space, type, useTheme } from './theme';
+import { TodaySkeleton } from './TodaySkeleton';
 import { useHeaderInset } from './useHeaderInset';
 import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
@@ -96,7 +97,7 @@ export function Today(props: {
   loaded?: boolean;
   /**
    * False while the pieces Today is made of (the counts, "Studied today", the extras, grammar due)
-   * are still arriving: a spinner shows, then everything fades in together (useTodayReady), so the
+   * are still arriving: a skeleton of the screen shows (TodaySkeleton), then everything fades in together (useTodayReady), so the
    * screen doesn't shift as each one lands. Undefined shows it at once.
    */
   ready?: boolean;
@@ -151,7 +152,7 @@ export function Today(props: {
       }
     >
       <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
-      {!ready ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
+      {!ready ? <TodaySkeleton /> : (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={readable}
