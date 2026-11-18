@@ -144,7 +144,7 @@ export function deckChipRows(notes: Note[], scope: string | null): DeckChip[][] 
 
 /**
  * Another note of the same type whose first field reads the same, as Anki's duplicate check
- * compares them (as text, case aside). The editor warns; it doesn't refuse.
+ * compares them (as text, case aside). The editor warns as you type; `saveNote` refuses.
  */
 export function duplicateOf(notes: Note[], draft: { id?: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
   const text = (html: string | undefined) => fold(htmlToText(html ?? '').trim());

@@ -282,16 +282,19 @@ export function NoteEditor(props: {
               </View>
             ))}
             <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
-            <RecordAudio
-              recorder={props.recorder ?? null}
-              note={draftNote}
-              settings={voiceSettings}
-              onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
-            />
+            {/* A new note is recorded automatically once it's saved (afterSave), so the button is only for editing one. */}
+            {editing ? (
+              <RecordAudio
+                recorder={props.recorder ?? null}
+                note={draftNote}
+                settings={voiceSettings}
+                onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
+              />
+            ) : null}
           </Card>
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
-              Another {model} note in {untiered(duplicate.deck)} already has this {fieldNames[0]}.
+              Another {model} note in {untiered(duplicate.deck)} already has this {fieldNames[0]}, so this note can't be saved.
             </Text>
           ) : null}
           <Help>

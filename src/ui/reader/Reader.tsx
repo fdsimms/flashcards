@@ -673,6 +673,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   return (
     <Screen
       largeTitle={false}
+      // The player is a panel of its own, so the controls read as separate from the lines above.
+      footerStyle={text && !ended && hasAudio ? {
+        backgroundColor: c.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, ...smooth,
+        borderTopWidth: hairline, borderColor: c.border, paddingTop: space.l,
+        ...lift(c, 'high'), shadowOffset: { width: 0, height: -4 },
+      } : undefined}
       // The swipe back would take the touch from a phrase drag that starts near the left edge or
       // runs left to right. iOS decides whether a touch can be a back swipe when the finger lands,
       // so locking it once the long press has fired (`phraseDrag.dragging`) was too late: it is off

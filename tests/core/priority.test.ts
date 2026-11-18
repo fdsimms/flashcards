@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boostCap, boostFor, noteHasTag, parsePriorityNumber, planPriorityStamps, prioritySettings } from '../../src/core/priority';
+import { boostCap, boostFor, noteHasAnyTag, noteHasTag, parsePriorityNumber, planPriorityStamps, priorityMatchCount, prioritySettings, suggestTags, tagCounts } from '../../src/core/priority';
 import type { DeckSettings, Note } from '../../src/core/types';
 
 const note = (id: string, deck: string, tags: string[]): Note => ({ id, deck, model: 'Basic', fields: {}, tags });
@@ -8,12 +8,12 @@ const on = (extra: DeckSettings = {}): DeckSettings => ({ priorityFirst: true, p
 
 describe('prioritySettings', () => {
   it('is off until switched on, with the defaults', () => {
-    expect(prioritySettings('Thai', new Map())).toMatchObject({ on: false, tag: '', days: 14, percent: 50 });
+    expect(prioritySettings('Thai', new Map())).toMatchObject({ on: false, tags: [], days: 14, percent: 50 });
   });
   it('follows the nearest deck that has its own switch', () => {
     const all = new Map<string, DeckSettings>([['Thai', on()], ['Thai::Food', { priorityFirst: false }]]);
     expect(prioritySettings('Thai::Food::Fruit', all).on).toBe(false);
-    expect(prioritySettings('Thai::Verbs', all)).toMatchObject({ on: true, owner: 'Thai', tag: 'italki' });
+    expect(prioritySettings('Thai::Verbs', all)).toMatchObject({ on: true, owner: 'Thai', tags: ['italki'] });
   });
 });
 
@@ -23,6 +23,40 @@ describe('noteHasTag', () => {
     expect(noteHasTag(note('1', 'Thai', ['italki::nov']), 'italki')).toBe(true);
     expect(noteHasTag(note('1', 'Thai', ['italkis']), 'italki')).toBe(false);
     expect(noteHasTag(note('1', 'Thai', ['italki']), ' ')).toBe(false);
+  });
+});
+
+describe('several tags', () => {
+  it('reads a setting saved as a space-separated list, and a single old tag', () => {
+    expect(prioritySettings('Thai', new Map([['Thai', on({ priorityTag: 'italki  lesson ITALKI' })]])).tags).toEqual(['italki', 'lesson']);
+    expect(prioritySettings('Thai', new Map([['Thai', on()]])).tags).toEqual(['italki']);
+  });
+  it('matches a note with any of them', () => {
+    expect(noteHasAnyTag(note('1', 'Thai', ['lesson']), ['italki', 'lesson'])).toBe(true);
+    expect(noteHasAnyTag(note('1', 'Thai', ['verb']), ['italki', 'lesson'])).toBe(false);
+    expect(noteHasAnyTag(note('1', 'Thai', ['italki']), [])).toBe(false);
+  });
+  it('boosts and stamps notes with either tag', () => {
+    const notes = [note('a', 'Thai', ['italki']), note('b', 'Thai', ['lesson']), note('c', 'Thai', ['verb'])];
+    const settings = new Map([['Thai', on({ priorityTag: 'italki lesson' })]]);
+    expect([...boostFor({ notes, settings, now: NOW })('Thai')!.noteIds].sort()).toEqual(['a', 'b']);
+    expect(Object.keys(planPriorityStamps(notes, settings, NOW).get('Thai')!.priorityStamps!).sort()).toEqual(['a', 'b']);
+  });
+  it('counts the notes in the deck the tags would put first', () => {
+    const notes = [note('a', 'Thai', ['italki']), note('b', 'Thai::Food', ['lesson']), note('c', 'Polski', ['italki']), note('d', 'Thai', [])];
+    expect(priorityMatchCount(notes, 'Thai', ['italki', 'lesson'])).toBe(2);
+    expect(priorityMatchCount(notes, 'Thai', [])).toBe(0);
+  });
+});
+
+describe('suggestTags', () => {
+  const notes = [note('a', 'Thai', ['italki', 'noun']), note('b', 'Thai', ['italki', 'verb']), note('c', 'Thai', ['Noun']), note('d', 'Thai', ['irregular'])];
+  it('lists tags containing the text, most used first, counting each spelling once', () => {
+    expect(suggestTags(tagCounts(notes), 'i', [], 5)).toEqual([{ tag: 'italki', count: 2 }, { tag: 'irregular', count: 1 }]);
+    expect(suggestTags(tagCounts(notes), 'OUN', [], 5)).toEqual([{ tag: 'noun', count: 2 }]);
+  });
+  it('leaves out chosen tags, lists the most used for an empty query, and stops at the limit', () => {
+    expect(suggestTags(tagCounts(notes), '', ['Italki'], 2)).toEqual([{ tag: 'noun', count: 2 }, { tag: 'irregular', count: 1 }]);
   });
 });
 
