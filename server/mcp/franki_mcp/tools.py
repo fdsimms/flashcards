@@ -234,6 +234,8 @@ reaches their devices at their next sync.
 - In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
   ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
   Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
+- In a note's Notes field, give each part of a word's breakdown its meaning ("กลับ (return) + บ้าน
+  (home)"). Never write "already known": say what the part means, or leave it out.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
@@ -256,6 +258,11 @@ reaches their devices at their next sync.
   where a language has them) for Franki's forms practice, from Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
   only when asked, in the same lines, tagged forms-unverified.
+- Pronunciation: fill_pronunciation fills the Pronunciation field (IPA) of Omnilanguage notes that
+  have it empty, from Read & Listen (Wiktionary's tables; Japanese by rule from KanaReading; IPA Claude
+  wrote, tagged ipa-unverified). It needs the field (add_field, after every device is synced) and
+  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree. Turn on
+  the daily fill (set_pronunciation_auto_fill) only once they've checked a batch.
 - New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
   own new-card positions, so every device follows and no schedule changes). It needs Read &
   Listen running. Preview first, show the user the start of the order and how many words had no

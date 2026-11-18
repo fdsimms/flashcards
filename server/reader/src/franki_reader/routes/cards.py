@@ -12,6 +12,7 @@ from franki_reader import (
     conjugation,
     store,
 )
+from franki_reader.ipa import ipa_of_entry
 from franki_reader.languages import Code
 from franki_reader.mnemonics import (
     MnemonicRequest,
@@ -22,6 +23,8 @@ from franki_reader.routes.context import AppContext
 
 MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
 MAX_CONJUGATIONS = 100  # verbs one /api/conjugations call can ask about: fill_forms' most a call
+# Entries one /api/pronunciations call can ask about: fill_pronunciation's most a call.
+MAX_PRONUNCIATIONS = 100
 
 
 class VerbIn(BaseModel):
@@ -32,6 +35,17 @@ class VerbIn(BaseModel):
 
 class ConjugationsIn(BaseModel):
     verbs: list[VerbIn] = Field(max_length=MAX_CONJUGATIONS)
+
+
+class PronunciationIn(BaseModel):
+    language: Code
+    entry: str = Field(min_length=1, max_length=200)
+    # The note's KanaReading (Japanese only), which the IPA is written from; Sudachi's when empty.
+    reading: str = Field(default="", max_length=200)
+
+
+class PronunciationsIn(BaseModel):
+    entries: list[PronunciationIn] = Field(max_length=MAX_PRONUNCIATIONS)
 
 
 class MnemonicIn(BaseModel):
@@ -167,6 +181,17 @@ def router(ctx: AppContext) -> APIRouter:
         """Each Japanese verb's lines for its Forms field (conjugation.form_lines), or None for an
         Entry that isn't a verb in its dictionary form: the MCP's fill_forms asks here."""
         return {"forms": [conjugation.form_lines(v.entry, v.reading) for v in body.verbs]}
+
+    @routes.post("/api/pronunciations", dependencies=authed)
+    def pronunciations(body: PronunciationsIn) -> dict[str, list[dict[str, str] | None]]:
+        """Each entry's IPA and where it's from (ipa.SOURCE_*), or None when there is none to show (a
+        phrase, a word the table lacks): the MCP's fill_pronunciation asks here. Reads only: it never
+        asks Claude for a word's IPA, so it costs nothing, and uses the IPA Claude already wrote for texts."""
+        found: list[dict[str, str] | None] = []
+        for e in body.entries:
+            result = ipa_of_entry(e.entry, e.language, e.reading, engine.ai_ipa(e.language))
+            found.append({"ipa": result[0], "source": result[1]} if result else None)
+        return {"pronunciations": found}
 
     @routes.post("/api/glosses", dependencies=authed)
     async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:
