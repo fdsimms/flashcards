@@ -44,6 +44,7 @@ import { CardFontScope, useFontSettings } from './AppFont';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
 import { CardStateChips } from './CardStateChips';
+import { LanguageCue } from './LanguageCue';
 import { MemoryStrength } from './MemoryStrength';
 import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
@@ -97,7 +98,8 @@ import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
-import { deckTint, leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
+import { leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
+import { useDeckTint } from './useDeckTint';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
 export { CardSurface };
@@ -308,13 +310,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own.
+  const tintOf = useDeckTint();
   const subdecks = useMemo(() => studiedSubdecks((cards ?? []).map((cd) => cardHomeDeck(cd, deckOf.get(cd.noteId) ?? '')), deck), [cards, deckOf, deck]);
   const cardLanguage = useMemo((): CardLanguage | undefined => {
     const sub = current && note ? subdeckOf(cardHomeDeck(current, note.deck), deck) : null;
     if (!sub || subdecks.size < 2) return undefined;
     const { emoji, rest } = leadingEmoji(sub.slice(sub.lastIndexOf('::') + 2));
-    return { emoji, name: rest, wash: c.deckTints[deckTint(sub, c.deckTints.length)] };
-  }, [current, note, deck, subdecks, c.deckTints]);
+    return { emoji, name: rest, wash: tintOf(sub) };
+  }, [current, note, deck, subdecks, tintOf]);
   // The card's own deck decides its FSRS settings, not the deck being studied.
   const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
   // A shaky review card says so on its answer (display only: nothing here reads into the rating or the queue).
@@ -1272,6 +1275,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <LanguageCue kind={current.kind} speechLang={speechLang} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>

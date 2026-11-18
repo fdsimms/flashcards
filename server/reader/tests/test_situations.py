@@ -341,7 +341,7 @@ def test_a_line_can_be_spoken_slowly_as_its_own_clip_made_once(tmp_path: Path) -
 
     assert got["audio"]
     assert app.get(f"/api/situations/audio/{got['audio']}", headers=AUTH).content == b"slow"
-    assert app.spoken == [("รับอะไรดีครับ", "th-TH-PremwadeeNeural@0.8")]  # type: ignore[attr-defined]
+    assert app.spoken == [("รับอะไรดีครับ", "th-TH-PremwadeeNeural@0.65")]  # type: ignore[attr-defined]
     chars = len("รับอะไรดีครับ")
     assert app.get("/api/costs", headers=AUTH).json()["situations"]["audio_chars"] == chars
     # Asked again, it comes from the kept clip: no second recording, no second charge.

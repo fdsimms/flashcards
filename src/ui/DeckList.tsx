@@ -1,7 +1,8 @@
 import { Link, Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
-import { deckTint, leadingEmoji } from '../core/deckBadge';
+import { leadingEmoji } from '../core/deckBadge';
+import { useDeckTint } from './useDeckTint';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
@@ -63,9 +64,9 @@ function Stat({ value, label, color, fill }: { value: number; label: string; col
 
 /** The emoji a deck's name starts with, on a soft tile in the deck's own tint (`deckTint`). */
 function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
-  const c = useTheme();
+  const tintOf = useDeckTint();
   return (
-    <View style={{ width: BADGE, height: BADGE, borderRadius: radius.m, ...smooth, backgroundColor: c.deckTints[deckTint(deck, c.deckTints.length)], alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: BADGE, height: BADGE, borderRadius: radius.m, ...smooth, backgroundColor: tintOf(deck), alignItems: 'center', justifyContent: 'center' }}>
       {/* Not scaled with the text size: it's the deck's mark, and a fixed tile has to hold it. */}
       <Text allowFontScaling={false} style={{ fontSize: 20 }}>{emoji}</Text>
     </View>
