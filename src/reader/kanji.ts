@@ -22,6 +22,6 @@ export function readingsLine(k: WordKanji): string {
 }
 
 /** What a screen reader says for one kanji's row. */
-export function kanjiSpoken(k: WordKanji): string {
-  return [k.char, meaningsLine(k), readingsLine(k)].filter(Boolean).join('. ');
+export function kanjiSpoken(k: WordKanji, waniKaniLevel?: number): string {
+  return [k.char, meaningsLine(k), readingsLine(k), waniKaniLevel ? `WaniKani level ${waniKaniLevel}` : ''].filter(Boolean).join('. ');
 }

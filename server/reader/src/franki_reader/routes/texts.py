@@ -20,6 +20,7 @@ from franki_reader.languages import Code
 from franki_reader.reader import (
     from_wanikani,
     gloss_for,
+    kanji_for,
     lemma_for,
     parts_for,
 )
@@ -235,6 +236,7 @@ def router(ctx: AppContext) -> APIRouter:
                 "status": lexicon.status(w.word),
                 "deck": lexicon.entry_of(w.word) is not None,
                 "wanikani": from_wanikani(w.word, lexicon),
+                "kanji": kanji_for(w.word, lexicon),
                 "times": w.times,
                 "last_marked": instant(w.last_marked),
             }

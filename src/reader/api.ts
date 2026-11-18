@@ -457,6 +457,7 @@ export type MarkedWord = {
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
   wanikani?: boolean; // as Word's
+  kanji?: Word['kanji']; // as Word's
   ipa?: string | null; // as Word's
   ipa_source?: Word['ipa_source']; // as Word's
   times: number;

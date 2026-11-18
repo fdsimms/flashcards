@@ -28,5 +28,6 @@ describe('kanji rows', () => {
   it('speaks a row with its character, meanings and readings', () => {
     expect(kanjiSpoken(cold)).toBe('寒. cold. kun さむ・い · on カン');
     expect(kanjiSpoken({ ...cold, meanings: [], kun: [], on: [] })).toBe('寒');
+    expect(kanjiSpoken(cold, 9)).toBe('寒. cold. kun さむ・い · on カン. WaniKani level 9');
   });
 });
