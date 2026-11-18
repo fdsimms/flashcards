@@ -130,7 +130,9 @@ async def make_lesson(
 
 def _spoken_error(e: Exception) -> str:
     if isinstance(e, TtsFailed):
-        return f"Azure couldn't speak the lesson ({e}). Try again in a moment."
+        # Azure's own sentence says what to do (wait, or choose another voice), so none is added here.
+        reason = str(e).strip()
+        return f"Azure couldn't speak the lesson. {reason}{'' if reason[-1:] in '.!?' else '.'}"
     return str(e)
 
 

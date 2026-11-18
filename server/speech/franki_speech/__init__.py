@@ -44,9 +44,9 @@ SDK_TIMEOUT_SECONDS = 60.0
 # Azure lists some voices with a lowercase locale (en-au-cyanspark:DragonHDOmniLatestNeural).
 LOCALE = re.compile(r"^([a-z]{2,3})-([a-z]{2})-", re.IGNORECASE)
 # A whole voice name: a locale, then the voice, with a colon in a Dragon HD one
-# (en-US-Ada:DragonHDLatestNeural). The app's own check (`parseNarrator`, src/reader/lessons.ts) is
+# (en-US-Ada:DragonHDLatestNeural), and also a dot and hyphens in an MAI one (th-TH-Harper:MAI-Voice-2.1). The app's own check (`parseNarrator`, src/reader/lessons.ts) is
 # tested against the same names (tests/voice-names.json beside this package).
-_VOICE_NAME = re.compile(r"[a-z]{2,3}-[a-z]{2,4}-[a-z0-9:]+", re.IGNORECASE)
+_VOICE_NAME = re.compile(r"[a-z]{2,3}-[a-z]{2,4}-[a-z0-9:.-]+", re.IGNORECASE)
 # A text's language as a locale: a language, an optional script and a region (th-TH, ja-JP, sr-Latn-RS).
 _TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{3})$")
 # Thai has no commas or periods: a space after Thai text (or its ? or !) and before more Thai ends a
@@ -302,11 +302,17 @@ def is_voice_name(voice: str) -> bool:
     return _VOICE_NAME.fullmatch(voice) is not None
 
 
+def not_a_voice(voice: str) -> SpeechError:
+    return SpeechError(
+        f'"{voice}" isn\'t an Azure voice name (like "th-TH-PremwadeeNeural"). Choose a different voice.'
+    )
+
+
 def locale_of(voice: str) -> str:
     """A voice's language, from its name: "th-TH-PremwadeeNeural" speaks th-TH."""
     m = LOCALE.match(voice)
     if not m:
-        raise SpeechError(f'"{voice}" isn\'t an Azure voice name (like "th-TH-PremwadeeNeural").')
+        raise not_a_voice(voice)
     return f"{m.group(1).lower()}-{m.group(2).upper()}"
 
 
@@ -364,7 +370,7 @@ def _voice_element(part: Part, rate: float, language: str | None) -> str:
     voice = part.voice
     # Checked whole, not only its locale: the name goes in an attribute, and a ' in it would end it.
     if not is_voice_name(voice):
-        raise SpeechError(f'"{voice}" isn\'t an Azure voice name (like "th-TH-PremwadeeNeural").')
+        raise not_a_voice(voice)
     locale = locale_of(voice)
     spoken_in = locale
     if language is not None and is_multilingual(voice):
