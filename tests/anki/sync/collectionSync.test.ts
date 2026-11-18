@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SyncClient, type HttpPost } from '../../../src/anki/sync/client';
 import { setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
+import { setAnkiNewMix } from '../../../src/anki/presetWrites';
+import { deckConfigJson } from '../../../src/anki/sync/deckConfigRow';
 import { prepareForUpload, syncCollection } from '../../../src/anki/sync/collectionSync';
 import type { CardEntry, SyncMeta } from '../../../src/anki/sync/protocol';
 import { zstdUnwrap, zstdWrap } from '../../../src/anki/zstd';
@@ -186,12 +188,29 @@ describe('syncing the kept collection', () => {
     expect(await colRow(db)).toEqual(col);
   });
 
-  it('asks for a full sync when the collection has preset or note type changes only an upload can send', async () => {
+  it('asks for a full sync when the collection has note type changes only an upload can send', async () => {
     const db = await collection();
     const col = await colRow(db);
-    await db.run('UPDATE deck_config SET usn = -1');
+    await db.run('UPDATE notetypes SET usn = -1');
     const s = fakeServer(quietRoutes(col));
     expect(await syncCollection(db, s.client, () => NOW)).toMatchObject({ kind: 'fullSyncRequired', reason: 'local' });
+  });
+
+  it("sends a preset changed here in applyChanges with every setting it had, rather than a full sync", async () => {
+    const db = await collection();
+    const id = (await db.first<{ id: number }>('SELECT id FROM deck_config ORDER BY id LIMIT 1'))!.id;
+    const before = await db.first<{ config: Uint8Array }>('SELECT config FROM deck_config WHERE id = ?', id);
+    expect(await setAnkiNewMix(db, id, 1, new Date(NOW - 60_000))).toBe(true);
+    const col = await colRow(db);
+    const s = fakeServer(quietRoutes(col, { 'sync/meta': () => meta({ mod: col.mod - 1000 }, col) }));
+    expect(await syncCollection(db, s.client, () => NOW)).toMatchObject({ kind: 'synced' });
+    const sent = s.calls.find((c) => c.path === 'sync/applyChanges')!.body.changes.decks;
+    expect(sent[1]).toHaveLength(1);
+    expect(sent[1][0]).toMatchObject({ id, newMix: 1, usn: 10, mod: Math.floor((NOW - 60_000) / 1000) });
+    // Only the order changed: the rest of the preset is what it was.
+    const was = deckConfigJson({ id, name: sent[1][0].name, mtime: 0, usn: 0, config: before!.config });
+    expect(sent[1][0]).toEqual({ ...was, newMix: 1, usn: 10, mod: Math.floor((NOW - 60_000) / 1000) });
+    expect((await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM deck_config WHERE usn = -1'))!.n).toBe(0);
   });
 
   it('sends a deck expanded here in applyChanges, as Anki sends a changed deck, rather than a full sync', async () => {

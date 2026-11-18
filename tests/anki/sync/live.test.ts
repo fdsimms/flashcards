@@ -16,12 +16,14 @@ import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
+import { setAnkiNewMix } from '../../../src/anki/presetWrites';
 import { addAnkiDeck, removeAnkiDeck, renameAnkiDeck } from '../../../src/anki/deckEdits';
 import { review } from '../../../src/core/scheduler';
 import type { Card } from '../../../src/core/types';
 import { importAnkiJson } from '../../../src/import/ankiJson';
 import { ANKI_PYTHON, ankiDevice, ankiIntegrity, startAnkiServer, type AnkiServer } from '../../support/ankiServer';
 import { readCollectionRows } from '../../support/ankiRows';
+import { comparable } from '../../support/protoCompare';
 import { nodePost, nodeSyncDb } from '../../support/syncDb';
 import { sqliteWithUnicase, unicaseExtension } from '../../support/unicase';
 
@@ -97,6 +99,8 @@ function franki(server: AnkiServer, collated: boolean) {
     /** Collapses or expands a deck as the deck list does (setAnkiDeckCollapsed), and reads them back. */
     collapse: (name: string, collapsed: boolean) => withDb((db) => setAnkiDeckCollapsed(db, name, collapsed, new Date())),
     collapsed: () => withDb(ankiCollapsedDecks),
+    /** Sets a preset's new card order as Deck options does (setAnkiNewMix). */
+    setNewMix: (preset: number, mix: number) => withDb((db) => setAnkiNewMix(db, preset, mix, new Date())),
     /** Suspends, buries and flags cards as the review menu does (setAnkiCardStates). */
     async setStates(changes: { pick: (c: Card) => boolean; state: { suspended: boolean; buried: boolean; flag: number } }[], now = new Date()) {
       const cards = importAnkiJson(buildExport(await readCollectionRows(kept))).cards;
@@ -322,6 +326,17 @@ for (const collated of [true, false]) {
       const mine = await me.collapsed();
       expect([mine.has('🧠 Trivia'), mine.has('👅 Languages'), mine.has('Default')]).toEqual([false, false, true]);
       await expectSame();
+    });
+
+    it("sends a preset's new card order set in Franki, which Anki then has exactly, with its other options", async () => {
+      const before = (desktop.run('dump').dump as Dump).deck_config.find((r) => r[0] === 1)!;
+      expect(await me.setNewMix(1, 1)).toBe(true);
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      const after = (desktop.run('dump').dump as Dump).deck_config.find((r) => r[0] === 1)!;
+      const was = comparable(before[4] as string);
+      expect(comparable(after[4] as string)).toEqual({ ...was, 30: ['1'] });
     });
 
     it('removes what Anki deleted', async () => {

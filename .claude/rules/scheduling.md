@@ -91,13 +91,15 @@ correct answers instead was tried and dropped: FSRS spaces reviews too fast for 
 row" to track how well a card is known. A gate on a deck above the one
 opened still applies, so the review screen loads every card, not just the opened subtree.
 `DeckSettings` is the app's own and an import never writes it; `DeckParams` is Anki's and every
-import replaces it. A setting the user makes here goes in the first. **The one exception is the gate
+import replaces it. A setting the user makes here goes in the first, with two exceptions. **The gate
 itself**: for a deck the kept collection has, `gateCap` is kept in the collection (one config value,
 `frankiProgressGates`, deck id to cap; `src/anki/progressGates.ts`), so a sync carries it and the
 MCP's `set_progress_gate` can set it. Anki keeps the value but never applies it, as Franki's queue
 does. `listDeckSettings` applies it over the phone's row without the lock, and `saveDeckSettings`
 writes it there under the lock; a deck Anki doesn't have, and a gate saved before this moved, stay
-in the phone's row until the next read moves them.
+in the phone's row until the next read moves them. **The new card order** (Deck options) is the Anki
+preset's own option: `setNewCardOrder` writes it into the kept collection first, as every deck on that
+preset and every device must agree, and sync sends it (`deckConfigJson`).
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
