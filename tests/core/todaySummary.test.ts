@@ -21,12 +21,13 @@ describe('today\'s summary', () => {
     ];
     const s = todaySummary(answers, NOW, H);
     expect(s).toMatchObject({ answered: 3, newCards: 1, takenMs: 240000 });
-    expect(s.text).toBe('Studied today: 3 answers · 4 min (1 per 80 s) · 1 new');
+    expect(s.text).toBe('Studied today: 3 answers · 4 min (0.01/s) · 1 new');
   });
 
-  it('gives the pace as one answer per so many seconds', () => {
-    expect(answerPace(513, 3720000)).toBe('1 per 7 s');
-    expect(answerPace(10, 1000)).toBe('1 per 1 s');
+  it('gives the pace as answers per second', () => {
+    expect(answerPace(513, 3720000)).toBe('0.14/s');
+    expect(answerPace(10, 1000)).toBe('10.00/s');
+    expect(answerPace(1, 3600000)).toBe('<0.01/s');
     expect(answerPace(5, 0)).toBeNull();
     expect(answerPace(0, 0)).toBeNull();
   });
