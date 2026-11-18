@@ -36,7 +36,7 @@ export default function ReadRoute() {
       }}
       onNew={() => router.push('/read-write')}
       onNewSeries={() => router.push({ pathname: '/read-write', params: { kind: 'series' } })}
-      onLanguagePage={() => router.push('/read-language')}
+      onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'read' } })}
       onPast={() => router.push('/read-past')}
       onReadAgain={(text) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text }) } })}
       onStory={(story) => router.push({ pathname: '/read-story', params: { story: String(story) } })}

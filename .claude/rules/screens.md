@@ -38,3 +38,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   swipe, a native control): where a mock can't show the change, describe each one in a line and
   ask before building, and keep one change in feel per PR, so a rejected one doesn't take the rest
   with it. The PR body says `Mock: <shown and picked>` or `Mock: skipped, <why>`.
+
+## Settings
+
+- **Every setting is reachable from Settings and from its own page's gear.** `src/core/settingsPages.ts` lists the pages (one per tab) and one entry per setting, which is what Settings' search reads; `src/ui/SettingsPage.tsx` holds a page's rows, `src/app/settings-page.tsx` (`?page=lessons`) opens it, and each tab's header has the same `gearshape` button pushing it. A setting added to a page or to Settings gets an entry there, and a control that belongs to one tab (Lessons' narrator) lives on that tab's settings page, not on the tab.

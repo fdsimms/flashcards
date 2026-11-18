@@ -1,4 +1,4 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView } from 'react-native';
 import { LANGUAGES } from '../../../reader/languages';
@@ -20,11 +20,18 @@ export default function LessonsRoute() {
   const router = useRouter();
   const { reader } = useApp();
   const narrator = useNarrator();
-  const [particle, setParticle] = useParticle();
+  const [particle] = useParticle();
   const pick = useLessonLanguage(reader.api, reader.setSettings);
   if (!reader.api) return <Redirect href="/read-settings" />;
   const language = reader.settings?.language ?? 'fr';
-  const toolbar = <LessonLanguageMenu language={language} onPick={pick} />;
+  const toolbar = (
+    <>
+      <LessonLanguageMenu language={language} onPick={pick} />
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Lessons settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'lessons' } })} />
+      </Stack.Toolbar>
+    </>
+  );
   if (!lessonsOffered(language)) {
     return (
       <Screen title="Audio lessons" toolbar={toolbar}>
@@ -40,10 +47,7 @@ export default function LessonsRoute() {
       language={language}
       toolbar={toolbar}
       narrator={narrator}
-      defaultNarrator={reader.settings?.voices?.en?.male}
       particle={particle}
-      onNarrator={() => router.push('/read-narrator')}
-      onParticle={setParticle}
       onOpen={(lesson) => router.push({ pathname: '/read-lesson', params: { lesson: JSON.stringify(lesson) } })}
     />
   );
