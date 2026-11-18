@@ -64,13 +64,16 @@ export function meaningOf(word: Pick<Word, 'gloss' | 'parts'>): string {
   return 'No meaning available';
 }
 
+// The popover leaves this line out when the frequency meter already says the word is common.
+export const COMMON_WORD_STATUS = 'A common word';
+
 // For the gloss popover and the marked words list.
 export function wordStatus(word: Pick<Word, 'status' | 'deck' | 'wanikani'>): string {
   if (word.status === 'name') return 'A name';
   if (word.status === 'partial') return 'Only inside a longer phrase in your deck';
   if (word.status === 'unknown') return 'Not in your deck';
   if (word.deck) return 'In your deck';
-  return word.wanikani ? 'Learned in WaniKani' : 'A common word';
+  return word.wanikani ? 'Learned in WaniKani' : COMMON_WORD_STATUS;
 }
 
 /**
