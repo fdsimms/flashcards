@@ -194,7 +194,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   ) : undefined;
 
   return (
-    <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    <View style={{ flex: 1, paddingBottom: picking ? 0 : Math.max(0, keyboard - insets.bottom) }}>
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
