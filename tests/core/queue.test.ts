@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { treeQueue } from '../../src/core/deckTree';
-import { answerCounts, dueCounts, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
+import { answerCounts, countKind, dueCounts, isBuried, isDue, nextCard, nextLearningDue, siblingsToBury, studiedToday } from '../../src/core/queue';
 import { review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -73,6 +73,8 @@ describe('queue', () => {
     const q = oneDeck(cards, { dayStartsAtHour: H, now });
     expect(dueCounts(q)).toEqual({ learning: 2, reviews: 1 });
     expect(q.fresh).toHaveLength(1);
+    // Each card is in the count dueCounts and queue.fresh put it in.
+    expect(cards.slice(0, 4).map(countKind)).toEqual(['due', 'again', 'again', 'new']);
   });
   it('says when the next learning card comes due', () => {
     const [base] = makeCards(omniNote(), NOW);
