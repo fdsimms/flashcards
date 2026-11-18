@@ -17,28 +17,31 @@ export interface LessonWord {
   noteId?: string;
 }
 
-/** A Thai word the server thinks a typed phrase could mean (`POST /api/lessons/words`): Thai script, its reading with tone marks, and its meaning. */
+/** A word the server thinks a typed phrase could mean (`POST /api/lessons/words`): in the language's own writing, with its reading and its meaning. */
 export interface LessonWordCandidate {
   text: string;
+  /** Thai's romanization with tone marks, Russian's and Greek's romanization, Japanese's kana; empty where the spelling shows the sound. */
   reading: string;
   english: string;
 }
 
 /**
- * The languages whose typed words are looked up (server lesson_words.LOOKUP_LANGUAGES). A word typed in
- * romanization would be read by the voice as if it were script, so the learner picks the Thai they mean
- * and that is what the lesson speaks; every other language is typed as the word and its meaning.
+ * The lesson languages not written in Latin letters (server lesson_words.SCRIPTS). Romanization is how a
+ * tutor or a book writes their words down, and the voice would read it as if it were the language's own
+ * writing, so every typed word is looked up and the learner picks the one they mean.
  */
-export const LESSON_LOOKUP_LANGUAGES: readonly Language[] = ['th'];
+export const ROMANIZED_LESSON_LANGUAGES: readonly Language[] = ['th', 'ru', 'el', 'ja'];
 
-export const lessonWordsLookedUp = (language: Language): boolean => LESSON_LOOKUP_LANGUAGES.includes(language);
+/** The line under the add field: what can be typed to find a word. */
+export const lessonWordHint = (language: Language, name: string): string =>
+  ROMANIZED_LESSON_LANGUAGES.includes(language) ? `Romanization, ${name} or English all work.` : `${name} or English both work.`;
 
-/** The lesson word for the candidate the learner picked: its Thai script and its meaning. */
+/** The lesson word for the candidate the learner picked: the word as the language writes it, and its meaning. */
 export const candidateWord = (c: LessonWordCandidate): LessonWord => ({ text: c.text, english: c.english });
 
 /** What the add screen says when nothing real fits what was typed. */
-export const noCandidatesText = (typed: string): string =>
-  `Couldn't find a Thai word for "${typed.replace(/\s+/g, ' ').trim()}". Try another spelling, or type it in Thai script.`;
+export const noCandidatesText = (typed: string, name: string): string =>
+  `Couldn't find a ${name} word for "${typed.replace(/\s+/g, ' ').trim()}". Try another spelling.`;
 
 /** Which of the language's notes the deck picker lists first. */
 export type WordFilter = 'recent' | 'due' | 'lapsed';

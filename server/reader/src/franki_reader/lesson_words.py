@@ -1,11 +1,12 @@
-"""Thai words an audio lesson could mean by what the learner typed, written by Claude when they tap
-Find Thai in Add a phrase.
+"""The words an audio lesson could mean by what the learner typed, written by Claude when they tap
+Find word in Add a phrase.
 
-A tutor's or a book's word is often written in romanization, which the Thai voice would read as if it
-were Thai script. So the learner types what they have (romanization, Thai or English), Claude lists
-the Thai words it could be, and the learner picks the one they mean: the picked Thai script is what
-the lesson speaks. Asked only on that tap, once. Nothing here reads or writes the collection or
-grades a card.
+A tutor's or a book's word is often written in romanization (Thai, Russian, Greek, Japanese), which
+the voice would read as if it were the language's own script, or in English, or spelled by ear. So the
+learner types what they have, Claude lists the words in the language it could be, and the learner
+picks the one they mean: the picked word, in the language's own script, is what the lesson speaks,
+and its meaning comes with it. Asked only on that tap, once. Nothing here reads or writes the
+collection or grades a card.
 """
 
 import json
@@ -19,28 +20,46 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
 
 MAX_TOKENS = 1500
 MAX_CANDIDATES = 5
-# The languages a typed word is looked up in: where romanization is how a word is often written down.
-LOOKUP_LANGUAGES = ("th",)
 
-THAI_LETTER = re.compile("[ก-ฺเ-๎]")
-LATIN_LETTER = re.compile("[A-Za-z]")
+# What a word of each language is written with. A candidate whose text has none of it is dropped, and
+# in a language not written in Latin letters one with a Latin letter is too: that is the romanization
+# handed back as the word.
+SCRIPTS: dict[str, re.Pattern[str]] = {
+    "th": re.compile("[\u0e01-\u0e3a\u0e40-\u0e4e]"),
+    "ru": re.compile("[\u0400-\u04ff]"),
+    "el": re.compile("[\u0370-\u03ff\u1f00-\u1fff]"),
+    "ja": re.compile("[\u3040-\u30ff\u4e00-\u9fff]"),
+}
+LATIN_LETTER = re.compile("[A-Za-z\u00c0-\u024f]")
+ASCII_LETTER = re.compile("[A-Za-z]")
+
+# How a language's `reading` is written, for the ones where a word's spelling doesn't show how it
+# sounds. Left out, the reading is empty.
+READINGS = {
+    "th": "the romanization with tone marks (for example mâi, máai)",
+    "ru": "the romanization with the stressed vowel marked (for example хорошо́ as khoroshó)",
+    "el": "the romanization (for example ευχαριστώ as efcharistó)",
+    "ja": "the reading in hiragana",
+}
 
 SYSTEM = """\
-A learner of Thai typed a word or phrase to be taught in an audio lesson. It may be romanization \
-(any scheme, spelled by ear, tones usually missing), Thai script, or English. List the Thai words or \
-phrases it could be, most likely first, so the learner can pick the one they mean. For each: text, \
-in Thai script only; reading, the romanization with tone marks (for example mâi, máai) that a \
-learner can check the pronunciation against; english, the meaning in a few plain words. Give \
-different words, not spellings of one word. Words that are written differently but sound alike, or \
-differ only in tone, are separate candidates, each with its own meaning. Prefer common everyday \
+A learner of {language} typed a word or phrase to be taught in an audio lesson. It may be in \
+{language} spelled correctly or by ear, romanization (any scheme, tones and accents often missing), \
+or English. List the {language} words or phrases it could be, most likely first, so the learner can \
+pick the one they mean. For each: text, written the way {language} is written (never romanization, \
+never English); reading, {reading}; english, the meaning in a few plain words. Give different \
+words, not spellings of one word. Words that are written differently but sound alike, or differ \
+only in tone or accent, are separate candidates, each with its own meaning. Prefer common everyday \
 words, and never invent a word: when nothing real fits, return no candidates. If the input is \
-already Thai script, return that word first (with its spelling corrected if it was a typo), and add \
-others only when it could mean more than one. Do not add a polite particle (ครับ, ค่ะ) the learner \
-did not type. At most five candidates. Write the english in American English, without em dashes."""
+already a {language} word, return it first (with its spelling corrected if it was a typo), and add \
+others only when it could mean more than one. Do not add or drop a polite ending or article the \
+learner did not type. At most five candidates. Write the english in American English, without em \
+dashes."""
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -82,14 +101,16 @@ class Candidate:
     english: str
 
 
-# The candidates for what was typed, and what asking cost.
-FindWords = Callable[[str], Awaitable[tuple[list[Candidate], Usage]]]
+# The candidates for what was typed in a language, and what asking cost.
+FindWords = Callable[[Code, str], Awaitable[tuple[list[Candidate], Usage]]]
 
 
-def clean(answer: dict[str, Any]) -> list[Candidate]:
-    """The candidates the app may offer: Thai script only in `text` (a Latin letter means Claude
-    handed the romanization back), each word once, each with a meaning, none too long to send as a
-    lesson phrase. One that doesn't pass is dropped, not repaired."""
+def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
+    """The candidates the app may offer: written in the language's own script (a Latin letter in a
+    Thai, Russian, Greek or Japanese one means Claude handed the romanization back), each word once,
+    each with a meaning, none too long to send as a lesson phrase. One that doesn't pass is dropped,
+    not repaired."""
+    script = SCRIPTS.get(language)
     out: list[Candidate] = []
     seen: set[str] = set()
     raw = answer.get("candidates")
@@ -101,7 +122,12 @@ def clean(answer: dict[str, Any]) -> list[Candidate]:
         )
         if not text or not english or len(text) > MAX_CHARS or len(english) > MAX_CHARS:
             continue
-        if not THAI_LETTER.search(text) or LATIN_LETTER.search(text) or text in seen:
+        written = (
+            script.search(text) is not None and ASCII_LETTER.search(text) is None
+            if script
+            else LATIN_LETTER.search(text) is not None
+        )
+        if not written or text in seen:
             continue
         seen.add(text)
         out.append(Candidate(text, reading[:MAX_CHARS], english))
@@ -114,13 +140,17 @@ def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def find(typed: str) -> tuple[list[Candidate], Usage]:
+    async def find(language: Code, typed: str) -> tuple[list[Candidate], Usage]:
+        system = SYSTEM.format(
+            language=LANGUAGES[language].name,
+            reading=READINGS.get(language, "left empty (the spelling already shows the sound)"),
+        )
         messages = [{"role": "user", "content": f"Typed by the learner: {typed}"}]
         try:
             response = await client.beta.messages.create(
                 model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
-                system=SYSTEM,
+                system=system,
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
             )
@@ -138,6 +168,6 @@ def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:
             raise LessonWordsFailed("Claude's answer couldn't be read. Try again.", used) from e
         if not isinstance(answer, dict):
             raise LessonWordsFailed("Claude's answer couldn't be read. Try again.", used)
-        return clean(answer), used
+        return clean(answer, language), used
 
     return find

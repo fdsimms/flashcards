@@ -1002,7 +1002,8 @@ export interface paths {
         put?: never;
         /**
          * Lesson Words Route
-         * @description The Thai words what was typed could mean, for the learner to pick from; writes nothing.
+         * @description The words in the language what was typed could mean, for the learner to pick from; writes
+         *     nothing.
          */
         post: operations["lesson_words_route_api_lessons_words_post"];
         delete?: never;

@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
-import { candidateWord, lessonWordsLookedUp, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
+import { candidateWord, lessonWordHint, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
@@ -15,23 +15,21 @@ import { useLessonWords } from './useLessonWords';
  * this lesson's draft only (useLessonWords) and is never saved as a note. A phrase that can't be added
  * says why under the field that needs changing.
  *
- * Where the language is looked up (Thai), what's typed may be romanization, which the voice would read as
- * if it were script: Find Thai lists the words it could be with their readings and meanings, and the one
- * picked joins the lesson as Thai script. Other languages are typed as the word and its meaning.
+ * What's typed may be romanization, English or a spelling by ear, which the voice would read as if it were
+ * the language's own writing: Find word lists the words it could be with their readings and meanings, and
+ * the one picked joins the lesson as the language's own writing, with its meaning. There is no meaning to type.
  */
 export function LessonWordAdd({ language, findWords }: { language: Language; findWords: (text: string) => Promise<LessonWordCandidate[]> }) {
   const c = useTheme();
   const router = useRouter();
   const { words, add, remove } = useLessonWords(language);
   const [text, setText] = useState('');
-  const [english, setEnglish] = useState('');
   const [problem, setProblem] = useState<string>();
   const [candidates, setCandidates] = useState<LessonWordCandidate[]>();
   const [picked, setPicked] = useState<LessonWordCandidate>();
   const [finding, setFinding] = useState(false);
   // Counts the looks up asked for and the edits since, so an answer for words the field no longer holds is dropped.
   const asked = useRef(0);
-  const lookup = lessonWordsLookedUp(language);
   const name = LANGUAGES[language].name;
   // Only what was typed in here: a word chosen from a deck has a note, and is taken out from the picker.
   const typed = words.filter((w) => !w.noteId);
@@ -55,7 +53,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
       const found = await findWords(text.trim());
       if (asked.current !== mine) return;
       setCandidates(found);
-      if (!found.length) setProblem(noCandidatesText(text));
+      if (!found.length) setProblem(noCandidatesText(text, name));
       else if (found.length === 1) setPicked(found[0]);
     } catch (e) {
       if (asked.current !== mine) return;
@@ -77,61 +75,40 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
     }
   };
 
-  const submit = () => {
-    setProblem(undefined);
-    try {
-      add({ text, english });
-      haptic.tap();
-      setText('');
-      setEnglish('');
-    } catch (e) {
-      setProblem(failureText(e, { next: 'Try again.' }));
-    }
-  };
-
   return (
     <Screen title="Add a phrase" largeTitle={false}>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button accessibilityLabel="Done adding phrases" onPress={() => router.back()}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        {lookup ? (
-          <Card>
-            <Field label="Word or phrase" value={text} onChangeText={edit} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => { if (text.trim() && !finding) void find(); }} />
-            <Help>Romanization, {name} or English all work.</Help>
-            {candidates?.length ? (
-              <View style={{ gap: space.s }}>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>{candidates.length === 1 ? 'Is this the one?' : 'Which one?'}</Text>
-                {candidates.map((cand) => {
-                  const on = picked?.text === cand.text;
-                  return (
-                    <Tappable
-                      key={cand.text}
-                      onPress={() => { haptic.tap(); setPicked(cand); }}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={`${cand.text}, ${cand.reading}, ${cand.english}`}
-                      scaleTo={0.98}
-                      style={{ gap: 2, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
-                    >
-                      <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
-                      <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
-                    </Tappable>
-                  );
-                })}
-              </View>
-            ) : null}
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
-            {picked ? <Button label={`Add ${picked.text}`} onPress={addPicked} /> : <Button label="Find Thai" onPress={() => void find()} busy={finding} disabled={!text.trim()} />}
-          </Card>
-        ) : (
-          <Card>
-            <Field label={name} value={text} onChangeText={setText} autoCapitalize="none" autoCorrect={false} keyboardLanguage={LANGUAGES[language].speech} returnKeyType="next" />
-            <Field label="Meaning" value={english} onChangeText={setEnglish} keyboardLanguage="en-US" error={!!problem} returnKeyType="done" onSubmitEditing={submit} />
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
-            <Button label="Add phrase" onPress={submit} disabled={!text.trim() || !english.trim()} />
-          </Card>
-        )}
+        <Card>
+          <Field label="Word or phrase" value={text} onChangeText={edit} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => { if (text.trim() && !finding) void find(); }} />
+          <Help>{lessonWordHint(language, name)}</Help>
+          {candidates?.length ? (
+            <View style={{ gap: space.s }}>
+              <Text style={{ ...type.subhead, color: c.textSecondary }}>{candidates.length === 1 ? 'Is this the one?' : 'Which one?'}</Text>
+              {candidates.map((cand) => {
+                const on = picked?.text === cand.text;
+                return (
+                  <Tappable
+                    key={cand.text}
+                    onPress={() => { haptic.tap(); setPicked(cand); }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={[cand.text, cand.reading, cand.english].filter(Boolean).join(', ')}
+                    scaleTo={0.98}
+                    style={{ gap: 2, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+                  >
+                    <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
+                  </Tappable>
+                );
+              })}
+            </View>
+          ) : null}
+          {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {picked ? <Button label={`Add ${picked.text}`} onPress={addPicked} /> : <Button label="Find word" onPress={() => void find()} busy={finding} disabled={!text.trim()} />}
+        </Card>
         <Help>Added to this lesson only. It isn't saved to a deck.</Help>
         {typed.length ? (
           <View style={{ gap: space.s }}>

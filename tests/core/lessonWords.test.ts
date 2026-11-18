@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { LESSON_MAX_WORDS } from '../../src/core/cram';
 import { Refusal } from '../../src/core/failure';
-import { addLessonWord, candidateWord, hasLessonWord, lessonWordsLookedUp, noCandidatesText, lessonRequestWords, pickerWords, removeLessonWord, wordKey, type LessonWord } from '../../src/core/lessonWords';
+import { addLessonWord, candidateWord, hasLessonWord, lessonWordHint, noCandidatesText, lessonRequestWords, pickerWords, removeLessonWord, wordKey, type LessonWord } from '../../src/core/lessonWords';
 import type { Card, Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -87,18 +87,18 @@ describe('the words in a draft', () => {
 });
 
 describe('looking up a typed word', () => {
-  it('looks up Thai, where romanization is how a word is written down, and no other language', () => {
-    expect(lessonWordsLookedUp('th')).toBe(true);
-    expect(lessonWordsLookedUp('fr')).toBe(false);
+  it('names romanization where the language is not written in Latin letters', () => {
+    for (const language of ['th', 'ru', 'el', 'ja'] as const) expect(lessonWordHint(language, 'X')).toBe('Romanization, X or English all work.');
+    for (const language of ['fr', 'es', 'de', 'pl', 'nb'] as const) expect(lessonWordHint(language, 'X')).toBe('X or English both work.');
   });
 
-  it('adds the picked candidate as its Thai script and meaning, without the reading', () => {
+  it('adds the picked candidate as the word and its meaning, without the reading', () => {
     const picked = candidateWord({ text: 'ใหม่', reading: 'mài', english: 'new' });
     expect(picked).toEqual({ text: 'ใหม่', english: 'new' });
     expect(lessonRequestWords(addLessonWord([], picked))).toEqual([{ text: 'ใหม่', english: 'new' }]);
   });
 
-  it('says what was typed when nothing fits, and what to try', () => {
-    expect(noCandidatesText('  mai   mai ')).toBe('Couldn\'t find a Thai word for "mai mai". Try another spelling, or type it in Thai script.');
+  it('says what was typed and in which language when nothing fits', () => {
+    expect(noCandidatesText('  mai   mai ', 'Thai')).toBe('Couldn\'t find a Thai word for "mai mai". Try another spelling.');
   });
 });

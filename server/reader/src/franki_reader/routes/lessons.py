@@ -136,10 +136,11 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.post("/api/lessons/words", dependencies=authed)
     async def lesson_words_route(body: WordIn) -> dict[str, Any]:
-        """The Thai words what was typed could mean, for the learner to pick from; writes nothing."""
-        if body.language not in lesson_words.LOOKUP_LANGUAGES:
+        """The words in the language what was typed could mean, for the learner to pick from; writes
+        nothing."""
+        if body.language not in lesson_service.LESSON_LANGUAGES:
             raise HTTPException(
-                422, f"Words aren't looked up in {LANGUAGES[body.language].name} yet."
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
             )
         typed = " ".join(body.text.split())
         if not typed:
@@ -147,7 +148,7 @@ def router(ctx: AppContext) -> APIRouter:
         if find_lesson_words is None:
             raise HTTPException(503, NO_CLAUDE.replace("check your writing", "look up a word"))
         try:
-            candidates, used = await find_lesson_words(typed)
+            candidates, used = await find_lesson_words(body.language, typed)
         except lesson_words.LessonWordsFailed as e:
             keep_failed_cost("lesson_words", body.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".

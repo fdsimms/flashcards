@@ -269,11 +269,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {answer}. Asked only when a question is sent. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature "ask_card"),
                                       not yet in /api/costs
-    POST  /api/lessons/words          {language, text} the Thai words what the learner typed in Add a phrase
-                                      (romanization, Thai or English) could mean, for them to pick one:
-                                      {candidates: [{text (Thai script), reading, english}]}, none when
-                                      nothing real fits. Thai only. It writes nothing; asked only on Find
-                                      Thai. 503 without Claude. Its cost is kept in `call_costs`
+    POST  /api/lessons/words          {language, text} the words in the language what the learner typed in Add a
+                                      phrase (romanization, the language or English) could mean, for
+                                      them to pick one: {candidates: [{text (in the language's own
+                                      script), reading, english}]}, none when nothing real fits. Any
+                                      language lessons are made in. It writes nothing; asked only on Find
+                                      word. 503 without Claude. Its cost is kept in `call_costs`
                                       (feature "lesson_words")
     POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
                                       owner flagged: {changes: {field: new html}, explanation}, only the
