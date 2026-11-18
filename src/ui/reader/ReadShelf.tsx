@@ -4,6 +4,7 @@ import { ActionSheetIOS, ActivityIndicator, RefreshControl, ScrollView, Text, Vi
 import { ApiError, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
 import { bannerLine, bannerOverline, pastMeta, readBefore, seasonProgress, storyCoverMeta } from '../../reader/browse';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
+import { saidAs } from '../../reader/wordAudio';
 import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
 import { ReadListenAgain } from './ReadListenAgain';
@@ -47,7 +48,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   knownLanguage?: Language;
   practice?: { language: Language; count: number; onCancel: () => void };
   /** Says a practice word aloud from its popover. */
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   onOpen: (open: OpenText) => void;
   /** Writes a text on `topicId` practicing the words just studied (the reader waits for it). */
   onPractice: (topic: { id: number; name: string }) => void;
@@ -414,7 +415,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
   api: Api;
   shelf: Shelf;
   saved: SavedState | null;
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   onOpen: (textId: number) => void;
   onStory: (storyId: number) => void;
   onNew: () => void;
@@ -468,7 +469,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
         onGrammarChosen={() => undefined}
         flagged={false}
         onToggleFlag={null}
-        onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language); }}
+        onPlay={() => { if (tapped) onPlayWord(tapped.word.text, shelf.language, saidAs(shelf.language, tapped.word.text, tapped.word.translit)); }}
         onSelectPhrase={null}
         onAddToDeck={null}
         onClose={() => setTapped(null)}

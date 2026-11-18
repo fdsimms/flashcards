@@ -8,6 +8,7 @@ import { ApiError, type Api, type GrammarChoice, type Language, type Length, typ
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
 import { scrollTarget, type Box } from '../../reader/follow';
+import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
 import { COMMON_WORD_STATUS, LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
@@ -144,7 +145,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   /** Adding a selected phrase to the deck through the note editor; missing when there's no deck to add to. */
   mining?: PhraseMining;
   /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
   settings: Settings | null;
   onSettings: (settings: Settings) => void;
@@ -1136,7 +1137,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
           player.pause();
-          onPlayWord(tapped.word.text, text.language);
+          onPlayWord(tapped.word.text, text.language, saidAs(text.language, tapped.word.text, tapped.word.translit));
         }}
         // A word of "Last time" isn't in the text's lines, so there's no phrase to start from it.
         onSelectPhrase={listenOnly || (tapped && text && !locate(text.lines, tapped.word)) ? null : startPhrase}
