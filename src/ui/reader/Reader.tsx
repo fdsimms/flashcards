@@ -17,7 +17,7 @@ import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playba
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
-import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../../reader/phrase';
+import { phraseRange, phrasePart, phraseText, type PhrasePick } from '../../reader/phrase';
 import { choicesView, holdsPlayAll } from '../../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { tapMode, type TapMode } from '../../reader/guess';
@@ -31,7 +31,7 @@ import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { ReadWordTitle } from './ReadWordTitle';
 import { ReadGlossLine } from './ReadWordTips';
-import { PhraseExplanation, PhrasePickBanner, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
+import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { LineDrillCard, ReadLineDrill } from './ReadLineDrill';
@@ -558,12 +558,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
   const tap = (word: Word, x: number, y: number) => {
     if (!session || !text) return;
-    if (phrase && phrase.end === null) {
-      // Choosing the phrase's last word: the tap ends the phrase, not a lookup.
-      const at = locate(text.lines, word);
-      if (at) setPhrase(pickEnd(phrase, at.line, at.index));
-      return;
-    }
     if (quiz.begin(word)) return;
     openWord(word, x, y);
   };
@@ -577,10 +571,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setTapped({ word, x, y, guess: mode });
   };
 
-  // A practice word's pill opens the same popover as the word in the text. Not while a phrase is
-  // being picked, when a tap belongs to the phrase.
+  // A practice word's pill opens the same popover as the word in the text.
   const openPracticeWord = (text_: string, x: number, y: number) => {
-    if (!session || !text || (phrase && phrase.end === null)) return;
+    if (!session || !text) return;
     const word = text.lines.flatMap((l) => l.words).find((w) => w.text === text_);
     if (!word) return;
     openWord(word, x, y);
@@ -589,16 +582,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Holding a word and dragging to the last word of a phrase; held without dragging, it's a tap.
   const phraseDrag = usePhraseDrag({ lines: text?.lines ?? null, setPhrase, onHeld: tap });
 
-  // A word's part in the phrase: where it sits in the selected phrase, whether it's the first word
-  // while the last is being chosen, and whether it's in a line the phrase can't reach.
+  // A word's part in the phrase: where it sits in the selected phrase.
   const phraseLook = (line: number, word: Word, words: Word[]) => {
     const here = phrase?.line === line ? words.indexOf(word) : -1;
-    const picking = !!phrase && phrase.end === null;
-    return {
-      phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null,
-      phraseStart: picking && here === phrase.start,
-      dimmed: picking && phrase.line !== line,
-    };
+    return { phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null };
   };
 
   const toggleLineEnglish = (i: number) => {
@@ -663,7 +650,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Where the finished phrase is on screen, for its popup to open beside. Measured once the phrase is
   // complete and no longer dragged; the popup is a modal, so the text can't scroll under it.
   const [phraseAnchor, setPhraseAnchor] = useState<PhraseAnchor | null>(null);
-  const phraseKey = phrase && phrase.end !== null ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
+  const phraseKey = phrase ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
   useEffect(() => {
     setPhraseAnchor(null);
     const range = phrase && text && !phraseDrag.dragging ? phraseRange(phrase) : null;
@@ -721,9 +708,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       ) : undefined}
       footer={text && !ended ? (
         <>
-          {phrase && phrase.end === null && !listenOnly ? (
-            <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
-          ) : null}
           {hasAudio ? (
             <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat}
@@ -1160,7 +1144,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <ReaderFormQuiz key={quiz.current.key} api={api} language={text?.language ?? 'th'} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
       ) : null}
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
-      {text && phrase && phrase.end !== null && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
+      {text && phrase && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
         <PhraseExplanation
           key={`${phrase.line}:${phraseText(text.lines[phrase.line].words, phrase)}`}
           api={api}
