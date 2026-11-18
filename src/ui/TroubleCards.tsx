@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
-import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason } from '../core/agentFlag';
 import { cardTypeName } from '../core/cardInfo';
-import { failureText } from '../core/failure';
+import { failureText, Refusal } from '../core/failure';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { notePreview } from '../core/noteEditing';
 import { answersFrom, calendarStart, type Answer } from '../core/stats';
@@ -11,7 +11,7 @@ import { RECENT_DAYS, troubleCards, type TroubleMode, type TroubleRow } from '..
 import type { Card, Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { AppRepo, NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { chooseAgentFlagReason } from './agentFlagSheet';
+import { AgentFlagSheet } from './AgentFlagSheet';
 import { haptic } from './haptics';
 import { Chip, Divider, Help, Icon, Loading, Screen, Segments } from './kit';
 import { LeechHintSheet } from './LeechHintSheet';
@@ -43,6 +43,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
   const [scope, setScope] = useState<string | null>(null);
   const [mode, setMode] = useState<TroubleMode>('most');
   const [hintFor, setHintFor] = useState<TroubleRow | null>(null);
+  const [flagFor, setFlagFor] = useState<TroubleRow | null>(null);
   const busy = useRef(false);
   const store = repo as NoteStore;
 
@@ -87,12 +88,20 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
     }
   };
 
-  const flag = (row: TroubleRow) => chooseAgentFlagReason(row.card.flag === AGENT_FLAG, (reason) => act("Couldn't flag this card", async () => {
-    if (!reason) return setState(row.card, (s) => ({ ...s, flag: 0 }));
-    const { note } = row;
-    await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: withFlagReason(note.tags, reason) });
-    await setState(row.card, (s) => ({ ...s, flag: AGENT_FLAG }));
-  }));
+  // The flag for an agent: AgentFlagSheet asks for the reason and note, then this writes the tags and the purple flag.
+  const saveFlag = async (row: TroubleRow, tags: string[] | null) => {
+    if (busy.current) throw new Refusal('Another change is still saving. Try again in a moment.');
+    busy.current = true;
+    try {
+      const { note } = row;
+      if (tags) await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags });
+      await setState(row.card, (s) => ({ ...s, flag: tags ? AGENT_FLAG : 0 }));
+      setFlagFor(null);
+    } finally {
+      busy.current = false;
+      reload();
+    }
+  };
 
   const open = (row: TroubleRow) => {
     const options = [
@@ -105,7 +114,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
       options, cancelButtonIndex: at('Cancel'), destructiveButtonIndex: at('Suspend card'),
     }, (i) => {
       if (i === at('Write a memory hint')) setHintFor(row);
-      if (i === at('Flag for Claude to check')) flag(row);
+      if (i === at('Flag for Claude to check')) setFlagFor(row);
       if (i === at('Edit note')) onEditNote({ noteId: row.note.id }, (result) => { if (result) reload(); });
       if (i === at('Card info')) onCardInfo(row.card.id);
       if (i === at('Suspend card')) act("Couldn't suspend this card", () => setState(row.card, (s) => ({ ...s, suspended: true })));
@@ -137,6 +146,16 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
             haptic.success();
             reload();
           }}
+        />
+      ) : null}
+      {flagFor ? (
+        <AgentFlagSheet
+          word={notePreview(flagFor.note).front}
+          reason={flagFor.card.flag === AGENT_FLAG ? flagReasonOf(flagFor.note.tags) : null}
+          note={flagFor.card.flag === AGENT_FLAG ? flagNoteOf(flagFor.note.tags) : ''}
+          onSave={(reason, text) => saveFlag(flagFor, withFlagReason(flagFor.note.tags, reason, text))}
+          onRemove={flagFor.card.flag === AGENT_FLAG ? () => saveFlag(flagFor, null) : undefined}
+          onClose={() => setFlagFor(null)}
         />
       ) : null}
       <Screen title="Trouble cards">
