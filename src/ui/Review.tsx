@@ -651,6 +651,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               takenMs, desiredRetention, bury: siblings,
               preview: preview ? { again: previewAgainAt } : undefined,
               steps: stepCounts,
+              weights: params?.weights ?? [],
             });
             // The write waits on `lockAnki`. A sync that held it meanwhile read the kept collection,
             // which didn't have this answer yet, back over the rows saved above. Saved again now that

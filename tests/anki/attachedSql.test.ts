@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { deckAndParents, studiedDelta, withStudied } from '../../src/anki/deckStats';
 import { inSchema, keptSql, stripUnicaseIn } from '../../src/anki/attachedSql';
-import { buildExport, COLLECTION_QUERIES, type CollectionRows } from '../../src/anki/collection';
+import { buildExport, queryCollectionRows } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
 import { ankiDayNumber, cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams, type AnkiCardRow } from '../../src/anki/writeback';
 import { review } from '../../src/core/scheduler';
@@ -49,16 +49,12 @@ describe('the app\'s SQL against attached Anki collections', () => {
     db.exec('PRAGMA writable_schema = OFF');
     db.exec('DETACH DATABASE scratch');
     db.prepare('ATTACH DATABASE ? AS scratch').run(scratch);
-    const all = (sql: string) => db.prepare(inSchema(sql, 'scratch')).all() as any[];
-    const rows: CollectionRows = {
-      col: db.prepare(inSchema(COLLECTION_QUERIES.col, 'scratch')).get() as any,
-      notetypes: all(COLLECTION_QUERIES.notetypes), fields: all(COLLECTION_QUERIES.fields), templates: all(COLLECTION_QUERIES.templates),
-      notes: all(COLLECTION_QUERIES.notes), cards: all(COLLECTION_QUERIES.cards), decks: all(COLLECTION_QUERIES.decks),
-      deckConfigs: all(COLLECTION_QUERIES.deckConfigs), lastReviews: all(COLLECTION_QUERIES.lastReviews),
-    };
+    const rows = await queryCollectionRows((sql) => db.prepare(inSchema(sql, 'scratch')).all());
     db.exec('DETACH DATABASE scratch');
     const data = buildExport(rows);
     expect(data.notes).toHaveLength(7);
+    // The collection's own options, from its config table (the fixture's time zone is UTC, offset 0).
+    expect(data.collectionSettings).toMatchObject({ dayStartsAtHour: 4, learnAheadMinutes: 20, creationOffset: 0 });
     const cards = importAnkiJson(data).cards;
 
     // keepAnkiCollection + writeAnkiAnswer: the kept file attached as `anki`, never stripped.

@@ -1,3 +1,5 @@
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport, collectionSettings, readDeckConfig, readDeckKind, readFilteredDeck } from '../../src/anki/collection';
@@ -88,6 +90,30 @@ describe('reading a collection', () => {
     expect(data.noteTypes.map((t) => [t.name, t.kind, t.templates.length]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))).toEqual([
       ['Basic', 'normal', 1], ['Basic (and reversed card)', 'normal', 2], ['Cloze', 'cloze', 1],
     ]);
+  });
+
+  it("reads the options Anki keeps in the collection's config table, not its defaults", async () => {
+    // The fixture as Anki made it: created in UTC, so its creation offset is 0 rather than missing.
+    expect(buildExport(await readCollectionRows(FIXTURE)).collectionSettings.creationOffset).toBe(0);
+
+    // The same collection with each option changed, written as Anki writes a config value (JSON in a blob).
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = mkdtempSync(join(tmpdir(), 'config-'));
+    try {
+      const copy = join(dir, 'collection.anki2');
+      copyFileSync(FIXTURE, copy);
+      const db = new DatabaseSync(copy);
+      const set = db.prepare('INSERT OR REPLACE INTO config (KEY, usn, mtime_secs, val) VALUES (?, -1, 0, ?)');
+      const values = { rollover: 2, collapseTime: 600, creationOffset: 300, newCardsIgnoreReviewLimit: true, applyAllParentLimits: true, loadBalancerEnabled: false };
+      for (const [key, value] of Object.entries(values)) set.run(key, new TextEncoder().encode(JSON.stringify(value)));
+      db.close();
+      expect(buildExport(await readCollectionRows(copy)).collectionSettings).toEqual({
+        dayStartsAtHour: 2, learnAheadMinutes: 10, creationOffset: 300, newCardsIgnoreReviewLimit: true, applyAllParentLimits: true,
+        loadBalancer: false, collectionCreated: 1794369600,
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('keeps when a buried card was buried, and reads it as its ordinary queue', async () => {

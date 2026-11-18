@@ -9,7 +9,7 @@ import {
   cardStateParams, previewAgain, previewReturn, previewRevlogEntry, queueForType, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
-import { review } from '../../src/core/scheduler';
+import { fsrsDecay, review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
@@ -134,6 +134,53 @@ describe('mapping an answer to Anki', () => {
     const later = new Date(now.getTime() + 600_000);
     const after: Card = { ...learning, sched: review(learning.sched, 3, later).sched };
     expect(revlogEntry(learning, after, 3, { id: 2, cid: 7, previousIvl: 0, now: later, takenMs: 3000 })).toMatchObject({ type: 0, lastIvl: -600 });
+  });
+
+  it("writes the weights' decay and rounds desired retention, as Anki's card data does", () => {
+    // get_decay_from_params: the weights' own, FSRS-6's default with none, 0.5 for older weights.
+    const w6 = [...Array(20).fill(1), 0.2468];
+    expect(fsrsDecay(w6)).toBe(0.2468);
+    expect(fsrsDecay([])).toBe(0.1542);
+    expect(fsrsDecay(Array(19).fill(1))).toBe(0.5);
+    const after: Card = { ...card, sched: review(card.sched, 3, now).sched };
+    const data = (ctx: { weights?: number[]; desiredRetention?: number }, current = row()) =>
+      JSON.parse(cardUpdate(after, current, { clock: CLOCK, now, ...ctx }).data!);
+    expect(data({ weights: w6, desiredRetention: 0.875 })).toMatchObject({ decay: 0.247, dr: 0.88 });
+    expect(data({ weights: [] }).decay).toBe(0.154);
+    // Without the weights nothing is made up, and a decay Anki wrote stays.
+    expect(data({})).not.toHaveProperty('decay');
+    expect(data({}, row({ data: '{"pos":12,"decay":0.3}' })).decay).toBe(0.3);
+  });
+
+  it("gives a review Anki's ease change, and a forgotten one its lapse's interval while it relearns", () => {
+    const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, relearnSteps: [10, 30] };
+    const base = review(review(card.sched, 4, now, params).sched, 3, new Date(2026, 11, 20, 20), params).sched;
+    expect(base.state).toBe(2);
+    const reviewed: Card = { ...card, sched: base };
+    const later = new Date(new Date(base.due).getTime() + 86400000);
+    const current = row({ type: 2, queue: 2, ivl: 40, factor: 2500, reps: 2 });
+    const ctx = { clock: CLOCK, now: later, desiredRetention: 0.9, steps: { learn: 2, relearn: 2 }, weights: [] as number[] };
+
+    // Again: the interval its lapse gave it (the scheduler's), and ease 200 down.
+    const lapsed: Card = { ...card, sched: review(base, 1, later, params).sched };
+    expect(lapsed.sched.state).toBe(3);
+    const u = cardUpdate(lapsed, current, { ...ctx, rating: 1 });
+    expect(u.ivl).toBe(lapsed.sched.scheduledDays);
+    expect(u.ivl).toBeLessThan(40);
+    expect(u).toMatchObject({ type: 3, factor: 2300 });
+    expect(cardUpdate(lapsed, { ...current, factor: 1400 }, { ...ctx, rating: 1 }).factor).toBe(1300);
+
+    // Good on a relearning step: the interval and ease it was given stay.
+    const relearning = { ...current, type: 3, queue: 1, ivl: u.ivl, factor: 2300 };
+    const stepped: Card = { ...card, sched: review(lapsed.sched, 3, later, params).sched };
+    expect(stepped.sched.state).toBe(3);
+    expect(cardUpdate(stepped, relearning, { ...ctx, rating: 3 })).toMatchObject({ ivl: u.ivl, factor: 2300 });
+
+    // A review passed: Hard 150 down, Good as it was, Easy 150 up.
+    const passed = (rating: 2 | 3 | 4) => cardUpdate({ ...reviewed, sched: review(base, rating, later, params).sched }, current, { ...ctx, rating }).factor;
+    expect([passed(2), passed(3), passed(4)]).toEqual([2350, 2500, 2650]);
+    // Without the button (an older caller), the ease stays as it was.
+    expect(cardUpdate(lapsed, current, { clock: CLOCK, now: later }).factor).toBe(2500);
   });
 
   it('never reuses a review log id', () => {

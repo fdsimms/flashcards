@@ -196,6 +196,14 @@ export function rawInterval(stability: number, desiredRetention: number, weights
 }
 
 /**
+ * The decay Anki keeps on a card answered under these weights (rslib's `get_decay_from_params`):
+ * the weights' own (FSRS-6's last), FSRS-6's default with none, and 0.5 for FSRS-4.5 or FSRS-5 weights.
+ */
+export function fsrsDecay(weights: number[]): number {
+  return weights.length === 0 ? default_w[20] : weights.length < 21 ? 0.5 : weights[20];
+}
+
+/**
  * Answers a card as Anki's v3 scheduler does with FSRS. FSRS updates the memory state; the deck's
  * learning and relearning steps (its Anki preset's, else Anki's defaults) decide whether the card
  * waits on a step (`stepOutcome`), fuzzed by up to 5 minutes, or a day-long step once it crosses
