@@ -230,8 +230,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
       .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
     pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
     // What helps remember the word itself comes before the example sentence that uses it.
-    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
-    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
+    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic', undefined, undefined, { field: 'Mnemonic' });
+    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note', field: 'Notes' });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
     pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(note.fields.Context, entry) });
