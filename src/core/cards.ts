@@ -226,15 +226,16 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     const rows = FORM_ROWS.filter(([field]) => !(field === 'Classifier' && counting.length))
       .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
     pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
+    // What helps remember the word itself comes before the example sentence that uses it.
+    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
+    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
     pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(note.fields.Context, entry) });
     pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(note.fields.ContextRomanized, translit), tones: isThai });
     pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
     pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
-    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
     pushIf(b, t(note, 'Etymology'), 'Etymology');
-    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
     return b;
   };
 

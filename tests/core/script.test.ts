@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasThai, japaneseFont, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
+import { hasCyrillic, hasThai, japaneseFont, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
 
 describe('hasThai', () => {
   it('finds Thai script', () => {
@@ -11,6 +11,19 @@ describe('hasThai', () => {
     expect(hasThai('wan râek phǒm lǒng thaang')).toBe(false);
     expect(hasThai('Привет')).toBe(false);
     expect(hasThai('')).toBe(false);
+  });
+});
+
+describe('hasCyrillic', () => {
+  it('finds Cyrillic script', () => {
+    expect(hasCyrillic('Пожалуйста, оставляйте вещи')).toBe(true);
+    expect(hasCyrillic('word: вещи')).toBe(true);
+  });
+
+  it('is false for Latin and Thai text', () => {
+    expect(hasCyrillic('Please leave your things')).toBe(false);
+    expect(hasCyrillic('วันแรก')).toBe(false);
+    expect(hasCyrillic('')).toBe(false);
   });
 });
 

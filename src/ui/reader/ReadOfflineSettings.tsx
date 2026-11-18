@@ -24,7 +24,7 @@ export function ReadOfflineSettings() {
     downloadNow();
   };
 
-  const removeAll = () => Alert.alert('Remove everything from this iPhone?', `${usageText(kept)} Quick texts and the pinned story's next episode download again as the setting says, and lessons when you tap Download.`, [
+  const removeAll = () => Alert.alert('Remove everything from this iPhone?', `${usageText(kept)} Texts and the pinned series' next episode download again as the setting says, and lessons when you tap Download.`, [
     { text: 'Cancel', style: 'cancel' },
     { text: 'Remove', style: 'destructive', onPress: () => downloads.clear() },
   ]);
@@ -38,7 +38,7 @@ export function ReadOfflineSettings() {
         onChange={choose}
       />
       <Help>
-        {"Your quick texts and the pinned story's next episode are saved on this iPhone with their audio as soon as they're ready, so you can read and listen with no connection. A text is removed once you've read it. This setting is for those automatic downloads. A lesson you tap Download on asks first when you're on cellular, unless this is set to Any connection."}
+        {"Your texts and the pinned series' next episode are saved on this iPhone with their audio as soon as they're ready, so you can read and listen with no connection. A text is removed once you've read it. This setting is for those automatic downloads. A lesson you tap Download on asks first when you're on cellular, unless this is set to Any connection."}
       </Help>
       <Text style={{ ...type.subhead, color: c.text }}>{usageText(kept)}</Text>
       {any ? <Button label="Remove all from this iPhone" variant="destructive" onPress={removeAll} /> : null}

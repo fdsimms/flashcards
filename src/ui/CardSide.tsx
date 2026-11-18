@@ -3,7 +3,7 @@ import { Text, View, type TextStyle } from 'react-native';
 import { GENDER_WORDS } from '../core/cards';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
-import { DEFAULT_THAI_TEXT_SIZE, hasThai, japaneseFont, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, hasCyrillic, hasThai,japaneseFont, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
 import { toneSpans, type Tone } from '../core/toneColors';
 import type { RenderedSide } from '../core/types';
 import { haptic } from './haptics';
@@ -125,7 +125,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
-      const style = { ...(hasThai(b.text) ? thai : { fontSize: type.title.fontSize, lineHeight: 34 }), ...ja(b.text), color: c.text };
+      const plain = hasCyrillic(b.text) ? { fontSize: 19, lineHeight: 28 } : { fontSize: type.title.fontSize, lineHeight: 34 };
+      const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.text };
       if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }

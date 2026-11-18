@@ -38,6 +38,12 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   const status = useAudioPlayerStatus(player);
   const [current, setCurrent] = useState<number | null>(null);
   const [playingAll, setPlayingAll] = useState(false);
+  // A line has been asked for and hasn't started sounding yet (its audio is loading). With the gap after
+  // a line ends, this is when the player isn't playing but the reader is still going: the play button
+  // keeps showing Pause through it instead of flashing to Play between lines.
+  const [awaitingSound, setAwaitingSound] = useState(false);
+  const sounding = status.playing || awaitingSound || (playingAll && status.didJustFinish);
+  useEffect(() => { if (status.playing) setAwaitingSound(false); }, [status.playing]);
   // The line to shade: the one sounding now. `current` stays set after a pause or the end of a line
   // (Play and the "Line n of m" label need it), so shading it would leave a stopped line lit. Between
   // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
@@ -109,8 +115,15 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     if (!text) return;
     const mine = ++starting.current;
     const key = `${text.id}:${i}`;
+    setAwaitingSound(true);
     // The line fetched while the last one played, when this is it; else loaded now.
-    const audio = (await playerHost.preloader.take(text.id, i, r)) ?? (await lineAudio(api, text.id, i, r, slowTimed[key]));
+    let audio;
+    try {
+      audio = (await playerHost.preloader.take(text.id, i, r)) ?? (await lineAudio(api, text.id, i, r, slowTimed[key]));
+    } catch (e) {
+      if (starting.current === mine) setAwaitingSound(false);
+      throw e;
+    }
     if (starting.current !== mine) return;
     if (audio.times) setSlowTimed((prev) => ({ ...prev, [key]: audio.times! }));
     setPlayedSlow(audio.slow);
@@ -156,8 +169,12 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     if (!text) return;
     self.stop(false);
     self.stopTake();
-    if (status.playing) player.pause();
-    else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {
+    if (sounding) {
+      // Pause, including in the gap between lines: a line still loading is dropped, not started.
+      starting.current++;
+      setAwaitingSound(false);
+      player.pause();
+    } else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {
       player.play();
       onPlay(rate);
     } else {
@@ -182,6 +199,8 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   // A new text: nothing playing and no line chosen.
   const reset = () => {
     player.pause();
+    starting.current++;
+    setAwaitingSound(false);
     playerHost.preloader.clear();
     setCurrent(null);
     setPlayingAll(false);
@@ -201,6 +220,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     if (next !== null) playLine(next, true);
     else {
       setPlayingAll(false);
+      setAwaitingSound(false);
       if (playingAll) onPlayedThrough();
     }
   }, [status.didJustFinish]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a line ending only
@@ -212,11 +232,11 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     onLineHeard(current); // nothing to wait for on a line with no sound
     const next = nextLine(text.lines, current, playingAll);
     if (next !== null) playLine(next, true);
-    else setPlayingAll(false);
+    else { setPlayingAll(false); setAwaitingSound(false); }
   }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a load error only
 
   return {
-    player, status, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken,
+    player, status, sounding, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken,
     playLine, skip, togglePlay, changeRate, cycleRepeat, reset,
   };
 }

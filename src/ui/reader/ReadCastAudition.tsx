@@ -120,7 +120,7 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
           disabled={!listed}
         />
         <Help>
-          {`Tapping a voice plays one line in it at this pitch. Each new voice and pitch is a short Azure recording; one you've heard before plays from the phone. Using a voice changes the ${label.toLowerCase()} for characters given a voice from now on, not ones already in a story.`}
+          {`Tapping a voice plays one line in it at this pitch. Each new voice and pitch is a short Azure recording; one you've heard before plays from the phone. Using a voice changes the ${label.toLowerCase()} for characters given a voice from now on, not ones already in a series.`}
         </Help>
       </ScrollView>
     </Screen>
