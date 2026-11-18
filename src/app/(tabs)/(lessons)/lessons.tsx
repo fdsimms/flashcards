@@ -5,6 +5,7 @@ import { LANGUAGES } from '../../../reader/languages';
 import { lessonsOffered } from '../../../reader/lessons';
 import { useApp } from '../../../ui/AppContext';
 import { Help, Screen } from '../../../ui/kit';
+import { LessonLanguageMenu, useLessonLanguage } from '../../../ui/reader/LessonLanguageMenu';
 import { ReadLessons } from '../../../ui/reader/ReadLessons';
 import { readable, space } from '../../../ui/theme';
 import { useNarrator } from '../../../ui/useNarrator';
@@ -20,13 +21,15 @@ export default function LessonsRoute() {
   const { reader } = useApp();
   const narrator = useNarrator();
   const [particle, setParticle] = useParticle();
+  const pick = useLessonLanguage(reader.api, reader.setSettings);
   if (!reader.api) return <Redirect href="/read-settings" />;
   const language = reader.settings?.language ?? 'fr';
+  const toolbar = <LessonLanguageMenu language={language} onPick={pick} />;
   if (!lessonsOffered(language)) {
     return (
-      <Screen title="Audio lessons">
+      <Screen title="Audio lessons" toolbar={toolbar}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-          <Help>{`Audio lessons aren't made in ${LANGUAGES[language].name}. Switch the language on Read & Listen to one they're made in, and its lessons show here.`}</Help>
+          <Help>{`Audio lessons aren't made in ${LANGUAGES[language].name}. Pick a language they're made in from the flag at the top, and its lessons show here.`}</Help>
         </ScrollView>
       </Screen>
     );
@@ -35,6 +38,7 @@ export default function LessonsRoute() {
     <ReadLessons
       api={reader.api}
       language={language}
+      toolbar={toolbar}
       narrator={narrator}
       defaultNarrator={reader.settings?.voices?.en?.male}
       particle={particle}

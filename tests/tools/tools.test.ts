@@ -3,7 +3,7 @@ import { LANGUAGE_ORDER } from '../../src/reader/languages';
 import { CURRENCIES } from '../../src/tools/money';
 import { FIRST_YEAR, LAST_YEAR } from '../../src/tools/date';
 import { MAX_AGE, MAX_NUMBER, MIN_AGE, NUMBER_KINDS, randomQuestion } from '../../src/tools/number';
-import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS, TOOL_LANGUAGES, toolById, toolLanguage, TOOLS } from '../../src/tools/tools';
+import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS, TOOL_LANGUAGES, toolById, listLanguage, toolLanguage, TOOLS } from '../../src/tools/tools';
 
 describe('the Practice tools', () => {
   it('offers Telling the time in every app language but English, in the app order', () => {
@@ -84,5 +84,11 @@ describe('the Practice tools', () => {
     expect(toolLanguage(tool, 'pl')).toBe('pl');
     expect(toolLanguage(tool, 'ru')).toBe('th');
     expect(toolLanguage(tool, undefined)).toBe('th');
+  });
+
+  it('lists tools in the language last practiced, else the first tool language (never English)', () => {
+    expect(listLanguage('pl')).toBe('pl');
+    expect(listLanguage(undefined)).toBe(TOOL_LANGUAGES[0]);
+    expect(listLanguage('en')).toBe(TOOL_LANGUAGES[0]);
   });
 });

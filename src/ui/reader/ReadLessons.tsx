@@ -16,9 +16,11 @@ import { space, useTheme, readable } from '../theme';
  * being made is asked about every few seconds until it's ready or failed. Opening one plays it
  * (ReadLesson.tsx). Nothing here grades a card or writes a note.
  */
-export function ReadLessons({ api, language, narrator, defaultNarrator, particle, onNarrator, onParticle, onOpen }: {
+export function ReadLessons({ api, language, toolbar, narrator, defaultNarrator, particle, onNarrator, onParticle, onOpen }: {
   api: Api;
   language: Language;
+  /** The header's language menu. */
+  toolbar?: React.ReactNode;
   /** The English voice chosen to narrate, or '' for the server's own. */
   narrator: string;
   /** The server's own English voice, named while none is chosen. */
@@ -91,7 +93,7 @@ export function ReadLessons({ api, language, narrator, defaultNarrator, particle
   };
 
   return (
-    <Screen title="Audio lessons">
+    <Screen title="Audio lessons" toolbar={toolbar}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
