@@ -1272,7 +1272,7 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   reader's settings as `episodeOrder`). With several seasons each folds under its header: the latest
   starts open and earlier ones closed, and what the reader opens or closes is kept per series on the phone. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
-- **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
+- **The language's settings page** (the shelf's gear button) holds what's set once: the deck,
   common words, voices, grammar, practice words, and the progress
   summary (moved off the home screen). The story that used to be here (start a new one, Read from the
   start) was removed on 18 November 2026, by the owner: the + sheet, Stories and the banner do both. The `form` setting is no longer shown: the shelf varies it.
