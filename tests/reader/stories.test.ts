@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PastText, ShelfText, StoryListItem } from '../../src/reader/api';
-import { episodeSections, storyNext, storyPlace } from '../../src/reader/stories';
+import { episodeSections, orderSections, parseSeasonChoices, seasonOpen, seasonsFold, seasonSummary, storyNext, storyPlace } from '../../src/reader/stories';
 
 const episode = (n: number): ShelfText => ({
   id: 10 + n, title: 'Le zoo', topic: 'Night at the Zoo', topic_id: 1, form: 'story', lines: 12,
@@ -51,5 +51,41 @@ describe("a story's page", () => {
   it('keeps every episode in one list from a server older than seasons', () => {
     const sections = episodeSections(story({ season: undefined, season_episode: undefined, season_length: undefined, read: 2 }), [past(1), past(2)]);
     expect(sections.map((s) => s.season)).toEqual([0]);
+  });
+});
+
+describe("a story's seasons", () => {
+  const past = (episode: number): PastText => ({ id: 100 + episode, topic: 'Night at the Zoo', title: `Titre ${episode}`, rating: null, read_at: '2026-11-16T20:00', coverage: 0.95, form: 'story', episode });
+  const two = () => episodeSections(story({ read: 9, season: 2, season_episode: 2, next: episode(10) }), [1, 2, 3, 4, 5, 6, 7, 8, 9].map(past));
+
+  it('puts the newest season and the newest episode first, or leaves them first to last', () => {
+    expect(orderSections(two(), 'newest').map((s) => [s.season, s.rows.map((r) => r.episode)])).toEqual([[2, [10, 9]], [1, [8, 7, 6, 5, 4, 3, 2, 1]]]);
+    expect(orderSections(two(), 'oldest').map((s) => s.season)).toEqual([1, 2]);
+  });
+
+  it('folds seasons only when there are several', () => {
+    expect(seasonsFold(two())).toBe(true);
+    expect(seasonsFold(two().slice(0, 1))).toBe(false);
+    expect(seasonsFold(episodeSections(story({ season: undefined, season_episode: undefined, season_length: undefined, read: 2 }), [past(1), past(2)]))).toBe(false);
+  });
+
+  it('opens the latest season and closes the earlier ones, until the reader chooses', () => {
+    expect(seasonOpen(two(), 2, {})).toBe(true);
+    expect(seasonOpen(two(), 1, {})).toBe(false);
+    expect(seasonOpen(two(), 1, { 1: true })).toBe(true);
+    expect(seasonOpen(two(), 2, { 2: false })).toBe(false);
+  });
+
+  it('summarizes a season by what is read', () => {
+    const [one, twoNd] = two();
+    expect(seasonSummary(one)).toBe('8 episodes read');
+    expect(seasonSummary(twoNd)).toBe('1 of 2 read');
+    expect(seasonSummary({ season: 3, rows: [one.rows[0]] })).toBe('1 episode read');
+  });
+
+  it("reads the reader's choices, ignoring what isn't one", () => {
+    expect(parseSeasonChoices('{"1":true,"2":false,"x":true,"3":"yes"}')).toEqual({ 1: true, 2: false });
+    expect(parseSeasonChoices('nope')).toEqual({});
+    expect(parseSeasonChoices(null)).toEqual({});
   });
 });

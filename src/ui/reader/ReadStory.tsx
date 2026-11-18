@@ -4,13 +4,16 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 import { ApiError, type Api, type Language, type PastText, type StoryListItem } from '../../reader/api';
 import { bannerOverline } from '../../reader/browse';
 import { LANGUAGES } from '../../reader/languages';
-import { episodeSections, storyPlace, type EpisodeRow } from '../../reader/stories';
+import type { EpisodeOrder } from '../../reader/prefs';
+import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
+import { loadSeasonChoices, prefs, savePrefs, saveSeasonChoices } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Help, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
 import { PracticeWordPill } from './PracticeWordPill';
+import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
 
@@ -19,7 +22,7 @@ const POLL_MS = 10_000;
 
 /**
  * One story's page (docs/read-and-listen/architecture.md, Stories, Browse): a banner with its next
- * episode to play, Last time, and its episodes by season, read ones to read again. The ••• in the
+ * episode to play, Last time, and its episodes by season (newest first unless the ••• menu says otherwise, and each season folds), read ones to read again. The ••• in the
  * header pins it to the home's banner, ends it, or continues an ended one.
  */
 export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayWord }: {
@@ -39,6 +42,14 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
   const [refreshing, setRefreshing] = useState(false);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const tint = useCoverTint(`story:${storyId}`);
+  const [order, setOrder] = useState<EpisodeOrder>(() => prefs().episodeOrder);
+  // The seasons the reader opened or closed; the rest follow the default (the latest is open).
+  const [chosen, setChosen] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    let current = true;
+    loadSeasonChoices(storyId).then((saved) => { if (current) setChosen((now) => ({ ...saved, ...now })); });
+    return () => { current = false; };
+  }, [storyId]);
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +87,10 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
     load();
   };
 
+  const chooseOrder = (next: EpisodeOrder) => {
+    setOrder(next);
+    savePrefs({ episodeOrder: next });
+  };
   const name = story ? story.title || 'Your series' : 'Series';
   const end = () => Alert.alert(`End "${name}"?`, 'No more episodes are written. The ones you have stay on this page, and you can continue it later.', [
     { text: 'Cancel', style: 'cancel' },
@@ -92,6 +107,10 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
       toolbar={story ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel={`More for ${name}`}>
+            <Stack.Toolbar.Menu inline title="Episode order">
+              <Stack.Toolbar.MenuAction isOn={order === 'newest'} onPress={() => chooseOrder('newest')}>Newest first</Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction isOn={order === 'oldest'} onPress={() => chooseOrder('oldest')}>Oldest first</Stack.Toolbar.MenuAction>
+            </Stack.Toolbar.Menu>
             {story.running && !story.pinned ? (
               <Stack.Toolbar.MenuAction icon="pin" onPress={() => change(() => api.pinStory(storyId), "Couldn't pin this series. Try again.")}>Pin to the top</Stack.Toolbar.MenuAction>
             ) : null}
@@ -137,14 +156,29 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               onTap={(word, x, y) => { haptic.tap(); setTapped({ word, x, y }); }}
             />
 
-            {episodeSections(story, read).map((section) => (
-              <View key={section.season} style={{ gap: space.s, paddingTop: space.s }}>
-                <SectionTitle>{section.season > 0 ? `Season ${section.season}` : 'Episodes'}</SectionTitle>
-                <Group>
-                  {section.rows.map((row, i) => <EpisodeLine key={row.episode} row={row} first={i === 0} onOpen={onOpen} onReadAgain={onReadAgain} />)}
-                </Group>
-              </View>
-            ))}
+            {(() => {
+              const sections = episodeSections(story, read);
+              const fold = seasonsFold(sections);
+              return orderSections(sections, order).map((section) => {
+                const title = section.season > 0 ? `Season ${section.season}` : 'Episodes';
+                const open = !fold || seasonOpen(sections, section.season, chosen);
+                const toggle = () => {
+                  const next = { ...chosen, [section.season]: !open };
+                  setChosen(next);
+                  saveSeasonChoices(storyId, next);
+                };
+                return (
+                  <View key={section.season} style={{ gap: space.s, paddingTop: space.s }}>
+                    {fold ? <ReadSeasonHeader title={title} summary={seasonSummary(section)} open={open} onToggle={toggle} /> : <SectionTitle>{title}</SectionTitle>}
+                    {open ? (
+                      <Group>
+                        {section.rows.map((row, i) => <EpisodeLine key={row.episode} row={row} first={i === 0} onOpen={onOpen} onReadAgain={onReadAgain} />)}
+                      </Group>
+                    ) : null}
+                  </View>
+                );
+              });
+            })()}
             {story.running ? <Help>Each episode is written once you've read the one before, so a series you leave alone writes nothing more.</Help> : null}
           </>
         ) : null}
