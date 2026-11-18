@@ -17,6 +17,7 @@ from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
 from franki_reader.lesson import Phrase
+from franki_reader.lesson_topics import TopicsFailed, WriteTopics
 from franki_reader.lesson_writer import LessonFailed, WriteGiven, WritePlan
 from franki_reader.tts import Spoken
 
@@ -77,6 +78,7 @@ def lesson_client(
     mp3: bytes = b"",
     writer: WritePlan = write_plan,
     given_writer: WriteGiven | None = None,
+    topics_writer: WriteTopics | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> TestClient:
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
@@ -97,6 +99,7 @@ def lesson_client(
         "open sesame",
         write_lesson=writer if claude else None,
         write_given_lesson=given_writer if claude else None,
+        write_lesson_topics=topics_writer if claude else None,
         lessons_dir=tmp_path / "lessons" if folder else None,
     )
     c = TestClient(app)
@@ -335,3 +338,76 @@ def test_makes_a_lesson_from_given_phrases(tmp_path: Path) -> None:
     row = wait_for(c, made.json()["id"])
     assert row["state"] == "ready", row
     assert [p["text"] for p in row["phrases"]] == ["Un café.", "presque"]
+
+
+TOPICS_USED = Usage(input_tokens=200, output_tokens=60, model="claude-sonnet-5-5")
+
+
+def topics_client(tmp_path: Path, asked: list[Any], answer: Any, **kwargs: Any) -> TestClient:
+    async def write(
+        language: str, words: tuple[str, ...], avoid: tuple[str, ...]
+    ) -> tuple[Any, Usage]:
+        asked.append((language, words, avoid))
+        return answer, TOPICS_USED
+
+    return lesson_client(tmp_path, topics_writer=write, **kwargs)
+
+
+def test_suggests_scenes_and_keeps_what_it_cost(tmp_path: Path) -> None:
+    asked: list[Any] = []
+    conn = store.connect(":memory:")
+    answer = {"topics": ["Ordering a coffee.", " At the market ", "ordering A coffee"]}
+    c = topics_client(tmp_path, asked, answer, conn=conn)
+    r = c.post("/api/lessons/topics", json={"language": "fr"}, headers=AUTH)
+    assert r.status_code == 200
+    assert r.json() == {"topics": ["Ordering a coffee", "At the market"]}
+    assert asked == [("fr", (), ())]
+    rows = conn.execute("SELECT feature, language FROM call_costs").fetchall()
+    assert [tuple(row) for row in rows] == [("lesson_topics", "fr")]
+
+
+def test_sends_the_learners_words_and_what_is_already_taken(tmp_path: Path) -> None:
+    asked: list[Any] = []
+    conn = store.connect(":memory:")
+    store.add_lesson(conn, "fr", "Ordering a coffee", NOW)
+    store.add_lesson(conn, "th", "Taking a taxi", NOW)
+    c = topics_client(tmp_path, asked, {"topics": ["Ordering a coffee", "At the bank"]}, conn=conn)
+    body = {
+        "language": "fr",
+        "phrases": [{"text": "Un café.", "english": "A coffee."}],
+        "shown": ["At the park"],
+    }
+    r = c.post("/api/lessons/topics", json=body, headers=AUTH)
+    assert r.json() == {"topics": ["At the bank"]}
+    assert asked == [("fr", ("Un café. (A coffee.)",), ("At the park", "Ordering a coffee"))]
+
+
+def test_says_when_claude_has_nothing_new(tmp_path: Path) -> None:
+    c = topics_client(tmp_path, [], {"topics": ["", 3]})
+    r = c.post("/api/lessons/topics", json={"language": "fr"}, headers=AUTH)
+    assert r.status_code == 503
+    assert r.json()["detail"] == "Claude had no new ideas. Try again."
+
+
+def test_a_failed_ask_is_shown_and_its_cost_kept(tmp_path: Path) -> None:
+    async def write(
+        language: str, words: tuple[str, ...], avoid: tuple[str, ...]
+    ) -> tuple[Any, Usage]:
+        raise TopicsFailed("Claude's answer couldn't be read. Try again.", TOPICS_USED)
+
+    conn = store.connect(":memory:")
+    c = lesson_client(tmp_path, topics_writer=write, conn=conn)
+    r = c.post("/api/lessons/topics", json={"language": "fr"}, headers=AUTH)
+    assert r.status_code == 503
+    assert r.json()["detail"] == "Claude's answer couldn't be read. Try again."
+    assert conn.execute("SELECT COUNT(*) FROM call_costs").fetchone()[0] == 1
+
+
+def test_topics_need_claude_the_passphrase_and_a_language_with_lessons(tmp_path: Path) -> None:
+    c = topics_client(tmp_path, [], {"topics": ["x"]})
+    assert c.post("/api/lessons/topics", json={"language": "fr"}).status_code == 401
+    assert c.post("/api/lessons/topics", json={"language": "en"}, headers=AUTH).status_code == 422
+    off = lesson_client(tmp_path, claude=False)
+    r = off.post("/api/lessons/topics", json={"language": "fr"}, headers=AUTH)
+    assert r.status_code == 503
+    assert "Claude isn't set up" in r.json()["detail"]

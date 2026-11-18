@@ -991,6 +991,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lesson Topics Route
+         * @description Ideas for a lesson's scene. Never makes a lesson, and only reads which scenes exist.
+         */
+        post: operations["lesson_topics_route_api_lessons_topics_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/audio": {
         parameters: {
             query?: never;
@@ -2026,6 +2046,18 @@ export interface components {
              * @enum {string}
              */
             state: "ready" | "writing" | "failed" | "idle";
+        };
+        /** TopicsIn */
+        TopicsIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Phrases */
+            phrases?: components["schemas"]["GivenIn"][] | null;
+            /** Shown */
+            shown?: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -4194,6 +4226,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lesson_topics_route_api_lessons_topics_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
                     };
                 };
             };

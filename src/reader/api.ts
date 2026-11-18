@@ -625,6 +625,12 @@ export function createApi(
       });
       return ((await response.json()) as { id: number }).id;
     },
+    // Scene ideas for a lesson, written by Claude (server lesson_topics.py): fits the learner's own
+    // `phrases` when they chose some, and never repeats a lesson already made or an idea in `shown`.
+    lessonTopics: async (language: Language, phrases?: { text: string; english: string }[], shown?: string[]) =>
+      (await call<{ topics: string[] }>('POST', '/api/lessons/topics', {
+        language, ...(phrases ? { phrases } : {}), ...(shown?.length ? { shown } : {}),
+      })).topics,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     lessonAudio: (id: number): AudioSource => ({
