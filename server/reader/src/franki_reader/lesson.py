@@ -42,6 +42,10 @@ from franki_reader.coverage import Checker, is_word
 MIN_PHRASES, MAX_PHRASES = 3, 5
 MIN_PARTS, MAX_PARTS = 1, 4
 MAX_DIALOGUE = 6
+# A lesson made from the learner's own words and phrases (a cram in the app, `clean_given_plan`):
+# at most this many, and a dialogue a little longer, to fit more of them.
+MAX_GIVEN = 15
+MAX_GIVEN_DIALOGUE = 10
 # A dialogue line may hold this many words that are neither taught in the lesson nor known to the
 # learner (a name, or the one word the scene needs) before the draft goes back to be written again.
 MAX_UNFAMILIAR_PER_LINE = 2
@@ -204,9 +208,12 @@ def clean_mix(raw: object, known: set[str]) -> Phrase | None:
     return Phrase(text, english, (text,))
 
 
-def clean_plan(raw: object, scene: str) -> Plan | None:
+def clean_plan(
+    raw: object, scene: str, *, require_phrases: bool = True, max_dialogue: int = MAX_DIALOGUE
+) -> Plan | None:
     """The plan Claude wrote, or None when fewer than `MIN_PHRASES` phrases pass `clean_phrase`
-    (a repeated phrase counts once) or the dialogue can't be used."""
+    (a repeated phrase counts once) or the dialogue can't be used. `require_phrases=False` keeps a
+    plan with no phrases, for `clean_given_plan`, which brings its own."""
     if not isinstance(raw, dict):
         return None
     title = raw.get("title")
@@ -227,7 +234,7 @@ def clean_plan(raw: object, scene: str) -> Plan | None:
         if phrase is not None and _plain(phrase.text) not in seen:
             seen.add(_plain(phrase.text))
             phrases.append(phrase)
-    if len(phrases) < MIN_PHRASES or not dialogue:
+    if (require_phrases and len(phrases) < MIN_PHRASES) or not dialogue:
         return None
     phrases = phrases[:MAX_PHRASES]
     known = set().union(*(words_of(p.text) for p in phrases))
@@ -241,10 +248,63 @@ def clean_plan(raw: object, scene: str) -> Plan | None:
     return Plan(
         title=title[:80] or scene[:80],
         scene=scene,
-        dialogue=tuple(dialogue[:MAX_DIALOGUE]),
+        dialogue=tuple(dialogue[:max_dialogue]),
         phrases=tuple(phrases),
         mixes=tuple(mixes[:MAX_MIXES]),
     )
+
+
+def clean_given_plan(raw: object, scene: str, given: tuple[Phrase, ...]) -> Plan | None:
+    """The plan Claude wrote around the learner's own words and phrases (`given`, each one part,
+    with its meaning from their card), or None when its dialogue can't be used. Every given phrase
+    is taught, as the learner has it and with their meaning: in Claude's order and with Claude's
+    parts where it wrote the phrase back exactly (`clean_phrase`, compared without spacing or
+    punctuation), then any it left out or changed, whole, in the order given. Claude's own extra
+    phrases are dropped."""
+    if not isinstance(raw, dict) or not given:
+        return None
+    base = clean_plan(
+        {**raw, "phrases": [], "mixes": []},
+        scene,
+        require_phrases=False,
+        max_dialogue=MAX_GIVEN_DIALOGUE,
+    )
+    if base is None:
+        return None
+    by_plain = {_plain(g.text): g for g in given}
+    phrases: list[Phrase] = []
+    for item in raw.get("phrases", []) if isinstance(raw.get("phrases"), list) else []:
+        phrase = clean_phrase(item)
+        mine = by_plain.pop(_plain(phrase.text), None) if phrase is not None else None
+        if phrase is not None and mine is not None:
+            phrases.append(Phrase(mine.text, mine.english, phrase.parts))
+    phrases += [g for g in given if _plain(g.text) in by_plain]
+    known = set().union(*(words_of(p.text) for p in phrases))
+    taught = {_plain(p.text) for p in phrases}
+    mixes: list[Phrase] = []
+    for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
+        mix = clean_mix(item, known)
+        if mix is not None and _plain(mix.text) not in taught:
+            taught.add(_plain(mix.text))
+            mixes.append(mix)
+    return Plan(
+        title=base.title,
+        scene=scene,
+        dialogue=base.dialogue,
+        phrases=tuple(phrases[:MAX_GIVEN]),
+        mixes=tuple(mixes[:MAX_MIXES]),
+    )
+
+
+def given_phrases(items: list[tuple[str, str]]) -> tuple[Phrase, ...]:
+    """The learner's own words and phrases (text, meaning) as one-part phrases, squashed, each
+    once, empties and anything over `MAX_CHARS` left out, at most `MAX_GIVEN`."""
+    out: dict[str, Phrase] = {}
+    for text, english in items:
+        text, english = _squash(text), _squash(english)
+        if text and english and len(text) <= MAX_CHARS and len(english) <= MAX_CHARS:
+            out.setdefault(_plain(text), Phrase(text, english, (text,)))
+    return tuple(out.values())[:MAX_GIVEN]
 
 
 def unfamiliar_words(plan: Plan, lexicon: Checker) -> list[str]:

@@ -10,7 +10,8 @@ import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/ma
 import { scrollTarget, type Box } from '../../reader/follow';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { wordFrequency } from '../../reader/frequency';
 import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
@@ -906,15 +907,18 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
                 // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
-                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                <View style={{ paddingTop: listenOnly ? 0 : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
                   <Speaker text={text} who={line.speaker} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
-                    {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
-                  </Text>
+                  // As tall as the speaker's mark beside it, with the name centered in that height.
+                  <View style={{ minHeight: line.speaker === 'N' ? undefined : speakerSize(text, line.speaker), justifyContent: 'center', paddingVertical: line.speaker === 'N' ? space.s : 0 }}>
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>
+                      {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
+                    </Text>
+                  </View>
                 ) : (
                   <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {wrapGroups(line.words).map((group, j) => (
@@ -1355,7 +1359,9 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                {wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word) ? null : (
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                )}
                 {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}
               </>
             )}

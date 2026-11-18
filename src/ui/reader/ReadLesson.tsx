@@ -1,11 +1,14 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type AudioLesson } from '../../reader/api';
+import { ApiError, type Api, type AudioLesson, type Word } from '../../reader/api';
+import { glossesOf, glossKey } from '../../reader/cardGlosses';
 import { atEnd, clock, SKIP_SECONDS, skipTo } from '../../reader/lessons';
+import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
+import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 
 // Background playback is on once a lesson plays, so it goes on with the screen locked, and is
@@ -16,9 +19,12 @@ const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: tru
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
  * or forward 15 seconds to hear a phrase again, and the phrases behind a row, hidden until asked
  * for so the lesson can be heard first. The lock screen shows the lesson's controls. What you say
- * aloud isn't recorded or checked.
+ * aloud isn't recorded or checked. Once the phrases show, each is words to tap for their meanings, as a
+ * card's example sentence is (the server's glosses; a phrase it has no answer for stays plain text).
  */
-export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: AudioLesson; onDeleted: () => void }) {
+export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
+  api: Api; lesson: AudioLesson; onDeleted: () => void;
+} & Pick<CardGlossing, 'onPlayWord' | 'onAddWord'>) {
   const c = useTheme();
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
@@ -29,6 +35,24 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
   // up on the way out only then, so leaving a lesson never stops Play all with the phone locked.
   const host = useReaderPlayerHost();
   const playing = useRef(false);
+  // Each phrase's and line's words by `glossKey`, asked for once the phrases are opened.
+  const [glossed, setGlossed] = useState<Map<string, Word[]>>(new Map());
+  useEffect(() => {
+    if (!showPhrases) return;
+    const request = {
+      language: lesson.language,
+      sentences: [...lesson.phrases, ...lesson.dialogue].map((l) => ({ text: l.text, english: l.english })),
+    };
+    let current = true;
+    api.glosses(request.language, request.sentences).then((answer) => {
+      if (current && answer.ready) setGlossed(glossesOf(request, answer.sentences));
+    }, () => undefined);
+    return () => { current = false; };
+  }, [api, lesson, showPhrases]);
+  const glossFor = (text: string): SentenceGloss | null => {
+    const words = glossed.get(glossKey(lesson.language, text));
+    return words ? { api, onPlayWord, onAddWord, language: lesson.language, words } : null;
+  };
 
   useEffect(() => {
     playing.current = false;
@@ -129,12 +153,12 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
           <>
             <Group>
               {lesson.phrases.map((p, i) => (
-                <PhraseRow key={`${p.text}-${i}`} first={i === 0} text={p.text} english={p.english} />
+                <PhraseRow key={`${p.text}-${i}`} first={i === 0} text={p.text} english={p.english} gloss={glossFor(p.text)} />
               ))}
             </Group>
             <Group>
               {lesson.dialogue.map((l, i) => (
-                <PhraseRow key={`${l.text}-${i}`} first={i === 0} text={l.text} english={l.english} speaker={l.speaker} />
+                <PhraseRow key={`${l.text}-${i}`} first={i === 0} text={l.text} english={l.english} speaker={l.speaker} gloss={glossFor(l.text)} />
               ))}
             </Group>
           </>
@@ -147,12 +171,18 @@ export function ReadLesson({ api, lesson, onDeleted }: { api: Api; lesson: Audio
   );
 }
 
-function PhraseRow({ text, english, speaker, first }: { text: string; english: string; speaker?: 'A' | 'B'; first?: boolean }) {
+function PhraseRow({ text, english, speaker, first, gloss }: { text: string; english: string; speaker?: 'A' | 'B'; first?: boolean; gloss: SentenceGloss | null }) {
   const c = useTheme();
+  const look = { ...type.body, color: c.text };
   return (
     <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2 }}>
       {first ? null : <Divider inset={space.l} />}
-      <Text style={{ ...type.body, color: c.text }}>{speaker ? `${speaker}: ${text}` : text}</Text>
+      {gloss ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          {speaker ? <Text style={[look, { paddingBottom: 5 }]}>{`${speaker}: `}</Text> : null}
+          <View style={{ flex: 1 }}><CardSentence gloss={gloss} style={look} /></View>
+        </View>
+      ) : <Text style={look}>{speaker ? `${speaker}: ${text}` : text}</Text>}
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{english}</Text>
     </View>
   );

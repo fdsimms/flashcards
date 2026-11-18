@@ -56,7 +56,7 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * One side of a natively rendered card: the word or question large and centered, the details
  * under it in smaller text with their labels. On the back, the tags are chips, the word's forms
  * are a labeled list, an example sentence's lines sit close together with the word highlighted,
- * and a note is set off in a box.
+ * and a note, mnemonic, kanji or etymology is set off in a box under its label, laid out like the Example's.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
  * be tapped for their meanings (CardSentence).
@@ -137,7 +137,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const line = ({ b, i }: Item) => {
     if (b.role === 'example') {
       const plain = hasCyrillic(b.text) ? { fontSize: 19, lineHeight: 28 } : { fontSize: type.title.fontSize, lineHeight: 34 };
-      const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.text };
+      const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.textBody };
       if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
@@ -258,16 +258,20 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         }
         if (b.role === 'note') {
           return editable(b, (
-            <View key={i} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
+            <View key={i} style={{ gap: space.xs }}>
               {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-              <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{b.text}</Text>
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m }}>
+                <Text style={{ ...type.subhead, color: c.textBody, lineHeight: 21 }}>{b.text}</Text>
+              </View>
             </View>
           ));
         }
+        // A labeled detail (Mnemonic, Kanji or Hanzi, Etymology) is boxed under its label like a note and the example.
+        const boxed = !!b.label && !b.emphasis && !b.icon;
         return editable(b, (
           <View key={i} style={{ gap: space.xs }}>
             {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-            <View style={b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
+            <View style={boxed ? { backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m } : b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis && b.reading && furigana && wordRuns ? (
                 <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
@@ -283,8 +287,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 // as the headline is; a labeled one (Mnemonic) stays left-aligned under its label.
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
-                    ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, ...ja(ln), color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
+                    ? <Text key={k} style={{ ...thai, color: boxed ? c.textBody : c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
+                    : <Text key={k} style={{ ...(boxed ? { ...type.subhead, lineHeight: 21 } : { ...type.body, lineHeight: 24 }), ...ja(ln), color: boxed ? c.textBody : c.textSecondary, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>
