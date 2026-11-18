@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../../reader/api';
 import { ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { ReadKanji } from './ReadKanji';
 import { ReadWordTitle } from './ReadWordTitle';
 import { Button, Card, ErrorNote, Help, Screen } from '../kit';
 import { hairline, space, type, useTheme, readable } from '../theme';
@@ -72,6 +73,7 @@ export function ReadWords({ api, mining }: {
                     <ReadWordTitle text={w.word} pronunciation={w} titleStyle={{ fontWeight: '400' }} />
                     {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}
                     <Text style={{ ...type.body, color: c.text }}>{meaningOf(w)}</Text>
+                    {w.kanji?.length ? <ReadKanji kanji={w.kanji} /> : null}
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>
                       {wordStatus(w)}{w.times > 1 ? `. Marked ${w.times} times.` : ''}
                     </Text>

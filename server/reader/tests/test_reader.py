@@ -35,6 +35,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": True,
         "deck": True,
         "wanikani": False,
+        "kanji": None,
         "rank": None,
         "grammar": None,
         "form": None,
@@ -53,6 +54,7 @@ def test_lines_are_split_by_the_server_with_status_and_gloss() -> None:
         "stretch": False,
         "deck": False,
         "wanikani": False,
+        "kanji": None,
         "rank": None,
         "grammar": None,
         "form": None,
@@ -103,6 +105,7 @@ def test_a_word_off_the_list_takes_the_models_gloss() -> None:
         "stretch": False,
         "deck": False,  # unreviewed, so not counted as a deck word
         "wanikani": False,
+        "kanji": None,
         "grammar": None,
         "form": None,
         "contraction": None,

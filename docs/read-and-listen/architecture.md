@@ -1025,6 +1025,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
   `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
   The deck's meaning wins over a kept one.
+- **Kanji in the word popup** (18 November 2026). A Japanese word's popup lists each kanji in it once,
+  with its English meanings and kun and on readings (`kanji.py`, `data/kanji.json`, from KANJIDIC2,
+  CC BY-SA 4.0, so the list carries the credit line). It's a lookup in a file shipped with the server:
+  nothing is generated, asked of a model or fetched, and `kanji` is on every word the server sends
+  (null for a word with none). A kanji KANJIDIC2 doesn't list (々) is skipped. The marked words list
+  shows the same block (`ReadKanji`). With a WaniKani token entered, each kanji also carries the level
+  that teaches it, read from WaniKani once a study day and kept on the phone (`useKanjiLevels`,
+  `src/wanikani/kanjiLevels.ts`); without one there is no tag.
 - **Word forms** (13 November 2026). The popup's "Dictionary form" line says what a word is a form
   of, not which form. After a text is written (`Engine.fill_forms`, `forms.py`), one Claude call a
   text is given each word that is a form of another (the ones with a dictionary form shown) with the
