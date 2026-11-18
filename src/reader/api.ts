@@ -9,6 +9,7 @@
 
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
+import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
 import { isSlow } from './playbackRate';
 
@@ -706,6 +707,10 @@ export function createApi(
     // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
     fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
+    // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
+    // from: asked only on Find Thai in Add a phrase; the server writes nothing (core/lessonWords.ts).
+    lessonWords: async (language: Language, text: string) =>
+      (await call<{ candidates: LessonWordCandidate[] }>('POST', '/api/lessons/words', { language, text })).candidates,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

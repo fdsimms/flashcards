@@ -1011,6 +1011,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lesson Words Route
+         * @description The words in the language what was typed could mean, for the learner to pick from; writes
+         *     nothing.
+         */
+        post: operations["lesson_words_route_api_lessons_words_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/audio": {
         parameters: {
             query?: never;
@@ -2133,6 +2154,16 @@ export interface components {
              * @default
              */
             reading: string;
+        };
+        /** WordIn */
+        WordIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Text */
+            text: string;
         };
         /** WordSuggestionOut */
         WordSuggestionOut: {
@@ -4336,6 +4367,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lesson_words_route_api_lessons_words_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

@@ -10,6 +10,7 @@ from franki_reader import (
     lesson,
     lesson_service,
     lesson_topics,
+    lesson_words,
     lesson_writer,
     store,
 )
@@ -51,6 +52,12 @@ class TopicsIn(BaseModel):
     shown: list[str] = Field(default_factory=list, max_length=lesson_topics.MAX_AVOID)
 
 
+class WordIn(BaseModel):
+    language: Code
+    # What the learner typed: romanization, Thai script or English.
+    text: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+
+
 def router(ctx: AppContext) -> APIRouter:
     routes = APIRouter()
     authed = ctx.authed
@@ -59,6 +66,8 @@ def router(ctx: AppContext) -> APIRouter:
     write_given_lesson = ctx.write_given_lesson
     write_lesson_topics = ctx.write_lesson_topics
     lessons_dir = ctx.lessons_dir
+    find_lesson_words = ctx.find_lesson_words
+    keep_failed_cost = ctx.keep_failed_cost
 
     def lesson_out(row: store.StoredLesson) -> dict[str, Any]:
         return {
@@ -163,6 +172,34 @@ def router(ctx: AppContext) -> APIRouter:
         if not topics:
             raise HTTPException(503, "Claude had no new ideas. Try again.")
         return {"topics": topics}
+
+    @routes.post("/api/lessons/words", dependencies=authed)
+    async def lesson_words_route(body: WordIn) -> dict[str, Any]:
+        """The words in the language what was typed could mean, for the learner to pick from; writes
+        nothing."""
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        typed = " ".join(body.text.split())
+        if not typed:
+            raise HTTPException(422, "Type a word or phrase to look up.")
+        if find_lesson_words is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "look up a word"))
+        try:
+            candidates, used = await find_lesson_words(body.language, typed)
+        except lesson_words.LessonWordsFailed as e:
+            keep_failed_cost("lesson_words", body.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "lesson_words", body.language, engine.clock(), used.cost_usd()
+        )
+        return {
+            "candidates": [
+                {"text": c.text, "reading": c.reading, "english": c.english} for c in candidates
+            ]
+        }
 
     @routes.get("/api/lessons", dependencies=authed)
     async def lessons_route(language: Code | None = None) -> dict[str, Any]:

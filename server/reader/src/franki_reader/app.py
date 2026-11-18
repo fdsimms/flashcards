@@ -275,6 +275,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {answer}. Asked only when a question is sent. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature "ask_card"),
                                       not yet in /api/costs
+    POST  /api/lessons/words          {language, text} the words in the language what the learner typed in Add a
+                                      phrase (romanization, the language or English) could mean, for
+                                      them to pick one: {candidates: [{text (in the language's own
+                                      script), reading, english}]}, none when nothing real fits. Any
+                                      language lessons are made in. It writes nothing; asked only on Find
+                                      word. 503 without Claude. Its cost is kept in `call_costs`
+                                      (feature "lesson_words")
     POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
                                       owner flagged: {changes: {field: new html}, explanation}, only the
                                       fields that change (none when Claude can't fix it from text). It
@@ -321,6 +328,7 @@ from franki_reader import (
     forms,
     grammar_topics,
     lesson_topics,
+    lesson_words,
     lesson_writer,
     meanings,
     note_queue,
@@ -430,6 +438,7 @@ def create_app(
     ask_about_card: ask_card.AskCard | None = None,
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
     fix_flagged_card: fix_card.FixCard | None = None,
+    find_lesson_words: lesson_words.FindWords | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -517,6 +526,7 @@ def create_app(
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        find_lesson_words=find_lesson_words,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -559,6 +569,7 @@ def production_app() -> FastAPI:
     ask_about_card: ask_card.AskCard | None = None
     ask_about_phrase: ask_phrase.AskPhrase | None = None
     fix_flagged_card: fix_card.FixCard | None = None
+    find_lesson_words: lesson_words.FindWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -587,6 +598,7 @@ def production_app() -> FastAPI:
         ask_about_card = ask_card.claude_ask_card(client)
         ask_about_phrase = ask_phrase.claude_ask_phrase(client)
         fix_flagged_card = fix_card.claude_fix_card(client)
+        find_lesson_words = lesson_words.claude_find_words(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -677,4 +689,5 @@ def production_app() -> FastAPI:
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        find_lesson_words=find_lesson_words,
     )
