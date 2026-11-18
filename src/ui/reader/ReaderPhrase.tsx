@@ -114,7 +114,6 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
         >
           <View accessibilityLabel={`Explanation of ${phrase}`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>Phrase</Text>
               <Text style={{ ...type.headline, color: c.accent }}>{phrase}</Text>
             </View>
             <Tappable
