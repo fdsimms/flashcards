@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from franki_reader import (
     lesson,
+    lesson_audio,
     lesson_service,
     lesson_writer,
     store,
@@ -17,6 +18,7 @@ from franki_reader.languages import (
     LANGUAGES,
     Code,
 )
+from franki_reader.lesson_audio import LessonAudioFailed
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 from franki_reader.routes.views import instant
 
@@ -43,6 +45,19 @@ class LessonIn(BaseModel):
     phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
 
 
+class MarkIn(BaseModel):
+    text: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+    english: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+    # Again was tapped at its turn, or the learner took longer than the lesson's own pause.
+    reason: Literal["again", "slow"]
+
+
+class ReviewIn(BaseModel):
+    language: Code
+    narrator: str | None = Field(default=None, max_length=100)
+    particle: Literal["khrap", "kha"] | None = None
+
+
 def router(ctx: AppContext) -> APIRouter:
     routes = APIRouter()
     authed = ctx.authed
@@ -67,6 +82,9 @@ def router(ctx: AppContext) -> APIRouter:
             # Where the learner speaks, [start, end] in milliseconds, so the app can wait there;
             # null while not yet known (a lesson made before they were kept).
             "pauses": None if row.pauses is None else [list(p) for p in row.pauses],
+            # What's said and the learner's turns with their times (lesson.script_of): entries;
+            # null for a lesson made before it was kept, which has no transcript.
+            "script": None if row.script is None else row.script.get("entries", []),
         }
 
     # Lessons made before their pauses were kept, being listened to now (find_old_pauses).
@@ -151,7 +169,97 @@ def router(ctx: AppContext) -> APIRouter:
         return {
             "languages": list(lesson_service.LESSON_LANGUAGES),
             "lessons": [lesson_out(row) for row in rows],
+            "review": review_out(language) if language else None,
         }
+
+    def review_out(language: Code) -> dict[str, Any] | None:
+        """The review on offer: the marked phrases waiting, and the lessons they're from."""
+        marks = store.open_lesson_marks(engine.conn, language)
+        if len(marks) < lesson.REVIEW_MIN:
+            return None
+        counts: dict[int, tuple[str, int]] = {}
+        for mark in marks[: lesson.REVIEW_MAX]:
+            title, n = counts.get(mark.lesson_id, (mark.title, 0))
+            counts[mark.lesson_id] = (title, n + 1)
+        return {
+            "phrases": min(len(marks), lesson.REVIEW_MAX),
+            "lessons": [{"title": t, "count": n} for t, n in counts.values()],
+        }
+
+    @routes.post("/api/lessons/{lesson_id}/marks", status_code=204, dependencies=authed)
+    async def mark_route(lesson_id: int, body: MarkIn) -> Response:
+        """Notes a phrase for a review. Never grades a card: a review is a lesson, nothing more."""
+        if not store.add_lesson_mark(
+            engine.conn, lesson_id, body.text, body.english, body.reason, engine.clock()
+        ):
+            raise HTTPException(404, "No such lesson.")
+        return Response(status_code=204)
+
+    @routes.post("/api/lessons/review", status_code=202, dependencies=authed)
+    async def make_review_route(body: ReviewIn, background: BackgroundTasks) -> dict[str, Any]:
+        if engine.synthesize is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't speak a lesson"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        if lessons_dir is None:
+            raise HTTPException(503, "The server has no folder to keep lessons in.")
+        narrator = (body.narrator or "").strip() or None
+        if narrator is not None and not lesson_service.is_narrator_voice(narrator):
+            raise HTTPException(
+                422, "The narrator has to be an English voice, such as en-US-GuyNeural."
+            )
+        if len(store.open_lesson_marks(engine.conn, body.language)) < lesson.REVIEW_MIN:
+            raise HTTPException(
+                409,
+                f"A review needs at least {lesson.REVIEW_MIN} phrases you asked to hear again or"
+                " answered slowly. Play a lesson with Wait for my answer on to collect them.",
+            )
+        if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
+            raise HTTPException(
+                409, "Two lessons are already being made. Wait for one to finish, then ask again."
+            )
+        review_id = store.add_lesson(
+            engine.conn, body.language, lesson.REVIEW_TITLE, engine.clock()
+        )
+        taken = store.take_lesson_marks(engine.conn, body.language, review_id, lesson.REVIEW_MAX)
+        phrases = tuple(lesson.Phrase(m.text, m.english, (m.text,)) for m in taken)
+        synthesize = engine.synthesize
+
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
+
+        background.add_task(
+            lesson_service.make_review,
+            engine.conn,
+            review_id,
+            body.language,
+            phrases,
+            synthesize=speak_bytes,
+            voices=engine.voices_for,
+            lessons_dir=lessons_dir,
+            now=engine.clock,
+            narrator=narrator,
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
+        )
+        return {"id": review_id}
+
+    @routes.get("/api/lessons/{lesson_id}/phrases/{index}/audio", dependencies=authed)
+    async def phrase_audio_route(lesson_id: int, index: int) -> Response:
+        """A phrase of the lesson as it's said at normal speed, cut from the lesson's MP3, for a
+        card's Audio field."""
+        row = store.get_lesson(engine.conn, lesson_id)
+        path = lesson_service.audio_path(lessons_dir, lesson_id) if lessons_dir else None
+        clips = (row.script or {}).get("phrase_clips", []) if row else []
+        clip = clips[index] if 0 <= index < len(clips) else None
+        if row is None or path is None or not path.is_file() or not clip:
+            raise HTTPException(404, "That phrase has no recording in the lesson.")
+        try:
+            audio = await lesson_audio.cut(path.read_bytes(), clip[0], clip[1])
+        except LessonAudioFailed as e:
+            raise HTTPException(503, str(e)) from e
+        return Response(audio, media_type="audio/mpeg")
 
     @routes.get("/api/lessons/{lesson_id}/audio", dependencies=authed)
     async def lesson_audio_route(lesson_id: int) -> FileResponse:

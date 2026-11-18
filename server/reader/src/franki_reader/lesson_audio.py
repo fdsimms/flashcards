@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 from franki_speech.loudness import LoudnessError, normalize_loudness
 
-from franki_reader.lesson import Say, Silence, Step, clips
+from franki_reader.lesson import Placed, Say, Silence, Step, clips
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +53,8 @@ class Rendered:
     audio: bytes
     duration_ms: int
     pauses: tuple[Pause, ...] = ()
+    # Every step where it falls, for the app's transcript (lesson.script_of).
+    placed: tuple[Placed, ...] = ()
 
 
 async def _ffmpeg(data: bytes, *args: str) -> bytes:
@@ -131,16 +133,33 @@ async def render(
         on_joining()
     pcm = bytearray()
     pauses: list[Pause] = []
+    placed: list[Placed] = []
     for step in steps:
+        start = len(pcm) // BYTES_PER_MS
         if isinstance(step, Silence):
             if step.answer:
-                start = len(pcm) // BYTES_PER_MS
                 pauses.append((start, start + step.ms))
             pcm += silence(step.ms)
         else:
             pcm += audio[step]
+        placed.append(Placed(step, start, len(pcm) // BYTES_PER_MS))
     mp3 = await encode(bytes(pcm))
-    return Rendered(mp3, len(pcm) // BYTES_PER_MS, tuple(pauses))
+    return Rendered(mp3, len(pcm) // BYTES_PER_MS, tuple(pauses), tuple(placed))
+
+
+# A phrase cut out for a card starts and ends a little outside its clip, so no sound is clipped.
+CUT_MARGIN_MS = 60
+
+
+async def cut(mp3: bytes, start_ms: int, end_ms: int) -> bytes:
+    """The part of a lesson's MP3 between two times, as an MP3 of its own (a phrase for a card)."""
+    begin = max(0, start_ms - CUT_MARGIN_MS) / 1000
+    stop = (end_ms + CUT_MARGIN_MS) / 1000
+    return await _ffmpeg(
+        mp3,
+        *("-i", "pipe:0", "-ss", f"{begin:.3f}", "-to", f"{stop:.3f}"),
+        *("-ac", "1", "-c:a", "libmp3lame", "-b:a", BITRATE, "-f", "mp3", "pipe:1"),
+    )
 
 
 # Finding the answer silences in a lesson made before they were recorded (`find_pauses`). An answer
