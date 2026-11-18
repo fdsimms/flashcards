@@ -1,5 +1,5 @@
 import * as Speech from 'expo-speech';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,21 +110,23 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   // stay above it: the number and decimal pads have no Return key to submit with.
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const name = LANGUAGES[language].name;
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={tool.title}
       largeTitle={false}
-      toolbar={tool.languages.length > 1 ? (
+      toolbar={(
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
+          {tool.languages.length > 1 ? <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
             {tool.languages.map((l) => (
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
-          </Stack.Toolbar.Menu>
+          </Stack.Toolbar.Menu> : null}
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'practice' } })} />
         </Stack.Toolbar>
-      ) : undefined}
+      )}
       footer={(
         <View style={{ flexDirection: 'row', gap: space.s }}>
           {actions ? (

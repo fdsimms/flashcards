@@ -9,7 +9,7 @@ import { FLAG_NAMES } from '../core/cardState';
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
  * Show answer timing, last, times each answer on this phone (useAnswerTiming.ts).
  */
-export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming }: {
+export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
   /** The card's flag, 0 for none. */
   flag: number;
   /** Opens Ask Claude for the card on screen. */
@@ -29,9 +29,11 @@ export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
   /** Whether Review shows how long each answer took to bring up the next card. */
   timingOn: boolean;
   onTiming: () => void;
+  /** Opens Settings, Decks and cards: answer buttons, swiping, Thai text size, furigana. */
+  onSettings: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, mnemonic, a confusing word to link, flag, reschedule or card info">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, mnemonic, a confusing word to link, flag, reschedule, card info or card settings">
       {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended. First, since they're the most used. */}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryCard}>Bury card</Stack.Toolbar.MenuAction>
@@ -64,6 +66,7 @@ export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="stopwatch" isOn={timingOn} onPress={onTiming}>Show answer timing</Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction icon="gearshape" onPress={onSettings}>Card settings</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
     </Stack.Toolbar.Menu>
   );
