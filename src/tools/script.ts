@@ -25,8 +25,8 @@ export interface ScriptLanguage {
   patterns: (word: number) => string[];
 }
 
-/** Read it aloud and show the answer, or (Thai) name the syllable's tone. */
-export const SCRIPT_MODES = ['read', 'tone'] as const;
+/** Read it aloud and show the answer, or (Thai) name the syllable's tone, a consonant's class or a vowel's length. */
+export const SCRIPT_MODES = ['read', 'tone', 'consonants', 'vowels'] as const;
 export type ScriptMode = (typeof SCRIPT_MODES)[number];
 
 /** A word at random, never `previous` again. */

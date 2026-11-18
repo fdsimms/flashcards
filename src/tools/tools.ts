@@ -225,7 +225,7 @@ export const TOOLS: ToolInfo[] = [
   {
     id: 'script',
     title: 'Reading the script',
-    summary: 'Read a syllable or a word, then hear it.',
+    summary: 'Read a syllable, word or letter, then hear it.',
     languages: withSayer(SCRIPTS),
   },
   {
