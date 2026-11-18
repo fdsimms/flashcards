@@ -3,7 +3,7 @@ import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { ReadStories } from '../ui/reader/ReadStories';
 
-/** Every story in the language being read, from the home's Your stories row. */
+/** Every series in the language being read, from the home's Your series row. */
 export default function ReadStoriesRoute() {
   const router = useRouter();
   const { reader } = useApp();
