@@ -41,6 +41,20 @@ describe('queue', () => {
     expect(isDue(card, new Date(2026, 10, 12, 2, 0), H)).toBe(false);
     expect(isDue(card, new Date(2026, 10, 11, 22, 0), H)).toBe(false);
   });
+  it('has a review due from the minute its study day starts until the minute it ends, whatever time it was answered', () => {
+    const [base] = makeCards(omniNote(), NOW);
+    // Answered at 11 PM, at 1 AM (the same study day) and at 4:01 AM (the next), each with a 3-day interval.
+    for (const [answered, dueDay] of [[new Date(2026, 10, 9, 23, 0), 12], [new Date(2026, 10, 10, 1, 0), 12], [new Date(2026, 10, 10, 4, 1), 13]] as const) {
+      const reviewed = withSched(base, { state: 2, stability: 3, difficulty: 5, reps: 3, scheduledDays: 3, lastReview: new Date(2026, 10, 6, 12).toISOString() });
+      const card = withSched(reviewed, review(reviewed.sched, 3, answered, { weights: [], desiredRetention: 0.9, maxInterval: 3 }, { dayStartsAtHour: H }).sched);
+      expect(card.sched.scheduledDays).toBe(3);
+      expect(isDue(card, new Date(2026, 10, dueDay, 3, 59), H), String(answered)).toBe(false);
+      expect(isDue(card, new Date(2026, 10, dueDay, 4, 0), H), String(answered)).toBe(true);
+      expect(isDue(card, new Date(2026, 10, dueDay + 1, 3, 59), H), String(answered)).toBe(true);
+      expect(oneDeck([card], { dayStartsAtHour: H, now: new Date(2026, 10, dueDay, 3, 59) }).due).toHaveLength(0);
+      expect(oneDeck([card], { dayStartsAtHour: H, now: new Date(2026, 10, dueDay, 4, 1) }).due).toHaveLength(1);
+    }
+  });
   it("reads a card's due again when it changes in place", () => {
     // The parsed due is kept per schedule object; a schedule edited in place mustn't answer from the old one.
     const [base] = makeCards(omniNote(), NOW);

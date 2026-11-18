@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { becameLeech, formatInterval, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome } from '../../src/core/scheduler';
-import { studyDayKey } from '../../src/core/day';
+import { becameLeech, daysSinceLastReview, formatInterval, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome, type RatingValue } from '../../src/core/scheduler';
+import { fuzzSeed } from '../../src/core/ankiFuzz';
+import { studyDayKey, studyDayStart } from '../../src/core/day';
+import { isInterdayLearning } from '../../src/core/queue';
 import type { DeckParams } from '../../src/core/types';
+import answerVectors from '../fixtures/anki/answer-vectors.json';
 import { NOW, omniNote } from '../support/fixtures';
 
 describe('scheduler', () => {
@@ -175,6 +178,82 @@ describe('leeches', () => {
     expect(becameLeech(learning, review(learning, 1, at).sched)).toBe(false);
     expect(becameLeech(reviewWith(7), review(reviewWith(7), 3, at).sched)).toBe(false);
   });
+});
+
+describe('the days FSRS counts since the last answer', () => {
+  it("counts to the end of today's study day in 24-hour blocks, as Anki does", () => {
+    const last = new Date(2026, 0, 10, 23, 0);
+    // The same study day, across midnight: no days, whatever the calendar or the UTC date says.
+    expect(daysSinceLastReview(last, new Date(2026, 0, 10, 23, 10), 4)).toBe(0);
+    expect(daysSinceLastReview(last, new Date(2026, 0, 11, 3, 59), 4)).toBe(0);
+    expect(daysSinceLastReview(last, new Date(2026, 0, 11, 4, 1), 4)).toBe(1);
+    // 1 AM two nights later is still the next study day.
+    expect(daysSinceLastReview(last, new Date(2026, 0, 12, 1, 0), 4)).toBe(1);
+    expect(daysSinceLastReview(last, new Date(2026, 0, 12, 4, 0), 4)).toBe(2);
+    // With the day starting at midnight, 23:00 to 00:10 is a day.
+    expect(daysSinceLastReview(last, new Date(2026, 0, 11, 0, 10), 0)).toBe(1);
+    // A last answer in the future (a clock set back) is no days, not a negative count.
+    expect(daysSinceLastReview(new Date(2026, 0, 20, 12), new Date(2026, 0, 11, 12), 4)).toBe(0);
+  });
+  it('gives two answers in one study day the same memory state at any hour, so in any time zone', () => {
+    // Good, then Good ten minutes later, started at each hour: one of them crosses UTC midnight
+    // wherever the suite runs, which ts-fsrs alone counts as a day between the two.
+    const outcomes = new Set<string>();
+    for (let hour = 5; hour < 27; hour++) {
+      const first = new Date(2026, 0, 10, hour, 55);
+      const learning = review(newSchedState(first), 3, first, undefined, { dayStartsAtHour: 4 }).sched;
+      const second = review(learning, 3, new Date(2026, 0, 10, hour + 1, 5), undefined, { dayStartsAtHour: 4 }).sched;
+      outcomes.add(`${second.stability} ${second.difficulty} ${second.scheduledDays} ${second.elapsedDays}`);
+    }
+    expect([...outcomes]).toHaveLength(1);
+  });
+});
+
+/**
+ * Each scenario is a card answered in Anki itself at set times (make-answer-vectors.py), replayed
+ * here at the same wall-clock times. A scenario recorded in a zone (it crosses a daylight saving
+ * change there) runs only in that zone: `npm run test:tz` has it.
+ */
+describe(`answers scheduled as Anki ${answerVectors.anki} schedules them (tests/fixtures/anki/answer-vectors.json)`, () => {
+  interface Scenario {
+    name: string; tz?: string; cardId: string; rollover?: number; learn?: number[]; relearn?: number[]; retention?: number; weights?: number[]; maxInterval?: number;
+    answers: { at: string; rating: number; type: number; queue: number; dueInSecs?: number; dueInDays?: number; interval: number; stepsLeft: number; reps: number; lapses: number; stability: number; difficulty: number }[];
+  }
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [card] = makeCards(omniNote(), NOW);
+  for (const sc of answerVectors.scenarios as Scenario[]) {
+    it.runIf(!sc.tz || sc.tz === zone)(sc.name, () => {
+      const h = sc.rollover ?? 4;
+      const learnSteps = sc.learn ?? [1, 10];
+      const relearnSteps = sc.relearn ?? [10];
+      const params: DeckParams = { weights: sc.weights ?? [], desiredRetention: sc.retention ?? 0.9, maxInterval: sc.maxInterval ?? 36500, learnSteps, relearnSteps };
+      /** The study day a moment falls in, as a day number. */
+      const dayOf = (d: Date) => { const s = studyDayStart(d, h); return Date.UTC(s.getFullYear(), s.getMonth(), s.getDate()) / 86400000; };
+      let sched = newSchedState(new Date(sc.answers[0].at));
+      for (const a of sc.answers) {
+        const now = new Date(a.at);
+        const at = `${a.at} rated ${a.rating}`;
+        sched = review(sched, a.rating as RatingValue, now, params, { seed: fuzzSeed(sc.cardId, sched.reps), dayStartsAtHour: h }).sched;
+        expect(sched.state, at).toBe(a.type);
+        expect([sched.reps, sched.lapses], at).toEqual([a.reps, a.lapses]);
+        // Anki works in f32 and keeps four decimals; ts-fsrs in doubles.
+        expect(Math.abs(sched.stability - a.stability) / a.stability, `${at}: stability ${sched.stability}, Anki's ${a.stability}`).toBeLessThan(2e-4);
+        expect(Math.abs(sched.difficulty - a.difficulty), `${at}: difficulty ${sched.difficulty}, Anki's ${a.difficulty}`).toBeLessThan(2e-3);
+        const due = new Date(sched.due);
+        if (a.queue === 1) {
+          // A step within the day: due at its instant, fuzzed as Anki fuzzed it.
+          expect(Math.round((due.getTime() - now.getTime()) / 1000), at).toBe(a.dueInSecs);
+          expect(isInterdayLearning({ ...card, sched }, h), at).toBe(false);
+        } else {
+          expect(dayOf(due) - dayOf(now), at).toBe(a.dueInDays);
+          // Anki's queue 3: a learning card due on a later day.
+          expect(isInterdayLearning({ ...card, sched }, h), at).toBe(a.queue === 3);
+        }
+        if (a.type === 2) expect(sched.scheduledDays, at).toBe(a.interval);
+        else expect(sched.learningSteps, at).toBe((a.type === 3 ? relearnSteps : learnSteps).length - a.stepsLeft);
+      }
+    });
+  }
 });
 
 describe('formatInterval', () => {
