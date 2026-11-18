@@ -4,6 +4,7 @@ import { explanationParagraphs } from '../../core/grammar';
 import type { Api, Language, Word } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
 import { LANGUAGES } from '../../reader/languages';
+import { saidAs } from '../../reader/wordAudio';
 import { explanationGlosses, explanationRequest } from '../../reader/grammarGlosses';
 import { haptic } from '../haptics';
 import { GlossPopover, type Tapped } from './Reader';
@@ -13,7 +14,7 @@ import { type, useTheme } from '../theme';
 export type ExplanationGlossing = {
   api: Api;
   /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   /** Opens the note editor on a word not in the deck; true once it's saved. */
   onAddWord: (word: string, meaning: string, language: Language, pronunciation?: Pronunciation) => Promise<boolean>;
 };
@@ -77,7 +78,7 @@ export function GrammarExplanation({ language, explanation, glossing }: { langua
         onGrammarChosen={() => undefined}
         flagged={false}
         onToggleFlag={null}
-        onPlay={() => { if (tapped) glossing.onPlayWord(tapped.word.text, language); }}
+        onPlay={() => { if (tapped) glossing.onPlayWord(tapped.word.text, language, saidAs(language, tapped.word.text, tapped.word.translit)); }}
         onSelectPhrase={null}
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the page.

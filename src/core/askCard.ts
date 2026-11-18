@@ -1,5 +1,5 @@
 import { isOmnilanguage } from './cards';
-import { htmlToText } from './html';
+import { htmlToText, textToHtml } from './html';
 import { readerLanguageOf } from './leechHint';
 import { missedCardText } from './missedCard';
 import type { CardKind, Note, NoteType } from './types';
@@ -61,8 +61,6 @@ export function withQuestion(turns: AskTurn[], question: string): AskTurn[] {
   return [...turns, { role: 'user', content: question.trim() }];
 }
 
-const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 /**
  * The note's fields with an answer from Claude added to Notes: under what's already there, after a
  * blank line, so earlier notes aren't lost. A blank answer changes nothing.
@@ -70,7 +68,7 @@ const escapeHtml = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export function withNotesAnswer(fields: Record<string, string>, answer: string): Record<string, string> {
   const text = answer.trim();
   if (!text) return fields;
-  const added = escapeHtml(text).replace(/\n/g, '<br>');
+  const added = textToHtml(text);
   const existing = fields.Notes ?? '';
   return { ...fields, Notes: htmlToText(existing) ? `${existing}<br><br>${added}` : added };
 }

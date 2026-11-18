@@ -3,6 +3,7 @@ import { renamedDeck } from '../core/deckNames';
 import { parseAnswerButtons, type AnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { isLinked, withoutPair, type ConfusedPair } from '../core/confusedPairs';
+import type { Cram } from '../core/cram';
 import type { PracticeRecord } from '../core/forms';
 import type { GrammarAnswer } from '../core/grammarDrills';
 import { DEFAULT_FONT_SETTINGS, type FontSettings } from '../core/fonts';
@@ -102,6 +103,11 @@ export interface Repo {
   saveConfusedPair(pair: ConfusedPair): Promise<void>;
   /** Takes the link between two notes away. */
   deleteConfusedPair(x: string, y: string): Promise<void>;
+  /** Crams (src/core/cram.ts), oldest first: Franki's own, never sent to Anki (their words are tagged notes, which are). */
+  listCrams(): Promise<Cram[]>;
+  /** Saves a cram, replacing the one with its id. */
+  saveCram(cram: Cram): Promise<void>;
+  deleteCram(id: string): Promise<void>;
   /** Whether forms practice is answered by picking or typing: the last choice made. This phone's own. */
   formsAnswerMode(): Promise<'pick' | 'type'>;
   saveFormsAnswerMode(mode: 'pick' | 'type'): Promise<void>;
@@ -133,6 +139,7 @@ export class MemoryRepo implements Repo {
   practice: PracticeRecord[] = [];
   grammarAnswers: GrammarAnswer[] = [];
   confusedPairs: ConfusedPair[] = [];
+  crams = new Map<string, Cram>();
   formsAnswerModeSetting: 'pick' | 'type' = 'pick';
   grammarHintsDismissedSetting: Record<string, string> = {};
   voiceSettingsValue = '{}';
@@ -249,6 +256,9 @@ export class MemoryRepo implements Repo {
     if (!isLinked(this.confusedPairs, pair.a, pair.b)) this.confusedPairs.push({ ...pair });
   }
   async deleteConfusedPair(x: string, y: string) { this.confusedPairs = withoutPair(this.confusedPairs, x, y); }
+  async listCrams() { return [...this.crams.values()].map((c) => structuredClone(c)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+  async saveCram(cram: Cram) { this.crams.set(cram.id, structuredClone(cram)); }
+  async deleteCram(id: string) { this.crams.delete(id); }
   async formsAnswerMode() { return this.formsAnswerModeSetting; }
   async saveFormsAnswerMode(mode: 'pick' | 'type') { this.formsAnswerModeSetting = mode; }
   async grammarHintsDismissed() { return { ...this.grammarHintsDismissedSetting }; }

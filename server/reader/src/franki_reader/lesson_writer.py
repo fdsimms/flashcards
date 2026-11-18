@@ -59,6 +59,37 @@ Rules for the phrases:
 
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
 
+# A lesson made from the learner's own words and phrases (a cram in the app): every one is taught
+# as it is, and Claude writes the conversation around them, the parts and the mixes.
+_GIVEN_REQUEST = """\
+Write the content of a short spoken {language} lesson for a learner who needs to use these {language}
+words and phrases soon, in this situation:
+{scene}
+
+The words and phrases, each with its meaning:
+{given}
+
+It will be recorded as audio: an English narrator and native {language} voices, with pauses for the
+learner to say each phrase aloud. Give:
+
+- title: a short English title for the lesson (two to five words)
+- dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
+  between A ({a}) and B ({b}). Each line: speaker (A or B), text ({language}), english. Use as many
+  of the words and phrases above as fit naturally, mostly in A's lines, and otherwise only very
+  basic everyday words.
+- phrases: every one of the words and phrases above, written exactly as given (the same text,
+  letter for letter: don't correct, complete or add to one, even a single word), in the order they
+  come up in the dialogue, any that don't come up last. Each: text, english (as given), and parts.
+- mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
+  appear in the phrases above (a word may be reused, none may be new). Each: text and english.
+  Fewer, or none, when the phrases don't make any.
+
+Rules for the parts: the phrase split in order into 1 to {parts} pieces at natural breaks, so that
+the learner can build it up from its end (the last piece first). Put back together, the parts must
+be the phrase exactly. A single word or a short phrase is one part.
+
+Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
+
 _NEUTRAL = "- The learner may be a man or a woman, so use no form that changes with the speaker's gender.\n"
 
 # Thai's polite particle and its word for "I" depend on the speaker's gender, so a Thai lesson is
@@ -99,6 +130,19 @@ _JAPANESE_NOTE = (
 )
 
 
+def _thai_given_note(learner: lesson.Learner) -> str:
+    speaker = "man" if learner == "male" else "woman"
+    their = "woman" if learner == "male" else "man"
+    particle = "ครับ" if learner == "male" else "ค่ะ (คะ for a question)"
+    first = "ผม" if learner == "male" else "ดิฉัน or ฉัน"
+    return (
+        "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
+        f" cut `parts` where a person would pause. The learner is a {speaker}: A's polite lines end"
+        f' with {particle} and A says "I" as {first}. B (a {their}) uses the {their}\'s particle'
+        ' and "I". Leave the phrases taught as given, with or without a particle.'
+    )
+
+
 def _language_note(language: Code, learner: lesson.Learner) -> str:
     """What the request adds for one language: Thai's script and gendered particles, Japanese's
     script and politeness, nothing for the rest."""
@@ -130,12 +174,12 @@ def _has_particle(text: str, learner: lesson.Learner) -> bool:
     return "ค่ะ" in text or "คะ" in lesson.tokens(text)
 
 
-def thai_problems(plan: lesson.Plan, learner: lesson.Learner) -> list[str]:
+def thai_problems(plan: lesson.Plan, learner: lesson.Learner, *, phrases: bool = True) -> list[str]:
     """What's wrong with a Thai plan for this learner, as sentences for the revision message: a
-    phrase taught without the learner's polite particle, or a speaker using the other gender's
-    particle or "I". Nothing for another language."""
+    phrase taught without the learner's polite particle (unless `phrases` is False: the learner's
+    own words, taught as they are), or a speaker using the other gender's particle or "I"."""
     problems: list[str] = []
-    missing = [p.text for p in plan.phrases if not _has_particle(p.text, learner)]
+    missing = [p.text for p in plan.phrases if phrases and not _has_particle(p.text, learner)]
     if missing:
         particle = "ครับ" if learner == "male" else "ค่ะ (คะ for a question)"
         problems.append(
@@ -214,11 +258,18 @@ class LessonFailed(Exception):
 # (empty the first time) and whose part the learner plays. Returns Claude's raw answer and what the
 # call cost.
 WritePlan = Callable[[Code, str, str, lesson.Learner], Awaitable[tuple[Any, Usage]]]
+# The same, for a lesson around the learner's own words and phrases (the language, the scene, the
+# phrases, the feedback, the learner).
+WriteGiven = Callable[
+    [Code, str, tuple[lesson.Phrase, ...], str, lesson.Learner], Awaitable[tuple[Any, Usage]]
+]
 
 _RETRY = (
     "That answer had fewer than {n} usable phrases. A phrase is dropped when its parts, put back"
     " together, aren't the phrase exactly, or it is repeated. Write the lesson again."
 )
+
+_RETRY_GIVEN = "That answer had no usable dialogue. Write the lesson again."
 
 _RETRY_WORDS = (
     "The learner doesn't know these words from the dialogue: {words}. The dialogue is played first and"
@@ -245,6 +296,88 @@ def request_message(language: Code, scene: str, learner: lesson.Learner = "male"
     )
 
 
+def given_request_message(
+    language: Code, scene: str, given: tuple[lesson.Phrase, ...], learner: lesson.Learner = "male"
+) -> str:
+    a, b = _speakers(language, learner)
+    note = _thai_given_note(learner) if language == "th" else _language_note(language, learner)
+    return _GIVEN_REQUEST.format(
+        a=a,
+        b=b,
+        language=LANGUAGES[language].name,
+        scene=scene,
+        given="\n".join(f"- {p.text} ({p.english})" for p in given),
+        low=4,
+        high=lesson.MAX_GIVEN_DIALOGUE,
+        mixes=lesson.MAX_MIXES,
+        parts=lesson.MAX_PARTS,
+        note=note,
+    )
+
+
+async def _first_usable(
+    write: Callable[[str], Awaitable[tuple[Any, Usage]]],
+    clean: Callable[[Any], lesson.Plan | None],
+    problems: Callable[[lesson.Plan], list[str]],
+    unusable: str,
+    lexicon: Checker | None,
+) -> tuple[lesson.Plan, Usage]:
+    """Asks with `write` (given what to say about the last attempt) up to `MAX_ATTEMPTS` times,
+    until a plan `clean` accepts has no `problems` and no words the learner doesn't know; else the
+    usable plan with the fewest unknown words. What the calls cost comes back with it, or on the
+    failure."""
+    used = Usage()
+    feedback = ""
+    closest: tuple[int, lesson.Plan] | None = None
+    for _ in range(MAX_ATTEMPTS):
+        try:
+            raw, spent = await write(feedback)
+        except LessonFailed as e:
+            raise LessonFailed(str(e), used + e.usage) from e
+        used = used + spent
+        plan = clean(raw)
+        if plan is None:
+            feedback = unusable
+            continue
+        wrong = problems(plan)
+        if wrong:
+            feedback = "Fix this and write the lesson again. " + " ".join(wrong)
+            continue
+        strangers = lesson.unfamiliar_words(plan, lexicon) if lexicon is not None else []
+        if not strangers:
+            return plan, used
+        if closest is None or len(strangers) < closest[0]:
+            closest = (len(strangers), plan)
+        feedback = _RETRY_WORDS.format(words=", ".join(strangers[:MAX_NAMED_WORDS]))
+    if closest is not None:
+        return closest[1], used
+    raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
+
+
+async def write_given_plan(
+    write: WriteGiven,
+    language: Code,
+    scene: str,
+    given: tuple[lesson.Phrase, ...],
+    learner: lesson.Learner = "male",
+    lexicon: Checker | None = None,
+) -> tuple[lesson.Plan, Usage]:
+    """The plan for a lesson teaching the learner's own `given` words and phrases in `scene`, asked
+    for as `write_plan` asks (`lesson.clean_given_plan` keeps every given phrase). A Thai plan is
+    checked for its speakers' particles and "I", never the phrases', which are the learner's."""
+
+    async def ask(feedback: str) -> tuple[Any, Usage]:
+        return await write(language, scene, given, feedback, learner)
+
+    return await _first_usable(
+        ask,
+        lambda raw: lesson.clean_given_plan(raw, scene, given),
+        lambda plan: thai_problems(plan, learner, phrases=False) if language == "th" else [],
+        _RETRY_GIVEN,
+        lexicon,
+    )
+
+
 async def write_plan(
     write: WritePlan,
     language: Code,
@@ -258,63 +391,66 @@ async def write_plan(
     the learner's `lexicon`, a dialogue with words they don't know (`lesson.unfamiliar_words`) is
     asked for again naming them; when no attempt gets clear of them, the usable plan with the
     fewest is kept rather than no lesson."""
-    used = Usage()
-    feedback = ""
-    closest: tuple[int, lesson.Plan] | None = None
-    for _ in range(MAX_ATTEMPTS):
-        try:
-            raw, spent = await write(language, scene, feedback, learner)
-        except LessonFailed as e:
-            raise LessonFailed(str(e), used + e.usage) from e
-        used = used + spent
-        plan = lesson.clean_plan(raw, scene)
-        if plan is None:
-            feedback = _RETRY.format(n=lesson.MIN_PHRASES)
-            continue
-        problems = thai_problems(plan, learner) if language == "th" else []
-        if problems:
-            feedback = "Fix this and write the lesson again. " + " ".join(problems)
-            continue
-        strangers = lesson.unfamiliar_words(plan, lexicon) if lexicon is not None else []
-        if not strangers:
-            return plan, used
-        if closest is None or len(strangers) < closest[0]:
-            closest = (len(strangers), plan)
-        feedback = _RETRY_WORDS.format(words=", ".join(strangers[:MAX_NAMED_WORDS]))
-    if closest is not None:
-        return closest[1], used
-    raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
+
+    async def ask(feedback: str) -> tuple[Any, Usage]:
+        return await write(language, scene, feedback, learner)
+
+    return await _first_usable(
+        ask,
+        lambda raw: lesson.clean_plan(raw, scene),
+        lambda plan: thai_problems(plan, learner) if language == "th" else [],
+        _RETRY.format(n=lesson.MIN_PHRASES),
+        lexicon,
+    )
+
+
+async def _ask_claude(
+    client: anthropic.AsyncAnthropic, request: str, feedback: str
+) -> tuple[Any, Usage]:
+    messages: list[dict[str, Any]] = [{"role": "user", "content": request}]
+    if feedback:
+        messages.append({"role": "user", "content": feedback})
+    output_config: BetaOutputConfigParam = {
+        "effort": "low",
+        "format": {"type": "json_schema", "schema": SCHEMA},
+    }
+    try:
+        response = await client.beta.messages.create(
+            model=CHEAP_MODEL,
+            max_tokens=MAX_TOKENS,
+            messages=cast(list[BetaMessageParam], messages),
+            output_config=output_config,
+        )
+    except anthropic.APIError as e:
+        raise LessonFailed(didnt_answer(e, ". Try again in a moment.")) from e
+    used = usage_of(response)
+    text = next((b.text for b in response.content if b.type == "text"), None)
+    if response.stop_reason in ("refusal", "max_tokens") or text is None:
+        raise LessonFailed("Claude didn't answer. Try again in a moment.", used)
+    try:
+        return json.loads(text), used
+    except json.JSONDecodeError as e:
+        raise LessonFailed("Claude's answer couldn't be read. Try again.", used) from e
 
 
 def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
     async def write(
         language: Code, scene: str, feedback: str, learner: lesson.Learner
     ) -> tuple[Any, Usage]:
-        messages: list[dict[str, Any]] = [
-            {"role": "user", "content": request_message(language, scene, learner)}
-        ]
-        if feedback:
-            messages.append({"role": "user", "content": feedback})
-        output_config: BetaOutputConfigParam = {
-            "effort": "low",
-            "format": {"type": "json_schema", "schema": SCHEMA},
-        }
-        try:
-            response = await client.beta.messages.create(
-                model=CHEAP_MODEL,
-                max_tokens=MAX_TOKENS,
-                messages=cast(list[BetaMessageParam], messages),
-                output_config=output_config,
-            )
-        except anthropic.APIError as e:
-            raise LessonFailed(didnt_answer(e, ". Try again in a moment.")) from e
-        used = usage_of(response)
-        text = next((b.text for b in response.content if b.type == "text"), None)
-        if response.stop_reason in ("refusal", "max_tokens") or text is None:
-            raise LessonFailed("Claude didn't answer. Try again in a moment.", used)
-        try:
-            return json.loads(text), used
-        except json.JSONDecodeError as e:
-            raise LessonFailed("Claude's answer couldn't be read. Try again.", used) from e
+        return await _ask_claude(client, request_message(language, scene, learner), feedback)
+
+    return write
+
+
+def claude_given_plan(client: anthropic.AsyncAnthropic) -> WriteGiven:
+    async def write(
+        language: Code,
+        scene: str,
+        given: tuple[lesson.Phrase, ...],
+        feedback: str,
+        learner: lesson.Learner,
+    ) -> tuple[Any, Usage]:
+        request = given_request_message(language, scene, given, learner)
+        return await _ask_claude(client, request, feedback)
 
     return write

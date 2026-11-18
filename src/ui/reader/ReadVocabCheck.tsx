@@ -30,7 +30,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
   current: CommonCount;
   /** The settings as the server has them after the suggestion is used. */
   onSettings: (settings: Settings) => void;
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   /** Present when words can be added to the deck: its name and what opens the note editor, resolving true once the note is saved. */
   mining?: { deck: string; onAdd: (word: string, meaning: string) => Promise<boolean> };
   onDone: () => void;
@@ -279,7 +279,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
             <Text selectable style={{ ...withThaiLineHeight(type.cardFront, item.word), color: c.text, textAlign: 'center' }}>{item.word}</Text>
             <View style={{ marginTop: space.s }}>
-              <PlayPill label={`Play ${item.word}`} onPlay={() => onPlayWord(item.word, language)} speech={LANGUAGES[language].speech} />
+              <PlayPill label={`Play ${item.word}`} onPlay={() => onPlayWord(item.word, language, item.reading)} speech={LANGUAGES[language].speech} />
             </View>
           </Card>
           {[choices.slice(0, 2), choices.slice(2)].map((pair, row) => (

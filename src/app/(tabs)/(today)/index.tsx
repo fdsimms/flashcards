@@ -4,9 +4,11 @@ import { syncLine } from '../../../anki/sync/runSync';
 import { useConnectionProblem } from '../../../ui/connection';
 import { answersFromLog } from '../../../wanikani/log';
 import { useApp } from '../../../ui/AppContext';
+import { CramCards } from '../../../ui/cram/CramCards';
 import { ExtrasStrip } from '../../../ui/DailyExtras';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { Today } from '../../../ui/Today';
+import { useCrams } from '../../../ui/useCrams';
 import { useDailyExtras } from '../../../ui/useDailyExtras';
 import { useGrammarDueState } from '../../../ui/useGrammarDue';
 import { useTodayReady } from '../../../ui/useTodayReady';
@@ -33,14 +35,15 @@ export default function TodayRoute() {
   const deckActions = useDeckActions(openOptions);
   const extras = useDailyExtras();
   const grammarDue = useGrammarDueState(reader.api, repo);
-  const ready = useTodayReady([loaded, studiedSettled, extras.ready, grammarDue.settled]);
+  const crams = useCrams(repo);
+  const ready = useTodayReady([loaded, studiedSettled, extras.ready, grammarDue.settled, crams.loaded]);
   return (
     <Today
       decks={decks}
       loaded={loaded}
       ready={ready}
       studied={studied}
-      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} />}
+      extrasStrip={<><CramCards repo={repo} /><ExtrasStrip extras={extras} grammarDue={grammarDue.due} /></>}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}
