@@ -49,8 +49,27 @@ function engineFor(params?: DeckParams): Engine {
 
 export type RatingValue = 1 | 2 | 3 | 4;
 
-function toFsrs(s: SchedState, countFrom?: Date): FsrsCard {
-  const last = s.lastReview ? new Date(s.lastReview) : undefined;
+/**
+ * The whole days FSRS counts since a card was last answered, as Anki counts them (rslib
+ * scheduler/answering/mod.rs, `next_day_at.elapsed_days_since(last_review_time)`): from the last answer to the end of today's study day, in 24-hour
+ * blocks. So two answers in one study day are the same day (FSRS's short-term formula) whatever the
+ * clock or the UTC date says, and an answer at 1 AM still belongs to the day before.
+ */
+export function daysSinceLastReview(lastReview: Date, now: Date, dayStartsAtHour: number): number {
+  return Math.max(0, Math.floor((nextStudyDayStart(now, dayStartsAtHour).getTime() - lastReview.getTime()) / DAY_MS));
+}
+
+/**
+ * The card as ts-fsrs takes it, to be answered at `now`. ts-fsrs counts the days since the last
+ * review between UTC dates, which calls a 10-minute step across UTC midnight (7 PM in New York) a
+ * day, and a week of evening reviews a day more or less than Anki does. So `last_review` is handed
+ * over as the UTC date Anki's count (`daysSinceLastReview`) before `now`'s: ts-fsrs reads nothing
+ * else from it, and stamps the answered card with `now`.
+ */
+function toFsrs(s: SchedState, now: Date, dayStartsAtHour: number, countFrom?: Date): FsrsCard {
+  const real = s.lastReview ? new Date(s.lastReview) : undefined;
+  const last = countFrom && real && countFrom > real ? countFrom : real;
+  const elapsed = last ? daysSinceLastReview(last, now, dayStartsAtHour) : 0;
   return {
     due: new Date(s.due),
     stability: s.stability,
@@ -61,7 +80,7 @@ function toFsrs(s: SchedState, countFrom?: Date): FsrsCard {
     reps: s.reps,
     lapses: s.lapses,
     state: s.state,
-    last_review: countFrom && last && countFrom > last ? countFrom : last,
+    last_review: last && new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - elapsed)),
   };
 }
 
@@ -109,6 +128,7 @@ export const DEFAULT_LEARN_STEPS = [1, 10];
 export const DEFAULT_RELEARN_STEPS = [10];
 
 const DAY_SECS = 86400;
+const DAY_MS = DAY_SECS * 1000;
 /** A step's length in seconds, as Anki computes it (f32 minutes times 60, truncated). */
 const stepSecs = (steps: number[], i: number) => Math.trunc(Math.fround(steps[i]) * 60);
 const roundDays = (secs: number) => (secs > DAY_SECS ? Math.round(secs / DAY_SECS) * DAY_SECS : secs);
@@ -176,6 +196,14 @@ export function rawInterval(stability: number, desiredRetention: number, weights
 }
 
 /**
+ * The decay Anki keeps on a card answered under these weights (rslib's `get_decay_from_params`):
+ * the weights' own (FSRS-6's last), FSRS-6's default with none, and 0.5 for FSRS-4.5 or FSRS-5 weights.
+ */
+export function fsrsDecay(weights: number[]): number {
+  return weights.length === 0 ? default_w[20] : weights.length < 21 ? 0.5 : weights[20];
+}
+
+/**
  * Answers a card as Anki's v3 scheduler does with FSRS. FSRS updates the memory state; the deck's
  * learning and relearning steps (its Anki preset's, else Anki's defaults) decide whether the card
  * waits on a step (`stepOutcome`), fuzzed by up to 5 minutes, or a day-long step once it crosses
@@ -185,7 +213,8 @@ export function rawInterval(stability: number, desiredRetention: number, weights
  */
 export function review(sched: SchedState, rating: RatingValue, now: Date = new Date(), params?: DeckParams, ctx: AnswerContext = {}): ReviewResult {
   const engine = engineFor(params);
-  const outcomes = engine.repeat(toFsrs(sched, ctx.countFrom), now);
+  const dayStartsAtHour = ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR;
+  const outcomes = engine.repeat(toFsrs(sched, now, dayStartsAtHour, ctx.countFrom), now);
   const { card, log } = outcomes[rating as Grade];
   let next = fromFsrs(card);
   const learn = params?.learnSteps ?? DEFAULT_LEARN_STEPS;
@@ -200,12 +229,12 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
   const capped = (days: number) => (ctx.capDays !== undefined && ctx.capDays >= 1 ? Math.min(days, ctx.capDays) : days);
   /** A wait of `secs`: fuzzed within the day, or a day-long step from the start of the day it lands on. */
   const step = (secs: number) => {
-    const nextDay = nextStudyDayStart(now, ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR).getTime();
+    const nextDay = nextStudyDayStart(now, dayStartsAtHour).getTime();
     const untilRollover = Math.floor((nextDay - now.getTime()) / 1000);
     if (secs >= untilRollover) {
       const day = addCalendarDays(new Date(nextDay), Math.floor((secs - untilRollover) / 86400));
       // A day-long step past a cram's day lands on that day instead, as a review would.
-      const capDay = ctx.capDays !== undefined && ctx.capDays >= 1 ? studyDayStart(addCalendarDays(now, ctx.capDays), ctx.dayStartsAtHour ?? DAY_STARTS_AT_HOUR) : undefined;
+      const capDay = ctx.capDays !== undefined && ctx.capDays >= 1 ? studyDayStart(addCalendarDays(now, ctx.capDays), dayStartsAtHour) : undefined;
       return (capDay && day > capDay ? capDay : day).toISOString();
     }
     return new Date(now.getTime() + learningStepWithFuzz(ctx.seed, secs) * 1000).toISOString();
@@ -217,12 +246,19 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
     : rating === 1 ? { steps: relearn, index: 0, state: 3 }
     : undefined;
   const outcome = ladder ? stepOutcome(ladder.steps, ladder.index, rating) : 'graduate';
+  /**
+   * The interval a card keeps while it relearns, as Anki keeps one (rslib states/review.rs and
+   * relearning.rs, the relearning state's `review.scheduled_days`): FSRS's interval for Again,
+   * unfuzzed, set when it's forgotten or missed again, and carried through its other steps. Anki's
+   * interval review orders sort by it. A learning card has none.
+   */
+  const relearnDays = () => (ladder?.state !== 3 ? 0 : sched.state === 2 || rating === 1 ? Math.max(Math.round(raw(1)), 1) : sched.scheduledDays);
   // FSRS-6 (or no weights) may keep a card on a short wait instead of steps, as Anki does when there are none.
   const allowShort = weights.length === 0 || (weights.length >= 19 && weights[17] > 0 && weights[18] > 0);
   if (ladder && outcome !== 'graduate') {
-    next = { ...next, state: ladder.state, due: step(outcome.secs), scheduledDays: 0, learningSteps: outcome.index };
+    next = { ...next, state: ladder.state, due: step(outcome.secs), scheduledDays: relearnDays(), learningSteps: outcome.index };
   } else if (ladder && ladder.steps.length === 0 && rating !== 4 && allowShort && raw(rating) < 0.5) {
-    next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: 0, learningSteps: 0 };
+    next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: ladder.state === 3 ? 1 : 0, learningSteps: 0 };
   } else if (sched.state === 2 && rating === 1) {
     // Forgotten, with no relearning steps: FSRS's interval as it is, as Anki does.
     const days = capped(Math.min(Math.max(Math.round(raw(1)), 1), Math.max(maxInterval, 1)));

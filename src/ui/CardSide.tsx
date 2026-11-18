@@ -308,7 +308,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.emphasis && b.reading && furigana && wordRuns ? (
                 <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
               ) : b.emphasis ? (
-                <Text style={{ ...withThaiLineHeight(type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
+                <Text style={{ ...withThaiLineHeight(b.role === 'meaning' ? { ...type.reading, fontWeight: '400' as const } : type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}
                   <EntryText text={b.text} gender={b.gender} c={c} />
                 </Text>

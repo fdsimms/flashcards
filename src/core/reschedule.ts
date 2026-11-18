@@ -1,5 +1,5 @@
-import { addCalendarDays, nextStudyDayStart, studyDayStart } from './day';
-import { newSchedState } from './scheduler';
+import { addCalendarDays, studyDayStart } from './day';
+import { daysSinceLastReview, newSchedState } from './scheduler';
 import type { Card } from './types';
 
 /**
@@ -32,8 +32,6 @@ export function parseDueDate(text: string): DueDateSpec | undefined {
 export function pickDays(spec: DueDateSpec, random: () => number = Math.random): number {
   return spec.min + Math.floor(random() * (spec.max - spec.min + 1));
 }
-
-const DAY_MS = 86_400_000;
 
 /** The start of the study day `days` after the one `now` falls in, by the calendar (DST-safe). */
 export function studyDayAfter(now: Date, days: number, dayStartsAtHour: number): Date {
@@ -69,9 +67,7 @@ export function setDueCard(card: Card, days: number, now: Date, dayStartsAtHour:
   const s = card.sched;
   const due = studyDayAfter(now, days, dayStartsAtHour);
   const fresh = s.state === 0 || !s.lastReview;
-  const elapsed = s.lastReview
-    ? Math.max(0, Math.floor((nextStudyDayStart(now, dayStartsAtHour).getTime() - new Date(s.lastReview).getTime()) / DAY_MS))
-    : 0;
+  const elapsed = s.lastReview ? daysSinceLastReview(new Date(s.lastReview), now, dayStartsAtHour) : 0;
   const interval = Math.max(1, fresh ? 0 : elapsed + days);
   return {
     ...card,

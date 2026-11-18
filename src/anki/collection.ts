@@ -57,8 +57,24 @@ export const COLLECTION_QUERIES = {
   deckConfigs: 'SELECT id, config FROM deck_config',
   // The latest real answer: Anki's FSRS skips Manual rows (Set Due Date, Forget), which have ease 0.
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 GROUP BY cid',
-  config: "SELECT key, val FROM config WHERE key IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled')",
+  // `KEY AS key`: Anki declares the column in capitals, and SQLite names a result column as declared.
+  config: "SELECT KEY AS key, val FROM config WHERE KEY IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled')",
 } as const;
+
+/**
+ * A collection's rows, from every query in `COLLECTION_QUERIES` run through `all`. The phone and
+ * the tests both read through this, so a query added above is read wherever a collection is: the
+ * phone once listed the queries itself and left `config` out, and every collection was scheduled
+ * with Anki's default day start, learn-ahead and limits options and no creation time zone.
+ */
+export async function queryCollectionRows(all: (sql: string) => Promise<unknown[]> | unknown[]): Promise<CollectionRows> {
+  const out: Record<string, unknown> = {};
+  for (const [name, sql] of Object.entries(COLLECTION_QUERIES)) {
+    const rows = await all(sql);
+    out[name] = name === 'col' ? rows[0] : rows;
+  }
+  return out as unknown as CollectionRows;
+}
 
 type Num = number | bigint;
 export interface CollectionRows {

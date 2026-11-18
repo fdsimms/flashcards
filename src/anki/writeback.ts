@@ -1,4 +1,4 @@
-import type { RatingValue } from '../core/scheduler';
+import { fsrsDecay, type RatingValue } from '../core/scheduler';
 import type { CardState } from '../core/cardState';
 import { ankiToday } from '../core/order';
 import type { Card } from '../core/types';
@@ -14,8 +14,11 @@ import type { Card } from '../core/types';
  * - queue -1 suspended, 0 new, 1 learning due within the day (due = unix seconds), 2 review,
  *   3 learning due on a later day (due = day number).
  * - Day numbers count calendar days since the date the collection was created (`ankiToday`).
- * - `data` is JSON: `s` stability, `d` difficulty (1-10), `dr` desired retention, `lrt` last
- *   review (unix seconds). Other keys there are Anki's and are kept.
+ * - `data` is JSON: `s` stability, `d` difficulty (1-10), `dr` desired retention, `decay` the
+ *   weights' decay (what Anki works a card's retrievability out with), `lrt` last review (unix
+ *   seconds). Other keys there are Anki's and are kept.
+ * - `ivl` and `factor` follow the answer even while relearning (rslib's states/review.rs and
+ *   relearning.rs): FSRS reads neither, but Anki shows the interval, and its SM-2 uses both.
  * - revlog: `ivl`/`lastIvl` in days when positive, seconds when negative; `factor` holds FSRS
  *   difficulty normalized to 100-1100 (`((d - 1) / 9 + 0.1) * 1000`); `time` is ms taken;
  *   `type` 0 learn, 1 review, 2 relearn.
@@ -91,6 +94,10 @@ export function cardUpdate(
     clock: AnkiClock; now: Date; desiredRetention?: number;
     /** How many learning and relearning steps the card's deck has: Anki's `left` counts the steps still to go. */
     steps?: { learn: number; relearn: number };
+    /** The button pressed, which Anki's ease follows. */
+    rating?: RatingValue;
+    /** The card's deck's FSRS weights (none for Anki's defaults), for `decay`. */
+    weights?: number[];
   },
 ): AnkiCardUpdate {
   const s = card.sched;
@@ -121,6 +128,9 @@ export function cardUpdate(
     const steps = ctx.steps ?? DEFAULT_STEP_COUNTS;
     left = Math.max(1, (s.state === 1 ? steps.learn : steps.relearn) - s.learningSteps);
     if (s.state === 1) ivl = 0;
+    // A relearning card's interval is the one its lapse gave it (scheduler.ts's `relearnDays`); one
+    // forgotten before Franki kept that has none here, and keeps the row's.
+    else if (s.scheduledDays > 0) ivl = s.scheduledDays;
   }
   if (card.suspended) queue = -1;
 
@@ -132,19 +142,33 @@ export function cardUpdate(
   if (s.state !== 0) {
     data.s = Number(s.stability.toFixed(4));
     data.d = Number(s.difficulty.toFixed(3));
-    if (ctx.desiredRetention !== undefined) data.dr = ctx.desiredRetention;
+    if (ctx.desiredRetention !== undefined) data.dr = Number(ctx.desiredRetention.toFixed(2));
+    if (ctx.weights) data.decay = Number(fsrsDecay(ctx.weights).toFixed(3));
     if (s.lastReview) data.lrt = secs(s.lastReview);
   }
 
   return {
     did, odid: stillFiltered ? current.odid : 0, odue: stillFiltered ? due : 0,
     type: s.state, queue, due, ivl,
-    // A card leaving New gets Anki's starting ease; FSRS doesn't use it, but SM-2 would.
-    factor: current.factor || (s.state === 0 ? 0 : 2500),
+    factor: easeAfter(current, s.state, ctx.rating),
     reps: s.reps, lapses: s.lapses, left,
     data: Object.keys(data).length ? JSON.stringify(data) : current.data ?? '',
     mod: nowSecs, usn: -1,
   };
+}
+
+/**
+ * Anki's ease (`factor`, in thousandths) after an answer. A review's moves with the button: Again
+ * 200 down, Hard 150 down, neither below 1300, Easy 150 up. Any other card keeps its own, and one
+ * leaving New gets Anki's starting ease. FSRS doesn't use it, but SM-2 would.
+ */
+function easeAfter(current: AnkiCardRow, state: number, rating?: RatingValue): number {
+  if (current.type === 2 && state !== 0) {
+    if (rating === 1) return Math.max(1300, current.factor - 200);
+    if (rating === 2) return Math.max(1300, current.factor - 150);
+    if (rating === 4) return current.factor + 150;
+  }
+  return current.factor || (state === 0 ? 0 : 2500);
 }
 
 /** The interval Anki records for a state: days for a review, negative seconds until due otherwise. */

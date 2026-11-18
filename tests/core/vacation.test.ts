@@ -135,9 +135,10 @@ describe('a deck under vacation mode', () => {
   });
 
   it('puts the most overdue first, not the oldest due date', () => {
-    // Same due day, but one has a far longer interval, so it is less overdue relative to it.
+    // Due a day apart, but one was last answered 300 days ago for a 300-day interval and the other
+    // 3 days ago for 2: the second is further past the interval FSRS gives it.
     const long = review(9);
-    long.card = { ...long.card, sched: { ...long.card.sched, scheduledDays: 300, stability: 300, lastReview: new Date(2025, 0, 1).toISOString() } };
+    long.card = { ...long.card, sched: { ...long.card.sched, scheduledDays: 300, stability: 300, lastReview: new Date(2026, 10, 9 - 300).toISOString() } };
     const short = review(10);
     short.card = { ...short.card, sched: { ...short.card.sched, scheduledDays: 2, stability: 2, lastReview: new Date(2026, 10, 8).toISOString() } };
     const q = queueFor([long, short], light, params({ reviewsPerDay: 1 }));

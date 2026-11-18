@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
-import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
+import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
@@ -65,6 +65,8 @@ export interface AnkiLink {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
     /** The card's deck's step counts, for Anki's `left`. */
     steps?: { learn: number; relearn: number };
+    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay`. */
+    weights?: number[];
     /**
      * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
      * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
@@ -203,18 +205,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     // Attached again so SQLite reads the edited schema.
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
     try {
-      const all = <T,>(sql: string) => db.getAllAsync<T>(inSchema(sql, 'scratch'));
-      return {
-        col: (await db.getFirstAsync<{ crt: number }>(inSchema(COLLECTION_QUERIES.col, 'scratch')))!,
-        notetypes: await all(COLLECTION_QUERIES.notetypes),
-        fields: await all(COLLECTION_QUERIES.fields),
-        templates: await all(COLLECTION_QUERIES.templates),
-        notes: await all(COLLECTION_QUERIES.notes),
-        cards: await all(COLLECTION_QUERIES.cards),
-        decks: await all(COLLECTION_QUERIES.decks),
-        deckConfigs: await all(COLLECTION_QUERIES.deckConfigs),
-        lastReviews: await all(COLLECTION_QUERIES.lastReviews),
-      } as CollectionRows;
+      return await queryCollectionRows((sql) => db.getAllAsync(inSchema(sql, 'scratch')));
     } finally {
       await db.execAsync('DETACH DATABASE scratch');
       scratch.delete();
@@ -257,7 +248,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, preview, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [] }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -276,7 +267,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       const deckRows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
       const decks = deckAndParents(deckRows, row.did).map(({ id, common, mtime_secs, usn }) => ({ id, common, mtime_secs, usn }));
       await db.withTransactionAsync(async () => {
-        const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps })
+        const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps, rating, weights })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
           : previewReturn(row, now);
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(update, cid));

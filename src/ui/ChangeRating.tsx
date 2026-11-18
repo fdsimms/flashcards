@@ -6,7 +6,7 @@ import { Tappable } from './kit';
 import { radius, smooth, type, useTheme } from './theme';
 
 /**
- * The last answer, as one line above the answer buttons: what it was ("Good · 24d") and three
+ * The last answer, as one line above the answer buttons: what it was and for which word ("Good · 24d · kot") and three
  * icon buttons, Undo, Undo with a check (change it to Good) and Undo with an X (change it to
  * Again). It stays until the next answer replaces it, so it never needs a timer or an
  * animation. Review does the changes (an undo and an answer in one step); this never reaches
@@ -18,6 +18,8 @@ export interface LastAnswer {
   rating: RatingValue;
   /** The interval the answer gave, as the button showed it ("4d"). */
   interval?: string;
+  /** The card's word (`headword`), so the line says which card it's about. */
+  word?: string;
 }
 
 const NAMES: Record<RatingValue, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -52,7 +54,7 @@ export function LastAnswerLine({ last, onUndo, onChange }: { last: LastAnswer; o
   return (
     <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
       <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, ...type.footnote, color: c.textSecondary }}>
-        Last answer: <Text style={{ fontWeight: '600', color: c.text }}>{name}{last.interval ? ` · ${last.interval}` : ''}</Text>
+        Last answer: <Text style={{ fontWeight: '600', color: c.text }}>{[name, last.interval, last.word].filter(Boolean).join(' · ')}</Text>
       </Text>
       <Tappable onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo the last answer" scaleTo={0.9} style={button}>
         <UndoIcon color={c.textSecondary} cutout={c.bg} />

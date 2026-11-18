@@ -90,7 +90,7 @@ describe('cards', () => {
       Notes: 'active smelling', Mnemonic: 'dome',
     });
     const back = renderCard(note, 'forward').back.blocks;
-    expect(back.map((b) => b.role)).toEqual([undefined, 'transliteration', 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
+    expect(back.map((b) => b.role)).toEqual(['meaning', 'transliteration', 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
     expect(back[3]?.label).toBe('Mnemonic');
     expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
     expect(back.find((b) => b.role === 'example')).toMatchObject({ segments: [{ text: 'ขอ', marked: false }, { text: 'ดม', marked: true }, { text: 'ดอกไม้หน่อยครับ', marked: false }], label: undefined, tapLabel: undefined });
@@ -104,7 +104,7 @@ describe('cards', () => {
       Plural: 'Einstellungen', Genitive: 'der Einstellung', Context: 'Die <b>Einstellungen</b> sind im Menü.', Transliteration: '',
     });
     const back = renderCard(note, 'forward').back.blocks;
-    expect(back.map((b) => b.role)).toEqual([undefined, 'chips', 'forms', 'example']);
+    expect(back.map((b) => b.role)).toEqual(['meaning', 'chips', 'forms', 'example']);
     expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['feminine', 'neutral']);
     expect(back.find((b) => b.role === 'forms')).toMatchObject({
       label: 'Forms', rows: [{ label: 'plural', value: 'Einstellungen' }, { label: 'genitive', value: 'der Einstellung' }],
@@ -258,8 +258,8 @@ describe('cards', () => {
   });
   it('leaves out tags and the example when the note has none', () => {
     const back = renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks;
-    // The word's transliteration is the one block with a role the default fixture has.
-    expect(back.filter((b) => b.role).map((b) => b.role)).toEqual(['transliteration']);
+    // The meaning and the word's transliteration are the blocks with a role the default fixture has.
+    expect(back.filter((b) => b.role).map((b) => b.role)).toEqual(['meaning', 'transliteration']);
   });
   it('shows the Sense line right under the meaning on the forward and audio answers, and only when there is one', () => {
     const note = omniNote({ Entry: 'ประสบการณ์', Meaning: 'experience', Sense: 'know-how from doing, or something lived through', GenerateAudioCard: 'y' });

@@ -8,7 +8,7 @@ import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } fro
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
-import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
+import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, Refusal } from '../core/failure';
@@ -61,7 +61,7 @@ import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { haptic } from './haptics';
-import { RecordYourself } from './RecordYourself';
+import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { notePreview } from '../core/noteEditing';
@@ -340,13 +340,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const note = current ? notes.get(current.noteId) : undefined;
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own.
+  // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own. A frequency tier ("Thai::Tier 3") is part of its language, not a language of its own, so it's looked past.
   const tintOf = useDeckTint();
   // Every card's home deck: from the cards the queue being shown was built from, so it waits with the queue.
   const deckCards = settle?.cards ?? cards;
-  const subdecks = useMemo(() => studiedSubdecks((deckCards ?? []).map((cd) => cardHomeDeck(cd, deckOf.get(cd.noteId) ?? '')), deck), [deckCards, deckOf, deck]);
+  const subdecks = useMemo(() => studiedSubdecks((deckCards ?? []).map((cd) => untiered(cardHomeDeck(cd, deckOf.get(cd.noteId) ?? ''))), deck), [deckCards, deckOf, deck]);
   const cardLanguage = useMemo((): CardLanguage | undefined => {
-    const sub = current && note ? subdeckOf(cardHomeDeck(current, note.deck), deck) : null;
+    const sub = current && note ? subdeckOf(untiered(cardHomeDeck(current, note.deck)), deck) : null;
     if (!sub || subdecks.size < 2) return undefined;
     const { emoji, rest } = leadingEmoji(sub.slice(sub.lastIndexOf('::') + 2));
     return { emoji, name: rest, wash: tintOf(sub) };
@@ -613,7 +613,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The last answer stays on the line above the buttons until the next one, to undo or change. A
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating] });
+      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
       // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
@@ -651,6 +651,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               takenMs, desiredRetention, bury: siblings,
               preview: preview ? { again: previewAgainAt } : undefined,
               steps: stepCounts,
+              weights: params?.weights ?? [],
             });
             // The write waits on `lockAnki`. A sync that held it meanwhile read the kept collection,
             // which didn't have this answer yet, back over the rows saved above. Saved again now that
@@ -1346,9 +1347,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
-              <LanguageCue kind={current.kind} speechLang={speechLang} />
+              {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
+              <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
-              {canRecordYourself(rendered) ? (
+              {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
                 </View>
@@ -1356,7 +1358,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             </Reveal>
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
-                <View style={{ height: hairline, backgroundColor: c.border }} />
+                {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
+                <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
                 <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { ankiDayStart, ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, sortNew, sortReviews, type SortContext } from '../../src/core/order';
+import { ankiDayStart, ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, relativeRetrievability, sortNew, sortReviews, type SortContext } from '../../src/core/order';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -84,6 +84,23 @@ describe("Anki's study order", () => {
     expect(sortReviews(cards, 8, ctx())).toEqual(sortReviews([...cards].reverse(), 8, ctx()));
   });
 
+  it("orders relative overdueness as Anki's FSRS does: time since the last answer against the interval FSRS gives now", () => {
+    const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86400000).toISOString(); // day-ms-ok: an elapsed time
+    const reviewed = (id: string, stability: number, ago: number) => card(id, {}, { state: 2, stability, difficulty: 5, scheduledDays: Math.round(stability), lastReview: daysAgo(ago), due: NOW.toISOString() });
+    // At the default retention the interval is the stability, so the key is minus elapsed over stability.
+    expect(relativeRetrievability(reviewed('a', 10, 10), NOW, [], 0.9)).toBeCloseTo(-1, 4);
+    expect(relativeRetrievability(reviewed('a', 10, 25), NOW, [], 0.9)).toBeCloseTo(-2.5, 4);
+    // A lower desired retention gives a longer interval, so the same wait is less overdue.
+    expect(relativeRetrievability(reviewed('a', 10, 10), NOW, [], 0.8)).toBeGreaterThan(-1);
+    const cards = [reviewed('twice', 10, 20), reviewed('thrice', 2, 6), reviewed('onTime', 50, 50)];
+    expect(sortReviews(cards, 12, ctx()).map((c) => c.id)).toEqual(['thrice', 'twice', 'onTime']);
+    // Each card's own deck's retention decides, when the context has it.
+    const strict = { ...ctx(), retentionOf: (c: Card) => (c.id === 'onTime' ? 0.99 : 0.9) };
+    expect(sortReviews(cards, 12, strict).map((c) => c.id)[0]).toBe('onTime');
+    // Without a memory state, Anki's older rule: days since it was scheduled over its interval.
+    const bare = card('bare', {}, { state: 2, stability: 0, scheduledDays: 4, lastReview: null, due: new Date(2026, 10, 7, 12).toISOString() });
+    expect(relativeRetrievability(bare, NOW, [], 0.9)).toBeCloseTo(-(8 + 0.001) / 4, 4);
+  });
   it("works a card's shuffle out again when its mod or the day changes, not from the last sort's", () => {
     // The shuffle is kept per card object between sorts; a card changed in place mustn't keep its old one.
     const ids = (cs: Card[]) => cs.map((c) => c.id);
