@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
 import { deckLimits, deckLineage, deckListTotals, deckRows, deckTree, earlierDeckToStudy, isInDeck, isTierDeck, nextDeckToStudy, queueInput, shownDeckRows, todayDeckRows, treeQueue, untiered, type TreeQueueInput } from '../../src/core/deckTree';
+import { buildExport, type CollectionRows } from '../../src/anki/collection';
+import { dueCounts, studiedToday } from '../../src/core/queue';
+import type { RevlogRow } from '../../src/core/stats';
 import type { Card } from '../../src/core/types';
+import { importAnkiJson } from '../../src/import/ankiJson';
+import queueVectors from '../fixtures/anki/queue-vectors.json';
 import { NOW, omniNote } from '../support/fixtures';
 
 const H = 4;
@@ -471,4 +476,59 @@ describe('treeQueue, tagged cards first', () => {
     const { q, cards } = withBoost(4, 0, 20, 50);
     expect(q.fresh.map((c) => c.id)).toEqual(cards.map((c) => c.id));
   });
+});
+
+/**
+ * A collection made and studied in Anki itself, and what Anki's scheduler queued for each of its
+ * decks under each set of options and at each time (make-queue-vectors.py). Read here the way the
+ * app reads a collection (`buildExport`, `importAnkiJson`, `studiedToday`, `queueInput`), `treeQueue`
+ * has to queue the same cards in the same order.
+ */
+describe(`a deck's queue as Anki ${queueVectors.anki} builds it (tests/fixtures/anki/queue-vectors.json)`, () => {
+  const unhex = (hex: string) => Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
+  const recorded = queueVectors.rows;
+  // Recorded in UTC, replayed at the same wall-clock times in this zone: every instant in the rows
+  // moves by this zone's offset. A day number is already a local day, and `mod` also seeds Anki's
+  // review order, so each card gets its own back once it's read.
+  const shiftSecs = new Date(2026, 0, 20, 12).getTimezoneOffset() * 60;
+  const isInstant = (due: number) => due > 1_000_000_000;
+  const localData = (data: string) => {
+    const d = JSON.parse(data || '{}');
+    return JSON.stringify(typeof d.lrt === 'number' ? { ...d, lrt: d.lrt + shiftSecs } : d);
+  };
+  const rows: Omit<CollectionRows, 'deckConfigs' | 'config'> = {
+    col: recorded.col,
+    fields: recorded.fields,
+    notes: recorded.notes,
+    notetypes: recorded.notetypes.map((t) => ({ ...t, config: unhex(t.config) })),
+    templates: recorded.templates.map((t) => ({ ...t, config: unhex(t.config) })),
+    decks: recorded.decks.map((d) => ({ ...d, kind: unhex(d.kind) })),
+    cards: recorded.cards.map((c) => ({ ...c, due: isInstant(c.due) ? c.due + shiftSecs : c.due, mod: c.mod + shiftSecs, data: localData(c.data) })),
+    lastReviews: recorded.lastReviews.map((l) => ({ ...l, last: l.last + shiftSecs * 1000 })),
+  };
+  const revlog: RevlogRow[] = recorded.revlog.map((l) => ({ ...l, id: l.id + shiftSecs * 1000 }));
+  const ankiMod = new Map(recorded.cards.map((c) => [String(c.id), c.mod]));
+
+  it('has what the comparison needs', () => {
+    expect(queueVectors.variants.length).toBeGreaterThan(50);
+    const kinds = new Set(recorded.cards.map((c) => `${c.type}/${c.queue}`));
+    // New, learning within the day and by the day, review, relearning, buried and suspended cards.
+    for (const kind of ['0/0', '1/1', '1/3', '2/2', '3/1', '2/-3', '0/-3', '0/-1']) expect(kinds, kind).toContain(kind);
+  });
+
+  for (const v of queueVectors.variants) {
+    it(`${v.name}, at ${v.now.replace('T', ' ')}`, () => {
+      const now = new Date(v.now);
+      const data = importAnkiJson(buildExport({ ...rows, deckConfigs: v.deckConfigs.map((c) => ({ ...c, config: unhex(c.config) })), config: v.config }), { now });
+      const cards = data.cards.map((c) => ({ ...c, ankiMod: ankiMod.get(c.ankiId!) }));
+      const collection = data.collectionSettings!;
+      const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
+      const input = queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now });
+      for (const [deck, anki] of Object.entries(v.queues)) {
+        const q = treeQueue(deck, input);
+        expect(q.order.map((c) => c.ankiId), deck).toEqual(anki.order);
+        expect({ new: q.fresh.length, ...dueCounts(q) }, deck).toEqual({ new: anki.new, learning: anki.learning, reviews: anki.review });
+      }
+    });
+  }
 });

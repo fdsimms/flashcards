@@ -100,6 +100,18 @@ describe('mapping an answer to Anki', () => {
     expect(u.ivl).toBe(graduated.sched.scheduledDays);
   });
 
+  it("writes a relearning card's interval as the one its lapse gave it, as Anki does", () => {
+    const mature: Card = { ...card, sched: { ...card.sched, state: 2, stability: 40, difficulty: 5, reps: 6, scheduledDays: 30, lastReview: new Date(2026, 9, 12, 12).toISOString() } };
+    const lapsed: Card = { ...mature, sched: review(mature.sched, 1, now).sched };
+    expect(lapsed.sched.state).toBe(3);
+    expect(lapsed.sched.scheduledDays).toBeGreaterThan(0);
+    expect(lapsed.sched.scheduledDays).toBeLessThan(30);
+    expect(cardUpdate(lapsed, row({ type: 2, queue: 2, ivl: 30 }), { clock: CLOCK, now })).toMatchObject({ type: 3, ivl: lapsed.sched.scheduledDays });
+    // One forgotten before Franki kept that interval keeps the row's.
+    const older: Card = { ...lapsed, sched: { ...lapsed.sched, scheduledDays: 0 } };
+    expect(cardUpdate(older, row({ type: 3, queue: 1, ivl: 30 }), { clock: CLOCK, now }).ivl).toBe(30);
+  });
+
   it('sends a filtered-deck card home and keeps a suspended card suspended', () => {
     const after: Card = { ...card, suspended: true, sched: review(card.sched, 4, now).sched };
     expect(cardUpdate(after, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: -1 });
