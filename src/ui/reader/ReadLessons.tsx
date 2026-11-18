@@ -3,8 +3,11 @@ import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'reac
 import { ApiError, type Api, type AudioLesson, type Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
+import { lessonRequestWords } from '../../core/lessonWords';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
+import { LessonWords } from './LessonWords';
+import { useLessonWords } from './useLessonWords';
 import { useConnectionProblem } from '../connection';
 import { useLessonDownloads } from './useLessonDownloads';
 import { space, useTheme, readable } from '../theme';
@@ -33,6 +36,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const [scene, setScene] = useState('');
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  const chosen = useLessonWords(language);
   const downloadButton = useLessonDownloads(api);
   const problem = useConnectionProblem();
 
@@ -60,8 +64,9 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
     setAsking(true);
     setAskError(null);
     try {
-      await api.makeLesson(language, text, narrator || undefined, language === 'th' ? particle : undefined);
+      await api.makeLesson(language, text, narrator || undefined, language === 'th' ? particle : undefined, chosen.words.length ? lessonRequestWords(chosen.words) : undefined);
       setScene('');
+      chosen.clear();
       await load();
     } catch (e) {
       setAskError(e instanceof ApiError ? e.message : "Couldn't ask for the lesson. Try again.");
@@ -100,17 +105,20 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
             label="New lesson"
             value={scene}
             onChangeText={setScene}
-            placeholder="Ordering a coffee"
+            placeholder={chosen.words.length ? "What they're for, like at a cafe" : "Ordering a coffee"}
             maxLength={200}
             returnKeyType="done"
             onSubmitEditing={make}
           />
+          <LessonWords words={chosen.words} onRemove={chosen.remove} onClear={chosen.clear} />
           <Button label="Make a lesson" onPress={make} busy={asking} disabled={!scene.trim()} />
           {askError ? <ErrorNote message={askError} /> : null}
         </Card>
         <Help>
-          Claude writes about five {LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces
-          for you to answer in. It takes about a minute, and the spoken parts cost a few cents.
+          {chosen.words.length
+            ? `Claude writes the dialogue around your ${chosen.words.length === 1 ? 'word' : `${chosen.words.length} words`} and teaches every one of them, and a voice records the lesson with spaces for you to answer in.`
+            : `Claude writes about five ${LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
+          {' '}It takes about a minute, and the spoken parts cost a few cents.
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}

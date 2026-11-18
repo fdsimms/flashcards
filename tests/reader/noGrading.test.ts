@@ -41,6 +41,8 @@ const EXEMPT: Record<string, string[]> = {
   // lesson from the cram's words, and import only the NoteStore type; the cram's tag is written by
   // useCrams.ts, which nothing in src/reader imports.
   'a cram, which imports only the NoteStore type': ['src/ui/cram/CramListen.tsx', 'src/ui/cram/CramPage.tsx'],
+  // The lesson word picker lists the decks' notes to choose a lesson's words from, and imports only the NoteStore type; it reads, and writes nothing.
+  'the audio lesson word picker, which imports only the NoteStore type': ['src/ui/reader/LessonWordPicker.tsx'],
   // Add to deck saves a note itself in one case: after a verb is saved in the note editor, linking
   // its aspect partner already in the deck, once "Link them" is tapped in the alert that names
   // both. That tap is the approval; every new note still opens in the note editor.

@@ -254,13 +254,24 @@ export const LESSON_MAX_WORDS = 15;
 /** The longest word or meaning it takes (the server's `lesson.MAX_CHARS`): a longer one is left out, not sent to be refused. */
 export const LESSON_MAX_CHARS = 200;
 
+/** One note as an audio lesson takes it: its word and meaning, or undefined when it isn't in `language`, lacks either, or has one too long to send. */
+export function lessonPhraseOf(note: Note, language: Language): { noteId: string; text: string; english: string } | undefined {
+  if (readerLanguageOf(note) !== language) return undefined;
+  const text = headword(note);
+  const english = meaningOf(note);
+  if (!text || !english || text.length > LESSON_MAX_CHARS || english.length > LESSON_MAX_CHARS) return undefined;
+  return { noteId: note.id, text, english };
+}
+
 /** What Listen's audio lesson teaches: each word in `language` with its meaning, at most `LESSON_MAX_WORDS`, leaving out any too long to send. */
 export function lessonPhrases(notes: Note[], language: Language): { noteId: string; text: string; english: string }[] {
-  return notes
-    .filter((n) => readerLanguageOf(n) === language)
-    .map((n) => ({ noteId: n.id, text: headword(n), english: meaningOf(n) }))
-    .filter((p) => p.text && p.english && p.text.length <= LESSON_MAX_CHARS && p.english.length <= LESSON_MAX_CHARS)
-    .slice(0, LESSON_MAX_WORDS);
+  const phrases: { noteId: string; text: string; english: string }[] = [];
+  for (const n of notes) {
+    const phrase = lessonPhraseOf(n, language);
+    if (phrase) phrases.push(phrase);
+    if (phrases.length === LESSON_MAX_WORDS) break;
+  }
+  return phrases;
 }
 
 /** Whether the lesson made for the cram has every word it would teach now, and no other. */
