@@ -5,7 +5,7 @@ import { ErrorNote, Group, Help, NavRow, Screen } from '../kit';
 import { space, useTheme, readable } from '../theme';
 
 /**
- * Texts read to the end, newest first; with `story`, that story's episodes from the first. Opening
+ * Texts read to the end, newest first. Opening
  * one reads it again in the reader, with nothing logged (docs/read-and-listen/architecture.md, Client).
  */
 
@@ -17,7 +17,7 @@ function shortDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; story?: number; onOpen: (text: PastText) => void; onListen: (text: PastText) => void }) {
+export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (text: PastText) => void; onListen: (text: PastText) => void }) {
   const c = useTheme();
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,16 +25,16 @@ export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; stor
 
   const load = useCallback(async () => {
     try {
-      setTexts(await api.pastTexts(story));
+      setTexts(await api.pastTexts());
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load your past texts.");
     }
-  }, [api, story]);
+  }, [api]);
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Screen title={story === undefined ? 'Reread' : 'Your series'}>
+    <Screen title="Reread">
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
@@ -43,7 +43,7 @@ export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; stor
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {texts === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {texts !== null && texts.length === 0 ? (
-          <Help>{story === undefined ? 'No past texts yet. Texts you finish show up here, to read or listen to again.' : 'No episodes read yet. Each one shows up here once you finish it.'}</Help>
+          <Help>No past texts yet. Texts you finish show up here, to read or listen to again.</Help>
         ) : null}
         {texts !== null && texts.length > 0 ? (
           <>
@@ -53,7 +53,7 @@ export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; stor
                   key={t.id}
                   first={i === 0}
                   label={t.title}
-                  detail={[story === undefined ? t.topic : null, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
+                  detail={[t.topic, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
                   onPress={() => onOpen(t)}
                   action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
                 />

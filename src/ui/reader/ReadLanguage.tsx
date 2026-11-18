@@ -1,29 +1,28 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text } from 'react-native';
 import {
-  ApiError, MAX_STORY_ABOUT_CHARS, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type Shelf, type StretchWords,
+  ApiError, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type StretchWords,
 } from '../../reader/api';
 import { LEVEL_HELP, LEVEL_OPTIONS, levelOf } from '../../reader/difficulty';
 import { grammarSummary } from '../../reader/grammar';
 import { LANGUAGES } from '../../reader/languages';
 import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, Segments, Select } from '../kit';
+import { Card, ErrorNote, Group, Help, NavRow, Screen, SectionTitle, Segments, Select } from '../kit';
 import { CommonWords } from './ReadCommonWords';
 import { space, type, useTheme, readable } from '../theme';
-import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /** The card a change was made in, where its failure is shown. */
-type Section = 'words' | 'story' | 'stretch' | 'difficulty';
+type Section = 'words' | 'stretch' | 'difficulty';
 
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
- * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar, the
- * ongoing story, practice words, text difficulty, and how reading is going.
+ * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar,
+ * practice words, text difficulty, and how reading is going.
  * Opened from the shelf's sliders button; the language is the one the shelf is showing.
  */
-export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onEpisodes }: {
+export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck }: {
   api: Api;
   /** Franki's decks, to choose the language's deck from. */
   deckNames: string[];
@@ -33,27 +32,20 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   onGrammar: () => void;
   /** The vocabulary check, which suggests the common-words setting. */
   onVocabCheck: () => void;
-  /** Lists the story's episodes, to read again from the first. */
-  onEpisodes: (storyId: number) => void;
 }) {
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [shelf, setShelf] = useState<Shelf | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [grammar, setGrammar] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A change that failed, shown in the card it was made in rather than at the top, out of sight.
   const [failed, setFailed] = useState<{ at: Section; message: string } | null>(null);
-  const [about, setAbout] = useState('');
-  const [starting, setStarting] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [s, sh] = await Promise.all([api.settings(), api.shelf()]);
+      const s = await api.settings();
       setSettings(s);
       onSettings(s);
-      setShelf(sh);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load these settings.");
@@ -97,25 +89,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     }
   };
 
-  const startStory = async () => {
-    if (starting) return;
-    Keyboard.dismiss();
-    setStarting(true);
-    setFailed(null);
-    try {
-      await api.startStory(about.trim());
-      setAbout('');
-      await load();
-    } catch (e) {
-      setFailed({ at: 'story', message: e instanceof ApiError ? e.message : "Couldn't start a series. Try again." });
-    } finally {
-      setStarting(false);
-    }
-  };
-
   const language = settings?.language;
   const name = language ? LANGUAGES[language].name : '';
-  const story = shelf?.story ?? null;
   const voices = language ? settings?.voices?.[language] : undefined;
   const failure = (at: Section) => (failed?.at === at ? <ErrorNote message={failed.message} /> : null);
 
@@ -123,9 +98,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     <Screen title={name ? `${name} settings` : 'Settings'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         keyboardShouldPersistTaps="handled"
-        {...scrollProps}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!settings && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
@@ -157,23 +131,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
             </Group>
-
-            <SectionTitle>The series</SectionTitle>
-            <Card>
-              {story ? (
-                <View style={{ gap: space.xs }}>
-                  <Text style={{ ...type.headline, color: c.text }}>{story.title || 'Your series'}</Text>
-                  <Help>{`${story.read} ${story.read === 1 ? 'episode' : 'episodes'} read${story.about ? `. About ${story.about}` : ''}.`}</Help>
-                </View>
-              ) : (
-                <Help>No series yet. Start one here or with the + on Read & Listen.</Help>
-              )}
-              {story && story.read > 0 ? <Button label="Read from the start" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
-              <Field label={story ? 'A new series about' : 'A series about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startStory} />
-              {failure('story')}
-              <Button label={story ? 'Start a new series' : 'Start a series'} variant="secondary" onPress={startStory} busy={starting} />
-              <Help>A series keeps the same people and places from one episode to the next. A new one runs beside the others, and the one pinned to the top of Read & Listen stays there.</Help>
-            </Card>
 
             <SectionTitle>Practice words</SectionTitle>
             <Card>

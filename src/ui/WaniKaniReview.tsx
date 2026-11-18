@@ -346,11 +346,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     if (!study || !question || !subject) return;
     const text = typed.trim();
     const canSave = canSaveMeaning(question) && !!text;
-    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), 'Cancel'];
+    // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
+    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Mark as correct') answer(true);
-      if (!canSave || picked !== options[1]) return;
+      if (picked === 'Ask later') {
+        if (studyRef.current !== study) return;
+        later();
+        checkPopup.current = null;
+        popups.hideAll();
+      }
+      if (picked !== 'Save as a correct meaning') return;
       // The screen may have moved on while the sheet was open: only this question is marked correct.
       if (studyRef.current !== study) return;
       savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
