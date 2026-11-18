@@ -770,6 +770,59 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.write(run)
 
     @server.tool(annotations=WRITE)
+    async def set_deck_preset(
+        decks: list[str],
+        preset: str,
+        copy_from: str | None = None,
+        include_subdecks: bool = False,
+    ) -> dict[str, Any]:
+        """Puts decks on the options preset named `preset`, so they stop sharing another's limits and
+        retention. With no preset by that name, one is made as a copy of `copy_from`'s preset (a deck
+        name: its FSRS parameters, retention, limits and steps). Only the decks named move, and their
+        subdecks with include_subdecks; the preset they leave keeps its other decks. A frequency tier
+        subdeck keeps the preset its tiers use, and a filtered deck has none, so both are refused."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            dids = [_deck_id(col, d) for d in decks]
+            if include_subdecks:
+                every = {n.id: n.name for n in col.decks.all_names_and_ids()}
+                prefixes = tuple(f"{every[i]}::" for i in dids)
+                dids += [i for i, n in every.items() if n.startswith(prefixes) and i not in dids]
+            for did in dids:
+                deck = col.decks.get(did)
+                if deck is None or deck.get("dyn"):
+                    raise ToolError(f'"{col.decks.name(did)}" is a filtered deck, which has no options preset of its own.')
+                if TIER_PRESET_KEY in col.decks.config_dict_for_deck_id(did):
+                    raise ToolError(f'"{col.decks.name(did)}" is a frequency tier, whose preset is kept with its parent deck by tier_deck_by_frequency. Move the parent deck, or untier_deck first.')
+            found = next((c for c in col.decks.all_config() if c["name"] == preset), None)
+            created = found is None
+            if found is not None:
+                if copy_from is not None:
+                    raise ToolError(f'There\'s already a preset called "{preset}". Leave out copy_from to put the decks on it, or choose another name.')
+                if TIER_PRESET_KEY in found:
+                    raise ToolError(f'"{preset}" belongs to a deck\'s frequency tiers. Choose another name.')
+                conf = found
+            else:
+                if copy_from is None:
+                    names = sorted(c["name"] for c in col.decks.all_config() if TIER_PRESET_KEY not in c)
+                    raise ToolError(f'There\'s no preset called "{preset}". To make it, pass copy_from (a deck whose preset to copy). Presets: {", ".join(names)}.')
+                conf = col.decks.add_config(preset, clone_from=col.decks.config_dict_for_deck_id(_deck_id(col, copy_from)))
+                conf.pop(TIER_PRESET_KEY, None)
+                col.decks.update_config(conf)
+            moved = []
+            for did in dids:
+                before = col.decks.config_dict_for_deck_id(did)
+                if before["id"] == conf["id"]:
+                    continue
+                deck = col.decks.get(did)
+                assert deck is not None
+                col.decks.set_config_id_for_deck_dict(deck, conf["id"])
+                moved.append({"deck": col.decks.name(did), "was_on": before["name"]})
+            return {"preset": preset, "created": created, "moved": moved}
+
+        return await cm.write(run)
+
+    @server.tool(annotations=WRITE)
     async def optimize_fsrs(deck: str, apply: bool = False) -> dict[str, Any]:
         """Runs Anki's FSRS optimizer on the review history of a deck's preset (every deck sharing
         it). Returns the new parameters; saves them only with apply=true. Needs a few hundred

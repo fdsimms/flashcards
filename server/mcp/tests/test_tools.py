@@ -151,6 +151,29 @@ async def test_stats_and_fsrs(client):
     assert opt["applied"] is False
 
 
+async def test_a_deck_can_leave_a_shared_preset(client, desktop):
+    before = await call(client, "get_fsrs_settings", deck=TRIVIA)
+    shared = before["decks_sharing_it"]
+    out = await call(client, "set_deck_preset", decks=[TRIVIA], preset="Trivia", copy_from=TRIVIA)
+    assert out["created"] and out["moved"] == [{"deck": TRIVIA, "was_on": before["preset"]}]
+    got = await call(client, "get_fsrs_settings", deck=TRIVIA)
+    assert got["preset"] == "Trivia" and got["decks_sharing_it"] == [TRIVIA]
+    # The copy starts as the old preset was, and the one it left keeps its other decks.
+    assert got["new_per_day"] == before["new_per_day"] and got["params"] == before["params"]
+    other = next(d for d in shared if d != TRIVIA)
+    assert TRIVIA not in (await call(client, "get_fsrs_settings", deck=other))["decks_sharing_it"]
+    # Changing the new preset's limit leaves the old one alone.
+    await call(client, "set_fsrs_settings", deck=TRIVIA, new_per_day=33)
+    assert (await call(client, "get_fsrs_settings", deck=other))["new_per_day"] == before["new_per_day"]
+    # A second call finds it by name and moves nothing already on it.
+    again = await call(client, "set_deck_preset", decks=[TRIVIA], preset="Trivia")
+    assert not again["created"] and again["moved"] == []
+    assert "copy_from" in await call_error(client, "set_deck_preset", decks=[THAI], preset="No such preset")
+    assert "already a preset" in await call_error(client, "set_deck_preset", decks=[THAI], preset="Trivia", copy_from=THAI)
+    assert 'no deck called "Nowhere"' in await call_error(client, "set_deck_preset", decks=["Nowhere"], preset="Trivia")
+    desktop.run("sync")  # reaches the other device
+
+
 async def test_media_reaches_the_server(client, cm, desktop):
     name = (await call(client, "store_media", filename="hello.txt", data_base64=base64.b64encode(b"hi").decode()))["filename"]
     assert name == "hello.txt"
