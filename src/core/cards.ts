@@ -131,12 +131,14 @@ export interface Playback {
 /**
  * What the Play button says for the side shown. A recording belongs to `audioSide` and, once the
  * answer is shown, is free to replay from either side; before then it stays quiet on the other
- * side, so a recording of the answer isn't played over the question, unless the front already
- * shows the word it says (`frontShowsWord`).
+ * side, so a recording of the answer isn't played over the question. A front that shows the word
+ * (`frontShowsWord`) offers nothing before the answer either: how it's said is part of what the
+ * learner is recalling.
  */
 export function playbackFor(card: RenderedCard, revealed: boolean): Playback | undefined {
+  if (!revealed && card.frontShowsWord) return undefined;
   const text = revealed ? card.back.speak ?? card.front.speak : card.front.speak;
-  const file = card.audioFile && (revealed || card.audioSide === 'front' || card.frontShowsWord) ? card.audioFile : undefined;
+  const file = card.audioFile && (revealed || card.audioSide === 'front') ? card.audioFile : undefined;
   return text || file ? { text, file } : undefined;
 }
 
