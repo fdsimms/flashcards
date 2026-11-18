@@ -37,6 +37,10 @@ const EXEMPT: Record<string, string[]> = {
     'src/ui/Voices.tsx', 'src/ui/tools/GrammarDrill.tsx', 'src/ui/tools/ToolScreen.tsx', 'src/ui/tools/index.tsx',
     'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts',
   ],
+  // A cram's page and its Listen row (src/core/cram.ts) use Read & Listen for a text and an audio
+  // lesson from the cram's words, and import only the NoteStore type; the cram's tag is written by
+  // useCrams.ts, which nothing in src/reader imports.
+  'a cram, which imports only the NoteStore type': ['src/ui/cram/CramListen.tsx', 'src/ui/cram/CramPage.tsx'],
   // Add to deck saves a note itself in one case: after a verb is saved in the note editor, linking
   // its aspect partner already in the deck, once "Link them" is tapped in the alert that names
   // both. That tap is the approval; every new note still opens in the note editor.

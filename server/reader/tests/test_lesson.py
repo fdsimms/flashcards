@@ -474,3 +474,71 @@ class TestLearner:
 
     def test_a_man_is_the_default(self) -> None:
         assert lesson.build_script(PLAN) == lesson.build_script(PLAN, "male")
+
+
+# A lesson made from the learner's own words and phrases (a cram in the app).
+GIVEN = (
+    Phrase("Un café", "a coffee", ("Un café",)),
+    Phrase("L'addition, s'il vous plaît", "the check, please", ("L'addition, s'il vous plaît",)),
+    Phrase("presque", "almost", ("presque",)),
+)
+GIVEN_RAW = {
+    "title": "At the café",
+    "dialogue": [
+        {"speaker": "A", "text": "Un café, s'il vous plaît.", "english": "A coffee, please."},
+        {"speaker": "B", "text": "Voilà.", "english": "Here you are."},
+    ],
+    "phrases": [
+        # Claude's own split of a given phrase, its spacing and punctuation changed: kept, with the
+        # learner's text and meaning.
+        {
+            "text": "L'addition s'il vous plaît.",
+            "english": "Check please",
+            "parts": ["L'addition", "s'il vous plaît."],
+        },
+        {"text": "Un café", "english": "A coffee", "parts": ["Un café"]},
+        # Not one of the learner's: dropped.
+        {"text": "Bonjour", "english": "Hello", "parts": ["Bonjour"]},
+    ],
+    "mixes": [{"text": "Un café, s'il vous plaît", "english": "A coffee, please"}],
+}
+
+
+def test_a_given_plan_teaches_every_given_phrase_as_the_learner_has_it() -> None:
+    plan = lesson.clean_given_plan(GIVEN_RAW, "my lesson", GIVEN)
+    assert plan is not None
+    assert plan.title == "At the café"
+    assert plan.phrases == (
+        Phrase(
+            "L'addition, s'il vous plaît",
+            "the check, please",
+            ("L'addition", "s'il vous plaît."),
+        ),
+        Phrase("Un café", "a coffee", ("Un café",)),
+        # Left out by Claude: taught whole, last.
+        Phrase("presque", "almost", ("presque",)),
+    )
+    assert [m.text for m in plan.mixes] == ["Un café, s'il vous plaît"]
+
+
+def test_a_given_plan_needs_a_dialogue_and_phrases() -> None:
+    assert lesson.clean_given_plan({**GIVEN_RAW, "dialogue": []}, "x", GIVEN) is None
+    assert lesson.clean_given_plan(GIVEN_RAW, "x", ()) is None
+    assert lesson.clean_given_plan("nope", "x", GIVEN) is None
+
+
+def test_a_given_plan_keeps_a_longer_dialogue() -> None:
+    line = {"speaker": "A", "text": "Un café.", "english": "A coffee."}
+    raw = {**GIVEN_RAW, "dialogue": [line] * 12}
+    plan = lesson.clean_given_plan(raw, "x", GIVEN)
+    assert plan is not None and len(plan.dialogue) == lesson.MAX_GIVEN_DIALOGUE
+
+
+def test_given_phrases_are_squashed_each_once_and_capped() -> None:
+    given = lesson.given_phrases(
+        [("  Un  café ", "a coffee"), ("un café.", "again"), ("", "empty"), ("x" * 201, "long")]
+        + [(f"mot{i}", f"word {i}") for i in range(20)]
+    )
+    assert given[0] == Phrase("Un café", "a coffee", ("Un café",))
+    assert len(given) == lesson.MAX_GIVEN
+    assert all(p.text != "un café." for p in given)

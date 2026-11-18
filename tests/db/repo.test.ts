@@ -240,6 +240,18 @@ describe('repo', () => {
     expect((await repo.listConfusedPairs()).map((p) => `${p.a}${p.b}`)).toEqual(['ab']);
   });
 
+  it('keeps crams by id, oldest first, a saved copy not shared with the caller', async () => {
+    const repo = new MemoryRepo();
+    const cram = { id: 'b', name: 'B', date: '2026-11-20', createdAt: '2026-11-18T10:00', addNew: true, rounds: [] };
+    await repo.saveCram(cram);
+    await repo.saveCram({ ...cram, id: 'a', createdAt: '2026-11-18T09:00' });
+    cram.rounds.push({ finishedAt: 'x', noteIds: [], missed: [] } as never);
+    expect((await repo.listCrams()).map((c) => [c.id, c.rounds.length])).toEqual([['a', 0], ['b', 0]]);
+    await repo.saveCram({ ...cram, name: 'Renamed', rounds: [] });
+    await repo.deleteCram('a');
+    expect((await repo.listCrams()).map((c) => c.name)).toEqual(['Renamed']);
+  });
+
   it('drops the links of a deleted note', async () => {
     const repo = new MemoryRepo();
     await repo.saveConfusedPair({ a: 'a', b: 'b', linkedAt: '2026-11-11T09:00:00.000Z' });
