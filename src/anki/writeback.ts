@@ -121,6 +121,9 @@ export function cardUpdate(
     const steps = ctx.steps ?? DEFAULT_STEP_COUNTS;
     left = Math.max(1, (s.state === 1 ? steps.learn : steps.relearn) - s.learningSteps);
     if (s.state === 1) ivl = 0;
+    // A relearning card's interval is the one its lapse gave it (scheduler.ts's `relearnDays`); one
+    // forgotten before Franki kept that has none here, and keeps the row's.
+    else if (s.scheduledDays > 0) ivl = s.scheduledDays;
   }
   if (card.suspended) queue = -1;
 

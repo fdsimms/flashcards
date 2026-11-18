@@ -9,9 +9,6 @@
 # src/anki/collection.ts, blobs in hex) and its review log, then each variant: the option rows it
 # changed, the time, and for each deck the card ids in the order Anki queues them with Anki's
 # three counts. The cards are as they were at noon on the 20th for every variant.
-# Left out, as Franki is known to order them differently: review orders 3 and 4 (by interval:
-# Anki keeps a relearning card's review interval, Franki keeps none while it relearns) and 12
-# (relative overdueness: Anki's is FSRS's, by retrievability against the desired retention).
 import json, os, random, sys, tempfile, time
 from anki.collection import Collection
 
@@ -194,7 +191,7 @@ variant("new siblings buried", presets(lambda conf: conf["new"].update(bury=True
 variant("review siblings buried", presets(lambda conf: conf["rev"].update(bury=True)))
 variant("large limits", presets(large))
 variant("large limits, siblings buried", presets(lambda conf: (large(conf), bury(conf))))
-for order in (0, 1, 2, 5, 6, 7, 8, 9, 10, 11):
+for order in range(13):
     variant(f"review order {order}", set_keys(reviewOrder=order))
     variant(f"review order {order}, large limits", presets(lambda conf, order=order: (large(conf), conf.update(reviewOrder=order))))
 for gather in range(6):

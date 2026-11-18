@@ -238,12 +238,19 @@ export function review(sched: SchedState, rating: RatingValue, now: Date = new D
     : rating === 1 ? { steps: relearn, index: 0, state: 3 }
     : undefined;
   const outcome = ladder ? stepOutcome(ladder.steps, ladder.index, rating) : 'graduate';
+  /**
+   * The interval a card keeps while it relearns, as Anki keeps one (rslib states/review.rs and
+   * relearning.rs, the relearning state's `review.scheduled_days`): FSRS's interval for Again,
+   * unfuzzed, set when it's forgotten or missed again, and carried through its other steps. Anki's
+   * interval review orders sort by it. A learning card has none.
+   */
+  const relearnDays = () => (ladder?.state !== 3 ? 0 : sched.state === 2 || rating === 1 ? Math.max(Math.round(raw(1)), 1) : sched.scheduledDays);
   // FSRS-6 (or no weights) may keep a card on a short wait instead of steps, as Anki does when there are none.
   const allowShort = weights.length === 0 || (weights.length >= 19 && weights[17] > 0 && weights[18] > 0);
   if (ladder && outcome !== 'graduate') {
-    next = { ...next, state: ladder.state, due: step(outcome.secs), scheduledDays: 0, learningSteps: outcome.index };
+    next = { ...next, state: ladder.state, due: step(outcome.secs), scheduledDays: relearnDays(), learningSteps: outcome.index };
   } else if (ladder && ladder.steps.length === 0 && rating !== 4 && allowShort && raw(rating) < 0.5) {
-    next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: 0, learningSteps: 0 };
+    next = { ...next, state: ladder.state, due: step(Math.trunc(raw(rating) * 86400)), scheduledDays: ladder.state === 3 ? 1 : 0, learningSteps: 0 };
   } else if (sched.state === 2 && rating === 1) {
     // Forgotten, with no relearning steps: FSRS's interval as it is, as Anki does.
     const days = capped(Math.min(Math.max(Math.round(raw(1)), 1), Math.max(maxInterval, 1)));

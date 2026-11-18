@@ -220,7 +220,8 @@ export function schedFromAnki(c: AnkiCardInfo, days: AnkiDays, now: Date): Sched
     stability,
     difficulty,
     elapsedDays: 0,
-    scheduledDays: type === 2 ? interval : 0,
+    // A relearning card keeps the interval Anki gave it when it was forgotten (its `ivl`).
+    scheduledDays: type === 2 || type === 3 ? interval : 0,
     learningSteps: 0,
     reps: c.reps ?? 1,
     lapses: c.lapses ?? 0,

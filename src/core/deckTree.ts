@@ -277,6 +277,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const ctx: SortContext = {
     now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
     weightsOf: (c) => paramsFor(homeDeckOf(c))?.weights ?? [],
+    retentionOf: (c) => paramsFor(homeDeckOf(c))?.desiredRetention,
   };
   const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h) && !input.held?.has(c.id));
   const nextDay = nextStudyDayStart(now, h).getTime();

@@ -251,6 +251,8 @@ describe(`answers scheduled as Anki ${answerVectors.anki} schedules them (tests/
         }
         if (a.type === 2) expect(sched.scheduledDays, at).toBe(a.interval);
         else expect(sched.learningSteps, at).toBe((a.type === 3 ? relearnSteps : learnSteps).length - a.stepsLeft);
+        // A relearning card keeps the interval its lapse gave it; a learning card has none.
+        if (a.type !== 2) expect(sched.scheduledDays, at).toBe(a.interval);
       }
     });
   }

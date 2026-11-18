@@ -151,6 +151,8 @@ export interface SortContext {
   noteOf: (card: Card) => string;
   /** FSRS weights for a card's retrievability (its own deck's). */
   weightsOf: (card: Card) => number[];
+  /** The desired retention of a card's own deck, for relative overdueness. Anki's default (0.9) without it. */
+  retentionOf?: (card: Card) => number | undefined;
 }
 
 const dayMs = 86400000;
@@ -175,6 +177,31 @@ export function retrievability(card: Card, now: Date, weights: number[]): number
   if (!card.sched.lastReview || card.sched.stability <= 0) return undefined;
   const elapsed = Math.max(0, (now.getTime() - new Date(card.sched.lastReview).getTime()) / dayMs);
   return forgetting_curve(weights.length ? weights : default_w, elapsed, card.sched.stability);
+}
+
+/**
+ * Anki's key for "Relative overdueness" with FSRS on (rslib storage/sqlite.rs,
+ * `extract_fsrs_relative_retrievability`), lowest first: how far recall has fallen against how far
+ * the desired retention lets it fall, which comes to the time since the last answer over the
+ * interval FSRS would give the card now. Anki reads the retention and decay it saved on the card at
+ * its last answer; Franki keeps neither per card, so the card's own deck's are used (`retention`,
+ * and the decay of `weights`), which differ only for a card not answered since its preset changed.
+ */
+export function relativeRetrievability(card: Card, now: Date, weights: number[], retention: number): number {
+  const f = Math.fround;
+  if (!card.sched.lastReview || card.sched.stability <= 0) {
+    // No memory state: Anki falls back to the days since the card was scheduled over its interval.
+    const days = Math.max(0, Math.floor((now.getTime() - (dueMs(card) - card.sched.scheduledDays * dayMs)) / dayMs));
+    return -f(days + 0.001) / Math.max(card.sched.scheduledDays, 1);
+  }
+  const w = weights.length ? weights : default_w;
+  // FSRS-6 keeps the decay in its last weight; before it, 0.5. Anki saves it on the card to 3 places.
+  const decay = f(Number((w.length >= 21 ? w[20] : 0.5).toFixed(3)));
+  const elapsedDays = f(Math.max(0, Math.floor(now.getTime() / 1000) - Math.floor(new Date(card.sched.lastReview).getTime() / 1000)) / 86400);
+  const factor = f(Math.pow(0.9, f(-1 / decay)) - 1);
+  const recall = Math.max(f(Math.pow(f(1 + f(f(factor * elapsedDays) / f(card.sched.stability))), -decay)), f(0.0001));
+  const fallen = (r: number) => f(Math.pow(r, f(-1 / decay)) - 1);
+  return -fallen(recall) / fallen(Math.max(f(retention), f(0.0001)));
 }
 
 /** A sort asks for a card's key on every comparison, so each card's is worked out once. */
@@ -221,8 +248,7 @@ export function sortReviews(cards: Card[], order: number, ctx: SortContext): Car
     if (ra === undefined || rb === undefined) return ra === rb ? 0 : (ra === undefined ? -1 : 1) * dir;
     return (ra - rb) * dir;
   };
-  const overdueness = perCard((c: Card) =>
-    -(Math.floor((ctx.now.getTime() - (dueMs(c) - c.sched.scheduledDays * dayMs)) / dayMs) + 0.001) / Math.max(c.sched.scheduledDays, 1));
+  const overdueness = perCard((c: Card) => relativeRetrievability(c, ctx.now, ctx.weightsOf(c), ctx.retentionOf?.(c) ?? 0.9));
   const noteNum = (c: Card) => idValue(ctx.noteOf(c));
   const cmpNote = (a: Card, b: Card) => {
     const na = noteNum(a);
