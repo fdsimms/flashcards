@@ -6,6 +6,31 @@ import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 import type { SelfRecording } from './useSelfRecording';
 
 /**
+ * The idle Record button as a round, icon-only button the size of the reader player's Repeat
+ * button, for sitting beside it. Once a take is made or being made, RecordYourself's capsule
+ * takes over on a row of its own, so the reader shows this only while `idleRecording(rec)`.
+ */
+export function RecordIconButton({ rec, label }: { rec: SelfRecording; label: string }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={rec.start}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. Records your voice to play back next to the recording.`}
+      scaleTo={0.92}
+      style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fill }}
+    >
+      <Icon name="mic.fill" size={18} color={c.textSecondary} weight="semibold" />
+    </Tappable>
+  );
+}
+
+/** Whether Record yourself is in its starting state: no take made and none being made. */
+export function idleRecording(rec: SelfRecording): boolean {
+  return !rec.recording && !rec.hasTake;
+}
+
+/**
  * Record yourself's buttons (useSelfRecording): a Record chip, then Stop with the time while a
  * take is made, then one capsule: Yours to play the take, Compare to play the card's or line's
  * recording and then the take (when there is a recording), and a mic to make a new one. `size` matches the

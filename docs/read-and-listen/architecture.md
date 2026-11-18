@@ -221,8 +221,8 @@ Franki's (Client, below).
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
-  the popover open with the choices as a record, the right one marked with a check alone (springing in, with a
-  haptic) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  the popover open with the choices as a record, the right one marked with a check alone (with a
+  haptic, no bounce; the other choices fold away at once) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
   a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
@@ -433,7 +433,7 @@ aloud is never heard by the phone.
   stages sends none, and the row shows the first step. A ready
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
   a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
-  until asked for so the lesson can be heard first. Background playback is on only once it plays, while it's open; playing it stops Play all on the mini-player, and only opening it leaves Play all going.
+  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, back and forward 15 seconds, stop), a tap on the pill reopens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all.
 - **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
   dialogue was made of words never taught). It is played first and acted out last, so
   `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
@@ -1276,7 +1276,7 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   reader's settings as `episodeOrder`). With several seasons each folds under its header: the latest
   starts open and earlier ones closed, and what the reader opens or closes is kept per series on the phone. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
-- **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
+- **The language's settings page** (the shelf's gear button) holds what's set once: the deck,
   common words, voices, grammar, practice words, and the progress
   summary (moved off the home screen). The story that used to be here (start a new one, Read from the
   start) was removed on 18 November 2026, by the owner: the + sheet, Stories and the banner do both. The `form` setting is no longer shown: the shelf varies it.

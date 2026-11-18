@@ -53,7 +53,7 @@ import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordAction
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useLinePlayback } from './useLinePlayback';
 import { useConnectionProblem } from '../connection';
-import { RecordYourself } from '../RecordYourself';
+import { idleRecording, RecordIconButton, RecordYourself } from '../RecordYourself';
 import type { SelfRecording } from '../useSelfRecording';
 import { recordExtraRead } from '../../tools/extrasStorage';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
@@ -683,7 +683,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           {keyMarks.length > 0 ? (
             <Stack.Toolbar.Button icon="questionmark.circle" accessibilityLabel="Key to the marks on words" onPress={() => { haptic.tap(); setKeyOpen(true); }} />
           ) : null}
-          <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
+          <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Reading options">
             <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
             {quiz.any ? (
               <Stack.Toolbar.MenuAction isOn={formQuizOn} onPress={() => turnOnFormQuiz(!formQuizOn)}>Practice word forms</Stack.Toolbar.MenuAction>
@@ -1434,8 +1434,9 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}
+        {rec && current !== null && idleRecording(rec) ? <RecordIconButton rec={rec} label={`Record line ${current + 1}`} /> : null}
       </View>
-      {rec && current !== null ? (
+      {rec && current !== null && !idleRecording(rec) ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
           <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" />
         </View>

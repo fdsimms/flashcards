@@ -73,7 +73,7 @@ describe('lessonDetail', () => {
     expect(lessonDetail(lesson({ state: 'making' }))).toBe('Writing the phrases.');
   });
   it('gives a failed lesson its reason, or says to try again', () => {
-    expect(lessonDetail(lesson({ state: 'failed', error: "Azure couldn't speak the lesson (Azure answered 429). Try again in a moment." }))).toContain('Azure answered 429');
+    expect(lessonDetail(lesson({ state: 'failed', error: "Azure couldn't speak the lesson. Azure answered 429." }))).toContain('Azure answered 429');
     expect(lessonDetail(lesson({ state: 'failed', error: '' }))).toBe("Couldn't make this lesson. Try again.");
   });
 });

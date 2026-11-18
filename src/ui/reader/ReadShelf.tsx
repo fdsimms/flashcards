@@ -30,7 +30,7 @@ import { SavedMark } from './SavedMark';
  * and not yet read (with Play all), texts to hear again, and texts read before. Nothing is
  * written unasked, so opening a text never waits, since it's written already; the header's + has a
  * series, dialogue or story written (`onNew`, a sheet). The language is a menu in the header, and its
- * settings are behind the sliders button.
+ * settings are behind the gear button.
  *
  * A text is written in the background after it's asked for, so this asks again while something is
  * being written, to show it as it lands.
@@ -240,7 +240,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
           <Stack.Toolbar placement="right">
             {/* Writing needs the server, so offline there's no +. */}
             {problem ? null : <Stack.Toolbar.Button icon="plus" accessibilityLabel={`New ${name} series, dialogue or story`} onPress={onNew} />}
-            <Stack.Toolbar.Button icon="slider.horizontal.3" accessibilityLabel={`${name} settings`} onPress={onLanguagePage} />
+            <Stack.Toolbar.Button icon="gearshape" accessibilityLabel={`${name} settings`} onPress={onLanguagePage} />
           </Stack.Toolbar>
         </>
       )}

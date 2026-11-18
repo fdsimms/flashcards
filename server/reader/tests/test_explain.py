@@ -561,6 +561,32 @@ def test_a_phrase_meaning_translates_only_the_selection() -> None:
     assert "never in `meaning`" in PHRASE_SYSTEM
 
 
+def test_points_come_back_in_the_order_of_the_sentence() -> None:
+    from franki_reader.explain import clean, clean_phrase
+
+    phrase = "เธอยิ้มให้เขา"
+    given = [
+        {"phrase": "ยิ้มให้", "note": "b"},
+        {"phrase": "เขา", "note": "c"},
+        {"phrase": phrase, "note": "story"},
+        {"phrase": "เธอ", "note": "a"},
+        {"phrase": "not in it", "note": "x"},
+    ]
+    want = ["เธอ", "ยิ้มให้", "เขา", phrase, "not in it"]
+    assert [p["phrase"] for p in clean(given, phrase)] == want
+    answer = {"meaning": "She smiled at him", "points": given}
+    cleaned = clean_phrase(answer, phrase)
+    assert cleaned is not None and [p["phrase"] for p in cleaned["points"]] == want
+    # Without a line to place them in, the model's order stands.
+    assert clean(given)[0]["phrase"] == "ยิ้มให้"
+
+
+def test_both_prompts_ask_for_reading_order() -> None:
+    for system in (SYSTEM, PHRASE_SYSTEM):
+        assert "in the order their parts appear" in system
+        assert "most useful first" not in system
+
+
 def test_the_notes_in_the_language_are_asked_and_kept_apart() -> None:
     calls: list[bool] = []
 
