@@ -906,15 +906,18 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
                 // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
-                <View style={{ paddingTop: listenOnly ? space.s : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                <View style={{ paddingTop: listenOnly ? 0 : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
                   <Speaker text={text} who={line.speaker} />
                 </View>
               )}
               <View style={{ flex: 1 }}>
                 {listenOnly ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, paddingVertical: space.s }}>
-                    {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
-                  </Text>
+                  // As tall as the speaker's mark beside it, with the name centered in that height.
+                  <View style={{ minHeight: line.speaker === 'N' ? undefined : speakerSize(text, line.speaker), justifyContent: 'center', paddingVertical: line.speaker === 'N' ? space.s : 0 }}>
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>
+                      {(line.speaker !== 'N' && text.roles[line.speaker]) || `Line ${i + 1}`}
+                    </Text>
+                  </View>
                 ) : (
                   <View {...phraseDrag.lineProps} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
                     {wrapGroups(line.words).map((group, j) => (
