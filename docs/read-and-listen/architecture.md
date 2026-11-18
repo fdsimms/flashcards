@@ -398,6 +398,13 @@ aloud is never heard by the phone.
   changed taught whole at the end; phrases Claude added are dropped. A Thai phrase isn't sent back for
   lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
   keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
+  The Lessons tab asks the same way (18 November 2026, the owner's request): the New lesson card's
+  "Words to teach (optional)" row takes up to 15 words, chosen from the decks (`LessonWordPicker.tsx`: the
+  language's notes, newest first, or only those due today or lapsed, searched by word or meaning; what's
+  offered is what `lessonPhraseOf` would send) or typed in (`LessonWordAdd.tsx`, for a tutor's or a book's
+  words; never saved as a note). The draft is per language and held in memory (`useLessonWords`), emptied once
+  the lesson is asked for, and `core/lessonWords.ts` refuses a blank, too-long, repeated or sixteenth word with
+  the reason. The scene stays required: with words it's what they're for. With none chosen, Claude picks the phrases as before.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
