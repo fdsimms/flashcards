@@ -613,7 +613,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The last answer stays on the line above the buttons until the next one, to undo or change. A
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating] });
+      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
       // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
