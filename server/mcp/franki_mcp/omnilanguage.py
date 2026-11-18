@@ -172,16 +172,18 @@ class Problem:
 # ---- text helpers ----
 
 _TAG = re.compile(r"<[^>]+>")
-_BREAK = re.compile(r"<\s*br\s*/?>|</(?:div|p)>", re.IGNORECASE)
+# Anki's editor writes a second line as "first<div>second</div>": the opening tag ends the line before it too.
+_BREAK = re.compile(r"<\s*br\s*/?>|</?(?:div|p)\b[^>]*>", re.IGNORECASE)
 _KANJI = re.compile(r"[一-鿿々]")
 _KANA_ONLY = re.compile(r"^[ぁ-ゟ゠-ヿー]+$")
 _TONE_MARKS = re.compile(r"[̀-ͯ]")
 
 
 def plain(value: str) -> str:
-    """A field's HTML as text: a line break for <br>, </div> and </p>, tags dropped, entities read."""
+    """A field's HTML as text: a line break for <br> and wherever a <div> or <p> opens or closes, tags dropped, entities read."""
     text = _TAG.sub("", _BREAK.sub("\n", value or ""))
-    return html.unescape(text).replace("\xa0", " ").strip()
+    text = re.sub(r"[ \t]*\n\s*", "\n", html.unescape(text).replace("\xa0", " "))
+    return text.strip()
 
 
 def _escape(text: str) -> str:
