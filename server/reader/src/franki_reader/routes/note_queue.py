@@ -12,8 +12,6 @@ from franki_reader import (
 from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
 
-MAX_QUEUED = 50  # words one Quick add can queue
-
 
 class QueuedEntry(BaseModel):
     entry: str = Field(min_length=1, max_length=200)
@@ -23,7 +21,7 @@ class QueuedEntry(BaseModel):
 class NoteQueueIn(BaseModel):
     language: Code
     deck: str = Field(min_length=1, max_length=500)
-    entries: list[QueuedEntry] = Field(min_length=1, max_length=MAX_QUEUED)
+    entries: list[QueuedEntry] = Field(min_length=1, max_length=note_queue.MAX_QUEUED)
 
 
 def router(ctx: AppContext) -> APIRouter:

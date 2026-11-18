@@ -7,6 +7,7 @@ import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckActi
 import { Group, Icon, Screen } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
+import { NewWordsCards } from './NewWordsCard';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, readable, smooth, space, type, useTheme } from './theme';
@@ -175,6 +176,7 @@ export function Today(props: {
           ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
+          <NewWordsCards />
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.extrasStrip}
           {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (

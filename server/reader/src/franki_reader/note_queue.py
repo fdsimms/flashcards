@@ -35,6 +35,7 @@ from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
 
+MAX_QUEUED = 50  # words one Quick add can queue, and the most suggested from each source (word_suggestions.py)
 BATCH = 10  # words in one call to Claude
 MAX_ATTEMPTS = 3  # tries a word gets before it stays failed until the owner asks again
 RETRY_AFTER = timedelta(minutes=10)  # between one try of a word and the next
