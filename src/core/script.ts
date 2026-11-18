@@ -3,6 +3,9 @@ import { fontCovers, type AppFont } from './fonts';
 /** True when `text` contains Thai script, which is hard to read at body size and gets a larger one. */
 export const hasThai = (text: string): boolean => /[\u0E00-\u0E7F]/.test(text);
 
+/** True when `text` contains Cyrillic script, whose letters run wide enough that an example sentence takes a smaller size. */
+export const hasCyrillic = (text: string): boolean => /[Ѐ-ӿ]/.test(text);
+
 /** How large Thai text is drawn on a card: one setting for every deck, this phone's own. */
 export type ThaiTextSize = 'normal' | 'large' | 'larger' | 'largest';
 
