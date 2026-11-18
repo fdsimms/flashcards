@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import { COLLECTION_QUERIES, type CollectionRows } from '../anki/collection';
+import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
   cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, ankiDayNumber, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
@@ -87,6 +88,13 @@ export interface AnkiLink {
   ankiReviewLog(since: Date): Promise<RevlogRow[]>;
   /** Every deck in the kept collection, named as Franki names them ("A::B"); none without one. */
   ankiDecks(): Promise<{ id: number; name: string }[]>;
+  /**
+   * The progress gates kept in the collection, by deck name (`src/anki/progressGates.ts`); none
+   * without one. Read from the attached collection, so it doesn't wait for a sync.
+   */
+  ankiProgressGates(): Promise<Map<string, number>>;
+  /** Sets or, with no cap, removes a deck's gate in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
+  setAnkiProgressGate(deck: string, cap: number | undefined, now?: Date): Promise<boolean>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -338,6 +346,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       const rows = await db.getAllAsync<{ id: number; name: string }>(SQL.decks);
       return rows.map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
     },
+
+    async ankiProgressGates() {
+      await attach();
+      if (!attached) return new Map();
+      const decks = (await db.getAllAsync<{ id: number; name: string }>(SQL.decks)).map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
+      const row = await db.getFirstAsync<{ val: Uint8Array | string }>(SQL.gates);
+      return gatesByName(decks, row?.val);
+    },
+
+    setAnkiProgressGate: (deck, cap, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiProgressGate(c, deck, cap, now))),
 
     detachAnki: detach,
     attachAnki: attach,

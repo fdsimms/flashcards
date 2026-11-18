@@ -7,6 +7,7 @@ import base64
 
 import pytest
 
+from anki.collection import Collection  # noqa: F401 - first, for the anki package's imports
 from conftest import call, call_error
 
 pytestmark = pytest.mark.anyio
@@ -172,6 +173,25 @@ async def test_a_deck_can_leave_a_shared_preset(client, desktop):
     assert "already a preset" in await call_error(client, "set_deck_preset", decks=[THAI], preset="Trivia", copy_from=THAI)
     assert 'no deck called "Nowhere"' in await call_error(client, "set_deck_preset", decks=["Nowhere"], preset="Trivia")
     desktop.run("sync")  # reaches the other device
+
+
+async def test_progress_gates_are_kept_in_the_collection(client, desktop):
+    assert (await call(client, "get_progress_gates"))["gates"] == []
+    out = await call(client, "set_progress_gate", decks=[THAI, TRIVIA], cap=40)
+    assert out["decks"] == [THAI, TRIVIA]
+    assert (await call(client, "get_progress_gates"))["gates"] == [{"deck": THAI, "cap": 40}, {"deck": TRIVIA, "cap": 40}]
+    await call(client, "set_progress_gate", decks=[TRIVIA])  # no cap: off
+    assert (await call(client, "get_progress_gates"))["gates"] == [{"deck": THAI, "cap": 40}]
+    for bad in (0, 5001):
+        assert "from 1 to 5000" in await call_error(client, "set_progress_gate", decks=[THAI], cap=bad)
+    assert 'no deck called "Nowhere"' in await call_error(client, "set_progress_gate", decks=["Nowhere"], cap=5)
+    # The other device keeps the key without knowing it, under the id the phone reads it by.
+    desktop.run("sync")
+    col = Collection(str(desktop.path))
+    try:
+        assert col.get_config("frankiProgressGates") == {str(col.decks.id_for_name(THAI)): 40}
+    finally:
+        col.close()
 
 
 async def test_media_reaches_the_server(client, cm, desktop):

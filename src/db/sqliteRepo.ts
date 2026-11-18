@@ -12,6 +12,7 @@ import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } f
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
 import { ANKI_SETTING_KEYS, makeAnkiLink, type AnkiLink } from './ankiLink';
+import { withCollectionGates } from '../anki/progressGates';
 import { restorePlan, sqliteFileKind, type BackupInfo, type BackupProgress } from './backup';
 import type { Repo } from './repo';
 import { ankiCollectionPlan, CARD_COLUMNS, CARD_RETIRE_SQL, CARD_ROWS_SQL, CARD_UPSERT_SQL, NOTE_COLUMNS, NOTE_ROWS_SQL, NOTE_UPSERT_SQL, rowValues, type SqlValue } from './ankiApply';
@@ -137,6 +138,22 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     try { return { ...DEFAULT_COLLECTION_SETTINGS, ...(r ? JSON.parse(r.value) : {}) }; } catch { return DEFAULT_COLLECTION_SETTINGS; }
   };
   const anki = makeAnkiLink(db, collectionSettings);
+
+  // Gates saved on the phone before they moved into the collection: written there once, then
+  // dropped from the phone's row. In the background and retried by the next read if it fails
+  // (a sync holding the collection), so no screen waits on it.
+  let movingGates = false;
+  const moveLocalGates = async (gates: Map<string, number>) => {
+    try {
+      for (const [deck, cap] of gates) {
+        if (!(await anki.setAnkiProgressGate(deck, cap))) continue;
+        const row = await db.getFirstAsync<{ data: string }>('SELECT data FROM deck_settings WHERE deck = ?', deck);
+        if (!row) continue;
+        const { gateCap: _moved, ...rest } = JSON.parse(row.data) as DeckSettings;
+        await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(rest));
+      }
+    } catch { /* the next read tries again */ }
+  };
 
   const rowToCard = (r: any): Card => ({
     id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined,
@@ -464,10 +481,27 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async listDeckSettings() {
       const rows = await db.getAllAsync<{ deck: string; data: string }>('SELECT * FROM deck_settings');
-      return new Map(rows.map((r) => [r.deck, JSON.parse(r.data) as DeckSettings]));
+      const local = new Map(rows.map((r) => [r.deck, JSON.parse(r.data) as DeckSettings]));
+      // Progress gates live in the kept collection (src/anki/progressGates.ts): read without the lock,
+      // so a sync in progress never holds up a screen's settings. Unreadable, the phone's own apply.
+      try {
+        const names = new Set((await anki.ankiDecks()).map((d) => d.name));
+        if (!names.size) return local;
+        const { settings, unmoved } = withCollectionGates(local, await anki.ankiProgressGates(), names);
+        if (unmoved.size && !movingGates) { movingGates = true; moveLocalGates(unmoved).finally(() => { movingGates = false; }); }
+        return settings;
+      } catch { return local; }
     },
     async saveDeckSettings(deck, settings) {
-      await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(settings));
+      // A deck Anki has keeps its gate in the collection, not here. A failed write throws, so the
+      // screen says so and reads back what's stored.
+      const { gateCap, ...rest } = settings;
+      let keep = settings;
+      if ((await anki.ankiDecks()).some((d) => d.name === deck)) {
+        if ((await anki.ankiProgressGates()).get(deck) !== gateCap) await anki.setAnkiProgressGate(deck, gateCap);
+        keep = rest;
+      }
+      await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(keep));
     },
     async listDeckParams() {
       const rows = await db.getAllAsync<{ deck: string; params: string }>('SELECT * FROM deck_params');
