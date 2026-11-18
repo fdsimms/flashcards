@@ -41,6 +41,7 @@ import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
 import { useFormQuiz } from './useFormQuiz';
 import { ReadFrequency } from './ReadFrequency';
+import { ReadKanji } from './ReadKanji';
 import { GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
@@ -1354,6 +1355,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 ) : null}
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
+                {tapped.word.kanji?.length ? <ReadKanji kanji={tapped.word.kanji} /> : null}
                 <ReadFrequency word={tapped.word} />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
                 {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}

@@ -42,6 +42,9 @@ export type AspectPair = {
   aspect_source: 'ai' | null;
 };
 
+/** One kanji of a word (KANJIDIC2, server/reader/src/franki_reader/kanji.py): kun readings are written with a dot before the okurigana (さむ.い). */
+export type WordKanji = { char: string; meanings: string[]; on: string[]; kun: string[]; strokes: number };
+
 export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
@@ -61,6 +64,7 @@ export type Word = {
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
+  kanji?: WordKanji[] | null; // each kanji in a Japanese word, once, with its meanings and readings; null for a word with none, absent from a server older than it
   rank?: number | null; // its place among the language's 10,000 most common words (1 is the most common); null past the list's end; absent from a server older than it
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // The grammatical form this word has in its line ("instrumental case"), when it's an inflected form and

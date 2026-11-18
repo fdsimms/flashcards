@@ -183,7 +183,10 @@ def test_a_japanese_text_renders_with_readings_lemmas_and_glosses() -> None:
         "".join(w["text"] for w in out["lines"][0]["words"])
         == "彼は約束を破った。劇団に行きました。"
     )
-    assert words["約束を破った"] == {
+    promise = words["約束を破った"]
+    # Each kanji once, with its meanings and readings (kanji.py).
+    assert [k["char"] for k in promise.pop("kanji")] == ["約", "束", "破"]
+    assert promise == {
         "text": "約束を破った",
         "status": "known",
         "gloss": "to break a promise",
