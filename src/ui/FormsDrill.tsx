@@ -111,8 +111,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       const records = await log(prompt, verdict === 'right', given);
       if (verdict === 'right') haptic.success(); else haptic.select();
       setAnswered((a) => [...a, { prompt, given, verdict, records, counted: false }]);
-      // The right form, heard once after a miss; nothing when the note's language isn't known.
-      if (verdict !== 'right' && prompt.say) { Speech.stop(); speech.sayWord(prompt.say.text, prompt.say.lang); }
+      // The right form, heard once after every answer; nothing when the note's language isn't known.
+      play(prompt);
       // `busy` clears before the answer is drawn: a tap in between mustn't log this prompt again.
       answeredIndex.current = index;
     } catch (e) {
@@ -121,6 +121,8 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
       busy.current = false;
     }
   };
+
+  const play = (p: FormPrompt) => { if (p.say) { Speech.stop(); speech.sayWord(p.say.text, p.say.lang); } };
 
   /** "Almost" counted as right: its row is marked right, so no miss is left to ask it again or show in the history. */
   const countIt = async () => {
@@ -213,7 +215,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
         {/* The question is centered in the room between the controls above and the answer below, whatever the answer part's height (choices, the field, or the feedback), so it doesn't ride low when the keyboard is up. */}
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <Reveal key={index} rise={10}>
-            <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} />
+            <Question prompt={prompt} reveal={current ? prompt.answers[0] : undefined} onPlay={current && prompt.say ? () => play(prompt) : undefined} />
           </Reveal>
         </View>
         <View style={{ gap: space.xl }}>
@@ -240,7 +242,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
             />
           )}
           {mode === 'pick' && !prompt.choices ? <Help>This one is typed: there are no other forms to pick from.</Help> : null}
-          {current ? <Reveal rise={6}><Feedback answered={current} onCount={countIt} onOpenGrammar={onOpenGrammar} /></Reveal> : null}
+          {current ? <Reveal rise={6}><Feedback answered={current} picked={picking} onCount={countIt} onOpenGrammar={onOpenGrammar} /></Reveal> : null}
         </View>
       </ScrollView>
     </Screen>
@@ -249,7 +251,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
 }
 
 /** The word (the focus), what's asked about it (small, as context), and the example sentence with a gap where the answer goes. */
-function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
+function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: string; onPlay?: () => void }) {
   const c = useTheme();
   const asked = [prompt.group, prompt.label].filter(Boolean).join(' · ');
   // The meaning is hidden until asked for: it can give the word away. The question is remounted for each prompt, so it hides again.
@@ -285,6 +287,17 @@ function Question({ prompt, reveal }: { prompt: FormPrompt; reveal?: string }) {
       <View style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.fill }}>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{asked}</Text>
       </View>
+      {onPlay ? (
+        <Tappable
+          onPress={() => { haptic.tap(); onPlay(); }}
+          accessibilityRole="button"
+          accessibilityLabel={`Play ${prompt.say?.text ?? 'the answer'}`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: MIN_TAP, paddingHorizontal: space.m }}
+        >
+          <Icon name="speaker.wave.2.fill" size={16} color={c.accent} />
+          <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Play</Text>
+        </Tappable>
+      ) : null}
       {prompt.sentence ? (
         <View style={{ alignItems: 'center', gap: space.xs, marginTop: space.s }}>
           <Text
@@ -338,15 +351,17 @@ export function ChoiceButton({ label, state, onPress }: { label: string; state: 
   );
 }
 
-function Feedback({ answered, onCount, onOpenGrammar }: { answered: Answered; onCount: () => void; onOpenGrammar?: (id: string) => void }) {
+function Feedback({ answered, picked, onCount, onOpenGrammar }: { answered: Answered; picked: boolean; onCount: () => void; onOpenGrammar?: (id: string) => void }) {
   const c = useTheme();
   const answer = answered.prompt.answers[0];
   // Which of the word's forms a wrong answer was, so the contrast being drilled is named.
   const given = answered.verdict === 'wrong' ? formGiven(answered.given, answered.prompt) : undefined;
   if (answered.verdict === 'right') {
+    // A picked answer already shows its checkmark and green border, so "Right" is only said for a typed one.
+    if (picked && !answered.prompt.grammar) return null;
     return (
       <Card style={{ gap: space.xs }}>
-        <Text style={{ ...type.headline, color: c.countDue }}>Right</Text>
+        {picked ? null : <Text style={{ ...type.headline, color: c.countDue }}>Right</Text>}
         <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
       </Card>
     );
