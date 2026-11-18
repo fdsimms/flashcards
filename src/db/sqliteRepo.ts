@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { parseCram, type Cram } from '../core/cram';
 import type { CollectionSettings } from '../core/types';
 import { parseFontSettings } from '../core/fonts';
 import { parseThaiTextSize } from '../core/script';
@@ -12,6 +13,7 @@ import type { Card, DeckParams, DeckSettings, Note, NoteType, ReviewLogEntry } f
 import { clearMedia, listMedia, writeMedia } from '../media/mediaFiles';
 import { ankiFolder, fileSink, fileSource, keptCollectionFile } from '../anki/files';
 import { ANKI_SETTING_KEYS, makeAnkiLink, type AnkiLink } from './ankiLink';
+import { withCollectionGates } from '../anki/progressGates';
 import { restorePlan, sqliteFileKind, type BackupInfo, type BackupProgress } from './backup';
 import type { Repo } from './repo';
 import { ankiCollectionPlan, CARD_COLUMNS, CARD_RETIRE_SQL, CARD_ROWS_SQL, CARD_UPSERT_SQL, NOTE_COLUMNS, NOTE_ROWS_SQL, NOTE_UPSERT_SQL, rowValues, type SqlValue } from './ankiApply';
@@ -52,6 +54,9 @@ CREATE TABLE IF NOT EXISTS confused_pairs (
   note_a TEXT NOT NULL, note_b TEXT NOT NULL, linked_at TEXT NOT NULL,
   PRIMARY KEY (note_a, note_b)
 );
+-- Crams (src/core/cram.ts), each as JSON. Franki's own: the words are the notes with the cram's tag,
+-- which is in the collection; the date, rounds and checklist stay here.
+CREATE TABLE IF NOT EXISTS crams (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 -- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
 -- a restore clears it, so the next sync checks the restored files again.
 CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
@@ -137,6 +142,22 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     try { return { ...DEFAULT_COLLECTION_SETTINGS, ...(r ? JSON.parse(r.value) : {}) }; } catch { return DEFAULT_COLLECTION_SETTINGS; }
   };
   const anki = makeAnkiLink(db, collectionSettings);
+
+  // Gates saved on the phone before they moved into the collection: written there once, then
+  // dropped from the phone's row. In the background and retried by the next read if it fails
+  // (a sync holding the collection), so no screen waits on it.
+  let movingGates = false;
+  const moveLocalGates = async (gates: Map<string, number>) => {
+    try {
+      for (const [deck, cap] of gates) {
+        if (!(await anki.setAnkiProgressGate(deck, cap))) continue;
+        const row = await db.getFirstAsync<{ data: string }>('SELECT data FROM deck_settings WHERE deck = ?', deck);
+        if (!row) continue;
+        const { gateCap: _moved, ...rest } = JSON.parse(row.data) as DeckSettings;
+        await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(rest));
+      }
+    } catch { /* the next read tries again */ }
+  };
 
   const rowToCard = (r: any): Card => ({
     id: r.id, noteId: r.note_id, kind: r.kind, suspended: !!r.suspended, retired: !!r.retired, ankiId: r.anki_id ?? undefined,
@@ -340,6 +361,16 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       const [a, b] = x < y ? [x, y] : [y, x];
       await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? AND note_b = ?', a, b);
     },
+    async listCrams() {
+      const rows = await db.getAllAsync<{ data: string }>('SELECT data FROM crams');
+      return rows.map((r) => parseCram(r.data)).filter((c): c is Cram => !!c).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    },
+    async saveCram(cram) {
+      await db.runAsync('INSERT OR REPLACE INTO crams (id, data) VALUES (?, ?)', cram.id, JSON.stringify(cram));
+    },
+    async deleteCram(id) {
+      await db.runAsync('DELETE FROM crams WHERE id = ?', id);
+    },
     async formsAnswerMode() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");
       return r?.value === 'type' ? 'type' : 'pick';
@@ -464,10 +495,27 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     },
     async listDeckSettings() {
       const rows = await db.getAllAsync<{ deck: string; data: string }>('SELECT * FROM deck_settings');
-      return new Map(rows.map((r) => [r.deck, JSON.parse(r.data) as DeckSettings]));
+      const local = new Map(rows.map((r) => [r.deck, JSON.parse(r.data) as DeckSettings]));
+      // Progress gates live in the kept collection (src/anki/progressGates.ts): read without the lock,
+      // so a sync in progress never holds up a screen's settings. Unreadable, the phone's own apply.
+      try {
+        const names = new Set((await anki.ankiDecks()).map((d) => d.name));
+        if (!names.size) return local;
+        const { settings, unmoved } = withCollectionGates(local, await anki.ankiProgressGates(), names);
+        if (unmoved.size && !movingGates) { movingGates = true; moveLocalGates(unmoved).finally(() => { movingGates = false; }); }
+        return settings;
+      } catch { return local; }
     },
     async saveDeckSettings(deck, settings) {
-      await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(settings));
+      // A deck Anki has keeps its gate in the collection, not here. A failed write throws, so the
+      // screen says so and reads back what's stored.
+      const { gateCap, ...rest } = settings;
+      let keep = settings;
+      if ((await anki.ankiDecks()).some((d) => d.name === deck)) {
+        if ((await anki.ankiProgressGates()).get(deck) !== gateCap) await anki.setAnkiProgressGate(deck, gateCap);
+        keep = rest;
+      }
+      await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(keep));
     },
     async listDeckParams() {
       const rows = await db.getAllAsync<{ deck: string; params: string }>('SELECT * FROM deck_params');

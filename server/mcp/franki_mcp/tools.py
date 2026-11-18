@@ -53,6 +53,10 @@ MAX_LEVEL_NOTES_PER_CALL = 20
 FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
 MATURE_DAYS = 21
+# Franki's progress gates (`DeckSettings.gateCap`, src/anki/progressGates.ts): a collection config
+# value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
+PROGRESS_GATES_KEY = "frankiProgressGates"
+MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
 # Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, and a flag::<reason> tag on its note.
 AGENT_FLAG = 7
 FLAG_TAG_PREFIX = "flag::"
@@ -262,6 +266,11 @@ reaches their devices at their next sync.
   language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
   only once the user agrees. Franki shows the tiers as the one deck.
   untier_deck undoes it for a deck (cards back in the deck, tier subdecks and presets removed).
+- Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
+  are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
+  date (`cram::thai-lesson-2026-11-20`); Franki shows the tag on the cram's page. To add words to a
+  cram, add its tag to their notes (or to new notes with add_notes); find_notes "tag:cram::*"
+  lists the words of every cram. The date and the practice rounds are kept in Franki only.
 """
 
 
@@ -766,6 +775,98 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if params is not None:
                 share_params(col, conf)
             return {"preset": conf["name"], "decks_affected": sharing}
+
+        return await cm.write(run)
+
+    @server.tool(annotations=WRITE)
+    async def set_deck_preset(
+        decks: list[str],
+        preset: str,
+        copy_from: str | None = None,
+        include_subdecks: bool = False,
+    ) -> dict[str, Any]:
+        """Puts decks on the options preset named `preset`, so they stop sharing another's limits and
+        retention. With no preset by that name, one is made as a copy of `copy_from`'s preset (a deck
+        name: its FSRS parameters, retention, limits and steps). Only the decks named move, and their
+        subdecks with include_subdecks; the preset they leave keeps its other decks. A frequency tier
+        subdeck keeps the preset its tiers use, and a filtered deck has none, so both are refused."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            dids = [_deck_id(col, d) for d in decks]
+            if include_subdecks:
+                every = {n.id: n.name for n in col.decks.all_names_and_ids()}
+                prefixes = tuple(f"{every[i]}::" for i in dids)
+                dids += [i for i, n in every.items() if n.startswith(prefixes) and i not in dids]
+            for did in dids:
+                deck = col.decks.get(did)
+                if deck is None or deck.get("dyn"):
+                    raise ToolError(f'"{col.decks.name(did)}" is a filtered deck, which has no options preset of its own.')
+                if TIER_PRESET_KEY in col.decks.config_dict_for_deck_id(did):
+                    raise ToolError(f'"{col.decks.name(did)}" is a frequency tier, whose preset is kept with its parent deck by tier_deck_by_frequency. Move the parent deck, or untier_deck first.')
+            found = next((c for c in col.decks.all_config() if c["name"] == preset), None)
+            created = found is None
+            if found is not None:
+                if copy_from is not None:
+                    raise ToolError(f'There\'s already a preset called "{preset}". Leave out copy_from to put the decks on it, or choose another name.')
+                if TIER_PRESET_KEY in found:
+                    raise ToolError(f'"{preset}" belongs to a deck\'s frequency tiers. Choose another name.')
+                conf = found
+            else:
+                if copy_from is None:
+                    names = sorted(c["name"] for c in col.decks.all_config() if TIER_PRESET_KEY not in c)
+                    raise ToolError(f'There\'s no preset called "{preset}". To make it, pass copy_from (a deck whose preset to copy). Presets: {", ".join(names)}.')
+                conf = col.decks.add_config(preset, clone_from=col.decks.config_dict_for_deck_id(_deck_id(col, copy_from)))
+                conf.pop(TIER_PRESET_KEY, None)
+                col.decks.update_config(conf)
+            moved = []
+            for did in dids:
+                before = col.decks.config_dict_for_deck_id(did)
+                if before["id"] == conf["id"]:
+                    continue
+                deck = col.decks.get(did)
+                assert deck is not None
+                col.decks.set_config_id_for_deck_dict(deck, conf["id"])
+                moved.append({"deck": col.decks.name(did), "was_on": before["name"]})
+            return {"preset": preset, "created": created, "moved": moved}
+
+        return await cm.write(run)
+
+    @server.tool(annotations=READ)
+    async def get_progress_gates() -> dict[str, Any]:
+        """The decks with a Franki progress gate: new cards come in only while fewer than `cap` cards
+        in the deck and its subdecks are in progress (started, and not yet scheduled a week or more out)."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            names = {str(n.id): n.name for n in col.decks.all_names_and_ids()}
+            gates = col.get_config(PROGRESS_GATES_KEY, {}) or {}
+            return {"gates": sorted(({"deck": names[i], "cap": cap} for i, cap in gates.items() if i in names), key=lambda g: g["deck"])}
+
+        return await cm.read(run)
+
+    @server.tool(annotations=WRITE)
+    async def set_progress_gate(decks: list[str], cap: int | None = None) -> dict[str, Any]:
+        """Turns Franki's progress gate on for decks at `cap` (1 to 5000), or off with no cap. A gated
+        deck lets in new cards only while fewer than `cap` cards in it and its subdecks are in
+        progress, and never more in a day than its own preset's new cards per day (raise that with
+        set_fsrs_settings, or the gate can't admit more than the daily limit). Gate a language's top
+        deck, not its subdecks: under a gate only the gated deck's own daily limit counts. Franki
+        picks the change up at its next sync."""
+        if cap is not None and not 1 <= cap <= MAX_GATE_CAP:
+            raise ToolError(f"cap must be a whole number from 1 to {MAX_GATE_CAP}, or left out to turn the gate off.")
+
+        def run(col: Collection) -> dict[str, Any]:
+            ids = [str(_deck_id(col, d)) for d in decks]
+            for i in ids:
+                if (deck := col.decks.get(int(i))) and deck.get("dyn"):
+                    raise ToolError(f'"{col.decks.name(int(i))}" is a filtered deck, which has no new cards to gate.')
+            gates = dict(col.get_config(PROGRESS_GATES_KEY, {}) or {})
+            for i in ids:
+                if cap is None:
+                    gates.pop(i, None)
+                else:
+                    gates[i] = cap
+            col.set_config(PROGRESS_GATES_KEY, gates)
+            return {"cap": cap, "decks": [col.decks.name(int(i)) for i in ids]}
 
         return await cm.write(run)
 

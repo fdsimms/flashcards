@@ -612,8 +612,14 @@ export function createApi(
       call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
-    makeLesson: (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha') =>
-      call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) }),
+    // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
+    // Claude picks; `scene` is then the situation they're for. Returns the new lesson's id.
+    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[]) => {
+      const response = await send('POST', '/api/lessons', {
+        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}),
+      });
+      return ((await response.json()) as { id: number }).id;
+    },
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     lessonAudio: (id: number): AudioSource => ({

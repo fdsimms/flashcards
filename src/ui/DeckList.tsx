@@ -351,7 +351,7 @@ export function DeckList(props: {
   collapsed?: Set<string>;
   onToggleCollapsed?: (deck: string) => void;
   /**
-   * A deck that isn't Anki's (WaniKani, WaniKaniDeck.tsx), shown after the Anki decks and counted
+   * A deck that isn't Anki's (WaniKani, WaniKaniDeck.tsx), shown above the Anki decks and counted
    * in today's totals. `refresh` reads its counts again: on a pull, and with the sync button.
    */
   extra?: { node: React.ReactNode; due: number; fresh: number; refresh: () => Promise<unknown> };
@@ -422,6 +422,7 @@ export function DeckList(props: {
           {props.loadProblem ? (
             <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
           ) : null}
+          {props.extra?.node}
           {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
             <NoDecksCard onImport={props.onImport} />
           )) : (
@@ -463,7 +464,6 @@ export function DeckList(props: {
               </Reveal>
             ))
           )}
-          {props.extra?.node}
           {props.sync ? (
             // Today warns when a sync didn't finish; here the line says why, in the warning color.
             // The line already counts the answers not synced yet (syncLine).
