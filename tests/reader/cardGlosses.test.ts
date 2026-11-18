@@ -30,6 +30,11 @@ describe('the sentences a session asks about', () => {
     ]);
   });
 
+  it("asks about a note's first example only, so each box's words still join back to the sentence", () => {
+    const several = new Map([['9', { ...note('9', 'Languages::Spanish', 'Es alta.<br>Es baja.', 'She is tall.<br>She is short.'), fields: { Entry: 'x', Meaning: 'y', Context: 'Es alta.<br>Es baja.', ContextTranslation: 'She is tall.<br>She is short.', ContextLabels: 'a<br>b' } }]]);
+    expect(glossRequests([card('9')], several, DECKS)).toEqual([{ language: 'es', sentences: [{ text: 'Es alta.', english: 'She is tall.' }] }]);
+  });
+
   it("goes by a card's home deck, not the filtered deck it's in", () => {
     const filtered = card('4', { deck: 'Languages::Spanish', filteredDeck: 'Filtered' });
     expect(glossRequests([filtered], notes, DECKS)).toEqual([{ language: 'es', sentences: [{ text: 'Paris', english: '' }] }]);

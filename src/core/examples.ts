@@ -1,0 +1,47 @@
+import { htmlToText } from './html';
+import type { Note } from './types';
+
+/** One example sentence of a note, each part as the note's HTML (the caller turns it into text or segments). */
+export interface Example {
+  context: string;
+  romanized: string;
+  translation: string;
+  /** What the sentence shows ("skill", "event"), from ContextLabels. Empty when the note gives none. */
+  tag: string;
+}
+
+// One line of a field ends at a <br>, the end of a <div> or <p>, or a newline: Anki's editor writes any of them.
+const LINE_END = /<\s*br\s*\/?>|<\/(?:div|p)>|\n/i;
+
+/** A field's lines as HTML. Blank lines stay, so line N of one field still pairs with line N of another. */
+export function fieldLines(html: string | undefined): string[] {
+  const lines = (html ?? '').split(LINE_END).map((l) => l.replace(/<(?:div|p)\b[^>]*>/gi, ''));
+  while (lines.length && !htmlToText(lines[lines.length - 1])) lines.pop();
+  return lines;
+}
+
+/**
+ * The note's example sentences. Normally one: the Context, ContextRomanized and ContextTranslation
+ * fields as written. A note with something in ContextLabels has several, one per line of Context,
+ * paired by line number with the same line of the other three fields. Opting in by ContextLabels
+ * keeps a note whose Context already runs over two lines showing as it always has. A line of
+ * Context that is blank is skipped, and a label line left blank is an example with no tag.
+ */
+export function examplesOf(note: Note): Example[] {
+  const field = (name: string) => note.fields[name] ?? '';
+  const whole: Example = { context: field('Context'), romanized: field('ContextRomanized'), translation: field('ContextTranslation'), tag: '' };
+  if (!htmlToText(field('ContextLabels'))) return [whole];
+  const [context, romanized, translation, tags] = ['Context', 'ContextRomanized', 'ContextTranslation', 'ContextLabels'].map((n) => fieldLines(field(n)));
+  const each = context
+    .map((line, i): Example => ({ context: line, romanized: romanized[i] ?? '', translation: translation[i] ?? '', tag: htmlToText(tags[i] ?? '') }))
+    .filter((e) => htmlToText(e.context));
+  return each.length ? each : [whole];
+}
+
+/**
+ * The example everything that asks about "the sentence" uses: the first. Card glosses are fetched
+ * for one sentence and the forms drill blanks one, so a note's other examples are left to the card.
+ */
+export function firstExample(note: Note): Example {
+  return examplesOf(note)[0];
+}

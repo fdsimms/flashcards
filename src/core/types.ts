@@ -198,9 +198,9 @@ export interface RenderedSide {
      * under a reverse card's meaning that says which of the words with that meaning is asked for
      * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), a `gloss` is a meaning shown under the word it translates,
      * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
-     * screen leaves out when furigana shows it over the word already. A block with no role is plain labeled text.
+     * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), and a `transliteration` is the word's romanization, set larger than an example's. A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'reading';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'reading' | 'sense' | 'transliteration';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
     reading?: string;
     chips?: string[];
@@ -213,6 +213,8 @@ export interface RenderedSide {
      * article (or the Russian prefix) with it, and the dot on the gender chip. Display only.
      */
     gender?: 'm' | 'f' | 'n';
+    /** An `example` block's tag, what that sentence shows ("skill", "event"), from ContextLabels. */
+    tag?: string;
     /** A Thai romanization: the screen colors each syllable by its tone (src/core/toneColors.ts). Display only. */
     tones?: boolean;
     /**

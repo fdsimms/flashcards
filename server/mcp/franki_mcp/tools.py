@@ -230,6 +230,11 @@ reaches their devices at their next sync.
 - In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
   ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
   Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
+- An Omnilanguage note type that has a Sense field takes a few words there, shown under the meaning,
+  saying which sense a word with several is meant ("know-how from doing, or something lived through").
+  With a ContextLabels field filled in, Context, ContextRomanized and ContextTranslation hold one
+  example per line (separated by <br>, line N of each belonging together) and ContextLabels names
+  what each example shows ("skill", "event"). Add a second example only when the word's senses differ.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,

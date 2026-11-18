@@ -87,13 +87,16 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
       // Furigana over the word says what the reading line would.
       if (b.role === 'reading' && furigana && wordRuns) return;
       const last = out[out.length - 1];
-      if (isExample(b) && last && isExample(last[0].b)) last.push({ b, i });
+      // A note's second example starts its own box.
+      if (isExample(b) && last && isExample(last[0].b) && !(b.role === 'example' && last.some((it) => it.b.role === 'example'))) last.push({ b, i });
       else out.push([{ b, i }]);
     });
     return out;
   }, [side.blocks, furigana, wordRuns]);
 
   const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
+  // An example's romanization and translation buttons open their line and close it again.
+  const toggle = (i: number) => { haptic.select(); setShownHints((prev) => { const next = new Set(prev); if (!next.delete(i)) next.add(i); return next; }); };
 
   // A hidden line outside the example sentence: a centered link.
   const hint = ({ b, i }: Item) => (
@@ -107,20 +110,31 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     </Tappable>
   );
 
-  // A hidden line inside the Example box: a full-width row under the sentence.
-  const hintRow = ({ b, i }: Item) => (
-    <Tappable
-      key={i}
-      accessibilityRole="button"
-      onPress={() => reveal(i)}
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m,
-        borderTopWidth: hairline, borderTopColor: c.border,
-      }}
-    >
-      <Icon name="eye" size={16} color={c.accent} />
-      <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
-    </Tappable>
+  // The hidden lines inside an Example box share one row of buttons under the sentence, so several examples stay short.
+  // A button highlights while its line is open, and a second tap closes the line.
+  const hintButtons = (items: Item[]) => (
+    <View key="buttons" style={{ flexDirection: 'row', borderTopWidth: hairline, borderTopColor: c.border }}>
+      {items.map((it, k) => {
+        const on = shownHints.has(it.i);
+        const romanized = it.b.role === 'exampleRomanized';
+        return (
+          <Tappable
+            key={it.i}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={romanized ? 'Romanization' : 'Translation'}
+            onPress={() => toggle(it.i)}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 2, minHeight: MIN_TAP,
+              backgroundColor: on ? c.accentFill : undefined, borderLeftWidth: k ? hairline : 0, borderLeftColor: c.border,
+            }}
+          >
+            <Icon name={romanized ? 'textformat' : 'globe'} size={16} color={c.accentInk} />
+            <Text style={{ ...type.callout, color: c.accentInk }}>{romanized ? 'Romanization' : 'Translation'}</Text>
+          </Tappable>
+        );
+      })}
+    </View>
   );
 
   const line = ({ b, i }: Item) => {
@@ -130,7 +144,11 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
       if (gloss && gloss.words.map((w) => w.text).join('') === b.text) return <CardSentence key={i} gloss={gloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
-    if (b.role === 'exampleRomanized' || b.role === 'exampleTranslation') {
+    // The romanization is a small italic pronunciation guide, so it reads differently from the word's transliteration above and from the translation.
+    if (b.role === 'exampleRomanized') {
+      return <MarkedText key={i} text={b.text} segments={b.segments} c={c} tones={b.tones} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary, fontStyle: 'italic' }} />;
+    }
+    if (b.role === 'exampleTranslation') {
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} tones={b.tones} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary }} />;
     }
     return null;
@@ -150,11 +168,16 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         const hidden = (it: Item) => !!it.b.tapLabel && !showHints && !shownHints.has(it.i);
 
         if (isExample(first.b)) {
-          const sentence = group.find((it) => it.b.role === 'example')?.b.text;
+          const sentenceBlock = group.find((it) => it.b.role === 'example')?.b;
+          const sentence = sentenceBlock?.text;
+          const buttons = showHints ? [] : group.filter((it) => !!it.b.tapLabel);
+          const opened = group.filter((it) => it.b.role !== 'example' && (!it.b.tapLabel || showHints || shownHints.has(it.i)));
           return (
             <View key={first.i} style={{ gap: space.xs }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ ...type.overline, color: c.accent }}>Example</Text>
+                <Text style={{ ...type.overline, color: c.accent }}>
+                  Example{sentenceBlock?.tag ? <Text style={{ color: c.textDim }}>{`  ${sentenceBlock.tag}`}</Text> : null}
+                </Text>
                 {sentence && speakSentence ? (
                   <Tappable
                     accessibilityRole="button"
@@ -168,10 +191,11 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 ) : null}
               </View>
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
-                {group.map((it) => (hidden(it)
-                  ? hintRow(it)
-                  : it.b.role === 'exampleTranslation' ? translationRow(it)
-                  : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : 0, paddingBottom: space.s }}>{line(it)}</View>))}
+                {group.filter((it) => it.b.role === 'example').map((it) => (
+                  <View key={it.i} style={{ padding: space.m, paddingBottom: space.s }}>{line(it)}</View>))}
+                {buttons.length ? hintButtons(buttons) : null}
+                {opened.map((it) => (it.b.role === 'exampleTranslation' ? translationRow(it)
+                  : <View key={it.i} style={{ padding: space.m, paddingTop: buttons.length ? space.s : 0, paddingBottom: space.s }}>{line(it)}</View>))}
               </View>
             </View>
           );
@@ -245,6 +269,13 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </Text>
           );
         }
+        if (b.role === 'sense') {
+          return (
+            <Text key={i} style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary, textAlign: 'center', marginTop: -space.s }}>
+              {b.text}
+            </Text>
+          );
+        }
         if (b.role === 'note') {
           return (
             <View key={i} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
@@ -273,7 +304,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 <View style={{ gap: space.xs }}>
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
                     ? <Text key={k} style={{ ...thai, color: c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
-                    : <Text key={k} style={{ ...type.body, ...ja(ln), color: c.textSecondary, lineHeight: 24, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
+                    // The word's transliteration is set larger and in the text color, apart from an example's small italic romanization.
+                    : <Text key={k} style={{ ...(b.role === 'transliteration' ? { ...type.title, fontWeight: '500', lineHeight: 28, color: c.text } : { ...type.body, color: c.textSecondary, lineHeight: 24 }), ...ja(ln), textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>

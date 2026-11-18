@@ -71,7 +71,7 @@ describe('cards', () => {
       Notes: 'active smelling', Mnemonic: 'dome',
     });
     const back = renderCard(note, 'forward').back.blocks;
-    expect(back.map((b) => b.role)).toEqual([undefined, undefined, 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
+    expect(back.map((b) => b.role)).toEqual([undefined, 'transliteration', 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
     expect(back[3]?.label).toBe('Mnemonic');
     expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
     expect(back.find((b) => b.role === 'example')).toMatchObject({ segments: [{ text: 'ขอ', marked: false }, { text: 'ดม', marked: true }, { text: 'ดอกไม้หน่อยครับ', marked: false }], label: undefined, tapLabel: undefined });
@@ -239,7 +239,39 @@ describe('cards', () => {
   });
   it('leaves out tags and the example when the note has none', () => {
     const back = renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks;
-    expect(back.some((b) => b.role)).toBe(false);
+    // The word's transliteration is the one block with a role the default fixture has.
+    expect(back.filter((b) => b.role).map((b) => b.role)).toEqual(['transliteration']);
+  });
+  it('shows the Sense line right under the meaning on the forward and audio answers, and only when there is one', () => {
+    const note = omniNote({ Entry: 'ประสบการณ์', Meaning: 'experience', Sense: 'know-how from doing, or something lived through', GenerateAudioCard: 'y' });
+    for (const kind of ['forward', 'audio'] as const) {
+      const back = renderCard(note, kind).back.blocks;
+      const at = back.findIndex((b) => b.role === 'sense');
+      expect(back[at]?.text).toBe('know-how from doing, or something lived through');
+      expect(back[at - 1]?.text).toBe('experience');
+    }
+    expect(renderCard(omniNote({ Meaning: 'book' }), 'forward').back.blocks.some((b) => b.role === 'sense')).toBe(false);
+  });
+  it('renders one example box per line of Context when ContextLabels is set, each with its own romanization, translation and tag', () => {
+    const note = omniNote({
+      Entry: 'ประสบการณ์', Transliteration: 'bprà-sòp-gaan', Meaning: 'experience',
+      Context: 'เขามีประสบการณ์เยอะ<br>ฉันมีประสบการณ์ที่ดีที่นั่น',
+      ContextRomanized: 'kǎo mii bprà-sòp-gaan yóe<br>chǎn mii bprà-sòp-gaan thîi dii thîi-nân',
+      ContextTranslation: 'He has a lot of experience.<br>I had a good experience there.',
+      ContextLabels: 'skill<br>event',
+    });
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back.filter((b) => b.role?.startsWith('example')).map((b) => b.role)).toEqual([
+      'example', 'exampleRomanized', 'exampleTranslation', 'example', 'exampleRomanized', 'exampleTranslation',
+    ]);
+    const examples = back.filter((b) => b.role === 'example');
+    expect(examples.map((b) => [b.text, b.tag])).toEqual([['เขามีประสบการณ์เยอะ', 'skill'], ['ฉันมีประสบการณ์ที่ดีที่นั่น', 'event']]);
+    expect(examples[1].segments?.find((s) => s.marked)?.text).toBe('ประสบการณ์');
+    expect(back.filter((b) => b.role === 'exampleTranslation').map((b) => b.text)).toEqual(['He has a lot of experience.', 'I had a good experience there.']);
+  });
+  it('leaves a note whose Context already runs over two lines as one example when ContextLabels is empty', () => {
+    const back = renderCard(omniNote({ Context: 'Line one<br>Line two', ContextTranslation: 'One<br>Two' }), 'forward').back.blocks;
+    expect(back.filter((b) => b.role === 'example').map((b) => b.text)).toEqual(['Line one\nLine two']);
   });
   it('renders plain Front/Back notes for trivia', () => {
     const note: Note = { id: 't', deck: 'Trivia', model: 'Basic', fields: { Front: 'Capital of Peru?', Back: 'Lima' }, tags: [] };

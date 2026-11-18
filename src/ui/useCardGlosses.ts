@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { firstExample } from '../core/examples';
 import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
 import type { Api, Language, Word } from '../reader/api';
@@ -80,7 +81,7 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
   return useCallback((card: Card, note: Note): SentenceGloss | null => {
     if (!glossing) return null;
     const language = cardLanguage(card, note, glossing.decks);
-    const words = language ? kept.get(glossKey(language, htmlToText(note.fields.Context ?? ''))) : undefined;
+    const words = language ? kept.get(glossKey(language, htmlToText(firstExample(note).context))) : undefined;
     if (!language || !words) return null;
     const { api, onPlayWord, onAddWord } = glossing;
     return { api, onPlayWord, onAddWord, language, words };
