@@ -14,7 +14,7 @@ const light = {
   surface: '#ffffff',
   /** A quieter fill inside a surface: chips, inputs, the guide line of a subdeck. */
   fill: '#efebe2',
-  /** Something floating over a surface (the change-rating strip over the review card): set apart from it by its fill and edge, not only its shadow. */
+  /** Something floating over a surface (the hold strip over the review card): set apart from it by its fill and edge, not only its shadow. */
   raised: '#f1ede4',
   raisedEdge: '#d6d0c2',
   text: '#1b1b1b',
