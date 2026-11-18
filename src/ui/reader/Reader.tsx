@@ -2,7 +2,7 @@ import { Stack, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
-import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
@@ -982,7 +982,17 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           ) : null}
           {review ? null : (
             <View style={{ padding: space.l }}>
-              <Button label="Done" onPress={() => { player.pause(); setCheck(buildCheck(text, session)); setEnded(true); }} />
+              <Button label="Done" onPress={() => {
+                const end = () => { player.pause(); setCheck(buildCheck(text, session)); setEnded(true); };
+                // Finishing a story's episode logs it as read, and the server then writes the next
+                // one, so a stray tap on Done is asked about first.
+                if (source.kind === 'shelf' && (text.episode ?? 0) > 0) {
+                  Alert.alert(`Finish episode ${text.episode}?`, `This saves it as read and starts writing episode ${(text.episode ?? 0) + 1}.`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Finish', onPress: end },
+                  ]);
+                } else end();
+              }} />
             </View>
           )}
         </ScrollView>
