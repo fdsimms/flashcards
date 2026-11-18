@@ -732,6 +732,10 @@ export function createApi(
     // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
     explainPhrase: (textId: number, line: number, phrase: string, simple: boolean, inLanguage = false) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage }),
+    // Claude's answer to a question typed about a selected phrase, from the conversation so far (the last turn is the
+    // new question): asked only when the owner sends one, and not kept (ui/reader/usePhraseQuestions.ts).
+    askPhrase: async (textId: number, line: number, phrase: string, turns: { role: 'user' | 'assistant'; content: string }[], inLanguage = false) =>
+      (await call<{ answer: string }>('POST', `/api/texts/${textId}/lines/${line}/ask`, { phrase, turns, in_language: inLanguage })).answer,
     // Why a word has the form it has in its line (the form quiz's Explain), kept per word.
     explainForm: async (textId: number, line: number, word: Word) =>
       (await call<{ explanation: string[] }>('POST', `/api/texts/${textId}/lines/${line}/form`, {

@@ -20,6 +20,7 @@ from franki_reader import (
     topic_image,
     vocab_check,
 )
+from franki_reader.ask_phrase import AskPhrase
 from franki_reader.engine import Engine
 from franki_reader.explain import CheckNatural, Explain, ExplainForm, ExplainPhrase
 from franki_reader.gateway import ReadDue, ReadReviews
@@ -41,6 +42,7 @@ class AppContext:
     mnemonics: MakeMnemonics | None
     explain: Explain | None
     explain_phrase: ExplainPhrase | None
+    ask_about_phrase: AskPhrase | None
     explain_form: ExplainForm | None
     read_due: ReadDue | None
     read_reviews: ReadReviews | None

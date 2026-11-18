@@ -1638,8 +1638,8 @@ def save_form_explanation(
 def explanation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> dict[Code, tuple[int, float]]:
-    """Each language with a line or a phrase explained, or a line checked for sounding natural,
-    since `since`: how many answers were asked for (a plainer version counts again, and so does a
+    """Each language with a line or a phrase explained, a question asked about a phrase, or a line
+    checked for sounding natural, since `since`: how many answers were asked for (a plainer version counts again, and so does a
     call that failed after Claude answered, from `call_costs`) and what they cost Claude."""
     return {
         language: (count, cost)
@@ -1652,7 +1652,7 @@ def explanation_spending(
                        UNION ALL SELECT text_id, created_at, cost_usd FROM naturalness
                    ) e JOIN texts t ON t.id = e.text_id
                    UNION ALL SELECT language, created_at, cost_usd FROM call_costs
-                       WHERE feature IN ('explain', 'phrase', 'form_explain', 'natural')
+                       WHERE feature IN ('explain', 'phrase', 'form_explain', 'natural', 'ask_phrase')
                ) WHERE created_at >= ? GROUP BY language ORDER BY SUM(cost_usd) DESC""",
             (since.isoformat(),),
         )
@@ -1677,6 +1677,7 @@ CallFeature = Literal[
     "ipa",
     "aspect",
     "ask_card",
+    "ask_phrase",
     "fix_card",
     "topic_image",
 ]

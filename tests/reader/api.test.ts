@@ -188,6 +188,15 @@ test("an explanation comes with the line's grammar, and none from an older serve
   expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
 });
 
+test('a question about a phrase posts the phrase and the conversation, and returns the answer text', async () => {
+  const { impl, calls } = fakeFetch(json({ answer: 'It introduces someone new.' }));
+  const turns = [{ role: 'user' as const, content: 'Why หนึ่ง here?' }];
+  const got = await createApi('https://x/reader', 'p', impl).askPhrase(3, 1, 'ผู้หญิงคนหนึ่ง', turns, true);
+  expect(got).toBe('It introduces someone new.');
+  expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/ask');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ phrase: 'ผู้หญิงคนหนึ่ง', turns, in_language: true });
+});
+
 test('a naturalness check is asked of the line and comes back as the server sent it', async () => {
   const answer = { verdict: 'stiff', reason: 'Too written.', alternative: 'Pourquoi tu regardes ça ?' };
   const { impl, calls } = fakeFetch(json(answer));

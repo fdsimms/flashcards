@@ -186,6 +186,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       Claude: {verdict, reason, alternative}, verdict one of
                                       natural, stiff, unusual. Asked on the owner's tap and kept
                                       per line
+    POST  /api/texts/{id}/lines/{n}/ask       {phrase, turns: [{role, content}], in_language?} the answer
+                                      to the owner's question about a phrase selected in the line,
+                                      from the conversation so far (the last turn is the new
+                                      question): {answer}. Asked only when a question is sent, not
+                                      kept. 503 without Claude. Its cost is kept in `call_costs`
+                                      (feature "ask_phrase") and counts under explanations in
+                                      /api/costs
     POST  /api/production/check       {kind, language, attempt, word?, meaning?, english?, reference?}
                                       the owner's own writing checked by Claude (production.py):
                                       a sentence with `word` (kind "sentence") or their way of
@@ -295,6 +302,7 @@ from franki_speech import SpeechClient
 from franki_reader import (
     ai_ipa,
     ask_card,
+    ask_phrase,
     aspect,
     comprehension,
     config,
@@ -407,6 +415,7 @@ def create_app(
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
+    ask_about_phrase: ask_phrase.AskPhrase | None = None,
     fix_flagged_card: fix_card.FixCard | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
@@ -492,6 +501,7 @@ def create_app(
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
+        ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
@@ -532,6 +542,7 @@ def production_app() -> FastAPI:
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
     ask_about_card: ask_card.AskCard | None = None
+    ask_about_phrase: ask_phrase.AskPhrase | None = None
     fix_flagged_card: fix_card.FixCard | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
@@ -558,6 +569,7 @@ def production_app() -> FastAPI:
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
         ask_about_card = ask_card.claude_ask_card(client)
+        ask_about_phrase = ask_phrase.claude_ask_phrase(client)
         fix_flagged_card = fix_card.claude_fix_card(client)
 
         def ask_for(
@@ -646,5 +658,6 @@ def production_app() -> FastAPI:
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
+        ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
     )

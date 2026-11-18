@@ -59,7 +59,8 @@ Franki's (Client, below).
   a point; it was the lines around it until 15 November 2026), and kept per line and per version in `explanations`, so opening a
   line again or rereading a past text costs nothing. It only shows text: nothing is graded or added
   to the deck. Each call's cost is kept with it and reported under `explanations` in `/api/costs`,
-  apart from the texts' figures. A free-form "Ask a question" and a per-word explanation were left out for now.
+  apart from the texts' figures. A per-word explanation was left out for now (a free-form question
+  is asked about a selected phrase, below).
   **Explain is in English** (16 November 2026: the prompts say so outright, since a Russian line got Russian notes). Settings,
   Read & Listen, Explain in the language (off by default) asks for the notes in the language being read, in simple words, for practice;
   a phrase's meaning and literal stay English. The app sends `in_language`; the answer is kept under its own version
@@ -84,6 +85,20 @@ Franki's (Client, below).
   `/api/costs`. **Add to deck** on the note opens the note editor with the phrase and its meaning
   in the language's deck, the same approval step and daily limit as a marked word (`mining.ts`),
   and only for a text in the language being read.
+- **Ask about a phrase** (18 November 2026, by the owner's request; the owner picked the field
+  inside the popup from a mock over a separate chat sheet). The phrase popup has an "Ask a question"
+  button that opens a field under the explanation; the keyboard's Send or the arrow sends the
+  question and Claude's answer stacks under the explanation, so follow-ups stay in context. While
+  the field is open the popup moves to the top and takes what the keyboard leaves
+  (`popupSpace`, `src/reader/phrase.ts`). `POST /api/texts/{id}/lines/{n}/ask` (`ask_phrase.py`,
+  modeled on Ask Claude about a card) takes the phrase, as for Explain a phrase, and the
+  conversation so far, and answers with Haiku given the line, its English and the whole text,
+  which the prompt says to use only where it sharpens the answer. The answer is English, or the
+  language being read with Explain in the language on. Questions are asked only when sent, are
+  not kept (closing the popup clears them), and are not graded or added to the deck. Each call
+  is kept in `call_costs` (feature `ask_phrase`) and counts under `explanations` in `/api/costs`.
+  There are no starter questions. The popup needs the server for its explanation, so with no
+  connection the Ask button isn't shown.
 - **Register and naturalness** (13 November 2026, by the owner's decision). Texts are written by a
   model, and a line that is grammatical but stiff passes every check in code, so two things show how
   a line is said, and neither grades or adds anything. (1) Each line carries a **register** chip
