@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../../reader/guess';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
-import { Collapse, Pop } from '../motion';
+import { Collapse } from '../motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 
 /**
@@ -62,14 +62,14 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
   );
 }
 
-/** How long the answer is seen among all four choices before the other wrong ones fold away, and the gap between each. */
-const FOLD_AFTER_MS = 600;
+/** The gap between each unpicked choice folding away. They start folding as soon as an answer is picked. */
 const FOLD_STAGGER_MS = 90;
 
 /**
- * The quiz's choices once answered: the right one marked (and springing in, with a check, when it
- * was picked, the check alone) and a wrong pick marked, each with a word or icon as well as a color. The wrong choices that
- * weren't picked are dimmed, then fold away top to bottom, giving the popover its space back.
+ * The quiz's choices once answered: the right one marked (with a check alone when it was picked)
+ * and a wrong pick marked, each with a word or icon as well as a color. The wrong choices that
+ * weren't picked are dimmed and fold away top to bottom, giving the popover its space back. Nothing
+ * bounces: the marks appear as they are.
  */
 export function QuizChoices({ choices, answer, picked }: { choices: string[]; answer: number; picked: number | null }) {
   const c = useTheme();
@@ -97,7 +97,7 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{choice}</Text>
             {right || wrongPick ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} effect={gotIt ? 'bounce' : undefined} /> : null}
+                {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} /> : null}
                 {note ? <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text> : null}
               </View>
             ) : null}
@@ -105,8 +105,8 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
         );
         const key = `${i}:${choice}`;
         const padded = (inner: React.ReactNode) => <View key={key} style={{ paddingBottom: space.s }}>{inner}</View>;
-        if (right || wrongPick) return padded(right && gotIt ? <Pop from={0.96} bounciness={10}>{row}</Pop> : row);
-        return <Collapse key={key} delay={FOLD_AFTER_MS + FOLD_STAGGER_MS * folded++}>{padded(row)}</Collapse>;
+        if (right || wrongPick) return padded(row);
+        return <Collapse key={key} delay={FOLD_STAGGER_MS * folded++}>{padded(row)}</Collapse>;
       })}
     </View>
   );
