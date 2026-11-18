@@ -252,3 +252,8 @@ export function toolById(id: string | undefined): ToolInfo | undefined {
 export function toolLanguage(tool: ToolInfo, last: Language | undefined): Language {
   return last && tool.languages.includes(last) ? last : tool.languages[0];
 }
+
+/** The language the Practice list shows: the one last practiced if tools come in it, else the first. */
+export function listLanguage(last: Language | undefined): Language {
+  return last && TOOL_LANGUAGES.includes(last) ? last : TOOL_LANGUAGES[0];
+}
