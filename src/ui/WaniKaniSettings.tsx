@@ -83,7 +83,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
   };
 
   const bringBack = (subjectId: number, name: string) => {
-    ActionSheetIOS.showActionSheetWithOptions({ title: name, options: ['Bring back to reviews', 'Cancel'], cancelButtonIndex: 1 }, (i) => {
+    ActionSheetIOS.showActionSheetWithOptions({ title: name, options: ['Bring back', 'Cancel'], cancelButtonIndex: 1 }, (i) => {
       if (i === 0) wanikani.unskip(subjectId);
     });
   };
@@ -197,7 +197,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
                 />
               ))}
             </Group>
-            <Help>These words don't come up in reviews on this iPhone. WaniKani still schedules them, so they stay due on wanikani.com. Tap one to bring it back.</Help>
+            <Help>These words don't come up in lessons or reviews on this iPhone. WaniKani still lists them, so they stay on wanikani.com. Tap one to bring it back.</Help>
           </>
         ) : null}
 

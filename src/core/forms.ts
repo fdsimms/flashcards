@@ -113,9 +113,6 @@ function genderAnswers(note: Note, g: Gender): string[] {
   return fits.length ? [...fits, ...accepted.filter((a) => !fits.includes(a))] : [GENDER_WORDS[g]];
 }
 
-/** "ten, ta or to"; "el or la" for two. */
-const orList = (items: string[]): string => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`);
-
 const isGenderWord = (answer: string) => (Object.values(GENDER_WORDS) as string[]).includes(answer);
 
 /** The word a gender prompt shows: without its article, which is what's asked or would mislead ("el agua", feminine). */
@@ -510,8 +507,8 @@ export interface FormPrompt {
   sentence?: { before: string; after: string; translation?: string };
   /** A gender asked as its article: the word is shown with a gap in front of it ("___ okno"), which the answer fills. */
   gap?: boolean;
-  /** What to type when it's typed, so the box says what's wanted: "ten, ta or to", "masculine or feminine". Gender prompts only. */
-  typeHint?: string;
+  /** Always answered by picking, whatever the Pick/Type choice: a gender has two or three options, so typing one adds nothing. Gender prompts only. */
+  pickOnly?: boolean;
   /** The grammar point the form is (docs/grammar.md), shown once the answer is. */
   grammar?: { id: string; name: string; note: string; example: string };
   /** The word's other forms that are spelled differently, with their names ("present · on"), to say which one a wrong answer was. */
@@ -519,7 +516,7 @@ export interface FormPrompt {
   /** Every form key it stands for, when it's several asked as one (`mergeSentencePrompts`); else only `key`. */
   keys?: string[];
   /**
-   * The right answer read aloud after a miss, with the phone's voice for the note's language. Absent
+   * The right answer read aloud after every answer, with the phone's voice for the note's language. Absent
    * when the language isn't known, or for a gender asked as a word ("feminine"), which isn't in it.
    */
   say?: { text: string; lang: string };
@@ -623,7 +620,7 @@ export function promptFor(
     answers: form.answers,
     ...(picked.length ? { choices: shuffle([form.answers[0], ...picked], random) } : {}),
     ...(gender ? {} : { sentence: sentenceFor(note, form, own, inSentence) }),
-    ...(gender ? { typeHint: orList(genderChoices(note, form)), ...(isGenderWord(form.answers[0]) ? {} : { gap: true }) } : {}),
+    ...(gender ? { pickOnly: true, ...(isGenderWord(form.answers[0]) ? {} : { gap: true }) } : {}),
     ...(point ? { grammar: { id: point.id, name: point.name, note: point.note, example: point.example } } : {}),
     ...(otherForms.length ? { otherForms } : {}),
     ...(lang && spoken ? { say: { text: spoken, lang } } : {}),
