@@ -129,7 +129,8 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   // A detail line (WaniKani's level) goes under the name too; the card counts were dropped to save space.
   const line = detail ? detail.text : inDeck;
   const badge = leadingEmoji(row.name);
-  const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress${atCap ? ', new cards wait' : ''}` : null;
+  // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
+  const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;
   return (
     <Pressable
       onPress={editing ? undefined : (onPress ?? onOpen)}
@@ -137,7 +138,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       accessibilityRole={editing ? undefined : 'button'}
       accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
-      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine].filter(Boolean).join('. ')}
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -165,7 +166,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
         {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {below}
         {gateLine ? (
-          // Under the cap, new cards come in; at it, they wait until cards are a week out.
+          // Under the cap, new cards come in; at it, they wait until cards are a week out (the color says so).
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
         ) : null}
       </View>
