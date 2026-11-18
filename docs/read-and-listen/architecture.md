@@ -167,7 +167,8 @@ Franki's (Client, below).
   replay button) begins its count again.
 - **Record yourself** in the player, beside Repeat line, records the line playing or last played
   ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays it back. Yours
-  replays it, and the line's own buttons replay the native line. One take at a time, for that line
+  replays it, Compare plays the line as it was played and then the take, either stops while it plays, and
+  the line's own buttons replay the native line. One take at a time, for that line
   only: moving to another line or closing the text deletes it, and it's never sent to the server.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread
@@ -1241,8 +1242,9 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
-  common words, voices, grammar, the story, practice words, and the progress
-  summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
+  common words, voices, grammar, practice words, and the progress
+  summary (moved off the home screen). The story that used to be here (start a new one, Read from the
+  start) was removed on 18 November 2026, by the owner: the + sheet, Stories and the banner do both. The `form` setting is no longer shown: the shelf varies it.
 
 ## Stories
 
@@ -1251,7 +1253,7 @@ next episode is the top of the shelf.
 
 - **Several stories run at once, one pinned to the top** (17 November 2026, by the owner: a new
   story used to retire the old one, for no reason anyone wrote down). A story (`stories`) is started
-  from the + sheet, Stories or the settings page, with an optional line about what it's about, and
+  from the + sheet or Stories, with an optional line about what it's about, and
   runs (`active`) until it's ended. Each language has one pinned story (`pinned`), the one the
   home's banner shows (`pinned_story`); a new story is pinned only when none is running, and ending
   the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`) lists the

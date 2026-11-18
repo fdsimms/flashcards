@@ -56,6 +56,13 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   // Record yourself, for shadowing: a take of the line that's playing or last played.
   const self = useSelfRecording(text && current !== null ? `${text.id}:${current}` : null, READER_AUDIO_MODE, {
     onBeforeAudio: () => player.pause(),
+    // Compare plays the line as it was played (the speed chosen), then the take.
+    original: text && current !== null && text.lines[current]?.audio
+      ? async () => {
+        const audio = await lineAudio(api, text.id, current, playedRate.current, slowTimed[`${text.id}:${current}`]);
+        return { source: audio.source, rate: audio.stretch };
+      }
+      : null,
   });
 
   // READER_AUDIO_MODE while the reader is open. Review's card audio doesn't need background
