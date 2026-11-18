@@ -377,7 +377,8 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
           since changed in Anki alone.
         - `preview` (the default) changes nothing and returns each tier's notes, examples and how many
           cards would move. Show that to the user and apply with preview=false only once they agree.
-        Needs Read & Listen running (it holds the word lists). Say which deck's presets this adds."""
+        Needs Read & Listen running (it holds the word lists). Say which deck's presets this adds.
+        Franki shows the tiers as the one deck; untier_deck undoes this."""
         if bands and not retentions:
             raise ToolError(f"Pass retentions too: one value per tier ({len(bands) + 1}), most common first.")
         s = Settings(language, field, tuple(bands or DEFAULT_BANDS), tuple(retentions or DEFAULT_RETENTIONS), daily)

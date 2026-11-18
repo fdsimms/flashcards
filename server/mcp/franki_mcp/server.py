@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, frequency, pronunciation, tiers, tools
+from . import forms, frequency, lint, pronunciation, tiers, tools
 from . import reader as reader_tools
 from .collection import CollectionManager
 from .reader import ReaderClient, ReaderSettings
@@ -21,6 +21,8 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     # Wiktionary's inflection tables, kept beside the collection's folder.
     forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"), client)
     reader_tools.register(server, client)
+    # The Omnilanguage house style: its guide, its lint and the cards a note no longer makes.
+    lint.register(server, cm)
     # IPA for the Pronunciation field, from the same server.
     pronunciation.register(server, cm, client)
     # Ordering new cards by how common the word is, with the ranks from the same server.
