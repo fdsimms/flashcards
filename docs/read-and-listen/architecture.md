@@ -222,8 +222,8 @@ Franki's (Client, below).
   `ReadWordGuess.tsx`). A second setting, **Quiz me on words I know** (off by default, shown with the
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
-  the popover open with the choices as a record, the right one marked "Right" (springing in, with a
-  check and a haptic) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  the popover open with the choices as a record, the right one marked with a check alone (springing in, with a
+  haptic) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
   a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
