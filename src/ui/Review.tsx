@@ -44,6 +44,7 @@ import { CardFontScope, useFontSettings } from './AppFont';
 import { CardWebView } from './CardWebView';
 import { Side } from './CardSide';
 import { CardStateChips } from './CardStateChips';
+import { LanguageCue } from './LanguageCue';
 import { MemoryStrength } from './MemoryStrength';
 import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
@@ -1274,6 +1275,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <LanguageCue kind={current.kind} speechLang={speechLang} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {canRecordYourself(rendered) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
