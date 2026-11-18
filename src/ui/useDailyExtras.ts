@@ -112,7 +112,12 @@ export function useDailyExtras() {
 
   const savePrefs = useCallback((next: ExtraPrefs) => saveExtraPrefs(next), []);
 
+  // Known once the saved extras and marks are in and, with Read & Listen on, its settings (which
+  // deck is which language) are too. Today waits for it so the strip isn't inserted above the decks.
+  const ready = !!saved && marksIn && (!readerOn || !!reader.settings);
+
   return {
+    ready,
     prefs: saved?.prefs,
     savePrefs,
     items,

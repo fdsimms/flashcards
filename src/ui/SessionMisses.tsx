@@ -35,8 +35,10 @@ export interface MixupRequest {
  * what Similar words can practice of them (src/tools/mixups.ts): those missed on how a word
  * sounds by ear, the rest by meaning, each among the words it's confused with. Practicing changes
  * nothing about when the cards come back. `practicable` false (no route to the tool) offers none.
+ * The practice is worked out only while `atEnd` (the screen that offers it is up): it reads every
+ * studied word, and the cards change with each answer.
  */
-export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean, noteTypes: Map<string, NoteType>, pairs: ConfusedPair[]) {
+export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Note>, cards: Card[] | null, practicable: boolean, noteTypes: Map<string, NoteType>, pairs: ConfusedPair[], atEnd: boolean) {
   const missed = useMemo(() => history.filter((h) => h.rating === 1).map((h) => ({ noteId: h.before.noteId, kind: h.before.kind, cardId: h.before.id, miss: h.miss })), [history]);
   // An Anki note type's card once (its question and answer say which card), any other note once,
   // each with its latest reason.
@@ -57,7 +59,7 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
     });
   }, [missed, notes, noteTypes]);
   const practice = useMemo(() => {
-    if (!practicable || !missed.length || !cards) return [];
+    if (!practicable || !atEnd || !missed.length || !cards) return [];
     const studied = new Set(cards.filter((card) => card.sched.state !== 0).map((card) => card.noteId));
     const labelOf = (key: string | undefined, noteId: string) => {
       const note = notes.get(noteId);
@@ -67,7 +69,7 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
       label: missedPracticeLabel(p, labelOf(p.reason, p.noteIds[0])),
       request: { noteIds: p.noteIds, mode: p.mode, language: p.language } as MixupRequest,
     }));
-  }, [practicable, missed, notes, cards, pairs]);
+  }, [practicable, atEnd, missed, notes, cards, pairs]);
   return { rows, practice };
 }
 
