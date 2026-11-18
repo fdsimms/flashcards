@@ -702,7 +702,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           {keyMarks.length > 0 ? (
             <Stack.Toolbar.Button icon="questionmark.circle" accessibilityLabel="Key to the marks on words" onPress={() => { haptic.tap(); setKeyOpen(true); }} />
           ) : null}
-          <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Reading options">
+          <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Reading options">
             <Stack.Toolbar.MenuAction isOn={english} onPress={() => setEnglish(!english)}>Show English</Stack.Toolbar.MenuAction>
             {quiz.any ? (
               <Stack.Toolbar.MenuAction isOn={formQuizOn} onPress={() => turnOnFormQuiz(!formQuizOn)}>Practice word forms</Stack.Toolbar.MenuAction>

@@ -3,7 +3,7 @@ import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { ReadLanguage } from '../ui/reader/ReadLanguage';
 
-/** The current Read & Listen language's settings, from the shelf's sliders button. */
+/** The current Read & Listen language's settings, from the shelf's gear button. */
 export default function ReadLanguageRoute() {
   const router = useRouter();
   const { reader, decks } = useApp();
