@@ -9,6 +9,7 @@
 
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
+import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
 import { isSlow } from './playbackRate';
 
@@ -640,6 +641,12 @@ export function createApi(
       });
       return ((await response.json()) as { id: number }).id;
     },
+    // Scene ideas for a lesson, written by Claude (server lesson_topics.py): fits the learner's own
+    // `phrases` when they chose some, and never repeats a lesson already made or an idea in `shown`.
+    lessonTopics: async (language: Language, phrases?: { text: string; english: string }[], shown?: string[]) =>
+      (await call<{ topics: string[] }>('POST', '/api/lessons/topics', {
+        language, ...(phrases ? { phrases } : {}), ...(shown?.length ? { shown } : {}),
+      })).topics,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
@@ -720,6 +727,10 @@ export function createApi(
     // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
     fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
+    // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
+    // from: asked only on Find Thai in Add a phrase; the server writes nothing (core/lessonWords.ts).
+    lessonWords: async (language: Language, text: string) =>
+      (await call<{ candidates: LessonWordCandidate[] }>('POST', '/api/lessons/words', { language, text })).candidates,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

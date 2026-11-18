@@ -10,5 +10,6 @@ export default function LessonWordAddRoute() {
   const language = reader.settings?.language;
   useEffect(() => { if (!reader.api || !language) router.back(); }, [reader.api, language, router]);
   if (!reader.api || !language) return null;
-  return <LessonWordAdd language={language} />;
+  const api = reader.api;
+  return <LessonWordAdd language={language} findWords={(text) => api.lessonWords(language, text)} />;
 }

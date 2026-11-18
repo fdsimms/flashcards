@@ -11,6 +11,8 @@ from franki_reader import (
     lesson,
     lesson_audio,
     lesson_service,
+    lesson_topics,
+    lesson_words,
     lesson_writer,
     store,
 )
@@ -58,13 +60,30 @@ class ReviewIn(BaseModel):
     particle: Literal["khrap", "kha"] | None = None
 
 
+class TopicsIn(BaseModel):
+    language: Code
+    # The learner's own words (as for a lesson), so the ideas are situations they'd come up in.
+    phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
+    # Ideas already on screen, so asking again gives different ones.
+    shown: list[str] = Field(default_factory=list, max_length=lesson_topics.MAX_AVOID)
+
+
+class WordIn(BaseModel):
+    language: Code
+    # What the learner typed: romanization, Thai script or English.
+    text: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+
+
 def router(ctx: AppContext) -> APIRouter:
     routes = APIRouter()
     authed = ctx.authed
     engine = ctx.engine
     write_lesson = ctx.write_lesson
     write_given_lesson = ctx.write_given_lesson
+    write_lesson_topics = ctx.write_lesson_topics
     lessons_dir = ctx.lessons_dir
+    find_lesson_words = ctx.find_lesson_words
+    keep_failed_cost = ctx.keep_failed_cost
 
     def lesson_out(row: store.StoredLesson) -> dict[str, Any]:
         return {
@@ -155,6 +174,63 @@ def router(ctx: AppContext) -> APIRouter:
             write_given=write_given_lesson,
         )
         return {"id": lesson_id}
+
+    @routes.post("/api/lessons/topics", dependencies=authed)
+    async def lesson_topics_route(body: TopicsIn) -> dict[str, list[str]]:
+        """Ideas for a lesson's scene. Never makes a lesson, and only reads which scenes exist."""
+        if write_lesson_topics is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "suggest a topic"))
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        words = lesson_topics.words_of(
+            lesson.given_phrases([(p.text, p.english) for p in body.phrases or []])
+        )
+        made = [row.scene for row in store.lessons(engine.conn, body.language)]
+        avoid = tuple(
+            " ".join(s.split())[: lesson_topics.MAX_IDEA * 2] for s in [*body.shown, *made]
+        )[: lesson_topics.MAX_AVOID]
+        try:
+            raw, used = await write_lesson_topics(body.language, words, avoid)
+        except lesson_topics.TopicsFailed as e:
+            ctx.keep_failed_cost("lesson_topics", body.language, e.usage)
+            raise HTTPException(503, str(e)) from e
+        topics = lesson_topics.clean_topics(raw, avoid)
+        store.save_call_cost(
+            engine.conn, "lesson_topics", body.language, engine.clock(), used.cost_usd()
+        )
+        if not topics:
+            raise HTTPException(503, "Claude had no new ideas. Try again.")
+        return {"topics": topics}
+
+    @routes.post("/api/lessons/words", dependencies=authed)
+    async def lesson_words_route(body: WordIn) -> dict[str, Any]:
+        """The words in the language what was typed could mean, for the learner to pick from; writes
+        nothing."""
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        typed = " ".join(body.text.split())
+        if not typed:
+            raise HTTPException(422, "Type a word or phrase to look up.")
+        if find_lesson_words is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "look up a word"))
+        try:
+            candidates, used = await find_lesson_words(body.language, typed)
+        except lesson_words.LessonWordsFailed as e:
+            keep_failed_cost("lesson_words", body.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "lesson_words", body.language, engine.clock(), used.cost_usd()
+        )
+        return {
+            "candidates": [
+                {"text": c.text, "reading": c.reading, "english": c.english} for c in candidates
+            ]
+        }
 
     @routes.get("/api/lessons", dependencies=authed)
     async def lessons_route(

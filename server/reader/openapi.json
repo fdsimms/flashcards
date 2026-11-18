@@ -3538,6 +3538,129 @@
         }
       }
     },
+    "/api/lessons/topics": {
+      "post": {
+        "summary": "Lesson Topics Route",
+        "description": "Ideas for a lesson's scene. Never makes a lesson, and only reads which scenes exist.",
+        "operationId": "lesson_topics_route_api_lessons_topics_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Lesson Topics Route Api Lessons Topics Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lessons/words": {
+      "post": {
+        "summary": "Lesson Words Route",
+        "description": "The words in the language what was typed could mean, for the learner to pick from; writes\nnothing.",
+        "operationId": "lesson_words_route_api_lessons_words_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Lesson Words Route Api Lessons Words Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/{lesson_id}/marks": {
       "post": {
         "summary": "Mark Route",
@@ -7228,6 +7351,54 @@
         "title": "TopicOut",
         "description": "A reading topic as the app lists it, its count and state in the language being shown."
       },
+      "TopicsIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GivenIn"
+                },
+                "type": "array",
+                "maxItems": 15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phrases"
+          },
+          "shown": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Shown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "TopicsIn"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -7288,6 +7459,38 @@
           "entry"
         ],
         "title": "VerbIn"
+      },
+      "WordIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "text"
+        ],
+        "title": "WordIn"
       },
       "WordSuggestionOut": {
         "properties": {

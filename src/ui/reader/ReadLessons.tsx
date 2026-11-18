@@ -7,6 +7,7 @@ import { lessonRequestWords } from '../../core/lessonWords';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
 import { LessonReviewCard } from './LessonReviewCard';
+import { LessonTopics } from './LessonTopics';
 import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
 import { useConnectionProblem } from '../connection';
@@ -132,6 +133,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
             returnKeyType="done"
             onSubmitEditing={make}
           />
+          <LessonTopics api={api} language={language} words={chosen.words} onPick={setScene} />
           <LessonWords words={chosen.words} onRemove={chosen.remove} onClear={chosen.clear} />
           <Button label="Make a lesson" onPress={make} busy={asking} disabled={!scene.trim()} />
           {askError ? <ErrorNote message={askError} /> : null}

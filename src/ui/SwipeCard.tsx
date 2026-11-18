@@ -86,8 +86,10 @@ const ARRIVE_MS = 160;
  * the finger even while the screen is busy rendering the next card; only the decision to answer
  * and the haptic hop back to JS.
  */
-export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, children }: {
+export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, words, children }: {
   enabled: boolean;
+  /** What the tint says at each edge: Review's answers by default; Practice's Missed it and Got it. */
+  words?: { right: string; left: string };
   /** Present when the deck mixes languages (`studiedSubdecks`). */
   language?: CardLanguage;
   /** Names the card on screen and how many answers there are: a swipe that lands after this changed (an answer button, an undo) is dropped. */
@@ -188,8 +190,8 @@ export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, c
             <Animated.View pointerEvents="none" style={[fill, { backgroundColor: c.good }, rightTint]} />
             <Animated.View pointerEvents="none" style={[fill, { backgroundColor: c.again }, leftTint]} />
             {answerFlash.overlay}
-            <Animated.Text pointerEvents="none" style={[{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: c.good }, rightWord]}>Good</Animated.Text>
-            <Animated.Text pointerEvents="none" style={[{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again }, leftWord]}>Again</Animated.Text>
+            <Animated.Text pointerEvents="none" style={[{ ...type.title, position: 'absolute', top: space.l, left: space.xl, color: c.good }, rightWord]}>{words?.right ?? 'Good'}</Animated.Text>
+            <Animated.Text pointerEvents="none" style={[{ ...type.title, position: 'absolute', top: space.l, right: space.xl, color: c.again }, leftWord]}>{words?.left ?? 'Again'}</Animated.Text>
           </CardSurface>
         </Animated.View>
       </GestureDetector>

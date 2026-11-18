@@ -49,6 +49,9 @@ def test_distinct_senses_are_numbered_lines_and_one_sense_has_no_number():
     assert meaning("1. hook 2. catch, snag 3. checkmark") == "1. hook<br>2. catch; snag<br>3. checkmark"
     assert meaning("2) train<br>5) move") == "1. train<br>2. move"
     assert meaning("<div>1. train</div><div>2. a move / a turn</div>") == "1. train<br>2. move; turn"
+    # Anki's editor writes the second line as "first<div>second</div>", with no tag closing the first.
+    assert meaning("1. to kill<div>2. to commit suicide (reflexive)</div>") == "1. to kill<br>2. to commit suicide (reflexive)"
+    assert o.plain("one<div>two</div><div><br></div>three") == "one\ntwo\nthree"
     # Lines with no numbers are taken as senses; glosses on one line stay one sense.
     assert meaning("train<br>move") == "1. train<br>2. move"
     assert meaning("fame; glory") == "fame; glory"

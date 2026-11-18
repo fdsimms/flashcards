@@ -35,6 +35,16 @@ export function skipTo(position: number, by: number, duration: number): number {
   return Math.min(end, Math.max(0, position + by));
 }
 
+/** How far into a lesson (0 to 1) a position is; 0 while the length isn't known. */
+export function progressOf(position: number, duration: number): number {
+  return duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
+}
+
+/** The position a finger at `x` points to on a scrubber `width` wide, kept inside the lesson. */
+export function scrubTo(x: number, width: number, duration: number): number {
+  return width > 0 && duration > 0 ? progressOf(x / width, 1) * duration : 0;
+}
+
 /** Whether the player is at the end, so Play starts the lesson over rather than doing nothing. */
 export function atEnd(position: number, duration: number): boolean {
   return duration > 0 && position >= duration - 0.5;

@@ -1,0 +1,149 @@
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import type { RatingValue } from '../../core/scheduler';
+import type { Repo } from '../../db/repo';
+import type { Phrase } from '../../tools/phrase';
+import { haptic } from '../haptics';
+import { Button, Icon, Tappable } from '../kit';
+import { Reveal } from '../motion';
+import { PLAY_BUTTON_CLEARANCE, PlayButton } from '../PlayButton';
+import { SwipeCard, type CardMotion } from '../SwipeCard';
+import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { AnswerContent, Status, type Answer } from './ToolScreen';
+
+/**
+ * A Practice tool built like Review's card: one sheet that fills the space between the header and
+ * the buttons, the question in the middle, tapped to show the answer, which opens under it past a
+ * divider. The footer is the tool's own (`MarkButtons` once the answer shows). Missed it and Got
+ * it are swiped like Again and Good (SwipeCard), but a mark is never a rating: nothing here
+ * reaches FSRS (tests/tools/noGrading.test.ts).
+ */
+
+/** SwipeCard's two directions: Again (left) and Good (right), read here as Missed it and Got it. */
+const MARKS: RatingValue[] = [1, 3];
+
+export function PracticeCard({ questionKey, cardKey, swipe, motion, onMark, onTap, onPlay, speech, front, back }: {
+  /** Names the question: each new one fades in. */
+  questionKey: string;
+  /** Names what a swipe would mark: it changes when the card's state does, so a swipe landing late is dropped. */
+  cardKey: string;
+  /** Whether a sideways drag marks the question (the swipe setting, with the answer showing). */
+  swipe: boolean;
+  /** Set by the card; call `motion.current?.flash(...)` when a button marks, as Review does. */
+  motion: React.MutableRefObject<CardMotion | null>;
+  onMark: (right: boolean) => void;
+  /** A tap anywhere on the card shows the answer; none once it's showing. */
+  onTap?: () => void;
+  /** The corner's play button, present once there is an answer to hear. */
+  onPlay?: () => void;
+  /** The language's voice, for the gear beside the play button. */
+  speech?: string;
+  front: React.ReactNode;
+  /** The answer, under a divider; none until it's shown. */
+  back?: React.ReactNode;
+}) {
+  const c = useTheme();
+  return (
+    <View style={{ flex: 1 }}>
+      <SwipeCard enabled={swipe} cardKey={cardKey} shown={MARKS} motion={motion} onRate={async (r) => onMark(r === 3)} words={{ right: 'Got it', left: 'Missed it' }}>
+        {/* Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
+        <Pressable accessible={false} disabled={!onTap} onPress={() => { haptic.select(); onTap?.(); }} style={{ flex: 1 }}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: space.xl, paddingBottom: onPlay ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+          >
+            <Reveal key={questionKey} rise={6} duration={140}>{front}</Reveal>
+            {back ? (
+              <Reveal rise={14} style={{ gap: space.xl }}>
+                {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
+                <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
+                {back}
+              </Reveal>
+            ) : null}
+          </ScrollView>
+        </Pressable>
+      </SwipeCard>
+      {onPlay ? <PlayButton onPlay={onPlay} speech={speech} /> : null}
+    </View>
+  );
+}
+
+/** The footer once the answer shows: Missed it and Got it, the shape and press of Review's Again and Good. */
+export function MarkButtons({ onMark }: { onMark: (right: boolean) => void }) {
+  const c = useTheme();
+  const buttons = [{ right: false, label: 'Missed it', color: c.again }, { right: true, label: 'Got it', color: c.good }];
+  return (
+    <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+      {buttons.map((b) => (
+        <Tappable
+          key={b.label}
+          onPress={() => onMark(b.right)}
+          accessibilityRole="button"
+          accessibilityLabel={b.label}
+          scaleTo={0.95}
+          dimTo={0.85}
+          style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, alignItems: 'center', justifyContent: 'center', backgroundColor: b.color }}
+        >
+          <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
+        </Tappable>
+      ))}
+    </Reveal>
+  );
+}
+
+/** Whether swiping marks a question: the swipe setting Review's cards follow, read once. */
+export function useSwipeSetting(repo: Repo): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => { repo.swipeToRate().then(setOn, () => setOn(false)); }, [repo]);
+  return on;
+}
+
+/** The footer of a tool you answer by saying it: Show answer, then Missed it and Got it, or Next after a miss that keeps its rule up. */
+export function SayFooter({ shown, missed, onShow, onNext, onMark }: { shown: boolean; missed: boolean; onShow: () => void; onNext: () => void; onMark: (right: boolean) => void }) {
+  if (!shown) return <Button label="Show answer" onPress={onShow} />;
+  if (missed) return <Button label="Next" onPress={onNext} />;
+  return <MarkButtons onMark={onMark} />;
+}
+
+/** A listening question: a large play button to hear it again, what to do, and the tool's answer field under them. */
+export function ListenPrompt({ label, hint, onPlay, children }: { label: string; hint: string; onPlay: () => void; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.l }}>
+      <View style={{ alignItems: 'center', gap: space.m }}>
+        <Tappable
+          onPress={() => { haptic.tap(); onPlay(); }}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="speaker.wave.2.fill" size={32} color={c.onAccent} />
+        </Tappable>
+        <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{hint}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** What a listening check came to, under the card's divider: right, or what it was; then how it's said, with the rule after a miss. */
+export function ListenBack({ right, wrong, answer, rule, onPlay }: { right: boolean; wrong: string; answer: Answer; rule: string | undefined; onPlay: (p: Phrase) => void }) {
+  return (
+    <View style={{ gap: space.m }}>
+      <View style={{ alignItems: 'center' }}>{right ? <Status tone="good">Right.</Status> : <Status tone="bad">{wrong}</Status>}</View>
+      <AnswerContent centered answer={answer} rule={right ? undefined : rule} onPlay={onPlay} />
+    </View>
+  );
+}
+
+/** The footer of a listening tool: Check, then Next, with Try again beside it after a miss. */
+export function ListenFooter({ verdict, canCheck, onCheck, onRetry, onNext }: { verdict: { right: boolean } | null; canCheck: boolean; onCheck: () => void; onRetry: () => void; onNext: () => void }) {
+  if (!verdict) return <Button label="Check" onPress={onCheck} disabled={!canCheck} />;
+  if (verdict.right) return <Button label="Next" onPress={onNext} />;
+  return (
+    <View style={{ flexDirection: 'row', gap: space.s }}>
+      <Button variant="secondary" label="Try again" style={{ flex: 1 }} onPress={onRetry} />
+      <Button label="Next" style={{ flex: 1 }} onPress={onNext} />
+    </View>
+  );
+}

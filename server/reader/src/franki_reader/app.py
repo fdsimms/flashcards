@@ -261,6 +261,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       created_at, phrases, dialogue, pauses: [[start, end]]
                                       ms where the learner speaks, or null until found in an older
                                       lesson (found in the background)}]}, newest first
+    POST  /api/lessons/topics         {language, phrases?: [{text, english}], shown?: [str]} ideas for
+                                      a lesson's scene, written by Claude: {topics: [str]}, never
+                                      one already made as a lesson or in `shown`. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature
+                                      "lesson_topics") and counts under `lesson_topics` in
+                                      /api/costs
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
@@ -271,6 +277,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {answer}. Asked only when a question is sent. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature "ask_card"),
                                       not yet in /api/costs
+    POST  /api/lessons/words          {language, text} the words in the language what the learner typed in Add a
+                                      phrase (romanization, the language or English) could mean, for
+                                      them to pick one: {candidates: [{text (in the language's own
+                                      script), reading, english}]}, none when nothing real fits. Any
+                                      language lessons are made in. It writes nothing; asked only on Find
+                                      word. 503 without Claude. Its cost is kept in `call_costs`
+                                      (feature "lesson_words")
     POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
                                       owner flagged: {changes: {field: new html}, explanation}, only the
                                       fields that change (none when Claude can't fix it from text). It
@@ -316,6 +329,8 @@ from franki_reader import (
     fix_card,
     forms,
     grammar_topics,
+    lesson_topics,
+    lesson_words,
     lesson_writer,
     meanings,
     note_queue,
@@ -354,6 +369,7 @@ from franki_reader.generator import (
     claude_ask,
 )
 from franki_reader.languages import Code
+from franki_reader.lesson_topics import WriteTopics
 from franki_reader.lesson_writer import WriteGiven, WritePlan
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
@@ -418,11 +434,13 @@ def create_app(
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
     write_given_lesson: WriteGiven | None = None,
+    write_lesson_topics: WriteTopics | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
     fix_flagged_card: fix_card.FixCard | None = None,
+    find_lesson_words: lesson_words.FindWords | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -504,11 +522,13 @@ def create_app(
         clips=clips,
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
+        write_lesson_topics=write_lesson_topics,
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        find_lesson_words=find_lesson_words,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -545,11 +565,13 @@ def production_app() -> FastAPI:
     write_forms: forms.WriteForms | None = None
     write_lesson: WritePlan | None = None
     write_given_lesson: WriteGiven | None = None
+    write_lesson_topics: WriteTopics | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
     ask_about_card: ask_card.AskCard | None = None
     ask_about_phrase: ask_phrase.AskPhrase | None = None
     fix_flagged_card: fix_card.FixCard | None = None
+    find_lesson_words: lesson_words.FindWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -572,11 +594,13 @@ def production_app() -> FastAPI:
         write_forms = forms.claude_forms(client)
         write_lesson = lesson_writer.claude_plan(client)
         write_given_lesson = lesson_writer.claude_given_plan(client)
+        write_lesson_topics = lesson_topics.claude_topics(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
         ask_about_card = ask_card.claude_ask_card(client)
         ask_about_phrase = ask_phrase.claude_ask_phrase(client)
         fix_flagged_card = fix_card.claude_fix_card(client)
+        find_lesson_words = lesson_words.claude_find_words(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -661,9 +685,11 @@ def production_app() -> FastAPI:
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
+        write_lesson_topics=write_lesson_topics,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        find_lesson_words=find_lesson_words,
     )
