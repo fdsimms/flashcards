@@ -28,12 +28,13 @@ export function todaySummary(answers: Answer[], now: Date, dayStartsAtHour: numb
 }
 
 /**
- * The pace as "1 per 7 s" (one answer every so many seconds, since a rate in answers per second
- * would read 0.14), or null when no time was recorded. Rounded to whole seconds, at least 1.
+ * The pace as answers per second ("0.14/s"), or null when no time was recorded. Two decimals;
+ * "<0.01/s" for anything slower.
  */
 export function answerPace(answered: number, takenMs: number): string | null {
   if (answered <= 0 || takenMs <= 0) return null;
-  return `1 per ${Math.max(1, Math.round(takenMs / answered / 1000))} s`;
+  const rate = answered / (takenMs / 1000);
+  return rate < 0.01 ? '<0.01/s' : `${rate.toFixed(2)}/s`;
 }
 
 /**
