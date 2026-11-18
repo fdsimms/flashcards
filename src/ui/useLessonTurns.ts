@@ -116,6 +116,8 @@ export function useLessonTurns(player: AudioPlayer, waits: LessonWaits): LessonT
     rec.current = null;
     setRecording(false);
     try { await recorder.stop(); } catch { /* stopped already */ }
+    // A recording ending can leave the session set for it; the lesson's own is put back.
+    if (lesson.current) setAudioModeAsync(lessonAudioMode(applies(prefsRef.current))).catch(() => undefined);
     const uri = recorder.uri;
     const script = lesson.current?.script;
     if (!uri) return;

@@ -26,8 +26,10 @@ import { LessonTurnSettings } from './LessonTurnSettings';
  * it stops at each place you speak and Play becomes Continue (useLessonWaits). Once the phrases show, each is words to tap for their meanings, as a
  * card's example sentence is (the server's glosses; a phrase it has no answer for stays plain text).
  */
-export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
+export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, onAddWord }: {
   api: Api; lesson: AudioLesson; onDeleted: () => void;
+  /** Opens Add to deck for the lesson's phrases; left out when the language has no deck. */
+  onAddToDeck?: () => void;
 } & Pick<CardGlossing, 'onPlayWord' | 'onAddWord'>) {
   const c = useTheme();
   const host = useReaderPlayerHost();
@@ -194,6 +196,9 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
         </View>
 
         {mine ? <LessonTurnPanel turns={turns} held={held} /> : null}
+        {mine && onAddToDeck && atEnd(status.currentTime, status.duration) ? (
+          <Button label="Add these phrases to your deck" onPress={onAddToDeck} />
+        ) : null}
 
         <Group>
           <LessonTurnSettings lesson={lesson} waits={waits} turns={turns} />
@@ -203,6 +208,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
             disabled={!script}
             onPress={() => setShowTranscript((v) => !v)}
           />
+          {onAddToDeck ? <NavRow label="Add phrases to your deck" detail="Each opens in the note editor" onPress={onAddToDeck} /> : null}
           <NavRow
             label={showPhrases ? 'Hide the phrases' : 'Show the phrases'}
             detail={`${lesson.phrases.length} phrases and the conversation`}

@@ -246,11 +246,13 @@ back off the screen. Anything that reads or undoes what an answer wrote awaits
 **Audio plays with the silent switch on** (`setAudioModeAsync({ playsInSilentMode: true })` in
 `src/ui/AppContext.tsx`): iOS otherwise mutes an app's recordings, TTS and WebView audio alike, which made every
 play button look broken. `expo-audio`'s config plugin asks for the microphone only for Record
-yourself (`useSelfRecording`): a take of your own voice to play next to a card's or a line's
-recording, kept in the caches folder until you move on and never saved or synced, and never sent
-anywhere (a scoring feature was tried and removed; `architecture.md`, Speaking). The session
-allows recording only while a take is made, since iOS's play-and-record category puts Bluetooth
-headphones into call quality. The plugin also allows background audio, which only Read & Listen's
+yourself (`useSelfRecording`) and an audio lesson's turns (`useLessonTurns`): a take of your own
+voice to play next to a card's, a line's or a lesson's recording, kept in the caches folder until
+you move on and never saved or synced, and never sent anywhere (a scoring feature was tried and
+removed; `architecture.md`, Speaking). The session allows recording only while a take is made,
+since iOS's play-and-record category puts Bluetooth headphones into call quality; the one exception
+is a lesson with a microphone setting on, which keeps it for the whole lesson because iOS won't
+start a recording in the background, and Settings, Lessons says so. The plugin also allows background audio, which only Read & Listen's
 reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
 **Everything stays on the device, except sync, Read & Listen, WaniKani and font downloads.** TTS is `expo-speech` (on-device

@@ -443,6 +443,38 @@ aloud is never heard by the phone.
   every other gap at most 1.4 s, so a quiet run of 2.7 s is an answer's), and its pauses are null
   until then. Kept lessons are brought up to date from the list, so the found pauses reach one
   played offline. Nothing the learner says is heard: Continue is the only signal.
+- **Turns, the transcript, reviews and cards** (18 November 2026, the owner chose all five from a mock):
+  - **The transcript** (`lesson.script_of`, the `script` column, `script` in `GET /api/lessons`):
+    each thing said and each turn, with its start and end in the MP3. A turn says what the learner
+    is to say (the native line after a question, or the line just heard for a repeat), its meaning
+    where it's a whole phrase, and `replay`, where its prompt starts. The player shows what's been
+    said so far (`LessonTranscript.tsx`), so an answer stays hidden until it's said, and a tap on a
+    line goes back to it. A lesson made before transcripts has none, and the row says so.
+  - **Again** at a turn plays its prompt once more and notes the phrase for a review.
+  - **Carry on when I stop talking** (with Wait for my answer): at a turn the lesson waits at, the
+    microphone's level is read (`voiceEnd.ts`: the room's quiet measured first, then speech, then
+    0.9 s of quiet), and the lesson goes on as Continue would. Only the level, never the words, so it
+    works in every language and nothing leaves the phone; chosen over the iPhone's recognizer, which
+    sends some languages to Apple and needs its own permission.
+  - **Play my answer back**: the answer is recorded at each turn (the lesson's own silence when not
+    waiting) and played once the native voice has given it (`lessonScript.takeAfter`), then the
+    lesson goes on. The take is in the caches folder until the next turn, never saved or sent.
+    Either microphone setting keeps the lesson's audio session allowing recording for the whole
+    lesson (`lessonAudioMode`), since iOS won't start a recording in the background otherwise; that
+    puts Bluetooth headphones in call quality, which Settings, Lessons says.
+  - **Reviews**: Again, and an answer that took longer than the lesson's own pause (under a minute,
+    or the learner was away), note the turn's phrase (`POST /api/lessons/{id}/marks`, the
+    `lesson_marks` table; a part being built up isn't noted). With 3 or more noted, the Lessons tab
+    offers a review (`LessonReviewCard.tsx`), made when asked for like any lesson: up to 12 phrases,
+    each asked, then all again in the other order (`lesson.build_review`), with no Claude call. Its
+    phrases are then taken; one noted again after its review waits for the next. Never a rating.
+  - **Add to deck**: after a lesson (and from its screen), the phrases are offered for the language's
+    deck, those already in it marked (`lessonCards.ts`), and each chosen one opens in the note editor
+    with its meaning and the lesson's recording of it, cut from the MP3 by the server
+    (`GET /api/lessons/{id}/phrases/{n}/audio`, the answer to its question at normal speed). Saving
+    is the approval; a recording for a phrase not saved is deleted again.
+  - **Open risk**: none of this has run on a device. Recording and reading the level with the screen
+    locked, and the level thresholds in a car, are untested.
 - **One MP3 per lesson** (`lesson_audio.py`, `<audio dir>/lessons/<id>.mp3`). Each distinct clip is
   spoken once by Azure (the narrator in an English voice chosen for the lesson, else the settings'
   English male voice; the dialogue's A and the teaching in the language's male voice, B in its female
