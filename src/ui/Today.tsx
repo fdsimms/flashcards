@@ -146,7 +146,7 @@ export function Today(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncTap.busy} tintColor={syncTap.busy ? c.accent : undefined} accessibilityLabel={syncTap.busy ? 'Syncing' : 'Sync now'} onPress={syncTap.tap} />
           ) : null}
-          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Settings" onPress={props.onSettings} />
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Today settings" onPress={props.onSettings} />
         </Stack.Toolbar>
       }
     >

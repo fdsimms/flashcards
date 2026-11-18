@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Language } from '../../reader/api';
-import { azureVoiceName } from '../../core/voices';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, Segments } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
 import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
@@ -19,19 +18,15 @@ import { space, useTheme, readable } from '../theme';
  * being made is asked about every few seconds until it's ready or failed. Opening one plays it
  * (ReadLesson.tsx). Nothing here grades a card or writes a note.
  */
-export function ReadLessons({ api, language, toolbar, narrator, defaultNarrator, particle, onNarrator, onParticle, onOpen }: {
+export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen }: {
   api: Api;
   language: Language;
   /** The header's language menu. */
   toolbar?: React.ReactNode;
-  /** The English voice chosen to narrate, or '' for the server's own. */
+  /** The English voice chosen to narrate, or '' for the server's own (chosen in Settings, Lessons). */
   narrator: string;
-  /** The server's own English voice, named while none is chosen. */
-  defaultNarrator: string | undefined;
-  /** A Thai lesson's polite ending, which also decides the voice you repeat after. */
+  /** A Thai lesson's polite ending, which also decides the voice you repeat after (chosen in Settings, Lessons). */
   particle: Particle;
-  onNarrator: () => void;
-  onParticle: (particle: Particle) => void;
   onOpen: (lesson: AudioLesson) => void;
 }) {
   const c = useTheme();
@@ -125,25 +120,6 @@ export function ReadLessons({ api, language, toolbar, narrator, defaultNarrator,
             : `Claude writes about five ${LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
           {' '}It takes about a minute, and the spoken parts cost a few cents.
         </Help>
-        <Group>
-          <NavRow first label="Narrator" detail={narrator || defaultNarrator ? azureVoiceName(narrator || defaultNarrator!) : 'The server\'s own voice'} onPress={onNarrator} />
-        </Group>
-        {language === 'th' ? (
-          <Card>
-            <Segments
-              options={[
-                { value: 'khrap', label: 'ครับ (khrap)', accessibilityLabel: 'Khrap, a man\'s polite ending' },
-                { value: 'kha', label: 'ค่ะ (kha)', accessibilityLabel: 'Kha, a woman\'s polite ending' },
-              ]}
-              value={particle}
-              onChange={onParticle}
-            />
-            <Help>
-              Every phrase you learn ends with this polite word, said in {particle === 'khrap' ? "the man's" : "the woman's"} voice, and
-              you play {particle === 'khrap' ? 'the man' : 'the woman'} in the conversation at the end. It applies to lessons you make from now on.
-            </Help>
-          </Card>
-        ) : null}
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {problem ? <Help>{problem === 'offline' ? "Offline, only lessons on this iPhone are listed." : "Your server isn't answering, so only lessons on this iPhone are listed."}</Help> : null}

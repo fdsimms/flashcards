@@ -93,15 +93,16 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
     <Screen
       title={tool.title}
       largeTitle={false}
-      toolbar={tool.languages.length > 1 ? (
+      toolbar={(
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
+          {tool.languages.length > 1 ? <Stack.Toolbar.Menu title="Language" icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
             {tool.languages.map((l) => (
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => chooseLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
-          </Stack.Toolbar.Menu>
+          </Stack.Toolbar.Menu> : null}
+          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'practice' } })} />
         </Stack.Toolbar>
-      ) : undefined}
+      )}
       footer={groups?.due.length ? (
         <Button label="Practice now" onPress={() => setDrilling(groups.due.slice(0, DRILL_POINTS).map((r) => r.pointId))} />
       ) : undefined}

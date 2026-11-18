@@ -5,26 +5,20 @@ import { Settings } from '../ui/Settings';
 
 export default function SettingsRoute() {
   const router = useRouter();
-  const { repo, backup, reader, wanikani } = useApp();
+  const { repo, backup, wanikani } = useApp();
   return (
     <Settings
       repo={repo}
       backupText={backup?.text}
-      readerOn={!!reader.api}
-      onRead={() => router.push('/read-settings')}
       wanikaniOn={!!wanikani.on}
       onWaniKani={() => router.push('/wanikani-settings')}
       onAnki={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
       onVoices={() => router.push('/voices')}
-      onReminder={() => router.push('/reminder')}
-      onExtras={() => router.push('/extras')}
-      onVacation={() => router.push('/vacation')}
       onSpeaking={() => router.push('/speaking')}
-      onAnswerButtons={() => router.push('/answer-buttons')}
-      onThaiSize={() => router.push('/thai-text-size')}
-      onFurigana={() => router.push('/furigana')}
       onFont={() => router.push('/app-font')}
+      onPage={(page) => router.push({ pathname: '/settings-page', params: { page } })}
+      onOpen={(route) => router.push(route as never)}
     />
   );
 }
