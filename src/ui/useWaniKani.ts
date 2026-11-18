@@ -79,10 +79,10 @@ export interface WaniKaniState {
   /** Lessons done since the study day began, here or on WaniKani. */
   startedToday: number;
   dayStartsAtHour: number;
-  /** Words skipped for good: left out of reviews and counts on this phone (skipped.ts). */
+  /** Words skipped for good: left out of lessons, reviews and counts on this phone (skipped.ts). */
   skipped: SkippedWord[];
-  /** Skips a word for good; `assignmentId` is the review it came up in. */
-  skip: (subject: Subject, assignmentId: number) => void;
+  /** Skips a word for good; `assignmentId` is the lesson or review it came up in. */
+  skip: (subject: Subject, assignmentId: number, lesson: boolean) => void;
   unskip: (subjectId: number) => void;
 }
 
@@ -250,14 +250,14 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     setDropped(s.dropped);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const skip = useCallback((subject: Subject, assignmentId: number) => {
+  const skip = useCallback((subject: Subject, assignmentId: number, lesson: boolean) => {
     const s = stored.current;
     if (!s) return;
     s.skipped = skipWord(s.skipped, subject, assignmentId);
     persist();
     setSkipped(s.skipped);
     // The deck list's count leaves it out at once.
-    setCounts((c) => (c ? { ...c, reviews: Math.max(0, c.reviews - 1) } : c));
+    setCounts((c) => (c ? (lesson ? { ...c, available: Math.max(0, c.available - 1) } : { ...c, reviews: Math.max(0, c.reviews - 1) }) : c));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unskip = useCallback((subjectId: number) => {
@@ -266,7 +266,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
     s.skipped = unskipWord(s.skipped, subjectId);
     persist();
     setSkipped(s.skipped);
-    // Its review (if one is up) comes back into the count on the next read.
+    // Its review or lesson (if one is up) comes back into the count on the next read.
     lastCounts.current = 0;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -328,16 +328,18 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
         api.counts(u.maxLevel),
         api.lessonsStartedSince(studyDayStart(new Date(), dayStartsAtHour)),
       ]);
-      // The count is of reviews up on WaniKani; skipped words are left out, as the review screen leaves them out.
+      // The counts are of what's up on WaniKani; skipped words are left out, as the study screen leaves them out.
       const skippedNow = stored.current?.skipped ?? [];
       let held = 0;
+      let heldLessons = 0;
       if (skippedNow.length) {
-        const up = await api.reviewsAvailable(u.maxLevel);
+        const [up, lessonsUp] = await Promise.all([api.reviewsAvailable(u.maxLevel), api.lessonsAvailable(u.maxLevel)]);
         held = up.length - withoutSkipped(up, skippedNow).length;
+        heldLessons = lessonsUp.length - withoutSkipped(lessonsUp, skippedNow).length;
       }
       if (gen !== generation.current) return;
       setUser(u);
-      setCounts({ available: c.lessons, reviews: Math.max(0, c.reviews - held), apprentice: c.apprentice });
+      setCounts({ available: Math.max(0, c.lessons - heldLessons), reviews: Math.max(0, c.reviews - held), apprentice: c.apprentice });
       setStartedToday(started);
       setProblem(null);
       setOffline(false);
@@ -360,7 +362,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       setOffline(!!copy);
       if (copy) {
         setUser((before) => before ?? copy.user);
-        setCounts({ available: copy.lessons.length, reviews: withoutSkipped(copy.reviews, stored.current?.skipped ?? []).length, apprentice: copy.apprentice });
+        setCounts({ available: withoutSkipped(copy.lessons, stored.current?.skipped ?? []).length, reviews: withoutSkipped(copy.reviews, stored.current?.skipped ?? []).length, apprentice: copy.apprentice });
         setStartedToday(copy.started);
       }
     }
