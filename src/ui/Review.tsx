@@ -63,6 +63,7 @@ import { htmlToText } from '../core/html';
 import { chooseAgentFlagReason } from './agentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
+import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
 import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
@@ -103,6 +104,13 @@ export { CardSurface };
 const AUDIO_MODE = { playsInSilentMode: true };
 
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
+/** A sheet Review can raise (src/ui/useSheetQueue.ts); the key makes asking twice for the same one a single sheet. */
+type ReviewSheet =
+  | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string }
+  | { key: string; kind: 'confused'; noteId: string }
+  | { key: string; kind: 'ask'; card: CardForClaude };
+const confusedSheetFor = (noteId: string): ReviewSheet => ({ key: `confused:${noteId}`, kind: 'confused', noteId });
+
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
   const c = useTheme();
   const { answered, again, takenMs } = sessionSummary(history);
@@ -181,12 +189,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const appFont = useFontSettings();
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
-  // The answer that just made a card a leech asks for a hint to keep in its note's Mnemonic field,
-  // and names the card when that answer suspended it, so saving a hint can bring it back.
-  // The same sheet opens from Write a mnemonic in the ⋯ menu, with no misses to report.
-  const [leechPrompt, setLeechPrompt] = useState<{ noteId: string; misses?: number; suspendedCardId?: string } | null>(null);
-  // The Ask Claude sheet, from the ⋯ menu: the card it was opened for, as text.
-  const [askCard, setAskCard] = useState<CardForClaude | null>(null);
+  // The sheets Review raises, one at a time (src/core/sheetQueue.ts): iOS drops a sheet asked for
+  // while another is on screen. A leech's hint sheet is asked for by the answer that made the card a
+  // leech, and names the card when that answer suspended it, so saving a hint can bring it back; it
+  // also opens from Write a mnemonic in the ⋯ menu, with no misses to report. The link sheet is for
+  // words mixed up, and Ask Claude's is for the card it was opened for, as text.
+  const sheets = useSheetQueue<ReviewSheet>();
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -528,7 +536,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setStudied((s) => bumpStudied(s, record.deck, record.counts, 1));
       setHistory((h) => [...h, record]);
       misses.answered(current.id, rating === 1 ? miss : undefined);
-      if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) confused.openLink(note.id);
+      if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) sheets.request(confusedSheetFor(note.id));
       // Reads the hook typed for this card, so it's called before the next card clears it.
       void ownHook.answered(note);
       forms.answered({ cardId: current.id, ...res.log });
@@ -597,7 +605,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             }
           }
           if (isLeech && canAddMnemonic(noteBefore)) {
-            setLeechPrompt({ noteId: noteBefore.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) });
+            sheets.request({ key: `leech:${noteBefore.id}`, kind: 'leech', noteId: noteBefore.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) });
           }
         } catch (e) {
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
@@ -725,56 +733,91 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { if (cleared) haptic.success(); }, [cleared]);
 
   const title = deck.split('::').pop() ?? deck;
-  const leechNoteNow = leechPrompt ? notes.get(leechPrompt.noteId) : undefined;
-  const question = leechNoteNow ? mnemonicQuestion(leechNoteNow) : undefined;
-  const leechSheet = leechPrompt && leechNoteNow ? (
-    <LeechHintSheet
-      word={htmlToText(leechNoteNow.fields.Entry ?? '')}
-      translit={htmlToText(leechNoteNow.fields.Transliteration ?? '') || undefined}
-      gloss={htmlToText(leechNoteNow.fields.Meaning ?? '') || undefined}
-      misses={leechPrompt.misses}
-      suspended={!!leechPrompt.suspendedCardId}
-      suggest={suggestHints && question ? () => suggestHints(question) : undefined}
-      onSkip={() => setLeechPrompt(null)}
-      onSave={async (hint) => {
-        // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
-        const suspended = cards?.find((c) => c.id === leechPrompt.suspendedCardId && c.suspended);
-        const when = new Date();
-        writes.current++;
-        let result: Awaited<ReturnType<typeof saveLeechHint>>;
-        try {
-          result = await saveLeechHint(repo as NoteStore & AnkiLink, leechNoteNow, hint, suspended, when, H);
-        } finally {
+  const sheet = sheets.head;
+  const sheetNote = sheet && sheet.kind !== 'ask' ? notes.get(sheet.noteId) : undefined;
+  const question = sheetNote ? mnemonicQuestion(sheetNote) : undefined;
+  // The one sheet to show, in the same place whichever way the screen is drawn below, so finishing the deck doesn't remount it.
+  let sheetHost: React.ReactNode = null;
+  if (sheet?.kind === 'leech' && sheetNote) {
+    sheetHost = (
+      <LeechHintSheet
+        key={sheet.key}
+        visible={sheets.visible}
+        onDismiss={() => sheets.dismissed(sheet.key)}
+        word={htmlToText(sheetNote.fields.Entry ?? '')}
+        translit={htmlToText(sheetNote.fields.Transliteration ?? '') || undefined}
+        gloss={htmlToText(sheetNote.fields.Meaning ?? '') || undefined}
+        misses={sheet.misses}
+        suspended={!!sheet.suspendedCardId}
+        suggest={suggestHints && question ? () => suggestHints(question) : undefined}
+        onSkip={() => sheets.close(sheet.key)}
+        onSave={async (hint) => {
+          // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
+          const suspended = cards?.find((c) => c.id === sheet.suspendedCardId && c.suspended);
+          const when = new Date();
           writes.current++;
-        }
-        const { note: saved, card, cardError, ankiError } = result;
-        setNotes((prev) => new Map(prev).set(saved.id, saved));
-        if (card) {
-          setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
-          setNow(when);
-        }
-        setLeechPrompt(null);
-        if (cardError) {
-          Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
-        } else if (ankiError) {
-          Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
-        }
-      }}
-    />
-  ) : null;
-  // Not while the leech sheet is up: two sheets can't be presented at once.
-  const linkingNote = confused.linking && !leechPrompt ? notes.get(confused.linking) : undefined;
-  const confusedSheet = linkingNote && cards ? (
-    <ConfusedLinkSheet
-      note={linkingNote}
-      notes={notes}
-      cards={cards}
-      pairs={confused.pairs}
-      onLink={(partnerId) => confused.link(linkingNote.id, partnerId)}
-      onUnlink={(partnerId) => confused.unlink(linkingNote.id, partnerId)}
-      onClose={() => confused.openLink(null)}
-    />
-  ) : null;
+          let result: Awaited<ReturnType<typeof saveLeechHint>>;
+          try {
+            result = await saveLeechHint(repo as NoteStore & AnkiLink, sheetNote, hint, suspended, when, H);
+          } finally {
+            writes.current++;
+          }
+          const { note: saved, card, cardError, ankiError } = result;
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
+          if (card) {
+            setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
+            setNow(when);
+          }
+          sheets.close(sheet.key);
+          if (cardError) {
+            Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
+          } else if (ankiError) {
+            Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+          }
+        }}
+      />
+    );
+  } else if (sheet?.kind === 'confused' && sheetNote && cards) {
+    sheetHost = (
+      <ConfusedLinkSheet
+        key={sheet.key}
+        visible={sheets.visible}
+        onDismiss={() => sheets.dismissed(sheet.key)}
+        note={sheetNote}
+        notes={notes}
+        cards={cards}
+        pairs={confused.pairs}
+        onLink={(partnerId) => confused.link(sheetNote.id, partnerId)}
+        onUnlink={(partnerId) => confused.unlink(sheetNote.id, partnerId)}
+        onClose={() => sheets.close(sheet.key)}
+      />
+    );
+  } else if (sheet?.kind === 'ask') {
+    sheetHost = (
+      <AskCardSheet
+        key={sheet.key}
+        visible={sheets.visible}
+        onDismiss={() => sheets.dismissed(sheet.key)}
+        card={sheet.card}
+        ask={askAboutCard ? (turns) => askAboutCard(sheet.card, turns) : undefined}
+        // Added to the note's Notes field, as an edit made in the note editor would be.
+        onSaveAnswer={note && isOmnilanguage(note) ? async (answer) => {
+          writes.current++;
+          try {
+            const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withNotesAnswer(note.fields, answer), tags: note.tags });
+            setNotes((prev) => new Map(prev).set(saved.id, saved));
+          } finally {
+            writes.current++;
+          }
+        } : undefined}
+        onClose={() => sheets.close(sheet.key)}
+      />
+    );
+  }
+  // A sheet whose note is gone (or whose cards aren't loaded) can't show, and mustn't hold up the ones behind it.
+  useEffect(() => {
+    if (sheet && !sheetHost) { sheets.close(sheet.key); sheets.dismissed(sheet.key); }
+  }, [sheet, sheetHost]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!cards) return <Screen title={title} largeTitle={false}><Loading error={loadError} onRetry={() => setReloads((n) => n + 1)} /></Screen>;
 
   const undoButton = history.length
@@ -828,8 +871,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     );
     return (
       <>
-      {leechSheet}
-      {confusedSheet}
+      {sheetHost}
       <Screen
         title={title}
         largeTitle={false}
@@ -894,7 +936,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
         onLater={() => forms.putOff(note.id)}
       />
-      <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => confused.openLink(note.id)} />
+      <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => sheets.request(confusedSheetFor(note.id))} />
       {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} /> : null}
     </>
   ) : null;
@@ -1122,26 +1164,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     );
   };
   return (
+    <>
+    {sheetHost}
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
-    {leechSheet}
-    {confusedSheet}
-    {askCard ? (
-      <AskCardSheet
-        card={askCard}
-        ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
-        // Added to the note's Notes field, as an edit made in the note editor would be.
-        onSaveAnswer={isOmnilanguage(note) ? async (answer) => {
-          writes.current++;
-          try {
-            const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withNotesAnswer(note.fields, answer), tags: note.tags });
-            setNotes((prev) => new Map(prev).set(saved.id, saved));
-          } finally {
-            writes.current++;
-          }
-        } : undefined}
-        onClose={() => setAskCard(null)}
-      />
-    ) : null}
     <Screen
       title={title}
       largeTitle={false}
@@ -1166,11 +1191,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
           <ReviewMenu
             flag={current.flag ?? 0}
-            onMnemonic={canAddMnemonic(note) ? () => setLeechPrompt({ noteId: note.id }) : undefined}
-            onLinkConfused={canLinkConfused(note) ? () => confused.openLink(note.id) : undefined}
+            onMnemonic={canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined}
+            onLinkConfused={canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined}
             onAskClaude={() => {
               const card = cardForClaude(note, noteTypes.get(note.model), current.kind);
-              if (card) setAskCard(card);
+              if (card) sheets.request({ key: 'ask', kind: 'ask', card });
               else Alert.alert("Can't ask about this card", 'This card has no text to ask about. Open its note to see the fields.');
             }}
             onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
@@ -1252,5 +1277,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
     </Screen>
     </View>
+    </>
   );
 }
