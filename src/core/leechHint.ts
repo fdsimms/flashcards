@@ -14,6 +14,11 @@ export function canAddMnemonic(note: Note): boolean {
   return isOmnilanguage(note);
 }
 
+/** Whether the note's Mnemonic field has text: the front of a leech card says so without showing it, since it may name the answer. */
+export function hasMnemonic(note: Note): boolean {
+  return htmlToText(note.fields.Mnemonic ?? '') !== '';
+}
+
 /** What a hint suggestion is asked about; undefined for a note whose language Read & Listen doesn't write in. */
 export type MnemonicQuestion = { language: Language; entry: string; meaning: string; transliteration: string; context: string };
 

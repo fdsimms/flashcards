@@ -10,9 +10,10 @@ const NAMES = { new: 'New', learning: 'Learning', relearning: 'Relearning' } as 
  * What's shown above a card's question: New (never answered, so read and learned rather than
  * recalled), Learning or Relearning with the step it's on drawn as dots (filled up to the current
  * step), and Leech for a note tagged one. Colors follow the deck's counts (new blue, learning red);
- * a leech is the warning amber. A Review card shows none. The card's state is read from its schedule.
+ * a leech is the warning amber. A leech whose note has a mnemonic also says so in the accent gold (the
+ * mnemonic itself shows on the back; it may name the answer). A Review card shows none. The card's state is read from its schedule.
  */
-export function CardStateChips({ chip, leech, style }: { chip?: StateChip; leech: boolean; style?: ViewStyle }) {
+export function CardStateChips({ chip, leech, mnemonic = false, style }: { chip?: StateChip; leech: boolean; mnemonic?: boolean; style?: ViewStyle }) {
   const c = useTheme();
   if (!chip && !leech) return null;
   const pill = { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, borderRadius: radius.pill, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs } as const;
@@ -38,6 +39,12 @@ export function CardStateChips({ chip, leech, style }: { chip?: StateChip; leech
         <View accessible accessibilityLabel="Leech: this card keeps being forgotten" style={{ ...pill, backgroundColor: c.warningFill }}>
           <Icon name="exclamationmark.triangle.fill" size={12} color={c.warning} />
           <Text style={{ ...type.overline, color: c.warningInk }}>Leech</Text>
+        </View>
+      ) : null}
+      {leech && mnemonic ? (
+        <View accessible accessibilityLabel="Has a mnemonic. It's on the back." style={{ ...pill, backgroundColor: c.accentFill }}>
+          <Icon name="lightbulb.fill" size={12} color={c.accentInk} />
+          <Text style={{ ...type.overline, color: c.accentInk }}>Has mnemonic</Text>
         </View>
       ) : null}
     </View>
