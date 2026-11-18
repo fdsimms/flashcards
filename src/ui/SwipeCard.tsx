@@ -35,7 +35,7 @@ export type CardMotion = {
 
 /** How strong an answer's flash starts (the swipe tint's own peak), and how long it takes to fade. It washes over the next card, so a long fade reads as that card being slow to arrive. */
 const FLASH_PEAK = 0.22;
-const FLASH_MS = 180;
+const FLASH_MS = 120;
 const FILL = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const;
 
 /**
@@ -61,11 +61,11 @@ export function useAnswerFlash() {
 const BACK_SPRING = { damping: 16, stiffness: 240, mass: 1 } as const;
 const ENTER_SPRING = { damping: 18, stiffness: 170, mass: 1 } as const;
 /** The card leaving after an answering swipe: as fast as the flick that threw it, within these bounds (ms). */
-const EXIT_MIN_MS = 120;
-const EXIT_MAX_MS = 240;
+const EXIT_MIN_MS = 100;
+const EXIT_MAX_MS = 180;
 /** The next card arriving: it grows in from this share of its size while fading up (ms). */
 const ARRIVE_FROM = 0.94;
-const ARRIVE_MS = 260;
+const ARRIVE_MS = 160;
 
 /**
  * The card sheet, draggable sideways once it's revealed when swiping is on: it follows the finger,

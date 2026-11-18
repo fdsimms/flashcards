@@ -3,7 +3,7 @@ import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
-import { isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
+import { dueMs, isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
 import { scaleLimits, vacationPlan, type VacationPlan, type VacationPrefs } from './vacation';
 import type { BurySettings, Card, CollectionSettings, DeckParams, DeckSettings, Note, StudyOrder } from './types';
@@ -149,8 +149,6 @@ export interface TreeQueueInput {
   vacation?: VacationPlan;
 }
 
-const dueMs = (c: Card) => new Date(c.sched.due).getTime();
-
 function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedToday {
   let introduced = 0;
   let reviewed = 0;
@@ -246,7 +244,13 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   // A gate above the root still applies when the root's parents' limits don't.
   const gatesAbove = deckLineage(root).slice(0, -1).filter((d) => !nodes.has(d)).map((d) => gateBudget(d, input)).filter((b): b is number => b !== undefined);
   if (gatesAbove.length) nodes.get(root)!.new = Math.min(nodes.get(root)!.new, ...gatesAbove);
-  const pathOf = (deck: string) => deckLineage(deck).filter((d) => nodes.has(d)).reverse();
+  // Asked two or three times for each card gathered, so each deck's path is worked out once.
+  const paths = new Map<string, string[]>();
+  const pathOf = (deck: string) => {
+    let path = paths.get(deck);
+    if (!path) paths.set(deck, path = deckLineage(deck).filter((d) => nodes.has(d)).reverse());
+    return path;
+  };
   const deckOfCard = new Map<string, string>();
   for (const d of active) for (const c of input.cardsByDeck.get(d)!) deckOfCard.set(c.id, d);
   /** Whether every deck on the card's path still has room for it. */
@@ -297,7 +301,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     // Room first, as Anki checks the limit before a card is gathered: one the limits leave out buries nothing.
     sortReviews(cards, order.reviewOrder, ctx).filter((c) => hasRoom(c, 'review') && !heldBack(c, kind) && admit(c, 'review'));
   // A review in a filtered deck is due whatever its own due date: its due there is its place in the deck.
-  const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h));
+  const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h, nextDay));
   const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
   const reviews = gatherDue(previewDeck ? rest : rest.filter(reviewDue), 'reviews');
   const newCards = rest.filter((c) => c.sched.state === 0);

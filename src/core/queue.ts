@@ -17,6 +17,19 @@ export interface Queue {
   order: Card[];
 }
 
+const dueCache = new WeakMap<Card['sched'], { due: string; ms: number }>();
+/**
+ * When the card is due, in milliseconds. The queue reads every card's due on each rebuild (after
+ * every answer), so each schedule's parse is kept, and redone only if its `due` has changed.
+ */
+export function dueMs(c: Card): number {
+  const hit = dueCache.get(c.sched);
+  if (hit && hit.due === c.sched.due) return hit.ms;
+  const ms = new Date(c.sched.due).getTime();
+  dueCache.set(c.sched, { due: c.sched.due, ms });
+  return ms;
+}
+
 /**
  * Whether a card that has been studied is due now.
  *
@@ -24,11 +37,14 @@ export interface Queue {
  * day it was last answered, so read as an instant, a card answered at 9 PM yesterday with a
  * one-day interval would stay hidden until 9 PM today. A Learning or Relearning card is due at
  * its exact instant, since its steps are minutes apart.
+ *
+ * `dayEnd` is `nextStudyDayStart(now, dayStartsAtHour)` in milliseconds, worked out once by a caller
+ * that checks every card, rather than once per card.
  */
-export function isDue(card: Card, now: Date, dayStartsAtHour: number): boolean {
+export function isDue(card: Card, now: Date, dayStartsAtHour: number, dayEnd?: number): boolean {
   if (card.sched.state === 0) return false;
-  const due = new Date(card.sched.due).getTime();
-  if (card.sched.state === 2) return due < nextStudyDayStart(now, dayStartsAtHour).getTime();
+  const due = dueMs(card);
+  if (card.sched.state === 2) return due < (dayEnd ?? nextStudyDayStart(now, dayStartsAtHour).getTime());
   return due <= now.getTime();
 }
 
@@ -68,7 +84,6 @@ export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, pre
   if (card.sched.state === 2 && studyDayKey(new Date(card.sched.due), dayStartsAtHour) > studyDayKey(now, dayStartsAtHour)) return null;
   return studiedKind(card, dayStartsAtHour);
 }
-const dueMs = (c: Card) => new Date(c.sched.due).getTime();
 
 /**
  * The siblings (other cards of the note) to hold back until the next study day once `answered` is
