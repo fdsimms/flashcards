@@ -1724,6 +1724,7 @@ def test_audit_lists_and_reads_a_shown_text_for_review() -> None:
     first = detail["lines"][0]
     assert first["speaker"] == "A" and first["text"].startswith("ฉันอยากกิน")
     assert first["english"] and isinstance(first["unknown"], list)
+    assert first["quotes"] == []
     assert detail["readings"] == []
 
 
