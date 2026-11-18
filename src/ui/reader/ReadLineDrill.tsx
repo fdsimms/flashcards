@@ -51,14 +51,17 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [rate, setRate] = useState(kind === 'hear' && hasSlow(prefs(), text.language) ? SLOW_RATE : speedFor(prefs(), text.language));
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, { onBeforeAudio: () => player.pause() });
+  const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, {
+    onBeforeAudio: () => player.pause(),
+    original: line?.audio && at !== undefined ? () => ({ source: api.audioSource(text.id, at, rate) }) : null,
+  });
   // The keyboard's height pads the whole screen, so Check and the marks under the list stay above it (as in FormsDrill).
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
 
   const play = (r = rate) => {
     if (at === undefined || !line?.audio) return;
-    self.stop(false);
+    self.stop();
     player.replace(api.audioSource(text.id, at, r));
     player.play();
     setPlays((n) => n + 1);
@@ -80,7 +83,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
     expected: answers,
     mode: AUDIO_MODE,
-    onBeforeListen: () => { player.pause(); self.stop(false); },
+    onBeforeListen: () => { player.pause(); self.stop(); },
     onHeard: (heard) => setTyped(heard),
   });
   const comparison = useMemo(() => compareTypedAnswer(answers, typed, LANGUAGES[text.language].speech), [answers, typed, text.language]);

@@ -56,6 +56,13 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   // Record yourself, for shadowing: a take of the line that's playing or last played.
   const self = useSelfRecording(text && current !== null ? `${text.id}:${current}` : null, READER_AUDIO_MODE, {
     onBeforeAudio: () => player.pause(),
+    // Compare plays the line as it was played (the speed chosen), then the take.
+    original: text && current !== null && text.lines[current]?.audio
+      ? async () => {
+        const audio = await lineAudio(api, text.id, current, playedRate.current, slowTimed[`${text.id}:${current}`]);
+        return { source: audio.source, rate: audio.stretch };
+      }
+      : null,
   });
 
   // READER_AUDIO_MODE while the reader is open. Review's card audio doesn't need background
@@ -128,7 +135,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
 
   const playLine = (i: number, all: boolean, r = rate) => {
     if (!text) return;
-    self.stop(false);
+    self.stop();
     self.stopTake();
     setSilentLine(null);
     startLine(i, r);
@@ -147,7 +154,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
 
   const togglePlay = () => {
     if (!text) return;
-    self.stop(false);
+    self.stop();
     self.stopTake();
     if (status.playing) player.pause();
     else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {

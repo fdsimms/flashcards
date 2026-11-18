@@ -1,6 +1,6 @@
 import {
   getRecordingPermissionsAsync, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync,
-  useAudioPlayer, useAudioRecorder, type AudioMode, type RecordingStatus,
+  useAudioPlayer, useAudioRecorder, type AudioMode, type AudioSource, type RecordingStatus,
 } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,13 +10,22 @@ import { haptic } from './haptics';
 
 /**
  * Record yourself (src/core/selfRecording.ts): one take of your own voice for whatever `key`
- * names (a card, a line), played back after it's made and on demand. The take is a file in the
+ * names (a card, a line), played on demand, alone or after the native recording (Compare). The take is a file in the
  * caches folder, deleted when the key changes, a new take replaces it, or the screen closes.
  *
  * The audio session allows recording only while a take is being made: iOS's play-and-record
  * category sends Bluetooth headphones into call quality, so `mode` (the screen's own audio mode)
  * is put back as soon as the take stops.
  */
+/** The native recording Compare plays before the take, with the speed it plays at (1 when left out). */
+export interface CompareOriginal {
+  source: AudioSource;
+  rate?: number;
+}
+
+/** What the take's player is doing: the take alone, or Compare's two halves in turn. */
+export type SelfPlaying = 'take' | 'compare-original' | 'compare-take' | null;
+
 export interface SelfRecording {
   recording: boolean;
   /** How long the take being made has run, for the Stop chip. */
@@ -24,16 +33,24 @@ export interface SelfRecording {
   /** Whether there's a take for the current key. */
   hasTake: boolean;
   start: () => void;
-  /** Ends the take and plays it back, unless `playBack` is false (the screen is about to play something). */
-  stop: (playBack?: boolean) => void;
+  /** Ends the take. Nothing plays: Yours and Compare play it when asked. */
+  stop: () => void;
+  /** Whether Compare is offered: there's a take and the screen has a native recording to play before it. */
+  canCompare: boolean;
+  playing: SelfPlaying;
+  /** Plays the take, or stops it while it plays. */
   playTake: () => void;
-  /** Stops the take playing, before the screen plays something else. */
+  /** Plays the native recording, then the take, or stops them while they play. */
+  compare: () => void;
+  /** Stops the take or Compare playing, before the screen plays something else. */
   stopTake: () => void;
 }
 
 export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, opts: {
   /** Called before recording or playing a take, so the screen can stop its own audio first. */
   onBeforeAudio: () => void;
+  /** What Compare plays before the take, for the key now; null when there's no native recording (no Compare). */
+  original?: (() => CompareOriginal | Promise<CompareOriginal>) | null;
 }): SelfRecording {
   const [take, setTake] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
@@ -47,14 +64,33 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
   const before = useRef(opts.onBeforeAudio);
   before.current = opts.onBeforeAudio;
   const limit = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playAfter = useRef(true);
+  const original = useRef(opts.original);
+  original.current = opts.original;
 
   const player = useAudioPlayer(null);
+  const [playing, setPlaying] = useState<SelfPlaying>(null);
+  // What the player is on, read when a clip ends (the listener below outlives a render), and a count
+  // of plays started so a Compare still loading its first clip gives way to whatever was tapped since.
+  const playingRef = useRef<SelfPlaying>(null);
+  const plays = useRef(0);
+  const setPlayingNow = useCallback((to: SelfPlaying) => { playingRef.current = to; setPlaying(to); }, []);
   const playUri = useCallback((uri: string) => {
     before.current();
+    player.setPlaybackRate(1, 'high');
     player.replace({ uri });
+    setPlayingNow(playingRef.current === 'compare-original' ? 'compare-take' : 'take');
     player.play();
-  }, [player]);
+  }, [player, setPlayingNow]);
+  const takeUri = useRef<string | null>(null);
+  // Compare goes on to the take when the native recording ends; anything else that ends just stops.
+  useEffect(() => {
+    const sub = player.addListener('playbackStatusUpdate', (status) => {
+      if (!status.didJustFinish) return;
+      if (playingRef.current === 'compare-original' && takeUri.current) playUri(takeUri.current);
+      else setPlayingNow(null);
+    });
+    return () => sub.remove();
+  }, [player, playUri, setPlayingNow]);
 
   // A take ends here whichever way it stopped: Stop, the time limit, or iOS ending it (a call).
   const finished = useRef<(status?: RecordingStatus) => void>(() => undefined);
@@ -87,13 +123,10 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
       if (old && old !== uri) remove(old);
       return uri;
     });
-    if (playAfter.current) playUri(uri);
   };
 
-  const stop = useCallback((playBack = true) => {
+  const stop = useCallback(() => {
     if (!recordingRef.current) return;
-    if (playBack) haptic.tap();
-    playAfter.current = playBack;
     recorder.stop().then(() => finished.current(), () => finished.current());
   }, [recorder]);
 
@@ -111,7 +144,9 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     try {
       if (!(await microphoneAllowed()) || forKey !== keyRef.current || !mounted.current) return;
       before.current();
+      plays.current++;
       player.pause();
+      setPlayingNow(null);
       try {
         await setAudioModeAsync({ ...modeRef.current, allowsRecording: true });
         await recorder.prepareToRecordAsync();
@@ -126,15 +161,16 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     }
     recordingRef.current = true;
     recordingFor.current = forKey;
-    playAfter.current = true;
     setRecording(true);
     limit.current = setTimeout(() => { recorder.stop().then(() => finished.current(), () => finished.current()); }, TAKE_LIMIT_SECONDS * 1000);
-  }, [recorder, player]);
+  }, [recorder, player, setPlayingNow]);
 
   // A new card or line starts with no take; one being made for the old one stops and is dropped.
   useEffect(() => {
     if (recordingRef.current) recorder.stop().then(() => finished.current(), () => finished.current());
+    plays.current++;
     player.pause();
+    setPlayingNow(null);
     setTake((old) => {
       if (old) remove(old);
       return null;
@@ -144,6 +180,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
   // Leaving the screen: stop, put the audio mode back, delete the take.
   const takeRef = useRef(take);
   takeRef.current = take;
+  takeUri.current = take;
   useEffect(() => () => {
     if (limit.current) clearTimeout(limit.current);
     if (recordingRef.current) {
@@ -154,14 +191,46 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     if (takeRef.current) remove(takeRef.current);
   }, [recorder]);
 
-  const stopTake = useCallback(() => player.pause(), [player]);
+  const stopTake = useCallback(() => {
+    plays.current++;
+    player.pause();
+    setPlayingNow(null);
+  }, [player, setPlayingNow]);
+  const playTake = () => {
+    if (!take) return;
+    haptic.tap();
+    if (playingRef.current) { stopTake(); return; }
+    plays.current++;
+    playUri(take);
+  };
+  const compare = () => {
+    const load = original.current;
+    if (!take || !load) return;
+    haptic.tap();
+    if (playingRef.current) { stopTake(); return; }
+    const mine = ++plays.current;
+    const forKey = keyRef.current;
+    // The native recording may be fetched first (a line's audio comes from the server), so a tap or a
+    // new card meanwhile wins over it.
+    Promise.resolve(load()).then((first) => {
+      if (plays.current !== mine || forKey !== keyRef.current) return;
+      before.current();
+      player.replace(first.source);
+      player.setPlaybackRate(first.rate ?? 1, 'high');
+      setPlayingNow('compare-original');
+      player.play();
+    }, () => undefined);
+  };
   return {
     recording,
     millis: recording ? millis : 0,
     hasTake: !!take,
     start: () => { start(); },
     stop,
-    playTake: () => { if (take) { haptic.tap(); playUri(take); } },
+    canCompare: !!take && !!original.current,
+    playing,
+    playTake,
+    compare,
     stopTake,
   };
 }

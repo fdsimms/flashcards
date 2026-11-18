@@ -360,11 +360,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    */
   const ttsRunning = useRef(false);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
+  // Compare plays the card's recording before the take, so it's offered only with that file here.
+  const recordingUri = useMemo(() => (rendered?.audioFile ? mediaFileUri(rendered.audioFile) : undefined), [rendered?.audioFile]);
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
     onBeforeAudio: () => {
       if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
     },
+    original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
   const speak = useCallback(
     (what: Playback | undefined) => {
@@ -438,7 +441,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
   const spoken = useSpokenAnswer(rendered?.speechLang, {
     expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
-    onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
+    onBeforeListen: () => { Keyboard.dismiss(); self.stop(); },
     onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -851,7 +854,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const reveal = () => {
     Keyboard.dismiss();
     // A take made from memory ends here, quietly, so the answer's own recording plays.
-    self.stop(false);
+    self.stop();
     setRevealedAt(showing);
     if (rendered) speak(autoplayFor(rendered, true));
   };
