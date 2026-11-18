@@ -2,7 +2,7 @@
 // Azure (server/reader tts.SLOW_RATE), because the player stretching a normal one sounds robotic.
 // The rate is kept as a number: 1 for normal, SLOW_RATE for slow (what a reading log's audio speed holds).
 export const NORMAL_RATE = 1;
-export const SLOW_RATE = 0.8;
+export const SLOW_RATE = 0.65;
 
 // The speeds the reader offers, slowest first.
 export const RATES = [SLOW_RATE, NORMAL_RATE];

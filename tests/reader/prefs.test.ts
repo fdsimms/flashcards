@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' }))).toEqual({ rate: 0.8, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' });
+  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' }))).toEqual({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any' });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -13,10 +13,10 @@ test('nothing saved, or something unreadable, gives the defaults', () => {
 
 test("a speed the reader doesn't offer falls back on its own", () => {
   expect(parsePrefs(JSON.stringify({ rate: 2, highlight: true }))).toEqual({ ...DEFAULT_PREFS, rate: 1, highlight: true });
-  expect(parsePrefs(JSON.stringify({ rate: 0.8, highlight: 'yes' }))).toEqual({ ...DEFAULT_PREFS, rate: 0.8, highlight: false });
+  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: 'yes' }))).toEqual({ ...DEFAULT_PREFS, rate: 0.65, highlight: false });
   // One of the four speeds the reader once offered below normal is slow now.
-  expect(parsePrefs(JSON.stringify({ rate: 0.7 })).rate).toBe(0.8);
-  expect(parsePrefs(JSON.stringify({ rate: 0.9 })).rate).toBe(0.8);
+  expect(parsePrefs(JSON.stringify({ rate: 0.7 })).rate).toBe(0.65);
+  expect(parsePrefs(JSON.stringify({ rate: 0.9 })).rate).toBe(0.65);
 });
 
 test('a Thai font the reader doesn\'t offer falls back to looped', () => {
@@ -88,9 +88,9 @@ test('every language but Spanish and French offers Slow until the owner says oth
 });
 
 test('a language without Slow plays at normal speed whatever speed was chosen', () => {
-  const p = { rate: 0.8, slowLanguages: ['th' as const] };
+  const p = { rate: 0.65, slowLanguages: ['th' as const] };
   expect(hasSlow(p, 'th')).toBe(true);
-  expect(speedFor(p, 'th')).toBe(0.8);
+  expect(speedFor(p, 'th')).toBe(0.65);
   expect(hasSlow(p, 'es')).toBe(false);
   expect(speedFor(p, 'es')).toBe(1);
 });

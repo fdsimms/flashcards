@@ -20,7 +20,7 @@ from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
 from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
-from franki_reader.tts import Spoken
+from franki_reader.tts import SLOW_RATE, Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -164,7 +164,7 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
 
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
         # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms (a
-        # slow recording takes 1250: slower speech is longer).
+        # slow recording takes 1538: slower speech is longer).
         end = round(1000 / rate)
         tag = b"slow" if rate < 1 else b""
         return Spoken(b"ID3" + tag + text.encode(), [WordMark(text, 0, end)] if timed else None)
@@ -224,7 +224,7 @@ def test_a_slow_recording_is_made_when_asked_for_and_its_words_have_their_own_ti
     words = text["lines"][1]["words"]
     assert len(answer["times"]) == len(words)
     for word, when in zip(words, answer["times"], strict=True):
-        assert when == ([0, 1250] if word["status"] is not None else None)
+        assert when == ([0, round(1000 / SLOW_RATE)] if word["status"] is not None else None)
     assert c.get(f"/api/texts/{text['id']}/lines/9/slow", headers=AUTH).status_code == 404
     assert c.get(f"{base}/slow").status_code == 401
     # The text's own words keep the normal recording's times.
