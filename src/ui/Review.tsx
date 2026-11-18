@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
-import { FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
+import { cardStateOf, FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
@@ -92,6 +92,7 @@ import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
+import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
@@ -211,6 +212,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [preferId, setPreferId] = useState<string>();
   // The strip offering to change the last answer to Again (ChangeRating.tsx), and the card it's undone for.
   const ratingOffer = useRatingOffer();
+  const holdOffer = useHoldOffer();
   const [againFor, setAgainFor] = useState<string | null>(null);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
@@ -533,6 +535,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       lastAnswered.current = current;
       // Hard, Good and Easy can be changed to Again from the next card for a few seconds.
       const word = htmlToText(note.fields.Entry ?? '');
+      holdOffer.show(null);
       ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
       setPreferId(undefined);
       setRevealedAt(undefined);
@@ -970,7 +973,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   );
 
   // Suspend, bury or flag cards from the menu: in Franki first, then in the kept collection, as Anki writes it.
-  const setStates = async (targets: Card[], change: (s: CardState) => CardState) => {
+  // `hold` says what a bury or suspend did, which puts Undo on screen for it (HoldUndo.tsx).
+  const setStates = async (targets: Card[], change: (s: CardState) => CardState, hold?: string) => {
     if (busy.current || !targets.length) return;
     busy.current = true;
     writes.current++;
@@ -988,8 +992,42 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setRevealedAt(undefined);
       setNow(when);
       haptic.success();
+      if (hold) holdOffer.show({ label: hold, before: targets });
     } catch (e) {
       Alert.alert("Couldn't change this card", failureText(e, { next: 'Try again.' }));
+    } finally {
+      busy.current = false;
+      writes.current++;
+    }
+  };
+  // Undo of a bury or suspend: each card's suspended and buried state goes back to what it was, and the card comes back on screen.
+  const undoHold = async () => {
+    const o = holdOffer.offer;
+    holdOffer.show(null);
+    if (!o || busy.current) return;
+    busy.current = true;
+    writes.current++;
+    try {
+      await reviewWrites.idle(); // as in setStates above
+      const when = new Date();
+      const restored: Card[] = [];
+      let ankiError: unknown;
+      for (const b of o.before) {
+        const was = cardStateOf(b, when, H);
+        const live = cards?.find((c) => c.id === b.id) ?? b;
+        const res = await setCardStates(repo, [live], (s) => ({ ...s, suspended: was.suspended, buried: was.buried }), when, H);
+        restored.push(...res.cards);
+        ankiError = ankiError ?? res.ankiError;
+      }
+      if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+      const byId = new Map(restored.map((u) => [u.id, u]));
+      setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
+      setPreferId(o.before[0].id);
+      setRevealedAt(undefined);
+      setNow(when);
+      haptic.success();
+    } catch (e) {
+      Alert.alert("Couldn't undo this", failureText(e, { next: 'Open the card\'s note to unsuspend or unbury it.' }));
     } finally {
       busy.current = false;
       writes.current++;
@@ -1134,9 +1172,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             }}
             onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
             onAgentFlag={chooseAgentFlag}
-            onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }))}
-            onBuryNote={() => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }))}
-            onSuspend={() => setStates([current], (s) => ({ ...s, suspended: true }))}
+            onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow')}
+            onBuryNote={() => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow')}
+            onSuspend={() => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card')}
             onDueDate={chooseDueDate}
             onForget={chooseForget}
             // The deck is loaded again when Card Info closes: the same card stays on screen.
@@ -1145,7 +1183,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={footer}
-      floating={ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={undo} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={undo} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
