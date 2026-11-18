@@ -574,6 +574,7 @@ def test_marked_words_are_listed_with_glosses_until_cleared() -> None:
     assert words[0]["deck"] is True
     # A marked word carries its IPA like a token in a text does.
     assert words[0]["ipa"] and words[0]["ipa_source"] == "wiktionary"
+    assert words[0]["kanji"] is None  # only Japanese words have kanji (kanji.py)
 
     assert c.post("/api/words/clear", json={"word": "ครับ"}, headers=AUTH).status_code == 204
     assert [w["word"] for w in c.get("/api/words", headers=AUTH).json()] == ["ข้าวเหนียวมะม่วง"]
@@ -869,6 +870,22 @@ def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
     forms = c.post("/api/conjugations", json=body, headers=AUTH).json()["forms"]
     assert "past · plain: 帰った / かえった" in forms[0] and forms[1] is None
     assert c.post("/api/conjugations", json=body).status_code == 401
+
+
+def test_pronunciations_for_the_pronunciation_field() -> None:
+    c = voice_client(FakeSpeech())
+    body = {
+        "entries": [
+            {"language": "ru", "entry": "дом"},
+            {"language": "ru", "entry": "дом и сад"},
+            {"language": "ja", "entry": "大人", "reading": "おとな"},
+        ]
+    }
+    found = c.post("/api/pronunciations", json=body, headers=AUTH).json()["pronunciations"]
+    assert found[0]["ipa"] and found[0]["source"] == "wiktionary"
+    assert found[1] is None
+    assert found[2]["source"] == "rules"
+    assert c.post("/api/pronunciations", json=body).status_code == 401
 
 
 def test_lists_the_reading_each_japanese_word_is_recorded_from() -> None:

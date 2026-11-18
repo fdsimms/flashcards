@@ -1677,6 +1677,7 @@ CallFeature = Literal[
     "ipa",
     "aspect",
     "ask_card",
+    "fix_card",
     "topic_image",
 ]
 

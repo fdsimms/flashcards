@@ -21,12 +21,12 @@ export function ReadGrammarNote({ grammar, api, chosen, onChosen }: {
   const [error, setError] = useState<string | null>(null);
   const gloss = noteWithExample(grammar);
   const about = `${grammar.name}. ${gloss}.`;
-  const line = {
+  // A known point worked in for review (role 'review') has no note: it needs nothing from the reader.
+  const line = ({
     practice: `Grammar you're practicing: ${about}`,
     avoid: `${grammar.name}, which you don't know yet, slipped in here. ${gloss}.`,
-    review: `Grammar you know, worked in for review: ${about}`,
     unset: `Grammar you haven't marked yet: ${about}`,
-  }[grammar.role];
+  } as Partial<Record<typeof grammar.role, string>>)[grammar.role];
 
   const mark = async (state: GrammarChoice) => {
     if (busy) return;
@@ -41,6 +41,8 @@ export function ReadGrammarNote({ grammar, api, chosen, onChosen }: {
       setBusy(false);
     }
   };
+
+  if (!line) return null;
 
   return (
     <View style={{ gap: space.xs }}>

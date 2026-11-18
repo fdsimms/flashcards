@@ -42,6 +42,9 @@ export type AspectPair = {
   aspect_source: 'ai' | null;
 };
 
+/** One kanji of a word (KANJIDIC2, server/reader/src/franki_reader/kanji.py): kun readings are written with a dot before the okurigana (さむ.い). */
+export type WordKanji = { char: string; meanings: string[]; on: string[]; kun: string[]; strokes: number };
+
 export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
@@ -61,6 +64,7 @@ export type Word = {
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
+  kanji?: WordKanji[] | null; // each kanji in a Japanese word, once, with its meanings and readings; null for a word with none, absent from a server older than it
   rank?: number | null; // its place among the language's 10,000 most common words (1 is the most common); null past the list's end; absent from a server older than it
   grammar: string | null; // the grammar point this word uses, if the text marks it (TextGrammar)
   // The grammatical form this word has in its line ("instrumental case"), when it's an inflected form and
@@ -365,7 +369,7 @@ export type Speakers = Record<VoiceSlot, string>;
 // writing them, ask again in a few seconds.
 export type VocabBank = {
   state: 'ready' | 'preparing' | 'failed' | 'unavailable';
-  items: { word: string; rank: number; meaning: string; wrong: string[] }[];
+  items: { word: string; rank: number; meaning: string; wrong: string[]; /** Japanese: the kana to say in place of the kanji. */ reading?: string }[];
 };
 
 // A kind of story character, and the voice and pitch (a percent change) a story gives the first
@@ -453,6 +457,7 @@ export type MarkedWord = {
   status: 'known' | 'partial' | 'unknown';
   deck: boolean;
   wanikani?: boolean; // as Word's
+  kanji?: Word['kanji']; // as Word's
   ipa?: string | null; // as Word's
   ipa_source?: Word['ipa_source']; // as Word's
   times: number;
@@ -612,8 +617,14 @@ export function createApi(
       call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
-    makeLesson: (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha') =>
-      call<void>('POST', '/api/lessons', { language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) }),
+    // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
+    // Claude picks; `scene` is then the situation they're for. Returns the new lesson's id.
+    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[]) => {
+      const response = await send('POST', '/api/lessons', {
+        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}),
+      });
+      return ((await response.json()) as { id: number }).id;
+    },
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     lessonAudio: (id: number): AudioSource => ({
@@ -677,6 +688,10 @@ export function createApi(
     // new question): asked only when the owner sends one (core/askCard.ts).
     askCard: async (card: { language?: Language; front: string; back: string; details?: string }, turns: { role: 'user' | 'assistant'; content: string }[]) =>
       (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
+    // A fix for a flagged card, suggested by Claude on the server: only the fields that change, each as its whole new HTML,
+    // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
+    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
+      call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

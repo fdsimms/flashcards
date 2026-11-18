@@ -49,7 +49,7 @@ Franki's (Client, below).
   (`src/ui/useReader.ts`), which `src/ui/AppContext.tsx` calls in one line. The reader shows the
   server's word split as tappable words: a tap shows the gloss, and marking a word unknown is a
   second tap inside the gloss, so looking up a half-known word doesn't also flag it.
-- Each line has an EN button that shows that line's English alone, so checking one line doesn't
+- Each line has a "Show translation" link under its words that shows that line's English alone (tap the English to hide it), so checking one line doesn't
   give away the rest. "Show English" still shows them all.
 - **Explain** (12 November 2026, by the owner's decision). Each line has a third round button that
   opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase
@@ -388,6 +388,16 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
+  from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
+  word and meaning, up to `lesson.MAX_GIVEN`, 15), and the scene is then the situation they're for (the
+  cram's name). Claude still writes the title, the dialogue (up to `MAX_GIVEN_DIALOGUE` lines, to fit
+  more of them), the parts and the mixes (`lesson_writer.write_given_plan`), but the code decides what's
+  taught (`lesson.clean_given_plan`): every given phrase, as the learner has it and with their
+  meaning, with Claude's parts only where it wrote the phrase back exactly, and any it left out or
+  changed taught whole at the end; phrases Claude added are dropped. A Thai phrase isn't sent back for
+  lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
+  keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
@@ -553,11 +563,19 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
     meanings, one call of up to 150 words with the line each is in, and kept for the language
     (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
     asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
-  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving,
-  and the card back shows that field plainly. The field isn't in `omnilanguageFieldNames` yet: it
-  has to be added to the live note type first (AnkiMCP's `add_field`, which makes every device download the
-  whole collection once, so sync every device first), and only then there. Until then the editor leaves
-  the prefilled key out, since it only shows the note type's fields.
+  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving.
+  **On a card** (18 November 2026, by the owner's decision) the back shows that field after the answer:
+  behind a "Show pronunciation" tap when the card already keeps a reading behind one (a Transliteration, a
+  KanaReading: Thai, Japanese), so the sound isn't given away while the reading is hidden, and plainly
+  otherwise (`renderCard`). The MCP's `fill_pronunciation` fills the field for notes already in the deck,
+  from `/api/pronunciations` (`ipa.ipa_of_entry`, the same lookup a text's token gets, so a card and the
+  popup agree): previewed first, never over a field with anything in it, and a note whose IPA is `ai`
+  is tagged `ipa-unverified`. It reads only and never asks Claude for a word's IPA, so it costs nothing.
+  A daily fill for notes added since (`set_pronunciation_auto_fill`) is off until the owner turns it on.
+  The field is in `omnilanguageFieldNames`, after Forms, where `add_field` puts it: the live note type
+  needs it too (`add_field`, which makes every device download the whole collection once, so sync every
+  device first), or a TSV with no `#columns` header maps by position onto a field that isn't there.
+  The editor leaves the prefilled key out of a note type that has no such field.
 
 ## Languages
 
@@ -664,7 +682,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   standard voices have one, for a dialogue between two men or two women (Audio). The speech
   request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
+  the marked words list (the gloss leaves it out when the frequency meter shows), and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
 - **How common a word is** (13 November 2026, the owner's idea, to decide what to add to the deck):
   the word popup shows a four-bar meter, a band (very common up to 1,000, common to 3,000, uncommon
@@ -1007,6 +1025,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
   `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
   The deck's meaning wins over a kept one.
+- **Kanji in the word popup** (18 November 2026). A Japanese word's popup lists each kanji in it once,
+  with its English meanings and kun and on readings (`kanji.py`, `data/kanji.json`, from KANJIDIC2,
+  CC BY-SA 4.0, so the list carries the credit line). It's a lookup in a file shipped with the server:
+  nothing is generated, asked of a model or fetched, and `kanji` is on every word the server sends
+  (null for a word with none). A kanji KANJIDIC2 doesn't list (々) is skipped. The marked words list
+  shows the same block (`ReadKanji`). With a WaniKani token entered, each kanji also carries the level
+  that teaches it, read from WaniKani once a study day and kept on the phone (`useKanjiLevels`,
+  `src/wanikani/kanjiLevels.ts`); without one there is no tag.
 - **Word forms** (13 November 2026). The popup's "Dictionary form" line says what a word is a form
   of, not which form. After a text is written (`Engine.fill_forms`, `forms.py`), one Claude call a
   text is given each word that is a form of another (the ones with a dictionary form shown) with the
@@ -1781,6 +1807,19 @@ claude.ai/new link with the card and the typed question in the message box, for 
 learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
 browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.
+
+## Fix a flagged card with Claude
+
+The flag sheet (`src/ui/AgentFlagSheet.tsx`) has Fix with Claude now beside Flag for later, shown
+while Read & Listen is signed in. It flags the card as usual, then `POST /api/fix-card`
+(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Haiku,
+once, only on that tap. The server returns `{changes: {field: new html}, explanation}` and writes
+nothing: the app checks it again (`src/core/fixCard.ts`: only fields the note has, only ones that
+change, and no `[sound:]` or `<img>` reference dropped or added), shows each changed field old above
+new, and applies it through `saveNote` only when the owner taps Apply, which also clears the flag
+and its tags. Not now keeps the flag for the MCP. A fix that needs a new recording or image comes
+back with no changes and says so. The cost is in `call_costs` (feature `fix_card`), not yet in
+`/api/costs`.
 
 ## Offline
 

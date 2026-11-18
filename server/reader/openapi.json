@@ -3684,6 +3684,64 @@
         }
       }
     },
+    "/api/fix-card": {
+      "post": {
+        "summary": "Fix Card Route",
+        "operationId": "fix_card_route_api_fix_card_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixCardIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Fix Card Route Api Fix Card Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/aspect-pair": {
       "post": {
         "summary": "Aspect Pair",
@@ -3799,6 +3857,80 @@
                     }
                   },
                   "title": "Response Conjugations Api Conjugations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pronunciations": {
+      "post": {
+        "summary": "Pronunciations",
+        "description": "Each entry's IPA and where it's from (ipa.SOURCE_*), or None when there is none to show (a\nphrase, a word the table lacks): the MCP's fill_pronunciation asks here. Reads only: it never\nasks Claude for a word's IPA, so it costs nothing, and uses the IPA Claude already wrote for texts.",
+        "operationId": "pronunciations_api_pronunciations_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PronunciationsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "title": "Response Pronunciations Api Pronunciations Post"
                 }
               }
             }
@@ -5261,6 +5393,60 @@
         "type": "object",
         "title": "ExplainIn"
       },
+      "FixCardIn": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "th",
+                  "es",
+                  "de",
+                  "fr",
+                  "ru",
+                  "el",
+                  "pl",
+                  "nb",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 40,
+            "minProperties": 1,
+            "title": "Fields"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "reason"
+        ],
+        "title": "FixCardIn"
+      },
       "FormExplainIn": {
         "properties": {
           "word": {
@@ -5317,6 +5503,28 @@
           "new"
         ],
         "title": "FrankiCountsIn"
+      },
+      "GivenIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "GivenIn"
       },
       "GlossSentence": {
         "properties": {
@@ -5516,6 +5724,21 @@
               }
             ],
             "title": "Particle"
+          },
+          "phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GivenIn"
+                },
+                "type": "array",
+                "maxItems": 15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phrases"
           }
         },
         "type": "object",
@@ -5672,6 +5895,61 @@
           "phrase"
         ],
         "title": "PhraseIn"
+      },
+      "PronunciationIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "entry": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entry"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "entry"
+        ],
+        "title": "PronunciationIn"
+      },
+      "PronunciationsIn": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PronunciationIn"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "title": "PronunciationsIn"
       },
       "QueuedEntry": {
         "properties": {

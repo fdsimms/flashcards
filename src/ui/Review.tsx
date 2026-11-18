@@ -4,16 +4,17 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { cardStateOf, FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
+import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
-import { failureText } from '../core/failure';
+import { failureText, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
+import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -50,7 +51,9 @@ import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
+import { useCrams } from './useCrams';
 import { useStudyDay } from './useStudyDay';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
@@ -61,12 +64,13 @@ import { haptic } from './haptics';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
-import { chooseAgentFlagReason } from './agentFlagSheet';
+import { notePreview } from '../core/noteEditing';
+import { AgentFlagSheet } from './AgentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
-import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
@@ -76,6 +80,7 @@ import { CONFUSED_REASON } from '../core/confusedPairs';
 import { canLinkConfused, ConfusedLinkSheet, ConfusedRow } from './ConfusedLink';
 import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
+import { useFieldEdit } from './useFieldEdit';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
 import { keyboardLanguageForText } from '../core/keyboardLanguage';
@@ -93,7 +98,7 @@ import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
-import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
+import { LastAnswerLine, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -114,7 +119,8 @@ const AUDIO_MODE = { playsInSilentMode: true };
 type ReviewSheet =
   | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string }
   | { key: string; kind: 'confused'; noteId: string }
-  | { key: string; kind: 'ask'; card: CardForClaude };
+  | { key: string; kind: 'ask'; card: CardForClaude }
+  | { key: string; kind: 'agentFlag'; noteId: string; cardId: string };
 const confusedSheetFor = (noteId: string): ReviewSheet => ({ key: `confused:${noteId}`, kind: 'confused', noteId });
 
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
@@ -149,7 +155,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -163,6 +169,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Present while Read & Listen is signed in: answers a question typed about the card on screen (AskCardSheet). */
   askAboutCard?: (card: CardForClaude, turns: AskTurn[]) => Promise<string>;
+  /** Present while Read & Listen is signed in: suggests a fix for a flagged card (AgentFlagSheet's Fix with Claude now). */
+  fixFlaggedCard?: (request: FixRequest) => Promise<FixResponse>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
   glossing?: CardGlossing;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
@@ -233,8 +241,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => (settling ? afterPaint(() => setSettling(null)) : undefined), [settling]);
   // Show answer timing, in the ⋯ menu (useAnswerTiming.ts).
   const timing = useAnswerTiming();
-  // The strip offering to change the last answer to Again (ChangeRating.tsx).
-  const ratingOffer = useRatingOffer();
+  // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
+  const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
@@ -305,6 +313,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
   const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
+  // Running crams: a review of one of their words isn't put off past the cram's day (src/core/cram.ts).
+  const { crams } = useCrams(repo as NoteStore);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   const rebuilt = useMemo(() => {
     if (!cards || settle) return null;
@@ -319,6 +329,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
+  // The count the card on screen is in, underlined in the header's counts.
+  const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
   const showing = current ? `${current.id}:${history.length}` : undefined;
@@ -398,7 +410,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       preset: params?.presetId, seed, easyDays: params?.easyDays, buryReviews: !!params?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
-    return { seed, dayStartsAtHour: H, balance };
+    return { seed, dayStartsAtHour: H, balance, capDays: capDays(crams, notes.get(card.noteId), when, H) };
   };
   // What Good would bring the current card back in, counted from `from` (a lookalike) or its last review.
   const goodFrom = (from?: Date) => (current ? previewIntervals(current.sched, now, cardParams, { ...baseContext(current, now), countFrom: from })[3] : '');
@@ -507,6 +519,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
+  const fieldEdit = useFieldEdit(repo, writes, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
 
@@ -523,7 +536,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Again
+   * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Good or Again
    * answers the card it just undid, in the same step as the undo, so that card never comes back
    * to the screen between the two. The caller then holds `busy`, and `cards` is the list with that
    * card (and the siblings its first answer buried) put back as they were.
@@ -595,13 +608,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
       lastAnswered.current = cur;
-      // Hard, Good and Easy can be changed to Again from the next card for a few seconds.
-      const word = htmlToText(nt.fields.Entry ?? '');
+      // The last answer stays on the line above the buttons until the next one, to undo or change. A
+      // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      ratingOffer.show(rating > 1 && !preview ? { cardId: cur.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
+      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating] });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
-      // card), nor for Change to Again's `redo` (its queue is from before the undo).
+      // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
       const buriedIds = new Set(siblings.map((sb) => sb.id));
       const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when);
       const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
@@ -671,7 +684,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         } catch (e) {
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
           setHistory((h) => h.filter((r) => r !== record));
-          ratingOffer.show(null);
+          lastAnswer.show(null);
           setReloads((n) => n + 1);
           Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
         } finally {
@@ -695,12 +708,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   };
 
   /**
-   * Takes the last answer back. With `again`, the same card is then answered Again in this same step
-   * (Change to Again), so the card never comes back to the screen between the two.
+   * Takes the last answer back. With `to`, the same card is then answered that rating in this same
+   * step (Change to Good, Change to Again), so the card never comes back to the screen between the two.
    */
-  // Read through a function: TypeScript would otherwise keep the `null` assigned to the ref above, across the `await`.
-  const lastAnsweredId = () => lastAnswered.current?.id;
-  const undo = async (again = false): Promise<boolean> => {
+  const undo = async (to?: RatingValue): Promise<boolean> => {
     const last = history[history.length - 1];
     if (!last || busy.current) return false;
     busy.current = true;
@@ -714,7 +725,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
       if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {
         setHistory([]);
-        ratingOffer.show(null);
+        lastAnswer.show(null);
         Alert.alert("Couldn't undo that answer", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
         return false;
       }
@@ -739,12 +750,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
       lastAnswered.current = null;
-      ratingOffer.show(null);
+      lastAnswer.show(null);
       const noteOf = n ?? notes.get(last.before.noteId);
-      if (again && noteOf) {
-        await answer(1, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
-        // `lastAnswered` is set only once the answer is saved, so a failed one (which alerts) isn't confirmed.
-        if (lastAnsweredId() === last.before.id) ratingOffer.show({ cardId: last.before.id, rating: 1, changed: true });
+      if (to && noteOf) {
+        await answer(to, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
         return true;
       }
       setPreferId(last.before.id);
@@ -760,12 +769,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     }
   };
 
-  // Change to Again: take the last answer back and answer the same card Again, in one step.
-  const changeToAgain = async () => {
-    const o = ratingOffer.offer;
+  // Change to Good or Again: take the last answer back and answer the same card again, in one step.
+  const changeLast = async (to: RatingValue) => {
+    const o = lastAnswer.last;
     const last = history[history.length - 1];
-    if (!o || !last || last.before.id !== o.cardId) { ratingOffer.show(null); return; }
-    await undo(true);
+    if (!o || !last || last.before.id !== o.cardId) { lastAnswer.show(null); return; }
+    await undo(to);
   };
 
   // A session that runs past the day's start counts the new day's answers from nothing, with the
@@ -854,6 +863,40 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         pairs={confused.pairs}
         onLink={(partnerId) => confused.link(sheetNote.id, partnerId)}
         onUnlink={(partnerId) => confused.unlink(sheetNote.id, partnerId)}
+        onClose={() => sheets.close(sheet.key)}
+      />
+    );
+  } else if (sheet?.kind === 'agentFlag' && sheetNote) {
+    // The card and note this sheet was raised for, read again at each write: the screen may have moved on.
+    const flagged = cards?.find((c) => c.id === sheet.cardId);
+    // Writes the note (when it changes) and then the card's purple flag; the sheet closes itself once this returns.
+    const writeFlag = async (flag: number, edit?: { tags: string[]; fields?: Record<string, string> }) => {
+      const target = cards?.find((c) => c.id === sheet.cardId);
+      if (!target) throw new Refusal("This card isn't loaded anymore. Close this and open it again.");
+      if (busy.current) throw new Refusal('Another change is still saving. Try again in a moment.');
+      if (edit) {
+        writes.current++;
+        try {
+          const saved = await saveNote(repo as NoteStore, { id: sheetNote.id, deck: sheetNote.deck, model: sheetNote.model, fields: edit.fields ?? sheetNote.fields, tags: edit.tags });
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
+        } finally {
+          writes.current++;
+        }
+      }
+      await setStates([target], (s) => ({ ...s, flag }));
+    };
+    sheetHost = (
+      <AgentFlagSheet
+        key={sheet.key}
+        visible={sheets.visible}
+        onDismiss={() => sheets.dismissed(sheet.key)}
+        word={notePreview(sheetNote).front}
+        reason={flagged?.flag === AGENT_FLAG ? flagReasonOf(sheetNote.tags) : null}
+        note={flagged?.flag === AGENT_FLAG ? flagNoteOf(sheetNote.tags) : ''}
+        onSave={(reason, text) => writeFlag(AGENT_FLAG, { tags: withFlagReason(sheetNote.tags, reason, text) })}
+        onRemove={flagged?.flag === AGENT_FLAG ? () => writeFlag(0) : undefined}
+        fix={fixFlaggedCard ? async (reason, text) => checkFix(sheetNote, await fixFlaggedCard(fixRequest(sheetNote, reason, text))) : undefined}
+        onApply={(proposal) => writeFlag(0, { tags: withoutFlag(sheetNote.tags), fields: withFix(sheetNote.fields, proposal) })}
         onClose={() => sheets.close(sheet.key)}
       />
     );
@@ -1152,26 +1195,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setStates([current], (s) => ({ ...s, flag }));
     });
   };
-  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note.
+  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note and, when one is typed, a flagnote:: tag. AgentFlagSheet asks for them.
   const chooseAgentFlag = () => {
-    const target = current;
-    const targetNote = note;
-    chooseAgentFlagReason(target.flag === AGENT_FLAG, async (reason) => {
-      if (!reason) {
-        setStates([target], (s) => ({ ...s, flag: 0 }));
-        return;
-      }
-      if (targetNote && !busy.current) {
-        try {
-          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, reason) });
-          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
-        } catch (e) {
-          Alert.alert("Couldn't flag this card", failureText(e, { next: 'Nothing was changed. Try again.' }));
-          return;
-        }
-      }
-      setStates([target], (s) => ({ ...s, flag: AGENT_FLAG }));
-    });
+    if (!current || !note) return;
+    sheets.request({ key: `agentFlag:${current.id}`, kind: 'agentFlag', noteId: note.id, cardId: current.id });
   };
   // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
   const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
@@ -1249,7 +1276,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onPress={() => onEditNote({ noteId: note.id }, (result) => {
               if (!result) return;
               // A deleted note's cards are gone, so an answer to one can't be undone any more.
-              if ('deleted' in result) setHistory([]);
+              if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
               else setPreferId(current.id);
               setReloads((n) => n + 1);
             })}
@@ -1277,19 +1304,19 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
         </Stack.Toolbar>
       }
-      footer={footer}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={() => undo()} /> : null}
+      footer={<>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
-          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} />
-          <Count value={queue.fresh.length} label="new" color={c.countNew} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} current={shownCount === 'due'} />
+          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} current={shownCount === 'again'} />
+          <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
-      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} style={{ marginTop: space.m }} /> : null}
+      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
       {page ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1308,13 +1335,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {page ? null : rendered ? (
         <View style={{ flex: 1 }}>
-        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
-              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
+              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               <LanguageCue kind={current.kind} speechLang={speechLang} />
               {reminder ? <MissReminder text={reminder} /> : null}
@@ -1327,7 +1354,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 <View style={{ height: hairline, backgroundColor: c.border }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

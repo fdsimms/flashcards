@@ -202,10 +202,13 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
-  // The IPA, shown plainly with the word (the note type may not have the field yet: then it's empty).
   const pronunciation = t(note, 'Pronunciation');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
+  // The IPA (the note type may not have the field yet: then it's empty). A card that already keeps a
+  // reading behind a tap (a transliteration, kana) keeps the IPA behind one too, so a word's sound
+  // isn't given away while its reading is still hidden; any other card shows it plainly.
+  const pronunciationTap = translit || kana ? 'Show pronunciation' : undefined;
   const meaning = t(note, 'Meaning');
   const front: Block[] = [];
   const back: Block[] = [];
@@ -228,8 +231,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
       .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
     pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
     // What helps remember the word itself comes before the example sentence that uses it.
-    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic');
-    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note' });
+    pushIf(b, t(note, 'Mnemonic'), 'Mnemonic', undefined, undefined, { field: 'Mnemonic' });
+    pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note', field: 'Notes' });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
     // A note with ContextLabels has several examples (examples.ts), each with its own two hidden lines.
@@ -251,8 +254,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, meaning, undefined, true);
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
-    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
@@ -265,8 +268,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
-    pushIf(back, pronunciation);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
@@ -285,8 +288,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
-  pushIf(back, pronunciation);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
+  pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
   back.push(...detail());
   return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };

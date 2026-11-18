@@ -201,6 +201,8 @@ export interface RenderedSide {
      * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), and a `transliteration` is the word's romanization, set larger than an example's. A block with no role is plain labeled text.
      */
     role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'reading' | 'sense' | 'transliteration';
+    /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
+    field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
     reading?: string;
     chips?: string[];

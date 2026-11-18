@@ -498,3 +498,76 @@ def test_the_thai_request_names_the_learners_particle() -> None:
     woman = lesson_writer.request_message("th", "a coffee", "female")
     assert "A (a man)" in man and "ครับ for a man" in man
     assert "A (a woman)" in woman and "ค่ะ for a woman" in woman
+
+
+def given_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> Any:
+    async def write(
+        language: str,
+        scene: str,
+        given: tuple[lesson.Phrase, ...],
+        feedback: str,
+        learner: str = "male",
+    ) -> tuple[Any, Usage]:
+        asked.append((", ".join(p.text for p in given), feedback))
+        return answers.pop(0), USAGE
+
+    return write
+
+
+def make_given(
+    tmp_path: Path, answers: list[dict[str, Any]], language: str, given: tuple[lesson.Phrase, ...]
+) -> tuple[Fakes, list[tuple[str, str]], Any]:
+    conn = store.connect(":memory:")
+    fakes = Fakes()
+    asked: list[tuple[str, str]] = []
+    lesson_id = store.add_lesson(conn, language, "Thai lesson", NOW)  # type: ignore[arg-type]
+    asyncio.run(
+        lesson_service.make_lesson(
+            conn,
+            lesson_id,
+            language,  # type: ignore[arg-type]
+            "Thai lesson",
+            write=fakes.write,
+            synthesize=fakes.synthesize,
+            voices=lambda lang: {**VOICES, **THAI_VOICES}[lang],
+            lessons_dir=tmp_path,
+            now=lambda: NOW,
+            renderer=fakes.renderer,
+            given=given,
+            write_given=given_write(answers, asked),
+        )
+    )
+    return fakes, asked, store.get_lesson(conn, lesson_id)
+
+
+def test_a_lesson_from_given_phrases_teaches_them_and_not_claudes(tmp_path: Path) -> None:
+    given = lesson.given_phrases([("Un café.", "a coffee"), ("presque", "almost")])
+    fakes, asked, kept = make_given(tmp_path, [good_plan()], "fr", given)
+    assert kept is not None and kept.state == "ready", kept
+    # Asked with the learner's phrases; the scene writer isn't used.
+    assert asked == [("Un café., presque", "")]
+    assert fakes.asked == []
+    assert [p["text"] for p in kept.plan["phrases"]] == ["Un café.", "presque"]
+    assert [p["english"] for p in kept.plan["phrases"]] == ["a coffee", "almost"]
+
+
+def test_a_thai_lesson_from_given_words_does_not_ask_for_a_particle_on_them(
+    tmp_path: Path,
+) -> None:
+    # The learner's own word has no ครับ, and that's not sent back; the speakers' lines still are.
+    given = lesson.given_phrases([("เกือบ", "almost")])
+    _, asked, kept = make_given(tmp_path, [thai_plan()], "th", given)
+    assert kept is not None and kept.state == "ready", kept
+    assert len(asked) == 1
+    _, asked, kept = make_given(tmp_path, [thai_plan(first_person="ฉัน"), thai_plan()], "th", given)
+    assert kept is not None and kept.state == "ready"
+    assert "ฉัน" in asked[1][1]
+
+
+def test_the_given_request_lists_the_phrases_and_asks_for_them_unchanged() -> None:
+    given = lesson.given_phrases([("เกือบ", "almost"), ("พูดช้าๆ หน่อย", "speak a bit slower")])
+    request = lesson_writer.given_request_message("th", "Thai lesson", given, "male")
+    assert "- เกือบ (almost)" in request and "- พูดช้าๆ หน่อย (speak a bit slower)" in request
+    assert "letter for letter" in request
+    assert "Thai lesson" in request
+    assert "end every phrase taught with ครับ" not in request

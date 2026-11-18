@@ -12,6 +12,9 @@ import type { Card } from './types';
  * forgotten card counts again until it's back to a week.
  */
 
+/** The largest cap a gate can have (the MCP's `MAX_GATE_CAP` in server/mcp/franki_mcp/tools.py is the same number). */
+export const MAX_GATE_CAP = 5000;
+
 /** A card whose next review is at least this many days out is no longer in progress (WaniKani's Guru interval). */
 export const GURU_INTERVAL_DAYS = 7;
 
@@ -30,6 +33,6 @@ export function parseGateCap(text: string): { cap: number } | { error: string } 
   if (!/^\d+$/.test(t)) return { error: 'Enter a whole number, for example 100.' };
   const cap = Number(t);
   if (cap < 1) return { error: 'The cap has to be at least 1, or no new cards would ever show.' };
-  if (cap > 5000) return { error: 'The cap can be at most 5000.' };
+  if (cap > MAX_GATE_CAP) return { error: `The cap can be at most ${MAX_GATE_CAP}.` };
   return { cap };
 }

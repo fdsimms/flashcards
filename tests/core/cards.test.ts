@@ -41,12 +41,31 @@ describe('cards', () => {
     }
   });
   it("shows the note's Pronunciation plainly on the back, after the answer, and nothing when it has none", () => {
-    const note = omniNote({ Entry: 'дом', Meaning: 'house', Pronunciation: '[dom]' });
+    const note = omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '', Pronunciation: '[dom]' });
     expect(renderCard(note, 'forward').back.blocks.map((b) => b.text).slice(0, 2)).toEqual(['house', '[dom]']);
     expect(renderCard(note, 'reverse').back.blocks.map((b) => b.text).slice(0, 2)).toEqual(['дом', '[dom]']);
     expect(renderCard(note, 'audio').back.blocks.map((b) => b.text)).toContain('[dom]');
     expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
-    expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
+    expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
+  });
+  it("keeps the Pronunciation behind a tap when the card already hides a transliteration or a reading, after it", () => {
+    const thai = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk', Pronunciation: '/kʰwaːm˧.sùk/' });
+    const japanese = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese', Pronunciation: '/otona/' });
+    for (const kind of ['forward', 'reverse', 'audio'] as const) {
+      for (const [note, hidden] of [[thai, 'Show transliteration'], [japanese, 'Show reading']] as const) {
+        const taps = renderCard(note, kind).back.blocks.filter((b) => b.tapLabel).map((b) => b.tapLabel);
+        expect(taps).toContain('Show pronunciation');
+        expect(taps).toContain(hidden);
+      }
+      const blocks = renderCard(thai, kind).back.blocks;
+      expect(blocks.findIndex((b) => b.tapLabel === 'Show pronunciation')).toBe(blocks.findIndex((b) => b.tapLabel === 'Show transliteration') + 1);
+    }
+  });
+  it("shows the Pronunciation plainly when the card hides no reading, and nothing for a note with none", () => {
+    const german = omniNote({ Entry: 'Haus', Meaning: 'house', Language: 'German', Transliteration: '', Pronunciation: '[haʊ̯s]' });
+    expect(renderCard(german, 'forward').back.blocks.find((b) => b.text === '[haʊ̯s]')?.tapLabel).toBeUndefined();
+    const thaiNone = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk' });
+    expect(renderCard(thaiNone, 'forward').back.blocks.some((b) => b.tapLabel === 'Show pronunciation')).toBe(false);
   });
   it("shows the audio card's meaning as a gloss under the word, and the forward card's as the headline", () => {
     const note = omniNote({ Entry: 'หนังสือ', Meaning: 'book' });

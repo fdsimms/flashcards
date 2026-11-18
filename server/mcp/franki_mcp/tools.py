@@ -53,9 +53,33 @@ MAX_LEVEL_NOTES_PER_CALL = 20
 FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
 MATURE_DAYS = 21
-# Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, and a flag::<reason> tag on its note.
+# Franki's progress gates (`DeckSettings.gateCap`, src/anki/progressGates.ts): a collection config
+# value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
+PROGRESS_GATES_KEY = "frankiProgressGates"
+MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
+# Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, a flag::<reason> tag on its
+# note and, when the user typed one, a flagnote::<hex> tag with their note (its UTF-8 bytes in lowercase hex,
+# since a tag can't hold a space and Anki merges tags that differ only by case).
 AGENT_FLAG = 7
 FLAG_TAG_PREFIX = "flag::"
+FLAG_NOTE_PREFIX = "flagnote::"
+
+
+def _flag_note(tags: list[str]) -> str | None:
+    """What the user typed when flagging, from the note's flagnote:: tag, or None."""
+    for t in tags:
+        if t.lower().startswith(FLAG_NOTE_PREFIX):
+            try:
+                return bytes.fromhex(t[len(FLAG_NOTE_PREFIX):]).decode("utf-8") or None
+            except ValueError:
+                return None
+    return None
+
+
+def _is_flag_tag(tag: str) -> bool:
+    return tag.lower().startswith((FLAG_TAG_PREFIX, FLAG_NOTE_PREFIX))
+
+
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
@@ -235,14 +259,16 @@ reaches their devices at their next sync.
   With a ContextLabels field filled in, Context, ContextRomanized and ContextTranslation hold one
   example per line (separated by <br>, line N of each belonging together) and ContextLabels names
   what each example shows ("skill", "event"). Add a second example only when the word's senses differ.
+- In a note's Notes field, give each part of a word's breakdown its meaning ("กลับ (return) + บ้าน
+  (home)"). Never write "already known": say what the part means, or leave it out.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
   4 Easy) and wait for them to confirm or change it. Only then call rate_card. Never rate a card
   the user hasn't seen the answer to, or with a rating they didn't agree to.
 - Flagged cards: the user flags a card in Franki for you to check (a typo, audio that sounds wrong).
-  flagged_cards lists them with their note's fields and the reason. Work out the fix and show the
-  user what you'd change (the old and new text, or the voice and text for a re-record) before
+  flagged_cards lists them with their note's fields, the reason and `note_from_user`, what they typed
+  about it (that is the request, do it). Work out the fix and show the user what you'd change (the old and new text, or the voice and text for a re-record) before
   calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
   resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
@@ -257,6 +283,11 @@ reaches their devices at their next sync.
   where a language has them) for Franki's forms practice, from Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
   (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
   only when asked, in the same lines, tagged forms-unverified.
+- Pronunciation: fill_pronunciation fills the Pronunciation field (IPA) of Omnilanguage notes that
+  have it empty, from Read & Listen (Wiktionary's tables; Japanese by rule from KanaReading; IPA Claude
+  wrote, tagged ipa-unverified). It needs the field (add_field, after every device is synced) and
+  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree. Turn on
+  the daily fill (set_pronunciation_auto_fill) only once they've checked a batch.
 - New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
   own new-card positions, so every device follows and no schedule changes). It needs Read &
   Listen running. Preview first, show the user the start of the order and how many words had no
@@ -267,6 +298,11 @@ reaches their devices at their next sync.
   language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
   only once the user agrees. Franki shows the tiers as the one deck.
   untier_deck undoes it for a deck (cards back in the deck, tier subdecks and presets removed).
+- Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
+  are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
+  date (`cram::thai-lesson-2026-11-20`); Franki shows the tag on the cram's page. To add words to a
+  cram, add its tag to their notes (or to new notes with add_notes); find_notes "tag:cram::*"
+  lists the words of every cram. The date and the practice rounds are kept in Franki only.
 """
 
 
@@ -542,7 +578,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=READ)
     async def flagged_cards(deck: str | None = None, limit: int = 20) -> dict[str, Any]:
         """Cards the user flagged in Franki for an agent to check (the purple flag), oldest note
-        first, with the reason they gave (typo, audio, translation, other), the note's fields as
+        first, with the reason they gave (typo, audio, translation, other), what they wrote about it
+        (`note_from_user`, or null: do what it says, it is the actual request), the note's fields as
         HTML and its tags. `deck` narrows it to one deck and its subdecks. Fix a card with
         update_notes or add_tts_audio after the user approves, then clear it with resolve_flag."""
 
@@ -559,6 +596,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 reasons = [t[len(FLAG_TAG_PREFIX):] for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
                 out.append({
                     "card_id": cid, "card_type": card.template()["name"], "reason": reasons[0] if reasons else None,
+                    "note_from_user": _flag_note(note.tags),
                     **_note_dict(col, note, full=False), "fields": dict(note.items()),
                 })
             return {"total": len(ids), "cards": out}
@@ -568,8 +606,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=WRITE)
     async def resolve_flag(card_ids: list[int]) -> dict[str, Any]:
         """Clears the agent flag on `card_ids` once the user has approved the fix (or decided
-        there's nothing to fix). A note's flag:: reason tag goes too when none of its cards is
-        still flagged."""
+        there's nothing to fix). A note's flag:: reason and flagnote:: tags go too when none of its
+        cards is still flagged."""
 
         def run(col: Collection) -> dict[str, Any]:
             cards = [_get_card(col, cid) for cid in card_ids]
@@ -582,7 +620,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 if col.find_cards(f"nid:{nid} flag:{AGENT_FLAG}"):
                     continue
                 note = col.get_note(nid)
-                stale = [t for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
+                stale = [t for t in note.tags if _is_flag_tag(t)]
                 if stale:
                     for t in stale:
                         note.remove_tag(t)
@@ -771,6 +809,98 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if params is not None:
                 share_params(col, conf)
             return {"preset": conf["name"], "decks_affected": sharing}
+
+        return await cm.write(run)
+
+    @server.tool(annotations=WRITE)
+    async def set_deck_preset(
+        decks: list[str],
+        preset: str,
+        copy_from: str | None = None,
+        include_subdecks: bool = False,
+    ) -> dict[str, Any]:
+        """Puts decks on the options preset named `preset`, so they stop sharing another's limits and
+        retention. With no preset by that name, one is made as a copy of `copy_from`'s preset (a deck
+        name: its FSRS parameters, retention, limits and steps). Only the decks named move, and their
+        subdecks with include_subdecks; the preset they leave keeps its other decks. A frequency tier
+        subdeck keeps the preset its tiers use, and a filtered deck has none, so both are refused."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            dids = [_deck_id(col, d) for d in decks]
+            if include_subdecks:
+                every = {n.id: n.name for n in col.decks.all_names_and_ids()}
+                prefixes = tuple(f"{every[i]}::" for i in dids)
+                dids += [i for i, n in every.items() if n.startswith(prefixes) and i not in dids]
+            for did in dids:
+                deck = col.decks.get(did)
+                if deck is None or deck.get("dyn"):
+                    raise ToolError(f'"{col.decks.name(did)}" is a filtered deck, which has no options preset of its own.')
+                if TIER_PRESET_KEY in col.decks.config_dict_for_deck_id(did):
+                    raise ToolError(f'"{col.decks.name(did)}" is a frequency tier, whose preset is kept with its parent deck by tier_deck_by_frequency. Move the parent deck, or untier_deck first.')
+            found = next((c for c in col.decks.all_config() if c["name"] == preset), None)
+            created = found is None
+            if found is not None:
+                if copy_from is not None:
+                    raise ToolError(f'There\'s already a preset called "{preset}". Leave out copy_from to put the decks on it, or choose another name.')
+                if TIER_PRESET_KEY in found:
+                    raise ToolError(f'"{preset}" belongs to a deck\'s frequency tiers. Choose another name.')
+                conf = found
+            else:
+                if copy_from is None:
+                    names = sorted(c["name"] for c in col.decks.all_config() if TIER_PRESET_KEY not in c)
+                    raise ToolError(f'There\'s no preset called "{preset}". To make it, pass copy_from (a deck whose preset to copy). Presets: {", ".join(names)}.')
+                conf = col.decks.add_config(preset, clone_from=col.decks.config_dict_for_deck_id(_deck_id(col, copy_from)))
+                conf.pop(TIER_PRESET_KEY, None)
+                col.decks.update_config(conf)
+            moved = []
+            for did in dids:
+                before = col.decks.config_dict_for_deck_id(did)
+                if before["id"] == conf["id"]:
+                    continue
+                deck = col.decks.get(did)
+                assert deck is not None
+                col.decks.set_config_id_for_deck_dict(deck, conf["id"])
+                moved.append({"deck": col.decks.name(did), "was_on": before["name"]})
+            return {"preset": preset, "created": created, "moved": moved}
+
+        return await cm.write(run)
+
+    @server.tool(annotations=READ)
+    async def get_progress_gates() -> dict[str, Any]:
+        """The decks with a Franki progress gate: new cards come in only while fewer than `cap` cards
+        in the deck and its subdecks are in progress (started, and not yet scheduled a week or more out)."""
+
+        def run(col: Collection) -> dict[str, Any]:
+            names = {str(n.id): n.name for n in col.decks.all_names_and_ids()}
+            gates = col.get_config(PROGRESS_GATES_KEY, {}) or {}
+            return {"gates": sorted(({"deck": names[i], "cap": cap} for i, cap in gates.items() if i in names), key=lambda g: g["deck"])}
+
+        return await cm.read(run)
+
+    @server.tool(annotations=WRITE)
+    async def set_progress_gate(decks: list[str], cap: int | None = None) -> dict[str, Any]:
+        """Turns Franki's progress gate on for decks at `cap` (1 to 5000), or off with no cap. A gated
+        deck lets in new cards only while fewer than `cap` cards in it and its subdecks are in
+        progress, and never more in a day than its own preset's new cards per day (raise that with
+        set_fsrs_settings, or the gate can't admit more than the daily limit). Gate a language's top
+        deck, not its subdecks: under a gate only the gated deck's own daily limit counts. Franki
+        picks the change up at its next sync."""
+        if cap is not None and not 1 <= cap <= MAX_GATE_CAP:
+            raise ToolError(f"cap must be a whole number from 1 to {MAX_GATE_CAP}, or left out to turn the gate off.")
+
+        def run(col: Collection) -> dict[str, Any]:
+            ids = [str(_deck_id(col, d)) for d in decks]
+            for i in ids:
+                if (deck := col.decks.get(int(i))) and deck.get("dyn"):
+                    raise ToolError(f'"{col.decks.name(int(i))}" is a filtered deck, which has no new cards to gate.')
+            gates = dict(col.get_config(PROGRESS_GATES_KEY, {}) or {})
+            for i in ids:
+                if cap is None:
+                    gates.pop(i, None)
+                else:
+                    gates[i] = cap
+            col.set_config(PROGRESS_GATES_KEY, gates)
+            return {"cap": cap, "decks": [col.decks.name(int(i)) for i in ids]}
 
         return await cm.write(run)
 

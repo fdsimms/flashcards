@@ -35,7 +35,7 @@ export function useHoldOffer() {
   return { offer, show };
 }
 
-/** Passed to Screen's `floating`, like ChangeRatingStrip: over the card's lower edge, above the footer. */
+/** Passed to Screen's `floating`: over the card's lower edge, above the footer. */
 export function HoldStrip({ offer, onUndo }: { offer: HoldOffer; onUndo: () => void }) {
   const c = useTheme();
   const reduce = useReduceMotion();

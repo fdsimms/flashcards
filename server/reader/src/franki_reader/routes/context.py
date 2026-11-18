@@ -10,6 +10,7 @@ from franki_reader import (
     ask_card,
     aspect,
     drills,
+    fix_card,
     grammar_topics,
     note_queue,
     production,
@@ -23,7 +24,7 @@ from franki_reader.engine import Engine
 from franki_reader.explain import CheckNatural, Explain, ExplainForm, ExplainPhrase
 from franki_reader.gateway import ReadDue, ReadReviews
 from franki_reader.generator import Usage
-from franki_reader.lesson_writer import WritePlan
+from franki_reader.lesson_writer import WriteGiven, WritePlan
 from franki_reader.mnemonics import MakeMnemonics
 from franki_reader.tts import ClipCache, Speech
 
@@ -56,9 +57,11 @@ class AppContext:
     read_topic_image: topic_image.ReadTopic | None
     clips: ClipCache | None
     write_lesson: WritePlan | None
+    write_given_lesson: WriteGiven | None
     lessons_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None
+    fix_flagged_card: fix_card.FixCard | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens
     # with STATUS_TOKEN.
     authed: Sequence[Any]

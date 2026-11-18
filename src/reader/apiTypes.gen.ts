@@ -1042,6 +1042,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fix-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fix Card Route */
+        post: operations["fix_card_route_api_fix_card_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aspect-pair": {
         parameters: {
             query?: never;
@@ -1074,6 +1091,28 @@ export interface paths {
          *     Entry that isn't a verb in its dictionary form: the MCP's fill_forms asks here.
          */
         post: operations["conjugations_api_conjugations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pronunciations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pronunciations
+         * @description Each entry's IPA and where it's from (ipa.SOURCE_*), or None when there is none to show (a
+         *     phrase, a word the table lacks): the MCP's fill_pronunciation asks here. Reads only: it never
+         *     asks Claude for a word's IPA, so it costs nothing, and uses the IPA Claude already wrote for texts.
+         */
+        post: operations["pronunciations_api_pronunciations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1543,6 +1582,22 @@ export interface components {
              */
             in_language: boolean;
         };
+        /** FixCardIn */
+        FixCardIn: {
+            /** Language */
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            /** Fields */
+            fields: {
+                [key: string]: string;
+            };
+            /** Reason */
+            reason: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
         /** FormExplainIn */
         FormExplainIn: {
             /** Word */
@@ -1563,6 +1618,13 @@ export interface components {
             due: number;
             /** New */
             new: number;
+        };
+        /** GivenIn */
+        GivenIn: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
         };
         /** GlossSentence */
         GlossSentence: {
@@ -1630,6 +1692,8 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+            /** Phrases */
+            phrases?: components["schemas"]["GivenIn"][] | null;
         };
         /** MnemonicIn */
         MnemonicIn: {
@@ -1689,6 +1753,26 @@ export interface components {
              * @default false
              */
             in_language: boolean;
+        };
+        /** PronunciationIn */
+        PronunciationIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Entry */
+            entry: string;
+            /**
+             * Reading
+             * @default
+             */
+            reading: string;
+        };
+        /** PronunciationsIn */
+        PronunciationsIn: {
+            /** Entries */
+            entries: components["schemas"]["PronunciationIn"][];
         };
         /** QueuedEntry */
         QueuedEntry: {
@@ -4183,6 +4267,43 @@ export interface operations {
             };
         };
     };
+    fix_card_route_api_fix_card_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixCardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     aspect_pair_api_aspect_pair_post: {
         parameters: {
             query?: never;
@@ -4243,6 +4364,45 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: (string[] | null)[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pronunciations_api_pronunciations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PronunciationsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: ({
+                            [key: string]: string;
+                        } | null)[];
                     };
                 };
             };

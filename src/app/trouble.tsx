@@ -11,6 +11,7 @@ export default function TroubleRoute() {
       onEditNote={openNoteEditor}
       onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined}
+      fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined}
     />
   );
 }
