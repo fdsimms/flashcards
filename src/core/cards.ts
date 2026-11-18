@@ -42,6 +42,7 @@ const LANG_TAGS: Record<string, string> = {
   vietnamese: 'vi-VN', 'tiếng việt': 'vi-VN', 'tieng viet': 'vi-VN',
   indonesian: 'id-ID', 'bahasa indonesia': 'id-ID',
   english: 'en-US',
+  newfinese: 'en-CA', newfoundland: 'en-CA',
 };
 
 /**

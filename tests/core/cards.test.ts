@@ -218,6 +218,7 @@ describe('cards', () => {
     it('reads the Language field, in English or as the language writes itself', () => {
       expect(speechLangFor(omniNote({ Language: 'Italian' }))).toBe('it-IT');
       expect(speechLangFor(omniNote({ Language: 'Türkçe' }))).toBe('tr-TR');
+      expect(speechLangFor(omniNote({ Language: 'Newfinese' }))).toBe('en-CA');
       expect(speechLangFor(omniNote({ Language: 'čeština' }))).toBe('cs-CZ');
       expect(speechLangFor(omniNote({ Language: 'Bahasa Indonesia' }))).toBe('id-ID');
     });
