@@ -16,7 +16,7 @@ export function useCoverTint(key: string | number): string {
  * large, and a line at the foot (with a bar for how far through a season a story is). No pictures:
  * the tint and the title are the cover.
  */
-export function Cover({ tint, kind, title, meta, metaColor, progress, width = 220, onPress, onLongPress, accessibilityLabel, children }: {
+export function Cover({ tint, kind, title, meta, metaColor, progress, width = 220, onPress, onLongPress, accessibilityLabel, corner, children }: {
   tint: string;
   kind: string;
   title: string;
@@ -28,6 +28,8 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
   onPress: () => void;
   onLongPress?: () => void;
   accessibilityLabel?: string;
+  /** Drawn in the top right corner, with the kind and title kept clear of it. */
+  corner?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   const c = useTheme();
@@ -44,10 +46,11 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
         justifyContent: 'space-between', gap: space.s, opacity: pressed ? 0.75 : 1,
       })}
     >
-      <View style={{ gap: space.xs + 2 }}>
+      <View style={{ gap: space.xs + 2, paddingRight: corner ? 22 + space.s : 0 }}>
         <Text style={{ ...type.overline, fontSize: 11, color: c.textSecondary }}>{kind}</Text>
         <Text style={{ fontSize: 19, fontWeight: '800', lineHeight: 22, color: c.text }}>{title}</Text>
       </View>
+      {corner ? <View style={{ position: 'absolute', top: space.m + 2, right: space.m + 2 }}>{corner}</View> : null}
       <View style={{ gap: space.s }}>
         {children}
         {progress != null ? (

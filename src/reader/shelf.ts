@@ -27,19 +27,6 @@ export function episodeLabel(story: Pick<ShelfStory, 'season' | 'season_episode'
   return `Episode ${at} of ${length}${at === length ? ' · Finale' : ''}`;
 }
 
-/** The model that wrote a text, as its card names it; null for one the card has nothing to say about. */
-export function modelLabel(text: Pick<ShelfText, 'model'>): string | null {
-  if (text.model?.startsWith('claude-haiku')) return 'Haiku';
-  if (text.model?.startsWith('claude-sonnet')) return 'Sonnet';
-  return null;
-}
-
-/** A shelf row's length with the model that wrote it: "Dialogue · 3 min · Haiku". */
-export function shelfDetail(text: Pick<ShelfText, 'form' | 'lines' | 'model'>): string {
-  const model = modelLabel(text);
-  return model ? `${cardDetail(text)} · ${model}` : cardDetail(text);
-}
-
 /** Why a text is on the shelf, as its card says it. */
 export function reasonLabel(text: ShelfText): string {
   switch (text.reason) {
