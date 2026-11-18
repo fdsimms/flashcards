@@ -224,7 +224,7 @@ describe('cards', () => {
       const recorded = { ...note, fields: { ...note.fields, Audio: '[sound:q.mp3]' } };
       expect(autoplayFor(renderCard(recorded, 'audio'), false)).toEqual({ text: undefined, file: 'q.mp3' });
       expect(autoplayFor(renderCard(recorded, 'reverse'), true)).toEqual({ text: undefined, file: 'q.mp3' });
-      expect(playbackFor(renderCard(recorded, 'forward'), false)).toEqual({ text: undefined, file: 'q.mp3' });
+      expect(playbackFor(renderCard(recorded, 'forward'), true)).toEqual({ text: undefined, file: 'q.mp3' });
     });
     it("says so on an audio card's front when there is nothing to play", () => {
       const note = inDeck('Languages::Klingon', { Entry: 'Qapla’', GenerateAudioCard: 'y' });
@@ -281,17 +281,22 @@ describe('cards', () => {
       expect(playbackFor(renderCard(note, 'reverse'), true)?.file).toBe(FILE);
     });
 
-    it('plays the recording from Play on the front of a forward card, which already shows the word', () => {
+    it('offers no Play on the front of a forward card, which shows the word, until the answer is shown', () => {
       const r = renderCard(note, 'forward');
-      expect(playbackFor(r, false)?.file).toBe(FILE);
+      expect(playbackFor(r, false)).toBeUndefined();
       expect(playbackFor(r, true)?.file).toBe(FILE);
+    });
+
+    it('still offers Play on the front of the audio card, where the sound is the question', () => {
+      expect(playbackFor(renderCard(note, 'audio'), false)?.file).toBe(FILE);
     });
 
     it('speaks nothing by itself on the front of a forward card, and the word when its answer is shown', () => {
       const plain = omniNote({ Entry: 'kot', GenerateReverse: 'y' });
       expect(autoplayFor(renderCard(plain, 'forward'), false)).toBeUndefined();
       expect(autoplayFor(renderCard(plain, 'forward'), true)?.text).toBe('kot');
-      expect(playbackFor(renderCard(plain, 'forward'), false)).toEqual({ text: 'kot', file: undefined });
+      expect(playbackFor(renderCard(plain, 'forward'), false)).toBeUndefined();
+      expect(playbackFor(renderCard(plain, 'forward'), true)).toEqual({ text: 'kot', file: undefined });
     });
 
     it('speaks the reverse word when its answer is shown, and the audio card its word as it comes up', () => {
