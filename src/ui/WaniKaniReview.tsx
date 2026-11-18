@@ -23,6 +23,7 @@ import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subje
 import { useKeyboardInset } from './useKeyboardInset';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
+import { LessonsPausedNote } from './LessonsPausedNote';
 import { Reveal } from './motion';
 import { CardSurface } from './Review';
 import { useAnswerFlash } from './SwipeCard';
@@ -480,11 +481,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             {done ? `${done} ${done === 1 ? 'item' : 'items'} this session` : 'Nothing due right now'}
           </Text>
           {droppedNote()}
-          {next.held && prefs.maxApprentice !== null ? (
-            <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>
-              {`Lessons paused: ${next.apprentice} at Apprentice (limit ${prefs.maxApprentice})`}
-            </Text>
-          ) : null}
+          {next.held && prefs.maxApprentice !== null ? <LessonsPausedNote apprentice={next.apprentice} limit={prefs.maxApprentice} /> : null}
           </ScrollView>
         </Reveal>
       </Screen>
