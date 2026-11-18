@@ -164,7 +164,7 @@ describe('deleting a deck', () => {
     await f.store.saveDeckSettings(TRIVIA, { gateCap: 5 });
     // A card of Franki's own in the deck counts too.
     await addOwnNote(f.store, 'tsv:1', TRIVIA);
-    expect(await deckDeletionPreview(f.store, TRIVIA)).toEqual({ cards: 7, inAnki: true, keepsDeck: false });
+    expect(await deckDeletionPreview(f.store, TRIVIA)).toEqual({ cards: 7, returned: 0, inAnki: true, keepsDeck: false });
     await deleteDeck(f.store, TRIVIA, f.refresh, NOW);
     expect(decksOfNotes(f.store)).toEqual([THAI]);
     // Its card that was in Filtered Deck 1 went with it.
@@ -187,7 +187,7 @@ describe('deleting a deck', () => {
 
   it('empties Anki\'s Default deck but keeps it, as Anki does', async () => {
     const f = await franki();
-    expect(await deckDeletionPreview(f.store, 'Default')).toEqual({ cards: 0, inAnki: true, keepsDeck: true });
+    expect(await deckDeletionPreview(f.store, 'Default')).toEqual({ cards: 0, returned: 0, inAnki: true, keepsDeck: true });
     await deleteDeck(f.store, 'Default', f.refresh, NOW);
     expect(await f.ankiDecks()).toContain('Default');
   });
@@ -197,7 +197,7 @@ describe('deleting a deck', () => {
     await addOwnNote(f.store, 'tsv:1', 'TSV');
     await addOwnNote(f.store, 'tsv:2', 'TSV::Sub');
     await f.store.saveDeckSettings('TSV::Sub', { created: true });
-    expect(await deckDeletionPreview(f.store, 'TSV')).toEqual({ cards: 2, inAnki: false, keepsDeck: false });
+    expect(await deckDeletionPreview(f.store, 'TSV')).toEqual({ cards: 2, returned: 0, inAnki: false, keepsDeck: false });
     await deleteDeck(f.store, 'TSV', f.refresh, NOW);
     expect(f.store.notes.has('tsv:1') || f.store.notes.has('tsv:2')).toBe(false);
     expect(f.store.deckSettings.has('TSV::Sub')).toBe(false);
