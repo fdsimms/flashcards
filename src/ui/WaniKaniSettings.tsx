@@ -130,9 +130,20 @@ export function WaniKaniSettings({ wanikani, decks }: {
         )}
 
         <SectionTitle>Answers</SectionTitle>
-        <Group accessibilityRole="radiogroup">
-          <CheckRow first label="Type the answer" hint="As on WaniKani. For a reading, romaji turns into kana as you type." selected={prefs.answer === 'type'} onPress={() => setPrefs({ answer: 'type' })} />
-          <CheckRow label="Show the answer, then rate it" hint="Again or Good, like your other decks. Again counts as one wrong answer." selected={prefs.answer === 'flip'} onPress={() => setPrefs({ answer: 'flip' })} />
+        <Group>
+          <SwitchRow
+            first
+            label="Type the meaning"
+            hint="As on WaniKani. Off, the answer is shown and you rate it Again or Good, like your other decks. Again counts as one wrong answer."
+            value={prefs.typeMeaning}
+            onValueChange={(typeMeaning) => setPrefs({ typeMeaning })}
+          />
+          <SwitchRow
+            label="Type the reading"
+            hint="Romaji turns into kana as you type. Off, the answer is shown and you rate it."
+            value={prefs.typeReading}
+            onValueChange={(typeReading) => setPrefs({ typeReading })}
+          />
         </Group>
         <Group>
           <SwitchRow

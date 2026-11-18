@@ -6,8 +6,10 @@ import { parseSkipped, type SkippedWord } from './skipped';
 
 /** WaniKani's options in Franki: this phone's own, kept beside the token (storage.ts). */
 export interface WaniKaniPrefs {
-  /** Type the answer, as on WaniKani, or show it and rate yourself. */
-  answer: 'type' | 'flip';
+  /** Type a meaning, as on WaniKani, or show it and rate yourself. */
+  typeMeaning: boolean;
+  /** Type a reading (romaji turns into kana), or show it and rate yourself. */
+  typeReading: boolean;
   /** Ask meaning and reading as two questions, as WaniKani does. */
   separate: boolean;
   /** Lessons a study day, counting lessons done on WaniKani itself that day. */
@@ -24,7 +26,7 @@ export interface WaniKaniPrefs {
   productionDeck?: string;
 }
 
-export const DEFAULT_PREFS: WaniKaniPrefs = { answer: 'type', separate: true, newPerDay: 15, maxApprentice: null, autoplay: true, stageAnimation: true, production: true };
+export const DEFAULT_PREFS: WaniKaniPrefs = { typeMeaning: true, typeReading: true, separate: true, newPerDay: 15, maxApprentice: null, autoplay: true, stageAnimation: true, production: true };
 
 export const NEW_PER_DAY_CHOICES = [0, 5, 10, 15, 20, 30, 50];
 
@@ -48,7 +50,9 @@ export function parsePrefs(raw: string | null | undefined): WaniKaniPrefs {
     // A setting that can't be read is the default.
   }
   return {
-    answer: o.answer === 'flip' ? 'flip' : o.answer === 'type' ? 'type' : DEFAULT_PREFS.answer,
+    // `answer` ('type' or 'flip') was one choice for both before they were split.
+    typeMeaning: typeof o.typeMeaning === 'boolean' ? o.typeMeaning : o.answer !== 'flip',
+    typeReading: typeof o.typeReading === 'boolean' ? o.typeReading : o.answer !== 'flip',
     separate: typeof o.separate === 'boolean' ? o.separate : DEFAULT_PREFS.separate,
     newPerDay: typeof o.newPerDay === 'number' && o.newPerDay >= 0 ? Math.floor(o.newPerDay) : DEFAULT_PREFS.newPerDay,
     maxApprentice: typeof o.maxApprentice === 'number' && o.maxApprentice >= 0 ? Math.floor(o.maxApprentice) : null,

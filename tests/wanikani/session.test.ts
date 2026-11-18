@@ -34,10 +34,10 @@ describe('building a session', () => {
   });
 
   it('reads the options as a question mode', () => {
-    expect(questionMode('flip', false)).toBe('together');
-    expect(questionMode('type', false)).toBe('adjacent');
-    expect(questionMode('type', true)).toBe('apart');
-    expect(questionMode('flip', true)).toBe('apart');
+    expect(questionMode({ meaning: false, reading: false }, false)).toBe('together');
+    expect(questionMode({ meaning: true, reading: true }, false)).toBe('adjacent');
+    expect(questionMode({ meaning: true, reading: false }, true)).toBe('apart');
+    expect(questionMode({ meaning: false, reading: false }, true)).toBe('apart');
   });
 
   it('puts lessons after the reviews, each batch shown and then quizzed', () => {
@@ -208,7 +208,7 @@ describe('undo', () => {
   const typedStudy = () => startStudy({
     ...buildSession([vocab, radical], { mode: 'apart' }, first),
     queue: [{ assignmentId: 1, kind: 'meaning' }, { assignmentId: 1, kind: 'reading' }, { assignmentId: 2, kind: 'meaning' }],
-  }, true);
+  }, { meaning: true, reading: true });
 
   it('keeps a typed miss when its answer is undone, since the right answer was shown', () => {
     const start = typedStudy();
@@ -238,6 +238,20 @@ describe('undo', () => {
     study = studyUndo(study, true)!;
     expect(currentQuestion(study.session)).toEqual({ assignmentId: 1, kind: 'meaning' });
     expect(study.session.progress[1]).toMatchObject({ meaning: false, wrongMeaning: 0, wrongReading: 1 });
+  });
+
+  it('keeps a miss only for the kind that was typed when meanings are rated and readings typed', () => {
+    const mixed = () => startStudy({
+      ...buildSession([vocab, radical], { mode: 'apart' }, first),
+      queue: [{ assignmentId: 1, kind: 'meaning' }, { assignmentId: 1, kind: 'reading' }, { assignmentId: 2, kind: 'meaning' }],
+    }, { meaning: false, reading: true });
+    // A rated meaning Again is taken back with the undo.
+    let study = studyUndo(studyAnswer(mixed(), false, at, first).study)!;
+    expect(study.session.progress[1]).toMatchObject({ wrongMeaning: 0, wrongReading: 0 });
+    // A typed reading miss stays counted.
+    study = studyAnswer(mixed(), true, at, first).study;
+    study = studyUndo(studyAnswer(study, false, at, first).study)!;
+    expect(study.session.progress[1]).toMatchObject({ wrongMeaning: 0, wrongReading: 1 });
   });
 
   it('takes back a rated Again, which may have been a mistaken tap', () => {
