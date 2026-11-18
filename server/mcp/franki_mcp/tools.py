@@ -259,7 +259,8 @@ reaches their devices at their next sync.
 - Pronunciation: fill_pronunciation fills the Pronunciation field (IPA) of Omnilanguage notes that
   have it empty, from Read & Listen (Wiktionary's tables; Japanese by rule from KanaReading; IPA Claude
   wrote, tagged ipa-unverified). It needs the field (add_field, after every device is synced) and
-  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree.
+  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree. Turn on
+  the daily fill (set_pronunciation_auto_fill) only once they've checked a batch.
 - New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
   own new-card positions, so every device follows and no schedule changes). It needs Read &
   Listen running. Preview first, show the user the start of the order and how many words had no

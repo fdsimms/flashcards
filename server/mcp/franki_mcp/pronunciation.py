@@ -12,8 +12,11 @@ whose IPA was written by Claude gets the tag `ipa-unverified`, so it can be foun
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
+
+import anyio
 
 from anki.collection import Collection  # first: the anki package's modules import each other
 from anki.errors import NotFoundError
@@ -30,6 +33,11 @@ FIELD = "Pronunciation"
 UNVERIFIED_TAG = "ipa-unverified"
 MAX_PER_CALL = 100
 SHOWN_NOT_FOUND = 50
+AUTO_FILL_KEY = "frankiPronunciationAutoFill"
+FIRST_RUN_DELAY = 15 * 60
+EVERY = 24 * 60 * 60
+
+log = logging.getLogger(__name__)
 
 # Read & Listen's language codes, by the names the Language field uses (`LANG_TAGS` in src/core/cards.ts).
 # A language with no pronunciation table there (English) is left out and counted under `other_languages`.
@@ -166,6 +174,38 @@ def apply(col: Collection, fill: FillPlan) -> int:
     return len(notes)
 
 
+@dataclass
+class FillResult:
+    plan: FillPlan
+    written: int
+
+
+async def fill(cm: CollectionManager, reader: ReaderClient, query: str, limit: int | None, dry_run: bool) -> FillResult:
+    """Finds the notes (a read), asks Read & Listen for their IPA, then writes it (unless `dry_run`)."""
+    found_notes = await cm.read(lambda col: survey(col, query))
+    planned = plan(found_notes, await lookup(reader, found_notes.candidates), limit)
+    if dry_run or not planned.filled:
+        return FillResult(planned, 0)
+    return FillResult(planned, await cm.write(lambda col: apply(col, planned)))
+
+
+async def auto_fill_loop(cm: CollectionManager, reader: ReaderClient, first_delay: float = FIRST_RUN_DELAY, every: float = EVERY) -> None:
+    """Once a day, while it's turned on (`set_pronunciation_auto_fill`), fills every Omnilanguage note's empty Pronunciation field."""
+    await anyio.sleep(first_delay)
+    while True:
+        try:
+            if await cm.read(lambda col: bool(col.get_config(AUTO_FILL_KEY, False))):
+                result = await fill(cm, reader, "", None, dry_run=False)
+                log.info("pronunciation filled on %d notes; %d not found", result.written, len(result.plan.not_found))
+        except MissingField:
+            log.info("pronunciation auto-fill is on, but the Omnilanguage note type has no Pronunciation field yet")
+        except ToolError as e:
+            log.info("pronunciation auto-fill skipped: %s", e)  # Read & Listen out of reach: the next run tries again
+        except Exception:  # noqa: BLE001 - a failed run waits for the next one
+            log.exception("pronunciation auto-fill failed")
+        await anyio.sleep(every)
+
+
 def register(server: MCPServer, cm: CollectionManager, reader: ReaderClient) -> None:
     """The pronunciation tool: fill_pronunciation (a batch, previewed first)."""
 
@@ -184,18 +224,15 @@ def register(server: MCPServer, cm: CollectionManager, reader: ReaderClient) -> 
         if not 1 <= limit <= MAX_PER_CALL:
             raise ToolError(f"limit must be between 1 and {MAX_PER_CALL}.")
         try:
-            found_notes = await cm.read(lambda col: survey(col, query))
+            result = await fill(cm, reader, query, limit, dry_run)
         except MissingField as e:
             raise ToolError(MissingField.MESSAGE) from e
         except ToolError:
-            raise  # already says what to change (a sync problem, for one)
+            raise  # already says what to change (a sync problem, Read & Listen out of reach)
         except Exception as e:  # noqa: BLE001 - Anki's search errors
             raise ToolError(f"Anki couldn't read the search: {e}") from e
-        answers = await lookup(reader, found_notes.candidates)
-        planned = plan(found_notes, answers, limit)
-        written = 0
-        if not dry_run and planned.filled:
-            written = await cm.write(lambda col: apply(col, planned))
+        planned, written = result.plan, result.written
+        auto = await cm.read(lambda col: bool(col.get_config(AUTO_FILL_KEY, False)))
         return {
             "would_fill" if dry_run else "filled": [
                 {"note_id": p.note_id, "word": p.word, "ipa": p.ipa, "source": p.source} for p in planned.filled
@@ -205,6 +242,15 @@ def register(server: MCPServer, cm: CollectionManager, reader: ReaderClient) -> 
             "not_found": planned.not_found[:SHOWN_NOT_FOUND],
             "other_languages": planned.unsupported,
             "remaining": planned.remaining,
+            "auto_fill": auto,
             "source": "Wiktionary (CC BY-SA 4.0) via Read & Listen; Japanese by rule from the kana reading; "
             f"IPA written by Claude is tagged {UNVERIFIED_TAG}",
         }
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False))
+    async def set_pronunciation_auto_fill(on: bool) -> dict[str, Any]:
+        """Turns the daily fill on or off: once a day, every Omnilanguage note with an empty Pronunciation
+        field is filled as fill_pronunciation would (what Read & Listen has IPA for; the rest stay empty).
+        Turn it on only after the user has checked a batch."""
+        await cm.write(lambda col: col.set_config(AUTO_FILL_KEY, on))
+        return {"auto_fill": on}

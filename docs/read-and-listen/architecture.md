@@ -571,6 +571,7 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   from `/api/pronunciations` (`ipa.ipa_of_entry`, the same lookup a text's token gets, so a card and the
   popup agree): previewed first, never over a field with anything in it, and a note whose IPA is `ai`
   is tagged `ipa-unverified`. It reads only and never asks Claude for a word's IPA, so it costs nothing.
+  A daily fill for notes added since (`set_pronunciation_auto_fill`) is off until the owner turns it on.
   The field is in `omnilanguageFieldNames`, after Forms, where `add_field` puts it: the live note type
   needs it too (`add_field`, which makes every device download the whole collection once, so sync every
   device first), or a TSV with no `#columns` header maps by position onto a field that isn't there.

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 
+import anyio
 import httpx
 import pytest
 
 from anki.collection import Collection  # noqa: F401 - first, for the anki package's imports
 from conftest import call, call_error
+from franki_mcp import pronunciation
 from franki_mcp.reader import ReaderClient, ReaderSettings
 from franki_mcp.server import build_server
 from mcp import Client
@@ -135,3 +137,30 @@ async def test_without_read_and_listen_it_says_how_to_turn_it_on(cm, desktop):
     async with Client(build_server(cm, reader=reader)) as c:
         message = await call_error(c, "fill_pronunciation")
     assert "Read & Listen" in message
+
+
+async def test_the_daily_fill_runs_only_once_turned_on(cm, desktop):
+    dom = notes(desktop)[0]
+    reader, _ = reader_answering(ANSWERS)
+    async with Client(build_server(cm, reader=reader)) as c:
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(pronunciation.auto_fill_loop, cm, reader, 0, 0.2)
+            await anyio.sleep(1)
+            assert desktop.run("sync", "+", "fields", f"nid:{dom}")["fields"][str(dom)]["Pronunciation"] == ""
+            assert (await call(c, "fill_pronunciation"))["auto_fill"] is False
+            assert (await call(c, "set_pronunciation_auto_fill", on=True))["auto_fill"] is True
+            await anyio.sleep(1.5)
+            tg.cancel_scope.cancel()
+    assert desktop.run("sync", "+", "fields", f"nid:{dom}")["fields"][str(dom)]["Pronunciation"] == "[dom]"
+
+
+async def test_the_daily_fill_survives_a_missing_field_and_read_and_listen_being_out_of_reach(cm, desktop):
+    notes(desktop, "Entry,Meaning,Language,KanaReading")
+    reader, _ = reader_answering(None)
+    async with Client(build_server(cm, reader=reader)) as c:
+        await call(c, "set_pronunciation_auto_fill", on=True)
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(pronunciation.auto_fill_loop, cm, reader, 0, 0.2)
+            await anyio.sleep(1)
+            assert not tg.cancel_scope.cancel_called  # the loop is still running: nothing raised out of it
+            tg.cancel_scope.cancel()
