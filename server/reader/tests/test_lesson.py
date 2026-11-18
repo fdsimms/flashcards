@@ -274,9 +274,10 @@ class TestBuildScript:
         )
         tail = steps[start:]
         cue = tail.index(Say("narrator", "You say: Hello, what would you like?"))
-        gap = tail[cue + 1]
+        # "Bonjour, vous désirez ?" uses no word a phrase taught, so it's heard first, then repeated.
+        assert tail[cue + 1] == Say("male", "Bonjour, vous désirez ?")
+        gap = tail[cue + 2]
         assert isinstance(gap, Silence) and gap.ms >= lesson.PAUSE_MIN_MS
-        assert tail[cue + 2] == Say("male", "Bonjour, vous désirez ?")
         # The other speaker's line is played with no cue and no answer to wait for.
         assert Say("female", "Je voudrais un café.") in tail
         assert Say("narrator", "You say: I'd like a coffee.") not in tail
@@ -292,6 +293,34 @@ class TestBuildScript:
         )
         assert last_taught < asked < role
         assert steps[asked + 2] == Say("male", MIX.text)
+
+    def test_a_line_made_of_taught_words_is_asked_cold_and_any_other_is_heard_first(self) -> None:
+        lines = (
+            Line("A", "Je voudrais un café.", "I'd like a coffee."),
+            Line("B", "Voilà.", "Here you are."),
+            Line("A", "Merci beaucoup.", "Thank you very much."),
+        )
+        taught = lesson.words_of("Je voudrais un café.")
+        steps = lesson._role_play(lines, "male", taught)
+        cold = steps.index(Say("narrator", "You say: I'd like a coffee."))
+        assert isinstance(steps[cold + 1], Silence)
+        assert steps[cold + 2] == Say("male", "Je voudrais un café.")
+        new = steps.index(Say("narrator", "You say: Thank you very much."))
+        assert steps[new + 1] == Say("male", "Merci beaucoup.")
+        assert isinstance(steps[new + 2], Silence)
+        assert (
+            Say("narrator", "When a line is new, you will hear it first and then say it.") in steps
+        )
+
+    def test_says_the_learner_is_second_when_the_dialogue_starts_with_b(self) -> None:
+        lines = (Line("B", "Bonjour.", "Hello."), Line("A", "Bonjour.", "Hello."))
+        said_by_narrator = [
+            s.text
+            for s in lesson._role_play(lines, "male", set())
+            if isinstance(s, Say) and s.voice == "narrator"
+        ]
+        assert "first speaker" not in said_by_narrator[0]
+        assert "second speaker" in said_by_narrator[0]
 
     def test_a_plan_without_mixes_has_no_mix_introduction(self) -> None:
         steps = lesson.build_script(PLAN)
@@ -469,7 +498,7 @@ class TestLearner:
     ) -> None:
         tail = lesson.build_script(PLAN, "female")
         cue = tail.index(Say("narrator", "You say: Hello, what would you like?"))
-        assert tail[cue + 2] == Say("female", "Bonjour, vous désirez ?")
+        assert tail[cue + 1] == Say("female", "Bonjour, vous désirez ?")
         assert Say("male", "Je voudrais un café.") in tail[cue:]
 
     def test_a_man_is_the_default(self) -> None:
@@ -518,6 +547,19 @@ def test_a_given_plan_teaches_every_given_phrase_as_the_learner_has_it() -> None
         # Left out by Claude: taught whole, last.
         Phrase("presque", "almost", ("presque",)),
     )
+    assert [m.text for m in plan.mixes] == ["Un café, s'il vous plaît"]
+
+
+def test_a_given_plan_drops_a_mix_that_is_only_given_phrases_in_a_row() -> None:
+    raw = {
+        **GIVEN_RAW,
+        "mixes": [
+            {"text": "Presque, un café", "english": "almost, a coffee"},
+            {"text": "Un café, s'il vous plaît", "english": "A coffee, please"},
+        ],
+    }
+    plan = lesson.clean_given_plan(raw, "my lesson", GIVEN)
+    assert plan is not None
     assert [m.text for m in plan.mixes] == ["Un café, s'il vous plaît"]
 
 

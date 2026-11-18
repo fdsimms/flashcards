@@ -15,9 +15,12 @@ exact and the same every time:
    have been taught), each asked in English with a silence to answer.
 5. A few new sentences, never taught whole, are asked for in English: built only from words the
    phrases already used, so the learner puts the pieces together (`Plan.mixes`).
-6. The learner then takes the first speaker's part in the dialogue: the narrator gives each line in
-   English, a silence follows, and the native voice answers; the other speaker's lines are played.
-   The first speaker, and every phrase taught, is in the voice of the learner's gender (`Learner`).
+6. The learner then takes speaker A's part in the dialogue (the narrator says whether that is the
+   first or the second speaker, as the dialogue really runs): the narrator gives each line in
+   English; a line made of words the phrases taught is then asked cold (a silence, then the native
+   voice answers), and any other line is said by the native voice first and then repeated in a
+   silence, so the learner is never asked for what they weren't given. The other speaker's lines
+   are played. A, and every phrase taught, is in the voice of the learner's gender (`Learner`).
 
 The phrases are written as a ladder, each reusing words from the ones before it, so the lesson
 builds on itself rather than teaching separate phrases.
@@ -192,9 +195,25 @@ def words_of(text: str) -> set[str]:
     return set(tokens(text.casefold()))
 
 
-def clean_mix(raw: object, known: set[str]) -> Phrase | None:
+def _is_phrases_end_to_end(plain: str, phrases: tuple[str, ...]) -> bool:
+    """Whether `plain` is nothing but whole phrases (each `_plain`) one after another, in any order
+    and with repeats: two phrases said in a row ("soon, don't forget") aren't a new sentence."""
+    reach = [True] + [False] * len(plain)
+    for end in range(1, len(plain) + 1):
+        reach[end] = any(
+            reach[end - len(p)] and plain.endswith(p, 0, end)
+            for p in phrases
+            if p and len(p) <= end
+        )
+    return reach[len(plain)]
+
+
+def clean_mix(raw: object, known: set[str], taught: tuple[str, ...] = ()) -> Phrase | None:
     """A new sentence Claude wrote from the taught phrases' words, or None unless every word of it is
-    one of `known` (a model told to reuse words doesn't always, so the code checks)."""
+    one of `known` (a model told to reuse words doesn't always, so the code checks), and it isn't
+    just taught phrases (`taught`, each `_plain`) said one after another. Only a lesson on the
+    learner's own words passes `taught`: there the phrases are vocabulary ("soon", "don't forget"),
+    and two of them in a row is no sentence, where a written lesson's phrases can make one."""
     if not isinstance(raw, dict):
         return None
     text, english = raw.get("text"), raw.get("english")
@@ -204,6 +223,8 @@ def clean_mix(raw: object, known: set[str]) -> Phrase | None:
     if not text or not english or len(text) > MAX_CHARS or len(english) > MAX_CHARS:
         return None
     if not words_of(text) or not words_of(text) <= known:
+        return None
+    if _is_phrases_end_to_end(_plain(text), taught):
         return None
     return Phrase(text, english, (text,))
 
@@ -283,7 +304,7 @@ def clean_given_plan(raw: object, scene: str, given: tuple[Phrase, ...]) -> Plan
     taught = {_plain(p.text) for p in phrases}
     mixes: list[Phrase] = []
     for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
-        mix = clean_mix(item, known)
+        mix = clean_mix(item, known, tuple(_plain(p.text) for p in phrases))
         if mix is not None and _plain(mix.text) not in taught:
             taught.add(_plain(mix.text))
             mixes.append(mix)
@@ -386,22 +407,46 @@ def _dialogue(lines: tuple[Line, ...], intro: str, learner: Learner) -> list[Ste
     return steps
 
 
-def _role_play(lines: tuple[Line, ...], learner: Learner) -> list[Step]:
-    """The learner is the first speaker (A): the narrator gives each of their lines in English, a
-    silence follows, and the native voice answers. B's lines are played."""
+def _role_play(
+    lines: tuple[Line, ...], learner: Learner, taught_words: set[str] | None = None
+) -> list[Step]:
+    """The learner is speaker A: the narrator gives each of their lines in English. A line made only
+    of `taught_words` (words from the phrases taught) is asked cold: a silence, then the native voice
+    answers. Any other line is new to them, so the native voice says it first and the silence that
+    follows is for repeating it. B's lines are played. The narrator says whether A speaks first or
+    second, as the dialogue runs."""
+    known = taught_words or set()
+    starts = lines[0].speaker == "A" if lines else True
     steps: list[Step] = [
-        Say("narrator", "Now take part in the conversation. You are the first speaker."),
+        Say(
+            "narrator",
+            "Now take part in the conversation. You are the first speaker."
+            if starts
+            else "Now take part in the conversation. You are the second speaker, so you will hear"
+            " the first line before you speak.",
+        ),
         Silence(BEAT_MS),
     ]
+    if any(line.speaker == "A" and not words_of(line.text) <= known for line in lines):
+        steps += [
+            Say("narrator", "When a line is new, you will hear it first and then say it."),
+            Silence(BEAT_MS),
+        ]
     for line in lines:
         if line.speaker == "B":
             steps += [Say(other(learner), line.text), Silence(AFTER_NATIVE_MS)]
-        else:
+        elif words_of(line.text) <= known:
             steps += [
                 Say("narrator", f"You say: {line.english}"),
                 Silence(pause_ms(word_count(line.text))),
                 Say(learner, line.text),
                 Silence(AFTER_NATIVE_MS),
+            ]
+        else:
+            steps += [
+                Say("narrator", f"You say: {line.english}"),
+                Say(learner, line.text),
+                Silence(pause_ms(word_count(line.text))),
             ]
     return steps
 
@@ -433,7 +478,8 @@ def build_script(plan: Plan, learner: Learner = "male") -> list[Step]:
         )
         for mix in plan.mixes:
             steps += _ask(mix, learner)
-    steps += _role_play(plan.dialogue, learner)
+    taught_words = set().union(*(words_of(p.text) for p in plan.phrases))
+    steps += _role_play(plan.dialogue, learner, taught_words)
     steps.append(Say("narrator", "That's the end of the lesson."))
     return steps
 
