@@ -1229,15 +1229,17 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   small and the title large, never a picture. Top to bottom: the reviews-due row; a **banner** for
   the pinned story (its next episode, practice words, Play episode N, Episodes); **Your stories** (the
   other running and ended stories, with how far through the season each is and whether its next
-  episode is ready; See all opens Stories); **Quick texts** (what the shelf has: texts asked for
+  episode is ready; See all opens Stories); **Texts** (what the shelf has: texts asked for
   that aren't story episodes, the name used for them in the app since then, with Play all); **Hear
-  again**; **Reread** (quick texts read, newest first; See all opens the full list); and Marked
-  words. A quick text's cover says its length, model and reason; the line count is gone. Play all
-  plays only the Quick texts row: the reader's Next after an episode still goes on to the shelf
+  again**; **Reread** (texts read, newest first; See all opens the full list); and Marked
+  words. A text's cover says its length, model and reason; the line count is gone. Play all
+  plays only the Texts row: the reader's Next after an episode still goes on to the shelf
   (`playOrder`), while Play all moving on stays within it (`upNextOrder`). The header's + opens a
-  sheet to start a story or have a quick text written (Surprise me, or a topic as Dialogue or Story,
-  and Written by); it isn't shown offline, and neither are the rows that need the server. A story's
-  own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
+  sheet with three tiles: **Series** (what this file calls a story elsewhere: episodes that pick up
+  where the last one ended), **Dialogue** and **Story** (a one-off), each of those two with Surprise
+  me, or a topic, and Written by; it isn't shown offline, and neither are the rows that need the
+  server. The app says "Series" for the running kind, while the server's routes and tables keep
+  `story`. A series' own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
   episode, Last time, and its episodes by season, and its ••• pins it to the top, ends it or
   continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.

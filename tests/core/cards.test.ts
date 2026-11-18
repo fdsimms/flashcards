@@ -64,14 +64,15 @@ describe('cards', () => {
       expect(at).toBeGreaterThan(back.findIndex((b) => b.text === '大人'));
     }
   });
-  it('lays out the back as the answer, tags, the example sentence, then the notes', () => {
+  it('lays out the back as the answer, tags, the mnemonic and notes, then the example sentence', () => {
     const note = omniNote({
       Entry: 'ดม', Transliteration: 'dom', Meaning: 'to smell', PartOfSpeech: 'verb', Register: 'neutral',
       Context: 'ขอดมดอกไม้หน่อยครับ', ContextRomanized: 'khǎaw dom dòk-máai nòi khráp', ContextTranslation: 'May I smell the flower?',
-      Notes: 'active smelling',
+      Notes: 'active smelling', Mnemonic: 'dome',
     });
     const back = renderCard(note, 'forward').back.blocks;
-    expect(back.map((b) => b.role)).toEqual([undefined, undefined, 'chips', 'example', 'exampleRomanized', 'exampleTranslation', 'note']);
+    expect(back.map((b) => b.role)).toEqual([undefined, undefined, 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
+    expect(back[3]?.label).toBe('Mnemonic');
     expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
     expect(back.find((b) => b.role === 'example')).toMatchObject({ segments: [{ text: 'ขอ', marked: false }, { text: 'ดม', marked: true }, { text: 'ดอกไม้หน่อยครับ', marked: false }], label: undefined, tapLabel: undefined });
     expect(back.find((b) => b.role === 'exampleRomanized')).toMatchObject({ tapLabel: 'Show romanization' });

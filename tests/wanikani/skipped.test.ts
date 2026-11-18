@@ -35,6 +35,17 @@ describe('skipped words', () => {
     expect(withoutSkipped(list, [])).toBe(list);
   });
 
+  it('leaves skipped words out of the lessons too, and drops a lesson with its quiz from the session', () => {
+    const lessons = [assignment(1, 10), assignment(2, 20)];
+    expect(withoutSkipped(lessons, skipWord([], subject(10), 1)).map((a) => a.id)).toEqual([2]);
+    const lessonItem = (id: number): SessionItem => ({ ...item(id), lesson: true });
+    const study = startStudy(buildSession([lessonItem(1), lessonItem(2)], { mode: 'adjacent', lessonBatch: 5 }, () => 0));
+    const gone = study.session.queue[0].assignmentId;
+    const after = dropItem(study, gone);
+    expect(after.session.queue.every((q) => q.assignmentId !== gone)).toBe(true);
+    expect(after.session.queue.map((q) => q.kind)).toEqual(['lesson', expect.any(String)]);
+  });
+
   it('is kept in the state file and read back', () => {
     const words = skipWord([], subject(7), 70);
     expect(parseState(JSON.stringify({ skipped: words })).skipped).toEqual(words);

@@ -32,7 +32,7 @@ export function ReadStories({ api, onStory, onNew }: {
       setStories((await api.stories()).stories);
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't load your stories. Pull down to try again.");
+      setError(e instanceof ApiError ? e.message : "Couldn't load your series. Pull down to try again.");
     }
   }, [api]);
   // On focus too: a story changed on its page, or an episode read, changes its row.
@@ -56,10 +56,10 @@ export function ReadStories({ api, onStory, onNew }: {
 
   return (
     <Screen
-      title="Stories"
+      title="Series"
       toolbar={(
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button icon="plus" accessibilityLabel="Start a new story" onPress={onNew} />
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel="Start a new series" onPress={onNew} />
         </Stack.Toolbar>
       )}
     >
@@ -77,8 +77,8 @@ export function ReadStories({ api, onStory, onNew }: {
               <Group>
                 {running.map((s, i) => <StoryRow key={s.id} story={s} first={i === 0} onPress={() => onStory(s.id)} />)}
               </Group>
-            ) : <Help>No story is running. Tap + to start one.</Help>}
-            <Help>Each story writes its next episode once you've read the last, so a story you leave alone costs nothing.</Help>
+            ) : <Help>No series is running. Tap + to start one.</Help>}
+            <Help>Each series writes its next episode once you've read the last, so a series you leave alone costs nothing.</Help>
             {ended.length > 0 ? (
               <View style={{ gap: space.s, paddingTop: space.m }}>
                 <SectionTitle>Ended</SectionTitle>
@@ -96,7 +96,7 @@ export function ReadStories({ api, onStory, onNew }: {
 
 function StoryRow({ story, first, onPress }: { story: StoryListItem; first: boolean; onPress: () => void }) {
   const c = useTheme();
-  const name = story.title || 'Your story';
+  const name = story.title || 'Your series';
   const next = storyNext(story);
   const place = storyPlace(story);
   return (

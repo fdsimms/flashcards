@@ -18,9 +18,12 @@ import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
  * already in it, when its button is tapped; the button names the field.
  * A swipe down closes the sheet, except while an answer is on its way.
  */
-export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
+export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswer, onClose }: {
   card: CardForClaude;
   ask?: (turns: AskTurn[]) => Promise<string>;
+  /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
+  visible?: boolean;
+  onDismiss?: () => void;
   /** Adds an answer to the note's Notes field; throws when it can't be saved, and the sheet says why. */
   onSaveAnswer?: (answer: string) => Promise<void>;
   onClose: () => void;
@@ -80,7 +83,7 @@ export function AskCardSheet({ card, ask, onSaveAnswer, onClose }: {
   // A question that failed goes back in the box to resend, rather than staying as an unanswered turn.
   const failed = error && turns.at(-1)?.role === 'user' ? turns.at(-1)?.content : undefined;
   return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal={!asking} onRequestClose={() => { if (!asking) onClose(); }} backdropColor={c.surface}>
+    <Modal visible={visible} onDismiss={onDismiss} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal={!asking} onRequestClose={() => { if (!asking) onClose(); }} backdropColor={c.surface}>
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"

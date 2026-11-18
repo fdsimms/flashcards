@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Keyboard, ScrollView, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
-import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Form, type Language, type TextModel } from '../../reader/api';
+import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Language, type TextModel } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
@@ -11,35 +11,34 @@ import { hairline, radius, readable, smooth, space, type, useTheme } from '../th
 import { useCoverTint } from './Cover';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
-export type NewKind = 'story' | 'quick';
+export type NewKind = 'series' | 'dialogue' | 'story';
 
 /**
- * Having something written, from the home's + button, as a sheet. First a story or a quick text
- * (`kind` skips the choice). A story takes an optional line about what it's about and starts
- * running beside the others. A quick text is Surprise me (a topic idea the deck fits, in a random
- * form), or a typed topic in Dialogue or Story. Each is written in the background and shows on the
- * home when it's ready, so the sheet closes as soon as it's asked for.
+ * Having something written, from the home's + button, as a sheet. First a series, a dialogue or a
+ * story (`kind` skips the choice). A series takes an optional line about what it's about and starts
+ * running beside the others. A dialogue or a story is Surprise me (a topic idea the deck fits), or
+ * a typed topic. Each is written in the background and shows on the home when it's ready, so the
+ * sheet closes as soon as it's asked for.
  */
 export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: Api; language?: Language; kind?: NewKind; onDone: () => void }) {
   const c = useTheme();
   const [kind, setKind] = useState<NewKind | null>(initialKind ?? null);
   const [about, setAbout] = useState('');
   const [name, setName] = useState('');
-  const [form, setForm] = useState<Form>('dialogue');
   const [model, setModel] = useState<TextModel>('claude-sonnet-5-5');
   // Which way is working: the others are disabled meanwhile, without a spinner of their own.
-  const [busy, setBusy] = useState<'write' | 'surprise' | 'story' | null>(null);
+  const [busy, setBusy] = useState<'write' | 'surprise' | 'series' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { scrollProps, bottomPadding } = useKeyboardScroll();
 
   const write = async () => {
     const topic = name.trim();
-    if (!topic || busy) return;
+    if (!topic || busy || kind === null || kind === 'series') return;
     Keyboard.dismiss();
     setBusy('write');
     setError(null);
     try {
-      await api.writeAbout(topic, form, model);
+      await api.writeAbout(topic, kind, model);
       haptic.tap();
       onDone();
     } catch (e) {
@@ -49,14 +48,14 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
   };
 
   const surprise = async () => {
-    if (busy) return;
+    if (busy || kind === null || kind === 'series') return;
     Keyboard.dismiss();
     setBusy('surprise');
     setError(null);
     try {
       const pick = surprisePick(await api.suggestions(), Math.random);
-      if (!pick) throw new ApiError('There are no topic ideas left. Type a topic below and write a text on it instead.', 0);
-      await api.writeAbout(pick.name, pick.form, model);
+      if (!pick) throw new ApiError(`There are no topic ideas left. Type a topic below and write a ${kind} on it instead.`, 0);
+      await api.writeAbout(pick, kind, model);
       haptic.tap();
       onDone();
     } catch (e) {
@@ -65,17 +64,17 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
     }
   };
 
-  const startStory = async () => {
+  const startSeries = async () => {
     if (busy) return;
     Keyboard.dismiss();
-    setBusy('story');
+    setBusy('series');
     setError(null);
     try {
       await api.startStory(about.trim());
       haptic.tap();
       onDone();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn't start a story. Try again.");
+      setError(e instanceof ApiError ? e.message : "Couldn't start a series. Try again.");
       setBusy(null);
     }
   };
@@ -91,21 +90,22 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
     return (
       <Screen title={`New ${languageName}text`} largeTitle={false} toolbar={cancel}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: space.xl, gap: space.m }}>
-          <KindTile tintKey="story:new" icon="book" title="Story" detail="Episodes that pick up where the last one ended, with the same people and places." onPress={() => setKind('story')} />
-          <KindTile tintKey="quick:new" icon="bubble.left.and.bubble.right" title="Quick text" detail="One dialogue or story on a topic you type, or a surprise." onPress={() => setKind('quick')} />
-          <Help>Either one takes about half a minute and shows on the home when it's ready.</Help>
+          <KindTile tintKey="story:new" icon="book" title="Series" detail="Episodes that pick up where the last one ended, with the same people and places." onPress={() => setKind('series')} />
+          <KindTile tintKey="quick:new" icon="bubble.left.and.bubble.right" title="Dialogue" detail="A short conversation between two people." onPress={() => setKind('dialogue')} />
+          <KindTile tintKey="story:alone" icon="doc.text" title="Story" detail="A short story that stands on its own." onPress={() => setKind('story')} />
+          <Help>Each one takes about half a minute and shows on the home when it's ready.</Help>
         </ScrollView>
       </Screen>
     );
   }
 
-  if (kind === 'story') {
+  if (kind === 'series') {
     return (
       <Screen
-        title={`New ${languageName}story`}
+        title={`New ${languageName}series`}
         largeTitle={false}
         toolbar={cancel}
-        footer={<Button label="Start story" onPress={startStory} busy={busy === 'story'} />}
+        footer={<Button label="Start series" onPress={startSeries} busy={busy === 'series'} />}
       >
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
@@ -113,9 +113,9 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           keyboardShouldPersistTaps="handled"
           {...scrollProps}
         >
-          <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Its next episode is written once you've read the last. The story pinned to the top of the home stays there.</Help>
-          <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startStory} />
-          <Help>Leave it empty and the story is up to the writer.</Help>
+          <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back. Its next episode is written once you've read the last. The series pinned to the top of the home stays there.</Help>
+          <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startSeries} />
+          <Help>Leave it empty and the series is up to the writer.</Help>
           {error ? <ErrorNote message={error} /> : null}
         </ScrollView>
       </Screen>
@@ -124,7 +124,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
 
   return (
     <Screen
-      title={`New ${languageName}quick text`}
+      title={`New ${languageName}${kind}`}
       largeTitle={false}
  toolbar={cancel}
       footer={<Button label="Write" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />}
@@ -162,7 +162,6 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
         </View>
 
         <Field label="Topic" placeholder="For example, haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
-        <Segments<Form> options={[{ value: 'dialogue', label: 'Dialogue' }, { value: 'story', label: 'Story' }]} value={form} onChange={setForm} />
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deckTint, leadingEmoji } from '../../src/core/deckBadge';
+import { deckTint, leadingEmoji, studiedSubdecks, subdeckOf } from '../../src/core/deckBadge';
 
 describe('a deck\'s emoji', () => {
   it('splits the emoji a name starts with from the rest', () => {
@@ -40,5 +40,21 @@ describe('a deck\'s tint', () => {
   it('spreads sibling decks over the tints', () => {
     const siblings = ['Español', '日本語', 'Ελληνικά', 'ภาษาไทย', 'Norsk', 'Русский', 'Polski', 'English', 'Français', 'Deutsch'].map((n) => `👅 Languages::${n}`);
     expect(new Set(siblings.map((n) => deckTint(n, 8))).size).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe('a card\'s language in a deck that holds several', () => {
+  it('names the subdeck of the studied deck a card sits in, tiers included', () => {
+    expect(subdeckOf('Languages::Polski', 'Languages')).toBe('Languages::Polski');
+    expect(subdeckOf('Languages::Polski::Tier 1', 'Languages')).toBe('Languages::Polski');
+    expect(subdeckOf('Languages', 'Languages')).toBeNull();
+    expect(subdeckOf('Trivia::Geo', 'Languages')).toBeNull();
+    expect(subdeckOf('LanguagesOld::Polski', 'Languages')).toBeNull();
+  });
+
+  it('finds the distinct subdecks the cards are in', () => {
+    const found = studiedSubdecks(['Languages::Polski::Tier 1', 'Languages::Polski::Tier 2', 'Languages::Thai', 'Languages'], 'Languages');
+    expect([...found].sort()).toEqual(['Languages::Polski', 'Languages::Thai']);
+    expect(studiedSubdecks(['Languages::Polski::Tier 1'], 'Languages').size).toBe(1);
   });
 });

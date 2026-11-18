@@ -121,11 +121,10 @@ export function hasPracticeRoom(list: GrammarList): boolean {
 // Surprise me picks among this many of the best-fitting ideas, so it varies but stays readable.
 const SURPRISE_POOL = 5;
 
-/** What Surprise me writes: one of the best-fitting `ideas` and a form, chosen by `random` (0 up to
- * 1). Null when no idea is left. */
-export function surprisePick(ideas: Suggestion[], random: () => number): { name: string; form: Form } | null {
+/** The topic Surprise me writes on: one of the best-fitting `ideas`, chosen by `random` (0 up to
+ * 1). Null when no idea is left. The form is the one the person chose before tapping it. */
+export function surprisePick(ideas: Suggestion[], random: () => number): string | null {
   const pool = ideas.slice(0, SURPRISE_POOL);
   if (pool.length === 0) return null;
-  const idea = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
-  return { name: idea.name, form: random() < 0.5 ? 'dialogue' : 'story' };
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))].name;
 }

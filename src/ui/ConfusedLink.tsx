@@ -55,11 +55,14 @@ function WordRow({ word, onPress, label, children }: { word: MixupWord; onPress?
  * sound or look close to it first, and a search for any other word in the same language. Also lists
  * what it's already linked to, each with Unlink. It's iOS's own page sheet, so a swipe down closes it.
  */
-export function ConfusedLinkSheet({ note, notes, cards, pairs, onLink, onUnlink, onClose }: {
+export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, onDismiss, onLink, onUnlink, onClose }: {
   note: Note;
   notes: Map<string, Note>;
   cards: Card[];
   pairs: ConfusedPair[];
+  /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
+  visible?: boolean;
+  onDismiss?: () => void;
   /** Links the note to `partnerId`; throws when it can't be saved, and the sheet says why. */
   onLink: (partnerId: string) => Promise<void>;
   onUnlink: (partnerId: string) => Promise<void>;
@@ -100,7 +103,7 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, onLink, onUnlink,
   const word = headword(note);
   const gloss = [text(note.fields.Transliteration), text(note.fields.Meaning)].filter(Boolean).join(' · ');
   return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} backdropColor={c.surface}>
+    <Modal visible={visible} onDismiss={onDismiss} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} backdropColor={c.surface}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets

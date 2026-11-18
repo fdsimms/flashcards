@@ -33,7 +33,7 @@ function RootStack() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
       {/* The note editor opens over Review and Browse as a sheet: half height first, pulled up to full. */}
       <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
-      {/* Read & Listen's + button opens a new story or quick text as a sheet, full height for the keyboard. */}
+      {/* Read & Listen's + button opens a new series, dialogue or story as a sheet, full height for the keyboard. */}
       <Stack.Screen name="read-write" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
       <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />

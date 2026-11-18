@@ -4,13 +4,11 @@ import type { Repo } from '../db/repo';
 
 /**
  * Review's side of confused words (src/core/confusedPairs.ts): the pairs, read once when the
- * screen opens, and which note the link sheet is open for. A link is written to SQLite first, then
+ * screen opens (Review's sheet queue says which note the link sheet is open for). A link is written to SQLite first, then
  * put in state, so a crash between the two loses the screen's copy, not the link.
  */
 export function useConfusedPairs(repo: Repo) {
   const [pairs, setPairs] = useState<ConfusedPair[]>([]);
-  // The note the link sheet is open for, if any.
-  const [linking, setLinking] = useState<string | null>(null);
   // Counts links and unlinks, so a load that began before one is read again instead of put over it.
   const changes = useRef(0);
 
@@ -57,5 +55,5 @@ export function useConfusedPairs(repo: Repo) {
     setPairs((p) => withoutPair(p, x, y));
   }, [repo]);
 
-  return { pairs, partners, link, unlink, linking, openLink: setLinking };
+  return { pairs, partners, link, unlink };
 }
