@@ -25,10 +25,8 @@ export function CardSurface({ children, color }: { children: React.ReactNode; /*
   );
 }
 
-/** What Review asks of the card's motion: fly back in after an undo, and flash an answer's color. */
+/** What Review asks of the card's motion: flash an answer's color. An undone card just appears, with no motion of its own. */
 export type CardMotion = {
-  /** The next card to show is an undone one: it comes back in from the side it left. */
-  enterFrom: (dir: -1 | 1) => void;
   /** An answer was given: the card washes over in its button's color and fades back, over the next card. */
   flash: (rating: RatingValue) => void;
 };
@@ -57,9 +55,8 @@ export function useAnswerFlash() {
   return { flash, overlay: <Animated.View pointerEvents="none" style={[FILL, style]} /> };
 }
 
-/** How the card settles: back to the middle after a short drag, or in from the side after an undo. */
+/** How the card settles back to the middle after a short drag. */
 const BACK_SPRING = { damping: 16, stiffness: 240, mass: 1 } as const;
-const ENTER_SPRING = { damping: 18, stiffness: 170, mass: 1 } as const;
 /** The card leaving after an answering swipe: as fast as the flick that threw it, within these bounds (ms). */
 const EXIT_MIN_MS = 120;
 const EXIT_MAX_MS = 240;
@@ -106,19 +103,9 @@ export function SwipeCard({ enabled, cardKey, shown, motion, onRate, children }:
     rightOk.value = shown.includes(3);
     leftOk.value = shown.includes(1);
   }, [shown]); // eslint-disable-line react-hooks/exhaustive-deps
-  const entryDir = useRef<-1 | 1 | null>(null);
   const back = (velocity = 0) => { x.value = withSpring(0, { ...BACK_SPRING, velocity }); };
   const answerFlash = useAnswerFlash();
-  motion.current = { enterFrom: (dir) => { entryDir.current = dir; }, flash: answerFlash.flash };
-  // An undone card comes back in from the side it left.
-  useEffect(() => {
-    const from = entryDir.current;
-    entryDir.current = null;
-    if (!from) return;
-    if (latest.current.reduce) { x.value = 0; return; }
-    x.value = from * latest.current.width * 1.2;
-    x.value = withSpring(0, ENTER_SPRING);
-  });
+  motion.current = { flash: answerFlash.flash };
   // Back on JS once the finger is up: whether the drag answers (the rule is core's, with points per millisecond).
   const release = (dx: number, vx: number) => {
     const rating = swipeRating(dx, vx / 1000, latest.current.shown);

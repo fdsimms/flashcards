@@ -215,7 +215,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
-  // The card's motion (SwipeCard's): an undo brings the card back in from the side, and an answer flashes its color.
+  // The card's motion (SwipeCard's): an answer flashes its color. An undone card just appears.
   const cardMotion = useRef<CardMotion | null>(null);
   const rating = useRef(false);
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
@@ -631,8 +631,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
-      // The undone card comes back in from the side it left.
-      cardMotion.current?.enterFrom(last.rating === 1 ? -1 : 1);
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
