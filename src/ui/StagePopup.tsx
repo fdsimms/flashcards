@@ -26,7 +26,7 @@ const EXIT_MS = STAGE_POPUP_EXIT_MS;
  * which moves as newer ones push it up and away. With Reduce Motion on, or the animation turned off
  * in WaniKani's settings, it only fades.
  */
-export function StagePopup({ change, side, slot, animate }: {
+export function StagePopup({ change, side, slot, animate, hold }: {
   change: StageChange;
   /** The side a rise swoops in from: -1 the left, 1 the right. A drop has none. */
   side: Side;
@@ -34,8 +34,13 @@ export function StagePopup({ change, side, slot, animate }: {
   slot: Slot;
   /** WaniKani's own setting (Settings, WaniKani, Animate level ups); Reduce Motion turns the motion off too. */
   animate: boolean;
+  /** How far the keyboard has pushed the card's foot up (the screen's bottom padding). The pill hangs off the card, so it cancels the change since it appeared and stays where it showed. */
+  hold: number;
 }) {
   const c = useTheme();
+  // The keyboard moves the card the pill hangs off (up by the increase in `hold`); this moves the pill back by the same amount, over the keyboard's own duration.
+  const holdBase = useRef(hold).current;
+  const shift = useRef(new Animated.Value(0)).current;
   // Either the system's Reduce Motion or the setting stills it.
   const reduce = useReduceMotion() || !animate;
   const enter = useRef(new Animated.Value(0)).current;
@@ -59,6 +64,16 @@ export function StagePopup({ change, side, slot, animate }: {
     run.start();
     return () => run.stop();
   }, [slot.x, slot.y, slot.tilt, slot.scale, slot.opacity, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (reduce) {
+      shift.setValue(hold - holdBase);
+      return undefined;
+    }
+    const run = Animated.timing(shift, { toValue: hold - holdBase, duration: 250, easing: Easing.bezier(0.17, 0.59, 0.4, 0.77), useNativeDriver: true });
+    run.start();
+    return () => run.stop();
+  }, [hold, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const exitRun = Animated.timing(exit, { toValue: 1, duration: reduce ? 0 : EXIT_MS, delay: ms - (reduce ? 0 : EXIT_MS), easing: Easing.in(Easing.cubic), useNativeDriver: true });
@@ -93,7 +108,7 @@ export function StagePopup({ change, side, slot, animate }: {
   const lift = exit.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
   const transform = [
     { translateX: Animated.add(enterX, px) },
-    { translateY: Animated.add(Animated.add(enterY, lift), py) },
+    { translateY: Animated.add(Animated.add(Animated.add(enterY, lift), py), shift) },
     { scale: Animated.multiply(enterScale, pScale) },
     { rotate: Animated.add(enterTilt, pTilt).interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] }) },
   ];
@@ -114,7 +129,7 @@ export function StagePopup({ change, side, slot, animate }: {
             ...(change.up ? { shadowColor: c.shadow, shadowOpacity: 0.5, shadowRadius: 9, shadowOffset: { width: 0, height: 6 } } : null),
           }}
         >
-          <Animated.View style={{ transform: [{ translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }] }}>
+          <Animated.View style={{ transform: [{ translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [5, -1] }) }] }}>
             <Icon name={change.up ? 'arrow.up' : 'arrow.down'} size={16} color={ink} weight="bold" />
           </Animated.View>
           <Text style={{ ...type.headline, color: ink }}>{change.group}</Text>
