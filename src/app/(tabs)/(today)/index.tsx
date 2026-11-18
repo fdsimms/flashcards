@@ -48,7 +48,7 @@ export default function TodayRoute() {
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
-      onSettings={() => router.push('/settings')}
+      onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'today' } })}
       onOptions={openOptions}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}

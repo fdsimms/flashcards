@@ -7,5 +7,5 @@ import { useApp } from '../../../ui/AppContext';
 export default function PracticeRoute() {
   const router = useRouter();
   const { reader, repo } = useApp();
-  return <Practice readerApi={reader.api} repo={repo} onOpen={(tool) => router.push({ pathname: '/tool', params: { id: tool.id } })} onCram={() => router.push('/crams')} />;
+  return <Practice readerApi={reader.api} repo={repo} onOpen={(tool) => router.push({ pathname: '/tool', params: { id: tool.id } })} onCram={() => router.push('/crams')} onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'practice' } })} />;
 }

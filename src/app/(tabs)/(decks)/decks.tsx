@@ -33,7 +33,7 @@ export default function DecksRoute() {
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       ankiUnsent={ankiUnsent}
       onImport={() => router.push('/anki')}
-      onSettings={() => router.push('/settings')}
+      onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'decks' } })}
       onBrowse={() => router.push('/browse')}
       onStats={() => router.push('/stats')}
       onOptions={openOptions}
