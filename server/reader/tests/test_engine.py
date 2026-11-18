@@ -21,7 +21,7 @@ from franki_reader.engine import (
 from franki_reader.generator import GenerationFailed, Usage
 from franki_reader.lexicon import Entry
 from franki_reader.store import Reading, StoredText
-from franki_reader.tts import Spoken
+from franki_reader.tts import SLOW_RATE, Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 
@@ -697,7 +697,7 @@ def test_a_slow_recording_is_made_when_asked_for_and_kept_beside_the_normal_one(
     path = run(lambda: e.line_audio(text, 0, slow=True))
 
     assert path == e.audio.path(text.id, 0, slow=True) and path.is_file()
-    assert voice.rates[-1] == 0.8
+    assert voice.rates[-1] == SLOW_RATE
     # The normal recording is untouched, and the slow one is billed as its own recording.
     assert e.audio.has(text.id, 0)
     assert audio_chars(e, text.id) > normal
@@ -709,6 +709,24 @@ def test_a_slow_recording_is_made_when_asked_for_and_kept_beside_the_normal_one(
     # Re-recording a text in new voices forgets its slow lines too.
     e.audio.drop(text.id)
     assert not e.audio.has(text.id, 0, slow=True)
+
+
+def test_slow_recordings_from_the_old_rate_are_dropped_once(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    assert e.audio is not None
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+    run(lambda: e.line_audio(text, 0, slow=True))
+    assert e.audio.has(text.id, 0, slow=True)
+
+    e.drop_old_slow_audio()
+
+    assert not e.audio.has(text.id, 0, slow=True) and e.audio.has(text.id, 0)
+    # Once: a slow recording made at the new rate is kept.
+    run(lambda: e.line_audio(text, 0, slow=True))
+    e.drop_old_slow_audio()
+    assert e.audio.has(text.id, 0, slow=True)
 
 
 def test_a_slow_line_azure_refused_has_no_slow_audio_and_isnt_counted(tmp_path: Path) -> None:

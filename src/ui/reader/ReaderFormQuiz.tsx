@@ -172,8 +172,6 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
             </>
           )}
         </View>
-
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>Practice only. It doesn't change any card's schedule.</Text>
       </ScrollView>
     </Modal>
   );

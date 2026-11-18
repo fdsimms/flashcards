@@ -347,7 +347,7 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
   no clip (Azure's voices off, or a failed recording) is read by the phone, so its button always plays.
   Slow with Azure on is `POST /api/situations/slow` (`{language, gender, line}`), a clip of its own
   (`tts.SLOW_RATE`) recorded the first time and billed like any recording; if it can't be made, the
-  normal clip plays stretched to 0.8. "Heard only" hides their words behind Show the text.
+  normal clip plays stretched to 0.65. "Heard only" hides their words behind Show the text.
 - **The owner's lines** may hold an English word in [brackets] for a word they don't know; Claude
   answers as a helpful native speaker would. No correction during the conversation.
 - **Finish** (`POST /api/situations/feedback`): each of the owner's lines with a verdict, the line
@@ -1240,8 +1240,10 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   me, or a topic, and Written by; it isn't shown offline, and neither are the rows that need the
   server. The app says "Series" for the running kind, while the server's routes and tables keep
   `story`. A series' own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
-  episode, Last time, and its episodes by season, and its ••• pins it to the top, ends it or
-  continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
+  episode, Last time, and its episodes by season, and its ••• sets the order, pins it to the top, ends it or
+  continues it. The newest season and episode come first (••• sets newest or oldest first, kept in the
+  reader's settings as `episodeOrder`). With several seasons each folds under its header: the latest
+  starts open and earlier ones closed, and what the reader opens or closes is kept per series on the phone. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
   common words, voices, grammar, practice words, and the progress
@@ -1592,14 +1594,14 @@ in the current language, with when one was last read to the end. Nothing else le
   timings (below), since slower speech is longer.
 - **Speed is Slow or Normal (15 November 2026).** Before this it was four speeds, 0.7x to 1.0x, which
   the player made by stretching the one recording; that sounded robotic. Slow is now a second
-  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.8, SSML prosody -20%), kept beside
+  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.65, SSML prosody -35%; it was 0.8 until 18 November 2026, and the slow recordings made at 0.8 were dropped once, `Engine.drop_old_slow_audio`), kept beside
   the normal one (`<line>.slow.mp3`, `<line>.slow.json`; `AudioCache`) and made the first time the
   line is played slowly, so a line never played slowly costs nothing extra. It is billed as a
   recording of its own (`audio_chars`). `GET .../lines/{n}/audio?speed=slow` serves it, and
   `GET .../lines/{n}/slow` records it and returns its word times, which the reader fetches before
   a slow line plays so the words light up in time (`Reader.startLine`; the text's own words keep the
   normal recording's times). If recording it fails, the reader plays the normal recording stretched
-  to 0.8 as before. Slow is offered per language (`slowLanguages` in `src/reader/prefs.ts`, Settings, Read &
+  to 0.65 as before. Slow is offered per language (`slowLanguages` in `src/reader/prefs.ts`, Settings, Read &
   Listen, Slow speed; every language but Spanish and French to begin with): a language without it
   plays at normal speed everywhere and the player shows no speed control (`speedFor`, `hasSlow`).
   Choosing the other speed while a line plays starts the line again. A speed saved

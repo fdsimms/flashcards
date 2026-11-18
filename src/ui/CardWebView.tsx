@@ -36,10 +36,12 @@ true;
  * `hidden` loads a page out of sight (Review's next card, ahead of its answer): it fills the same
  * space, takes no taps, is skipped by VoiceOver, and its sounds wait until it's shown.
  */
-export function CardWebView({ html, hidden = false, onMessage, onTap }: {
+export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }: {
   html: string;
   /** Loaded but not shown yet. Shown, the same view keeps its page: nothing reloads. */
   hidden?: boolean;
+  /** A page is loaded and shown (each side's, each time). */
+  onShown?: () => void;
   /** What the page posts: a tts play button's `{"tts": i}` (cardDocument's speakTts). */
   onMessage?: (data: string) => void;
   /** A tap on the page that wasn't on a link, button or field. Setting it makes the page post `{"tap": true}`. */
@@ -54,8 +56,10 @@ export function CardWebView({ html, hidden = false, onMessage, onTap }: {
   // comes last; telling a page that has already started again does nothing (cardDocument).
   const [loads, setLoads] = useState(0);
   useEffect(() => {
-    if (!hidden && loads > 0) view.current?.injectJavaScript(START_AUTOPLAY);
-  }, [hidden, loads]);
+    if (hidden || loads === 0) return;
+    view.current?.injectJavaScript(START_AUTOPLAY);
+    onShown?.();
+  }, [hidden, loads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const dir = new Directory(Paths.document, 'card-pages');

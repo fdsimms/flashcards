@@ -2079,6 +2079,20 @@ def mark_waiting_texts_timed(conn: sqlite3.Connection) -> None:
         _set_meta(conn, _WAITING_TIMED_KEY, "1")
 
 
+# Set once the slow recordings made at the old, faster slow rate (0.8) have been dropped, so each is
+# made again at `tts.SLOW_RATE` the next time its line is played slowly (Engine.drop_old_slow_audio).
+_SLOW_RATE_KEY = "slow_rate_0.65"
+
+
+def slow_audio_current(conn: sqlite3.Connection) -> bool:
+    return _get_meta(conn, _SLOW_RATE_KEY) is not None
+
+
+def mark_slow_audio_current(conn: sqlite3.Connection) -> None:
+    with conn:
+        _set_meta(conn, _SLOW_RATE_KEY, "1")
+
+
 def _get_meta(conn: sqlite3.Connection, key: str) -> str | None:
     row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
     return row[0] if row else None

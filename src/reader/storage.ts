@@ -1,6 +1,8 @@
 import { File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import type { Settings } from './api';
+import { parseSeasonChoices } from './stories';
+import { decodeGrammarDue, encodeGrammarDue, type GrammarDue } from './grammarDueCopy';
 import { parseSeen } from './vocabCheck';
 import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
@@ -13,6 +15,7 @@ import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 const PASSPHRASE_KEY = 'reader.passphrase';
 const PREFS_KEY = 'reader.prefs';
 const VOCAB_SEEN_KEY = 'reader.vocabSeen.';
+const SEASONS_KEY = 'reader.seasons.';
 
 export const loadPassphrase = () => SecureStore.getItemAsync(PASSPHRASE_KEY);
 export const savePassphrase = (value: string) => SecureStore.setItemAsync(PASSPHRASE_KEY, value);
@@ -49,6 +52,19 @@ export function saveVocabSeen(language: string, words: string[]): void {
   SecureStore.setItemAsync(VOCAB_SEEN_KEY + language, JSON.stringify(words)).catch(() => undefined);
 }
 
+/** Which of a story's seasons the reader opened or closed on its page (stories.ts, seasonOpen). */
+export async function loadSeasonChoices(storyId: number): Promise<Record<number, boolean>> {
+  try {
+    return parseSeasonChoices(await SecureStore.getItemAsync(SEASONS_KEY + storyId));
+  } catch {
+    return {};
+  }
+}
+
+export function saveSeasonChoices(storyId: number, chosen: Record<number, boolean>): void {
+  SecureStore.setItemAsync(SEASONS_KEY + storyId, JSON.stringify(chosen)).catch(() => undefined);
+}
+
 const SETTINGS_FILE = 'reader-settings.json';
 
 /**
@@ -74,5 +90,27 @@ export function saveSettingsCopy(address: string, settings: Settings): void {
     f.writeSync(JSON.stringify({ address, settings }));
   } catch {
     // Read from the server again next launch.
+  }
+}
+
+const GRAMMAR_DUE_FILE = 'reader-grammar-due.json';
+
+/** The grammar-due copy (grammarDueCopy.ts) for study day `day`, or null when there's none for it. */
+export async function loadGrammarDueCopy(day: string): Promise<GrammarDue | null> {
+  try {
+    const f = new File(Paths.document, GRAMMAR_DUE_FILE);
+    return f.exists ? decodeGrammarDue(await f.text(), day) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGrammarDueCopy(due: GrammarDue, day: string): void {
+  try {
+    const f = new File(Paths.document, GRAMMAR_DUE_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(encodeGrammarDue(due, day));
+  } catch {
+    // Today shows the chips once the server answers.
   }
 }
