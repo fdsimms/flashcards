@@ -254,6 +254,11 @@ reaches their devices at their next sync.
 - In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
   ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
   Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
+- An Omnilanguage note type that has a Sense field takes a few words there, shown under the meaning,
+  saying which sense a word with several is meant ("know-how from doing, or something lived through").
+  With a ContextLabels field filled in, Context, ContextRomanized and ContextTranslation hold one
+  example per line (separated by <br>, line N of each belonging together) and ContextLabels names
+  what each example shows ("skill", "event"). Add a second example only when the word's senses differ.
 - In a note's Notes field, give each part of a word's breakdown its meaning ("กลับ (return) + บ้าน
   (home)"). Never write "already known": say what the part means, or leave it out.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.

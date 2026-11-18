@@ -1,6 +1,7 @@
 import { speechLangFor, isOmnilanguage } from './cards';
 import { studyDayKey, studyDayStart } from './day';
 import { inheritedSetting, isInDeck } from './deckTree';
+import { examplesOf } from './examples';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { elidesBefore } from './gender';
 import { htmlToText } from './html';
@@ -537,16 +538,19 @@ export function sentenceGap(note: Note, answers: string[]): FormPrompt['sentence
 
 /** `sentenceGap`, and the answer the gap took out of the sentence. */
 function gapIn(note: Note, answers: string[]): { sentence: NonNullable<FormPrompt['sentence']>; answer: string } | undefined {
-  const text = htmlToText(note.fields.Context ?? '').replace(/\s+/g, ' ').trim();
-  if (!text) return undefined;
-  const lower = text.toLocaleLowerCase();
-  for (const a of answers) {
-    const needle = a.toLocaleLowerCase();
-    if (!needle || needle.length !== a.length) continue;
-    for (let i = lower.indexOf(needle); i >= 0; i = lower.indexOf(needle, i + 1)) {
-      if (isLetter(text[i - 1]) || isLetter(text[i + needle.length])) continue;
-      const translation = htmlToText(note.fields.ContextTranslation ?? '').replace(/\s+/g, ' ').trim();
-      return { sentence: { before: text.slice(0, i), after: text.slice(i + needle.length), ...(translation ? { translation } : {}) }, answer: a };
+  // The first of the note's examples (examples.ts) that has one of the answers in it, with its own translation.
+  for (const ex of examplesOf(note)) {
+    const text = htmlToText(ex.context).replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const lower = text.toLocaleLowerCase();
+    for (const a of answers) {
+      const needle = a.toLocaleLowerCase();
+      if (!needle || needle.length !== a.length) continue;
+      for (let i = lower.indexOf(needle); i >= 0; i = lower.indexOf(needle, i + 1)) {
+        if (isLetter(text[i - 1]) || isLetter(text[i + needle.length])) continue;
+        const translation = htmlToText(ex.translation).replace(/\s+/g, ' ').trim();
+        return { sentence: { before: text.slice(0, i), after: text.slice(i + needle.length), ...(translation ? { translation } : {}) }, answer: a };
+      }
     }
   }
   return undefined;

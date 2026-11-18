@@ -1,3 +1,4 @@
+import { examplesOf } from './examples';
 import { genderArticle, genderOf, pluralWord, spokenEntry } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
@@ -234,9 +235,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note', field: 'Notes' });
     // The example sentence, its word highlighted. Anki's template wraps the romanization and the
     // translation in {{hint:...}}: a tap-to-show link, not text.
-    pushIf(b, t(note, 'Context'), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(note.fields.Context, entry) });
-    pushIf(b, t(note, 'ContextRomanized'), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(note.fields.ContextRomanized, translit), tones: isThai });
-    pushIf(b, t(note, 'ContextTranslation'), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+    // A note with ContextLabels has several examples (examples.ts), each with its own two hidden lines.
+    for (const ex of examplesOf(note)) {
+      pushIf(b, htmlToText(ex.context), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(ex.context, entry), ...(ex.tag ? { tag: ex.tag } : {}) });
+      pushIf(b, htmlToText(ex.romanized), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(ex.romanized, translit), tones: isThai });
+      pushIf(b, htmlToText(ex.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+    }
     pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
     pushIf(b, t(note, 'Etymology'), 'Etymology');
     return b;
@@ -249,7 +253,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushIf(back, meaning, undefined, true);
-    pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+    pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+    pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
@@ -259,11 +264,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
 
   if (kind === 'reverse') {
     pushIf(front, meaning, undefined, true);
+    pushIf(front, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
     pushEntry(back);
-    pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+    pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
@@ -282,7 +288,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   pushEntry(back);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
-  pushIf(back, translit, undefined, undefined, 'Show transliteration', { tones: isThai });
+  pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+  pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
   pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
   back.push(...detail());

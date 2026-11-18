@@ -441,6 +441,10 @@ describe('sentenceGap', () => {
   it('does not match inside a longer word', () => {
     expect(sentenceGap(esperar({ Context: 'Esperamos aquí.' }), ['espera'])).toBeUndefined();
   });
+  it("looks through a note's several examples, and takes the translation of the one it blanks", () => {
+    const note = esperar({ Context: 'Ella lee.<br>Yo espero aquí.', ContextTranslation: 'She reads.<br>I wait here.', ContextLabels: 'a<br>b' });
+    expect(sentenceGap(note, ['espero'])).toEqual({ before: 'Yo ', after: ' aquí.', translation: 'I wait here.' });
+  });
   it('matches anywhere in a script without spaces between words', () => {
     const th = omniNote({ Context: 'หมาสองตัว' });
     expect(sentenceGap(th, ['ตัว'])).toMatchObject({ before: 'หมาสอง', after: '' });
