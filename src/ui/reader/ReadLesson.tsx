@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Word } from '../../reader/api';
 import { glossesOf, glossKey } from '../../reader/cardGlosses';
-import { atEnd, clock, SKIP_SECONDS, skipTo } from '../../reader/lessons';
+import { atEnd, clock, progressOf, SKIP_SECONDS, skipTo } from '../../reader/lessons';
 import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
@@ -86,7 +86,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
 
   const status = mine ? live : { playing: false, currentTime: 0, duration: 0 };
   const duration = status.duration > 0 ? status.duration : lesson.duration_ms / 1000;
-  const progress = duration > 0 ? Math.min(1, status.currentTime / duration) : 0;
+  const progress = progressOf(status.currentTime, duration);
 
   const toggle = async () => {
     haptic.tap();
