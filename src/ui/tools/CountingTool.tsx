@@ -11,7 +11,7 @@ import { Button, Icon, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
-import { MarkButtons, PracticeCard } from './PracticeCard';
+import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
@@ -60,8 +60,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   const pick = picked?.key === key ? picked : null;
   const [marked, setMarked] = useState<string | null>(null);
   const motion = useRef<CardMotion | null>(null);
-  const [swipeOn, setSwipeOn] = useState(false);
-  useEffect(() => { repo.swipeToRate().then(setSwipeOn, () => setSwipeOn(false)); }, [repo]);
+  const swipeOn = useSwipeSetting(repo);
 
   const mark = (right: boolean) => {
     if (!question || !counting || marked === key) return;
@@ -137,9 +136,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         {pick ? <Button label="Next" onPress={() => next()} /> : <Button variant="secondary" label="Show answer" onPress={revealPick} />}
       </View>
     );
-  } else if (!answer.shown) footer = <Button label="Show answer" onPress={showAnswer} />;
-  else if (answer.missed) footer = <Button label="Next" onPress={() => next()} />;
-  else footer = <MarkButtons onMark={markAndMove} />;
+  } else footer = <SayFooter shown={answer.shown} missed={answer.missed} onShow={showAnswer} onNext={() => next()} onMark={markAndMove} />;
 
   return (
     <ToolScreen
