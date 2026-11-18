@@ -18,7 +18,7 @@ import { failureText } from '../core/failure';
  * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
  * does for a sheet with changes that would be lost.
  */
-export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, onSave, onSkip }: {
+export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, visible = true, onDismiss, onSave, onSkip }: {
   word: string;
   /** The word's transliteration, shown on its own line above the meaning. */
   translit?: string;
@@ -29,6 +29,9 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
   /** The answer suspended the card, as the deck's options say for a leech; saving a hint unsuspends it. */
   suspended?: boolean;
   suggest?: () => Promise<string[]>;
+  /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review can show the next sheet only then (src/core/sheetQueue.ts). */
+  visible?: boolean;
+  onDismiss?: () => void;
   /** Saves the hint on the note (and unsuspends the card, when `suspended`); throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
@@ -71,7 +74,8 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
   const swipeSkips = !saving && !hint.trim();
   return (
     <Modal
-      visible
+      visible={visible}
+      onDismiss={onDismiss}
       animationType="slide"
       presentationStyle="pageSheet"
       allowSwipeDismissal={swipeSkips}
