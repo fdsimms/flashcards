@@ -6,10 +6,11 @@ import type { NoteStore } from '../../anki/noteService';
 import { carryOver, cramDay, cramId, cramNotes, cramProblem, type Cram } from '../../core/cram';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
-import { noteHasTag } from '../../core/priority';
+import { noteHasTag, tagCounts } from '../../core/priority';
 import { parseTags } from '../../core/noteEditing';
 import { haptic } from '../haptics';
 import { Button, Card, Field, Group, Help, Screen, Segments, SwitchRow } from '../kit';
+import { TagTokenField } from '../TagTokenField';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
 
@@ -49,6 +50,7 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
   const noteIds = useMemo(() => new Set(collection.notes.map((n) => n.id)), [collection.notes]);
   const carried = editing ? undefined : carryOver(crams, noteIds);
   const tags = parseTags(tag);
+  const counts = useMemo(() => tagCounts(collection.notes), [collection.notes]);
   const tagged = source === 'tag' && tags.length ? collection.notes.filter((n) => tags.some((t) => noteHasTag(n, t))) : [];
 
   const save = async () => {
@@ -58,7 +60,7 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
     const keptDay = !!editing && dateKey === editing.date;
     const wrong = keptDay && name.trim() ? undefined : cramProblem(name, dateKey, now, H);
     if (wrong) { setProblem(wrong); return; }
-    if (!editing && source === 'tag' && !tagged.length) { setProblem(tags.length ? 'No notes have that tag.' : 'Type a tag, or choose another way to add words.'); return; }
+    if (!editing && source === 'tag' && !tagged.length) { setProblem(tags.length ? 'No notes have those tags.' : 'Add a tag, or choose another way to add words.'); return; }
     haptic.tap();
     setBusy(true);
     setProblem(undefined);
@@ -167,8 +169,8 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
             {source === 'pick' ? <Help>Once it's saved, you pick the words from your decks.</Help> : null}
             {source === 'tag' ? (
               <>
-                <Field label="Tag" value={tag} onChangeText={setTag} placeholder="For example lesson-12" autoCapitalize="none" autoCorrect={false} />
-                <Help>{tags.length ? `${tagged.length === 1 ? '1 note has' : `${tagged.length} notes have`} it.` : 'Notes with this tag join the cram.'}</Help>
+                <TagTokenField label="Tags" tags={tags} onChange={(t) => setTag(t.join(' '))} counts={counts} placeholder="For example lesson-12" />
+                <Help>{tags.length ? `${tagged.length === 1 ? '1 note has' : `${tagged.length} notes have`} it.` : 'Notes with any of these tags join the cram.'}</Help>
               </>
             ) : null}
           </Card>

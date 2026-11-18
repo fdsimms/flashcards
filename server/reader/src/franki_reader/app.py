@@ -129,6 +129,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       Claude to fill in; 503 without a Claude key
     POST  /api/note-queue/{id}/retry  a failed word waiting to be filled again
     DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
+    GET   /api/word-suggestions       ?language=: words to add when the deck's new cards run low
+                                      (word_suggestions.py): {texts, common: [{word, meaning, rank,
+                                      texts}]}, from texts read and the common words the deck lacks
+    POST  /api/word-suggestions/dismiss  {language, word}: Not interested, never suggested again
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first;
@@ -255,6 +259,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       state: making | ready | failed, stage: writing | recording |
                                       joining (while making), error, duration_ms,
                                       created_at, phrases, dialogue}]}, newest first
+    POST  /api/lessons/topics         {language, phrases?: [{text, english}], shown?: [str]} ideas for
+                                      a lesson's scene, written by Claude: {topics: [str]}, never
+                                      one already made as a lesson or in `shown`. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature
+                                      "lesson_topics") and counts under `lesson_topics` in
+                                      /api/costs
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
@@ -310,6 +320,7 @@ from franki_reader import (
     fix_card,
     forms,
     grammar_topics,
+    lesson_topics,
     lesson_writer,
     meanings,
     note_queue,
@@ -348,6 +359,7 @@ from franki_reader.generator import (
     claude_ask,
 )
 from franki_reader.languages import Code
+from franki_reader.lesson_topics import WriteTopics
 from franki_reader.lesson_writer import WriteGiven, WritePlan
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
@@ -412,6 +424,7 @@ def create_app(
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
     write_given_lesson: WriteGiven | None = None,
+    write_lesson_topics: WriteTopics | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
@@ -498,6 +511,7 @@ def create_app(
         clips=clips,
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
+        write_lesson_topics=write_lesson_topics,
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
@@ -539,6 +553,7 @@ def production_app() -> FastAPI:
     write_forms: forms.WriteForms | None = None
     write_lesson: WritePlan | None = None
     write_given_lesson: WriteGiven | None = None
+    write_lesson_topics: WriteTopics | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
     ask_about_card: ask_card.AskCard | None = None
@@ -566,6 +581,7 @@ def production_app() -> FastAPI:
         write_forms = forms.claude_forms(client)
         write_lesson = lesson_writer.claude_plan(client)
         write_given_lesson = lesson_writer.claude_given_plan(client)
+        write_lesson_topics = lesson_topics.claude_topics(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
         ask_about_card = ask_card.claude_ask_card(client)
@@ -655,6 +671,7 @@ def production_app() -> FastAPI:
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
+        write_lesson_topics=write_lesson_topics,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,

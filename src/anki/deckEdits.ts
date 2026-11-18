@@ -165,11 +165,20 @@ async function cardsOf(db: SyncDb, decks: DeckRowRaw[]): Promise<{ id: number; n
   return db.all<{ id: number; nid: number }>(`SELECT id, nid FROM cards WHERE did IN (${marks}) OR odid IN (${marks})`, ...ids, ...ids);
 }
 
-/** What deleting the deck `name` deletes in Anki, to ask before it's done; null when Anki has no such deck. */
-export async function ankiDeckDeletion(db: SyncDb, name: string): Promise<{ cards: number; keepsDeck: boolean } | null> {
+/**
+ * What deleting the deck `name` deletes in Anki, to ask before it's done, and how many cards of
+ * other decks sit in its filtered decks and go back home; null when Anki has no such deck.
+ */
+export async function ankiDeckDeletion(db: SyncDb, name: string): Promise<{ cards: number; returned: number; keepsDeck: boolean } | null> {
   const decks = await subtree(db, name);
   if (!decks) return null;
-  return { cards: (await cardsOf(db, decks)).length, keepsDeck: decks[0].id === DEFAULT_DECK };
+  const deleted = await cardsOf(db, decks);
+  const gone = new Set(deleted.map((c) => c.id));
+  const filtered = decks.filter((d) => isFiltered(d.kind)).map((d) => d.id);
+  const inFiltered = filtered.length
+    ? await db.all<{ id: number }>(`SELECT id FROM cards WHERE did IN (${filtered.map(() => '?').join(', ')})`, ...filtered)
+    : [];
+  return { cards: deleted.length, returned: inFiltered.filter((c) => !gone.has(c.id)).length, keepsDeck: decks[0].id === DEFAULT_DECK };
 }
 
 /**

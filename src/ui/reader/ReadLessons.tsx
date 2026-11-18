@@ -6,6 +6,7 @@ import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/le
 import { lessonRequestWords } from '../../core/lessonWords';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
+import { LessonTopics } from './LessonTopics';
 import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
 import { useConnectionProblem } from '../connection';
@@ -105,11 +106,12 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
             label="New lesson"
             value={scene}
             onChangeText={setScene}
-            placeholder={chosen.words.length ? "What they're for, like at a cafe" : "Ordering a coffee"}
+            placeholder={chosen.words.length ? "Where you'd use them, like at a cafe" : "Ordering a coffee"}
             maxLength={200}
             returnKeyType="done"
             onSubmitEditing={make}
           />
+          <LessonTopics api={api} language={language} words={chosen.words} onPick={setScene} />
           <LessonWords words={chosen.words} onRemove={chosen.remove} onClear={chosen.clear} />
           <Button label="Make a lesson" onPress={make} busy={asking} disabled={!scene.trim()} />
           {askError ? <ErrorNote message={askError} /> : null}

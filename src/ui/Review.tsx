@@ -90,6 +90,7 @@ import { useSpokenAnswer } from './useSpokenAnswer';
 import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
+import { useNewWordsStep } from './useNewWords';
 import { ReviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
@@ -524,6 +525,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const fieldEdit = useFieldEdit(repo, writes, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
+  const newWordsStep = useNewWordsStep(deck, c.teal);
 
   // A natively drawn card is on screen the frame after it's committed (a template card says so itself: CardWebView's onShown).
   useEffect(() => {
@@ -969,6 +971,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         key: 'write', label: newWords.length === 1 ? 'Write a sentence with the new word' : `Write sentences with the ${newWords.length} new words`,
         icon: { name: 'square.and.pencil' as const, color: c.orange }, onPress: () => practice?.onUseWords?.(newWords),
       }] : []),
+      ...(newWordsStep ? [newWordsStep] : []),
       // An Anki filtered deck has no limits or cards of its own to add to.
       ...(paramsForDeck(deck, allParams)?.filtered ? [] : [{ key: 'custom', label: 'Custom study', icon: { name: 'slider.horizontal.3' as const, color: c.indigo }, onPress: onCustomStudy }]),
     ];

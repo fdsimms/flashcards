@@ -19,8 +19,8 @@ const RATING_COLOR = /\bcolor: [^,}]*\bc\.(good|again|hard|easy)\b/;
 const EXEMPT: { file: string; includes: string; why: string }[] = [
   // Title-size words fading in over the card as it's swiped, matching the button they stand for.
   // Large text needs 3:1, which both clear on the card.
-  { file: join('src', 'ui', 'SwipeCard.tsx'), includes: '>Good</Animated.Text>', why: 'large text over the card' },
-  { file: join('src', 'ui', 'SwipeCard.tsx'), includes: '>Again</Animated.Text>', why: 'large text over the card' },
+  { file: join('src', 'ui', 'SwipeCard.tsx'), includes: 'rightWord]}>', why: 'large text over the card' },
+  { file: join('src', 'ui', 'SwipeCard.tsx'), includes: 'leftWord]}>', why: 'large text over the card' },
 ];
 
 const flagged = (line: string) => TEXT.test(line) && RATING_COLOR.test(line);

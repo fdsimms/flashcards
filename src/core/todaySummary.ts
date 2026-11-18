@@ -28,13 +28,13 @@ export function todaySummary(answers: Answer[], now: Date, dayStartsAtHour: numb
 }
 
 /**
- * The pace as answers per second ("0.14/s"), or null when no time was recorded. Two decimals;
- * "<0.01/s" for anything slower.
+ * The pace as seconds per answer ("7.3 s/card"), or null when no time was recorded. One decimal;
+ * "<0.1 s/card" for anything faster.
  */
 export function answerPace(answered: number, takenMs: number): string | null {
   if (answered <= 0 || takenMs <= 0) return null;
-  const rate = answered / (takenMs / 1000);
-  return rate < 0.01 ? '<0.01/s' : `${rate.toFixed(2)}/s`;
+  const seconds = takenMs / 1000 / answered;
+  return seconds < 0.1 ? '<0.1 s/card' : `${seconds.toFixed(1)} s/card`;
 }
 
 /**

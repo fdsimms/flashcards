@@ -3538,6 +3538,70 @@
         }
       }
     },
+    "/api/lessons/topics": {
+      "post": {
+        "summary": "Lesson Topics Route",
+        "description": "Ideas for a lesson's scene. Never makes a lesson, and only reads which scenes exist.",
+        "operationId": "lesson_topics_route_api_lessons_topics_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": "Response Lesson Topics Route Api Lessons Topics Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/{lesson_id}/audio": {
       "get": {
         "summary": "Lesson Audio Route",
@@ -5082,6 +5146,124 @@
           }
         }
       }
+    },
+    "/api/word-suggestions": {
+      "get": {
+        "summary": "Get Word Suggestions",
+        "description": "Reads the snapshot of the deck only: nothing here adds a note or grades a card. A word\nsaved since the snapshot was read can still be listed; the app leaves out what its own\ncopy of the deck already has.",
+        "operationId": "get_word_suggestions_api_word_suggestions_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordSuggestionsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/word-suggestions/dismiss": {
+      "post": {
+        "summary": "Dismiss Word",
+        "description": "Not interested: the word isn't suggested for the language again.",
+        "operationId": "dismiss_word_api_word_suggestions_dismiss_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissWordIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5461,6 +5643,38 @@
           "level"
         ],
         "title": "DifficultyIn"
+      },
+      "DismissWordIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "word": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Word"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "word"
+        ],
+        "title": "DismissWordIn"
       },
       "DrillsIn": {
         "properties": {
@@ -6815,6 +7029,54 @@
         "title": "TopicOut",
         "description": "A reading topic as the app lists it, its count and state in the language being shown."
       },
+      "TopicsIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "phrases": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GivenIn"
+                },
+                "type": "array",
+                "maxItems": 15
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phrases"
+          },
+          "shown": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Shown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "TopicsIn"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -6875,6 +7137,66 @@
           "entry"
         ],
         "title": "VerbIn"
+      },
+      "WordSuggestionOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "texts": {
+            "type": "integer",
+            "title": "Texts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "meaning",
+          "rank",
+          "texts"
+        ],
+        "title": "WordSuggestionOut"
+      },
+      "WordSuggestionsOut": {
+        "properties": {
+          "texts": {
+            "items": {
+              "$ref": "#/components/schemas/WordSuggestionOut"
+            },
+            "type": "array",
+            "title": "Texts"
+          },
+          "common": {
+            "items": {
+              "$ref": "#/components/schemas/WordSuggestionOut"
+            },
+            "type": "array",
+            "title": "Common"
+          }
+        },
+        "type": "object",
+        "required": [
+          "texts",
+          "common"
+        ],
+        "title": "WordSuggestionsOut",
+        "description": "The words from texts read, then the common words the deck lacks, each source best first."
       },
       "WriteIn": {
         "properties": {
