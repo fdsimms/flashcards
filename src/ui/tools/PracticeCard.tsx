@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { RatingValue } from '../../core/scheduler';
+import type { Repo } from '../../db/repo';
+import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Tappable } from '../kit';
+import { Button, Icon, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from '../PlayButton';
 import { SwipeCard, type CardMotion } from '../SwipeCard';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { AnswerContent, Status, type Answer } from './ToolScreen';
 
 /**
  * A Practice tool built like Review's card: one sheet that fills the space between the header and
@@ -85,5 +88,62 @@ export function MarkButtons({ onMark }: { onMark: (right: boolean) => void }) {
         </Tappable>
       ))}
     </Reveal>
+  );
+}
+
+/** Whether swiping marks a question: the swipe setting Review's cards follow, read once. */
+export function useSwipeSetting(repo: Repo): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => { repo.swipeToRate().then(setOn, () => setOn(false)); }, [repo]);
+  return on;
+}
+
+/** The footer of a tool you answer by saying it: Show answer, then Missed it and Got it, or Next after a miss that keeps its rule up. */
+export function SayFooter({ shown, missed, onShow, onNext, onMark }: { shown: boolean; missed: boolean; onShow: () => void; onNext: () => void; onMark: (right: boolean) => void }) {
+  if (!shown) return <Button label="Show answer" onPress={onShow} />;
+  if (missed) return <Button label="Next" onPress={onNext} />;
+  return <MarkButtons onMark={onMark} />;
+}
+
+/** A listening question: a large play button to hear it again, what to do, and the tool's answer field under them. */
+export function ListenPrompt({ label, hint, onPlay, children }: { label: string; hint: string; onPlay: () => void; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <View style={{ gap: space.l }}>
+      <View style={{ alignItems: 'center', gap: space.m }}>
+        <Tappable
+          onPress={() => { haptic.tap(); onPlay(); }}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Icon name="speaker.wave.2.fill" size={32} color={c.onAccent} />
+        </Tappable>
+        <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{hint}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** What a listening check came to, under the card's divider: right, or what it was; then how it's said, with the rule after a miss. */
+export function ListenBack({ right, wrong, answer, rule, onPlay }: { right: boolean; wrong: string; answer: Answer; rule: string | undefined; onPlay: (p: Phrase) => void }) {
+  return (
+    <View style={{ gap: space.m }}>
+      <View style={{ alignItems: 'center' }}>{right ? <Status tone="good">Right.</Status> : <Status tone="bad">{wrong}</Status>}</View>
+      <AnswerContent centered answer={answer} rule={right ? undefined : rule} onPlay={onPlay} />
+    </View>
+  );
+}
+
+/** The footer of a listening tool: Check, then Next, with Try again beside it after a miss. */
+export function ListenFooter({ verdict, canCheck, onCheck, onRetry, onNext }: { verdict: { right: boolean } | null; canCheck: boolean; onCheck: () => void; onRetry: () => void; onNext: () => void }) {
+  if (!verdict) return <Button label="Check" onPress={onCheck} disabled={!canCheck} />;
+  if (verdict.right) return <Button label="Next" onPress={onNext} />;
+  return (
+    <View style={{ flexDirection: 'row', gap: space.s }}>
+      <Button variant="secondary" label="Try again" style={{ flex: 1 }} onPress={onRetry} />
+      <Button label="Next" style={{ flex: 1 }} onPress={onNext} />
+    </View>
   );
 }
