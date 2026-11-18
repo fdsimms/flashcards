@@ -68,7 +68,7 @@ import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
-import { canAddMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { missReasonsFor, missReminder } from '../core/misses';
@@ -1297,7 +1297,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
-      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} style={{ marginTop: space.m }} /> : null}
+      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
       {page ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1322,7 +1322,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
-              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} />
+              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               <LanguageCue kind={current.kind} speechLang={speechLang} />
               {reminder ? <MissReminder text={reminder} /> : null}
