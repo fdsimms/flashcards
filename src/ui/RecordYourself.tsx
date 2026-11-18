@@ -2,7 +2,6 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { takeClock } from '../core/selfRecording';
 import { Icon, Tappable } from './kit';
-import { haptic } from './haptics';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 import type { SelfRecording } from './useSelfRecording';
 
@@ -29,7 +28,7 @@ export function RecordYourself({ rec, label, size }: {
 
   if (rec.recording) {
     return (
-      <Tappable onPress={() => { haptic.tap(); rec.stop(); }} accessibilityRole="button" accessibilityLabel="Stop recording" scaleTo={0.94} style={{ ...chip, backgroundColor: c.dangerFill }}>
+      <Tappable onPress={() => rec.stop()} accessibilityRole="button" accessibilityLabel="Stop recording" scaleTo={0.94} style={{ ...chip, backgroundColor: c.dangerFill }}>
         <Icon name="stop.fill" size={iconSize} color={c.danger} weight="semibold" />
         <Text style={{ ...text, color: c.danger, fontVariant: ['tabular-nums'] }}>Stop · {takeClock(rec.millis)}</Text>
       </Tappable>

@@ -61,7 +61,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
 
   const play = (r = rate) => {
     if (at === undefined || !line?.audio) return;
-    self.stop();
+    self.stop(false);
     player.replace(api.audioSource(text.id, at, r));
     player.play();
     setPlays((n) => n + 1);
@@ -83,7 +83,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
     expected: answers,
     mode: AUDIO_MODE,
-    onBeforeListen: () => { player.pause(); self.stop(); },
+    onBeforeListen: () => { player.pause(); self.stop(false); },
     onHeard: (heard) => setTyped(heard),
   });
   const comparison = useMemo(() => compareTypedAnswer(answers, typed, LANGUAGES[text.language].speech), [answers, typed, text.language]);

@@ -33,8 +33,8 @@ export interface SelfRecording {
   /** Whether there's a take for the current key. */
   hasTake: boolean;
   start: () => void;
-  /** Ends the take. Nothing plays: Yours and Compare play it when asked. */
-  stop: () => void;
+  /** Ends the take and plays it back, unless `playBack` is false (the screen is about to play something). */
+  stop: (playBack?: boolean) => void;
   /** Whether Compare is offered: there's a take and the screen has a native recording to play before it. */
   canCompare: boolean;
   playing: SelfPlaying;
@@ -64,6 +64,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
   const before = useRef(opts.onBeforeAudio);
   before.current = opts.onBeforeAudio;
   const limit = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playAfter = useRef(true);
   const original = useRef(opts.original);
   original.current = opts.original;
 
@@ -123,10 +124,13 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
       if (old && old !== uri) remove(old);
       return uri;
     });
+    if (playAfter.current) playUri(uri);
   };
 
-  const stop = useCallback(() => {
+  const stop = useCallback((playBack = true) => {
     if (!recordingRef.current) return;
+    if (playBack) haptic.tap();
+    playAfter.current = playBack;
     recorder.stop().then(() => finished.current(), () => finished.current());
   }, [recorder]);
 
@@ -161,6 +165,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     }
     recordingRef.current = true;
     recordingFor.current = forKey;
+    playAfter.current = true;
     setRecording(true);
     limit.current = setTimeout(() => { recorder.stop().then(() => finished.current(), () => finished.current()); }, TAKE_LIMIT_SECONDS * 1000);
   }, [recorder, player, setPlayingNow]);

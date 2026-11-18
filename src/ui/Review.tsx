@@ -441,7 +441,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
   const spoken = useSpokenAnswer(rendered?.speechLang, {
     expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
-    onBeforeListen: () => { Keyboard.dismiss(); self.stop(); },
+    onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
     onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -854,7 +854,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const reveal = () => {
     Keyboard.dismiss();
     // A take made from memory ends here, quietly, so the answer's own recording plays.
-    self.stop();
+    self.stop(false);
     setRevealedAt(showing);
     if (rendered) speak(autoplayFor(rendered, true));
   };

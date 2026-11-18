@@ -166,8 +166,8 @@ Franki's (Client, below).
   kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
   replay button) begins its count again.
 - **Record yourself** in the player, beside Repeat line, records the line playing or last played
-  ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays nothing. Yours
-  plays it, Compare plays the line as it was played and then the take, either stops while it plays, and
+  ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays it back. Yours
+  replays it, Compare plays the line as it was played and then the take, either stops while it plays, and
   the line's own buttons replay the native line. One take at a time, for that line
   only: moving to another line or closing the text deletes it, and it's never sent to the server.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to

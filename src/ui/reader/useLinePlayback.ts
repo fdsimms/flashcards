@@ -135,7 +135,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
 
   const playLine = (i: number, all: boolean, r = rate) => {
     if (!text) return;
-    self.stop();
+    self.stop(false);
     self.stopTake();
     setSilentLine(null);
     startLine(i, r);
@@ -154,7 +154,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
 
   const togglePlay = () => {
     if (!text) return;
-    self.stop();
+    self.stop(false);
     self.stopTake();
     if (status.playing) player.pause();
     else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {
