@@ -1,96 +1,102 @@
 """
-Draws Franki's app icon and splash logo: a gold flashcard with an F, over a second card.
+Draws Franki's app icon and splash logo: a cream flashcard over a second card, on flat gold, with
+the sound "f" written in four scripts (Latin F, Cyrillic Ф, Thai ฟ, Japanese フ).
 
     python3 assets/make-icons.py        (needs Pillow)
 
 Writes assets/icon.png (1024, opaque, as the App Store wants it; iOS rounds the corners),
-assets/icon-tinted.png (the same in grayscale, for iOS's tinted icons) and assets/splash-icon.png (the same mark on transparent, for the launch screen). The colors are the
-theme's (src/ui/theme.ts): the dark background, and the accent's gold. Everything is drawn at 4x and
-scaled down, so the edges are smooth.
+assets/icon-tinted.png (the same in grayscale, for iOS's tinted icons) and assets/splash-icon.png
+(the icon with rounded corners on transparent, for the launch screen). Flat colors, no gradients
+or shadows, like dundundun's icon. The gold is a little warmer than the theme's accent
+(src/ui/theme.ts) so it holds up as a full-bleed background. Everything is drawn at 3x and scaled
+down, so the edges are smooth.
+
+The glyphs come from the fonts the app bundles (assets/fonts). Thai is Noto Serif Thai because the
+loopless Thai fonts draw ฟ without its loop, which makes it hard to recognize. Japanese has no
+bundled font (the app downloads them), so フ is drawn as one thick rounded stroke.
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 
 OUT = Path(__file__).resolve().parent
+FONTS = OUT / "fonts"
 SIZE = 1024
-SS = 4  # supersampling
+SS = 3  # supersampling
+B = SIZE * SS
 
-BG_TOP, BG_BOTTOM = (27, 30, 38), (14, 16, 20)
-GOLD_TOP, GOLD_BOTTOM = (240, 214, 144), (200, 160, 74)
-GOLD_BACK = (138, 109, 31)
+GOLD = (240, 187, 66)
+DEEP = (196, 138, 24)
+CREAM = (255, 244, 214)
 INK = (27, 20, 7)
 
-
-def vertical_gradient(w, h, top, bottom):
-    img = Image.new("RGB", (w, h))
-    px = img.load()
-    for y in range(h):
-        t = y / max(1, h - 1)
-        row = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
-        for x in range(w):
-            px[x, y] = row
-    return img
+LATIN = FONTS / "Inter_700Bold.ttf"  # has Latin and Cyrillic
+THAI = FONTS / "NotoSerifThai_600SemiBold.ttf"
 
 
-def rounded_mask(w, h, r):
-    m = Image.new("L", (w, h), 0)
-    ImageDraw.Draw(m).rounded_rectangle((0, 0, w - 1, h - 1), r, fill=255)
-    return m
+def text_glyph(layer, ch, cx, cy, size, font, weight):
+    f = ImageFont.truetype(str(font), round(size))
+    # A stroke in the ink color thickens the glyph (a thin one for Thai, or its loop fills in).
+    ImageDraw.Draw(layer).text((cx, cy), ch, font=f, fill=INK, anchor="mm",
+                               stroke_width=round(size * weight), stroke_fill=INK)
 
 
-def card(w, h, r, top, bottom, with_f):
-    """A card: a gradient with a soft highlight along its top edge, and an F cut in dark ink."""
-    face = vertical_gradient(w, h, top, bottom).convert("RGBA")
-    d = ImageDraw.Draw(face)
-    if with_f:
-        u = w / 470  # the F is drawn for a 470-wide card
-        stroke = 66 * u
-        x0, y0 = 138 * u, 150 * u
-        for box in (
-            (x0, y0, x0 + stroke, y0 + 340 * u),                      # stem
-            (x0, y0, x0 + 215 * u, y0 + stroke),                      # top bar
-            (x0, y0 + 138 * u, x0 + 160 * u, y0 + 138 * u + stroke),  # middle bar
-        ):
-            d.rounded_rectangle(box, stroke * 0.36, fill=INK)
-    face.putalpha(rounded_mask(w, h, r))
-    return face
+def katakana_fu(layer, cx, cy, s):
+    """フ: a bar, then a stroke bending down and to the left, round at both ends."""
+    d = ImageDraw.Draw(layer)
+    w = s * 0.22
+    pts = [(cx - s * .34, cy - s * .30), (cx + s * .32, cy - s * .30),
+           (cx + s * .26, cy + s * .02), (cx - s * .14, cy + s * .38)]
+    d.line(pts, fill=INK, width=round(w), joint="curve")
+    for x, y in (pts[0], pts[-1]):
+        d.ellipse((x - w / 2, y - w / 2, x + w / 2, y + w / 2), fill=INK)
 
 
-def place(base, layer, center, angle, shadow=0):
-    rotated = layer.rotate(angle, resample=Image.BICUBIC, expand=True)
-    x, y = center[0] - rotated.width // 2, center[1] - rotated.height // 2
-    if shadow:
-        sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
-        sh.paste((0, 0, 0, 120), (x, y + shadow), rotated.getchannel("A"))
-        base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(shadow * 0.9)))
-    base.alpha_composite(rotated, (x, y))
+def four_scripts(layer, w, h):
+    """The four glyphs in a 2x2 grid centered on a w x h card."""
+    cx, cy, o, size = w / 2, h / 2, w * .25, w * .30
+    text_glyph(layer, "F", cx - o, cy - o, size, LATIN, 0.035)
+    text_glyph(layer, "Ф", cx + o, cy - o, size, LATIN, 0.035)
+    text_glyph(layer, "ฟ", cx - o, cy + o, size * 1.15, THAI, 0.01)
+    katakana_fu(layer, cx + o, cy + o, size)
 
 
-def mark(size):
-    """The two cards on a transparent canvas of `size`."""
-    s = size
-    canvas = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    cw, ch, r = round(s * 0.46), round(s * 0.60), round(s * 0.07)
-    back = card(cw, ch, r, GOLD_BACK, tuple(int(c * 0.8) for c in GOLD_BACK), False)
-    front = card(cw, ch, r, GOLD_TOP, GOLD_BOTTOM, True)
-    place(canvas, back, (round(s * 0.532), round(s * 0.475)), -14, shadow=round(s * 0.012))
-    place(canvas, front, (round(s * 0.442), round(s * 0.535)), 7, shadow=round(s * 0.022))
-    return canvas
+def card(w, h, fill, glyphs=False):
+    c = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(c).rounded_rectangle((0, 0, w - 1, h - 1), round(B * .075), fill=fill + (255,))
+    if glyphs:
+        four_scripts(c, w, h)
+    return c
+
+
+def place(base, layer, center, angle):
+    r = layer.rotate(angle, resample=Image.BICUBIC, expand=True)
+    base.alpha_composite(r, (round(center[0] - r.width / 2), round(center[1] - r.height / 2)))
+
+
+def icon_square(ground=GOLD, back=DEEP, front=CREAM):
+    img = Image.new("RGBA", (B, B), ground + (255,))
+    w, h = round(B * .46), round(B * .60)
+    place(img, card(w, h, back), (B * .55, B * .47), -13)
+    place(img, card(w, h, front, glyphs=True), (B * .45, B * .53), 6)
+    return img.resize((SIZE, SIZE), Image.LANCZOS)
 
 
 def main():
-    big = SIZE * SS
-    icon = vertical_gradient(big, big, BG_TOP, BG_BOTTOM).convert("RGBA")
-    icon.alpha_composite(mark(big))
-    icon.convert("RGB").resize((SIZE, SIZE), Image.LANCZOS).save(OUT / "icon.png", optimize=True)
+    icon = icon_square()
+    icon.convert("RGB").save(OUT / "icon.png", optimize=True)
 
-    splash = mark(big).resize((SIZE, SIZE), Image.LANCZOS)
+    # The launch screen shows the icon with its corners rounded, since the screen behind it
+    # is the app's own paper or dark color.
+    mask = Image.new("L", (B, B), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, B - 1, B - 1), round(B * .2237), fill=255)
+    splash = icon.copy()
+    splash.putalpha(mask.resize((SIZE, SIZE), Image.LANCZOS))
     splash.save(OUT / "splash-icon.png", optimize=True)
 
-    # The tinted home screen icon (iOS 18): iOS colors it by brightness, so a black ground and a
-    # grayscale mark, with the dark ground's gradient pushed to pure black.
-    tinted = Image.open(OUT / "icon.png").convert("L").point(lambda v: 0 if v < 40 else min(255, int((v - 40) * 1.35)))
+    # The tinted home screen icon (iOS 18): iOS colors it by brightness, so a black ground, a
+    # mid-gray back card and a near-white front card.
+    tinted = icon_square(ground=(0, 0, 0), back=(110, 110, 110), front=(240, 240, 240))
     tinted.convert("RGB").save(OUT / "icon-tinted.png", optimize=True)
 
 
