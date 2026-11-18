@@ -137,7 +137,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
   const translationRow = (it: Item) => (
-    <View key={it.i} style={{ marginTop: space.xs, paddingHorizontal: space.m, paddingBottom: space.m }}>
+    <View key={it.i} style={{ paddingHorizontal: space.m, paddingBottom: space.m }}>
       <TranslationRow>{line(it)}</TranslationRow>
     </View>
   );
@@ -170,7 +170,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 {group.map((it) => (hidden(it)
                   ? hintRow(it)
                   : it.b.role === 'exampleTranslation' ? translationRow(it)
-                  : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : space.s }}>{line(it)}</View>))}
+                  : <View key={it.i} style={{ padding: space.m, paddingTop: it.b.role === 'example' ? space.m : 0, paddingBottom: space.s }}>{line(it)}</View>))}
               </View>
             </View>
           );
