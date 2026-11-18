@@ -62,6 +62,9 @@ describe('upNext', () => {
     // An undo shows a card from further down: the one at the front still comes next.
     expect(upNext(q, b)?.id).toBe(a.id);
     expect(upNext({ due: [], fresh: [a], order: [a] }, a)).toBeUndefined();
+    // A card the answer leaves out (a sibling it buries, a lookalike it holds back) won't come next.
+    expect(upNext(q, a, (card) => card.id === b.id)?.id).toBe(c.id);
+    expect(upNext(q, a, (card) => card.id !== a.id)).toBeUndefined();
   });
 });
 
