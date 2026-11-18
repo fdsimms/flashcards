@@ -51,7 +51,10 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [rate, setRate] = useState(kind === 'hear' && hasSlow(prefs(), text.language) ? SLOW_RATE : speedFor(prefs(), text.language));
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, { onBeforeAudio: () => player.pause() });
+  const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, {
+    onBeforeAudio: () => player.pause(),
+    original: line?.audio && at !== undefined ? () => ({ source: api.audioSource(text.id, at, rate) }) : null,
+  });
   // The keyboard's height pads the whole screen, so Check and the marks under the list stay above it (as in FormsDrill).
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();

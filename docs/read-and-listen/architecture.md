@@ -167,7 +167,8 @@ Franki's (Client, below).
   replay button) begins its count again.
 - **Record yourself** in the player, beside Repeat line, records the line playing or last played
   ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays it back. Yours
-  replays it, and the line's own buttons replay the native line. One take at a time, for that line
+  replays it, Compare plays the line as it was played and then the take, either stops while it plays, and
+  the line's own buttons replay the native line. One take at a time, for that line
   only: moving to another line or closing the text deletes it, and it's never sent to the server.
 - **Past texts**: texts read to the end, newest first (the last 50), opened in the same reader to
   read or listen to again. Reading one again isn't logged: the log is one row per text, and a reread

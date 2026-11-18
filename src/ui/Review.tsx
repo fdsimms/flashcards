@@ -379,11 +379,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    */
   const ttsRunning = useRef(false);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
+  // Compare plays the card's recording before the take, so it's offered only with that file here.
+  const recordingUri = useMemo(() => (rendered?.audioFile ? mediaFileUri(rendered.audioFile) : undefined), [rendered?.audioFile]);
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
     onBeforeAudio: () => {
       if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
       player.current?.pause();
     },
+    original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
   const speak = useCallback(
     (what: Playback | undefined) => {
