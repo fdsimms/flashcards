@@ -689,8 +689,11 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   return (
     <Screen
       largeTitle={false}
-      // The swipe back would take the touch from a phrase drag that starts or runs near the left edge.
-      lockGesture={phraseDrag.dragging}
+      // The swipe back would take the touch from a phrase drag that starts near the left edge or
+      // runs left to right. iOS decides whether a touch can be a back swipe when the finger lands,
+      // so locking it once the long press has fired (`phraseDrag.dragging`) was too late: it is off
+      // for as long as the words can be selected. The Back button and Back to topics still leave.
+      lockGesture={!!text && !!session && !ended && !listenOnly}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
           {keyMarks.length > 0 ? (
