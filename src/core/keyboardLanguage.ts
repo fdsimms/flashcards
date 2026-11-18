@@ -1,10 +1,12 @@
 /**
  * The keyboard a typed answer should open on. iOS starts a field on whichever keyboard was used
- * last, so a Russian answer opens on English. Only languages written in their own alphabet ask for
- * one: Latin-script languages (Polish, German, Norwegian...) are typed on the English keyboard,
- * which has their letters under a long press.
+ * last, so a Russian answer opens on English, and an English one after a Thai field opens on Thai.
+ * Languages written in their own alphabet ask for one, and so does English, so a field that expects
+ * it can leave a non-Latin keyboard. Other Latin-script languages (Polish, German, Norwegian...) are
+ * typed on the English keyboard, which has their letters under a long press, so they ask for nothing.
  */
 const OWN_SCRIPT = new Set([
+  'en',
   'ru', 'uk', 'bg', 'be', 'sr', 'mk', 'kk', // Cyrillic
   'el', 'th', 'ja', 'ko', 'zh', 'ar', 'he', 'fa', 'hi', 'ka', 'hy',
 ]);

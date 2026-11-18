@@ -129,6 +129,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       Claude to fill in; 503 without a Claude key
     POST  /api/note-queue/{id}/retry  a failed word waiting to be filled again
     DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
+    GET   /api/word-suggestions       ?language=: words to add when the deck's new cards run low
+                                      (word_suggestions.py): {texts, common: [{word, meaning, rank,
+                                      texts}]}, from texts read and the common words the deck lacks
+    POST  /api/word-suggestions/dismiss  {language, word}: Not interested, never suggested again
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
                                       english, words}]}, lines from texts read, the latest first;

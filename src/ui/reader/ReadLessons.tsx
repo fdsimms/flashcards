@@ -105,7 +105,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
             label="New lesson"
             value={scene}
             onChangeText={setScene}
-            placeholder={chosen.words.length ? "What they're for, like at a cafe" : "Ordering a coffee"}
+            placeholder={chosen.words.length ? "Where you'd use them, like at a cafe" : "Ordering a coffee"}
             maxLength={200}
             returnKeyType="done"
             onSubmitEditing={make}

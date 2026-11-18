@@ -10,6 +10,8 @@ export type NextStep = {
   icon: { name: SFSymbol; color: string };
   /** Said under the label while the step is being opened, which can wait on the server. */
   busy?: boolean;
+  /** A line under the label (how many days of new cards a deck has left). */
+  detail?: string;
   onPress: () => void;
 };
 
@@ -25,7 +27,7 @@ export function NextSteps({ steps }: { steps: NextStep[] }) {
       <SectionTitle>Keep going</SectionTitle>
       <Group>
         {steps.map((s, i) => (
-          <NavRow key={s.key} first={i === 0} icon={s.icon} label={s.label} detail={s.busy ? 'Opening…' : undefined} disabled={s.busy} onPress={s.onPress} />
+          <NavRow key={s.key} first={i === 0} icon={s.icon} label={s.label} detail={s.busy ? 'Opening…' : s.detail} disabled={s.busy} onPress={s.onPress} />
         ))}
       </Group>
     </View>
