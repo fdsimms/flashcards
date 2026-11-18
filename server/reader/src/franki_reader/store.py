@@ -216,6 +216,14 @@ CREATE TABLE IF NOT EXISTS vocab_items (
     batch_id INTEGER NOT NULL REFERENCES vocab_batches(id),
     PRIMARY KEY (language, lemma)
 );
+-- Words the owner said "Not interested" to among the suggested words (word_suggestions.py), so
+-- they aren't suggested again. Per language; the word as it was suggested.
+CREATE TABLE IF NOT EXISTS dismissed_words (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    dismissed_at TEXT NOT NULL,
+    PRIMARY KEY (language, word)
+);
 -- The note queue (note_queue.py): words the owner typed in the app, for Claude to fill in the other
 -- fields of in the background. `fields` is what passed the checks (Anki field name -> value), and a
 -- row is deleted once the owner saves the note, or removes it, in the app. Nothing here is an Anki note.
@@ -2944,3 +2952,24 @@ def grammar_topic_spending(
             (since.isoformat(),),
         )
     }
+
+
+def dismiss_word(conn: sqlite3.Connection, language: Code, word: str, now: datetime) -> None:
+    """Keeps `word` out of the language's suggested words from now on (word_suggestions.py).
+    Dismissing one again is fine."""
+    with conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO dismissed_words (language, word, dismissed_at) VALUES (?, ?, ?)",
+            (language, word, now.isoformat()),
+        )
+
+
+def dismissed_words(conn: sqlite3.Connection, language: Code) -> list[str]:
+    """The words dismissed from the language's suggested words, oldest first."""
+    return [
+        w
+        for (w,) in conn.execute(
+            "SELECT word FROM dismissed_words WHERE language = ? ORDER BY dismissed_at, word",
+            (language,),
+        )
+    ]

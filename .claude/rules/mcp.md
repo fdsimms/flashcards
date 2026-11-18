@@ -37,6 +37,15 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
   `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
   shapes are unverified against a live key (its docstring says which parts were checked).
+- **Omnilanguage's house style is one module** (`omnilanguage.py`): the rules `add_notes` and
+  `update_notes` hold a note to (tidied where a fix needs no judgment, refused with what to change
+  otherwise), the ones `lint_notes` reports and fixes, and the prose `note_guide` returns. A rule
+  goes there once. One written only into a tool description is checked by nobody, which is how ten
+  languages came to write a Meaning four ways. An update is checked only for the fields it writes,
+  so an old note can be corrected a field at a time. `tests/test_omnilanguage.py` holds every
+  example the guide shows to its own rules.
+- **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
+  did): what applies to every tool goes there, and a tool's own rules go in its description.
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
   `tests/test_anki_version.py` checks).
 - **A merge to `main` that touches `server/` deploys itself**: the rule is in `CLAUDE.md`, since it

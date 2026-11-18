@@ -112,15 +112,18 @@ export function deckDeletion(notes: Note[], cards: Card[], deck: string): DeckDe
  * What the deck list says before deleting a deck: what goes with it (`deckDeletionPreview`'s
  * count, and its subdecks), whether Anki follows, and that it can't be undone.
  */
-export function deckDeletionWarning(p: { cards: number; inAnki: boolean; keepsDeck: boolean }, subdecks: number): string {
+export function deckDeletionWarning(p: { cards: number; returned: number; inAnki: boolean; keepsDeck: boolean }, subdecks: number): string {
   const count = (n: number, one: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : `${one}s`}`;
   const things = [subdecks ? count(subdecks, 'subdeck') : '', p.cards ? count(p.cards, 'card') : ''].filter(Boolean);
   const single = things.length === 1 && (subdecks || p.cards) === 1;
   const gone = things.length ? `Its ${things.join(' and ')} ${single ? 'is' : 'are'} deleted` : '';
+  // A filtered deck holds cards that belong to other decks: deleting it sends them home, not away.
+  const back = p.returned ? `${p.returned === 1 ? 'A card' : `${p.returned.toLocaleString('en-US')} cards`} studied here ${p.returned === 1 ? 'goes' : 'go'} back to ${p.returned === 1 ? 'its' : 'their'} own ${p.returned === 1 ? 'deck' : 'decks'}.` : '';
   const lines = p.keepsDeck
     ? [gone ? `${gone}. Anki always keeps its Default deck, so the deck itself stays, empty.` : 'Anki always keeps its Default deck, and there are no cards in it to delete.']
-    : [gone ? `${gone} with it.` : 'It has no cards.'];
-  if (p.inAnki && (gone || !p.keepsDeck)) lines.push('Anki deletes the same at the next sync, or when you send your collection back.');
+    : [gone ? `${gone} with it.` : back ? '' : 'It has no cards.'];
+  if (back) lines.push(back);
+  if (p.inAnki && (gone || !p.keepsDeck)) lines.push(`Anki ${gone ? 'deletes' : 'does'} the same at the next sync, or when you send your collection back.`);
   lines.push("This can't be undone.");
-  return lines.join(' ');
+  return lines.filter(Boolean).join(' ');
 }

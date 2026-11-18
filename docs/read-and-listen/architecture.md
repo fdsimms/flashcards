@@ -394,7 +394,7 @@ aloud is never heard by the phone.
   the dialogue is played once; each phrase is said, its meaning given, built up from its last part
   to the whole (backward build-up) with a silence after each step to repeat, then asked for in
   English with a silence to answer; earlier phrases are asked again after 1, then 3 more phrases
-  are taught, and once more at the end. Five phrases make about four to five minutes.
+  are taught (a recall the phrases run out before reaching is dropped, 18 November 2026, the owner: the closing pass felt like the same question over and over). Five phrases make about four to five minutes.
 - **The lesson builds on itself** (16 November 2026, the owner: it felt like five separate phrases).
   The phrases are written as a ladder in the order they come up in the dialogue, each reusing words
   from an earlier one. After the last is taught, up to 3 `mixes` are asked: new sentences made only
@@ -402,6 +402,7 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **The role-play never asks for what wasn't taught** (18 November 2026, the owner, after a lesson on "can you say that again", "soon" and "don't forget"): the narrator said "first speaker" while speaker B opened the conversation, a "put them together" sentence was just "soon, don't forget", and the role-play asked for A's lines the lesson never taught. Now the request has A speak first, and the narrator says "first" or "second" as the dialogue really runs (`_role_play`). A line of A's made only of words the phrases taught is asked cold; any other is said by the native voice first and then repeated in a silence, with one narrator line saying so. A lesson on the learner's own words drops a mix that is only whole phrases in a row (`_is_phrases_end_to_end`; not applied to written lessons, whose phrases can make a sentence), and both requests say a mix is one complete sentence a person would say. The request also keeps A's lines short and built from the phrases.
 - **Each phrase does a different job** (18 November 2026, the owner: "How Are You?" came out as "how are you" said over and over). A narrow scene gave four phrases that were one question with a word added, and every phrase is heard many times (taught, built up, asked, recalled), so the repeats filled the lesson. The request now asks for different jobs (ask, answer, ask back, react, thank), reaching to what comes before and after a narrow scene, and the ladder rule asks for at least two words the earlier phrases lack. Prompt only: a code check on word overlap was tried and flagged real ladders ("Please" then "The check, please"), so it was dropped.
 - **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
   from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
@@ -1839,6 +1840,39 @@ in the current language, with when one was last read to the end. Nothing else le
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+
+## Suggested words
+
+Decided 18 November 2026, the owner's idea: when a language deck is about to run out of new cards,
+suggest words to add, so the deck keeps going without the owner having to think them up.
+
+- **When:** a Read & Listen language's deck with fewer than three days of new cards left
+  (`RUNWAY_DAYS`, `src/reader/newWords.ts`): its never-studied, unsuspended cards (the deck row's
+  `unstudied`, its subdecks and frequency tiers included) under three times its own daily new limit
+  (the row's `newPerDay`: the preset's, not today's Custom Study limit). Not for a deck taking no new
+  cards, not while vacation mode is on, and not while words for that deck wait in the note queue or are
+  held offline, since the queue's own card on Today already says so.
+- **Where:** a card on Today ("Español: 2 days of new cards left", `NewWordsCard.tsx`), whose x hides it
+  until the next study day (kept in the Keychain), and an "Add new words" row in a finished session's
+  Keep going list for that deck, a deck under it or the deck it's in (`useNewWordsStep`). Both open
+  Suggested words (`src/ui/reader/SuggestedWords.tsx`, the `read-new-words` route). Mocked first; the
+  owner picked a card on Today over a chip in Today's extras, and kept the session row too.
+- **The words** (`GET /api/word-suggestions`, `word_suggestions.py`), neither source asking Claude:
+  words in texts read to the end that count as unknown, by dictionary form, the most texts first; then
+  the language's most common words from just past the `common` setting (Thai, which counts none, from
+  the top). Up to 50 of each. Left out: anything in the deck in any form, studied or not; WaniKani's
+  words for Japanese (the owner's choice); words in the note queue; and words dismissed with Not
+  interested (`POST /api/word-suggestions/dismiss`, the `dismissed_words` table, never suggested again).
+  The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
+  of the deck has (`entryKeys`, an entry with or without its article) and words held for Claude.
+- **The screen** groups the words by source, each with its meaning when one is known (a text's gloss,
+  the vocabulary check's, or the deck's) and its count of texts or its rank. About three days of new
+  cards' worth start ticked (`wordsToTick`: three days at the daily limit over the deck's cards per
+  note, at most 50, Quick add's limit), texts first. Add sends them to the note queue with no meaning,
+  so Claude writes one rather than keeping a line's gloss as the owner's own. Nothing reaches the deck
+  until each note is saved in the note editor, one at a time, as for Quick add.
+- Other sources were considered and left for later by the owner's choice: Situations' leftover
+  words, parts of compounds named in a note's Notes, missing aspect partners, topic and grammar words.
 
 ## Ask Claude about a card
 

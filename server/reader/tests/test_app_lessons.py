@@ -211,7 +211,7 @@ def test_makes_a_lesson_in_the_background_and_serves_its_audio(tmp_path: Path) -
     assert [p["english"] for p in row["phrases"]] == ["A coffee.", "Please.", "The check, please."]
     assert row["duration_ms"] > 60_000
     # Every place the learner speaks: each phrase built up and asked, the recalls, the role-play.
-    assert len(row["pauses"]) > 10
+    assert len(row["pauses"]) >= 8
     assert all(0 < start < end <= row["duration_ms"] for start, end in row["pauses"])
     audio = c.get(f"/api/lessons/{row['id']}/audio", headers=AUTH)
     assert audio.status_code == 200

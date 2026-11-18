@@ -215,6 +215,13 @@ def lexicon_from(
     return _lexicon(language, known, count, frozenset(extra), held)
 
 
+def deck_lexicon(language: Code, words: Iterable[str], extra: Iterable[str] = ()) -> Checker:
+    """A checker that counts every one of `words` as known, studied or not, and no common words:
+    for asking whether a word is in the deck at all (word_suggestions.py), not whether it's known.
+    `extra` is as for `lexicon_from` (Japanese's WaniKani words)."""
+    return _lexicon(language, frozenset(w for w in words if w), 0, frozenset(extra))
+
+
 @lru_cache(maxsize=8)
 def _lexicon(
     language: Code,
