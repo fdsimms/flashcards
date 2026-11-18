@@ -69,10 +69,9 @@ Franki's (Client, below).
 - **Explain a phrase** (12 November 2026, by the owner's decision, for idioms and set phrases like
   "ya lo sé"). Hold a word and drag to the phrase's last word (13 November 2026, by the owner's
   request; `usePhraseDrag.ts`): the hold starts it, so a quick swipe still scrolls, and the text's
-  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. Or a
-  word's gloss has "Select a phrase": the word becomes the phrase's first, the other lines dim, and
-  tapping another word in the same line ends it (either way round; Cancel in the bar above the
-  player, which also mentions the hold). The phrase is drawn as one band and Claude's note on it opens in a popup beside
+  scrolling is off until the finger lifts; held and let go on the same word, it's a tap. (A word's
+  gloss used to have a "Select a phrase" button; 18 November 2026, by the owner's decision, it was taken
+  out of the popover.) The phrase is drawn as one band and Claude's note on it opens in a popup beside
   the phrase (on whichever side has more room, its height capped, the notes scrolling): what it means there, then a few points on its parts (a set expression, how the words combine,
   tone), with "Explain more simply". A phrase stays within one line, so the server can check it's
   there. The request carries the whole text (title, every line numbered with its speaker and English,
@@ -538,14 +537,15 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   once `due_in` says it has come due, and nothing is known to be reviewed. Stretch words, and the
   words a new text may use, read these (Generation and coverage). Still read only: `test_collection.py` checks a read leaves nothing to send.
 - Only the latest snapshot is kept. No history.
-- **Transliteration** (Thai): a word's popover hides it behind "Show transliteration". A deck word shows
+- **Transliteration** (Thai; Japanese's reading is the same field): a word's popover always shows it under the meaning (18 November 2026,
+  by the owner's decision; it used to sit behind a "Show transliteration" button). A deck word shows
   its note's `Transliteration` field, kept in the snapshot. A word off the list shows the one the model
   writes beside its gloss, in the style of the deck's (tone marks, syllables joined by hyphens), stored
   with the text (`texts.translits`). It can't be checked in code the way coverage is, so it's the model's
-  word for it, and a word it gave none for shows no reveal rather than a guess. Texts written before
+  word for it, and a word it gave none for shows none rather than a guess. Texts written before
   this have none for their off-list words. Only Thai's prompt asks for it.
-- **IPA** (15 November 2026, by the owner's decision): the word popover shows a word's IPA beside the word, with where it's from in the
-  status line ("IPA from Wiktionary"), in every language but English (issue #296). It's there by default;
+- **IPA** (15 November 2026, by the owner's decision): the word popover shows a word's IPA beside the word, and tapping it opens a tooltip
+  with where it's from ("IPA from Wiktionary"; 18 November 2026, it was a status line), in every language but English (issue #296). It's there by default;
   there is no setting. A token carries `ipa` and `ipa_source`, one of three:
   - **`wiktionary`**: the tables are Wiktionary's, built from kaikki.org's extracts by `scripts/build_ipa.py`
     into `data/ipa/<code>.tsv.gz` (`ipa.py`), under CC BY-SA 4.0, which Settings, Read & Listen says.
@@ -558,13 +558,18 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   - **`rules`** (Japanese): the kana reading (the deck's KanaReading, else Sudachi's) turned into IPA by
     rule (`kana_ipa.py`), in Wiktionary's phonemic style. Approximate: no pitch accent, no devoicing.
   - **`ai`**: written by Claude for a word the table has none for (`ai_ipa.py`), shown labeled as AI
-    everywhere (an "AI" chip, "IPA written by AI, may be wrong" in the status line, "Written by AI. Check
+    everywhere (the IPA drawn in the warning color, "IPA written by AI, may be wrong" in its tooltip, "Written by AI. Check
     it before saving." under the note's field), since nothing checks it and stress is where it goes
     wrong. The table always wins. It's asked after a text is written, in the same background pass as the
     meanings, one call of up to 150 words with the line each is in, and kept for the language
     (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
     asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
   Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving.
+- **The word popover's layout** (18 November 2026, by the owner's decision, mocked as option G). The meaning's line carries the word's
+  register chip and, for a word whose note is in the deck (`inDeck`), a card-stack icon with a check, drawn from two SF Symbols; its tooltip says
+  "In your deck". The other statuses (a name, only inside a phrase, not in the deck, learned in WaniKani) keep their text line. The IPA is
+  amber when written by AI. Both tooltips open above the text, and below it when the popover is near the top of the screen
+  (`ReadWordTips.tsx`), and close on the next tap or after a few seconds.
   **On a card** (18 November 2026, by the owner's decision) the back shows that field after the answer:
   behind a "Show pronunciation" tap when the card already keeps a reading behind one (a Transliteration, a
   KanaReading: Thai, Japanese), so the sound isn't given away while the reading is hidden, and plainly

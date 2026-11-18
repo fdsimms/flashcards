@@ -11,13 +11,13 @@ import { scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { COMMON_WORD_STATUS, LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
 import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
-import { locate, phraseRange, phrasePart, phraseText, pickEnd, type PhrasePick } from '../../reader/phrase';
+import { phraseRange, phrasePart, phraseText, type PhrasePick } from '../../reader/phrase';
 import { choicesView, holdsPlayAll } from '../../reader/choices';
 import { buildCheck, loggedScore, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { tapMode, type TapMode } from '../../reader/guess';
@@ -30,7 +30,8 @@ import { Pop, Reveal } from '../motion';
 import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { ReadWordTitle } from './ReadWordTitle';
-import { PhraseExplanation, PhrasePickBanner, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
+import { ReadGlossLine } from './ReadWordTips';
+import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { LineDrillCard, ReadLineDrill } from './ReadLineDrill';
@@ -557,12 +558,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
   const tap = (word: Word, x: number, y: number) => {
     if (!session || !text) return;
-    if (phrase && phrase.end === null) {
-      // Choosing the phrase's last word: the tap ends the phrase, not a lookup.
-      const at = locate(text.lines, word);
-      if (at) setPhrase(pickEnd(phrase, at.line, at.index));
-      return;
-    }
     if (quiz.begin(word)) return;
     openWord(word, x, y);
   };
@@ -576,10 +571,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setTapped({ word, x, y, guess: mode });
   };
 
-  // A practice word's pill opens the same popover as the word in the text. Not while a phrase is
-  // being picked, when a tap belongs to the phrase.
+  // A practice word's pill opens the same popover as the word in the text.
   const openPracticeWord = (text_: string, x: number, y: number) => {
-    if (!session || !text || (phrase && phrase.end === null)) return;
+    if (!session || !text) return;
     const word = text.lines.flatMap((l) => l.words).find((w) => w.text === text_);
     if (!word) return;
     openWord(word, x, y);
@@ -588,23 +582,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Holding a word and dragging to the last word of a phrase; held without dragging, it's a tap.
   const phraseDrag = usePhraseDrag({ lines: text?.lines ?? null, setPhrase, onHeld: tap });
 
-  const startPhrase = () => {
-    const at = tapped && text ? locate(text.lines, tapped.word) : null;
-    if (!at) return;
-    setPhrase({ line: at.line, start: at.index, end: null });
-    setTapped(null);
-  };
-
-  // A word's part in the phrase: where it sits in the selected phrase, whether it's the first word
-  // while the last is being chosen, and whether it's in a line the phrase can't reach.
+  // A word's part in the phrase: where it sits in the selected phrase.
   const phraseLook = (line: number, word: Word, words: Word[]) => {
     const here = phrase?.line === line ? words.indexOf(word) : -1;
-    const picking = !!phrase && phrase.end === null;
-    return {
-      phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null,
-      phraseStart: picking && here === phrase.start,
-      dimmed: picking && phrase.line !== line,
-    };
+    return { phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null };
   };
 
   const toggleLineEnglish = (i: number) => {
@@ -669,7 +650,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Where the finished phrase is on screen, for its popup to open beside. Measured once the phrase is
   // complete and no longer dragged; the popup is a modal, so the text can't scroll under it.
   const [phraseAnchor, setPhraseAnchor] = useState<PhraseAnchor | null>(null);
-  const phraseKey = phrase && phrase.end !== null ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
+  const phraseKey = phrase ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
   useEffect(() => {
     setPhraseAnchor(null);
     const range = phrase && text && !phraseDrag.dragging ? phraseRange(phrase) : null;
@@ -727,9 +708,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       ) : undefined}
       footer={text && !ended ? (
         <>
-          {phrase && phrase.end === null && !listenOnly ? (
-            <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
-          ) : null}
           {hasAudio ? (
             <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat}
@@ -1136,7 +1114,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       <GlossPopover
         tapped={tapped}
         language={text?.language}
-        translitLabel={LANGUAGES[text?.language ?? 'th'].translitLabel}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
         grammarChosen={grammarChosen}
@@ -1152,7 +1129,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           onPlayWord(tapped.word.text, text.language, saidAs(text.language, tapped.word.text, tapped.word.translit));
         }}
         // A word of "Last time" isn't in the text's lines, so there's no phrase to start from it.
-        onSelectPhrase={listenOnly || (tapped && text && !locate(text.lines, tapped.word)) ? null : startPhrase}
         onAddToDeck={mining?.language === text?.language && mining && tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the reader.
           const word = tapped.word.text;
@@ -1168,7 +1144,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <ReaderFormQuiz key={quiz.current.key} api={api} language={text?.language ?? 'th'} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
       ) : null}
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
-      {text && phrase && phrase.end !== null && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
+      {text && phrase && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
         <PhraseExplanation
           key={`${phrase.line}:${phraseText(text.lines[phrase.line].words, phrase)}`}
           api={api}
@@ -1258,12 +1234,10 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, language, translitLabel, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onSelectPhrase, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, language, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
-  /** The button that shows the word's pronunciation: a transliteration, or Japanese's reading. */
-  translitLabel: string;
   grammar: TextGrammar | null;
   api: Api;
   grammarChosen: Record<string, GrammarChoice>;
@@ -1276,8 +1250,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   onReveal?: () => void;
   /** The quiz on a known word was answered: right, or wrong (a wrong pick or "I don't know"). A record, not a lookup. */
   onQuizAnswer?: (right: boolean) => void;
-  /** Starts selecting a phrase from this word, to have it explained. */
-  onSelectPhrase: (() => void) | null;
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
@@ -1288,17 +1260,14 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   const insets = useSafeAreaInsets();
   // Measured on first layout (drawn invisible until then), since a long gloss wraps.
   const [popHeight, setPopHeight] = useState(0);
-  // The transliteration stays hidden until asked for, and hides again for the next word.
-  const [showTranslit, setShowTranslit] = useState(false);
   // The form chip's explanation replaces the popover while it's open.
   const [showForm, setShowForm] = useState(false);
   // A word whose meaning is held back (`tapped.guess`): whether it has been shown, and the quiz
   // choice picked (null for "I don't know").
   const [revealed, setRevealed] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
-  useEffect(() => { setPopHeight(0); setShowTranslit(false); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
+  useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
   if (!tapped) return null;
-  const ipaLine = ipaNote(tapped.word);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
@@ -1306,6 +1275,8 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
   // otherwise below it, and never past the bottom edge.
   const above = tapped.y - POPOVER_GAP - popHeight;
   const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  // The IPA's and the deck icon's tooltips open above the popover's text, and below it when the popover is too near the top of the screen.
+  const tipBelow = top < insets.top + 40;
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
   const trying = !!mode && !revealed;
@@ -1316,8 +1287,6 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
     // Marking a word unknown says its meaning wasn't known, so it's shown too.
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: () => { reveal(); onToggleFlag(); }, chevron: false });
   } else {
-    if (tapped.word.translit && !showTranslit) actions.push({ icon: 'eye', label: translitLabel, onPress: () => setShowTranslit(true) });
-    if (onSelectPhrase) actions.push({ icon: 'text.cursor', label: 'Select a phrase', accessibilityLabel: `Select a phrase starting from ${tapped.word.text}`, onPress: onSelectPhrase });
     if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   }
@@ -1339,7 +1308,7 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
-            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} register={tapped.word.register} />
+            <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} ipaTip={{ below: tipBelow }} />
             {trying ? (
               <GuessPrompt
                 mode={mode}
@@ -1360,22 +1329,21 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
             ) : (
               <>
                 {tapped.word.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {tapped.word.lemma}</Text> : null}
-                {mode?.quiz && revealed ? (
-                  <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} />
-                ) : (
-                  <Text style={{ ...type.body, color: c.text }}>{meaningOf(tapped.word)}</Text>
-                )}
+                <ReadGlossLine
+                  word={tapped.word}
+                  below={tipBelow}
+                  meaning={mode?.quiz && revealed ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} /> : undefined}
+                />
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
                 ) : null}
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
-                {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
+                {tapped.word.translit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 {tapped.word.kanji?.length ? <ReadKanji kanji={tapped.word.kanji} /> : null}
                 <ReadFrequency word={tapped.word} />
-                {wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word) ? null : (
+                {inDeck(tapped.word) || (wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word)) ? null : (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
                 )}
-                {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}
               </>
             )}
           </View>

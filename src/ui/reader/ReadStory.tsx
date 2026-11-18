@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Language, type PastText, type StoryListItem } from '../../reader/api';
 import { bannerOverline } from '../../reader/browse';
-import { LANGUAGES } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
 import type { EpisodeOrder } from '../../reader/prefs';
 import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
@@ -187,7 +186,6 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
       <GlossPopover
         tapped={tapped}
         language={language}
-        translitLabel={LANGUAGES[language].translitLabel}
         grammar={null}
         api={api}
         grammarChosen={{}}
@@ -195,7 +193,6 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
         flagged={false}
         onToggleFlag={null}
         onPlay={() => { if (tapped) onPlayWord(tapped.word.text, language, saidAs(language, tapped.word.text, tapped.word.translit)); }}
-        onSelectPhrase={null}
         onAddToDeck={null}
         onClose={() => setTapped(null)}
       />
