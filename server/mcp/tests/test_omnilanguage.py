@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from franki_mcp import omnilanguage as o
 
 GERMAN_NOUN = {
@@ -95,7 +98,8 @@ def test_an_aspect_pair_moves_to_its_own_field_with_a_label_for_each_example():
     assert fixed["Context"] == "Он <b>добавлял</b> соль.<br>Она <b>добавила</b> соль."
     assert fixed["ContextTranslation"] == "He was adding salt.<br>She added salt."
     assert fixed["ContextLabels"] == "imperfective<br>perfective"
-    assert o.problems(fixed) == []
+    assert fixed["KeyForms"] == "I: добавляю<br>you: добавляешь"
+    assert [(p.rule, p.level) for p in o.problems(fixed)] == [("pattern-missing", "gap")]
     # A slash in another language's Entry, or in a Polish noun, is not an aspect pair.
     assert "entry-aspect-pair" not in rules({**pair, "PartOfSpeech": "noun"})
 
@@ -156,7 +160,7 @@ def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
     gaps = {p.field for p in o.problems(verb) if p.level == "gap"}
     assert gaps == {"KeyForms", "VerbClass", "Auxiliary"}
     ready = o.prepare(verb)
-    assert ready.refused == [] and len(ready.gaps) == 3
+    assert ready.refused == [] and len(ready.gaps) == 3 and "a pattern: line" in ready.gaps[0]
     assert "verbclass-unknown" in rules({**verb, "VerbClass": "irregular"})
     assert "auxiliary-unknown" in rules({**verb, "Auxiliary": "werden"})
     masculine = {**GERMAN_NOUN, "Entry": "Tisch", "Gender": "m", "Plural": "Tische"}
@@ -219,3 +223,61 @@ def test_the_guide_gives_a_languages_rules_values_and_a_finished_note():
         assert [p for p in o.problems(example) if p.level != "gap"] == [], name
     assert german["example_with_several_senses"]["Meaning"].startswith("1. ")
     assert "No rules beyond the common ones" in o.guide("italian")["this_language"]
+
+
+POLISH_TABLE = ("nominative · singular: ogród<br>nominative · plural: ogrody<br>genitive · singular: ogrodu<br>"
+                "genitive · plural: ogrodów<br>locative · singular: ogrodzie<br>instrumental · plural: ogrodami")  # fmt: skip
+
+
+def test_every_key_form_says_which_form_it_is():
+    noun = {"Entry": "ogród", "Meaning": "garden", "Language": "polish", "Register": "neutral", "PartOfSpeech": "noun", "Gender": "m",
+            "Context": "W <b>ogrodzie</b> rosną jabłka.", "ContextTranslation": "Apples grow in the garden.", "Forms": POLISH_TABLE}  # fmt: skip
+    labeled = {**noun, "KeyForms": "pattern: Masculine inanimate. The ó becomes o.<br>genitive: ogrodu<br>plural: ogrody<br>takes: w + locative (w ogrodzie)"}
+    assert o.problems(labeled) == []
+    # A bare form is refused; a label nobody defined is too; a note with no pattern line is told so, not refused.
+    assert "keyforms-unlabeled" in rules({**noun, "KeyForms": "ogrodu"})
+    assert "keyforms-label" in rules({**noun, "KeyForms": "pattern: x<br>second case: ogrodu"})
+    missing = [p for p in o.problems({**noun, "KeyForms": "genitive: ogrodu<br>plural: ogrody"}) if p.rule == "pattern-missing"]
+    assert [p.level for p in missing] == ["gap"]
+    assert "pattern-missing" not in rules({"Entry": "กลับ", "Language": "thai", "PartOfSpeech": "verb"})
+
+
+def test_an_older_notes_key_forms_are_labeled_from_its_own_table_or_its_languages_order():
+    def relabel(language, pos, text, gender="", table=""):
+        return o.label_key_forms(o.LANGUAGES[language], pos, gender, [text], table)
+
+    # A Polish noun: each form the note chose is found in its table, and the genitive and plural lead.
+    assert relabel("polish", "noun", "ogrodu", "m", POLISH_TABLE) == "genitive: ogrodu<br>plural: ogrody"
+    assert relabel("polish", "noun", "ogrodu, ogrodzie, ogrody", "m", POLISH_TABLE) == "genitive: ogrodu<br>plural: ogrody<br>locative: ogrodzie"
+    assert relabel("polish", "noun", "ogrodów", "m", POLISH_TABLE) == "genitive: ogrodu<br>plural: ogrody<br>genitive plural: ogrodów"
+    assert relabel("polish", "noun", "spodni", "pl", "nominative · plural: spodnie<br>genitive · plural: spodni") == "genitive: spodni"
+    # A form its table doesn't have, or a noun with no table, waits for a reader.
+    assert relabel("polish", "noun", "ogrodu, ogrodem", "m", POLISH_TABLE) is None
+    assert relabel("polish", "noun", "inżyniera, inżynierowie", "m") is None
+    # Verbs go by the order their language's notes were written in.
+    assert relabel("german", "verb", "warf ab") == "past: warf ab"
+    assert relabel("german", "verb", "fuhr los, ist losgefahren") == "past: fuhr los<br>perfect: ist losgefahren"
+    assert relabel("german", "verb", "bat / gebeten") == "past: bat<br>participle: gebeten"
+    assert relabel("greek", "verb", "αντιπάθησα") == "past: αντιπάθησα"
+    assert relabel("norwegian", "verb", "tømmer / tømte / tømt") == "present: tømmer<br>past: tømte<br>participle: tømt"
+    assert relabel("norwegian", "phrase", "går seg vill / gikk seg vill / gått seg vill") == "present: går seg vill<br>past: gikk seg vill<br>participle: gått seg vill"
+    assert relabel("norwegian", "phrase", "god dag") is None
+    assert relabel("polish", "verb", "jem, jesz, zjem") == "I: jem<br>you: jesz<br>perfective I: zjem"
+    assert relabel("russian", "verb", "выгляжу, выглядишь") == "I: выгляжу<br>you: выглядишь"
+    assert relabel("russian", "verb", "различаю / различу") == "I: различаю<br>perfective I: различу"
+    assert relabel("russian", "verb", "добиваюсь") == "I: добиваюсь"
+    for unsure in (("polish", "verb", "idę, idziesz, pójdę, szedł"), ("russian", "verb", "сокращу (pfv., т→щ)"), ("russian", "verb", "послышится"),
+                   ("russian", "verb", "пеку, печёшь, пекут"), ("polish", "pronoun", "kogoś, kimś")):  # fmt: skip
+        assert relabel(*unsure) is None, unsure
+    # Through the fixes, and a labeled field is left as it is.
+    fixed = o.fix({"Entry": "abwerfen", "Language": "german", "PartOfSpeech": "verb", "KeyForms": "warf ab, hat abgeworfen"}, rules=["keyforms-unlabeled"])
+    assert fixed.fields["KeyForms"] == "past: warf ab<br>perfect: hat abgeworfen"
+    assert o.fix(fixed.fields, rules=["keyforms-unlabeled"]).applied == []
+
+
+def test_quick_add_labels_its_key_forms_with_labels_from_the_list():
+    # Read & Listen's note queue writes KeyForms too (server/reader), in another package: its labels are read off its source.
+    source = (Path(__file__).parents[2] / "reader" / "src" / "franki_reader" / "note_queue.py").read_text()
+    labels = set(re.findall(r'_form\(\s*"\w+",\s*"([^"]+)"', source)) | set(re.findall(r'label="([^"]+)"', source))
+    assert {"pattern", "past", "genitive", "I"} <= labels
+    assert {label.lower() for label in labels} <= set(o.FORM_LABELS)
