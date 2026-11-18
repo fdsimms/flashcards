@@ -817,7 +817,12 @@ rather than `Transliteration` (`Language.translit_field`).
 - **Phrases in new-card order and tiers** (17 November 2026): a deck entry is a phrase when the
   lexicon would file it as one (`japanese.is_phrase`: several words once what conjugates the last is
   set aside, a prefix or suffix not counting), so 約束を破る and 気を失う have no rank and go first
-  and in Tier 1. Before, a phrase was ranked by its head word (気を失う as 気, #87).
+  and in Tier 1. Before, a phrase was ranked by its head word (気を失う as 気, #87). **A run of
+  nouns is one word here** (18 November 2026, the owner's decision): Sudachi splits a numeral from
+  its noun (一月 is 一 and 月), which made every month, 百円 and 一日中 a Tier 1 phrase. Tiering and
+  the new-card order ask `is_phrase`/`rank_of` with `nouns_are_one_word`, so they rank by the list or
+  fall to the last tier like any word; an entry with a particle, verb or adjective is still a phrase.
+  The reader's own word checks keep the default count.
 - **Practice** (`src/tools/japanese/`): telling the time, dates and money, each answer in kanji
   with its reading in hiragana where the other languages show a romanization. The counters' sound
   changes are worked out in `numbers.ts` (四時 よじ, 六分 ろっぷん, 一日 ついたち, 四円 よえん). A

@@ -308,6 +308,24 @@ def test_is_phrase_files_an_entry_as_the_lexicon_does() -> None:
     assert not is_phrase("経験する") and not is_phrase("静かな") and not is_phrase("〜方（かた）")
 
 
+def test_a_run_of_nouns_is_one_word_only_when_asked() -> None:
+    # Sudachi splits a numeral from its noun, so by default 一月 files as a phrase, as the reader's
+    # word checks expect; tiering asks for a compound to be a word.
+    for compound in ("一月", "十一月", "百円", "一日中"):
+        assert is_phrase(compound), compound
+        assert not is_phrase(compound, nouns_are_one_word=True), compound
+    # A particle, a verb or an adjective still makes a phrase.
+    for phrase in (
+        "約束を破る",
+        "気を失う",
+        "暗くなる",
+        "近いうちに",
+        "ことによると",
+        "一日に三回",
+    ):
+        assert is_phrase(phrase, nouns_are_one_word=True), phrase
+
+
 def test_words_split_a_line_as_the_reader_does_without_a_deck() -> None:
     assert words("お茶を飲みたいです。") == ["お茶", "を", "飲みたいです"]
     assert words("、。") == []
