@@ -26,8 +26,8 @@ from typing import Any, Protocol
 from franki_speech import Part, SpeechClient, SpeechError, WordMark
 from franki_speech.loudness import LoudnessError, trim_trailing_silence
 
-# How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -20%.
-SLOW_RATE = 0.8
+# How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -35%.
+SLOW_RATE = 0.65
 
 DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"}
 
@@ -139,6 +139,11 @@ class AudioCache:
     def drop(self, text_id: int) -> None:
         """Forgets a text's audio, slow recordings too, so each line is spoken again (in the voices chosen now)."""
         shutil.rmtree(self.root / str(text_id), ignore_errors=True)
+
+    def drop_slow(self) -> None:
+        """Forgets every text's slow recordings (and their timings), keeping the normal ones."""
+        for path in self.root.glob("*/*.slow.*"):
+            path.unlink(missing_ok=True)
 
     def write(self, text_id: int, line: int, spoken: Spoken, slow: bool = False) -> None:
         path = self.path(text_id, line, slow)

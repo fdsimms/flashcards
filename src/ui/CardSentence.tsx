@@ -4,6 +4,7 @@ import { furiganaRuns, hasRuby, shownRuns, type FuriganaSetting } from '../core/
 import type { Segment } from '../core/highlight';
 import { dotOffsets, sentencePieces, wordBreaks } from '../reader/cardGlosses';
 import { LANGUAGES } from '../reader/languages';
+import { saidAs } from '../reader/wordAudio';
 import { GlossPopover, type Tapped } from './reader/Reader';
 import { Ruby } from './Ruby';
 import { radius, useTheme, smooth } from './theme';
@@ -130,7 +131,7 @@ export function CardSentence({ gloss, segments, style, furigana }: {
         onGrammarChosen={() => undefined}
         flagged={false}
         onToggleFlag={null}
-        onPlay={() => { if (tapped) gloss.onPlayWord(tapped.word.text, gloss.language); }}
+        onPlay={() => { if (tapped) gloss.onPlayWord(tapped.word.text, gloss.language, saidAs(gloss.language, tapped.word.text, tapped.word.translit)); }}
         onSelectPhrase={null}
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the card.

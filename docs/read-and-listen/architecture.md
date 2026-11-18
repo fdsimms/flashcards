@@ -49,7 +49,7 @@ Franki's (Client, below).
   (`src/ui/useReader.ts`), which `src/ui/AppContext.tsx` calls in one line. The reader shows the
   server's word split as tappable words: a tap shows the gloss, and marking a word unknown is a
   second tap inside the gloss, so looking up a half-known word doesn't also flag it.
-- Each line has an EN button that shows that line's English alone, so checking one line doesn't
+- Each line has a "Show translation" link under its words that shows that line's English alone (tap the English to hide it), so checking one line doesn't
   give away the rest. "Show English" still shows them all.
 - **Explain** (12 November 2026, by the owner's decision). Each line has a third round button that
   opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase
@@ -347,7 +347,7 @@ Practice tab's Situations tool (`src/ui/tools/SituationsTool.tsx`).
   no clip (Azure's voices off, or a failed recording) is read by the phone, so its button always plays.
   Slow with Azure on is `POST /api/situations/slow` (`{language, gender, line}`), a clip of its own
   (`tts.SLOW_RATE`) recorded the first time and billed like any recording; if it can't be made, the
-  normal clip plays stretched to 0.8. "Heard only" hides their words behind Show the text.
+  normal clip plays stretched to 0.65. "Heard only" hides their words behind Show the text.
 - **The owner's lines** may hold an English word in [brackets] for a word they don't know; Claude
   answers as a helpful native speaker would. No correction during the conversation.
 - **Finish** (`POST /api/situations/feedback`): each of the owner's lines with a verdict, the line
@@ -388,6 +388,16 @@ aloud is never heard by the phone.
   doesn't always keep to it). The lesson then closes with a role-play instead of replaying the
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
+- **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
+  from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
+  word and meaning, up to `lesson.MAX_GIVEN`, 15), and the scene is then the situation they're for (the
+  cram's name). Claude still writes the title, the dialogue (up to `MAX_GIVEN_DIALOGUE` lines, to fit
+  more of them), the parts and the mixes (`lesson_writer.write_given_plan`), but the code decides what's
+  taught (`lesson.clean_given_plan`): every given phrase, as the learner has it and with their
+  meaning, with Claude's parts only where it wrote the phrase back exactly, and any it left out or
+  changed taught whole at the end; phrases Claude added are dropped. A Thai phrase isn't sent back for
+  lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
+  keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
@@ -553,11 +563,19 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
     meanings, one call of up to 150 words with the line each is in, and kept for the language
     (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
     asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
-  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving,
-  and the card back shows that field plainly. The field isn't in `omnilanguageFieldNames` yet: it
-  has to be added to the live note type first (AnkiMCP's `add_field`, which makes every device download the
-  whole collection once, so sync every device first), and only then there. Until then the editor leaves
-  the prefilled key out, since it only shows the note type's fields.
+  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving.
+  **On a card** (18 November 2026, by the owner's decision) the back shows that field after the answer:
+  behind a "Show pronunciation" tap when the card already keeps a reading behind one (a Transliteration, a
+  KanaReading: Thai, Japanese), so the sound isn't given away while the reading is hidden, and plainly
+  otherwise (`renderCard`). The MCP's `fill_pronunciation` fills the field for notes already in the deck,
+  from `/api/pronunciations` (`ipa.ipa_of_entry`, the same lookup a text's token gets, so a card and the
+  popup agree): previewed first, never over a field with anything in it, and a note whose IPA is `ai`
+  is tagged `ipa-unverified`. It reads only and never asks Claude for a word's IPA, so it costs nothing.
+  A daily fill for notes added since (`set_pronunciation_auto_fill`) is off until the owner turns it on.
+  The field is in `omnilanguageFieldNames`, after Forms, where `add_field` puts it: the live note type
+  needs it too (`add_field`, which makes every device download the whole collection once, so sync every
+  device first), or a TSV with no `#columns` header maps by position onto a field that isn't there.
+  The editor leaves the prefilled key out of a note type that has no such field.
 
 ## Languages
 
@@ -664,7 +682,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   standard voices have one, for a dialogue between two men or two women (Audio). The speech
   request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
+  the marked words list (the gloss leaves it out when the frequency meter shows), and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
 - **How common a word is** (13 November 2026, the owner's idea, to decide what to add to the deck):
   the word popup shows a four-bar meter, a band (very common up to 1,000, common to 3,000, uncommon
@@ -1240,8 +1258,10 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   me, or a topic, and Written by; it isn't shown offline, and neither are the rows that need the
   server. The app says "Series" for the running kind, while the server's routes and tables keep
   `story`. A series' own page (`GET /api/stories/{id}`, with the banner's Last time and practice words) has its next
-  episode, Last time, and its episodes by season, and its ••• pins it to the top, ends it or
-  continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
+  episode, Last time, and its episodes by season, and its ••• sets the order, pins it to the top, ends it or
+  continues it. The newest season and episode come first (••• sets newest or oldest first, kept in the
+  reader's settings as `episodeOrder`). With several seasons each folds under its header: the latest
+  starts open and earlier ones closed, and what the reader opens or closes is kept per series on the phone. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
   common words, voices, grammar, practice words, and the progress
@@ -1592,14 +1612,14 @@ in the current language, with when one was last read to the end. Nothing else le
   timings (below), since slower speech is longer.
 - **Speed is Slow or Normal (15 November 2026).** Before this it was four speeds, 0.7x to 1.0x, which
   the player made by stretching the one recording; that sounded robotic. Slow is now a second
-  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.8, SSML prosody -20%), kept beside
+  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.65, SSML prosody -35%; it was 0.8 until 18 November 2026, and the slow recordings made at 0.8 were dropped once, `Engine.drop_old_slow_audio`), kept beside
   the normal one (`<line>.slow.mp3`, `<line>.slow.json`; `AudioCache`) and made the first time the
   line is played slowly, so a line never played slowly costs nothing extra. It is billed as a
   recording of its own (`audio_chars`). `GET .../lines/{n}/audio?speed=slow` serves it, and
   `GET .../lines/{n}/slow` records it and returns its word times, which the reader fetches before
   a slow line plays so the words light up in time (`Reader.startLine`; the text's own words keep the
   normal recording's times). If recording it fails, the reader plays the normal recording stretched
-  to 0.8 as before. Slow is offered per language (`slowLanguages` in `src/reader/prefs.ts`, Settings, Read &
+  to 0.65 as before. Slow is offered per language (`slowLanguages` in `src/reader/prefs.ts`, Settings, Read &
   Listen, Slow speed; every language but Spanish and French to begin with): a language without it
   plays at normal speed everywhere and the player shows no speed control (`speedFor`, `hasSlow`).
   Choosing the other speed while a line plays starts the line again. A speed saved

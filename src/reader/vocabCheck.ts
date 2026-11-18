@@ -5,7 +5,7 @@
 // is only a suggestion the learner accepts or not.
 import type { CommonCount } from './api';
 
-export type VocabItem = { word: string; rank: number; meaning: string; wrong: string[] };
+export type VocabItem = { word: string; rank: number; meaning: string; wrong: string[]; reading?: string };
 export type Reply = 'right' | 'wrong' | 'skipped';
 export type Asked = { item: VocabItem; reply: Reply; /** The meaning picked, when the answer was a choice. */ picked?: string };
 

@@ -27,7 +27,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from . import forms, tiers
+from . import forms, pronunciation, tiers
 from .auth import SingleUserAuth
 from .collection import CollectionManager, SyncSettings
 from .reader import ReaderClient, ReaderSettings
@@ -106,6 +106,7 @@ def build_app(environ=os.environ) -> tuple[Starlette, CollectionManager]:
             tg.start_soon(forms.auto_fill_loop, cm, forms.UniMorph(data / "unimorph"), forms.FIRST_RUN_DELAY, forms.EVERY, reader_client)
             if reader_settings:
                 tg.start_soon(tiers.daily_loop, cm, reader_client)
+                tg.start_soon(pronunciation.auto_fill_loop, cm, reader_client, pronunciation.FIRST_RUN_DELAY, pronunciation.EVERY)
             yield state
             tg.cancel_scope.cancel()
 

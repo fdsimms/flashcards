@@ -201,6 +201,8 @@ export interface RenderedSide {
      * screen leaves out when furigana shows it over the word already. A block with no role is plain labeled text.
      */
     role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'reading';
+    /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
+    field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
     reading?: string;
     chips?: string[];

@@ -78,7 +78,24 @@ def ipa_for(
         found = ipa_of_reading(reading or lexicon.reading_of(word) or word)
         return (found, SOURCE_RULES) if found else None
     code: str = getattr(lexicon, "code", "th")  # Thai's lexicon has none, as in frequency.rank_of
+    return _from_table(word, code, ai)
+
+
+def _from_table(word: str, code: str, ai: Mapping[str, str] | None) -> tuple[str, str] | None:
     if found := ipa_of(word, code):
         return found, SOURCE_WIKTIONARY
     written = (ai or {}).get(word.strip().casefold())
     return (written, SOURCE_AI) if written else None
+
+
+def ipa_of_entry(
+    entry: str, code: str, reading: str = "", ai: Mapping[str, str] | None = None
+) -> tuple[str, str] | None:
+    """The IPA and its source for a deck note's Entry, which has no text around it to be a token of:
+    what `ipa_for` gives the same word in a text, so a card and the reader never disagree. Japanese
+    takes the note's KanaReading, else Sudachi's. The MCP's fill_pronunciation asks for this."""
+    if not is_word(entry) or " " in entry.strip():
+        return None
+    if code == "ja":
+        return ipa_for(entry, JapaneseLexicon(()), reading or None, ai)
+    return _from_table(entry, code, ai)

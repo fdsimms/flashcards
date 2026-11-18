@@ -252,6 +252,17 @@ def test_the_first_ask_starts_writing_and_the_next_serves_the_bank() -> None:
     assert get(c).json()["state"] == "ready" and writer.calls == 1  # never written twice
 
 
+def test_a_japanese_word_is_served_with_its_reading_for_the_voice_to_say() -> None:
+    from franki_reader.japanese import JapaneseLexicon
+    from franki_reader.vocab_check import VocabItem, serve
+
+    conn = store.connect(":memory:")
+    items = [VocabItem("絶対", 300, "absolutely", ("rarely", "nearly", "suddenly"))]
+    store.save_vocab_batch(conn, "ja", items, len(items), NOW, 0.0)
+    (served,) = serve(conn, JapaneseLexicon(()), "ja")
+    assert served["reading"] == "ぜったい"  # a phone voice would say ぜつ たい
+
+
 def test_words_already_in_the_deck_are_left_out() -> None:
     bank = whole_bank()
     in_deck = bank[0]["word"]

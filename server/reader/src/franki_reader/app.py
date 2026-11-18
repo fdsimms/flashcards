@@ -333,7 +333,7 @@ from franki_reader.generator import (
     claude_ask,
 )
 from franki_reader.languages import Code
-from franki_reader.lesson_writer import WritePlan
+from franki_reader.lesson_writer import WriteGiven, WritePlan
 from franki_reader.lexicon import Entry
 from franki_reader.mnemonics import (
     MakeMnemonics,
@@ -396,6 +396,7 @@ def create_app(
     read_topic_image: topic_image.ReadTopic | None = None,
     clips: ClipCache | None = None,
     write_lesson: WritePlan | None = None,
+    write_given_lesson: WriteGiven | None = None,
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
@@ -479,6 +480,7 @@ def create_app(
         read_topic_image=read_topic_image,
         clips=clips,
         write_lesson=write_lesson,
+        write_given_lesson=write_given_lesson,
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
@@ -517,6 +519,7 @@ def production_app() -> FastAPI:
     write_questions: comprehension.WriteQuestions | None = None
     write_forms: forms.WriteForms | None = None
     write_lesson: WritePlan | None = None
+    write_given_lesson: WriteGiven | None = None
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
     ask_about_card: ask_card.AskCard | None = None
@@ -541,6 +544,7 @@ def production_app() -> FastAPI:
         write_questions = comprehension.claude_questions(client)
         write_forms = forms.claude_forms(client)
         write_lesson = lesson_writer.claude_plan(client)
+        write_given_lesson = lesson_writer.claude_given_plan(client)
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
         ask_about_card = ask_card.claude_ask_card(client)
@@ -627,6 +631,7 @@ def production_app() -> FastAPI:
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
         write_lesson=write_lesson,
+        write_given_lesson=write_given_lesson,
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,

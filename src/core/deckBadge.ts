@@ -32,6 +32,38 @@ export function deckTint(deck: string, count: number): number {
 }
 
 /**
+ * The tint of every deck in `decks` (full names), with siblings kept apart: decks under the same
+ * parent are taken in name order, each starting at the tint `deckTint` prefers and moving on to the
+ * next one a sibling hasn't taken. Only a parent with more than `count` children repeats a tint.
+ * A name hash alone put French and Russian on the same one. Adding or removing a deck can move the
+ * tints of siblings after it by name; every screen gets them from here, so they still agree.
+ */
+export function deckTintSlots(decks: Iterable<string>, count: number): Map<string, number> {
+  const families = new Map<string, string[]>();
+  for (const deck of new Set(decks)) {
+    const cut = deck.lastIndexOf('::');
+    const parent = cut < 0 ? '' : deck.slice(0, cut);
+    const family = families.get(parent);
+    if (family) family.push(deck);
+    else families.set(parent, [deck]);
+  }
+  const slots = new Map<string, number>();
+  for (const family of families.values()) {
+    family.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const taken = new Set<number>();
+    for (const deck of family) {
+      const wanted = deckTint(deck, count);
+      let slot = wanted;
+      // With every tint taken the deck keeps its preferred one, repeating it.
+      while (taken.has(slot) && taken.size < count) slot = (slot + 1) % count;
+      taken.add(slot);
+      slots.set(deck, slot);
+    }
+  }
+  return slots;
+}
+
+/**
  * The subdeck of `studied` that a card's deck sits in ("Languages::Polski::Tier 1" studied from
  * "Languages" is "Languages::Polski"), or null when the card is in `studied` itself or outside it.
  */

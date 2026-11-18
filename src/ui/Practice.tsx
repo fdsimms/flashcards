@@ -15,7 +15,7 @@ import { useGrammarDue } from './useGrammarDue';
 import { usePracticeLanguage } from './usePracticeLanguage';
 
 /** The Practice tab: small drills outside the decks (src/tools/tools.ts), one row each. */
-export function Practice({ onOpen, readerApi, repo }: { onOpen: (tool: ToolInfo) => void; readerApi: Api | null; repo: Repo }) {
+export function Practice({ onOpen, onCram, readerApi, repo }: { onOpen: (tool: ToolInfo) => void; onCram: () => void; readerApi: Api | null; repo: Repo }) {
   const c = useTheme();
   const grammarDue = useGrammarDue(readerApi, repo);
   const problem = useConnectionProblem();
@@ -35,6 +35,10 @@ export function Practice({ onOpen, readerApi, repo }: { onOpen: (tool: ToolInfo)
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        {/* Crams are about the decks' own words, in any language, so they sit apart from the tools. */}
+        <Group>
+          <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Practice words for a day coming up, like a lesson with a tutor." onPress={onCram} />
+        </Group>
         <Group>
           {TOOLS.map((tool, i) => {
             // Grammar, Sentences and Situations need Read & Listen's server, so they're off while it can't be reached.

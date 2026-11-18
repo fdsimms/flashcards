@@ -4,11 +4,14 @@ import { syncLine } from '../../../anki/sync/runSync';
 import { useConnectionProblem } from '../../../ui/connection';
 import { answersFromLog } from '../../../wanikani/log';
 import { useApp } from '../../../ui/AppContext';
+import { CramCards } from '../../../ui/cram/CramCards';
 import { ExtrasStrip } from '../../../ui/DailyExtras';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { Today } from '../../../ui/Today';
+import { useCrams } from '../../../ui/useCrams';
 import { useDailyExtras } from '../../../ui/useDailyExtras';
-import { useGrammarDue } from '../../../ui/useGrammarDue';
+import { useGrammarDueState } from '../../../ui/useGrammarDue';
+import { useTodayReady } from '../../../ui/useTodayReady';
 import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 import { useReadWhileShown } from '../../../ui/useReadWhileShown';
@@ -27,17 +30,20 @@ export default function TodayRoute() {
   // `refresh` keeps to its own limit (COUNTS_EVERY_MS in useWaniKani.ts).
   useReadWhileShown(useCallback(() => { wanikani.refresh(); }, [wanikani.refresh]));
   const wanikaniAnswers = useMemo(() => answersFromLog(wanikani.log), [wanikani.log]);
-  const studied = useTodaySummary(repo, decks, wanikaniAnswers);
+  const { studied, settled: studiedSettled } = useTodaySummary(repo, decks, wanikaniAnswers);
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   const extras = useDailyExtras();
-  const grammarDue = useGrammarDue(reader.api, repo);
+  const grammarDue = useGrammarDueState(reader.api, repo);
+  const crams = useCrams(repo);
+  const ready = useTodayReady([loaded, studiedSettled, extras.ready, grammarDue.settled, crams.loaded]);
   return (
     <Today
       decks={decks}
       loaded={loaded}
+      ready={ready}
       studied={studied}
-      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue} />}
+      extrasStrip={<><CramCards repo={repo} /><ExtrasStrip extras={extras} grammarDue={grammarDue.due} /></>}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}

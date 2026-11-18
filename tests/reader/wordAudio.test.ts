@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { languageKey } from '../../src/core/voices';
 import { LANGUAGES } from '../../src/reader/languages';
-import { entryKey, recordingIndex, wordPlayback } from '../../src/reader/wordAudio';
+import { entryKey, recordingIndex, saidAs, wordPlayback } from '../../src/reader/wordAudio';
 import { omniNote } from '../support/fixtures';
 
 const thai = (id: string, entry: string, audio: string) => ({ ...omniNote({ Entry: entry, Audio: audio }), id });
@@ -55,5 +55,19 @@ describe('wordPlayback', () => {
 
   it('matches whatever the Unicode form or markup', () => {
     expect(entryKey('<b>  ก่  </b>')).toBe(entryKey('ก่'));
+  });
+});
+
+describe('saidAs', () => {
+  it('says a Japanese word with kanji by its reading, since a phone voice reads kanji one at a time', () => {
+    expect(saidAs('ja', '絶対', 'ぜったい')).toBe('ぜったい');
+  });
+  it('says the first of a note\'s alternative readings', () => {
+    expect(saidAs('ja', '今日', 'きょう / こんにち')).toBe('きょう');
+  });
+  it('leaves a word in kana, one with no reading, and other languages as written', () => {
+    expect(saidAs('ja', 'ある', 'ある')).toBeUndefined();
+    expect(saidAs('ja', '絶対', null)).toBeUndefined();
+    expect(saidAs('th', 'หนังสือ', 'nǎngsʉ̌ʉ')).toBeUndefined();
   });
 });

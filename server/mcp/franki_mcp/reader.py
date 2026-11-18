@@ -115,10 +115,11 @@ def register(server: MCPServer, client: ReaderClient) -> None:
     @server.tool(annotations=READ)
     async def get_read_and_listen_text(text_id: int) -> dict[str, Any]:
         """One past Read & Listen text in full, for auditing its quality: each line in the target
-        language with its English, speaker and register, and the words in it the deck doesn't
+        language with its English, speaker and register, who the model named for each quotation in a
+        story episode (`quotes`, in order), and the words in it the deck doesn't
         cover as of now (`unknown`, `partial`: the deck may have changed since it was written);
         its practice words and grammar targets, the glosses the model wrote, the comprehension
-        questions with the right answer's index, a story's premise, cast, plan, episode recap and
+        questions with the right answer's index, a story's premise, cast, plan, the voices its characters were given, episode recap and
         choices, the model that wrote it, and every reading (rating, words the reader flagged,
         time). Read-only: nothing here changes a text or the deck."""
         return await get(f"/api/audit/texts/{text_id}")

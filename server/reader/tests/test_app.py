@@ -20,7 +20,7 @@ from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
 from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
-from franki_reader.tts import Spoken
+from franki_reader.tts import SLOW_RATE, Spoken
 
 NOW = datetime(2026, 10, 19, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -164,7 +164,7 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
 
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
         # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms (a
-        # slow recording takes 1250: slower speech is longer).
+        # slow recording takes 1538: slower speech is longer).
         end = round(1000 / rate)
         tag = b"slow" if rate < 1 else b""
         return Spoken(b"ID3" + tag + text.encode(), [WordMark(text, 0, end)] if timed else None)
@@ -224,7 +224,7 @@ def test_a_slow_recording_is_made_when_asked_for_and_its_words_have_their_own_ti
     words = text["lines"][1]["words"]
     assert len(answer["times"]) == len(words)
     for word, when in zip(words, answer["times"], strict=True):
-        assert when == ([0, 1250] if word["status"] is not None else None)
+        assert when == ([0, round(1000 / SLOW_RATE)] if word["status"] is not None else None)
     assert c.get(f"/api/texts/{text['id']}/lines/9/slow", headers=AUTH).status_code == 404
     assert c.get(f"{base}/slow").status_code == 401
     # The text's own words keep the normal recording's times.
@@ -869,6 +869,22 @@ def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
     forms = c.post("/api/conjugations", json=body, headers=AUTH).json()["forms"]
     assert "past · plain: 帰った / かえった" in forms[0] and forms[1] is None
     assert c.post("/api/conjugations", json=body).status_code == 401
+
+
+def test_pronunciations_for_the_pronunciation_field() -> None:
+    c = voice_client(FakeSpeech())
+    body = {
+        "entries": [
+            {"language": "ru", "entry": "дом"},
+            {"language": "ru", "entry": "дом и сад"},
+            {"language": "ja", "entry": "大人", "reading": "おとな"},
+        ]
+    }
+    found = c.post("/api/pronunciations", json=body, headers=AUTH).json()["pronunciations"]
+    assert found[0]["ipa"] and found[0]["source"] == "wiktionary"
+    assert found[1] is None
+    assert found[2]["source"] == "rules"
+    assert c.post("/api/pronunciations", json=body).status_code == 401
 
 
 def test_lists_the_reading_each_japanese_word_is_recorded_from() -> None:
@@ -1724,6 +1740,7 @@ def test_audit_lists_and_reads_a_shown_text_for_review() -> None:
     first = detail["lines"][0]
     assert first["speaker"] == "A" and first["text"].startswith("ฉันอยากกิน")
     assert first["english"] and isinstance(first["unknown"], list)
+    assert first["quotes"] == []
     assert detail["readings"] == []
 
 

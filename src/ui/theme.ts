@@ -19,6 +19,8 @@ const light = {
   raisedEdge: '#d6d0c2',
   text: '#1b1b1b',
   textSecondary: '#5f636b',
+  /** Reading text on a card's back (an example sentence, a note, a mnemonic): between `text` and `textSecondary`, so it stays easy to read without competing with the word. */
+  textBody: '#3b3e45',
   /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
   textTertiary: '#898c95',
   /** Words that are quiet but still say something (a count of zero, an unselected wheel value), at 4.5:1 on the screen and its wells. Not for icons: those use textTertiary. */
@@ -65,11 +67,12 @@ const light = {
   warningInk: '#7a4f12',
   /**
    * The soft tile behind a deck's emoji on the deck list, one per deck (`deckTint`): the tile colors
-   * above (orange, rose, blue, teal, indigo, red, violet, green), faint enough that the emoji reads on any of them.
+   * above (orange, rose, blue, teal, indigo, red, violet, green, cyan, lime, magenta, slate), faint enough that the emoji reads on any of them.
    */
   deckTints: [
     'rgba(176, 96, 30, 0.15)', 'rgba(178, 58, 106, 0.15)', 'rgba(66, 121, 182, 0.15)', 'rgba(47, 125, 122, 0.15)',
     'rgba(74, 85, 176, 0.15)', 'rgba(195, 82, 73, 0.15)', 'rgba(122, 79, 181, 0.15)', 'rgba(67, 131, 90, 0.15)',
+    'rgba(36, 138, 168, 0.15)', 'rgba(116, 140, 40, 0.15)', 'rgba(170, 64, 150, 0.15)', 'rgba(96, 110, 130, 0.15)',
   ],
   /**
    * A chart's bars (Stats): the accent's gold, stepped to pass the dataviz checks for a data mark
@@ -160,6 +163,7 @@ const dark: typeof light = {
   raisedEdge: '#3a3f4c',
   text: '#f1f1f1',
   textSecondary: '#a2a8b3',
+  textBody: '#ccd0d7',
   textTertiary: '#6c727d',
   textDim: '#8a909b',
   controlEdge: '#6e7480',
@@ -193,6 +197,7 @@ const dark: typeof light = {
   deckTints: [
     'rgba(176, 96, 30, 0.3)', 'rgba(178, 58, 106, 0.3)', 'rgba(66, 121, 182, 0.3)', 'rgba(47, 125, 122, 0.3)',
     'rgba(74, 85, 176, 0.3)', 'rgba(195, 82, 73, 0.3)', 'rgba(122, 79, 181, 0.3)', 'rgba(67, 131, 90, 0.3)',
+    'rgba(36, 138, 168, 0.3)', 'rgba(116, 140, 40, 0.3)', 'rgba(170, 64, 150, 0.3)', 'rgba(96, 110, 130, 0.3)',
   ],
   chart: '#b88d32',
   heat: ['#614e20', '#87692a', '#b38f3e', '#e6c270'],
