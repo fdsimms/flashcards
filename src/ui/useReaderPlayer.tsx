@@ -1,8 +1,9 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import type { Api } from '../reader/api';
+import type { Api, AudioLesson } from '../reader/api';
 import { afterLine, linePosition, skipTo, type Handoff } from '../reader/handoff';
 import { lineAudio } from '../reader/lineAudio';
+import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
 import { createPreloader, type Preloader } from '../reader/preload';
 import { preloadFiles } from './preloadFiles';
 
@@ -11,19 +12,31 @@ import { preloadFiles } from './preloadFiles';
  * all can carry on after the reader is closed: the mini-player on the tab bar shows what's playing
  * and steps through the rest of the text (src/reader/handoff.ts has the rules). The reader owns the
  * player while it's open (`claim`), and hands over only when it closes with Play all running.
+ * An audio lesson plays on the same player and is handed over the same way: leaving the lesson's
+ * screen while it plays keeps it going on the tab bar, with back and forward 15 seconds, and a tap
+ * on the pill reopens the lesson where it is (`resumeLesson`).
  *
  * The line-by-line playing here is imperative (a listener on the player, not a status hook), so a
  * line ending or a progress tick never re-renders the app; only what the pill shows does.
  */
 
 /** What the pill shows, and what a tap on it opens. */
-export interface MiniPlayer {
-  textId: number;
-  title: string;
-  playing: boolean;
-  /** "Line n of m", among the lines that have audio. */
-  line: { n: number; of: number };
-}
+export type MiniPlayer =
+  | {
+    kind: 'text';
+    textId: number;
+    title: string;
+    playing: boolean;
+    /** "Line n of m", among the lines that have audio. */
+    line: { n: number; of: number };
+  }
+  | {
+    kind: 'lesson';
+    /** The lesson as its screen was given it, so a tap on the pill opens that screen again. */
+    lesson: AudioLesson;
+    title: string;
+    playing: boolean;
+  };
 
 export interface ReaderPlayerHost {
   /** Plays the reader's lines. Shared, so the reader never creates one of its own. */
@@ -32,13 +45,18 @@ export interface ReaderPlayerHost {
   preloader: Preloader;
   /** What's playing after the reader was closed on Play all; null when nothing is. */
   mini: MiniPlayer | null;
-  /** The reader opened: whatever was carrying on stops, and the reader plays from here. */
+  /** The reader (or a lesson that's about to play) opened: whatever was carrying on stops, and it plays from here. */
   claim: () => void;
+  /** A lesson's screen closed while it played: carry on from where it is. */
+  handOffLesson: (lesson: AudioLesson) => void;
+  /** A lesson's screen opened: true when it's the lesson carrying on, which then plays on under the screen instead of stopping. */
+  resumeLesson: (id: number) => boolean;
   /** The reader closed on Play all: carry on from `handoff`. */
   handOff: (api: Api, handoff: Handoff) => void;
   /** The reader closed without Play all: stop what it was playing. */
   release: () => void;
   toggle: () => void;
+  /** The previous or next line, or 15 seconds back or forward in a lesson. */
   skip: (step: -1 | 1) => void;
   stop: () => void;
 }
@@ -52,6 +70,8 @@ function useReaderPlayer(): ReaderPlayerHost {
   const preloader = useRef<Preloader | null>(null);
   preloader.current ??= createPreloader(preloadFiles);
   const carrying = useRef<{ api: Api; handoff: Handoff } | null>(null);
+  // The lesson carrying on after its screen was closed; never set together with `carrying`.
+  const carryingLesson = useRef<AudioLesson | null>(null);
   const listener = useRef<{ remove: () => void } | null>(null);
   // Counts line starts: a slow line is fetched before it plays, and a newer start wins.
   const starting = useRef(0);
@@ -59,16 +79,22 @@ function useReaderPlayer(): ReaderPlayerHost {
 
   const show = useCallback((playing: boolean) => {
     const c = carrying.current;
-    if (!c) { setMini(null); return; }
+    const lesson = carryingLesson.current;
+    if (!c && !lesson) { setMini(null); return; }
+    if (!c) {
+      setMini((prev) => (prev?.kind === 'lesson' && prev.lesson.id === lesson!.id && prev.playing === playing ? prev : { kind: 'lesson', lesson: lesson!, title: lesson!.title, playing }));
+      return;
+    }
     const { textId, title } = c.handoff;
     const line = linePosition(c.handoff);
-    setMini((prev) => (prev && prev.textId === textId && prev.playing === playing && prev.line.n === line.n ? prev : { textId, title, playing, line }));
+    setMini((prev) => (prev?.kind === 'text' && prev.textId === textId && prev.playing === playing && prev.line.n === line.n ? prev : { kind: 'text', textId, title, playing, line }));
   }, []);
 
   const end = useCallback((pause: boolean) => {
     listener.current?.remove();
     listener.current = null;
     carrying.current = null;
+    carryingLesson.current = null;
     starting.current++;
     if (pause) player.current!.pause();
     player.current!.clearLockScreenControls();
@@ -116,13 +142,40 @@ function useReaderPlayer(): ReaderPlayerHost {
     show(status.playing || status.isBuffering);
   }, [playLine, end, show]);
 
+  // The lesson is one recording, so there is no next line: it carries on until it ends or is stopped.
+  const onLessonStatus = useCallback((status: { didJustFinish: boolean; playing: boolean; isBuffering: boolean; error?: unknown }) => {
+    if (!carryingLesson.current) return;
+    if (status.error || status.didJustFinish) { end(false); return; }
+    show(status.playing || status.isBuffering);
+  }, [end, show]);
+
   const claim = useCallback(() => {
-    if (!carrying.current) return;
+    if (!carrying.current && !carryingLesson.current) return;
     end(true);
   }, [end]);
 
+  const handOffLesson = useCallback((lesson: AudioLesson) => {
+    listener.current?.remove();
+    carrying.current = null;
+    carryingLesson.current = lesson;
+    listener.current = player.current!.addListener('playbackStatusUpdate', onLessonStatus);
+    setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);
+    show(true);
+  }, [onLessonStatus, show]);
+
+  const resumeLesson = useCallback((id: number) => {
+    if (carryingLesson.current?.id !== id) return false;
+    // The lesson's screen takes the listening and the lock screen's controls over as they are.
+    listener.current?.remove();
+    listener.current = null;
+    carryingLesson.current = null;
+    setMini(null);
+    return true;
+  }, []);
+
   const handOff = useCallback((api: Api, handoff: Handoff) => {
     listener.current?.remove();
+    carryingLesson.current = null;
     carrying.current = { api, handoff };
     listener.current = player.current!.addListener('playbackStatusUpdate', onStatus);
     // The reader's own switch to background playing is undone as it closes; carrying on needs it kept.
@@ -142,6 +195,11 @@ function useReaderPlayer(): ReaderPlayerHost {
   }, []);
 
   const skip = useCallback((step: -1 | 1) => {
+    if (carryingLesson.current) {
+      const p = player.current!;
+      p.seekTo(skipLessonTo(p.currentTime, step * SKIP_SECONDS, p.duration)).catch(() => undefined);
+      return;
+    }
     const c = carrying.current;
     if (!c) return;
     const to = skipTo(c.handoff, step);
@@ -152,7 +210,7 @@ function useReaderPlayer(): ReaderPlayerHost {
 
   useEffect(() => () => { listener.current?.remove(); player.current?.remove(); }, []);
 
-  return { player: player.current, preloader: preloader.current, mini, claim, handOff, release, toggle, skip, stop };
+  return { player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop };
 }
 
 const Host = createContext<ReaderPlayerHost | null>(null);
