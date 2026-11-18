@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
-import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
+import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { cardTypeName } from '../core/cardInfo';
 import { failureText, Refusal } from '../core/failure';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
@@ -29,12 +30,14 @@ const MODES: { value: TroubleMode; label: string }[] = [
  * time, or over the last 30 study days. Tapping one offers what can be done about it: a memory
  * hint, a flag for an agent, the note editor, Card Info, or suspending it.
  */
-export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
+export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFlaggedCard }: {
   repo: AppRepo;
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   onCardInfo: (cardId: string) => void;
   /** Read & Listen's hint ideas, while it's signed in. */
   suggestHints?: (q: MnemonicQuestion) => Promise<string[]>;
+  /** Read & Listen's fix for a flagged card, while it's signed in. */
+  fixFlaggedCard?: (request: FixRequest) => Promise<FixResponse>;
 }) {
   const c = useTheme();
   const [data, setData] = useState<Data>();
@@ -88,15 +91,14 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
     }
   };
 
-  // The flag for an agent: AgentFlagSheet asks for the reason and note, then this writes the tags and the purple flag.
-  const saveFlag = async (row: TroubleRow, tags: string[] | null) => {
+  // The flag for an agent: AgentFlagSheet asks for the reason and note (and can ask Claude for a fix), then this writes the note's changes and the purple flag. The sheet closes itself afterwards.
+  const saveFlag = async (row: TroubleRow, flag: number, edit?: { tags: string[]; fields?: Record<string, string> }) => {
     if (busy.current) throw new Refusal('Another change is still saving. Try again in a moment.');
     busy.current = true;
     try {
       const { note } = row;
-      if (tags) await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags });
-      await setState(row.card, (s) => ({ ...s, flag: tags ? AGENT_FLAG : 0 }));
-      setFlagFor(null);
+      if (edit) await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: edit.fields ?? note.fields, tags: edit.tags });
+      await setState(row.card, (s) => ({ ...s, flag }));
     } finally {
       busy.current = false;
       reload();
@@ -153,8 +155,10 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints }: {
           word={notePreview(flagFor.note).front}
           reason={flagFor.card.flag === AGENT_FLAG ? flagReasonOf(flagFor.note.tags) : null}
           note={flagFor.card.flag === AGENT_FLAG ? flagNoteOf(flagFor.note.tags) : ''}
-          onSave={(reason, text) => saveFlag(flagFor, withFlagReason(flagFor.note.tags, reason, text))}
-          onRemove={flagFor.card.flag === AGENT_FLAG ? () => saveFlag(flagFor, null) : undefined}
+          onSave={(reason, text) => saveFlag(flagFor, AGENT_FLAG, { tags: withFlagReason(flagFor.note.tags, reason, text) })}
+          onRemove={flagFor.card.flag === AGENT_FLAG ? () => saveFlag(flagFor, 0) : undefined}
+          fix={fixFlaggedCard ? async (reason, text) => checkFix(flagFor.note, await fixFlaggedCard(fixRequest(flagFor.note, reason, text))) : undefined}
+          onApply={(proposal) => saveFlag(flagFor, 0, { tags: withoutFlag(flagFor.note.tags), fields: withFix(flagFor.note.fields, proposal) })}
           onClose={() => setFlagFor(null)}
         />
       ) : null}

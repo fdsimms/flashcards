@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_FLAG, AGENT_FLAG_REASONS, cleanFlagNote, decodeFlagNote, encodeFlagNote, FLAG_NOTE_MAX, flagNoteOf, flagReasonOf, isFlagTag, withFlagReason } from '../../src/core/agentFlag';
+import { AGENT_FLAG, AGENT_FLAG_REASONS, cleanFlagNote, decodeFlagNote, encodeFlagNote, FLAG_NOTE_MAX, flagNoteOf, flagReasonOf, isFlagTag, withFlagReason, withoutFlag } from '../../src/core/agentFlag';
 import { FLAG_NAMES } from '../../src/core/cardState';
 
 describe('agent flag', () => {
@@ -69,5 +69,9 @@ describe('flag note', () => {
     expect(isFlagTag('FlagNote::41')).toBe(true);
     expect(flagNoteOf(['verb'])).toBe('');
     expect(flagReasonOf(['verb', 'flag::nonsense'])).toBeNull();
+  });
+
+  it('removes every flag tag and keeps the rest', () => {
+    expect(withoutFlag(['verb', 'flag::typo', 'flagnote::41', 'Flag::Audio'])).toEqual(['verb']);
   });
 });

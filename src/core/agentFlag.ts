@@ -77,7 +77,12 @@ export function flagReasonOf(tags: string[]): AgentFlagReason | null {
 
 /** The note's tags with its flag tags replaced by `reason`'s and `note`'s: a note carries one reason and one note at a time. */
 export function withFlagReason(tags: string[], reason: AgentFlagReason, note = ''): string[] {
-  const kept = tags.filter((t) => !isFlagTag(t));
+  const kept = withoutFlag(tags);
   const typed = cleanFlagNote(note);
   return [...kept, FLAG_TAG_PREFIX + reason, ...(typed ? [FLAG_NOTE_PREFIX + encodeFlagNote(typed)] : [])];
+}
+
+/** The note's tags without any flag tag: a flag that's been dealt with. */
+export function withoutFlag(tags: string[]): string[] {
+  return tags.filter((t) => !isFlagTag(t));
 }

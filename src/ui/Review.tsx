@@ -4,7 +4,8 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { cardStateOf, FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
+import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
@@ -154,7 +155,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -168,6 +169,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Present while Read & Listen is signed in: answers a question typed about the card on screen (AskCardSheet). */
   askAboutCard?: (card: CardForClaude, turns: AskTurn[]) => Promise<string>;
+  /** Present while Read & Listen is signed in: suggests a fix for a flagged card (AgentFlagSheet's Fix with Claude now). */
+  fixFlaggedCard?: (request: FixRequest) => Promise<FixResponse>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
   glossing?: CardGlossing;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
@@ -870,21 +873,21 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   } else if (sheet?.kind === 'agentFlag' && sheetNote) {
     // The card and note this sheet was raised for, read again at each write: the screen may have moved on.
     const flagged = cards?.find((c) => c.id === sheet.cardId);
-    const changeFlag = async (tags: string[] | null) => {
+    // Writes the note (when it changes) and then the card's purple flag; the sheet closes itself once this returns.
+    const writeFlag = async (flag: number, edit?: { tags: string[]; fields?: Record<string, string> }) => {
       const target = cards?.find((c) => c.id === sheet.cardId);
       if (!target) throw new Refusal("This card isn't loaded anymore. Close this and open it again.");
       if (busy.current) throw new Refusal('Another change is still saving. Try again in a moment.');
-      if (tags) {
+      if (edit) {
         writes.current++;
         try {
-          const tagged = await saveNote(repo as NoteStore, { id: sheetNote.id, deck: sheetNote.deck, model: sheetNote.model, fields: sheetNote.fields, tags });
-          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
+          const saved = await saveNote(repo as NoteStore, { id: sheetNote.id, deck: sheetNote.deck, model: sheetNote.model, fields: edit.fields ?? sheetNote.fields, tags: edit.tags });
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
         } finally {
           writes.current++;
         }
       }
-      await setStates([target], (s) => ({ ...s, flag: tags ? AGENT_FLAG : 0 }));
-      sheets.close(sheet.key);
+      await setStates([target], (s) => ({ ...s, flag }));
     };
     sheetHost = (
       <AgentFlagSheet
@@ -894,8 +897,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         word={notePreview(sheetNote).front}
         reason={flagged?.flag === AGENT_FLAG ? flagReasonOf(sheetNote.tags) : null}
         note={flagged?.flag === AGENT_FLAG ? flagNoteOf(sheetNote.tags) : ''}
-        onSave={(reason, text) => changeFlag(withFlagReason(sheetNote.tags, reason, text))}
-        onRemove={flagged?.flag === AGENT_FLAG ? () => changeFlag(null) : undefined}
+        onSave={(reason, text) => writeFlag(AGENT_FLAG, { tags: withFlagReason(sheetNote.tags, reason, text) })}
+        onRemove={flagged?.flag === AGENT_FLAG ? () => writeFlag(0) : undefined}
+        fix={fixFlaggedCard ? async (reason, text) => checkFix(sheetNote, await fixFlaggedCard(fixRequest(sheetNote, reason, text))) : undefined}
+        onApply={(proposal) => writeFlag(0, { tags: withoutFlag(sheetNote.tags), fields: withFix(sheetNote.fields, proposal) })}
         onClose={() => sheets.close(sheet.key)}
       />
     );

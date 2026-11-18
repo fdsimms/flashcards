@@ -10,6 +10,7 @@ from franki_reader import (
     ask_card,
     aspect,
     conjugation,
+    fix_card,
     store,
 )
 from franki_reader.languages import Code
@@ -67,6 +68,15 @@ class AskCardIn(BaseModel):
     turns: list[CardTurnIn] = Field(min_length=1, max_length=40)
 
 
+class FixCardIn(BaseModel):
+    language: Code | None = None
+    # The note's fields as stored (HTML), by name.
+    fields: dict[str, str] = Field(min_length=1, max_length=40)
+    reason: str = Field(min_length=1, max_length=200)
+    # What the owner typed in the flag sheet.
+    note: str = Field(default="", max_length=600)
+
+
 class AspectIn(BaseModel):
     # The word's own language, which is not always the one being read: a card from the Polish deck
     # can be studied while Thai is the reading language.
@@ -83,6 +93,7 @@ def router(ctx: AppContext) -> APIRouter:
     mnemonics = ctx.mnemonics
     write_aspect = ctx.write_aspect
     ask_about_card = ctx.ask_about_card
+    fix_flagged_card = ctx.fix_flagged_card
     keep_failed_cost = ctx.keep_failed_cost
 
     @routes.post("/api/mnemonics", dependencies=authed)
@@ -139,6 +150,30 @@ def router(ctx: AppContext) -> APIRouter:
             raise HTTPException(503, str(e)) from e
         store.save_call_cost(engine.conn, "ask_card", language, engine.clock(), used.cost_usd())
         return {"answer": answer}
+
+    @routes.post("/api/fix-card", dependencies=authed)
+    async def fix_card_route(body: FixCardIn) -> dict[str, Any]:
+        if fix_flagged_card is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't suggest a fix for a card"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        if any(len(v) > 8000 for v in body.fields.values()):
+            raise HTTPException(422, "A field on this note is too long to send to Claude.")
+        language = body.language or ""
+        try:
+            fix, used = await fix_flagged_card(
+                fix_card.FlaggedCard(
+                    body.language, body.fields, body.reason.strip(), body.note.strip()
+                )
+            )
+        except fix_card.FixCardFailed as e:
+            keep_failed_cost("fix_card", language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "fix_card", language, engine.clock(), used.cost_usd())
+        return {"changes": fix.changes, "explanation": fix.explanation}
 
     @routes.post("/api/aspect-pair", dependencies=authed)
     async def aspect_pair(body: AspectIn) -> dict[str, Any]:

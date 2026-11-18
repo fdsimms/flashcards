@@ -1792,6 +1792,19 @@ learner's own Claude plan instead of the server's key; it works without Read & L
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
 browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.
 
+## Fix a flagged card with Claude
+
+The flag sheet (`src/ui/AgentFlagSheet.tsx`) has Fix with Claude now beside Flag for later, shown
+while Read & Listen is signed in. It flags the card as usual, then `POST /api/fix-card`
+(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Haiku,
+once, only on that tap. The server returns `{changes: {field: new html}, explanation}` and writes
+nothing: the app checks it again (`src/core/fixCard.ts`: only fields the note has, only ones that
+change, and no `[sound:]` or `<img>` reference dropped or added), shows each changed field old above
+new, and applies it through `saveNote` only when the owner taps Apply, which also clears the flag
+and its tags. Not now keeps the flag for the MCP. A fix that needs a new recording or image comes
+back with no changes and says so. The cost is in `call_costs` (feature `fix_card`), not yet in
+`/api/costs`.
+
 ## Offline
 
 The brief left offline mode out of milestone 1; it came back because the app is used on the subway.
