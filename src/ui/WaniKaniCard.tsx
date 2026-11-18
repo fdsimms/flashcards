@@ -88,7 +88,7 @@ function MadeOf({ parts }: { parts: Part[] }) {
             key={p.id}
             accessible
             accessibilityLabel={`${SUBJECT_TYPE_NAMES[p.type]}${p.characters ? ` ${p.characters}` : ''}, ${p.meaning}`}
-            style={{ alignItems: 'center', justifyContent: 'center', gap: 2, minWidth: 64, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s, borderRadius: radius.m, ...smooth, backgroundColor: subjectColor(c, p.type) }}
+            style={{ alignItems: 'center', justifyContent: 'center', gap: 2, minWidth: 64, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.s, borderRadius: radius.m, ...smooth, backgroundColor: subjectColor(c, p.type), borderWidth: 2, borderColor: c.wkLine }}
           >
             {p.characters ? (
               <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.title, fontWeight: '500', color: c.onWk }}>{p.characters}</Text>
