@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import { registerUnicase } from '../../modules/anki-unicase';
 import { parseAnswerButtons } from '../core/answerButtons';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
+import { parseCram, type Cram } from '../core/cram';
 import type { CollectionSettings } from '../core/types';
 import { parseFontSettings } from '../core/fonts';
 import { parseThaiTextSize } from '../core/script';
@@ -52,6 +53,9 @@ CREATE TABLE IF NOT EXISTS confused_pairs (
   note_a TEXT NOT NULL, note_b TEXT NOT NULL, linked_at TEXT NOT NULL,
   PRIMARY KEY (note_a, note_b)
 );
+-- Crams (src/core/cram.ts), each as JSON. Franki's own: the words are the notes with the cram's tag,
+-- which is in the collection; the date, rounds and checklist stay here.
+CREATE TABLE IF NOT EXISTS crams (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 -- Each media file's SHA-1 as of the last sync (src/anki/sync/mediaSync.ts). Not in a backup:
 -- a restore clears it, so the next sync checks the restored files again.
 CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
@@ -339,6 +343,16 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async deleteConfusedPair(x, y) {
       const [a, b] = x < y ? [x, y] : [y, x];
       await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? AND note_b = ?', a, b);
+    },
+    async listCrams() {
+      const rows = await db.getAllAsync<{ data: string }>('SELECT data FROM crams');
+      return rows.map((r) => parseCram(r.data)).filter((c): c is Cram => !!c).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    },
+    async saveCram(cram) {
+      await db.runAsync('INSERT OR REPLACE INTO crams (id, data) VALUES (?, ?)', cram.id, JSON.stringify(cram));
+    },
+    async deleteCram(id) {
+      await db.runAsync('DELETE FROM crams WHERE id = ?', id);
     },
     async formsAnswerMode() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'forms_answer_mode'");
