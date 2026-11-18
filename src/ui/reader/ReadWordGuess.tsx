@@ -68,7 +68,7 @@ const FOLD_STAGGER_MS = 90;
 
 /**
  * The quiz's choices once answered: the right one marked (and springing in, with a check, when it
- * was picked) and a wrong pick marked, each with a word as well as a color. The wrong choices that
+ * was picked, the check alone) and a wrong pick marked, each with a word or icon as well as a color. The wrong choices that
  * weren't picked are dimmed, then fold away top to bottom, giving the popover its space back.
  */
 export function QuizChoices({ choices, answer, picked }: { choices: string[]; answer: number; picked: number | null }) {
@@ -82,7 +82,8 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
       {choices.map((choice, i) => {
         const right = i === answer;
         const wrongPick = i === picked && !right;
-        const note = right ? (gotIt ? 'Right' : 'Meaning') : wrongPick ? 'Your pick' : null;
+        // A right pick is marked by the check alone; the other two rows say what they are.
+        const note = right ? (gotIt ? null : 'Meaning') : wrongPick ? 'Your pick' : null;
         const row = (
           <View
             accessible
@@ -94,10 +95,10 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             }}
           >
             <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{choice}</Text>
-            {note ? (
+            {right || wrongPick ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} effect={gotIt ? 'bounce' : undefined} /> : null}
-                <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text>
+                {note ? <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text> : null}
               </View>
             ) : null}
           </View>
