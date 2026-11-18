@@ -207,6 +207,22 @@ describe('deckRows', () => {
       ['Languages::Thai', 3],
     ]);
   });
+  it("gives each deck its own daily new limit: its preset's, else its parent's, else the default, never today's", () => {
+    const params = new Map([['Languages', { newPerDay: 15, newLimitToday: { limit: 40, day: '2026-11-11' } }], ['Languages::Polski', { newPerDay: 8 }]]);
+    const rows = deckRows({ ...input({ 'Languages::Thai': newCards(1), 'Languages::Polski': newCards(1), Trivia: newCards(1) }), paramsFor: (d) => {
+      for (let parts = d.split('::'); parts.length; parts = parts.slice(0, -1)) {
+        const p = params.get(parts.join('::'));
+        if (p) return p as never;
+      }
+      return undefined;
+    } });
+    expect(rows.map((r) => [r.deck, r.newPerDay])).toEqual([
+      ['Languages', 15],
+      ['Languages::Polski', 8],
+      ['Languages::Thai', 15],
+      ['Trivia', 20],
+    ]);
+  });
   it('lists a deck with no cards when asked to, in its place among the rest', () => {
     const rows = deckRows(input({ 'Languages::Thai': newCards(2) }), ['Languages::Polski', 'Empty']);
     expect(rows.map((r) => [r.deck, r.due, r.fresh, r.total])).toEqual([

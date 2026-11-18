@@ -25,6 +25,7 @@ from franki_reader.routes import (
     topics,
     vocab,
     voices,
+    word_suggestions,
 )
 
 # The order create_app includes them in. Within a router, a path with a parameter
@@ -45,4 +46,5 @@ AREAS = (
     grammar,
     vocab,
     note_queue,
+    word_suggestions,
 )
