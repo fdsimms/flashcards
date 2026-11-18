@@ -127,6 +127,7 @@ def router(ctx: AppContext) -> APIRouter:
         sentenced = store.sentence_spending(engine.conn, since)
         situated, situated_chars = store.situation_spending(engine.conn, since)
         lessoned, lessoned_chars = store.lesson_spending(engine.conn, since)
+        lesson_topics = store.lesson_topic_spending(engine.conn, since)
         ipa_written = store.ipa_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         rows = by_language.values()
@@ -357,6 +358,12 @@ def router(ctx: AppContext) -> APIRouter:
                 "cost_usd": round(sum(c for _, c in lessoned.values()), 4),
                 "audio_chars": lessoned_chars,
                 "azure_usd": round(azure_usd(lessoned_chars), 4),
+            },
+            # Scene ideas suggested for a lesson (lesson_topics.py), failed calls included. Kept apart
+            # from `lessons`, whose count is lessons made.
+            "lesson_topics": {
+                "asked": sum(n for n, _ in lesson_topics.values()),
+                "cost_usd": round(sum(c for _, c in lesson_topics.values()), 4),
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.

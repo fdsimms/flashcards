@@ -29,6 +29,7 @@ from mcp.server.mcpserver.exceptions import ToolError  # its message reaches the
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
+from . import omnilanguage
 from .articles import article_for, with_article
 from .collection import CollectionManager
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
@@ -193,6 +194,12 @@ def _check_fields(nt: dict[str, Any], fields: dict[str, str]) -> None:
         raise ToolError(f'"{nt["name"]}" has no field {", ".join(repr(u) for u in unknown)}. Its fields: {", ".join(known)}.')
 
 
+def _house_style(refused: list[str]) -> str:
+    """Why an Omnilanguage note wasn't written, and the way out."""
+    return ("Not written: it departs from the house style (note_guide has it). " + " ".join(refused)
+            + " Fix these and send it again, or pass allow_nonstandard for an exception the user asked for.")
+
+
 def _get_note(col: Collection, nid: int) -> Note:
     try:
         return col.get_note(nid)
@@ -244,23 +251,9 @@ class NoteUpdate(BaseModel):
 INSTRUCTIONS = """\
 Franki's MCP: the user's Anki collection (the same one Franki, AnkiMobile and Anki on their
 computer use), reached through their own Anki sync server. Every change syncs right away, so it
-reaches their devices at their next sync.
+reaches their devices at their next sync. Kept short on purpose: a client may cut long
+instructions off, so each tool's own description holds its details.
 
-- Find notes with find_notes, using Anki's search syntax: words, "deck:Polski", "tag:verb",
-  "note:Basic", "Front:kot", "is:due", "is:new", "added:7", "rated:1", combined with spaces (and),
-  "or", "-" (not) and parentheses. Read them in full with get_notes.
-- Before adding notes, check the note type's field names with list_note_types. add_notes refuses a
-  duplicate first field unless allow_duplicates is true; tell the user about any it refused.
-- In an Omnilanguage note's Context sentence, put the word in bold as the sentence spells it
-  ("Die <b>Einstellungen</b> sind im Menü.", both parts of a split verb: "Er <b>warf</b> seinen
-  Mantel <b>ab</b>."). Franki highlights what's bold, and only searches for the Entry when nothing is.
-- An Omnilanguage note type that has a Sense field takes a few words there, shown under the meaning,
-  saying which sense a word with several is meant ("know-how from doing, or something lived through").
-  With a ContextLabels field filled in, Context, ContextRomanized and ContextTranslation hold one
-  example per line (separated by <br>, line N of each belonging together) and ContextLabels names
-  what each example shows ("skill", "event"). Add a second example only when the word's senses differ.
-- In a note's Notes field, give each part of a word's breakdown its meaning ("กลับ (return) + บ้าน
-  (home)"). Never write "already known": say what the part means, or leave it out.
 - Only change or delete notes the user asked about. delete_notes can't be undone here.
 - Studying: call study_next for a deck, show the user the question, and wait for their answer. Then
   show the answer (present_card with show_answer=true), suggest a rating (1 Again, 2 Hard, 3 Good,
@@ -268,41 +261,32 @@ reaches their devices at their next sync.
   the user hasn't seen the answer to, or with a rating they didn't agree to.
 - Flagged cards: the user flags a card in Franki for you to check (a typo, audio that sounds wrong).
   flagged_cards lists them with their note's fields, the reason and `note_from_user`, what they typed
-  about it (that is the request, do it). Work out the fix and show the user what you'd change (the old and new text, or the voice and text for a re-record) before
-  calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
-  resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
-- Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
-  names them), leveled to one loudness. A noun's article is read with it (from Gender), so record a
-  noun from `Entry`. With a Multilingual voice, pass the text's language. normalize_audio does the same for audio a note already has
-  (preview first: it measures each file and changes nothing). Try preview=true first when the text needs cleaning up (replacements, text_overrides).
+  about it (that is the request, do it). Show the user what you'd change (the old and new text, or
+  the voice and text for a re-record) before calling update_notes or add_tts_audio. Only after they
+  approve, and once the fix is made, call resolve_flag. Leave a flag in place when the user declines
+  or you're unsure.
+- Find notes with find_notes, using Anki's search syntax: words, "deck:Polski", "tag:travel",
+  "note:Basic", "Front:kot", "is:due", "is:new", "added:7", "rated:1", combined with spaces (and),
+  "or", "-" (not) and parentheses. Read them in full with get_notes.
+- Omnilanguage notes (the language decks) follow one house style. Read note_guide for the language
+  before writing one: add_notes and update_notes tidy what needs no judgment and refuse the rest,
+  saying what to change. lint_notes checks the notes already there.
+- For any other note type, check its field names with list_note_types first. add_notes refuses a
+  duplicate first field unless allow_duplicates is true; tell the user about any it refused.
+- A tool that changes many notes or cards at once previews first (fill_forms, fill_pronunciation,
+  order_new_by_frequency, the tier tools, normalize_audio, lint_notes, empty_cards): show the user
+  the preview and write only once they agree. Turn a daily fill on only after they've checked a batch.
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
   say which decks a change affects before making it.
 - add_field makes every device download the whole collection: ask the user to sync every device
   first, and only then pass every_device_synced=true.
-- Forms: fill_forms fills the Forms field of Omnilanguage verbs (conjugations) and nouns (cases,
-  where a language has them) for Franki's forms practice, from Wiktionary's tables. Preview first (dry_run) and show the user; turn on the daily fill
-  (set_forms_auto_fill) only once they've checked a batch. Write a not_found word's forms yourself
-  only when asked, in the same lines, tagged forms-unverified.
-- Pronunciation: fill_pronunciation fills the Pronunciation field (IPA) of Omnilanguage notes that
-  have it empty, from Read & Listen (Wiktionary's tables; Japanese by rule from KanaReading; IPA Claude
-  wrote, tagged ipa-unverified). It needs the field (add_field, after every device is synced) and
-  Read & Listen running. Preview first (dry_run) and show the user; write only once they agree. Turn on
-  the daily fill (set_pronunciation_auto_fill) only once they've checked a batch.
-- New-card order: order_new_by_frequency puts a deck's new cards most common word first (Anki's
-  own new-card positions, so every device follows and no schedule changes). It needs Read &
-  Listen running. Preview first, show the user the start of the order and how many words had no
-  place, and apply only once they agree: the old order isn't kept.
-- Tiers: tier_deck_by_frequency files a language deck's notes into `Tier 1`, `Tier 2`, `Tier 3`
-  subdecks by word frequency, each on its own preset with its own desired retention (common words
-  higher), and keeps new notes filed daily. tier_all_languages_by_frequency does it for every
-  language deck Read & Listen knows. Preview first, say which decks get new presets, and apply
-  only once the user agrees. Franki shows the tiers as the one deck.
-  untier_deck undoes it for a deck (cards back in the deck, tier subdecks and presets removed).
+- Audio: add_tts_audio records a field's text with an Azure voice (list_voices names them). Record
+  a noun from `Entry`: its article is read with it, from Gender.
 - Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
   are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
-  date (`cram::thai-lesson-2026-11-20`); Franki shows the tag on the cram's page. To add words to a
-  cram, add its tag to their notes (or to new notes with add_notes); find_notes "tag:cram::*"
-  lists the words of every cram. The date and the practice rounds are kept in Franki only.
+  date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes;
+  find_notes "tag:cram::*" lists the words of every cram. The date and the practice rounds are
+  kept in Franki only.
 """
 
 
@@ -399,11 +383,17 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.read(run)
 
     @server.tool(annotations=WRITE)
-    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False) -> dict[str, Any]:
+    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False, allow_nonstandard: bool = False) -> dict[str, Any]:
         """Adds notes (up to 100 a call) with their cards, as Anki's Add window would. A note whose
         first field matches another note of its type is refused unless allow_duplicates is true;
         one that would make no cards is refused too. Each result has the new note id or the reason
-        it wasn't added."""
+        it wasn't added.
+
+        An Omnilanguage note is written in the house style: read note_guide for its language
+        first. What needs no judgment is tidied for you (`tidied` says what), grammar a finished
+        note carries and this one lacks is listed in `still_to_fill`, and a note that breaks a rule
+        is refused with what to change. allow_nonstandard skips that check, for a deliberate
+        exception the user asked for."""
         if len(notes) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
@@ -416,17 +406,24 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     nt = _note_type(col, n.note_type)
                     _check_fields(nt, n.fields)
                     did = _deck_id(col, n.deck)
+                    fields, tags, said = dict(n.fields), list(n.tags), {}
+                    if nt["name"] == omnilanguage.NOTE_TYPE and not allow_nonstandard:
+                        ready = omnilanguage.prepare(fields, tags, field_names=[f["name"] for f in nt["flds"]])
+                        if ready.refused:
+                            raise ToolError(_house_style(ready.refused))
+                        fields, tags = ready.fields, ready.tags
+                        said = {k: v for k, v in (("tidied", ready.tidied), ("still_to_fill", ready.gaps)) if v}
                     note = col.new_note(nt)
-                    for k, v in n.fields.items():
+                    for k, v in fields.items():
                         note[k] = v
-                    note.tags = list(n.tags)
+                    note.tags = tags
                     state = note.fields_check()
                     if state == NoteFieldsCheckResult.EMPTY:
                         raise ToolError(f'The first field ("{nt["flds"][0]["name"]}") is empty.')
                     if state == NoteFieldsCheckResult.DUPLICATE and not allow_duplicates:
                         raise ToolError("Another note of this type has the same first field. Pass allow_duplicates to add it anyway.")
                     col.add_note(note, did)
-                    results.append({"index": i, "note_id": note.id, "cards": len(note.cards())})
+                    results.append({"index": i, "note_id": note.id, "cards": len(note.cards()), **said})
                 except ToolError as e:
                     results.append({"index": i, "error": str(e)})
                 except Exception as e:  # noqa: BLE001 - e.g. a note that makes no cards
@@ -436,9 +433,14 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.write(run)
 
     @server.tool(annotations=WRITE)
-    async def update_notes(updates: list[NoteUpdate]) -> dict[str, Any]:
+    async def update_notes(updates: list[NoteUpdate], allow_nonstandard: bool = False) -> dict[str, Any]:
         """Changes notes' fields and tags (up to 100 a call). Only the fields given change. A note
-        that now makes a card it didn't gets that card, as in Anki."""
+        that now makes a card it didn't gets that card, as in Anki.
+
+        The fields written to an Omnilanguage note are held to the house style (note_guide), as in
+        add_notes: tidied where that needs no judgment (`tidied`), refused with what to change
+        otherwise. Fields the update leaves alone aren't checked, so an old note can be corrected a
+        field at a time. allow_nonstandard skips the check."""
         if len(updates) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
@@ -447,9 +449,19 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             for u in updates:
                 try:
                     note = _get_note(col, u.note_id)
+                    said = {}
                     if u.fields:
-                        _check_fields(note.note_type(), u.fields)
-                        for k, v in u.fields.items():
+                        nt = note.note_type()
+                        _check_fields(nt, u.fields)
+                        fields = dict(u.fields)
+                        if nt["name"] == omnilanguage.NOTE_TYPE and not allow_nonstandard:
+                            ready = omnilanguage.prepare(fields, list(note.tags), existing=dict(note.items()),
+                                                         field_names=[f["name"] for f in nt["flds"]])
+                            if ready.refused:
+                                raise ToolError(_house_style(ready.refused))
+                            fields = ready.fields
+                            said = {"tidied": ready.tidied} if ready.tidied else {}
+                        for k, v in fields.items():
                             note[k] = v
                     if u.tags is not None:
                         note.tags = list(u.tags)
@@ -458,7 +470,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     for t in u.remove_tags or []:
                         note.remove_tag(t)
                     col.update_note(note)
-                    results.append({"note_id": u.note_id, "updated": True})
+                    results.append({"note_id": u.note_id, "updated": True, **said})
                 except ToolError as e:
                     results.append({"note_id": u.note_id, "error": str(e)})
                 except Exception as e:  # noqa: BLE001 - one note Anki refuses doesn't fail the rest

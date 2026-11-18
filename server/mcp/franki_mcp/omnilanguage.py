@@ -1,0 +1,741 @@
+"""
+The Omnilanguage note type's house style, in code: what each field holds, per language, the checks
+that say where a note departs from it, and the fixes that need no judgment.
+
+One definition, read three ways. `prepare` runs when the MCP writes a note (`add_notes`,
+`update_notes`): it applies the fixes, and names what's left for Claude to correct. `problems` runs
+over notes already in the collection (`lint_notes`). `guide` is the same rules as prose, for Claude to
+read before writing a note (`note_guide`). A rule that exists in only one of the three drifts, which
+is how ten languages came to write a Meaning four ways.
+
+Pure: fields and tags in, problems out. Nothing here touches Anki.
+
+A problem's level says who acts on it:
+- "format": the value breaks the field's format. Refused on write, unless a fix settles it.
+- "required": a field every note of its kind carries is empty. Refused on a new note.
+- "gap": grammar a finished note carries (a plural, an auxiliary) that is still to fill. Reported, never refused.
+- "review": a person or Claude has to read it (commas that may be inside one gloss). Lint only.
+"""
+
+from __future__ import annotations
+
+import html
+import re
+import unicodedata
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+
+NOTE_TYPE = "Omnilanguage"
+
+PARTS_OF_SPEECH = (
+    "noun", "proper noun", "verb", "adjective", "adverb", "pronoun", "determiner", "numeral", "preposition",
+    "conjunction", "particle", "classifier", "interjection", "prefix", "suffix", "phrase",
+)  # fmt: skip
+# Other spellings notes have used, and the one they become.
+POS_RENAMES = {"number": "numeral", "counter": "classifier", "expression": "phrase", "proper-noun": "proper noun",
+               "idiom": "phrase", "article": "determiner"}  # fmt: skip
+# A tag that names a part of speech, and the PartOfSpeech it stands for.
+TAG_POS = {**{p: p for p in PARTS_OF_SPEECH if " " not in p}, **POS_RENAMES}
+
+REGISTERS = ("neutral", "casual", "formal", "literary", "technical", "slang", "vulgar", "dated")
+REGISTER_RENAMES = {"informal": "casual", "colloquial": "casual", "familiar": "casual", "archaic": "dated"}
+
+SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
+# Fields whose text is one value from a list: stored lowercase, with no markup.
+LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
+# Fields no rule reads for punctuation: machine-written tables and file names.
+NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
+
+MAX_SENSES = 3  # distinct senses a Meaning numbers
+MAX_GLOSSES = 3  # glosses to one sense
+MAX_MEANING = 80
+
+
+@dataclass(frozen=True)
+class Language:
+    """What a language's notes carry beyond the common fields."""
+
+    name: str
+    genders: frozenset[str] = frozenset()
+    # The singular article that goes before a noun, and the gender it marks: the card adds it from Gender.
+    articles: Mapping[str, str] = field(default_factory=dict)
+    noun: tuple[str, ...] = ()  # grammar fields a noun carries
+    verb: tuple[str, ...] = ()  # grammar fields a verb carries
+    verb_classes: frozenset[str] = frozenset()
+    auxiliaries: frozenset[str] = frozenset()
+    romanized: bool = False  # Transliteration and ContextRomanized are written
+    key_forms: str = ""  # what KeyForms holds, for the guide
+    aspect_pairs: bool = False
+    definition: bool = False  # Meaning is a definition sentence (the English deck), not glosses
+
+
+_MFN = frozenset({"m", "f", "n", "m/f", "m pl", "f pl", "n pl"})
+_MF = frozenset({"m", "f", "m/f", "m pl", "f pl"})
+
+LANGUAGES: dict[str, Language] = {
+    "thai": Language("thai", noun=("Classifier",), romanized=True),
+    "spanish": Language("spanish", genders=_MF, articles={"el": "m", "la": "f"}),
+    "french": Language("french", genders=_MF, articles={"le": "m", "la": "f"}, verb=("Auxiliary",),
+                       auxiliaries=frozenset({"avoir", "être"}),
+                       key_forms="a verb's past participle, only when irregular (pris)"),
+    "german": Language("german", genders=_MFN, articles={"der": "m", "die": "f", "das": "n"}, noun=("Plural",),
+                       verb=("KeyForms", "VerbClass", "Auxiliary"), verb_classes=frozenset({"strong", "weak", "mixed"}),
+                       auxiliaries=frozenset({"haben", "sein"}),
+                       key_forms="a verb's preterite, then its perfect with the auxiliary (warf ab, hat abgeworfen)"),
+    "greek": Language("greek", genders=_MFN, articles={"ο": "m", "η": "f", "το": "n"}, noun=("Plural",),
+                      verb=("KeyForms", "VerbClass"), verb_classes=frozenset({"active", "deponent", "passive"}),
+                      key_forms="a verb's first person singular aorist (αντιπάθησα)"),
+    "norwegian": Language("norwegian", genders=frozenset({"m", "f", "n"}), articles={"en": "m", "ei": "f", "et": "n"},
+                          noun=("Plural",), verb=("KeyForms",),
+                          key_forms="a verb's present / preterite / perfect participle (tømmer / tømte / tømt)"),
+    "russian": Language("russian", genders=frozenset({"m", "f", "n", "pl"}), verb=("AspectPartner", "KeyForms"),
+                        aspect_pairs=True,
+                        key_forms="a verb's first and second person singular, present or perfective future (добиваюсь, добиваешься)"),
+    "polish": Language("polish", genders=frozenset({"m", "f", "n", "pl", "mpl"}), noun=("KeyForms",),
+                       verb=("AspectPartner", "KeyForms"), aspect_pairs=True,
+                       key_forms="a noun's genitive singular and nominative plural (mężczyzny, mężczyźni); a verb's first "
+                                 "and second person singular, present or perfective future (mam, masz)"),
+    "japanese": Language("japanese", verb=("VerbClass",),
+                         verb_classes=frozenset({"godan", "ichidan", "suru", "irregular"})),
+    "english": Language("english", definition=True),
+}  # fmt: skip
+# What the Language field may say for each (the names `speechLangFor` reads in src/core/cards.ts).
+LANGUAGE_NAMES = {
+    **{name: name for name in LANGUAGES},
+    "ภาษาไทย": "thai", "español": "spanish", "espanol": "spanish", "français": "french", "francais": "french",
+    "deutsch": "german", "ελληνικά": "greek", "norsk": "norwegian", "русский": "russian", "polski": "polish",
+    "日本語": "japanese",
+}  # fmt: skip
+
+# What a rule is about, for lint's report and the guide. A rule with a fix says so in `fixable`.
+RULES: dict[str, str] = {
+    "entry-markup": "Entry has markup or stray spaces",
+    "entry-article": "Entry starts with the article that Gender already gives",
+    "entry-infinitive-marker": 'Entry starts with "å"',
+    "entry-aspect-pair": "Entry holds an aspect pair; the partner belongs in AspectPartner",
+    "entry-brackets": "Entry has a bracketed preposition or note",
+    "meaning-markup": "Meaning has markup or HTML entities",
+    "meaning-numbered": "Meaning's numbers are not one numbered line per distinct sense",
+    "meaning-lines": "Meaning has several lines without numbers",
+    "meaning-slashes": 'A sense joins its glosses with " / "',
+    "meaning-commas": "A sense joins its glosses with commas",
+    "meaning-commas-check": "Meaning has a comma that may join two glosses or sit inside one",
+    "meaning-article": 'A noun\'s gloss starts with "a" or "the"',
+    "meaning-title-case": "Meaning is in Title Case",
+    "meaning-verb-to": 'A verb\'s first gloss does not start with "to"',
+    "meaning-many": f"More than {MAX_SENSES} senses, or more than {MAX_GLOSSES} glosses to a sense",
+    "meaning-examples": "A numbered sense without an example of its own",
+    "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
+    "context-missing": "No example sentence",
+    "context-markup": "Context has markup other than <b> and <br>",
+    "context-no-bold": "The word is not in bold in Context",
+    "context-bold-unbalanced": "Context's <b> tags do not pair up",
+    "context-labels": "Several examples without a matching ContextLabels line for each",
+    "context-end-punctuation": "A Japanese example with no 。",
+    "translation-missing": "No translation of the example",
+    "switch-value": "A card switch holds something other than y",
+    "register-missing": "Register is empty",
+    "register-unknown": "Register is not one of the list",
+    "pos-missing": "PartOfSpeech is empty",
+    "pos-unknown": "PartOfSpeech is not one of the list",
+    "pos-in-tags": "A tag repeats the part of speech",
+    "language-missing": "Language is empty",
+    "gender-missing": "A noun without Gender",
+    "gender-unknown": "Gender is not a value this language uses",
+    "romanization-missing": "A Thai note without its romanization",
+    "romanization-letters": "A romanization outside the deck's scheme",
+    "romanization-unneeded": "A romanization in a language that is not romanized",
+    "kana-missing": "A word with kanji and no KanaReading",
+    "kana-format": "KanaReading is not one reading in kana",
+    "kanji-breakdown": "The kanji breakdown lists something that is not in the Entry",
+    "grammar-gap": "A grammar field this kind of word carries is empty",
+    "genitive-feminine": "A German feminine noun has a Genitive, which never differs from the nominative",
+    "verbclass-unknown": "VerbClass is not a value this language uses",
+    "auxiliary-unknown": "Auxiliary is not a value this language uses",
+    "pronunciation-format": "Pronunciation is not IPA between slashes or brackets",
+    "pronunciation-castilian": "Spanish IPA with Castilian θ",
+    "em-dash": "An em dash",
+    "notes-already-known": 'Notes says "already known"',
+}
+
+
+@dataclass(frozen=True)
+class Problem:
+    rule: str
+    field: str
+    level: str  # "format", "required", "gap" or "review"
+    message: str  # what to change, written for whoever fixes it
+    # The fix that needs no judgment: field name to new value ("tags" to the full tag list, space separated).
+    fix: Mapping[str, str] | None = None
+
+
+# ---- text helpers ----
+
+_TAG = re.compile(r"<[^>]+>")
+_BREAK = re.compile(r"<\s*br\s*/?>|</(?:div|p)>", re.IGNORECASE)
+_KANJI = re.compile(r"[一-鿿々]")
+_KANA_ONLY = re.compile(r"^[ぁ-ゟ゠-ヿー]+$")
+_TONE_MARKS = re.compile(r"[̀-ͯ]")
+
+
+def plain(value: str) -> str:
+    """A field's HTML as text: a line break for <br>, </div> and </p>, tags dropped, entities read."""
+    text = _TAG.sub("", _BREAK.sub("\n", value or ""))
+    return html.unescape(text).replace("\xa0", " ").strip()
+
+
+def _escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _lines(value: str) -> list[str]:
+    return [line.strip() for line in plain(value).split("\n") if line.strip()]
+
+
+def split_top(text: str, separator: str) -> list[str]:
+    """`text` split on `separator` wherever it is outside brackets: a bracket's own commas stay with it."""
+    parts, depth, current, i = [], 0, "", 0
+    while i < len(text):
+        ch = text[i]
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth = max(0, depth - 1)
+        if depth == 0 and text.startswith(separator, i):
+            parts.append(current)
+            current = ""
+            i += len(separator)
+            continue
+        current += ch
+        i += 1
+    parts.append(current)
+    return [p.strip() for p in parts if p.strip()]
+
+
+_NUMBER = re.compile(r"^\d+[.)]\s+")  # a sense's number at the start of its line: "1. " or "1) "
+
+
+def senses(meaning: str) -> list[str]:
+    """A Meaning's distinct senses, each without its number: the numbered lines, or the one line a
+    word with one sense has. Numbers written along one line ("1. hook 2. catch") are read as lines."""
+    text = plain(meaning)
+    if _NUMBER.match(text):
+        text = re.sub(r"\s+(?=\d+[.)]\s)", "\n", text)
+    return [item for item in (_NUMBER.sub("", line.strip(), count=1).strip() for line in text.split("\n")) if item]
+
+
+def write_senses(items: Sequence[str]) -> str:
+    """Senses as the Meaning field stores them: one plain line for one, a numbered line each for several."""
+    items = [item for item in items if item]
+    if len(items) <= 1:
+        return _escape(items[0]) if items else ""
+    return "<br>".join(f"{n}. {_escape(item)}" for n, item in enumerate(items, 1))
+
+
+def language_of(fields: Mapping[str, str]) -> Language | None:
+    return LANGUAGES.get(LANGUAGE_NAMES.get(plain(fields.get("Language", "")).lower(), ""))
+
+
+def part_of_speech(fields: Mapping[str, str], tags: Iterable[str]) -> str:
+    """The note's part of speech: the field, else the one tag that names one."""
+    said = plain(fields.get("PartOfSpeech", "")).lower()
+    said = POS_RENAMES.get(said, said)
+    if said:
+        return said
+    named = {TAG_POS[t] for t in tags if t in TAG_POS}
+    return named.pop() if len(named) == 1 else ""
+
+
+# Words a Title Cased gloss keeps capitalized.
+_PROPER = frozenset(
+    "i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august "
+    "september october november december japan japanese america american france french england english britain "
+    "british china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok".split()
+)
+
+
+def _lower_title(text: str) -> str:
+    def word(m: re.Match[str]) -> str:
+        w = m.group(0)
+        return w if w.lower() in _PROPER or w.isupper() and len(w) > 1 else w.lower()
+
+    return re.sub(r"[A-Za-z][A-Za-z']*", word, text)
+
+
+# ---- the rules ----
+
+
+def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Problem]:
+    """Where a note departs from the house style, most basic first. `fields` is the whole note (field
+    name to its HTML); a field the note type lacks is read as empty."""
+    raw = lambda name: fields.get(name, "") or ""  # noqa: E731
+    txt = lambda name: plain(raw(name))  # noqa: E731
+    out: list[Problem] = []
+
+    def add(rule: str, fld: str, level: str, message: str, fix: Mapping[str, str] | None = None) -> None:
+        out.append(Problem(rule, fld, level, message, fix))
+
+    lang = language_of(fields)
+    pos = part_of_speech(fields, tags)
+    gender = txt("Gender").lower()
+    entry = re.sub(r"\s+", " ", txt("Entry"))
+
+    # -- lists and switches --
+    for name in SWITCHES:
+        value = raw(name)
+        if value and value != "y":
+            on = bool(plain(value))
+            add("switch-value", name, "format", f'{name} takes "y" or nothing.', {name: "y" if on else ""})
+    if not txt("Language"):
+        add("language-missing", "Language", "required", 'Set Language (lowercase English name: "thai", "german").')
+    register = txt("Register").lower()
+    if not register:
+        add("register-missing", "Register", "required",
+            f'Set Register: "neutral" for an ordinary word, else one of {", ".join(REGISTERS[1:])}.')  # fmt: skip
+    elif register in REGISTER_RENAMES or (register in REGISTERS and raw("Register") != register):
+        add("register-unknown", "Register", "format", f'Register is written "{REGISTER_RENAMES.get(register, register)}".',
+            {"Register": REGISTER_RENAMES.get(register, register)})  # fmt: skip
+    elif register not in REGISTERS:
+        add("register-unknown", "Register", "format", f"Register is one of: {', '.join(REGISTERS)}.")
+    said = txt("PartOfSpeech").lower()
+    if not said:
+        add("pos-missing", "PartOfSpeech", "required", f"Set PartOfSpeech to one of: {', '.join(PARTS_OF_SPEECH)}.",
+            {"PartOfSpeech": pos} if pos else None)  # fmt: skip
+    elif said in POS_RENAMES or (said in PARTS_OF_SPEECH and raw("PartOfSpeech") != said):
+        add("pos-unknown", "PartOfSpeech", "format", f'PartOfSpeech is written "{POS_RENAMES.get(said, said)}".',
+            {"PartOfSpeech": POS_RENAMES.get(said, said)})  # fmt: skip
+    elif said not in PARTS_OF_SPEECH:
+        add("pos-unknown", "PartOfSpeech", "format",
+            f"PartOfSpeech is one value from: {', '.join(PARTS_OF_SPEECH)}. A verb's class goes in VerbClass.")  # fmt: skip
+    elif any(t in TAG_POS for t in tags):
+        add("pos-in-tags", "tags", "format", "PartOfSpeech holds the part of speech; tags are for topics and sources.",
+            {"tags": " ".join(t for t in tags if t not in TAG_POS)})  # fmt: skip
+
+    # -- Entry --
+    if entry != raw("Entry"):
+        add("entry-markup", "Entry", "format", "Entry is plain text: no bold, no line breaks.", {"Entry": _escape(entry)})
+    if lang and lang.articles and pos != "phrase" and (pos in ("noun", "proper noun") or gender):
+        m = re.match(r"(?i)(" + "|".join(map(re.escape, lang.articles)) + r")\s+(\S.*)$", entry)
+        elided = lang.name == "french" and re.match(r"(?i)l['’](\S.*)$", entry)
+        if m:
+            marks, bare = lang.articles[m.group(1).lower()], m.group(2)
+            # el agua, el hacha: the article and the gender disagree on purpose, so it stays written out.
+            if gender in ("", marks):
+                safe = gender or not (lang.name == "spanish" and marks == "m" and re.match(r"(?i)h?[aá]", bare))
+                add("entry-article", "Entry", "format",
+                    f'Write the bare noun ("{bare}"): the card puts the article in front from Gender.',
+                    {"Entry": _escape(bare), **({} if gender else {"Gender": marks})} if safe else None)  # fmt: skip
+        elif elided and gender:
+            add("entry-article", "Entry", "format",
+                f'Write the bare noun ("{elided.group(1)}"): the card puts the article in front from Gender.',
+                {"Entry": _escape(elided.group(1))})  # fmt: skip
+    if lang and lang.name == "norwegian" and entry.startswith("å "):
+        add("entry-infinitive-marker", "Entry", "format", 'Write the verb without "å".', {"Entry": _escape(entry[2:])})
+    if lang and lang.aspect_pairs and " / " in entry and pos == "verb":
+        first, _, second = entry.partition(" / ")
+        fix = {"Entry": _escape(first)}
+        if not txt("AspectPartner"):
+            fix["AspectPartner"] = _escape(second)
+        for name in ("Context", "ContextTranslation"):
+            if "<br><br>" in raw(name):
+                fix[name] = raw(name).replace("<br><br>", "<br>")
+        if len(_lines(raw("Context"))) == 2 and not txt("ContextLabels"):
+            fix["ContextLabels"] = "imperfective<br>perfective"
+        add("entry-aspect-pair", "Entry", "format",
+            f'One verb per Entry: write "{first}" and put "{second}" in AspectPartner.', fix)  # fmt: skip
+    if "(" in entry:
+        add("entry-brackets", "Entry", "format",
+            "No brackets in Entry: a verb's fixed preposition follows it bare (zweifeln an); anything else goes in Notes.")  # fmt: skip
+
+    # -- Meaning --
+    meaning = txt("Meaning")
+    numbered: list[str] = []
+    if meaning and not (lang and lang.definition):
+        lines = [line.strip() for line in meaning.split("\n") if line.strip()]
+        items = senses(raw("Meaning"))
+        stored = [f"{n}. {item}" for n, item in enumerate(items, 1)] if len(items) > 1 else items
+        numbered = items if len(items) > 1 else []
+        gloss_lists = [split_top(item, ";") for item in items]
+        if re.search(r"<(?!\s*br\b)[^>]+>|&nbsp;|&#x?[0-9a-f]+;|&quot;", raw("Meaning"), re.IGNORECASE):
+            add("meaning-markup", "Meaning", "format", "Meaning is plain text.", {"Meaning": "<br>".join(_escape(line) for line in lines)})
+        elif lines != stored and not any(_NUMBER.match(line) for line in lines):
+            add("meaning-lines", "Meaning", "format", "Number each distinct sense on its own line (1. 2. 3.).", {"Meaning": write_senses(items)})
+        elif lines != stored:
+            add("meaning-numbered", "Meaning", "format",
+                "One numbered line per distinct sense, counted from 1; a word with one sense has no number.",
+                {"Meaning": write_senses(items)})  # fmt: skip
+        elif any(len(split_top(g, " / ")) > 1 for gl in gloss_lists for g in gl):
+            fixed = ["; ".join(q for g in gl for q in split_top(g, " / ")) for gl in gloss_lists]
+            add("meaning-slashes", "Meaning", "format", 'Join the glosses of one sense with "; ", not " / ".', {"Meaning": write_senses(fixed)})
+        elif "wanikani" in tags and any(re.search(r"\b[A-Z][a-z]", re.sub(r"\b(?:%s)\b" % "|".join(_PROPER), "", item, flags=re.IGNORECASE)) for item in items):
+            # WaniKani joins its meanings with ", " and capitalizes every word.
+            fixed = ["; ".join(q for g in gl for q in split_top(_lower_title(g), ", ")) for gl in gloss_lists]
+            add("meaning-title-case", "Meaning", "format", 'Lowercase glosses joined with "; ".', {"Meaning": write_senses(fixed)})
+        elif any(len(split_top(g, ", ")) > 1 for gl in gloss_lists for g in gl):
+            # Safe to split when the pieces are plainly glosses: every one "to ..." for a verb, short for a single word.
+            def split_commas(gl: list[str]) -> list[str] | None:
+                pieces = [q for g in gl for q in split_top(g, ", ")]
+                if len(pieces) == len(gl):
+                    return gl
+                aside = any(re.match(r"(?:or|and|also|esp|especially|e\.g\.|i\.e\.|etc)\b", q) for q in pieces)
+                plain_glosses = (pos == "verb" and all(q.startswith("to ") for q in pieces)) or (
+                    pos in ("noun", "adjective", "adverb") and all(len(re.sub(r"\([^)]*\)", "", q).split()) <= 4 for q in pieces)
+                )
+                return pieces if plain_glosses and not aside else None
+
+            split = [split_commas(gl) for gl in gloss_lists]
+            if any(new is not None and new != gl for new, gl in zip(split, gloss_lists, strict=True)):
+                fixed = ["; ".join(gl if new is None else new) for new, gl in zip(split, gloss_lists, strict=True)]
+                add("meaning-commas", "Meaning", "format", 'Join the glosses of one sense with "; ".', {"Meaning": write_senses(fixed)})
+            else:
+                add("meaning-commas-check", "Meaning", "review",
+                    'If the comma separates two glosses, write "; "; a comma inside one gloss stays.')  # fmt: skip
+        elif pos == "noun" and any(re.match(r"(?:a|an|the) \S", g) for gl in gloss_lists for g in gl):
+            fixed = ["; ".join(re.sub(r"^(?:a|an|the) ", "", g) for g in gl) for gl in gloss_lists]
+            add("meaning-article", "Meaning", "format", 'A noun\'s gloss has no "a" or "the".', {"Meaning": write_senses(fixed)})
+        else:
+            if len(items) > MAX_SENSES:
+                add("meaning-many", "Meaning", "format",
+                    f"Keep the {MAX_SENSES} senses worth being tested on; a rarer one gets its own note, or is left out.")  # fmt: skip
+            elif any(len(gl) > MAX_GLOSSES for gl in gloss_lists):
+                add("meaning-many", "Meaning", "format",
+                    f"At most {MAX_GLOSSES} glosses to a sense. If they are different senses, number them, one to a line.")  # fmt: skip
+            if any(len(item) > MAX_MEANING for item in items):
+                add("meaning-long", "Meaning", "format", f"Keep each sense under {MAX_MEANING} characters; usage goes in Notes.")
+            if pos == "verb" and any(gl and not gl[0].startswith("to ") for gl in gloss_lists):
+                add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
+
+    # -- Context --
+    context = raw("Context")
+    context_lines = _lines(context)
+    if not context_lines:
+        add("context-missing", "Context", "required", "Give one example sentence, with the word in <b>.")
+    else:
+        if re.search(r"<\s*/?\s*(?!b\s*>|/b\s*>|br\b)[a-z]", context, re.IGNORECASE) or "&nbsp;" in context:
+            fixed = re.sub(r"(?i)<(/?)strong\b[^>]*>", r"<\1b>", context)
+            fixed = re.sub(r"(?i)</(?:div|p)>\s*<(?:div|p)\b[^>]*>", "<br>", fixed)
+            fixed = re.sub(r"(?i)</?(?:i|em|div|p|span|font|u)\b[^>]*>", "", fixed).replace("&nbsp;", " ")
+            # A line break inside the bold belongs after it, and one break is enough between two examples.
+            fixed = re.sub(r"(?i)((?:\s*<br\s*/?>\s*)+)</b>", r"</b>\1", fixed)
+            fixed = re.sub(r"(?i)(?:\s*<br\s*/?>\s*)+", "<br>", fixed)
+            fixed = re.sub(r"(?:<br>)+$", "", fixed).strip()
+            add("context-markup", "Context", "format", "Context takes only <b> and <br>.", {"Context": fixed})
+        opens, closes = len(re.findall(r"(?i)<b>", context)), len(re.findall(r"(?i)</b>", context))
+        if opens != closes:
+            add("context-bold-unbalanced", "Context", "format", "Every <b> in Context needs its </b>.")
+        elif opens == 0 and not re.search(r"(?i)<strong\b", context):
+            found = entry and entry.lower() in plain(context).lower()
+            add("context-no-bold", "Context", "required" if found else "format",
+                "Put the word in <b></b> as the sentence spells it (both parts of a split verb).")  # fmt: skip
+        if numbered and len(context_lines) != len(numbered):
+            add("meaning-examples", "Context", "required",
+                f"Each numbered sense gets its own example: {len(numbered)} senses, {len(context_lines)} "
+                f"example{'' if len(context_lines) == 1 else 's'}. Give Context one line per sense, in the same order, with "
+                "ContextTranslation and ContextLabels to match.")  # fmt: skip
+        labels = _lines(raw("ContextLabels"))
+        counts = {"ContextTranslation": len(_lines(raw("ContextTranslation"))), "ContextRomanized": len(_lines(raw("ContextRomanized")))}
+        if len(context_lines) > 1 and not labels:
+            add("context-labels", "ContextLabels", "format",
+                "Several examples need ContextLabels: one short label per line, in the same order.")  # fmt: skip
+        elif labels and (len(labels) != len(context_lines) or any(n and n != len(context_lines) for n in counts.values())):
+            add("context-labels", "ContextLabels", "format",
+                "Context, ContextTranslation, ContextRomanized and ContextLabels need the same number of lines.")  # fmt: skip
+        if lang and lang.name == "japanese" and any(not re.search(r"[。？！?!…]$", line.rstrip("」』）)")) for line in context_lines):
+            fixed = "<br>".join(
+                piece if re.search(r"[。？！?!…]$", plain(piece).rstrip("」』）)")) else piece.rstrip() + "。"
+                for piece in re.split(r"<\s*br\s*/?>", context) if plain(piece)
+            )  # fmt: skip
+            add("context-end-punctuation", "Context", "format", "A Japanese sentence ends with 。", {"Context": fixed})
+        if not (lang and lang.definition) and not txt("ContextTranslation"):
+            add("translation-missing", "ContextTranslation", "required", "Translate the example into natural American English.")
+
+    # -- gender --
+    if lang:
+        if gender and not lang.genders:
+            add("gender-unknown", "Gender", "format", f"{lang.name.capitalize()} notes have no Gender.")
+        elif gender and gender not in lang.genders:
+            add("gender-unknown", "Gender", "format", f"Gender is one of: {', '.join(sorted(lang.genders))}.")
+        elif lang.genders and pos == "noun" and not gender and not any(p.rule == "entry-article" and p.fix for p in out):
+            add("gender-missing", "Gender", "required", f"A {lang.name.capitalize()} noun needs Gender ({', '.join(sorted(lang.genders))}).")
+
+    # -- reading aids --
+    if lang and lang.romanized:
+        if not txt("Transliteration"):
+            add("romanization-missing", "Transliteration", "required", "Romanize the Entry (note_guide gives the scheme).")
+        if context_lines and not txt("ContextRomanized"):
+            add("romanization-missing", "ContextRomanized", "required", "Romanize the example, one line per sentence.")
+        for name in ("Transliteration", "ContextRomanized"):
+            bare = _TONE_MARKS.sub("", unicodedata.normalize("NFD", txt(name)))
+            if re.search(r"[^a-zə\s-]|(?:^|[\s-])(?:t(?!h)|p(?!h)|k(?!h))", bare):
+                add("romanization-letters", name, "format",
+                    "Use the deck's scheme: dt and bp for ต and ป, th ph kh for the aspirated letters, g for ก; "
+                    "aw / aaw, ae / aae, ue / uue, əə for the vowels; lowercase.")  # fmt: skip
+    elif lang and lang.name in ("russian", "greek"):
+        for name in ("Transliteration", "ContextRomanized"):
+            if txt(name):
+                add("romanization-unneeded", name, "format", f"{lang.name.capitalize()} notes carry no romanization: leave {name} empty.")
+    if lang and lang.name == "japanese":
+        kana = txt("KanaReading")
+        if _KANJI.search(entry) and not kana:
+            add("kana-missing", "KanaReading", "required", "Give the word's reading in kana.")
+        elif kana and not _KANA_ONLY.match(kana):
+            add("kana-format", "KanaReading", "format", "KanaReading is one reading, in kana only: the one for this meaning.")
+        breakdown = txt("Hanzi")
+        if breakdown.lower() in REGISTERS:
+            add("kanji-breakdown", "Hanzi", "format", "The kanji breakdown holds a Register value.", {"Hanzi": ""})
+        elif breakdown:
+            listed = [part.strip()[:1] for part in breakdown.split(";") if part.strip()]
+            stray = [k for k in listed if _KANJI.match(k) and k not in entry]
+            if stray:
+                add("kanji-breakdown", "Hanzi", "format",
+                    f"List only kanji that are in the Entry ({', '.join(stray)} is not), each with the reading this word uses.")  # fmt: skip
+
+    # -- grammar --
+    if lang:
+        wants = lang.noun if pos == "noun" else lang.verb if pos == "verb" else ()
+        for name in wants:
+            if not txt(name) and not (name == "AspectPartner" and " / " in entry):
+                detail = f" ({lang.key_forms})" if name == "KeyForms" and lang.key_forms else ""
+                add("grammar-gap", name, "gap", f"A {lang.name.capitalize()} {pos} carries {name}{detail}.")
+        if lang.name == "german" and pos == "noun":
+            if gender in ("m", "n") and not txt("Genitive"):
+                add("grammar-gap", "Genitive", "gap", "A German masculine or neuter noun carries its genitive (des Tisches).")
+            elif gender == "f" and txt("Genitive"):
+                add("genitive-feminine", "Genitive", "format", "A feminine noun's genitive is its nominative: leave Genitive empty.",
+                    {"Genitive": ""})  # fmt: skip
+        verb_class, auxiliary = txt("VerbClass").lower(), txt("Auxiliary").lower()
+        if verb_class and lang.verb_classes and verb_class.split(",")[0].strip() not in lang.verb_classes:
+            add("verbclass-unknown", "VerbClass", "format", f"VerbClass is one of: {', '.join(sorted(lang.verb_classes))}.")
+        if auxiliary and lang.auxiliaries and not set(re.split(r"\s*[,/]\s*", auxiliary)) <= lang.auxiliaries:
+            add("auxiliary-unknown", "Auxiliary", "format", f"Auxiliary is one of: {', '.join(sorted(lang.auxiliaries))}.")
+
+    # -- pronunciation and punctuation --
+    ipa = txt("Pronunciation")
+    if ipa and not re.fullmatch(r"/[^/]+/|\[[^\]]+\]", ipa):
+        add("pronunciation-format", "Pronunciation", "format", "Pronunciation is one IPA transcription between slashes: /ˈbluːtʊŋ/.")
+    elif lang and lang.name == "spanish" and "θ" in ipa:
+        add("pronunciation-castilian", "Pronunciation", "format", "Spanish IPA is Latin American: s, not θ.",
+            {"Pronunciation": raw("Pronunciation").replace("θ", "s")})  # fmt: skip
+    for name, value in fields.items():
+        if name not in NOT_PROSE and "—" in (value or ""):
+            add("em-dash", name, "format", "No em dashes: use a period, colon, comma or parentheses.")
+    if "already known" in txt("Notes").lower():
+        add("notes-already-known", "Notes", "format", 'Never write "already known": say what the part means, or leave it out.')
+    return out
+
+
+FIXABLE = frozenset(
+    {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "entry-markup", "entry-article",
+     "entry-infinitive-marker", "entry-aspect-pair", "meaning-markup", "meaning-numbered", "meaning-lines",
+     "meaning-slashes", "meaning-commas", "meaning-article", "meaning-title-case", "context-markup",
+     "context-end-punctuation", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian"}
+)  # fmt: skip
+
+
+@dataclass
+class Fixed:
+    """A note after its fixes: the fields and tags as they should be stored, and the problems each fix settled."""
+
+    fields: dict[str, str]
+    tags: list[str]
+    applied: list[Problem]
+
+
+def fix(fields: Mapping[str, str], tags: Sequence[str] = (), rules: Iterable[str] | None = None,
+        only_fields: Iterable[str] | None = None) -> Fixed:
+    """Applies every fix that needs no judgment, one at a time, until none is left: a numbered Meaning
+    becomes semicolons, and only then are its slashes seen. `rules` narrows it to some rules;
+    `only_fields` to fixes that start from one of those fields (the ones an update writes)."""
+    wanted = FIXABLE if rules is None else FIXABLE & set(rules)
+    scope = None if only_fields is None else set(only_fields)
+    out, now, applied = dict(fields), list(tags), []
+    for _ in range(40):
+        todo = next((p for p in problems(out, now)
+                     if p.fix is not None and p.rule in wanted and (scope is None or p.field in scope)), None)  # fmt: skip
+        if todo is None:
+            break
+        for name, value in (todo.fix or {}).items():
+            if name == "tags":
+                now = value.split()
+            else:
+                out[name] = value
+        applied.append(todo)
+    return Fixed(out, now, applied)
+
+
+@dataclass
+class Prepared:
+    """A note ready to write, or the reasons it isn't."""
+
+    fields: dict[str, str]
+    tags: list[str]
+    tidied: list[str]  # what the fixes changed, a line each
+    refused: list[str]  # what the caller has to change before it's written
+    gaps: list[str]  # grammar still to fill, reported with the note written
+
+
+def _tidy_values(fields: Mapping[str, str]) -> dict[str, str]:
+    out = {}
+    for name, value in fields.items():
+        value = unicodedata.normalize("NFC", value or "")
+        if name in LIST_FIELDS:
+            value = plain(value).lower()
+        elif name not in ("Audio", "Forms"):
+            value = re.sub(r"(?:\s|&nbsp;|<br\s*/?>)+$", "", value).strip()
+        out[name] = value
+    return out
+
+
+def prepare(new: Mapping[str, str], tags: Sequence[str] = (), existing: Mapping[str, str] | None = None,
+            field_names: Iterable[str] | None = None) -> Prepared:
+    """Tidies and checks a note the MCP is about to write. With no `existing`, `new` is a new note and
+    every rule applies. With `existing` (the note as stored), `new` is the fields an update writes: only
+    they are tidied and checked, so an old note can be corrected a field at a time. `field_names` are the
+    note type's fields: a fix never writes one it doesn't have."""
+    written = set(new)
+    merged = {**(existing or {}), **_tidy_values(new)}
+    known = set(field_names) if field_names is not None else None
+    fixed = fix(merged, tags, only_fields=None if existing is None else written)
+    if known is not None and any(n != "tags" and n not in known for p in fixed.applied for n in (p.fix or {})):
+        fixed = fix(merged, tags, rules=FIXABLE - {"entry-aspect-pair"}, only_fields=None if existing is None else written)
+    left = [p for p in problems(fixed.fields, fixed.tags) if known is None or p.field == "tags" or p.field in known]
+    if existing is None:
+        refuse = [p for p in left if p.level in ("format", "required")]
+    else:
+        refuse = [p for p in left if p.level == "format" and p.field in written]
+    changed = {n: v for n, v in fixed.fields.items() if (existing or {}).get(n, "") != v} if existing is not None else fixed.fields
+    return Prepared(
+        fields=dict(changed),
+        tags=fixed.tags,
+        tidied=[f"{p.field}: {RULES[p.rule]}, fixed" for p in fixed.applied],
+        refused=[f"{p.field}: {p.message}" for p in refuse],
+        gaps=[f"{p.field}: {p.message}" for p in left if p.level == "gap"] if existing is None else [],
+    )
+
+
+# ---- the guide ----
+
+THAI_SCHEME = """\
+Thai romanization, derived from the Thai spelling by the tone rules:
+- Initials: ก g; ข ค ฆ kh; จ j; ฉ ช ฌ ch; ด ฎ d; ต ฏ dt; บ b; ป bp; ถ ฐ ท ธ ฑ ฒ th; ผ พ ภ ph; ฝ ฟ f; ซ ศ ษ ส s;
+  ง ng; ญ ย y; น ณ n; ม m; ร r; ล ฬ l; ว w; ห ฮ h; อ nothing. Finals: k t p ng n m.
+- Vowels, short / long: a / aa, i / ii, ue / uue, u / uu, e / ee, ae / aae, o / oo, aw / aaw, ə / əə.
+  Diphthongs written once: ia, uea, ua. -ำ am (น้ำ alone náam). ไ ใ ai; -าย aai; เ-า ao; -าว aao.
+- A final ย is i (sǔai, ráawi, ləəi); a final ว is o (láaeo, reo, dǐao), or u after i (hǐu).
+- Tones: mid no mark, low à, falling â, high á, rising ǎ, on the syllable's first vowel letter.
+- Lowercase, no punctuation. Syllables of a word joined by hyphens, words separated by spaces.
+- In ContextRomanized the Entry is spelled exactly as in Transliteration, hyphens included."""
+
+_COMMON = """\
+Entry: the citation form as plain text. No article (Gender supplies it), no markup, one word or one phrase.
+  A verb's fixed preposition follows it bare (zweifeln an). An aspect partner goes in AspectPartner.
+Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" or "the". A word with one
+  sense is one line: one to three near-synonyms joined by "; " (fame; glory). A word with distinct senses
+  numbers them, one to a line (<br>), the most common first, three at most:
+  "1. train<br>2. move (in a game)<br>3. draft (of air)". Number only senses worth being tested on: every one
+  listed has to be recalled to pass the card. A rarer sense is left out, or gets a note of its own; two
+  different words spelled alike are two notes. A short bracket to pin a sense down. No slashes, sub-senses
+  or markup; grammar and usage go in Notes.
+Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
+  line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
+  ("train", "move", "draft"). Sense is no longer written: the numbers say it.
+Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
+  punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
+  what's bold). It should stop making sense if another word were swapped in.
+ContextTranslation: the sentence in natural American English.
+Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
+Dialect: only when the word or sense is regional.
+PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
+  conjunction, particle, classifier, interjection, prefix, suffix, phrase. Always filled. Not repeated in tags.
+Language: the language's English name in lowercase. GenerateReverse, GenerateAudioCard, SuppressFrontCard: "y" or empty.
+Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
+Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
+  with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
+  บ้าน (home)"). Never "already known".
+Etymology: the real origin, or a cognate or false friend in a language the learner knows. Mnemonic: a sound
+  or image hook only. Tags: topic, source and status. No em dashes anywhere."""
+
+_PER_LANGUAGE = {
+    "thai": "Classifier: a countable noun's everyday counting word, in Thai script.\n" + THAI_SCHEME,
+    "spanish": "Gender: m or f (m/f for a noun that takes either; m pl / f pl for a plural-only noun).\n"
+               "The target is Mexican Spanish: a word or sense not used in Mexico gets a Dialect (Iberian, Caribbean,\n"
+               "Colombian); a Mexico-only word says Mexican. IPA is Latin American (s, not θ).\n"
+               "fill_forms writes a verb's Forms table.",
+    "french": "Gender: m or f. Auxiliary: avoir or être, for every verb. KeyForms: a past participle only when irregular.",
+    "german": "Gender: m, f or n. Plural: every noun, without its article (\"no plural\" when it has none).\n"
+              "Genitive: masculine and neuter nouns only, with the article (des Tisches).\n"
+              "VerbClass: strong, weak or mixed. Auxiliary: haben or sein.\n"
+              "KeyForms: the preterite, then the perfect with its auxiliary (warf ab, hat abgeworfen).",
+    "greek": "Gender: m, f or n (m/f for a noun that takes either). Plural: every noun's nominative plural.\n"
+             "VerbClass: active; deponent only for a verb with no active form; passive for the -μαι form of an active verb.\n"
+             "KeyForms: the first person singular aorist. No romanization.",
+    "norwegian": "Bokmål. Gender: m, f or n. Plural: every noun's indefinite plural. A verb is entered without å.\n"
+                 "KeyForms: present / preterite / perfect participle (tømmer / tømte / tømt).",
+    "russian": "Gender: m, f or n. AspectPartner: every verb's partner of the other aspect, as one word.\n"
+               "KeyForms: a verb's first and second person singular, present or perfective future. No romanization.\n"
+               "fill_forms writes the Forms tables.",
+    "polish": "Gender: m, f or n; pl for a plural-only noun, mpl for a plural of men.\n"
+              "AspectPartner: every verb's partner of the other aspect, as one word.\n"
+              "KeyForms: a noun's genitive singular and nominative plural; a verb's first and second person singular.\n"
+              "fill_forms writes the Forms tables.",
+    "japanese": "KanaReading: a word with kanji gets its reading in kana, one reading only. Empty for a kana-only word.\n"
+                "Hanzi (the kanji breakdown): only kanji in the Entry, each with the reading this word uses (hiragana for\n"
+                "kun, katakana for on) and a keyword, joined by \"; \": 割(わ)divide; 込(こ)go into.\n"
+                "VerbClass: godan, ichidan, suru or irregular. Context ends with 。",
+    "english": "Rare English words for a native speaker: Meaning is a one-sentence definition and there is no\n"
+               "ContextTranslation. Etymology is expected.",
+}  # fmt: skip
+
+EXAMPLES: dict[str, dict[str, str]] = {
+    "german": {"Entry": "abwerfen", "Meaning": "to throw off; to shed", "Context": "Er <b>warf</b> seinen Mantel <b>ab</b>.",
+               "ContextTranslation": "He threw off his coat.", "Register": "neutral", "PartOfSpeech": "verb",
+               "Language": "german", "KeyForms": "warf ab, hat abgeworfen", "VerbClass": "strong", "Auxiliary": "haben",
+               "GenerateReverse": "y"},
+    "thai": {"Entry": "กลับ", "Meaning": "to return; to go back", "Context": "เขา<b>กลับ</b>บ้านแล้ว",
+             "ContextRomanized": "khǎo glàp bâan láaeo", "ContextTranslation": "He has already gone home.",
+             "Transliteration": "glàp", "Register": "neutral", "PartOfSpeech": "verb", "Language": "thai",
+             "Notes": "กลับบ้าน (go home), กลับมา (come back)", "GenerateReverse": "y"},
+    "spanish": {"Entry": "blindaje", "Meaning": "armor plating; shielding", "Context": "El <b>blindaje</b> resistió el impacto.",
+                "ContextTranslation": "The armor withstood the impact.", "Register": "neutral", "PartOfSpeech": "noun",
+                "Gender": "m", "Language": "spanish", "GenerateReverse": "y"},
+    "russian": {"Entry": "добавлять", "Meaning": "to add", "AspectPartner": "добавить",
+                "Context": "Он всегда <b>добавлял</b> что-то новое.<br>Она <b>добавила</b> соль в суп.",
+                "ContextTranslation": "He always added something new.<br>She added salt to the soup.",
+                "ContextLabels": "imperfective<br>perfective", "KeyForms": "добавляю, добавляешь", "Register": "neutral",
+                "PartOfSpeech": "verb", "Language": "russian", "GenerateReverse": "y"},
+    "japanese": {"Entry": "割り込む", "Meaning": "to cut in; to interrupt", "KanaReading": "わりこむ",
+                 "Hanzi": "割(わ)divide; 込(こ)go into", "Context": "列に<b>割り込む</b>のはよくない。",
+                 "ContextTranslation": "It's not good to cut in line.", "VerbClass": "godan", "Register": "neutral",
+                 "PartOfSpeech": "verb", "Language": "japanese", "GenerateReverse": "y"},
+}  # fmt: skip
+
+
+SEVERAL_SENSES = {
+    "Entry": "erhalten", "Meaning": "1. to receive<br>2. to preserve; to maintain",
+    "Context": "Hast du meine E-Mail <b>erhalten</b>?<br>Wir müssen die alten Gebäude <b>erhalten</b>.",
+    "ContextTranslation": "Did you get my email?<br>We have to preserve the old buildings.", "ContextLabels": "receive<br>preserve",
+    "Register": "neutral", "PartOfSpeech": "verb", "Language": "german", "KeyForms": "erhielt, hat erhalten",
+    "VerbClass": "strong", "Auxiliary": "haben", "GenerateReverse": "y",
+}  # fmt: skip
+
+
+def guide(language: str) -> dict[str, object]:
+    """The house style for one language's notes, as Claude reads it before writing one."""
+    key = LANGUAGE_NAMES.get(language.strip().lower(), "")
+    lang = LANGUAGES.get(key)
+    return {
+        "language": key or language.strip().lower(),
+        "every_note": _COMMON,
+        "this_language": _PER_LANGUAGE.get(key, "No rules beyond the common ones are written for this language yet."),
+        "values": {
+            "Register": list(REGISTERS),
+            "PartOfSpeech": list(PARTS_OF_SPEECH),
+            **({"Gender": sorted(lang.genders)} if lang and lang.genders else {}),
+            **({"VerbClass": sorted(lang.verb_classes)} if lang and lang.verb_classes else {}),
+            **({"Auxiliary": sorted(lang.auxiliaries)} if lang and lang.auxiliaries else {}),
+        },
+        "example": EXAMPLES.get(key) or EXAMPLES["german"],
+        "example_with_several_senses": SEVERAL_SENSES,
+        "checked": "add_notes and update_notes tidy what needs no judgment and refuse the rest with the reason. "
+                   "lint_notes runs the same rules over notes already in the collection.",
+    }  # fmt: skip
