@@ -8,7 +8,7 @@ import { useVoiceLink } from './useVoiceLink';
 
 /**
  * A play button for text read in the phone's voice: a play icon, and beside it, when the language
- * is known, a sliders icon that opens that language's voice and speed (Settings, Voices), so a
+ * is known, a gear icon that opens that language's voice and speed (Settings, Voices), so a
  * voice that sounds wrong can be changed from the screen that played it. `speech` is the language
  * the text is read in (th-TH); without one it's the play icon alone.
  */
@@ -33,7 +33,7 @@ export function PlayPill({ label, onPlay, speech, raised }: { label: string; onP
             scaleTo={0.94}
             style={half}
           >
-            <Icon name="slider.horizontal.3" size={18} color={icon} />
+            <Icon name="gearshape" size={18} color={icon} />
           </Tappable>
         </>
       ) : null}
