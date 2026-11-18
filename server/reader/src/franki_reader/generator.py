@@ -306,12 +306,15 @@ class Generated:
     # The characters this story episode adds to the story's cast: those who speak in it and had no
     # voice yet (StoryContext.speakers).
     speakers: tuple[Speaker, ...] = ()
+    # The title in English, shown under it on the shelf's cover. Empty when the model gave none.
+    title_english: str = ""
 
 
 DRAFT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "title": {"type": "string"},
+        "title_english": {"type": "string"},
         "roles": {
             "type": "object",
             "properties": {"A": {"type": "string"}, "B": {"type": "string"}},
@@ -401,7 +404,7 @@ DRAFT_SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["title", "roles", "genders", "characters", "lines", "glosses"],
+    "required": ["title", "title_english", "roles", "genders", "characters", "lines", "glosses"],
     "additionalProperties": False,
 }
 
@@ -459,6 +462,7 @@ person afterward. Never call someone "the boy" and then switch to a name with no
 break and nowhere else: never between words of the same clause, never before a particle like \
 ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
 เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
+- Give "title_english", a natural English translation of the title.
 - Give "english", a natural English translation of each line.
 - Give "register" for each line: how a native speaker would say it in that situation: \
 "casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
@@ -535,6 +539,7 @@ and use at most 4 different names in a text.
 - Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
+- Give "title_english", a natural English translation of the title.
 - Give "english", a natural English translation of each line.
 - Give "register" for each line: how a native speaker would say it in that situation: \
 "casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
@@ -1009,6 +1014,7 @@ def _assess(
             if isinstance(g.get("translit"), str) and g["translit"].strip()
         }
         title = draft["title"]
+        title_english = str(draft.get("title_english") or "").strip()
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
         genders = {
             k: v
@@ -1091,6 +1097,7 @@ def _assess(
         plan=plan,
         recap_line=recap_line,
         recap_english=recap_english,
+        title_english=title_english,
         choices=choices,
         speakers=speakers,
     )

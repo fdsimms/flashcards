@@ -282,6 +282,8 @@ export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | '';
 export type ShelfText = {
   id: number;
   title: string;
+  /** The title in English; missing from a server older than it and for a text written before it. */
+  title_english?: string;
   topic: string;
   topic_id: number;
   form: Form;

@@ -400,6 +400,8 @@ class StoredText:
     model: str = ""
     # When it was written, naive UTC as stored (None for a text a test builds); the shelf card's date.
     created_at: datetime | None = None
+    # The title in English, as the shelf's cover shows it; "" for a text written before it.
+    title_english: str = ""
 
     @property
     def own_glosses(self) -> dict[str, str]:
@@ -570,6 +572,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # A story episode's recap in its own language, written like a line, and that line's English.
         ("recap_line", "recap_line TEXT NOT NULL DEFAULT ''"),
         ("recap_english", "recap_english TEXT NOT NULL DEFAULT ''"),
+        # The title in English, shown under it on the shelf's cover; empty for a text written before it.
+        ("title_english", "title_english TEXT NOT NULL DEFAULT ''"),
         # Meanings Claude gave for the text's words that nothing else glossed, each asked with the
         # English of its line (meanings.py), by lower-case word; "" for one it gave none for. A
         # text's own, so a word glossed in one sense elsewhere shows the sense it has here.
@@ -844,9 +848,9 @@ def save_text(
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
                    focus, translits, reason, story_id, episode, recap, genders, characters,
-                   choices, stretch_count, recap_line, recap_english)
+                   choices, stretch_count, recap_line, recap_english, title_english)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -881,6 +885,7 @@ def save_text(
                 stretch_count,
                 generated.recap_line,
                 generated.recap_english,
+                generated.title_english,
             ),
         )
     assert cur.lastrowid is not None
@@ -951,7 +956,7 @@ _TEXT_COLUMNS = (
     "id, topic_id, title, lines, glosses, stretch, coverage, roles, form, language, grammar,"
     " translits, reason, story_id, episode, recap, genders, characters, choices, chosen,"
     " questions, forms, recap_line, recap_english, meanings, registers, model,"
-    " created_at"
+    " created_at, title_english"
 )
 
 
@@ -985,6 +990,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         registers,
         model,
         created_at,
+        title_english,
     ) = row
     return StoredText(
         id=text_id,
@@ -1017,6 +1023,7 @@ def _text(row: tuple[Any, ...]) -> StoredText:
         registers=json.loads(registers),
         model=model,
         created_at=datetime.fromisoformat(created_at) if created_at else None,
+        title_english=title_english,
     )
 
 

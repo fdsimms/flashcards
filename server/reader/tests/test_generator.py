@@ -617,6 +617,13 @@ def test_the_recap_line_must_carry_the_recaps_event_not_a_vague_stand_in() -> No
     assert "simpler than" not in sent
 
 
+def test_the_title_comes_with_its_english_and_a_draft_without_one_keeps_none() -> None:
+    assert "title_english" in DRAFT_SCHEMA["required"]
+    with_english = {**draft("ฉัน|กิน"), "title_english": "  At the stall "}
+    assert run(ScriptedModel(with_english), TextRequest("food")).title_english == "At the stall"
+    assert run(ScriptedModel(draft("ฉัน|กิน")), TextRequest("food")).title_english == ""
+
+
 def test_a_story_episodes_recap_line_is_kept_beside_the_english_recap() -> None:
     result = run(ScriptedModel(_recap("ฉัน|กิน", "I eat.")), _episode())
     assert (result.recap, result.recap_line, result.recap_english) == (

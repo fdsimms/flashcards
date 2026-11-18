@@ -329,11 +329,12 @@ function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText
       tint={useCoverTint(text.id)}
       kind={cardDetail(text)}
       title={text.title}
+      subtitle={text.title_english}
       meta={reason}
       metaColor={text.reason === 'due' ? c.countDue : undefined}
       onPress={onPress}
       onLongPress={onLongPress}
-      accessibilityLabel={`${text.title}. ${cardDetail(text)}. ${reason}${saved ? `. ${SAVED_LABEL[saved]}` : ''}`}
+      accessibilityLabel={`${text.title}. ${text.title_english ? `${text.title_english}. ` : ''}${cardDetail(text)}. ${reason}${saved ? `. ${SAVED_LABEL[saved]}` : ''}`}
       corner={saved ? <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><SavedMark state={saved} /></View> : null}
     />
   );
