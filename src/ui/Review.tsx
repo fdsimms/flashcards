@@ -1357,7 +1357,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             </Reveal>
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
-                <View style={{ height: hairline, backgroundColor: c.border }} />
+                {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
+                <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
                 <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
