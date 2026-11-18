@@ -5,8 +5,9 @@
     "en-GB-RyanNeural",
     "en-US-AvaMultilingualNeural",
     "en-US-Ada:DragonHDLatestNeural",
-    "en-au-cyanspark:DragonHDOmniLatestNeural"
+    "en-au-cyanspark:DragonHDOmniLatestNeural",
+    "en-AU-Isla:MAI-Voice-2.1-Flash"
   ],
-  "other_voices": ["fr-FR-HenriNeural", "th-TH-PremwadeeNeural"],
-  "not_voices": ["Guy", "en-US-Guy Neural", ""]
+  "other_voices": ["fr-FR-HenriNeural", "th-TH-PremwadeeNeural", "th-TH-Harper:MAI-Voice-2.1"],
+  "not_voices": ["Guy", "en-US-Guy Neural", "en-US-Ava'><voice", ""]
 }
