@@ -23,9 +23,26 @@ function FontScope({ children }: { children: React.ReactNode }) {
   return <AppFontScope repo={useApp().repo}>{children}</AppFontScope>;
 }
 
+/** The root stack. Its own component so its header options are read inside `AppFontScope` and follow the app's font. */
+function RootStack() {
+  return (
+    <Stack screenOptions={useStackScreenOptions()}>
+      {/* The tabs (Decks, Read & Listen) each hold their own stack, with their own header. The
+          title is never shown; it is the back button's label on a screen pushed over a tab,
+          which would otherwise read "(tabs)", the route group's name. */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
+      {/* The note editor opens over Review and Browse as a sheet: half height first, pulled up to full. */}
+      <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
+      {/* Read & Listen's + button opens a new story or quick text as a sheet, full height for the keyboard. */}
+      <Stack.Screen name="read-write" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
+      {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
+      <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   const c = useTheme();
-  const stackOptions = useStackScreenOptions();
   const dark = useColorScheme() === 'dark';
   const base = dark ? DarkTheme : DefaultTheme;
   const theme = {
@@ -38,18 +55,7 @@ export default function RootLayout() {
       <AppProvider>
         <FontScope>
         <ReaderPlayerProvider>
-        <Stack screenOptions={stackOptions}>
-          {/* The tabs (Decks, Read & Listen) each hold their own stack, with their own header. The
-              title is never shown; it is the back button's label on a screen pushed over a tab,
-              which would otherwise read "(tabs)", the route group's name. */}
-          <Stack.Screen name="(tabs)" options={{ headerShown: false, title: 'Back' }} />
-          {/* The note editor opens over Review and Browse as a sheet: half height first, pulled up to full. */}
-          <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
-          {/* Read & Listen's + button opens a new story or quick text as a sheet, full height for the keyboard. */}
-          <Stack.Screen name="read-write" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
-          {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
-          <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
-        </Stack>
+        <RootStack />
         <VocabReadyBanner />
         <HeldWork />
         <ShelfDownloads />
