@@ -91,7 +91,9 @@ correct answers instead was tried and dropped: FSRS spaces reviews too fast for 
 row" to track how well a card is known. A gate on a deck above the one
 opened still applies, so the review screen loads every card, not just the opened subtree.
 `DeckSettings` is the app's own and an import never writes it; `DeckParams` is Anki's and every
-import replaces it. A setting the user makes here goes in the first.
+import replaces it. A setting the user makes here goes in the first, except the new card order (Deck
+options), which is the Anki preset's own option: `setNewCardOrder` writes it into the kept collection
+first, as every deck on that preset and every device must agree, and sync sends it (`deckConfigJson`).
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first

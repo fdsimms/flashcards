@@ -175,6 +175,28 @@ export function withField(bytes: Uint8Array, num: number, value: Uint8Array | nu
   return w.finish();
 }
 
+/**
+ * A message with one varint field set (removed when `value` is 0, as proto3 leaves a default
+ * out) and every other field kept as it was, written in field-number order as prost writes a
+ * message.
+ */
+export function withUint(bytes: Uint8Array, num: number, value: number): Uint8Array {
+  const fields: [number, Field][] = [];
+  for (const [n, list] of decodeMessage(bytes)) {
+    if (n === num) continue;
+    for (const f of list) fields.push([n, f]);
+  }
+  if (value) fields.push([num, { wire: 0, value: BigInt(value) }]);
+  fields.sort((a, b) => a[0] - b[0]);
+  const w = new MessageWriter();
+  for (const [n, f] of fields) {
+    if (f.wire === 0) w.uint(n, f.value);
+    else if (f.wire === 2) w.bytes(n, f.value);
+    else w.fixed(n, f.wire, f.value);
+  }
+  return w.finish();
+}
+
 // fflate's pure-JS UTF-8 rather than TextDecoder, which Hermes may not have.
 export function utf8Encode(s: string): Uint8Array {
   return strToU8(s);

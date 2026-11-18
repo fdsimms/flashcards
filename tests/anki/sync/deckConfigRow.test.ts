@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseJson } from '../../../src/anki/sync/json';
-import { deckConfigRow, type DeckConfigJson } from '../../../src/anki/sync/deckConfigRow';
+import { deckConfigJson, deckConfigRow, type DeckConfigJson } from '../../../src/anki/sync/deckConfigRow';
 import { comparable } from '../../support/protoCompare';
 
 /** Deck options as sync sends them beside the row Anki stored (make-sync-fixtures.py). */
@@ -24,5 +24,16 @@ describe('deck options from sync, as the row Anki stores', () => {
   it('is byte for byte Anki\'s when no add-on keys are involved', () => {
     const plain = fixtures.deck_configs.find((c) => c.json.name === 'Default')!;
     expect(Buffer.from(deckConfigRow(plain.json).config).toString('base64')).toBe(plain.config);
+  });
+
+  // What sync sends for a preset changed on this phone: the row read back into the JSON Anki's own
+  // client would send, so the server's copy keeps every other setting.
+  it.each(fixtures.deck_configs.map((c) => [c.json.name, c] as const))('%s: row back to the JSON Anki sent', (_name, c) => {
+    expect(deckConfigJson(deckConfigRow(c.json))).toEqual({ ...c.json, mod: Number(c.json.mod) });
+  });
+
+  it('reads the order back from a row with the option moved', () => {
+    const everything = fixtures.deck_configs.find((c) => c.json.name === 'Everything set')!;
+    expect(deckConfigJson(deckConfigRow(everything.json))).toMatchObject({ newMix: 1, interdayLearningMix: 2, reviewOrder: 7 });
   });
 });
