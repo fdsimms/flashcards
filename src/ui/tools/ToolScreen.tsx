@@ -90,7 +90,7 @@ export interface ToolActions {
   primary: { label: string; onPress: () => void; disabled?: boolean };
 }
 
-export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onShow, onMark, actions, children }: {
+export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onShow, onMark, actions, menu, footer, fill, lockGesture, children }: {
   tool: ToolInfo;
   language: Language;
   onLanguage: (l: Language) => void;
@@ -104,6 +104,14 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   onMark: (right: boolean) => void;
   /** Replaces the footer's Another one and Show answer. */
   actions?: ToolActions;
+  /** A `Stack.Toolbar.Menu` for the header, before the gear: the tool's own options (a card tool keeps them off the card). */
+  menu?: React.ReactNode;
+  /** Replaces the whole footer, for a card tool whose buttons are its own (PracticeCard.tsx). */
+  footer?: React.ReactNode;
+  /** The tool is one card that fills the screen between the header and the footer, as Review's does, instead of a scrolling column. */
+  fill?: boolean;
+  /** Turns off the screen's swipe back, for a card that is swiped sideways. */
+  lockGesture?: boolean;
   children: React.ReactNode;
 }) {
   // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer
@@ -127,7 +135,8 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'practice' } })} />
         </Stack.Toolbar>
       )}
-      footer={(
+      lockGesture={lockGesture}
+      footer={footer ?? (
         <View style={{ flexDirection: 'row', gap: space.s }}>
           {actions ? (
             <>
@@ -148,9 +157,13 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
-        <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
-      </ScrollView>
+      {fill ? (
+        <View style={{ flex: 1 }}><ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider></View>
+      ) : (
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }} keyboardShouldPersistTaps="handled" {...scrollProps}>
+          <ToolLanguage.Provider value={language}>{children}</ToolLanguage.Provider>
+        </ScrollView>
+      )}
     </Screen>
     </View>
   );
@@ -207,27 +220,34 @@ export function AnswerCard({ shown, prompt, answer, rule, onPlay }: {
   rule?: string;
   onPlay: (p: Phrase) => void;
 }) {
+  return (
+    <Card style={{ minHeight: 120 }}>
+      {!shown || !answer ? <Help>{prompt}</Help> : <AnswerContent answer={answer} rule={rule} onPlay={onPlay} />}
+    </Card>
+  );
+}
+
+/**
+ * What an answer shows: the usual way to say it, its rule after a miss, other ways, a last form.
+ * `centered` is for a card's back (PracticeCard.tsx), where the corner's play button plays the
+ * main answer, so the row has none of its own.
+ */
+export function AnswerContent({ answer, rule, onPlay, centered }: { answer: Answer; rule?: string; onPlay: (p: Phrase) => void; centered?: boolean }) {
   const c = useTheme();
   const ja = useJapaneseFont();
   return (
-    <Card style={{ minHeight: 120 }}>
-      {!shown || !answer ? (
-        <Help>{prompt}</Help>
-      ) : (
-        <Reveal style={{ gap: space.m }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-            <View style={{ flex: 1, gap: space.xs }}>
-              <Text selectable style={{ ...type.cardBack, color: c.text, ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
-              {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
-            </View>
-            <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />
-          </View>
-          {rule ? <RuleLine rule={rule} /> : null}
-          {answer.also.length ? <Ways title="Also said" phrases={answer.also} onPlay={onPlay} /> : null}
-          {answer.last ? <Ways title={answer.last.title} phrases={[answer.last.phrase]} onPlay={onPlay} /> : null}
-        </Reveal>
-      )}
-    </Card>
+    <Reveal style={{ gap: space.m }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+        <View style={{ flex: 1, gap: space.xs }}>
+          <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
+          {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
+        </View>
+        {centered ? null : <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />}
+      </View>
+      {rule ? <RuleLine rule={rule} /> : null}
+      {answer.also.length ? <Ways title="Also said" phrases={answer.also} onPlay={onPlay} /> : null}
+      {answer.last ? <Ways title={answer.last.title} phrases={[answer.last.phrase]} onPlay={onPlay} /> : null}
+    </Reveal>
   );
 }
 
