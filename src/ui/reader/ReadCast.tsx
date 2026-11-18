@@ -51,7 +51,7 @@ export function ReadCast({ api, language, cast, narrator, onSettings, onPick }: 
   };
 
   return (
-    <Screen title="Story characters">
+    <Screen title="Series characters">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
@@ -70,7 +70,7 @@ export function ReadCast({ api, language, cast, narrator, onSettings, onPick }: 
           ))}
         </Group>
         <Help>
-          {`A story gives its first man, woman, boy, girl and so on the voice chosen here, and the character keeps it in every episode. A second of the same kind gets a voice and pitch nobody else in the story has. A story already running keeps the voices it has given out. The narrator uses the man's voice.`}
+          {`A series gives its first man, woman, boy, girl and so on the voice chosen here, and the character keeps it in every episode. A second of the same kind gets a voice and pitch nobody else in the series has. A series already running keeps the voices it has given out. The narrator uses the man's voice.`}
         </Help>
         <Button label="Reset to defaults" variant="secondary" onPress={reset} busy={resetting} />
       </ScrollView>

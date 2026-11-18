@@ -7,10 +7,17 @@ import { SWIPE_DISTANCE, swipeRating } from '../core/session';
 import type { RatingValue } from '../core/scheduler';
 import { haptic } from './haptics';
 import { useReduceMotion } from './motion';
+import { LanguagePill, type CardLanguage } from './LanguagePill';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, color }: { children: React.ReactNode; /** Fills the card instead of the theme's surface (WaniKani's subject colors). */ color?: string }) {
+export function CardSurface({ children, color, language }: {
+  children: React.ReactNode;
+  /** Fills the card instead of the theme's surface (WaniKani's subject colors). */
+  color?: string;
+  /** The language a card in a mixed deck belongs to: a wash of its deck's tint behind the card's content, and its name at the top. */
+  language?: CardLanguage;
+}) {
   const c = useTheme();
   return (
     <View
@@ -20,7 +27,11 @@ export function CardSurface({ children, color }: { children: React.ReactNode; /*
       }}
     >
       {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
-      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>{children}</View>
+      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>
+        {language ? <View pointerEvents="none" style={[FILL, { backgroundColor: language.wash }]} /> : null}
+        {children}
+        {language ? <LanguagePill language={language} /> : null}
+      </View>
     </View>
   );
 }
@@ -75,8 +86,10 @@ const ARRIVE_MS = 160;
  * the finger even while the screen is busy rendering the next card; only the decision to answer
  * and the haptic hop back to JS.
  */
-export function SwipeCard({ enabled, cardKey, shown, motion, onRate, children }: {
+export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, children }: {
   enabled: boolean;
+  /** Present when the deck mixes languages (`studiedSubdecks`). */
+  language?: CardLanguage;
   /** Names the card on screen and how many answers there are: a swipe that lands after this changed (an answer button, an undo) is dropped. */
   cardKey: string;
   shown: RatingValue[];
@@ -170,7 +183,7 @@ export function SwipeCard({ enabled, cardKey, shown, motion, onRate, children }:
     <View style={{ flex: 1 }}>
       <GestureDetector gesture={pan}>
         <Animated.View style={[{ flex: 1 }, cardStyle]}>
-          <CardSurface>
+          <CardSurface language={language}>
             {children}
             <Animated.View pointerEvents="none" style={[fill, { backgroundColor: c.good }, rightTint]} />
             <Animated.View pointerEvents="none" style={[fill, { backgroundColor: c.again }, leftTint]} />

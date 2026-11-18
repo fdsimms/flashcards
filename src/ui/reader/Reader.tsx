@@ -2,7 +2,7 @@ import { Stack, usePreventRemove } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
-import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
@@ -224,7 +224,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   useEffect(() => () => { mounted.current = false; }, []);
 
   // The audio, line by line (useLinePlayback.ts): this screen counts what's heard and moves on.
-  const { player, status, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, reset: resetPlayback } = useLinePlayback({
+  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, reset: resetPlayback } = useLinePlayback({
     api,
     playerHost,
     text,
@@ -689,8 +689,11 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   return (
     <Screen
       largeTitle={false}
-      // The swipe back would take the touch from a phrase drag that starts or runs near the left edge.
-      lockGesture={phraseDrag.dragging}
+      // The swipe back would take the touch from a phrase drag that starts near the left edge or
+      // runs left to right. iOS decides whether a touch can be a back swipe when the finger lands,
+      // so locking it once the long press has fired (`phraseDrag.dragging`) was too late: it is off
+      // for as long as the words can be selected. The Back button and Back to topics still leave.
+      lockGesture={!!text && !!session && !ended && !listenOnly}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
           {keyMarks.length > 0 ? (
@@ -725,7 +728,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             <PhrasePickBanner first={text.lines[phrase.line]?.words[phrase.start]?.text ?? ''} onCancel={() => setPhrase(null)} />
           ) : null}
           {hasAudio ? (
-            <PlayerBar playing={status.playing} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
+            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
@@ -979,7 +982,17 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           ) : null}
           {review ? null : (
             <View style={{ padding: space.l }}>
-              <Button label="Done" onPress={() => { player.pause(); setCheck(buildCheck(text, session)); setEnded(true); }} />
+              <Button label="Done" onPress={() => {
+                const end = () => { player.pause(); setCheck(buildCheck(text, session)); setEnded(true); };
+                // Finishing a story's episode logs it as read, and the server then writes the next
+                // one, so a stray tap on Done is asked about first.
+                if (source.kind === 'shelf' && (text.episode ?? 0) > 0) {
+                  Alert.alert(`Finish episode ${text.episode}?`, `This saves it as read and starts writing episode ${(text.episode ?? 0) + 1}.`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Finish', onPress: end },
+                  ]);
+                } else end();
+              }} />
             </View>
           )}
         </ScrollView>

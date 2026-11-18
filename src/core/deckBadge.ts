@@ -30,3 +30,25 @@ export function deckTint(deck: string, count: number): number {
   }
   return (h >>> 0) % count;
 }
+
+/**
+ * The subdeck of `studied` that a card's deck sits in ("Languages::Polski::Tier 1" studied from
+ * "Languages" is "Languages::Polski"), or null when the card is in `studied` itself or outside it.
+ */
+export function subdeckOf(deck: string, studied: string): string | null {
+  if (!deck.startsWith(`${studied}::`)) return null;
+  return `${studied}::${deck.slice(studied.length + 2).split('::')[0]}`;
+}
+
+/**
+ * The subdecks of `studied` that its cards are in. Review marks each card with its subdeck
+ * (Languages' Polish, Thai and German mixed in one session) only when there are two or more.
+ */
+export function studiedSubdecks(cardDecks: Iterable<string>, studied: string): Set<string> {
+  const found = new Set<string>();
+  for (const d of cardDecks) {
+    const sub = subdeckOf(d, studied);
+    if (sub) found.add(sub);
+  }
+  return found;
+}

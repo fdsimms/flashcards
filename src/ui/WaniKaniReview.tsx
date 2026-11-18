@@ -149,7 +149,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     (async () => {
       try {
         const src = await source(api, wanikani);
-        const { user, reviews, lessons, started, apprentice } = src;
+        const { user, started, apprentice } = src;
+        // Skipped words are left out of both, so a skipped word's lesson isn't offered either.
+        const reviews = withoutSkipped(src.reviews, wanikani.skipped);
+        const lessons = withoutSkipped(src.lessons, wanikani.skipped);
         // Reviews first; lessons only when none are up or they were asked for.
         const lessonKind = lessonsOnly || reviews.length === 0;
         const offered = lessonsToday(lessons.length, prefs.newPerDay, started);
@@ -158,7 +161,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         // With the radicals and kanji they're made of, for the "Made of" row: one more batched read.
         const own = await src.subjects((lessonKind ? lessons : reviews).map((a) => a.subjectId));
         const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
-        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(withoutSkipped(reviews, wanikani.skipped), [], read, 0);
+        const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
         const typed = prefs.answer === 'type';
         const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
@@ -346,11 +349,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     if (!study || !question || !subject) return;
     const text = typed.trim();
     const canSave = canSaveMeaning(question) && !!text;
-    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), 'Cancel'];
+    // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
+    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Mark as correct') answer(true);
-      if (!canSave || picked !== options[1]) return;
+      if (picked === 'Ask later') {
+        if (studyRef.current !== study) return;
+        later();
+        checkPopup.current = null;
+        popups.hideAll();
+      }
+      if (picked !== 'Save as a correct meaning') return;
       // The screen may have moved on while the sheet was open: only this question is marked correct.
       if (studyRef.current !== study) return;
       savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
@@ -360,15 +370,16 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     });
   };
 
-  // The word is left out of this session and every later one; WaniKani still has it, and the options list it to bring it back.
+  // The word is left out of this session and every later one, as a lesson or a review; WaniKani still has it, and the options list it to bring it back.
   const confirmSkip = () => {
     if (!study || !question || !subject) return;
     const assignmentId = question.assignmentId;
+    const isLesson = !!study.session.items[assignmentId]?.lesson;
     const word = subject;
     const name = word.characters ?? word.meanings[0]?.meaning ?? 'this word';
     Alert.alert(
       `Skip ${name} for good?`,
-      "It won't come up in reviews on this iPhone again. WaniKani still schedules it, so it stays due on wanikani.com. You can bring it back in WaniKani's options.",
+      "It won't come up in lessons or reviews on this iPhone again. WaniKani still lists it, so it stays on wanikani.com. You can bring it back in WaniKani's options.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -377,7 +388,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           onPress: () => {
             // Only a question of this word is cleared: the screen may have moved on while the alert was open.
             const onIt = studyRef.current && currentQuestion(studyRef.current.session)?.assignmentId === assignmentId;
-            skip(word, assignmentId);
+            skip(word, assignmentId, isLesson);
             setStudy((s) => (s ? dropItem(s, assignmentId) : s));
             if (onIt) resetQuestion();
             checkPopup.current = null;
@@ -392,7 +403,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // Only before the question is answered or its answer is shown, so it can't be used to dodge a miss.
   const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
-    const skippable = canSkip(subject) && !lesson && !!question;
+    const skippable = canSkip(subject) && !!question;
     const options = [...(askable ? ['Ask later'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
@@ -502,7 +513,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          editable={!verdict}
+          // Stays editable after Check (input is ignored once judged): a non-editable box drops the keyboard, and the next question's autofocus brings it back, resizing the card under the stage popup.
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
@@ -579,7 +590,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
           >
-            <Reveal key={`${item.assignmentId}:${question.kind}:${study.session.finished.length}:${study.session.queue.length}`} rise={10} style={{ gap: space.xl }}>
+            {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
+            <View style={{ gap: space.xl }}>
               <SubjectFront subject={subject} label={label} />
               {showMeaning || showReading ? (
                 <>
@@ -596,7 +608,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
                   />
                 </>
               ) : null}
-            </Reveal>
+            </View>
           </ScrollView>
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}

@@ -1,20 +1,20 @@
 import type { Assignment, Subject } from './subjects';
 
 /**
- * Words skipped for good: left out of every review on this phone. WaniKani has no way to hide an
+ * Words skipped for good: left out of every lesson and review on this phone. WaniKani has no way to hide an
  * item, so it still schedules and lists them on wanikani.com; nothing is sent for them from here.
  * Kept in the state file (prefs.ts, `WaniKaniState`), not the options, since the list can grow.
  */
 export interface SkippedWord {
   subjectId: number;
-  /** The review's assignment, to take the word out of the counts (which are of assignments). */
+  /** The lesson's or review's assignment, to take the word out of the counts (which are of assignments). */
   assignmentId: number;
   /** What the options list shows: the word and its first meaning. */
   characters: string;
   meaning: string;
 }
 
-/** The skipped list with `subject` (the review `assignmentId` is for) added; one already on it isn't added twice. */
+/** The skipped list with `subject` (the lesson or review `assignmentId` is for) added; one already on it isn't added twice. */
 export function skipWord(skipped: readonly SkippedWord[], subject: Subject, assignmentId: number): SkippedWord[] {
   if (skipped.some((w) => w.subjectId === subject.id)) return [...skipped];
   const meaning = (subject.meanings.find((m) => m.primary) ?? subject.meanings[0])?.meaning ?? '';
@@ -30,7 +30,7 @@ export function canSkip(subject: Pick<Subject, 'type'> | undefined): boolean {
   return subject?.type === 'vocabulary' || subject?.type === 'kana_vocabulary';
 }
 
-/** The assignments without those of skipped words. */
+/** The assignments (lessons or reviews) without those of skipped words. */
 export function withoutSkipped(assignments: Assignment[], skipped: readonly SkippedWord[]): Assignment[] {
   if (!skipped.length) return assignments;
   const ids = new Set(skipped.map((w) => w.subjectId));

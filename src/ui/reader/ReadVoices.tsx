@@ -61,7 +61,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
             </Group>
             {onCast ? (
               <Group>
-                <NavRow first label="Story characters" detail="Voices for the people in a story" onPress={onCast} />
+                <NavRow first label="Series characters" detail="Voices for the people in a series" onPress={onCast} />
               </Group>
             ) : null}
             <Help>
