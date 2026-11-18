@@ -115,7 +115,8 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
           <View accessibilityLabel={`Explanation of ${phrase}`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
             <View style={{ flex: 1 }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>Phrase</Text>
-              <Text style={{ ...type.headline, color: c.accent }}>{phrase}</Text>
+              {/* The phrase is the point of the popup, so it takes the card-back size; the line height keeps Thai tone marks from clipping. */}
+              <Text style={{ ...type.cardBack, lineHeight: 38, color: c.accent }}>{phrase}</Text>
             </View>
             <Tappable
               onPress={() => { haptic.tap(); onClose(); }}
