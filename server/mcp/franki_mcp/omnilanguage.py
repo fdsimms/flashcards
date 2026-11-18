@@ -46,7 +46,8 @@ LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "A
 # Fields no rule reads for punctuation: machine-written tables and file names.
 NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
 
-MAX_GLOSSES = 3
+MAX_SENSES = 3  # distinct senses a Meaning numbers
+MAX_GLOSSES = 3  # glosses to one sense
 MAX_MEANING = 80
 
 
@@ -114,16 +115,17 @@ RULES: dict[str, str] = {
     "entry-aspect-pair": "Entry holds an aspect pair; the partner belongs in AspectPartner",
     "entry-brackets": "Entry has a bracketed preposition or note",
     "meaning-markup": "Meaning has markup or HTML entities",
-    "meaning-numbered": "Meaning is a numbered list",
-    "meaning-lines": "Meaning runs over several lines",
-    "meaning-slashes": 'Meaning joins glosses with " / "',
-    "meaning-commas": "Meaning joins glosses with commas",
+    "meaning-numbered": "Meaning's numbers are not one numbered line per distinct sense",
+    "meaning-lines": "Meaning has several lines without numbers",
+    "meaning-slashes": 'A sense joins its glosses with " / "',
+    "meaning-commas": "A sense joins its glosses with commas",
     "meaning-commas-check": "Meaning has a comma that may join two glosses or sit inside one",
     "meaning-article": 'A noun\'s gloss starts with "a" or "the"',
     "meaning-title-case": "Meaning is in Title Case",
     "meaning-verb-to": 'A verb\'s first gloss does not start with "to"',
-    "meaning-many": f"Meaning lists more than {MAX_GLOSSES} glosses",
-    "meaning-long": f"Meaning is longer than {MAX_MEANING} characters",
+    "meaning-many": f"More than {MAX_SENSES} senses, or more than {MAX_GLOSSES} glosses to a sense",
+    "meaning-examples": "A numbered sense without an example of its own",
+    "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
     "context-missing": "No example sentence",
     "context-markup": "Context has markup other than <b> and <br>",
     "context-no-bold": "The word is not in bold in Context",
@@ -210,9 +212,24 @@ def split_top(text: str, separator: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def glosses(meaning: str) -> list[str]:
-    """A Meaning's glosses as the house style separates them: by "; "."""
-    return split_top(plain(meaning).replace("\n", "; "), ";")
+_NUMBER = re.compile(r"^\d+[.)]\s+")  # a sense's number at the start of its line: "1. " or "1) "
+
+
+def senses(meaning: str) -> list[str]:
+    """A Meaning's distinct senses, each without its number: the numbered lines, or the one line a
+    word with one sense has. Numbers written along one line ("1. hook 2. catch") are read as lines."""
+    text = plain(meaning)
+    if _NUMBER.match(text):
+        text = re.sub(r"\s+(?=\d+[.)]\s)", "\n", text)
+    return [item for item in (_NUMBER.sub("", line.strip(), count=1).strip() for line in text.split("\n")) if item]
+
+
+def write_senses(items: Sequence[str]) -> str:
+    """Senses as the Meaning field stores them: one plain line for one, a numbered line each for several."""
+    items = [item for item in items if item]
+    if len(items) <= 1:
+        return _escape(items[0]) if items else ""
+    return "<br>".join(f"{n}. {_escape(item)}" for n, item in enumerate(items, 1))
 
 
 def language_of(fields: Mapping[str, str]) -> Language | None:
@@ -332,50 +349,61 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
 
     # -- Meaning --
     meaning = txt("Meaning")
+    numbered: list[str] = []
     if meaning and not (lang and lang.definition):
+        lines = [line.strip() for line in meaning.split("\n") if line.strip()]
+        items = senses(raw("Meaning"))
+        stored = [f"{n}. {item}" for n, item in enumerate(items, 1)] if len(items) > 1 else items
+        numbered = items if len(items) > 1 else []
+        gloss_lists = [split_top(item, ";") for item in items]
         if re.search(r"<(?!\s*br\b)[^>]+>|&nbsp;|&#x?[0-9a-f]+;|&quot;", raw("Meaning"), re.IGNORECASE):
-            cleaned = "<br>".join(_escape(line) for line in meaning.split("\n") if line.strip())
-            add("meaning-markup", "Meaning", "format", "Meaning is plain text.", {"Meaning": cleaned})
-        items = [line.strip() for line in meaning.split("\n") if line.strip()]
-        if any(re.match(r"\d+[.)]\s", i) for i in items):
-            joined = "; ".join(re.sub(r"^\d+[.)]\s*", "", i) for i in items)
-            add("meaning-numbered", "Meaning", "format", 'Join glosses with "; ", with no numbers.', {"Meaning": _escape(joined)})
-        elif len(items) > 1:
-            add("meaning-lines", "Meaning", "format", 'Join glosses with "; " on one line.', {"Meaning": _escape("; ".join(items))})
-        else:
-            parts = glosses(raw("Meaning"))
-            if any(len(split_top(p, " / ")) > 1 for p in parts):
-                joined = "; ".join(q for p in parts for q in split_top(p, " / "))
-                add("meaning-slashes", "Meaning", "format", 'Join glosses with "; ", not " / ".', {"Meaning": _escape(joined)})
-            elif "wanikani" in tags and re.search(r"\b[A-Z][a-z]+\b.*\b[A-Z][a-z]", meaning) or (
-                "wanikani" in tags and meaning[:1].isupper() and meaning.split()[0].lower() not in _PROPER
-            ):
-                # WaniKani joins its meanings with ", " and capitalizes every word.
-                joined = "; ".join(q for p in parts for q in split_top(_lower_title(p), ", "))
-                add("meaning-title-case", "Meaning", "format", 'Lowercase glosses joined with "; ".', {"Meaning": _escape(joined)})
-            elif any(len(split_top(p, ", ")) > 1 for p in parts):
-                pieces = [q for p in parts for q in split_top(p, ", ")]
-                # Safe to split when the pieces are plainly glosses: every one "to ..." for a verb, short for a single word.
+            add("meaning-markup", "Meaning", "format", "Meaning is plain text.", {"Meaning": "<br>".join(_escape(line) for line in lines)})
+        elif lines != stored and not any(_NUMBER.match(line) for line in lines):
+            add("meaning-lines", "Meaning", "format", "Number each distinct sense on its own line (1. 2. 3.).", {"Meaning": write_senses(items)})
+        elif lines != stored:
+            add("meaning-numbered", "Meaning", "format",
+                "One numbered line per distinct sense, counted from 1; a word with one sense has no number.",
+                {"Meaning": write_senses(items)})  # fmt: skip
+        elif any(len(split_top(g, " / ")) > 1 for gl in gloss_lists for g in gl):
+            fixed = ["; ".join(q for g in gl for q in split_top(g, " / ")) for gl in gloss_lists]
+            add("meaning-slashes", "Meaning", "format", 'Join the glosses of one sense with "; ", not " / ".', {"Meaning": write_senses(fixed)})
+        elif "wanikani" in tags and any(re.search(r"\b[A-Z][a-z]", re.sub(r"\b(?:%s)\b" % "|".join(_PROPER), "", item, flags=re.IGNORECASE)) for item in items):
+            # WaniKani joins its meanings with ", " and capitalizes every word.
+            fixed = ["; ".join(q for g in gl for q in split_top(_lower_title(g), ", ")) for gl in gloss_lists]
+            add("meaning-title-case", "Meaning", "format", 'Lowercase glosses joined with "; ".', {"Meaning": write_senses(fixed)})
+        elif any(len(split_top(g, ", ")) > 1 for gl in gloss_lists for g in gl):
+            # Safe to split when the pieces are plainly glosses: every one "to ..." for a verb, short for a single word.
+            def split_commas(gl: list[str]) -> list[str] | None:
+                pieces = [q for g in gl for q in split_top(g, ", ")]
+                if len(pieces) == len(gl):
+                    return gl
                 aside = any(re.match(r"(?:or|and|also|esp|especially|e\.g\.|i\.e\.|etc)\b", q) for q in pieces)
-                safe = not aside and ((pos == "verb" and all(q.startswith("to ") for q in pieces)) or (
+                plain_glosses = (pos == "verb" and all(q.startswith("to ") for q in pieces)) or (
                     pos in ("noun", "adjective", "adverb") and all(len(re.sub(r"\([^)]*\)", "", q).split()) <= 4 for q in pieces)
-                ))
-                if safe:
-                    add("meaning-commas", "Meaning", "format", 'Join glosses with "; ".', {"Meaning": _escape("; ".join(pieces))})
-                else:
-                    add("meaning-commas-check", "Meaning", "review",
-                        'If the comma separates two glosses, write "; "; a comma inside one gloss stays.')  # fmt: skip
-            elif pos == "noun" and any(re.match(r"(?:a|an|the) \S", p) for p in parts):
-                bare = "; ".join(re.sub(r"^(?:a|an|the) ", "", p) for p in parts)
-                add("meaning-article", "Meaning", "format", 'A noun\'s gloss has no "a" or "the".', {"Meaning": _escape(bare)})
+                )
+                return pieces if plain_glosses and not aside else None
+
+            split = [split_commas(gl) for gl in gloss_lists]
+            if any(new is not None and new != gl for new, gl in zip(split, gloss_lists, strict=True)):
+                fixed = ["; ".join(gl if new is None else new) for new, gl in zip(split, gloss_lists, strict=True)]
+                add("meaning-commas", "Meaning", "format", 'Join the glosses of one sense with "; ".', {"Meaning": write_senses(fixed)})
             else:
-                if len(parts) > MAX_GLOSSES:
-                    add("meaning-many", "Meaning", "format",
-                        f"Keep the {MAX_GLOSSES} most common glosses. Unrelated senses get a Sense line and an example each.")  # fmt: skip
-                if len(meaning) > MAX_MEANING:
-                    add("meaning-long", "Meaning", "format", f"Keep Meaning under {MAX_MEANING} characters; usage goes in Notes.")
-                if pos == "verb" and parts and not parts[0].startswith("to "):
-                    add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
+                add("meaning-commas-check", "Meaning", "review",
+                    'If the comma separates two glosses, write "; "; a comma inside one gloss stays.')  # fmt: skip
+        elif pos == "noun" and any(re.match(r"(?:a|an|the) \S", g) for gl in gloss_lists for g in gl):
+            fixed = ["; ".join(re.sub(r"^(?:a|an|the) ", "", g) for g in gl) for gl in gloss_lists]
+            add("meaning-article", "Meaning", "format", 'A noun\'s gloss has no "a" or "the".', {"Meaning": write_senses(fixed)})
+        else:
+            if len(items) > MAX_SENSES:
+                add("meaning-many", "Meaning", "format",
+                    f"Keep the {MAX_SENSES} senses worth being tested on; a rarer one gets its own note, or is left out.")  # fmt: skip
+            elif any(len(gl) > MAX_GLOSSES for gl in gloss_lists):
+                add("meaning-many", "Meaning", "format",
+                    f"At most {MAX_GLOSSES} glosses to a sense. If they are different senses, number them, one to a line.")  # fmt: skip
+            if any(len(item) > MAX_MEANING for item in items):
+                add("meaning-long", "Meaning", "format", f"Keep each sense under {MAX_MEANING} characters; usage goes in Notes.")
+            if pos == "verb" and any(gl and not gl[0].startswith("to ") for gl in gloss_lists):
+                add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
 
     # -- Context --
     context = raw("Context")
@@ -399,6 +427,11 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             found = entry and entry.lower() in plain(context).lower()
             add("context-no-bold", "Context", "required" if found else "format",
                 "Put the word in <b></b> as the sentence spells it (both parts of a split verb).")  # fmt: skip
+        if numbered and len(context_lines) != len(numbered):
+            add("meaning-examples", "Context", "required",
+                f"Each numbered sense gets its own example: {len(numbered)} senses, {len(context_lines)} "
+                f"example{'' if len(context_lines) == 1 else 's'}. Give Context one line per sense, in the same order, with "
+                "ContextTranslation and ContextLabels to match.")  # fmt: skip
         labels = _lines(raw("ContextLabels"))
         counts = {"ContextTranslation": len(_lines(raw("ContextTranslation"))), "ContextRomanized": len(_lines(raw("ContextRomanized")))}
         if len(context_lines) > 1 and not labels:
@@ -596,13 +629,16 @@ Thai romanization, derived from the Thai spelling by the tone rules:
 _COMMON = """\
 Entry: the citation form as plain text. No article (Gender supplies it), no markup, one word or one phrase.
   A verb's fixed preposition follows it bare (zweifeln an). An aspect partner goes in AspectPartner.
-Meaning: one to three English glosses, the most common first, joined by "; ". Lowercase. A verb starts
-  with "to"; a noun has no "a" or "the". A short bracket only to tell senses apart. No numbering, slashes,
-  line breaks or markup. Grammar and usage go in Notes.
-Sense: when the glosses are unrelated senses, a few words saying which are meant ("train, or a move in a
-  game"). Then Context holds one example per sense (three at most), each on its own line (<br>), with
-  ContextTranslation and ContextLabels ("train", "move") line for line. Two different words spelled alike
-  are two notes.
+Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" or "the". A word with one
+  sense is one line: one to three near-synonyms joined by "; " (fame; glory). A word with distinct senses
+  numbers them, one to a line (<br>), the most common first, three at most:
+  "1. train<br>2. move (in a game)<br>3. draft (of air)". Number only senses worth being tested on: every one
+  listed has to be recalled to pass the card. A rarer sense is left out, or gets a note of its own; two
+  different words spelled alike are two notes. A short bracket to pin a sense down. No slashes, sub-senses
+  or markup; grammar and usage go in Notes.
+Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
+  line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
+  ("train", "move", "draft"). Sense is no longer written: the numbers say it.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
@@ -674,6 +710,15 @@ EXAMPLES: dict[str, dict[str, str]] = {
 }  # fmt: skip
 
 
+SEVERAL_SENSES = {
+    "Entry": "erhalten", "Meaning": "1. to receive<br>2. to preserve; to maintain",
+    "Context": "Hast du meine E-Mail <b>erhalten</b>?<br>Wir müssen die alten Gebäude <b>erhalten</b>.",
+    "ContextTranslation": "Did you get my email?<br>We have to preserve the old buildings.", "ContextLabels": "receive<br>preserve",
+    "Register": "neutral", "PartOfSpeech": "verb", "Language": "german", "KeyForms": "erhielt, hat erhalten",
+    "VerbClass": "strong", "Auxiliary": "haben", "GenerateReverse": "y",
+}  # fmt: skip
+
+
 def guide(language: str) -> dict[str, object]:
     """The house style for one language's notes, as Claude reads it before writing one."""
     key = LANGUAGE_NAMES.get(language.strip().lower(), "")
@@ -690,6 +735,7 @@ def guide(language: str) -> dict[str, object]:
             **({"Auxiliary": sorted(lang.auxiliaries)} if lang and lang.auxiliaries else {}),
         },
         "example": EXAMPLES.get(key) or EXAMPLES["german"],
+        "example_with_several_senses": SEVERAL_SENSES,
         "checked": "add_notes and update_notes tidy what needs no judgment and refuse the rest with the reason. "
                    "lint_notes runs the same rules over notes already in the collection.",
     }  # fmt: skip

@@ -25,7 +25,7 @@ def messy_deck(desktop) -> list[int]:
     return desktop.run(
         "add-notetype", "Omnilanguage", FIELDS,
         "+", "add-fields-note", "Omnilanguage", "Español", note(
-            Entry="la ficha", Meaning="1. token<br>2. index card", Context="Dame <strong>la ficha</strong>.",
+            Entry="la ficha", Meaning="1. token", Context="Dame <strong>la ficha</strong>.",
             ContextTranslation="Give me the token.", Register="neutral", Language="spanish", PartOfSpeech="noun", Gender="f",
             GenerateReverse="yes"),
         "+", "add-fields-note", "Omnilanguage", "Русский", note(
@@ -117,7 +117,7 @@ async def test_lint_reports_previews_and_applies_only_the_rules_named(client, de
     assert fields[pair]["Context"] == "Он <b>добавлял</b> соль.<br>Она <b>добавила</b> соль."
     assert fields[werfen]["PartOfSpeech"] == "verb" and fields[werfen]["Meaning"] == "to throw; to toss"
     # Only the rules named: the article stays, and the rest of that note is fixed around it.
-    assert fields[ficha]["Entry"] == "la ficha" and fields[ficha]["Meaning"] == "token; index card"
+    assert fields[ficha]["Entry"] == "la ficha" and fields[ficha]["Meaning"] == "token"
     assert fields[ficha]["GenerateReverse"] == "y" and fields[ficha]["Context"] == "Dame <b>la ficha</b>."
     tags = (await call(client, "get_notes", note_ids=[werfen]))["notes"][0]["tags"]
     assert tags == ["travel"]

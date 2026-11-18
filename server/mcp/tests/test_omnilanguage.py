@@ -32,11 +32,41 @@ def test_the_fixes_run_one_after_another_until_none_is_left():
              "Register": "Informal", "PartOfSpeech": "", "GenerateReverse": "yes", "Genitive": "der Einstellung"}  # fmt: skip
     fixed = o.fix(messy, ["noun", "travel"])
     assert fixed.fields["Entry"] == "Einstellung"
-    assert fixed.fields["Meaning"] == "setting; attitude; stance"
+    assert fixed.fields["Meaning"] == "1. setting<br>2. attitude; stance"
     assert fixed.fields["Register"] == "casual"
     assert fixed.fields["PartOfSpeech"] == "noun" and fixed.tags == ["travel"]
     assert fixed.fields["GenerateReverse"] == "y" and fixed.fields["Genitive"] == ""
-    assert o.problems(fixed.fields, fixed.tags) == []
+    # What is left needs a writer: the second sense has no example yet.
+    assert [(p.rule, p.field, p.level) for p in o.problems(fixed.fields, fixed.tags)] == [("meaning-examples", "Context", "required")]
+
+
+def test_distinct_senses_are_numbered_lines_and_one_sense_has_no_number():
+    base = {**GERMAN_NOUN, "Entry": "Zug", "Gender": "m", "Plural": "Züge", "Genitive": "des Zuges"}
+    meaning = lambda value, tags=(): o.fix({**base, "Meaning": value}, list(tags)).fields["Meaning"]  # noqa: E731
+    assert meaning("1. train<br>2. move (in a game)") == "1. train<br>2. move (in a game)"
+    # A lone number comes off, numbers along one line become lines, and a miscount is recounted.
+    assert meaning("1. bait") == "bait"
+    assert meaning("1. hook 2. catch, snag 3. checkmark") == "1. hook<br>2. catch; snag<br>3. checkmark"
+    assert meaning("2) train<br>5) move") == "1. train<br>2. move"
+    assert meaning("<div>1. train</div><div>2. a move / a turn</div>") == "1. train<br>2. move; turn"
+    # Lines with no numbers are taken as senses; glosses on one line stay one sense.
+    assert meaning("train<br>move") == "1. train<br>2. move"
+    assert meaning("fame; glory") == "fame; glory"
+    # A number that isn't a sense's number is left alone.
+    assert meaning("twenty-five (25)") == "twenty-five (25)" and meaning("3.5 liters") == "3.5 liters"
+    assert o.senses("1. to receive<br>2. to preserve; to maintain") == ["to receive", "to preserve; to maintain"]
+    assert o.write_senses(["train"]) == "train" and o.write_senses(["a < b", "c"]) == "1. a &lt; b<br>2. c"
+
+    two = {**base, "Meaning": "1. train<br>2. move (in a game)"}
+    assert rules(two) == {"meaning-examples"}
+    examples = {"Context": "Der <b>Zug</b> kommt um acht.<br>Das war ein guter <b>Zug</b>.",
+                "ContextTranslation": "The train comes at eight.<br>That was a good move.", "ContextLabels": "train<br>move"}  # fmt: skip
+    assert o.problems({**two, **examples}) == []
+    assert "meaning-examples" in rules({**two, **examples, "Meaning": "1. train<br>2. move<br>3. draft (of air)"})
+    # Four senses is a dictionary entry, not a card; so is a sense with four glosses.
+    assert "meaning-many" in rules({**base, "Meaning": "1. train<br>2. move<br>3. draft<br>4. platoon"})
+    assert "meaning-many" in rules({**base, "Meaning": "train; move; draft; platoon"})
+    assert "meaning-many" not in rules({**base, "Meaning": "1. train; railway train; rail service<br>2. move"})
 
 
 def test_an_article_stays_when_it_disagrees_with_the_gender_on_purpose():
@@ -131,13 +161,16 @@ def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
 
 
 def test_a_new_note_is_tidied_and_refused_for_what_only_its_writer_can_fix():
-    ready = o.prepare({"Entry": "la ficha", "Meaning": "1. token<br>2. index card", "Language": "Spanish", "Gender": "F",
+    ready = o.prepare({"Entry": "la ficha", "Meaning": "a token / an index card", "Language": "Spanish", "Gender": "F",
                        "PartOfSpeech": "noun", "Register": "Neutral", "Context": "Dame <strong>la ficha</strong>.",
                        "ContextTranslation": "Give me the token.", "GenerateReverse": "yes"}, ["noun", "travel"])  # fmt: skip
     assert ready.refused == []
     assert ready.fields["Entry"] == "ficha" and ready.fields["Meaning"] == "token; index card"
     assert ready.fields["Context"] == "Dame <b>la ficha</b>." and ready.fields["GenerateReverse"] == "y"
-    assert ready.tags == ["travel"] and len(ready.tidied) == 5
+    assert ready.tags == ["travel"] and len(ready.tidied) == 6
+    # Two senses with one example between them: refused, with the count.
+    senses = o.prepare({**ready.fields, "Meaning": "1. token<br>2. index card"}, ["travel"])
+    assert "2 senses, 1 example" in " ".join(senses.refused)
 
     bad = o.prepare({"Entry": "ficha", "Meaning": "token", "Language": "spanish", "PartOfSpeech": "thing", "Register": "posh",
                      "Context": "Dame la ficha — ahora.", "Pronunciation": "ˈfitʃa"})  # fmt: skip
@@ -179,6 +212,7 @@ def test_the_guide_gives_a_languages_rules_values_and_a_finished_note():
     german = o.guide("deutsch")
     assert german["values"]["VerbClass"] == ["mixed", "strong", "weak"] and german["values"]["Auxiliary"] == ["haben", "sein"]
     # Every finished note the guide shows passes its own rules.
-    for name, example in o.EXAMPLES.items():
+    for name, example in {**o.EXAMPLES, "several senses": o.SEVERAL_SENSES}.items():
         assert [p for p in o.problems(example) if p.level != "gap"] == [], name
+    assert german["example_with_several_senses"]["Meaning"].startswith("1. ")
     assert "No rules beyond the common ones" in o.guide("italian")["this_language"]
