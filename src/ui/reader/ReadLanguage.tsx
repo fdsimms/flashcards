@@ -20,7 +20,7 @@ type Section = 'words' | 'stretch' | 'difficulty';
  * One language's Read & Listen settings, the ones set once and rarely changed
  * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar,
  * practice words, text difficulty, and how reading is going.
- * Opened from the shelf's sliders button; the language is the one the shelf is showing.
+ * Opened from the shelf's gear button; the language is the one the shelf is showing.
  */
 export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck }: {
   api: Api;
