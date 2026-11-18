@@ -504,10 +504,10 @@ export function Help({ children }: { children: React.ReactNode }) {
 }
 
 /** A count with its label, e.g. "12 due": dimmed when zero so the decks with work stand out. */
-export function Count({ value, label, color }: { value: number; label: string; color: string }) {
+export function Count({ value, label, color, current }: { value: number; label: string; color: string; /** Underlines the count, for the one the card on screen is counted in. */ current?: boolean }) {
   const c = useTheme();
   return (
-    <Text style={{ ...type.subhead, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }}>
+    <Text style={{ ...type.subhead, color: value ? color : c.textDim, fontVariant: ['tabular-nums'], ...(current ? { textDecorationLine: 'underline' as const, textDecorationColor: value ? color : c.textDim } : null) }}>
       <Text style={{ fontWeight: '700' }}>{value}</Text> {label}
     </Text>
   );

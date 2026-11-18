@@ -13,7 +13,7 @@ import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
+import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -323,6 +323,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
+  // The count the card on screen is in, underlined in the header's counts.
+  const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
   const showing = current ? `${current.id}:${history.length}` : undefined;
@@ -1286,9 +1288,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} />
-          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} />
-          <Count value={queue.fresh.length} label="new" color={c.countNew} />
+          <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} current={shownCount === 'due'} />
+          <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} current={shownCount === 'again'} />
+          <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
