@@ -365,7 +365,7 @@ export type Speakers = Record<VoiceSlot, string>;
 // writing them, ask again in a few seconds.
 export type VocabBank = {
   state: 'ready' | 'preparing' | 'failed' | 'unavailable';
-  items: { word: string; rank: number; meaning: string; wrong: string[] }[];
+  items: { word: string; rank: number; meaning: string; wrong: string[]; /** Japanese: the kana to say in place of the kanji. */ reading?: string }[];
 };
 
 // A kind of story character, and the voice and pitch (a percent change) a story gives the first
