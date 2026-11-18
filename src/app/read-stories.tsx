@@ -12,7 +12,7 @@ export default function ReadStoriesRoute() {
     <ReadStories
       api={reader.api}
       onStory={(story) => router.push({ pathname: '/read-story', params: { story: String(story) } })}
-      onNew={() => router.push({ pathname: '/read-write', params: { kind: 'story' } })}
+      onNew={() => router.push({ pathname: '/read-write', params: { kind: 'series' } })}
     />
   );
 }

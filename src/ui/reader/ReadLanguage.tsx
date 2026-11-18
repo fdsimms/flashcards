@@ -107,7 +107,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
       setAbout('');
       await load();
     } catch (e) {
-      setFailed({ at: 'story', message: e instanceof ApiError ? e.message : "Couldn't start a story. Try again." });
+      setFailed({ at: 'story', message: e instanceof ApiError ? e.message : "Couldn't start a series. Try again." });
     } finally {
       setStarting(false);
     }
@@ -158,21 +158,21 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
             </Group>
 
-            <SectionTitle>The story</SectionTitle>
+            <SectionTitle>The series</SectionTitle>
             <Card>
               {story ? (
                 <View style={{ gap: space.xs }}>
-                  <Text style={{ ...type.headline, color: c.text }}>{story.title || 'Your story'}</Text>
+                  <Text style={{ ...type.headline, color: c.text }}>{story.title || 'Your series'}</Text>
                   <Help>{`${story.read} ${story.read === 1 ? 'episode' : 'episodes'} read${story.about ? `. About ${story.about}` : ''}.`}</Help>
                 </View>
               ) : (
-                <Help>No story yet. Start one here or with the + on Read & Listen.</Help>
+                <Help>No series yet. Start one here or with the + on Read & Listen.</Help>
               )}
               {story && story.read > 0 ? <Button label="Read from the start" variant="secondary" onPress={() => onEpisodes(story.id)} /> : null}
-              <Field label={story ? 'A new story about' : 'A story about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startStory} />
+              <Field label={story ? 'A new series about' : 'A series about'} placeholder="Leave empty to let the writer choose" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startStory} />
               {failure('story')}
-              <Button label={story ? 'Start a new story' : 'Start a story'} variant="secondary" onPress={startStory} busy={starting} />
-              <Help>A story keeps the same people and places from one episode to the next. A new one runs beside the others, and the one pinned to the top of Read & Listen stays there.</Help>
+              <Button label={story ? 'Start a new series' : 'Start a series'} variant="secondary" onPress={startStory} busy={starting} />
+              <Help>A series keeps the same people and places from one episode to the next. A new one runs beside the others, and the one pinned to the top of Read & Listen stays there.</Help>
             </Card>
 
             <SectionTitle>Practice words</SectionTitle>

@@ -25,8 +25,8 @@ describe('browsing Read & Listen', () => {
     expect(bannerLine({ ...base, writing: true })).toBe('Writing episode 2');
     expect(bannerLine({ ...base, failed: 'Busy.' })).toBe("Couldn't write episode 2. The server tries again in half an hour.");
     expect(bannerLine(base)).toBe('Pull down to check for episode 2');
-    expect(bannerOverline(base)).toBe('Story · Season 1');
-    expect(bannerOverline({})).toBe('Story');
+    expect(bannerOverline(base)).toBe('Series · Season 1');
+    expect(bannerOverline({})).toBe('Series');
   });
 
   it("puts a story's next episode on its cover, or how much of an ended one was read", () => {
@@ -47,7 +47,7 @@ describe('browsing Read & Listen', () => {
     expect(pastMeta(past({ read_at: 'not a date', rating: 'too_hard' }), NOW, 4)).toBe('Too hard');
   });
 
-  it('keeps story episodes out of the quick texts read before', () => {
+  it('keeps story episodes out of the texts read before', () => {
     const texts = [past({ id: 1 }), past({ id: 2, episode: 3 }), past({ id: 3 }), past({ id: 4 })];
     expect(readBefore(texts, 2).map((t) => t.id)).toEqual([1, 3]);
   });

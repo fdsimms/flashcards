@@ -93,13 +93,13 @@ describe('the grammar dial', () => {
 describe('Surprise me', () => {
   const ideas = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name) => ({ name, fit: 1 }));
 
-  it('picks from the five best-fitting ideas and either form', () => {
-    expect(surprisePick(ideas, () => 0)).toEqual({ name: 'a', form: 'dialogue' });
-    expect(surprisePick(ideas, () => 0.999)).toEqual({ name: 'e', form: 'story' });
+  it('picks from the five best-fitting ideas', () => {
+    expect(surprisePick(ideas, () => 0)).toBe('a');
+    expect(surprisePick(ideas, () => 0.999)).toBe('e');
   });
 
   it('takes the only idea left, and nothing when there are none', () => {
-    expect(surprisePick([{ name: 'a', fit: 0.5 }], () => 0.7)?.name).toBe('a');
+    expect(surprisePick([{ name: 'a', fit: 0.5 }], () => 0.7)).toBe('a');
     expect(surprisePick([], () => 0.5)).toBeNull();
   });
 });
