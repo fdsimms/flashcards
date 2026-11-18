@@ -36,8 +36,11 @@ export function useKeyboardScroll() {
     const show = Keyboard.addListener('keyboardWillShow', (e) => { height.current = e.endCoordinates.height; setKeyboard(height.current); });
     // The padding is laid out by the time the keyboard has finished showing, so the scroll has room.
     const shown = Keyboard.addListener('keyboardDidShow', reveal);
-    const hide = Keyboard.addListener('keyboardWillHide', () => { height.current = 0; setKeyboard(0); });
-    return () => { show.remove(); shown.remove(); hide.remove(); };
+    const clear = () => { height.current = 0; setKeyboard(0); };
+    const hide = Keyboard.addListener('keyboardWillHide', clear);
+    // A focused field that unmounts (the drill's Type field when Pick is chosen) can dismiss the keyboard without a "will hide", which left its height as padding under the screen.
+    const hidden = Keyboard.addListener('keyboardDidHide', clear);
+    return () => { show.remove(); shown.remove(); hide.remove(); hidden.remove(); };
   }, [reveal]);
 
   return {
