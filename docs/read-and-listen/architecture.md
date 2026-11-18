@@ -1590,7 +1590,7 @@ in the current language, with when one was last read to the end. Nothing else le
   timings (below), since slower speech is longer.
 - **Speed is Slow or Normal (15 November 2026).** Before this it was four speeds, 0.7x to 1.0x, which
   the player made by stretching the one recording; that sounded robotic. Slow is now a second
-  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.65, SSML prosody -35%), kept beside
+  recording of the line, spoken by Azure at `tts.SLOW_RATE` (0.65, SSML prosody -35%; it was 0.8 until 18 November 2026, and the slow recordings made at 0.8 were dropped once, `Engine.drop_old_slow_audio`), kept beside
   the normal one (`<line>.slow.mp3`, `<line>.slow.json`; `AudioCache`) and made the first time the
   line is played slowly, so a line never played slowly costs nothing extra. It is billed as a
   recording of its own (`audio_chars`). `GET .../lines/{n}/audio?speed=slow` serves it, and

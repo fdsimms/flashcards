@@ -711,6 +711,24 @@ def test_a_slow_recording_is_made_when_asked_for_and_kept_beside_the_normal_one(
     assert not e.audio.has(text.id, 0, slow=True)
 
 
+def test_slow_recordings_from_the_old_rate_are_dropped_once(tmp_path: Path) -> None:
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    assert e.audio is not None
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+    run(lambda: e.line_audio(text, 0, slow=True))
+    assert e.audio.has(text.id, 0, slow=True)
+
+    e.drop_old_slow_audio()
+
+    assert not e.audio.has(text.id, 0, slow=True) and e.audio.has(text.id, 0)
+    # Once: a slow recording made at the new rate is kept.
+    run(lambda: e.line_audio(text, 0, slow=True))
+    e.drop_old_slow_audio()
+    assert e.audio.has(text.id, 0, slow=True)
+
+
 def test_a_slow_line_azure_refused_has_no_slow_audio_and_isnt_counted(tmp_path: Path) -> None:
     voice = FakeVoice()
     e = speaking_engine(tmp_path, voice)

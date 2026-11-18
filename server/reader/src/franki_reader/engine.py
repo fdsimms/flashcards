@@ -860,6 +860,15 @@ class Engine:
                 self.audio.drop(text.id)
                 await self.make_audio(text)
 
+    def drop_old_slow_audio(self) -> None:
+        """Once: forgets the slow recordings made before `tts.SLOW_RATE` was lowered, so each line is
+        recorded again at the new rate the next time it's played slowly (nothing is re-recorded
+        unasked, so only lines played cost Azure characters)."""
+        if self.audio is None or store.slow_audio_current(self.conn):
+            return
+        self.audio.drop_slow()
+        store.mark_slow_audio_current(self.conn)
+
     async def time_waiting_texts(self) -> None:
         """Once: re-records the texts waiting to be read whose audio was made before word timings
         (tts.py), so they light up as they're spoken too; a text already read keeps its audio. The
@@ -978,6 +987,7 @@ class Engine:
         if self._topping_up.locked():
             return
         async with self._topping_up:
+            self.drop_old_slow_audio()
             await self.time_waiting_texts()
             language = self.language()
             await self.refresh_lexicon(language)

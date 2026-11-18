@@ -140,6 +140,11 @@ class AudioCache:
         """Forgets a text's audio, slow recordings too, so each line is spoken again (in the voices chosen now)."""
         shutil.rmtree(self.root / str(text_id), ignore_errors=True)
 
+    def drop_slow(self) -> None:
+        """Forgets every text's slow recordings (and their timings), keeping the normal ones."""
+        for path in self.root.glob("*/*.slow.*"):
+            path.unlink(missing_ok=True)
+
     def write(self, text_id: int, line: int, spoken: Spoken, slow: bool = False) -> None:
         path = self.path(text_id, line, slow)
         path.parent.mkdir(parents=True, exist_ok=True)
