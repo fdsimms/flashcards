@@ -85,7 +85,7 @@ export function CustomStudy({ repo, deck, onStarted }: {
       footer={<Button label={kind === 'moreNew' || kind === 'moreReviews' ? 'Increase limit' : 'Start studying'} onPress={start} busy={busy} />}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
-        <Help>For {name}. Cards you pick are studied in a deck called Custom Study Session.</Help>
+        <Help>{kind === 'moreNew' || kind === 'moreReviews' ? `For ${name}. The new limit applies today only.` : `For ${name}. Cards you pick are studied in a deck called Custom Study Session.`}</Help>
         <Group accessibilityRole="radiogroup">
           {CUSTOM_STUDY_OPTIONS.map((o, i) => (
             <CheckRow key={o.kind} first={i === 0} label={o.title} hint={o.detail} selected={o.kind === kind} onPress={() => choose(o.kind)} />

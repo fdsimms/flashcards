@@ -94,12 +94,22 @@ describe('what deleting a deck deletes in Franki', () => {
 
 describe('the warning before deleting a deck', () => {
   it('says what goes with it, whether Anki follows, and that it is for good', () => {
-    expect(deckDeletionWarning({ cards: 1234, inAnki: true, keepsDeck: false }, 2)).toBe(
+    expect(deckDeletionWarning({ cards: 1234, returned: 0, inAnki: true, keepsDeck: false }, 2)).toBe(
       "Its 2 subdecks and 1,234 cards are deleted with it. Anki deletes the same at the next sync, or when you send your collection back. This can't be undone.",
     );
-    expect(deckDeletionWarning({ cards: 1, inAnki: false, keepsDeck: false }, 0)).toBe("Its 1 card is deleted with it. This can't be undone.");
-    expect(deckDeletionWarning({ cards: 0, inAnki: false, keepsDeck: false }, 0)).toBe("It has no cards. This can't be undone.");
-    expect(deckDeletionWarning({ cards: 3, inAnki: true, keepsDeck: true }, 0)).toMatch(/^Its 3 cards are deleted\. Anki always keeps its Default deck, so the deck itself stays, empty\. Anki deletes/);
-    expect(deckDeletionWarning({ cards: 0, inAnki: true, keepsDeck: true }, 0)).toBe("Anki always keeps its Default deck, and there are no cards in it to delete. This can't be undone.");
+    expect(deckDeletionWarning({ cards: 1, returned: 0, inAnki: false, keepsDeck: false }, 0)).toBe("Its 1 card is deleted with it. This can't be undone.");
+    expect(deckDeletionWarning({ cards: 0, returned: 0, inAnki: false, keepsDeck: false }, 0)).toBe("It has no cards. This can't be undone.");
+    expect(deckDeletionWarning({ cards: 3, returned: 0, inAnki: true, keepsDeck: true }, 0)).toMatch(/^Its 3 cards are deleted\. Anki always keeps its Default deck, so the deck itself stays, empty\. Anki deletes/);
+    expect(deckDeletionWarning({ cards: 0, returned: 0, inAnki: true, keepsDeck: true }, 0)).toBe("Anki always keeps its Default deck, and there are no cards in it to delete. This can't be undone.");
+  });
+
+  it('says a filtered deck sends its cards home instead of deleting them', () => {
+    expect(deckDeletionWarning({ cards: 0, returned: 1, inAnki: true, keepsDeck: false }, 0)).toBe(
+      "A card studied here goes back to its own deck. Anki does the same at the next sync, or when you send your collection back. This can't be undone.",
+    );
+    expect(deckDeletionWarning({ cards: 0, returned: 3, inAnki: false, keepsDeck: false }, 0)).toBe("3 cards studied here go back to their own decks. This can't be undone.");
+    expect(deckDeletionWarning({ cards: 2, returned: 3, inAnki: false, keepsDeck: false }, 0)).toBe(
+      "Its 2 cards are deleted with it. 3 cards studied here go back to their own decks. This can't be undone.",
+    );
   });
 });
