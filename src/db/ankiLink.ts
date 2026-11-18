@@ -65,6 +65,8 @@ export interface AnkiLink {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
     /** The card's deck's step counts, for Anki's `left`. */
     steps?: { learn: number; relearn: number };
+    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay` and a forgotten card's interval. */
+    weights?: number[];
     /**
      * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
      * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
@@ -246,7 +248,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, preview, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [] }) => lockAnki(async () => {
       await attach();
       if (!attached || !before.ankiId) return undefined;
       const cid = Number(before.ankiId);
@@ -265,7 +267,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       const deckRows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
       const decks = deckAndParents(deckRows, row.did).map(({ id, common, mtime_secs, usn }) => ({ id, common, mtime_secs, usn }));
       await db.withTransactionAsync(async () => {
-        const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps })
+        const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps, rating, weights })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
           : previewReturn(row, now);
         await db.runAsync(SQL.cardUpdate, ...cardUpdateParams(update, cid));
