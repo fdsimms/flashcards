@@ -258,6 +258,12 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {answer}. Asked only when a question is sent. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature "ask_card"),
                                       not yet in /api/costs
+    POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
+                                      owner flagged: {changes: {field: new html}, explanation}, only the
+                                      fields that change (none when Claude can't fix it from text). It
+                                      writes nothing: the app applies it when the owner taps Apply. Asked
+                                      only on Fix with Claude now. 503 without Claude. Its cost is kept in
+                                      `call_costs` (feature "fix_card")
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
@@ -293,6 +299,7 @@ from franki_reader import (
     comprehension,
     config,
     drills,
+    fix_card,
     forms,
     grammar_topics,
     lesson_writer,
@@ -400,6 +407,7 @@ def create_app(
     lessons_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
+    fix_flagged_card: fix_card.FixCard | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -484,6 +492,7 @@ def create_app(
         lessons_dir=lessons_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
+        fix_flagged_card=fix_flagged_card,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -523,6 +532,7 @@ def production_app() -> FastAPI:
     write_ipa: ai_ipa.WriteIpa | None = None
     write_aspect: aspect.WriteAspect | None = None
     ask_about_card: ask_card.AskCard | None = None
+    fix_flagged_card: fix_card.FixCard | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -548,6 +558,7 @@ def production_app() -> FastAPI:
         write_ipa = ai_ipa.claude_ipa(client)
         write_aspect = aspect.claude_aspect(client)
         ask_about_card = ask_card.claude_ask_card(client)
+        fix_flagged_card = fix_card.claude_fix_card(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -635,4 +646,5 @@ def production_app() -> FastAPI:
         lessons_dir=settings.audio_dir / "lessons",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
+        fix_flagged_card=fix_flagged_card,
     )

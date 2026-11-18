@@ -3684,6 +3684,64 @@
         }
       }
     },
+    "/api/fix-card": {
+      "post": {
+        "summary": "Fix Card Route",
+        "operationId": "fix_card_route_api_fix_card_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixCardIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Fix Card Route Api Fix Card Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/aspect-pair": {
       "post": {
         "summary": "Aspect Pair",
@@ -5334,6 +5392,60 @@
         },
         "type": "object",
         "title": "ExplainIn"
+      },
+      "FixCardIn": {
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "th",
+                  "es",
+                  "de",
+                  "fr",
+                  "ru",
+                  "el",
+                  "pl",
+                  "nb",
+                  "ja",
+                  "en"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 40,
+            "minProperties": 1,
+            "title": "Fields"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields",
+          "reason"
+        ],
+        "title": "FixCardIn"
       },
       "FormExplainIn": {
         "properties": {

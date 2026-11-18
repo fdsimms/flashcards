@@ -270,11 +270,12 @@ async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, de
     assert (await call(client, "flagged_cards"))["total"] == 0
     # What Franki's "Flag for an agent" writes: the purple flag and a reason tag.
     await call(client, "manage_cards", action="set_flag", card_ids=[cid], flag=7)
-    await call(client, "manage_tags", action="add", note_ids=[note["note_id"]], tags=["flag::audio", "keep"])
+    await call(client, "manage_tags", action="add", note_ids=[note["note_id"]], tags=["flag::audio", "flagnote::" + "Remove (เสียใจ) from it".encode().hex(), "keep"])
     out = await call(client, "flagged_cards")
     assert out["total"] == 1
     flagged = out["cards"][0]
     assert flagged["card_id"] == cid and flagged["reason"] == "audio" and flagged["fields"] == note["fields"]
+    assert flagged["note_from_user"] == "Remove (เสียใจ) from it"
     assert (await call(client, "flagged_cards", deck=THAI))["total"] == 0  # the flagged card is in another deck
     assert "no deck called" in await call_error(client, "flagged_cards", deck="Nowhere")
 
@@ -287,7 +288,7 @@ async def test_flagged_cards_are_found_with_their_reason_and_resolved(client, de
     assert (await call(client, "resolve_flag", card_ids=[cid]))["resolved"] == 1
     assert (await call(client, "flagged_cards"))["total"] == 0
     tags = (await call(client, "get_notes", note_ids=[note["note_id"]]))["notes"][0]["tags"]
-    assert "keep" in tags and not any(t.startswith("flag::") for t in tags)
+    assert "keep" in tags and not any(t.lower().startswith(("flag::", "flagnote::")) for t in tags)
 
 
 async def test_the_server_instructions_explain_studying(client):

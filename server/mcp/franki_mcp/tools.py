@@ -57,9 +57,29 @@ MATURE_DAYS = 21
 # value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
 PROGRESS_GATES_KEY = "frankiProgressGates"
 MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
-# Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, and a flag::<reason> tag on its note.
+# Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, a flag::<reason> tag on its
+# note and, when the user typed one, a flagnote::<hex> tag with their note (its UTF-8 bytes in lowercase hex,
+# since a tag can't hold a space and Anki merges tags that differ only by case).
 AGENT_FLAG = 7
 FLAG_TAG_PREFIX = "flag::"
+FLAG_NOTE_PREFIX = "flagnote::"
+
+
+def _flag_note(tags: list[str]) -> str | None:
+    """What the user typed when flagging, from the note's flagnote:: tag, or None."""
+    for t in tags:
+        if t.lower().startswith(FLAG_NOTE_PREFIX):
+            try:
+                return bytes.fromhex(t[len(FLAG_NOTE_PREFIX):]).decode("utf-8") or None
+            except ValueError:
+                return None
+    return None
+
+
+def _is_flag_tag(tag: str) -> bool:
+    return tag.lower().startswith((FLAG_TAG_PREFIX, FLAG_NOTE_PREFIX))
+
+
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
@@ -242,8 +262,8 @@ reaches their devices at their next sync.
   4 Easy) and wait for them to confirm or change it. Only then call rate_card. Never rate a card
   the user hasn't seen the answer to, or with a rating they didn't agree to.
 - Flagged cards: the user flags a card in Franki for you to check (a typo, audio that sounds wrong).
-  flagged_cards lists them with their note's fields and the reason. Work out the fix and show the
-  user what you'd change (the old and new text, or the voice and text for a re-record) before
+  flagged_cards lists them with their note's fields, the reason and `note_from_user`, what they typed
+  about it (that is the request, do it). Work out the fix and show the user what you'd change (the old and new text, or the voice and text for a re-record) before
   calling update_notes or add_tts_audio. Only after they approve, and once the fix is made, call
   resolve_flag to clear the flag. Leave a flag in place when the user declines or you're unsure.
 - Audio: add_tts_audio records a field's text with an Azure voice into another field (list_voices
@@ -553,7 +573,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=READ)
     async def flagged_cards(deck: str | None = None, limit: int = 20) -> dict[str, Any]:
         """Cards the user flagged in Franki for an agent to check (the purple flag), oldest note
-        first, with the reason they gave (typo, audio, translation, other), the note's fields as
+        first, with the reason they gave (typo, audio, translation, other), what they wrote about it
+        (`note_from_user`, or null: do what it says, it is the actual request), the note's fields as
         HTML and its tags. `deck` narrows it to one deck and its subdecks. Fix a card with
         update_notes or add_tts_audio after the user approves, then clear it with resolve_flag."""
 
@@ -570,6 +591,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 reasons = [t[len(FLAG_TAG_PREFIX):] for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
                 out.append({
                     "card_id": cid, "card_type": card.template()["name"], "reason": reasons[0] if reasons else None,
+                    "note_from_user": _flag_note(note.tags),
                     **_note_dict(col, note, full=False), "fields": dict(note.items()),
                 })
             return {"total": len(ids), "cards": out}
@@ -579,8 +601,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=WRITE)
     async def resolve_flag(card_ids: list[int]) -> dict[str, Any]:
         """Clears the agent flag on `card_ids` once the user has approved the fix (or decided
-        there's nothing to fix). A note's flag:: reason tag goes too when none of its cards is
-        still flagged."""
+        there's nothing to fix). A note's flag:: reason and flagnote:: tags go too when none of its
+        cards is still flagged."""
 
         def run(col: Collection) -> dict[str, Any]:
             cards = [_get_card(col, cid) for cid in card_ids]
@@ -593,7 +615,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 if col.find_cards(f"nid:{nid} flag:{AGENT_FLAG}"):
                     continue
                 note = col.get_note(nid)
-                stale = [t for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
+                stale = [t for t in note.tags if _is_flag_tag(t)]
                 if stale:
                     for t in stale:
                         note.remove_tag(t)

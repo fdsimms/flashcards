@@ -688,6 +688,10 @@ export function createApi(
     // new question): asked only when the owner sends one (core/askCard.ts).
     askCard: async (card: { language?: Language; front: string; back: string; details?: string }, turns: { role: 'user' | 'assistant'; content: string }[]) =>
       (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
+    // A fix for a flagged card, suggested by Claude on the server: only the fields that change, each as its whole new HTML,
+    // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
+    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
+      call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

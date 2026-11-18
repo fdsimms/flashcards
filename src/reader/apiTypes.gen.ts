@@ -1042,6 +1042,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fix-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fix Card Route */
+        post: operations["fix_card_route_api_fix_card_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aspect-pair": {
         parameters: {
             query?: never;
@@ -1564,6 +1581,22 @@ export interface components {
              * @default false
              */
             in_language: boolean;
+        };
+        /** FixCardIn */
+        FixCardIn: {
+            /** Language */
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            /** Fields */
+            fields: {
+                [key: string]: string;
+            };
+            /** Reason */
+            reason: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
         };
         /** FormExplainIn */
         FormExplainIn: {
@@ -4220,6 +4253,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fix_card_route_api_fix_card_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixCardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

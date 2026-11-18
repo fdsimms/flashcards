@@ -4,13 +4,14 @@ import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { cardStateOf, FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
-import { AGENT_FLAG, withFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
+import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
-import { failureText } from '../core/failure';
+import { failureText, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
 import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
@@ -63,7 +64,8 @@ import { haptic } from './haptics';
 import { RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
-import { chooseAgentFlagReason } from './agentFlagSheet';
+import { notePreview } from '../core/noteEditing';
+import { AgentFlagSheet } from './AgentFlagSheet';
 import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
@@ -117,7 +119,8 @@ const AUDIO_MODE = { playsInSilentMode: true };
 type ReviewSheet =
   | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string }
   | { key: string; kind: 'confused'; noteId: string }
-  | { key: string; kind: 'ask'; card: CardForClaude };
+  | { key: string; kind: 'ask'; card: CardForClaude }
+  | { key: string; kind: 'agentFlag'; noteId: string; cardId: string };
 const confusedSheetFor = (noteId: string): ReviewSheet => ({ key: `confused:${noteId}`, kind: 'confused', noteId });
 
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
@@ -152,7 +155,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -166,6 +169,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   suggestHints?: (question: MnemonicQuestion) => Promise<string[]>;
   /** Present while Read & Listen is signed in: answers a question typed about the card on screen (AskCardSheet). */
   askAboutCard?: (card: CardForClaude, turns: AskTurn[]) => Promise<string>;
+  /** Present while Read & Listen is signed in: suggests a fix for a flagged card (AgentFlagSheet's Fix with Claude now). */
+  fixFlaggedCard?: (request: FixRequest) => Promise<FixResponse>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
   glossing?: CardGlossing;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
@@ -861,6 +866,40 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         onClose={() => sheets.close(sheet.key)}
       />
     );
+  } else if (sheet?.kind === 'agentFlag' && sheetNote) {
+    // The card and note this sheet was raised for, read again at each write: the screen may have moved on.
+    const flagged = cards?.find((c) => c.id === sheet.cardId);
+    // Writes the note (when it changes) and then the card's purple flag; the sheet closes itself once this returns.
+    const writeFlag = async (flag: number, edit?: { tags: string[]; fields?: Record<string, string> }) => {
+      const target = cards?.find((c) => c.id === sheet.cardId);
+      if (!target) throw new Refusal("This card isn't loaded anymore. Close this and open it again.");
+      if (busy.current) throw new Refusal('Another change is still saving. Try again in a moment.');
+      if (edit) {
+        writes.current++;
+        try {
+          const saved = await saveNote(repo as NoteStore, { id: sheetNote.id, deck: sheetNote.deck, model: sheetNote.model, fields: edit.fields ?? sheetNote.fields, tags: edit.tags });
+          setNotes((prev) => new Map(prev).set(saved.id, saved));
+        } finally {
+          writes.current++;
+        }
+      }
+      await setStates([target], (s) => ({ ...s, flag }));
+    };
+    sheetHost = (
+      <AgentFlagSheet
+        key={sheet.key}
+        visible={sheets.visible}
+        onDismiss={() => sheets.dismissed(sheet.key)}
+        word={notePreview(sheetNote).front}
+        reason={flagged?.flag === AGENT_FLAG ? flagReasonOf(sheetNote.tags) : null}
+        note={flagged?.flag === AGENT_FLAG ? flagNoteOf(sheetNote.tags) : ''}
+        onSave={(reason, text) => writeFlag(AGENT_FLAG, { tags: withFlagReason(sheetNote.tags, reason, text) })}
+        onRemove={flagged?.flag === AGENT_FLAG ? () => writeFlag(0) : undefined}
+        fix={fixFlaggedCard ? async (reason, text) => checkFix(sheetNote, await fixFlaggedCard(fixRequest(sheetNote, reason, text))) : undefined}
+        onApply={(proposal) => writeFlag(0, { tags: withoutFlag(sheetNote.tags), fields: withFix(sheetNote.fields, proposal) })}
+        onClose={() => sheets.close(sheet.key)}
+      />
+    );
   } else if (sheet?.kind === 'ask') {
     sheetHost = (
       <AskCardSheet
@@ -1156,26 +1195,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setStates([current], (s) => ({ ...s, flag }));
     });
   };
-  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note.
+  // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note and, when one is typed, a flagnote:: tag. AgentFlagSheet asks for them.
   const chooseAgentFlag = () => {
-    const target = current;
-    const targetNote = note;
-    chooseAgentFlagReason(target.flag === AGENT_FLAG, async (reason) => {
-      if (!reason) {
-        setStates([target], (s) => ({ ...s, flag: 0 }));
-        return;
-      }
-      if (targetNote && !busy.current) {
-        try {
-          const tagged = await saveNote(repo as NoteStore, { id: targetNote.id, deck: targetNote.deck, model: targetNote.model, fields: targetNote.fields, tags: withFlagReason(targetNote.tags, reason) });
-          setNotes((prev) => new Map(prev).set(tagged.id, tagged));
-        } catch (e) {
-          Alert.alert("Couldn't flag this card", failureText(e, { next: 'Nothing was changed. Try again.' }));
-          return;
-        }
-      }
-      setStates([target], (s) => ({ ...s, flag: AGENT_FLAG }));
-    });
+    if (!current || !note) return;
+    sheets.request({ key: `agentFlag:${current.id}`, kind: 'agentFlag', noteId: note.id, cardId: current.id });
   };
   // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
   const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
