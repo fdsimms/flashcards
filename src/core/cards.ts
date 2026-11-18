@@ -252,7 +252,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
-    pushIf(back, meaning, undefined, true);
+    // The word is already on screen, so its meaning is set smaller than a headline to save room.
+    pushIf(back, meaning, undefined, true, undefined, { role: 'meaning' });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
