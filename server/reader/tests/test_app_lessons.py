@@ -364,6 +364,10 @@ def test_suggests_scenes_and_keeps_what_it_cost(tmp_path: Path) -> None:
     assert asked == [("fr", (), ())]
     rows = conn.execute("SELECT feature, language FROM call_costs").fetchall()
     assert [tuple(row) for row in rows] == [("lesson_topics", "fr")]
+    costs = c.get("/api/costs", headers=AUTH).json()
+    assert costs["lesson_topics"]["asked"] == 1
+    assert costs["lesson_topics"]["cost_usd"] > 0
+    assert costs["lessons"]["made"] == 0
 
 
 def test_sends_the_learners_words_and_what_is_already_taken(tmp_path: Path) -> None:

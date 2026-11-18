@@ -263,7 +263,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       a lesson's scene, written by Claude: {topics: [str]}, never
                                       one already made as a lesson or in `shown`. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature
-                                      "lesson_topics"), not yet in /api/costs
+                                      "lesson_topics") and counts under `lesson_topics` in
+                                      /api/costs
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three

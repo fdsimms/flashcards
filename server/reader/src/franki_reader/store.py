@@ -1760,6 +1760,14 @@ def topic_image_spending(
     return _feature_spending(conn, "topic_image", since)
 
 
+def lesson_topic_spending(
+    conn: sqlite3.Connection, since: datetime
+) -> dict[Code, tuple[int, float]]:
+    """Each language with lesson topics suggested since `since` (lesson_topics.py): how many calls
+    (failed ones included) and what they cost Claude."""
+    return _feature_spending(conn, "lesson_topics", since)
+
+
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
     """Each language with word forms picked since `since` (forms.py): how many calls (failed ones
     included) and what they cost Claude."""
