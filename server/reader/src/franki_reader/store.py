@@ -1679,6 +1679,7 @@ CallFeature = Literal[
     "ask_card",
     "ask_phrase",
     "fix_card",
+    "lesson_words",
     "topic_image",
 ]
 

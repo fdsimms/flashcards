@@ -17,6 +17,29 @@ export interface LessonWord {
   noteId?: string;
 }
 
+/** A Thai word the server thinks a typed phrase could mean (`POST /api/lessons/words`): Thai script, its reading with tone marks, and its meaning. */
+export interface LessonWordCandidate {
+  text: string;
+  reading: string;
+  english: string;
+}
+
+/**
+ * The languages whose typed words are looked up (server lesson_words.LOOKUP_LANGUAGES). A word typed in
+ * romanization would be read by the voice as if it were script, so the learner picks the Thai they mean
+ * and that is what the lesson speaks; every other language is typed as the word and its meaning.
+ */
+export const LESSON_LOOKUP_LANGUAGES: readonly Language[] = ['th'];
+
+export const lessonWordsLookedUp = (language: Language): boolean => LESSON_LOOKUP_LANGUAGES.includes(language);
+
+/** The lesson word for the candidate the learner picked: its Thai script and its meaning. */
+export const candidateWord = (c: LessonWordCandidate): LessonWord => ({ text: c.text, english: c.english });
+
+/** What the add screen says when nothing real fits what was typed. */
+export const noCandidatesText = (typed: string): string =>
+  `Couldn't find a Thai word for "${typed.replace(/\s+/g, ' ').trim()}". Try another spelling, or type it in Thai script.`;
+
 /** Which of the language's notes the deck picker lists first. */
 export type WordFilter = 'recent' | 'due' | 'lapsed';
 

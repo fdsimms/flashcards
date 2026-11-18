@@ -12,6 +12,7 @@ from franki_reader import (
     drills,
     fix_card,
     grammar_topics,
+    lesson_words,
     note_queue,
     production,
     sentences,
@@ -64,6 +65,7 @@ class AppContext:
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None
     fix_flagged_card: fix_card.FixCard | None
+    find_lesson_words: lesson_words.FindWords | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens
     # with STATUS_TOKEN.
     authed: Sequence[Any]
