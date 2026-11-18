@@ -1241,8 +1241,9 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   continues it. **Audio lessons moved to a tab of their own** (Lessons, shown while Read & Listen
   is signed in), since they're speaking drills rather than texts to browse.
 - **The language's settings page** (the shelf's sliders button) holds what's set once: the deck,
-  common words, voices, grammar, the story, practice words, and the progress
-  summary (moved off the home screen). The `form` setting is no longer shown: the shelf varies it.
+  common words, voices, grammar, practice words, and the progress
+  summary (moved off the home screen). The story that used to be here (start a new one, Read from the
+  start) was removed on 18 November 2026, by the owner: the + sheet, Stories and the banner do both. The `form` setting is no longer shown: the shelf varies it.
 
 ## Stories
 
@@ -1251,7 +1252,7 @@ next episode is the top of the shelf.
 
 - **Several stories run at once, one pinned to the top** (17 November 2026, by the owner: a new
   story used to retire the old one, for no reason anyone wrote down). A story (`stories`) is started
-  from the + sheet, Stories or the settings page, with an optional line about what it's about, and
+  from the + sheet or Stories, with an optional line about what it's about, and
   runs (`active`) until it's ended. Each language has one pinned story (`pinned`), the one the
   home's banner shows (`pinned_story`); a new story is pinned only when none is running, and ending
   the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`) lists the
