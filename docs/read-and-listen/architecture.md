@@ -49,7 +49,7 @@ Franki's (Client, below).
   (`src/ui/useReader.ts`), which `src/ui/AppContext.tsx` calls in one line. The reader shows the
   server's word split as tappable words: a tap shows the gloss, and marking a word unknown is a
   second tap inside the gloss, so looking up a half-known word doesn't also flag it.
-- Each line has an EN button that shows that line's English alone, so checking one line doesn't
+- Each line has a "Show translation" link under its words that shows that line's English alone (tap the English to hide it), so checking one line doesn't
   give away the rest. "Show English" still shows them all.
 - **Explain** (12 November 2026, by the owner's decision). Each line has a third round button that
   opens Claude's note on that line's grammar and vocabulary under it: a few points, each a phrase

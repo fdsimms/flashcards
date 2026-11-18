@@ -4,6 +4,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 import { ApiError, type Api, type Language, type PastText, type StoryListItem } from '../../reader/api';
 import { bannerOverline } from '../../reader/browse';
 import { LANGUAGES } from '../../reader/languages';
+import { saidAs } from '../../reader/wordAudio';
 import type { EpisodeOrder } from '../../reader/prefs';
 import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
 import { loadSeasonChoices, prefs, savePrefs, saveSeasonChoices } from '../../reader/storage';
@@ -33,7 +34,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
   onOpen: (textId: number) => void;
   /** Opens an episode already read, to read or listen to again. */
   onReadAgain: (text: PastText) => void;
-  onPlayWord: (word: string, language: Language) => void;
+  onPlayWord: (word: string, language: Language, say?: string) => void;
 }) {
   const c = useTheme();
   const [story, setStory] = useState<StoryListItem | null>(null);
@@ -193,7 +194,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
         onGrammarChosen={() => undefined}
         flagged={false}
         onToggleFlag={null}
-        onPlay={() => { if (tapped) onPlayWord(tapped.word.text, language); }}
+        onPlay={() => { if (tapped) onPlayWord(tapped.word.text, language, saidAs(language, tapped.word.text, tapped.word.translit)); }}
         onSelectPhrase={null}
         onAddToDeck={null}
         onClose={() => setTapped(null)}

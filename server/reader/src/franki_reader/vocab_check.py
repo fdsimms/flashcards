@@ -29,7 +29,7 @@ from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
-from franki_reader.japanese import quiz_word
+from franki_reader.japanese import JapaneseLexicon, quiz_word
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import from_wanikani
 from franki_reader.spaced import common_lemmas
@@ -372,7 +372,12 @@ def serve(conn: sqlite3.Connection, lexicon: Checker, language: Code) -> list[di
         known = lexicon.entry_of(lemma) is not None or from_wanikani(lemma, lexicon)
         if known or is_giveaway(lemma, meaning):
             continue
-        out.append({"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong})
+        item: dict[str, Any] = {"word": lemma, "rank": rank, "meaning": meaning, "wrong": wrong}
+        # A phone voice reads kanji one at a time (絶対 as ぜつ たい, not ぜったい), so a Japanese
+        # word carries the reading to say in its place (src/ui/useWordAudio.ts).
+        if isinstance(lexicon, JapaneseLexicon) and (reading := lexicon.reading_of(lemma)):
+            item["reading"] = reading
+        out.append(item)
     return out
 
 
