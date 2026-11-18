@@ -439,7 +439,6 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
           </Card>
         </View>
       ))}
-      <Help>Practice doesn't change any card's due date.</Help>
       {notice ? <Help>{notice}</Help> : null}
     </ScrollView>
   );
