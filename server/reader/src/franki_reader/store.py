@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
@@ -297,6 +297,19 @@ CREATE TABLE IF NOT EXISTS call_costs (
     audio_chars INTEGER NOT NULL DEFAULT 0
 );
 
+-- Phrases of an audio lesson the learner asked to hear again or answered slowly, for a review
+-- (lesson.build_review). `review_id` is the review they went into, NULL until then.
+CREATE TABLE IF NOT EXISTS lesson_marks (
+    id INTEGER PRIMARY KEY,
+    lesson_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    english TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    review_id INTEGER,
+    UNIQUE (lesson_id, text)
+);
+
 -- Audio lessons (lesson.py): a lesson is asked for by a scene, written and spoken in the
 -- background (state "making"), and is then "ready" with its MP3 in the audio folder, or "failed"
 -- with the reason. `plan` is what the app shows of it (lesson.describe), as JSON.
@@ -538,6 +551,14 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "stage" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
         # Where a lesson being made has got to (LessonStage); a lesson already kept is past it.
         conn.execute("ALTER TABLE lessons ADD COLUMN stage TEXT NOT NULL DEFAULT 'writing'")
+    if "script" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # What's said and the learner's turns, with their times (lesson.script_of), as JSON; NULL
+        # for a lesson made before it was kept, which has no transcript.
+        conn.execute("ALTER TABLE lessons ADD COLUMN script TEXT")
+    if "pauses" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # Where the learner speaks in a lesson's MP3 (lesson_audio.Pause), as JSON; NULL for a lesson
+        # made before they were kept, until lesson_service.find_old_pauses has listened for them.
+        conn.execute("ALTER TABLE lessons ADD COLUMN pauses TEXT")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -2655,10 +2676,54 @@ class StoredLesson:
     duration_ms: int
     created_at: datetime
     stage: LessonStage
+    # Where the learner speaks, (start, end) in milliseconds; None until known (a lesson made before
+    # they were kept, not yet listened to).
+    pauses: list[tuple[int, int]] | None = None
+    # lesson.script_of(): entries and phrase_clips; None for a lesson made before it was kept.
+    script: dict[str, Any] | None = None
+
+
+def _script(raw: str | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _pauses(raw: str | None) -> list[tuple[int, int]] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return [
+        (int(p[0]), int(p[1]))
+        for p in parsed
+        if isinstance(p, list) and len(p) == 2 and all(isinstance(n, int) for n in p)
+    ]
 
 
 def _lesson(row: tuple[Any, ...]) -> StoredLesson:
-    id_, language, scene, title, plan, state, error, duration_ms, created_at, stage = row
+    (
+        id_,
+        language,
+        scene,
+        title,
+        plan,
+        state,
+        error,
+        duration_ms,
+        created_at,
+        stage,
+        pauses,
+        script,
+    ) = row
     try:
         parsed = json.loads(plan)
     except ValueError:
@@ -2674,10 +2739,14 @@ def _lesson(row: tuple[Any, ...]) -> StoredLesson:
         duration_ms,
         datetime.fromisoformat(created_at),
         stage,
+        _pauses(pauses),
+        _script(script),
     )
 
 
-_LESSON_COLUMNS = "id, language, scene, title, plan, state, error, duration_ms, created_at, stage"
+_LESSON_COLUMNS = (
+    "id, language, scene, title, plan, state, error, duration_ms, created_at, stage, pauses, script"
+)
 
 
 def add_lesson(conn: sqlite3.Connection, language: Code, scene: str, now: datetime) -> int:
@@ -2700,13 +2769,37 @@ def set_lesson_stage(conn: sqlite3.Connection, lesson_id: int, stage: LessonStag
 
 
 def finish_lesson(
-    conn: sqlite3.Connection, lesson_id: int, title: str, plan: dict[str, Any], duration_ms: int
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    title: str,
+    plan: dict[str, Any],
+    duration_ms: int,
+    pauses: Sequence[tuple[int, int]] = (),
+    script: dict[str, Any] | None = None,
 ) -> None:
     with conn:
         conn.execute(
-            "UPDATE lessons SET state = 'ready', title = ?, plan = ?, duration_ms = ?, error = ''"
-            " WHERE id = ?",
-            (title, json.dumps(plan, ensure_ascii=False), duration_ms, lesson_id),
+            "UPDATE lessons SET state = 'ready', title = ?, plan = ?, duration_ms = ?, error = '',"
+            " pauses = ?, script = ? WHERE id = ?",
+            (
+                title,
+                json.dumps(plan, ensure_ascii=False),
+                duration_ms,
+                json.dumps([list(p) for p in pauses]),
+                None if script is None else json.dumps(script, ensure_ascii=False),
+                lesson_id,
+            ),
+        )
+
+
+def set_lesson_pauses(
+    conn: sqlite3.Connection, lesson_id: int, pauses: Sequence[tuple[int, int]]
+) -> None:
+    """Keeps the pauses found in a lesson made before they were kept."""
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET pauses = ? WHERE id = ? AND pauses IS NULL",
+            (json.dumps([list(p) for p in pauses]), lesson_id),
         )
 
 
@@ -2737,7 +2830,85 @@ def lessons(conn: sqlite3.Connection, language: Code | None = None) -> list[Stor
 
 def delete_lesson(conn: sqlite3.Connection, lesson_id: int) -> bool:
     with conn:
+        # Its own marks go with it; a review's phrases are let go, to be offered again.
+        conn.execute("DELETE FROM lesson_marks WHERE lesson_id = ?", (lesson_id,))
+        conn.execute("UPDATE lesson_marks SET review_id = NULL WHERE review_id = ?", (lesson_id,))
         return conn.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,)).rowcount > 0
+
+
+MarkReason = Literal["again", "slow"]
+
+
+def add_lesson_mark(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    text: str,
+    english: str,
+    reason: MarkReason,
+    now: datetime,
+) -> bool:
+    """Notes a phrase of a ready lesson for a review. A phrase already noted for that lesson, and
+    not yet reviewed, isn't noted twice. Whether the lesson was there to note it in."""
+    with conn:
+        if not conn.execute(
+            "SELECT 1 FROM lessons WHERE id = ? AND state = 'ready'", (lesson_id,)
+        ).fetchone():
+            return False
+        conn.execute(
+            "INSERT INTO lesson_marks (lesson_id, text, english, reason, created_at)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT (lesson_id, text) DO UPDATE SET review_id = NULL, created_at = ?"
+            " WHERE review_id IS NOT NULL",
+            (lesson_id, text, english, reason, now.isoformat(), now.isoformat()),
+        )
+    return True
+
+
+@dataclass(frozen=True)
+class OpenMark:
+    lesson_id: int
+    title: str
+    text: str
+    english: str
+
+
+def open_lesson_marks(conn: sqlite3.Connection, language: Code) -> list[OpenMark]:
+    """A language's marked phrases not yet in a review, oldest first, one per phrase."""
+    rows = conn.execute(
+        "SELECT m.lesson_id, l.title, m.text, m.english FROM lesson_marks m"
+        " JOIN lessons l ON l.id = m.lesson_id"
+        " WHERE l.language = ? AND m.review_id IS NULL ORDER BY m.created_at, m.id",
+        (language,),
+    ).fetchall()
+    seen: set[str] = set()
+    marks: list[OpenMark] = []
+    for lesson_id, title, text, english in rows:
+        if text not in seen:
+            seen.add(text)
+            marks.append(OpenMark(lesson_id, title or "", text, english))
+    return marks
+
+
+def take_lesson_marks(
+    conn: sqlite3.Connection, language: Code, review_id: int, limit: int
+) -> list[OpenMark]:
+    """The oldest `limit` open marked phrases, given to review `review_id` (with any copies of the
+    same phrase from another lesson)."""
+    taken = open_lesson_marks(conn, language)[:limit]
+    with conn:
+        for mark in taken:
+            conn.execute(
+                "UPDATE lesson_marks SET review_id = ? WHERE review_id IS NULL AND text = ?"
+                " AND lesson_id IN (SELECT id FROM lessons WHERE language = ?)",
+                (review_id, mark.text, language),
+            )
+    return taken
+
+
+def release_lesson_marks(conn: sqlite3.Connection, review_id: int) -> None:
+    """A review that couldn't be made lets its phrases go, to be offered again."""
+    with conn:
+        conn.execute("UPDATE lesson_marks SET review_id = NULL WHERE review_id = ?", (review_id,))
 
 
 INTERRUPTED = "The server restarted while this lesson was being made. Make it again."

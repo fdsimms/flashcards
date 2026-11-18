@@ -19,7 +19,7 @@ export interface OfflineDeps {
   shelfRead: (shelf: Shelf) => void;
   /** A kept text the server now gives differently (its audio was recorded again): drop the copy. */
   stale: (id: number) => void;
-  /** A language's lessons as just read from the server, so kept ones deleted there are dropped. */
+  /** A language's lessons as just read from the server, so kept ones deleted there are dropped and the rest brought up to date. */
   lessonsRead: (language: Language, lessons: AudioLesson[]) => void;
   /** The server's settings as last read (kept on the phone, useReader), for switching language offline. */
   settings: () => Settings | null;

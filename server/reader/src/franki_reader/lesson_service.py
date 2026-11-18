@@ -99,7 +99,39 @@ async def make_lesson(
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))
         return
-    steps = lesson.build_script(plan, learner)
+    await _speak_and_keep(
+        conn,
+        lesson_id,
+        language,
+        plan,
+        lesson.build_script(plan, learner),
+        synthesize=synthesize,
+        voices=voices,
+        lessons_dir=lessons_dir,
+        now=now,
+        narrator=narrator,
+        renderer=renderer,
+        claude_usd=used.cost_usd(),
+    )
+
+
+async def _speak_and_keep(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    language: Code,
+    plan: lesson.Plan,
+    steps: list[lesson.Step],
+    *,
+    synthesize: Synthesize,
+    voices: Voices,
+    lessons_dir: Path,
+    now: Callable[[], datetime],
+    narrator: str | None,
+    renderer: Renderer,
+    claude_usd: float,
+) -> bool:
+    """Speaks a lesson's script, keeps its MP3 and finishes its row (with its pauses and script), or
+    fails the row with the reason. Whether it was kept."""
     chars = 0
     store.set_lesson_stage(conn, lesson_id, "recording")
     try:
@@ -116,16 +148,78 @@ async def make_lesson(
         tmp.write_bytes(rendered.audio)
         os.replace(tmp, path)
     except (LessonAudioFailed, TtsFailed) as e:
-        _keep_cost(conn, language, used.cost_usd(), 0, now)
+        _keep_cost(conn, language, claude_usd, 0, now)
         store.fail_lesson(conn, lesson_id, _spoken_error(e))
-        return
+        return False
     except OSError as e:
         log.exception("Couldn't keep lesson %s", lesson_id)
-        _keep_cost(conn, language, used.cost_usd(), chars, now)
+        _keep_cost(conn, language, claude_usd, chars, now)
         store.fail_lesson(conn, lesson_id, f"Couldn't save the lesson ({e.strerror or e}).")
+        return False
+    _keep_cost(conn, language, claude_usd, chars, now)
+    store.finish_lesson(
+        conn,
+        lesson_id,
+        plan.title,
+        lesson.describe(plan),
+        rendered.duration_ms,
+        rendered.pauses,
+        lesson.script_of(plan, list(rendered.placed)),
+    )
+    return True
+
+
+async def make_review(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    language: Code,
+    phrases: tuple[lesson.Phrase, ...],
+    *,
+    synthesize: Synthesize,
+    voices: Voices,
+    lessons_dir: Path,
+    now: Callable[[], datetime],
+    narrator: str | None = None,
+    learner: lesson.Learner = "male",
+    renderer: Renderer = lesson_audio.render,
+) -> None:
+    """Speaks and keeps review lesson `lesson_id`: `phrases` from earlier lessons, asked again
+    (lesson.build_review). No Claude call: the phrases and their meanings are the lessons' own. If
+    it can't be made, its phrases are let go, to be offered in the next review."""
+    plan = lesson.review_plan(phrases)
+    kept = await _speak_and_keep(
+        conn,
+        lesson_id,
+        language,
+        plan,
+        lesson.build_review(plan, learner),
+        synthesize=synthesize,
+        voices=voices,
+        lessons_dir=lessons_dir,
+        now=now,
+        narrator=narrator,
+        renderer=renderer,
+        claude_usd=0.0,
+    )
+    if not kept:
+        store.release_lesson_marks(conn, lesson_id)
+
+
+async def find_old_pauses(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    lessons_dir: Path,
+    find: Callable[[bytes], Awaitable[tuple[lesson_audio.Pause, ...]]] = lesson_audio.find_pauses,
+) -> None:
+    """Listens for the answer silences of a lesson made before they were kept, and keeps them, so
+    it can wait for the learner too. Never raises: a lesson whose audio can't be read is left as it
+    was, playing straight through, and is tried again the next time the list is read."""
+    try:
+        found = await find(audio_path(lessons_dir, lesson_id).read_bytes())
+    except (OSError, LessonAudioFailed) as e:
+        log.warning("Couldn't find the pauses in lesson %s: %s", lesson_id, e)
         return
-    _keep_cost(conn, language, used.cost_usd(), chars, now)
-    store.finish_lesson(conn, lesson_id, plan.title, lesson.describe(plan), rendered.duration_ms)
+    store.set_lesson_pauses(conn, lesson_id, found)
 
 
 def _spoken_error(e: Exception) -> str:

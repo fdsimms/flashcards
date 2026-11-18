@@ -4,16 +4,17 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Word } from '../../reader/api';
 import { glossesOf, glossKey } from '../../reader/cardGlosses';
 import { atEnd, clock, progressOf, SKIP_SECONDS, skipTo } from '../../reader/lessons';
+import { scriptOf } from '../../reader/lessonScript';
 import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
+import { lessonAudioMode } from '../useLessonTurns';
 import { useReaderPlayerHost } from '../useReaderPlayer';
-
-// Background playback is on once a lesson plays, so it goes on with the screen locked. The player
-// host turns it off again when the lesson stops (Review's card audio doesn't need it).
-const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+import { LessonTranscript } from './LessonTranscript';
+import { LessonTurnPanel } from './LessonTurnPanel';
+import { LessonTurnSettings } from './LessonTurnSettings';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
@@ -21,17 +22,23 @@ const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: tru
  * for so the lesson can be heard first. The lock screen shows the lesson's controls. It plays on
  * Read & Listen's shared player (useReaderPlayer): leaving while it plays carries it on in the tab
  * bar's mini-player, and opening it from there picks it up where it is. What you say
- * aloud isn't recorded or checked. Once the phrases show, each is words to tap for their meanings, as a
+ * aloud isn't recorded or checked. With Wait for my answer on (the switch here, or Settings, Lessons),
+ * it stops at each place you speak and Play becomes Continue (useLessonWaits). Once the phrases show, each is words to tap for their meanings, as a
  * card's example sentence is (the server's glosses; a phrase it has no answer for stays plain text).
  */
-export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
+export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, onAddWord }: {
   api: Api; lesson: AudioLesson; onDeleted: () => void;
+  /** Opens Add to deck for the lesson's phrases; left out when the language has no deck. */
+  onAddToDeck?: () => void;
 } & Pick<CardGlossing, 'onPlayWord' | 'onAddWord'>) {
   const c = useTheme();
   const host = useReaderPlayerHost();
   const player = host.player;
   const live = useAudioPlayerStatus(player);
   const [showPhrases, setShowPhrases] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const script = scriptOf(lesson);
+  const turns = host.turns;
   const [error, setError] = useState<string | null>(null);
   // Whatever the shared player carries on in the mini-player (Play all, or this lesson) keeps going
   // while a lesson is only open; the lesson takes the player over (stops that one, and has the lock
@@ -40,6 +47,12 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   // this lesson's: until then the screen shows a lesson at its start, not what the player holds.
   const owned = useRef(false);
   const [mine, setMine] = useState(false);
+  // Stopped at a pause for the learner's answer (Wait for my answer, useLessonWaits); read on the way
+  // out, so a lesson left while it waits carries on in the mini-player rather than stopping.
+  const waits = host.waits;
+  const held = mine && waits.held;
+  const heldNow = useRef(false);
+  heldNow.current = held;
   // Each phrase's and line's words by `glossKey`, asked for once the phrases are opened.
   const [glossed, setGlossed] = useState<Map<string, Word[]>>(new Map());
   useEffect(() => {
@@ -68,7 +81,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
       if (!owned.current) return;
       owned.current = false;
       // Playing carries on in the mini-player; a paused or finished lesson stops, as the reader's does.
-      if (player.playing) host.handOffLesson(lesson); else host.stop();
+      if (player.playing || heldNow.current) host.handOffLesson(lesson); else host.stop();
     };
   }, [lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the host and its player are stable; the lesson is what changes
 
@@ -77,10 +90,13 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
     owned.current = true;
     setMine(true);
     host.claim();
+    host.watchLesson(lesson, api);
     player.replace(api.lessonAudio(lesson.id));
     // Play all leaves the player at its line's speed.
     player.setPlaybackRate(1, 'high');
-    await setAudioModeAsync(LESSON_AUDIO_MODE).catch(() => undefined);
+    // Background playback is on once a lesson plays, so it goes on with the screen locked, and recording
+    // too while a microphone setting needs it. The player host turns both off when the lesson stops.
+    await setAudioModeAsync(lessonAudioMode(turns.wantsRecording())).catch(() => undefined);
     player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
   };
 
@@ -90,6 +106,10 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
 
   const toggle = async () => {
     haptic.tap();
+    if (held) {
+      waits.goOn();
+      return;
+    }
     if (mine && status.playing) {
       player.pause();
       return;
@@ -101,6 +121,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   const skip = (by: number) => {
     haptic.tap();
     if (!owned.current) return;
+    waits.moved();
     player.seekTo(skipTo(status.currentTime, by, status.duration)).catch(() => undefined);
   };
 
@@ -138,31 +159,70 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
           </View>
         </View>
 
+        {held ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+            <Text style={{ fontWeight: '600', color: c.text }}>Your turn.</Text>{turns.recording && turns.listen ? ' Say it.' : ' Say it, then tap Continue.'}
+          </Text>
+        ) : null}
+
         <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space.xl }}>
           <Tappable onPress={() => skip(-SKIP_SECONDS)} accessibilityRole="button" accessibilityLabel={`Back ${SKIP_SECONDS} seconds`} style={round}>
             <Icon name="gobackward.15" size={30} color={c.text} />
           </Tappable>
-          <Tappable
-            onPress={toggle}
-            accessibilityRole="button"
-            accessibilityLabel={status.playing ? 'Pause' : 'Play'}
-            style={{ width: 68, height: 68, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name={status.playing ? 'pause.fill' : 'play.fill'} size={30} color={c.onAccent} />
-          </Tappable>
+          {held ? (
+            <Tappable
+              onPress={toggle}
+              accessibilityRole="button"
+              accessibilityLabel="Continue"
+              accessibilityHint="Plays the answer and goes on with the lesson"
+              style={{ minHeight: 68, paddingHorizontal: space.xl, borderRadius: radius.pill, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', gap: space.s }}
+            >
+              <Text style={{ ...type.headline, color: c.onAccent }}>Continue</Text>
+              <Icon name="play.fill" size={16} color={c.onAccent} />
+            </Tappable>
+          ) : (
+            <Tappable
+              onPress={toggle}
+              accessibilityRole="button"
+              accessibilityLabel={status.playing ? 'Pause' : 'Play'}
+              style={{ width: 68, height: 68, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Icon name={status.playing ? 'pause.fill' : 'play.fill'} size={30} color={c.onAccent} />
+            </Tappable>
+          )}
           <Tappable onPress={() => skip(SKIP_SECONDS)} accessibilityRole="button" accessibilityLabel={`Forward ${SKIP_SECONDS} seconds`} style={round}>
             <Icon name="goforward.15" size={30} color={c.text} />
           </Tappable>
         </View>
 
+        {mine ? <LessonTurnPanel turns={turns} held={held} /> : null}
+        {mine && onAddToDeck && atEnd(status.currentTime, status.duration) ? (
+          <Button label="Add these phrases to your deck" onPress={onAddToDeck} />
+        ) : null}
+
         <Group>
+          <LessonTurnSettings lesson={lesson} waits={waits} turns={turns} />
           <NavRow
-            first
+            label={showTranscript ? 'Hide the transcript' : 'Show the transcript'}
+            detail={script ? 'What has been said so far' : 'Not kept for lessons made before transcripts'}
+            disabled={!script}
+            onPress={() => setShowTranscript((v) => !v)}
+          />
+          {onAddToDeck ? <NavRow label="Add phrases to your deck" detail="Each opens in the note editor" onPress={onAddToDeck} /> : null}
+          <NavRow
             label={showPhrases ? 'Hide the phrases' : 'Show the phrases'}
             detail={`${lesson.phrases.length} phrases and the conversation`}
             onPress={() => setShowPhrases((v) => !v)}
           />
         </Group>
+
+        {showTranscript && script ? (
+          <LessonTranscript entries={script} seconds={status.currentTime} onSeek={(ms) => {
+            if (!owned.current) return;
+            waits.moved();
+            player.seekTo(ms / 1000).catch(() => undefined);
+          }} />
+        ) : null}
 
         {showPhrases ? (
           <>

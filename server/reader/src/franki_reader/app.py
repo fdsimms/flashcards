@@ -258,7 +258,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/lessons                ?language= {languages, lessons: [{id, language, scene, title,
                                       state: making | ready | failed, stage: writing | recording |
                                       joining (while making), error, duration_ms,
-                                      created_at, phrases, dialogue}]}, newest first
+                                      created_at, phrases, dialogue, pauses: [[start, end]]
+                                      ms where the learner speaks, or null until found in an older
+                                      lesson (found in the background)}]}, newest first
     POST  /api/lessons/topics         {language, phrases?: [{text, english}], shown?: [str]} ideas for
                                       a lesson's scene, written by Claude: {topics: [str]}, never
                                       one already made as a lesson or in `shown`. 503 without

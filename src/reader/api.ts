@@ -440,7 +440,14 @@ export type AudioLesson = {
   created_at: string;
   phrases: { text: string; english: string }[];
   dialogue: { speaker: 'A' | 'B'; text: string; english: string }[];
+  /** Where the learner speaks, [start, end] in milliseconds (lessonWaits.ts). Null while the server is still finding them in a lesson made before they were kept; a server from before sends none. */
+  pauses?: [number, number][] | null;
+  /** What's said and the learner's turns, with their times (lessonScript.ts); null for a lesson made before transcripts were kept. */
+  script?: unknown[] | null;
 };
+
+/** A review on offer (server lesson.build_review): phrases noted in earlier lessons, and which lessons they're from. */
+export type LessonReview = { phrases: number; lessons: { title: string; count: number }[] };
 
 // A text read to the end, to read or listen to again.
 export type PastText = {
@@ -623,7 +630,7 @@ export function createApi(
     // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
     // made in the background (poll `lessons` until it's ready or failed).
     lessons: (language?: Language) =>
-      call<{ languages: Language[]; lessons: AudioLesson[] }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
+      call<{ languages: Language[]; lessons: AudioLesson[]; review?: LessonReview | null }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
     // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
@@ -641,6 +648,19 @@ export function createApi(
         language, ...(phrases ? { phrases } : {}), ...(shown?.length ? { shown } : {}),
       })).topics,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
+    // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
+    markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
+      call<void>('POST', `/api/lessons/${id}/marks`, mark),
+    // Makes the review on offer from the phrases noted (no Claude call); returns its id, made in the background like a lesson.
+    makeReview: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha') => {
+      const response = await send('POST', '/api/lessons/review', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) });
+      return ((await response.json()) as { id: number }).id;
+    },
+    // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.
+    lessonPhraseAudio: async (id: number, index: number): Promise<Uint8Array> => {
+      const response = await send('GET', `/api/lessons/${id}/phrases/${index}/audio`);
+      return new Uint8Array(await response.arrayBuffer());
+    },
     // For the audio player, which fetches the file itself and so needs the passphrase too.
     lessonAudio: (id: number): AudioSource => ({
       uri: `${root}/api/lessons/${id}/audio`,

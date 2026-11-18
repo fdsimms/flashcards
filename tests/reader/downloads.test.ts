@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AudioLesson, Shelf, ShelfStory, ShelfText } from '../../src/reader/api';
 import { card, readerText, saved } from '../support/reader';
 import {
-  asksBeforeLesson, EMPTY_INDEX, lessonsGone, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
+  asksBeforeLesson, EMPTY_INDEX, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
   languagesToKeep, readOffline, savedState, usageText, type DownloadIndex,
 } from '../../src/reader/downloads';
 
@@ -99,6 +99,17 @@ describe('lessons', () => {
   it("drops kept lessons the language's list no longer has", () => {
     const index = { lessons: [{ lesson: lesson(1), complete: true, bytes: 1 }, { lesson: lesson(2), complete: true, bytes: 1 }, { lesson: lesson(3, 'th'), complete: true, bytes: 1 }] };
     expect(lessonsGone('pl', [lesson(1)], index)).toEqual([2]);
+  });
+
+  it('brings a kept lesson up to date with the list, so pauses found since reach it offline', () => {
+    const kept = { lesson: { ...lesson(1), pauses: null }, complete: true, bytes: 7 };
+    const other = { lesson: lesson(2), complete: true, bytes: 1 };
+    const listed = { ...lesson(1), pauses: [[2_000, 5_000]] as [number, number][] };
+    expect(lessonsRefreshed([listed], { lessons: [kept, other] })).toEqual([{ ...kept, lesson: listed }, other]);
+  });
+
+  it('changes nothing when the list says what the kept copies say', () => {
+    expect(lessonsRefreshed([lesson(1)], { lessons: [{ lesson: lesson(1), complete: true, bytes: 1 }] })).toBeNull();
   });
 });
 

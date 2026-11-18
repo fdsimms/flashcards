@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
-import { ApiError, type Api, type AudioLesson, type Language } from '../../reader/api';
+import { ApiError, type Api, type AudioLesson, type Language, type LessonReview } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
 import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
+import { LessonReviewCard } from './LessonReviewCard';
 import { LessonTopics } from './LessonTopics';
 import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
@@ -37,13 +38,19 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const [scene, setScene] = useState('');
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  // The review on offer, and asking for it.
+  const [review, setReview] = useState<LessonReview | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const chosen = useLessonWords(language);
   const downloadButton = useLessonDownloads(api);
   const problem = useConnectionProblem();
 
   const load = useCallback(async () => {
     try {
-      setLessons((await api.lessons(language)).lessons);
+      const listed = await api.lessons(language);
+      setLessons(listed.lessons);
+      setReview(listed.review ?? null);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't load your lessons.");
@@ -76,6 +83,20 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
     }
   };
 
+  const makeReview = async () => {
+    if (reviewing) return;
+    setReviewing(true);
+    setReviewError(null);
+    try {
+      await api.makeReview(language, narrator || undefined, language === 'th' ? particle : undefined);
+      await load();
+    } catch (e) {
+      setReviewError(e instanceof ApiError ? e.message : "Couldn't ask for the review. Try again.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
   const remove = async (lesson: AudioLesson) => {
     try {
       await api.deleteLesson(lesson.id);
@@ -101,6 +122,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
+        {review ? <LessonReviewCard review={review} onMake={makeReview} busy={reviewing} error={reviewError} /> : null}
         <Card>
           <Field
             label="New lesson"

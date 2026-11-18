@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, progressOf, scrubTo, skipTo, stageSteps } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, progressOf, reviewDetail, reviewMinutes, scrubTo, skipTo, stageSteps } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -115,6 +115,20 @@ describe('parseParticle', () => {
     expect(parseParticle('khrap')).toBe('khrap');
     expect(parseParticle(null)).toBe('khrap');
     expect(parseParticle('x')).toBe('khrap');
+  });
+});
+
+describe('review', () => {
+  it('says how many phrases from how many lessons', () => {
+    expect(reviewDetail({ phrases: 9, lessons: [{ title: 'A', count: 4 }, { title: 'B', count: 3 }, { title: 'C', count: 2 }] }))
+      .toBe('9 phrases from 3 earlier lessons: the ones you asked to hear again or answered slowly.');
+    expect(reviewDetail({ phrases: 3, lessons: [{ title: 'A', count: 3 }] }))
+      .toBe('3 phrases from an earlier lesson: the ones you asked to hear again or answered slowly.');
+  });
+
+  it('reckons a few minutes for a review, never none', () => {
+    expect(reviewMinutes(12)).toBe(3);
+    expect(reviewMinutes(1)).toBe(1);
   });
 });
 

@@ -240,8 +240,8 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
   };
 }
 
-/** Asks for the microphone the first time; once it's been refused, says where to turn it back on. */
-async function microphoneAllowed(): Promise<boolean> {
+/** Asks for the microphone the first time; once it's been refused, says where to turn it back on, for `purpose` ("record yourself"). */
+export async function microphoneAllowed(purpose = 'record yourself'): Promise<boolean> {
   try {
     const now = await getRecordingPermissionsAsync();
     if (now.granted) return true;
@@ -251,7 +251,7 @@ async function microphoneAllowed(): Promise<boolean> {
   }
   Alert.alert(
     'Microphone is off for Franki',
-    'To record yourself, turn on the microphone for Franki in the Settings app.',
+    `To ${purpose}, turn on the microphone for Franki in the Settings app.`,
     [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings', onPress: () => { Linking.openSettings().catch(() => undefined); } }],
   );
   return false;

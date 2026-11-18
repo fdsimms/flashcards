@@ -15,8 +15,10 @@ const TOUCH_HEIGHT = 16;
  * position under the finger (null once it lifts) for the pill to show as a time. It reads the
  * player's own status, so only this line redraws as the lesson plays.
  */
-export function LessonScrubber({ player, fallbackDuration, onScrub }: {
+export function LessonScrubber({ player, fallbackDuration, onScrub, onSeek }: {
   player: AudioPlayer;
+  /** Called as the line seeks, before the player moves: a lesson waiting at a pause lets the wait go (useLessonWaits.moved). */
+  onSeek?: () => void;
   /** The lesson's length from the server, for before the player knows it. */
   fallbackDuration: number;
   onScrub: (position: number | null) => void;
@@ -27,17 +29,17 @@ export function LessonScrubber({ player, fallbackDuration, onScrub }: {
   const [dragAt, setDragAt] = useState<number | null>(null);
   const width = useRef(0);
   // The pan handlers outlive a render, so what they need is read from here.
-  const latest = useRef({ duration, onScrub, player });
-  latest.current = { duration, onScrub, player };
+  const latest = useRef({ duration, onScrub, onSeek, player });
+  latest.current = { duration, onScrub, onSeek, player };
 
   const pan = useMemo(() => {
     const at = (x: number) => scrubTo(x, width.current, latest.current.duration);
     const move = (x: number) => { const p = at(x); setDragAt(p); latest.current.onScrub(p); };
     const end = (x: number | null) => {
-      const { player: p, onScrub: report } = latest.current;
+      const { player: p, onScrub: report, onSeek: seeking } = latest.current;
       setDragAt(null);
       report(null);
-      if (x !== null) p.seekTo(at(x)).catch(() => undefined);
+      if (x !== null) { seeking?.(); p.seekTo(at(x)).catch(() => undefined); }
     };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -65,6 +67,7 @@ export function LessonScrubber({ player, fallbackDuration, onScrub }: {
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => {
         const by = e.nativeEvent.actionName === 'increment' ? 0.1 : -0.1;
+        onSeek?.();
         player.seekTo(Math.min(1, Math.max(0, progress + by)) * duration).catch(() => undefined);
       }}
       style={{ position: 'absolute', left: space.l, right: space.l, bottom: 0, height: TOUCH_HEIGHT, justifyContent: 'flex-end', paddingBottom: space.xs }}
