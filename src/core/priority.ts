@@ -1,4 +1,5 @@
 import { deckLineage, inheritedSetting, isInDeck } from './deckTree';
+import { parseTags } from './noteEditing';
 import type { DeckSettings, Note } from './types';
 
 /**
@@ -17,7 +18,8 @@ const DAY_MS = 86400000;
 
 export interface PrioritySettings {
   on: boolean;
-  tag: string;
+  /** The tags, any one of which puts a note's new cards first. */
+  tags: string[];
   days: number;
   percent: number;
   /** The deck whose own switch decides this (nearest on the way up), where first-seen dates are kept. */
@@ -29,7 +31,7 @@ export function prioritySettings(deck: string, all: Map<string, DeckSettings>): 
   const owner = deckLineage(deck).reverse().find((d) => all.get(d)?.priorityFirst !== undefined);
   return {
     on: owner !== undefined && all.get(owner)!.priorityFirst === true,
-    tag: (inheritedSetting(deck, all, 'priorityTag') ?? '').trim(),
+    tags: parseTags(inheritedSetting(deck, all, 'priorityTag') ?? ''),
     days: inheritedSetting(deck, all, 'priorityDays') ?? DEFAULT_PRIORITY_DAYS,
     percent: inheritedSetting(deck, all, 'priorityPercent') ?? DEFAULT_PRIORITY_PERCENT,
     owner,
@@ -41,6 +43,46 @@ export function noteHasTag(note: Note, tag: string): boolean {
   const t = tag.trim().toLowerCase();
   if (!t) return false;
   return note.tags.some((x) => { const l = x.toLowerCase(); return l === t || l.startsWith(`${t}::`); });
+}
+
+/** Whether the note carries any of the tags, each matched as `noteHasTag` does. */
+export function noteHasAnyTag(note: Note, tags: string[]): boolean {
+  return tags.some((t) => noteHasTag(note, t));
+}
+
+/** How many notes in `deck` (and its subdecks) the tags would put first, for the line under the field. */
+export function priorityMatchCount(notes: Iterable<Note>, deck: string, tags: string[]): number {
+  let n = 0;
+  for (const note of notes) if (isInDeck(note.deck, deck) && noteHasAnyTag(note, tags)) n++;
+  return n;
+}
+
+export interface TagSuggestion {
+  tag: string;
+  /** Notes carrying exactly this tag, in any deck. */
+  count: number;
+}
+
+/** Every tag in the collection with the notes carrying it (each spelling counted as one), most used first. */
+export function tagCounts(notes: Iterable<Note>): TagSuggestion[] {
+  const counts = new Map<string, TagSuggestion>();
+  for (const note of notes) {
+    for (const tag of note.tags) {
+      const hit = counts.get(tag.toLowerCase());
+      if (hit) hit.count++; else counts.set(tag.toLowerCase(), { tag, count: 1 });
+    }
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count || a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+
+/**
+ * The tags from `tagCounts` that contain what was typed (anywhere, any case), in that order,
+ * leaving out the ones already chosen. An empty query lists the most used.
+ */
+export function suggestTags(counts: TagSuggestion[], query: string, chosen: string[], limit: number): TagSuggestion[] {
+  const q = query.trim().toLowerCase();
+  const taken = new Set(chosen.map((t) => t.toLowerCase()));
+  return counts.filter((t) => !taken.has(t.tag.toLowerCase()) && (!q || t.tag.toLowerCase().includes(q))).slice(0, limit);
 }
 
 /** A whole number from what was typed, within `min`..`max`, or what to fix. */
@@ -76,10 +118,10 @@ export function boostFor(a: { notes: Iterable<Note>; settings: Map<string, DeckS
     if (memo.has(root)) return memo.get(root);
     const s = prioritySettings(root, a.settings);
     let result: Boost | undefined;
-    if (s.on && s.tag) {
+    if (s.on && s.tags.length) {
       const noteIds = new Set<string>();
       for (const n of notes) {
-        if (!isInDeck(n.deck, root) || !noteHasTag(n, s.tag)) continue;
+        if (!isInDeck(n.deck, root) || !noteHasAnyTag(n, s.tags)) continue;
         const owner = prioritySettings(n.deck, a.settings).owner;
         const since = owner ? a.settings.get(owner)?.priorityStamps?.[n.id] : undefined;
         if (!since || a.now.getTime() - new Date(since).getTime() < s.days * DAY_MS) noteIds.add(n.id);
@@ -103,9 +145,9 @@ export function planPriorityStamps(notes: Iterable<Note>, settings: Map<string, 
     if (own.priorityFirst === undefined) continue;
     const s = prioritySettings(deck, settings);
     const next: Record<string, string> = {};
-    if (s.on && s.tag) {
+    if (s.on && s.tags.length) {
       for (const n of list) {
-        if (!isInDeck(n.deck, deck) || prioritySettings(n.deck, settings).owner !== deck || !noteHasTag(n, s.tag)) continue;
+        if (!isInDeck(n.deck, deck) || prioritySettings(n.deck, settings).owner !== deck || !noteHasAnyTag(n, s.tags)) continue;
         next[n.id] = own.priorityStamps?.[n.id] ?? now.toISOString();
       }
     }
