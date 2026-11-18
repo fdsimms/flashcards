@@ -3816,6 +3816,80 @@
         }
       }
     },
+    "/api/pronunciations": {
+      "post": {
+        "summary": "Pronunciations",
+        "description": "Each entry's IPA and where it's from (ipa.SOURCE_*), or None when there is none to show (a\nphrase, a word the table lacks): the MCP's fill_pronunciation asks here. Reads only: it never\nasks Claude for a word's IPA, so it costs nothing, and uses the IPA Claude already wrote for texts.",
+        "operationId": "pronunciations_api_pronunciations_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PronunciationsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "title": "Response Pronunciations Api Pronunciations Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/glosses": {
       "post": {
         "summary": "Glosses",
@@ -5709,6 +5783,61 @@
           "phrase"
         ],
         "title": "PhraseIn"
+      },
+      "PronunciationIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "entry": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entry"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "entry"
+        ],
+        "title": "PronunciationIn"
+      },
+      "PronunciationsIn": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PronunciationIn"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "title": "PronunciationsIn"
       },
       "QueuedEntry": {
         "properties": {

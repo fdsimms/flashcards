@@ -63,3 +63,26 @@ def test_japanese_is_written_from_the_reading_by_rule() -> None:
     assert ipa.ipa_for("劇団", lexicon, "げきだん") == ("/ɡekidaɴ/", "rules")
     # A word in kana is its own reading; a word with neither has none.
     assert ipa.ipa_for("ありがとう", lexicon) == ("/aɾiɡatoː/", "rules")
+
+
+def test_a_deck_entry_gets_the_ipa_its_token_in_a_text_would() -> None:
+    lexicon = SpacedLexicon("ru", [])
+    assert ipa.ipa_of_entry("дом", "ru") == ipa.ipa_for("дом", lexicon)
+    assert ipa.ipa_of_entry("дом", "ru") == (ipa.ipa_of("дом", "ru"), ipa.SOURCE_WIKTIONARY)
+
+
+def test_a_deck_entry_with_no_ipa_to_show_gets_none() -> None:
+    assert ipa.ipa_of_entry("дом и сад", "ru") is None  # a phrase
+    assert ipa.ipa_of_entry("zzzzzz", "ru") is None  # not in the table
+    assert ipa.ipa_of_entry("hello", "en") is None  # a language with no table
+
+
+def test_a_deck_entry_falls_back_to_the_ipa_claude_wrote() -> None:
+    assert ipa.ipa_of_entry("zzzzzz", "ru", ai={"zzzzzz": "/zz/"}) == ("/zz/", ipa.SOURCE_AI)
+
+
+def test_a_japanese_entry_is_written_from_its_reading() -> None:
+    found = ipa.ipa_of_entry("大人", "ja", "おとな")
+    assert found is not None and found[1] == ipa.SOURCE_RULES
+    # Sudachi reads it the same.
+    assert ipa.ipa_of_entry("大人", "ja", "おとな") == ipa.ipa_of_entry("大人", "ja")
