@@ -174,7 +174,13 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
         </Tappable>
       ) : null}
       {hasMnemonics && !mnemonics ? (
-        <Tappable onPress={() => { haptic.tap(); setMnemonics(true); }} accessibilityRole="button" style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}>
+        <Tappable
+          onPress={() => { haptic.tap(); setMnemonics(true); }}
+          accessibilityRole="button"
+          scaleTo={0.94}
+          style={{ alignSelf: 'center', minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.wkWell }}
+        >
+          <Icon name="lightbulb" size={18} color={c.onWk} />
           <Text style={{ ...type.callout, color: c.onWk, fontWeight: '600' }}>Show mnemonics</Text>
         </Tappable>
       ) : null}
