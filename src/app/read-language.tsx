@@ -17,7 +17,6 @@ export default function ReadLanguageRoute() {
       onVoices={() => router.push({ pathname: '/read-voices', params: { language } })}
       onGrammar={() => router.push('/read-grammar')}
       onVocabCheck={() => router.push('/read-vocab-check')}
-      onEpisodes={(story) => router.push({ pathname: '/read-past', params: { story: String(story) } })}
     />
   );
 }
