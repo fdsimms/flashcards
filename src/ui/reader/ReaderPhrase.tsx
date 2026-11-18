@@ -193,26 +193,3 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
     </Modal>
   );
 }
-
-/** Shown above the player while the last word of a phrase is being chosen. */
-export function PhrasePickBanner({ first, onCancel }: { first: string; onCancel: () => void }) {
-  const c = useTheme();
-  return (
-    <View
-      accessibilityLiveRegion="polite"
-      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, borderRadius: radius.m, ...smooth, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.s }}
-    >
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>Tap the last word of the phrase</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Starting from "${first}". A phrase stays within one line. You can also hold a word and drag.`}</Text>
-      </View>
-      <Tappable
-        onPress={() => { haptic.tap(); onCancel(); }}
-        accessibilityRole="button"
-        style={{ minHeight: MIN_TAP, justifyContent: 'center', backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m }}
-      >
-        <Text style={{ ...type.footnote, color: c.text }}>Cancel</Text>
-      </Tappable>
-    </View>
-  );
-}
