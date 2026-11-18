@@ -54,7 +54,7 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * One side of a natively rendered card: the word or question large and centered, the details
  * under it in smaller text with their labels. On the back, the tags are chips, the word's forms
  * are a labeled list, an example sentence's lines sit close together with the word highlighted,
- * and a note is set off in a box.
+ * and a note is set off in a box under its label, laid out like the Example's.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  * With `gloss` (the sentence's words from Read & Listen's server), the example sentence's words can
  * be tapped for their meanings (CardSentence).
@@ -247,9 +247,11 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         }
         if (b.role === 'note') {
           return (
-            <View key={i} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
+            <View key={i} style={{ gap: space.xs }}>
               {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-              <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{b.text}</Text>
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m }}>
+                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{b.text}</Text>
+              </View>
             </View>
           );
         }
