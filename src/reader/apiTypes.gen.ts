@@ -1454,6 +1454,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/word-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Word Suggestions
+         * @description Reads the snapshot of the deck only: nothing here adds a note or grades a card. A word
+         *     saved since the snapshot was read can still be listed; the app leaves out what its own
+         *     copy of the deck already has.
+         */
+        get: operations["get_word_suggestions_api_word_suggestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/word-suggestions/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Word
+         * @description Not interested: the word isn't suggested for the language again.
+         */
+        post: operations["dismiss_word_api_word_suggestions_dismiss_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1607,6 +1649,16 @@ export interface components {
              * @enum {string}
              */
             level: "harder" | "standard" | "easier";
+        };
+        /** DismissWordIn */
+        DismissWordIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Word */
+            word: string;
         };
         /** DrillsIn */
         DrillsIn: {
@@ -2079,6 +2131,27 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+        };
+        /** WordSuggestionOut */
+        WordSuggestionOut: {
+            /** Word */
+            word: string;
+            /** Meaning */
+            meaning: string;
+            /** Rank */
+            rank: number | null;
+            /** Texts */
+            texts: number;
+        };
+        /**
+         * WordSuggestionsOut
+         * @description The words from texts read, then the common words the deck lacks, each source best first.
+         */
+        WordSuggestionsOut: {
+            /** Texts */
+            texts: components["schemas"]["WordSuggestionOut"][];
+            /** Common */
+            common: components["schemas"]["WordSuggestionOut"][];
         };
         /** WriteIn */
         WriteIn: {
@@ -5181,6 +5254,72 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_word_suggestions_api_word_suggestions_get: {
+        parameters: {
+            query: {
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WordSuggestionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismiss_word_api_word_suggestions_dismiss_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissWordIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

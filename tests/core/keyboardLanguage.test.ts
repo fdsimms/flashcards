@@ -11,8 +11,13 @@ describe('keyboardLanguageFor', () => {
     expect(keyboardLanguageFor('zh')).toBe('zh');
   });
 
-  it('leaves Latin-script languages on whatever keyboard is up', () => {
-    for (const tag of ['en-US', 'es-MX', 'de-DE', 'fr-FR', 'pl-PL', 'nb-NO']) expect(keyboardLanguageFor(tag)).toBeUndefined();
+  it('asks for English, so a field for it leaves a Thai or Russian keyboard', () => {
+    expect(keyboardLanguageFor('en-US')).toBe('en');
+    expect(keyboardLanguageFor('en_GB')).toBe('en');
+  });
+
+  it('leaves other Latin-script languages on whatever keyboard is up', () => {
+    for (const tag of ['es-MX', 'de-DE', 'fr-FR', 'pl-PL', 'nb-NO']) expect(keyboardLanguageFor(tag)).toBeUndefined();
   });
 
   it('asks for nothing without a language', () => {

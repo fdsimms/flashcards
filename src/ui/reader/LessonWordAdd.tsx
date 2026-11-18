@@ -127,7 +127,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
         ) : (
           <Card>
             <Field label={name} value={text} onChangeText={setText} autoCapitalize="none" autoCorrect={false} keyboardLanguage={LANGUAGES[language].speech} returnKeyType="next" />
-            <Field label="Meaning" value={english} onChangeText={setEnglish} error={!!problem} returnKeyType="done" onSubmitEditing={submit} />
+            <Field label="Meaning" value={english} onChangeText={setEnglish} keyboardLanguage="en-US" error={!!problem} returnKeyType="done" onSubmitEditing={submit} />
             {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
             <Button label="Add phrase" onPress={submit} disabled={!text.trim() || !english.trim()} />
           </Card>

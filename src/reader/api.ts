@@ -417,6 +417,11 @@ export type Progress = {
 // A topic idea not yet added. `fit` is the share of its key words the deck knows.
 export type Suggestion = Schemas['SuggestionOut'];
 
+// Words to add to a language's deck when its new cards run low (server/reader's word_suggestions.py):
+// from texts read, and the common words the deck lacks, each best first. Nothing here adds a note.
+export type WordSuggestion = Schemas['WordSuggestionOut'];
+export type WordSuggestions = Schemas['WordSuggestionsOut'];
+
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
 export type LessonState = 'making' | 'ready' | 'failed';
 /** What a lesson being made is doing, in order (the server's LessonStage). */
@@ -565,6 +570,9 @@ export function createApi(
     // After the note is saved in the editor, or when the owner removes the word.
     removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
+    wordSuggestions: (language: Language) => call<WordSuggestions>('GET', `/api/word-suggestions?language=${language}`),
+    // Not interested: the word isn't suggested for the language again.
+    dismissWord: (language: Language, word: string) => call<void>('POST', '/api/word-suggestions/dismiss', { language, word }),
     // `examples`: how many lines to send (the server's default is 3). `shuffle`: a number that picks a random
     // sample from every text read instead of the latest ones; a server older than either ignores it.
     grammarPoint: (id: string, options: { examples?: number; shuffle?: number } = {}) => {
