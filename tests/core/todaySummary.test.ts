@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Answer } from '../../src/core/stats';
-import { todayProgress, todaySummary } from '../../src/core/todaySummary';
+import { answerPace, todayProgress, todaySummary } from '../../src/core/todaySummary';
 
 const H = 4;
 const NOW = new Date(2026, 10, 11, 12);
@@ -21,7 +21,14 @@ describe('today\'s summary', () => {
     ];
     const s = todaySummary(answers, NOW, H);
     expect(s).toMatchObject({ answered: 3, newCards: 1, takenMs: 240000 });
-    expect(s.text).toBe('Studied today: 3 answers · 4 min · 1 new');
+    expect(s.text).toBe('Studied today: 3 answers · 4 min (1 per 80 s) · 1 new');
+  });
+
+  it('gives the pace as one answer per so many seconds', () => {
+    expect(answerPace(513, 3720000)).toBe('1 per 7 s');
+    expect(answerPace(10, 1000)).toBe('1 per 1 s');
+    expect(answerPace(5, 0)).toBeNull();
+    expect(answerPace(0, 0)).toBeNull();
   });
 
   it('uses the singular for one answer', () => {

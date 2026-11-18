@@ -20,10 +20,20 @@ export interface TodaySummary {
 export function todaySummary(answers: Answer[], now: Date, dayStartsAtHour: number): TodaySummary {
   const { today } = computeStats({ cards: [], answers, now, dayStartsAtHour, days: 1 });
   const n = (v: number, one: string, many: string) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
+  const pace = answerPace(today.answered, today.takenMs);
   const text = today.answered === 0
     ? null
-    : `Studied today: ${n(today.answered, 'answer', 'answers')} · ${durationText(today.takenMs)} · ${today.newCards.toLocaleString()} new`;
+    : `Studied today: ${n(today.answered, 'answer', 'answers')} · ${durationText(today.takenMs)}${pace ? ` (${pace})` : ''} · ${today.newCards.toLocaleString()} new`;
   return { answered: today.answered, takenMs: today.takenMs, newCards: today.newCards, text };
+}
+
+/**
+ * The pace as "1 per 7 s" (one answer every so many seconds, since a rate in answers per second
+ * would read 0.14), or null when no time was recorded. Rounded to whole seconds, at least 1.
+ */
+export function answerPace(answered: number, takenMs: number): string | null {
+  if (answered <= 0 || takenMs <= 0) return null;
+  return `1 per ${Math.max(1, Math.round(takenMs / answered / 1000))} s`;
 }
 
 /**
