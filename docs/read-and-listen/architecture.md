@@ -674,7 +674,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   standard voices have one, for a dialogue between two men or two women (Audio). The speech
   request's language comes from the voice's name.
 - **In the app**, a word known for being common rather than from the deck says "A common word" in
-  its gloss, and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
+  the marked words list (the gloss leaves it out when the frequency meter shows), and outside Thai the highlight's row in the reader's key is "Might be new to you". Every
   language but Thai is set a little smaller than Thai.
 - **How common a word is** (13 November 2026, the owner's idea, to decide what to add to the deck):
   the word popup shows a four-bar meter, a band (very common up to 1,000, common to 3,000, uncommon

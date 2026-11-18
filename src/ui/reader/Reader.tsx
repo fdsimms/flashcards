@@ -10,7 +10,8 @@ import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/ma
 import { scrollTarget, type Box } from '../../reader/follow';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, ipaNote, meaningOf, wordStatus } from '../../reader/languages';
+import { wordFrequency } from '../../reader/frequency';
 import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
@@ -1358,7 +1359,9 @@ export function GlossPopover({ tapped, language, translitLabel, grammar, api, gr
                 {tapped.word.form && language ? <ReadFormChip name={tapped.word.form.name} onPress={() => setShowForm(true)} /> : null}
                 {tapped.word.translit && showTranslit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 <ReadFrequency word={tapped.word} />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                {wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word) ? null : (
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
+                )}
                 {ipaLine ? <Text style={{ ...type.footnote, color: tapped.word.ipa_source === 'ai' ? c.warning : c.textSecondary }}>{ipaLine}</Text> : null}
               </>
             )}
