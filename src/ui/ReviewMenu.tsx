@@ -7,8 +7,9 @@ import { FLAG_NAMES } from '../core/cardState';
  * in groups (hold back, ask Claude, mnemonic and a confusing word to link, flag, reschedule, info). Flag is a submenu with the card's current
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
+ * Show answer timing, last, times each answer on this phone (useAnswerTiming.ts).
  */
-export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo }: {
+export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming }: {
   /** The card's flag, 0 for none. */
   flag: number;
   /** Opens Ask Claude for the card on screen. */
@@ -25,6 +26,9 @@ export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
   onDueDate: () => void;
   onForget: () => void;
   onCardInfo: () => void;
+  /** Whether Review shows how long each answer took to bring up the next card. */
+  timingOn: boolean;
+  onTiming: () => void;
 }) {
   return (
     <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, mnemonic, a confusing word to link, flag, reschedule or card info">
@@ -57,7 +61,10 @@ export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
         <Stack.Toolbar.MenuAction icon="calendar" onPress={onDueDate}>Set due date</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="arrow.counterclockwise" destructive onPress={onForget}>Forget card</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
-      <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>
+      <Stack.Toolbar.Menu inline>
+        <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction icon="stopwatch" isOn={timingOn} onPress={onTiming}>Show answer timing</Stack.Toolbar.MenuAction>
+      </Stack.Toolbar.Menu>
     </Stack.Toolbar.Menu>
   );
 }

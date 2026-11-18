@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Switch, Text, View } from 'react-native';
 import { studyDayStart } from '../core/day';
 import {
@@ -28,8 +28,13 @@ export function useReviewForms(repo: Repo, input: {
   deckSettings: Map<string, DeckSettings>;
   now: Date;
   dayStartsAtHour: number;
+  /**
+   * Just after an answer, while Review shows the next card from the queue as it was: the held cards
+   * stay as they were, and are worked out again, over every card, once that card is on screen.
+   */
+  settling: boolean;
 }) {
-  const { cards, notes, deckSettings, now, dayStartsAtHour: H } = input;
+  const { cards, notes, deckSettings, now, dayStartsAtHour: H, settling } = input;
   // The card on screen and whether its answer is shown are set by `showing`, once Review knows them:
   // the held cards decide which card that is, so they can't be inputs here.
   const [shown, setShown] = useState<{ card?: Card; note?: Note; revealed: boolean }>({ revealed: false });
@@ -52,10 +57,12 @@ export function useReviewForms(repo: Repo, input: {
   const seen = useMemo(() => seenEvents(recent, noteOfCard, practice), [recent, noteOfCard, practice]);
   const introduced = useMemo(() => introductions(recent, noteOfCard), [recent, noteOfCard]);
   // The deck list holds back the same cards (`loadHeld`), so its counts match what opens here.
-  const held = useMemo(
-    () => (cards ? heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }) : undefined),
-    [cards, deckOf, index, seen, deckSettings, now, H],
-  );
+  const lastHeld = useRef<Set<string> | undefined>(undefined);
+  const held = useMemo(() => {
+    if (settling && lastHeld.current) return lastHeld.current;
+    lastHeld.current = cards ? heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }) : undefined;
+    return lastHeld.current;
+  }, [cards, deckOf, index, seen, deckSettings, now, H, settling]);
 
   const { card, note, revealed } = shown;
   // The lookalike that may have given this card's answer away, once it's shown (`soonerOffer`).
@@ -98,6 +105,14 @@ export function useReviewForms(repo: Repo, input: {
     toCheck,
     /** A seen word for lookalikes: called after each answer is written. */
     answered: (entry: ReviewLogEntry) => setRecent((r) => [...r, entry]),
+    /**
+     * Whether `entry`, once `answered`, holds `card` back as a lookalike of the word just answered:
+     * `heldCards` for that one card, so Review can tell whether the queue rebuilt after an answer will have it.
+     */
+    holdsAfter: (entry: ReviewLogEntry, when: Date) => {
+      const events = seenEvents([...recent, entry], noteOfCard, practice);
+      return (card: Card) => heldCards({ cards: [card], deckOf, index, events, settings: deckSettings, now: when, dayStartsAtHour: H }).size > 0;
+    },
     /** An answer taken back: it no longer counts as seeing the word. */
     undone: (cardId: string) => setRecent((r) => {
       const i = r.map((x) => x.cardId).lastIndexOf(cardId);

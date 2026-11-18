@@ -119,10 +119,12 @@ export function currentCard(queue: Queue, preferId?: string): Card | undefined {
 }
 
 /**
- * The card most likely shown after `current` is answered, for Review to load ahead: the queue's
- * next card besides it. A guess: an answer can change what comes next (a sibling buried, the card
- * itself back at once), and then the card shown is loaded as it comes up instead.
+ * The card most likely shown after `current` is answered: the queue's next card besides it and
+ * those the answer will leave out of the rebuilt queue (`leavesOut`: siblings it buries, lookalikes
+ * it holds back). Review loads its page ahead, and once the answer is given shows it before the
+ * queue is rebuilt, holding it there (`preferId`) so the rebuilt queue can't swap it. Undefined when
+ * nothing else is queued: the card may come straight back, or the session end.
  */
-export function upNext(queue: Queue, current: Card | undefined): Card | undefined {
-  return queue.order.find((c) => c.id !== current?.id);
+export function upNext(queue: Queue, current: Card | undefined, leavesOut?: (card: Card) => boolean): Card | undefined {
+  return queue.order.find((c) => c.id !== current?.id && !leavesOut?.(c));
 }

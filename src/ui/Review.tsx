@@ -13,7 +13,7 @@ import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type StudiedToday } from '../core/queue';
+import { answerCounts, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -100,6 +100,8 @@ import { useHeaderInset } from './useHeaderInset';
 import { deckTint, leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
+import { afterPaint, painted } from './afterPaint';
+import { useAnswerTiming } from './useAnswerTiming';
 export { CardSurface };
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
@@ -220,6 +222,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
+  // Just after an answer: the card the queue expected next (`upNext`) is shown at once, from the queue
+  // as it was, and the queue and the lookalike hold are rebuilt from the answer once that card is on
+  // screen (below), so they don't hold it up. Held for the answer it followed (`at`, the answers given),
+  // so an undo meanwhile drops it. `preferId` keeps that card on screen once the queue is rebuilt.
+  const [settling, setSettling] = useState<{ at: number; next: Card; queue: Queue; cards: Card[]; now: Date } | null>(null);
+  const settle = settling && settling.at === history.length ? settling : null;
+  useEffect(() => (settling ? afterPaint(() => setSettling(null)) : undefined), [settling]);
+  // Show answer timing, in the ⋯ menu (useAnswerTiming.ts).
+  const timing = useAnswerTiming();
   // The strip offering to change the last answer to Again (ChangeRating.tsx), and the card it's undone for.
   const ratingOffer = useRatingOffer();
   const holdOffer = useHoldOffer();
@@ -286,21 +297,27 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [repo, deck, reloads, reloadKey]);
 
   // Forms practice and lookalikes (src/ui/ReviewForms.tsx): held lookalikes, the offer to show a card sooner, suggestions.
-  const forms = useReviewForms(repo, { cards, notes, deckSettings, now, dayStartsAtHour: H });
+  // While settling, as the queue being shown was built: the hold is rebuilt with the queue.
+  const forms = useReviewForms(repo, { cards: settle?.cards ?? cards, notes, deckSettings, now: settle?.now ?? now, dayStartsAtHour: H, settling: !!settle });
   // The reasons chosen on Again, and the "Last time" reminder they bring back (src/core/misses.ts).
   const misses = useMissMarks(repo);
   // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
   const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
-  const queue = useMemo(() => {
-    if (!cards) return null;
-    return treeQueue(deck, queueInput({
+  const rebuilt = useMemo(() => {
+    if (!cards || settle) return null;
+    const started = performance.now();
+    const q = treeQueue(deck, queueInput({
       notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     }));
-  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation]);
+    timing.queueTook(performance.now() - started);
+    return q;
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const queue = settle ? settle.queue : rebuilt;
+  useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const current = queue ? currentCard(queue, preferId) : undefined;
+  const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
   const showing = current ? `${current.id}:${history.length}` : undefined;
@@ -309,7 +326,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own.
-  const subdecks = useMemo(() => studiedSubdecks((cards ?? []).map((cd) => cardHomeDeck(cd, deckOf.get(cd.noteId) ?? '')), deck), [cards, deckOf, deck]);
+  // Every card's home deck: from the cards the queue being shown was built from, so it waits with the queue.
+  const deckCards = settle?.cards ?? cards;
+  const subdecks = useMemo(() => studiedSubdecks((deckCards ?? []).map((cd) => cardHomeDeck(cd, deckOf.get(cd.noteId) ?? '')), deck), [deckCards, deckOf, deck]);
   const cardLanguage = useMemo((): CardLanguage | undefined => {
     const sub = current && note ? subdeckOf(cardHomeDeck(current, note.deck), deck) : null;
     if (!sub || subdecks.size < 2) return undefined;
@@ -358,7 +377,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps
   // The next card's question, loaded out of sight while this one is studied, so a template card
   // comes up without a blank card while its page loads (only after a template card, which has the WebView to load it beside).
-  const ahead = page && queue ? upNext(queue, current) : undefined;
+  // Not while settling: that queue still has the card just answered in it.
+  const ahead = page && queue && !settle ? upNext(queue, current) : undefined;
   const aheadPage = useMemo(
     () => templatePage(ahead, ''),
     [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont], // eslint-disable-line react-hooks/exhaustive-deps
@@ -486,7 +506,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
-  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs);
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
+
+  // A natively drawn card is on screen the frame after it's committed (a template card says so itself: CardWebView's onShown).
+  useEffect(() => {
+    if (!timing.on || !showing || page) return;
+    const frame = requestAnimationFrame(() => timing.shown(showing));
+    return () => cancelAnimationFrame(frame);
+  }, [showing, timing.on]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-speak the front when a card with audio appears.
   useEffect(() => {
@@ -496,6 +523,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const answer = async (rating: RatingValue, miss?: string) => {
     if (!current || !note || busy.current || current === lastAnswered.current) return;
     busy.current = true;
+    const timed = timing.pressed(`${current.id}:${history.length}`);
     haptic.answer();
     cardMotion.current?.flash(rating);
     try {
@@ -558,12 +586,20 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const word = htmlToText(note.fields.Entry ?? '');
       holdOffer.show(null);
       ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
-      setPreferId(undefined);
+      // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
+      // screen (`settling`). Not while the last answer is still settling: that queue still has its card.
+      const buriedIds = new Set(siblings.map((sb) => sb.id));
+      const heldAfter = forms.holdsAfter({ cardId: current.id, ...res.log }, when);
+      const next = queue && cards && !settle ? upNext(queue, current, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
+      setSettling(next && queue && cards ? { at: history.length + 1, next, queue, cards, now } : null);
+      setPreferId(next?.id);
       setRevealedAt(undefined);
       setNow(when);
 
       writes.current++;
       void reviewWrites.add(async () => {
+        // Started once the next card is on screen: its database round trips share the JS thread with drawing it.
+        await painted();
         // A sync or an import that holds the kept collection while this is written reads it back over
         // the cards saved here: noted so they're saved again once the collection has the answer.
         const lockAtStart = repo.ankiLockState();
@@ -605,6 +641,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               );
             }
           }
+          timing.saved(timed);
           if (isLeech && !noteBefore.tags.includes('leech')) {
             try {
               const tagged = await saveNote(repo as NoteStore, { id: noteBefore.id, deck: noteBefore.deck, model: noteBefore.model, fields: noteBefore.fields, tags: [...noteBefore.tags, 'leech'] }, when);
@@ -1217,6 +1254,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onForget={chooseForget}
             // The deck is loaded again when Card Info closes: the same card stays on screen.
             onCardInfo={() => { setPreferId(current.id); onCardInfo(current.id); }}
+            timingOn={timing.on}
+            onTiming={timing.toggle}
           />
         </Stack.Toolbar>
       }
@@ -1231,6 +1270,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </View>
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
+      {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
       {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} style={{ marginTop: space.m }} /> : null}
       {page ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
@@ -1240,7 +1280,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               The second, hidden, is keyed as the next card will be once this one is answered: when that card comes
               up, React keeps that WebView, already loaded, and shows it. */}
           {[
-            <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
+            <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${history.length}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
             ahead && aheadPage ? <CardWebView key={`${ahead.id}:${history.length + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
           ]}
         </SwipeCard>
