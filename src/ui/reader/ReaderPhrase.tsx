@@ -4,11 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
+import { popupSpace, roomIsBelow } from '../../reader/phrase';
 import { Icon, Tappable, ErrorNote } from '../kit';
 import { registerLabel } from '../../reader/register';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Pop } from '../motion';
+import { PhraseAskField, PhraseThread } from './ReaderPhraseAsk';
+import { usePhraseQuestions } from './usePhraseQuestions';
+import { useKeyboardInset } from '../useKeyboardInset';
 import { hairline, lift, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
 
 /** Adding the phrase to the deck: the note editor opens with it, and saving there is the approval. */
@@ -38,6 +42,11 @@ const POPUP_MAX_SHARE = 0.6;
  * The popup opens on whichever side of the phrase has more room, chosen once, so it doesn't jump
  * from below to above when the answer arrives and it grows. Its height is capped: the heading and
  * the buttons stay put and the explanation between them scrolls.
+ *
+ * "Ask a question" opens a field under the explanation, and Claude's answers stack under it
+ * (`usePhraseQuestions`; kept only while the popup is open, never graded or added to the deck).
+ * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
+ * phrase's heading and the latest answer aren't behind the keyboard.
  */
 export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, onClose }: {
   api: Api;
@@ -52,10 +61,15 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const body = useRef<ScrollViewInstance>(null);
-  const roomAbove = anchor.top - POPUP_GAP - insets.top - space.s;
-  const roomBelow = height - anchor.bottom - POPUP_GAP - insets.bottom - space.s;
-  const [below] = useState(() => roomBelow >= roomAbove);
-  const maxHeight = Math.max(0, Math.min(height * POPUP_MAX_SHARE, below ? roomBelow : roomAbove));
+  const keyboard = useKeyboardInset();
+  const [below] = useState(() => roomIsBelow(anchor, height, insets.top, insets.bottom));
+  // The question field is open: the popup moves clear of the keyboard.
+  const [asking, setAsking] = useState(false);
+  const { side, maxHeight } = popupSpace({
+    anchor, windowHeight: height, insetTop: insets.top, insetBottom: insets.bottom, keyboard, typing: asking,
+    below, gap: POPUP_GAP, edge: space.s, share: POPUP_MAX_SHARE,
+  });
+  const questions = usePhraseQuestions(api, textId, line, phrase);
   const [simple, setSimple] = useState(false);
   const [answer, setAnswer] = useState<Explained | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +120,7 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
       <View
         pointerEvents="box-none"
         onAccessibilityEscape={onClose}
-        style={{ position: 'absolute', left: space.l, right: space.l, ...(below ? { top: anchor.bottom + POPUP_GAP } : { bottom: height - anchor.top + POPUP_GAP }) }}
+        style={{ position: 'absolute', left: space.l, right: space.l, ...(side === 'top' ? { top: insets.top + space.s } : side === 'below' ? { top: anchor.bottom + POPUP_GAP } : { bottom: height - anchor.top + POPUP_GAP }) }}
       >
         <Pop
           from={0.96}
@@ -130,7 +144,15 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
             </Tappable>
           </View>
           {/* Only this part scrolls; the heading above and the buttons below stay. */}
-          <ScrollView ref={body} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: space.s }} showsVerticalScrollIndicator>
+          <ScrollView
+            ref={body}
+            style={{ flexGrow: 0, flexShrink: 1 }}
+            contentContainerStyle={{ gap: space.s }}
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+            // A new question or answer comes into view; the explanation arriving doesn't scroll.
+            onContentSizeChange={() => { if (questions.turns.length) body.current?.scrollToEnd({ animated: true }); }}
+          >
             {error ? (
               <ErrorNote message={error} onRetry={() => load(simple)} />
             ) : answer === null ? (
@@ -159,10 +181,14 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
                     {`: ${p.note}`}
                   </Text>
                 ))}
+                <PhraseThread turns={questions.turns} asking={questions.asking} error={questions.error} onRetry={questions.retry} />
               </>
             )}
           </ScrollView>
-          {answer !== null && !error && ((!simple) || mining) ? (
+          {answer !== null && !error && asking ? (
+            <PhraseAskField asking={questions.asking} followUp={questions.turns.length > 0} onSend={(q) => questions.send(q)} />
+          ) : null}
+          {answer !== null && !error && !asking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {simple ? null : (
                 <Tappable
@@ -175,6 +201,15 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
                   <Text style={{ ...type.footnote, color: c.text }}>Explain more simply</Text>
                 </Tappable>
               )}
+              <Tappable
+                onPress={() => { haptic.tap(); setAsking(true); }}
+                accessibilityRole="button"
+                accessibilityLabel={`Ask a question about ${phrase}`}
+                hitSlop={pillSlop}
+                style={pill}
+              >
+                <Text style={{ ...type.footnote, color: c.text }}>Ask a question</Text>
+              </Tappable>
               {mining ? (
                 <Tappable
                   onPress={() => { haptic.tap(); add(); }}

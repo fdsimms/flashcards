@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Word } from '../../src/reader/api';
-import { dragTo, locate, phrasePart, phraseRange, phraseText, pickEnd, wordUnder, type PhrasePick, type WordBox } from '../../src/reader/phrase';
+import { dragTo, locate, phrasePart, phraseRange, phraseText, pickEnd, popupSpace, roomIsBelow, wordUnder, type PhrasePick, type WordBox } from '../../src/reader/phrase';
 
 const w = (text: string): Word => ({
   text,
@@ -118,5 +118,35 @@ describe('dragTo', () => {
 
   it('draws one word as the whole phrase while the finger is still on it', () => {
     expect(phrasePart({ line: 0, start: 3, end: 3 }, 0, 3)).toBe('only');
+  });
+});
+
+describe('popupSpace', () => {
+  const base = { windowHeight: 800, insetTop: 50, insetBottom: 30, keyboard: 0, typing: false, gap: 12, edge: 8, share: 0.6 };
+  const anchor = { top: 200, bottom: 240 };
+
+  it('opens on the side chosen, capped at its share of the window', () => {
+    expect(popupSpace({ ...base, anchor, below: true })).toEqual({ side: 'below', maxHeight: 480 });
+    expect(popupSpace({ ...base, anchor, below: false })).toEqual({ side: 'above', maxHeight: 130 });
+  });
+
+  it('is never taller than the room on its side', () => {
+    expect(popupSpace({ ...base, anchor: { top: 600, bottom: 700 }, below: true }).maxHeight).toBe(50);
+    expect(popupSpace({ ...base, anchor: { top: 10, bottom: 50 }, below: false }).maxHeight).toBe(0);
+  });
+
+  it('goes to the top while typing and takes what the keyboard leaves', () => {
+    expect(popupSpace({ ...base, anchor, below: true, typing: true, keyboard: 300 })).toEqual({ side: 'top', maxHeight: 430 });
+  });
+
+  it('keeps the home indicator clear when typing with no keyboard up', () => {
+    expect(popupSpace({ ...base, anchor, below: false, typing: true }).maxHeight).toBe(700);
+  });
+});
+
+describe('roomIsBelow', () => {
+  it('compares the room under the phrase with the room over it', () => {
+    expect(roomIsBelow({ top: 200, bottom: 240 }, 800, 50, 30)).toBe(true);
+    expect(roomIsBelow({ top: 600, bottom: 640 }, 800, 50, 30)).toBe(false);
   });
 });

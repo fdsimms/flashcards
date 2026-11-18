@@ -70,3 +70,37 @@ export function wordUnder(boxes: WordBox[], x: number, y: number): number | null
 export function dragTo(pick: PhrasePick, index: number): PhrasePick {
   return pick.end === index ? pick : { ...pick, end: index };
 }
+
+/** Where the phrase popup sits and how tall it may be (window coordinates). */
+export type PopupSpace = { side: 'below' | 'above' | 'top'; maxHeight: number };
+
+/**
+ * The popup beside the selected phrase: on the side `below` says (the one with more room, chosen
+ * once so it doesn't jump when the answer arrives), at most `share` of the window and never past
+ * the window's edge. While a question is being typed the popup goes to the top instead, and takes
+ * what the keyboard leaves, so the phrase's heading and the answer aren't behind it.
+ * `gap` is the space between the phrase and the popup, `edge` the space kept at the window's edge.
+ */
+export function popupSpace({ anchor, windowHeight, insetTop, insetBottom, keyboard, typing, below, gap, edge, share }: {
+  anchor: { top: number; bottom: number };
+  windowHeight: number;
+  insetTop: number;
+  insetBottom: number;
+  keyboard: number;
+  typing: boolean;
+  below: boolean;
+  gap: number;
+  edge: number;
+  share: number;
+}): PopupSpace {
+  if (typing) {
+    return { side: 'top', maxHeight: Math.max(0, windowHeight - Math.max(keyboard, insetBottom) - insetTop - edge - gap) };
+  }
+  const room = below ? windowHeight - anchor.bottom - gap - insetBottom - edge : anchor.top - gap - insetTop - edge;
+  return { side: below ? 'below' : 'above', maxHeight: Math.max(0, Math.min(windowHeight * share, room)) };
+}
+
+/** Whether the room below the phrase is at least the room above it, for `popupSpace`'s `below`. */
+export function roomIsBelow(anchor: { top: number; bottom: number }, windowHeight: number, insetTop: number, insetBottom: number): boolean {
+  return windowHeight - anchor.bottom - insetBottom >= anchor.top - insetTop;
+}

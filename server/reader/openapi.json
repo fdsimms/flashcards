@@ -1902,6 +1902,84 @@
         }
       }
     },
+    "/api/texts/{text_id}/lines/{line}/ask": {
+      "post": {
+        "summary": "Ask About Phrase In Line",
+        "operationId": "ask_about_phrase_in_line_api_texts__text_id__lines__line__ask_post",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskPhraseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Ask About Phrase In Line Api Texts  Text Id  Lines  Line  Ask Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/texts/{text_id}/lines/{line}/form": {
       "post": {
         "summary": "Explain Form In Line",
@@ -5067,6 +5145,36 @@
         ],
         "title": "AskCardIn"
       },
+      "AskPhraseIn": {
+        "properties": {
+          "phrase": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Phrase"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/PhraseTurnIn"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Turns"
+          },
+          "in_language": {
+            "type": "boolean",
+            "title": "In Language",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "phrase",
+          "turns"
+        ],
+        "title": "AskPhraseIn"
+      },
       "AspectIn": {
         "properties": {
           "language": {
@@ -5895,6 +6003,30 @@
           "phrase"
         ],
         "title": "PhraseIn"
+      },
+      "PhraseTurnIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "PhraseTurnIn"
       },
       "PronunciationIn": {
         "properties": {

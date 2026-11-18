@@ -568,6 +568,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/texts/{text_id}/lines/{line}/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask About Phrase In Line */
+        post: operations["ask_about_phrase_in_line_api_texts__text_id__lines__line__ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/texts/{text_id}/lines/{line}/form": {
         parameters: {
             query?: never;
@@ -1437,6 +1454,18 @@ export interface components {
             /** Turns */
             turns: components["schemas"]["CardTurnIn"][];
         };
+        /** AskPhraseIn */
+        AskPhraseIn: {
+            /** Phrase */
+            phrase: string;
+            /** Turns */
+            turns: components["schemas"]["PhraseTurnIn"][];
+            /**
+             * In Language
+             * @default false
+             */
+            in_language: boolean;
+        };
         /** AspectIn */
         AspectIn: {
             /**
@@ -1753,6 +1782,16 @@ export interface components {
              * @default false
              */
             in_language: boolean;
+        };
+        /** PhraseTurnIn */
+        PhraseTurnIn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
         };
         /** PronunciationIn */
         PronunciationIn: {
@@ -3191,6 +3230,46 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_about_phrase_in_line_api_texts__text_id__lines__line__ask_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                text_id: number;
+                line: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskPhraseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
                     };
                 };
             };

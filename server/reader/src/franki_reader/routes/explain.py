@@ -1,15 +1,17 @@
 """A line explained by Claude: its grammar and vocabulary, a phrase in it, a word's form, and
 whether a native speaker would say it."""
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    ask_phrase,
     grammar,
     store,
 )
+from franki_reader.ask_card import Turn
 from franki_reader.coverage import parse_line
 from franki_reader.explain import (
     CheckRequest,
@@ -47,6 +49,19 @@ class PhraseIn(BaseModel):
         return int(self.simple) + 2 * int(self.in_language)
 
 
+class PhraseTurnIn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class AskPhraseIn(BaseModel):
+    # As for PhraseIn: the phrase as it appears in the line.
+    phrase: str = Field(min_length=1, max_length=300)
+    # The conversation so far, ending with the new question.
+    turns: list[PhraseTurnIn] = Field(min_length=1, max_length=40)
+    in_language: bool = False
+
+
 class FormExplainIn(BaseModel):
     # The word as it appears in the line, and what the app shows of its form (Word in src/reader/api.ts).
     word: str = Field(min_length=1, max_length=100)
@@ -70,6 +85,7 @@ def router(ctx: AppContext) -> APIRouter:
     engine = ctx.engine
     explain = ctx.explain
     explain_phrase = ctx.explain_phrase
+    ask_about_phrase = ctx.ask_about_phrase
     explain_form = ctx.explain_form
     check_natural = ctx.check_natural
     keep_failed_cost = ctx.keep_failed_cost
@@ -190,6 +206,49 @@ def router(ctx: AppContext) -> APIRouter:
             return answer
 
         return await explaining.run(("phrase", text_id, line, phrase, body.version), ask)
+
+    @routes.post("/api/texts/{text_id}/lines/{line}/ask", dependencies=authed)
+    async def ask_about_phrase_in_line(
+        text_id: int, line: int, body: AskPhraseIn
+    ) -> dict[str, str]:
+        text = store.get_text(engine.conn, text_id)
+        if text is None or not 0 <= line < len(text.lines):
+            raise HTTPException(404, "No such line.")
+        spaced = LANGUAGES[text.language].spaced
+        plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
+        phrase = body.phrase.strip()
+        if not phrase or "".join(phrase.split()) not in "".join(plain[line].split()):
+            raise HTTPException(400, "That phrase isn't in this line. Select it again.")
+        if body.turns[-1].role != "user":
+            raise HTTPException(422, "The last turn has to be your question.")
+        if ask_about_phrase is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't answer questions about a phrase"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        try:
+            answer, used = await ask_about_phrase(
+                ask_phrase.PhraseQuestion(
+                    text.language,
+                    phrase,
+                    plain[line],
+                    text.lines[line].english,
+                    whole_text_lines(text, plain),
+                    text.title,
+                    line,
+                    [Turn(t.role, t.content.strip()) for t in body.turns],
+                    body.in_language,
+                )
+            )
+        except ask_phrase.AskPhraseFailed as e:
+            keep_failed_cost("ask_phrase", text.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "ask_phrase", text.language, engine.clock(), used.cost_usd()
+        )
+        return {"answer": answer}
 
     @routes.post("/api/texts/{text_id}/lines/{line}/form", dependencies=authed)
     async def explain_form_in_line(text_id: int, line: int, body: FormExplainIn) -> dict[str, Any]:
