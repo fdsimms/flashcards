@@ -346,8 +346,23 @@ function soundButtons(html: string): string {
  * one playing, and a paused sound never ends, so the rest don't follow it.
  */
 const AUTOPLAY_SCRIPT = `var queued = Array.prototype.map.call(document.querySelectorAll('[data-sound]'), function (a) { return a.dataset.sound; });
-function playFrom(i) { if (i >= queued.length) return; playSound(queued[i]); player.onended = function () { playFrom(i + 1); }; }
-playFrom(0);`;
+function playFrom(i) { if (i >= queued.length) return; playSound(queued[i]); player.onended = function () { playFrom(i + 1); }; }`;
+
+/**
+ * What the app runs in a side's page once it's on screen (CardWebView): the next card's page is
+ * loaded out of sight ahead of time, so its sounds wait for this rather than playing on load.
+ */
+export const START_AUTOPLAY = 'window.startAutoplay && window.startAutoplay(); true;';
+
+/**
+ * A deck's own `<audio autoplay>` or `<video autoplay>` would start the moment the page loads, and
+ * the next card's page loads out of sight. Marked instead, and started with the side's other sounds
+ * (`startAutoplay`), whatever the preset's autoplay says, as the tag itself asked.
+ */
+export function holdMediaAutoplay(html: string): string {
+  return html.replace(/<(audio|video)\b[^>]*>/gi, (tag) =>
+    tag.replace(/\sautoplay(\s*=\s*("[^"]*"|'[^']*'|[^\s>]+))?(?=[\s/>])/i, ' data-autoplay'));
+}
 
 /** [anki:tts] -> a play button that asks the app to read it (`sideAudio` lists them in the same order). */
 function ttsButtons(html: string): string {
@@ -367,7 +382,8 @@ export function sideAudio(html: string): { tts: TtsTag[]; hasSound: boolean } {
 
 /**
  * A complete page for the WebView: the note type's CSS, Anki's body classes (`card cardN`, and
- * `nightMode night_mode` in dark mode, which many decks style), the sound player, and Anki's
+ * `nightMode night_mode` in dark mode, which many decks style), the sound player (its autoplay
+ * waits for `START_AUTOPLAY`), and Anki's
  * `anki.imageOcclusion` for an image occlusion card's own script to call, and MathJax when the
  * side has math. Relative media paths ("flag.svg") resolve against `mediaBase`, the media
  * folder's URI.
@@ -421,11 +437,17 @@ body.card { background: ${colors.background}; color: ${colors.text}; }` : ''}
 ${opts.font ? cardFontCss(opts.font.id, opts.font.base) : ''}
 </style>
 <script>${occlusionScript(occlusionPlan(html))}</script></head>
-<body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%${math ? ';opacity:0' : ''}">${ttsButtons(soundButtons(html))}</div>
+<body class="card card${opts.ord + 1}${night}"><div id="qa" style="width:100%${math ? ';opacity:0' : ''}">${ttsButtons(soundButtons(holdMediaAutoplay(html)))}</div>
 <script>
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }
 function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
 ${opts.autoplay ? AUTOPLAY_SCRIPT : ''}
+var autoplayed = false;
+window.startAutoplay = function () {
+  if (autoplayed) return;
+  autoplayed = true;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-autoplay]'), function (m) { var p = m.play(); if (p && p.catch) p.catch(function () {}); });${opts.autoplay ? '\n  playFrom(0);' : ''}
+};
 </script>${math ? mathjaxScripts(math) : ''}</body></html>`;
 }

@@ -23,7 +23,7 @@ import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
-import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, type AnswerRecord } from '../core/session';
+import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
 import { reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
@@ -312,18 +312,37 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
   // The font this card is set in: its deck's cycle, else the app's font when cards use it, else the system font (`cardFontFor`).
-  const cardFont = (note && current ? cardFontFor(availableFonts(deckCardFonts(cardHomeDeck(current, note.deck), deckSettings), appFont.installed), current.id, fontSession) : undefined) ?? (appFont.settings.onCards ? appFont.font : 'system');
-  const page = useMemo(() => {
-    if (!note || !noteType || !current) return undefined;
-    const ord = Number(current.kind.slice(1));
-    const { front, back, typeAnswer } = renderTemplateCard(note, noteType, ord, typedShown);
+  const fontOf = (card: Card, n: Note) =>
+    cardFontFor(availableFonts(deckCardFonts(cardHomeDeck(card, n.deck), deckSettings), appFont.installed), card.id, fontSession) ?? (appFont.settings.onCards ? appFont.font : 'system');
+  const cardFont = note && current ? fontOf(current, note) : appFont.settings.onCards ? appFont.font : 'system';
+  /**
+   * A template card's sides as pages, or undefined for a card that renders natively. The card showing
+   * and the one loaded ahead of it (below) both come from here, so the page loaded ahead is the very
+   * page shown once that card comes up, and its WebView has nothing to load.
+   */
+  const templatePage = (card: Card | undefined, typedIn: string) => {
+    const n = card && notes.get(card.noteId);
+    const model = n && card.kind.startsWith('t') && !isOmnilanguage(n) ? noteTypes.get(n.model) : undefined;
+    if (!card || !n || !model) return undefined;
+    const ord = Number(card.kind.slice(1));
+    const { front, back, typeAnswer } = renderTemplateCard(n, model, ord, typedIn);
+    const font = fontOf(card, n);
     const opts = {
-      css: noteType.css, ord, dark, autoplay, mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
+      css: model.css, ord, dark, autoplay: paramsForDeck(cardHomeDeck(card, n.deck), allParams)?.autoplay ?? true,
+      mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
-      font: cardFont === 'system' ? undefined : { id: cardFont, base: isBundled(cardFont) ? cardFontsBase() : downloadedFontsBase() },
+      font: font === 'system' ? undefined : { id: font, base: isBundled(font) ? cardFontsBase() : downloadedFontsBase() },
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
-  }, [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+  const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The next card's question, loaded out of sight while this one is studied, so a template card
+  // comes up without a blank card while its page loads (only after a template card, which has the WebView to load it beside).
+  const ahead = page && queue ? upNext(queue, current) : undefined;
+  const aheadPage = useMemo(
+    () => templatePage(ahead, ''),
+    [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
@@ -1143,8 +1162,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <SwipeCard enabled={false} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
-              again (after Again, or an undo) starts fresh instead of showing its back while its front loads. */}
-          <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />
+              again (after Again, or an undo) starts fresh instead of showing its back while its front loads.
+              The second, hidden, is keyed as the next card will be once this one is answered: when that card comes
+              up, React keeps that WebView, already loaded, and shows it. */}
+          {[
+            <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
+            ahead && aheadPage ? <CardWebView key={`${ahead.id}:${history.length + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
+          ]}
         </SwipeCard>
       ) : null}
       {page && extras ? (

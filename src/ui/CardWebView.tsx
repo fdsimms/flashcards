@@ -1,10 +1,11 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
 import { pageFont } from '../core/cardFonts';
 import { pageUsesMathJax } from '../core/mathjax';
+import { START_AUTOPLAY } from '../core/template';
 import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
 import { space, type, useTheme } from './theme';
@@ -31,9 +32,14 @@ true;
  * A new `html` loads into the same WebView, and the page already shown stays until the new one is
  * written and has loaded (WKWebView keeps the old page up while the next navigates), so showing a
  * card's back doesn't blank the card. Key it to start a new card from an empty view instead.
+ *
+ * `hidden` loads a page out of sight (Review's next card, ahead of its answer): it fills the same
+ * space, takes no taps, is skipped by VoiceOver, and its sounds wait until it's shown.
  */
-export function CardWebView({ html, onMessage, onTap }: {
+export function CardWebView({ html, hidden = false, onMessage, onTap }: {
   html: string;
+  /** Loaded but not shown yet. Shown, the same view keeps its page: nothing reloads. */
+  hidden?: boolean;
   /** What the page posts: a tts play button's `{"tts": i}` (cardDocument's speakTts). */
   onMessage?: (data: string) => void;
   /** A tap on the page that wasn't on a link, button or field. Setting it makes the page post `{"tap": true}`. */
@@ -43,6 +49,13 @@ export function CardWebView({ html, onMessage, onTap }: {
   const [uri, setUri] = useState<string>();
   const [error, setError] = useState<string>();
   const seq = useRef(0);
+  const view = useRef<WebView<{}>>(null);
+  // Pages finished loading, counted. Autoplay starts once a page is both loaded and shown, whichever
+  // comes last; telling a page that has already started again does nothing (cardDocument).
+  const [loads, setLoads] = useState(0);
+  useEffect(() => {
+    if (!hidden && loads > 0) view.current?.injectJavaScript(START_AUTOPLAY);
+  }, [hidden, loads]);
 
   useEffect(() => {
     const dir = new Directory(Paths.document, 'card-pages');
@@ -81,29 +94,36 @@ export function CardWebView({ html, onMessage, onTap }: {
     };
   }, [html]);
 
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', padding: space.xl }}>
-        <Text style={{ ...type.subhead, color: c.danger, textAlign: 'center' }}>{error}</Text>
-      </View>
-    );
-  }
-  if (!uri) return <View style={{ flex: 1 }} />;
   return (
-    <WebView
-      source={{ uri }}
-      originWhitelist={['*']}
-      allowingReadAccessToURL={Paths.document.uri}
-      allowFileAccess
-      allowFileAccessFromFileURLs
-      mediaPlaybackRequiresUserAction={false}
-      injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
-      onMessage={(e) => {
-        const data = e.nativeEvent.data;
-        if (onTap && data === TAP_MESSAGE) onTap();
-        else onMessage?.(data);
-      }}
-      style={{ flex: 1, backgroundColor: 'transparent' }}
-    />
+    <View
+      style={hidden ? [StyleSheet.absoluteFill, { opacity: 0 }] : StyleSheet.absoluteFill}
+      pointerEvents={hidden ? 'none' : 'auto'}
+      accessibilityElementsHidden={hidden}
+      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
+    >
+      {error ? (
+        <View style={{ flex: 1, justifyContent: 'center', padding: space.xl }}>
+          <Text style={{ ...type.subhead, color: c.danger, textAlign: 'center' }}>{error}</Text>
+        </View>
+      ) : uri ? (
+        <WebView
+          ref={view}
+          source={{ uri }}
+          originWhitelist={['*']}
+          allowingReadAccessToURL={Paths.document.uri}
+          allowFileAccess
+          allowFileAccessFromFileURLs
+          mediaPlaybackRequiresUserAction={false}
+          injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
+          onMessage={(e) => {
+            const data = e.nativeEvent.data;
+            if (onTap && data === TAP_MESSAGE) onTap();
+            else onMessage?.(data);
+          }}
+          onLoadEnd={() => setLoads((n) => n + 1)}
+          style={{ flex: 1, backgroundColor: 'transparent' }}
+        />
+      ) : null}
+    </View>
   );
 }

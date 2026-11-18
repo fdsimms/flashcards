@@ -117,3 +117,12 @@ export function currentCard(queue: Queue, preferId?: string): Card | undefined {
   }
   return nextCard(queue);
 }
+
+/**
+ * The card most likely shown after `current` is answered, for Review to load ahead: the queue's
+ * next card besides it. A guess: an answer can change what comes next (a sibling buried, the card
+ * itself back at once), and then the card shown is loaded as it comes up instead.
+ */
+export function upNext(queue: Queue, current: Card | undefined): Card | undefined {
+  return queue.order.find((c) => c.id !== current?.id);
+}

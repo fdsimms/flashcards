@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { studiedKind } from '../../src/core/queue';
-import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, type AnswerRecord } from '../../src/core/session';
+import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, upNext, type AnswerRecord } from '../../src/core/session';
 import { NOW, omniNote } from '../support/fixtures';
 
 describe('answerTimeMs', () => {
@@ -49,6 +49,19 @@ describe('currentCard', () => {
     expect(currentCard(q)?.id).toBe(a.id);
     expect(currentCard(q, b.id)?.id).toBe(b.id);
     expect(currentCard(q, 'gone')?.id).toBe(a.id);
+  });
+});
+
+describe('upNext', () => {
+  it("guesses the queue's next card besides the one showing, whichever place that one has", () => {
+    const [a] = makeCards({ ...omniNote(), id: 'a' }, NOW);
+    const [b] = makeCards({ ...omniNote(), id: 'b' }, NOW);
+    const [c] = makeCards({ ...omniNote(), id: 'c' }, NOW);
+    const q = { due: [], fresh: [a, b, c], order: [a, b, c] };
+    expect(upNext(q, a)?.id).toBe(b.id);
+    // An undo shows a card from further down: the one at the front still comes next.
+    expect(upNext(q, b)?.id).toBe(a.id);
+    expect(upNext({ due: [], fresh: [a], order: [a] }, a)).toBeUndefined();
   });
 });
 
