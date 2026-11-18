@@ -1,5 +1,5 @@
-import { MessageWriter, utf8Encode } from '../protobuf';
-import { stringifyJson } from './json';
+import { bytesField, decodeMessage, float, floats as readFloats, MessageWriter, string, uint, utf8Decode, utf8Encode } from '../protobuf';
+import { parseJson, stringifyJson } from './json';
 
 /**
  * Deck options as sync sends them (Anki's older JSON form, `DeckConfSchema11`) turned into the
@@ -117,4 +117,88 @@ export function deckConfigRow(c: DeckConfigJson): DeckConfigRow {
   if (typeof c.ignoreRevlogsBeforeDate === 'string' && c.ignoreRevlogsBeforeDate) w.string(F.ignoreBefore, c.ignoreRevlogsBeforeDate);
   if (Object.keys(other).length) w.bytes(F.other, utf8Encode(stringifyJson(other)));
   return { id: num(c.id), name: c.name, mtime: num(c.mod), usn: num(c.usn), config: w.finish() };
+}
+
+/** A float32 as the shortest decimal that reads back as it, which is how Anki's JSON writes one (0.85, not 0.8500000238). */
+function f32Json(x: number | undefined): number {
+  if (x === undefined) return 0;
+  for (let digits = 1; digits <= 9; digits++) {
+    const s = Number(x.toPrecision(digits));
+    if (Math.fround(s) === x) return s;
+  }
+  return x;
+}
+const f32s = (xs: number[]) => xs.map(f32Json);
+
+/**
+ * The row Anki keeps turned back into the JSON sync sends (`DeckConfSchema11`), as
+ * `From<DeckConfig> for DeckConfSchema11` in rslib/src/deckconfig/schema11.rs does: the inverse of
+ * `deckConfigRow`, so a preset changed on this phone can be sent to the server. Keys only an add-on
+ * knows come back from `other`. Checked against the presets Anki wrote (tests/anki/sync/deckConfigRow.test.ts).
+ */
+export function deckConfigJson(row: DeckConfigRow): DeckConfigJson {
+  const m = decodeMessage(row.config);
+  const flag = (f: number) => uint(m, f) === 1;
+  const otherBytes = bytesField(m, F.other);
+  const other: Record<string, unknown> = otherBytes ? obj(parseJson(utf8Decode(otherBytes))) : {};
+  const { new: newOther, rev: revOther, lapse: lapseOther, ...topOther } = other;
+  return {
+    id: row.id,
+    mod: row.mtime,
+    name: row.name,
+    usn: row.usn,
+    maxTaken: uint(m, F.capAnswer) ?? 0,
+    autoplay: !flag(F.disableAutoplay),
+    timer: flag(F.showTimer) ? 1 : 0,
+    replayq: !flag(F.skipQuestion),
+    new: {
+      bury: flag(F.buryNew),
+      delays: f32s(readFloats(m, F.learnSteps)),
+      initialFactor: Math.round(Math.fround(Math.fround(float(m, F.initialEase) ?? 0) * 1000)),
+      ints: [uint(m, F.gradGood) ?? 0, uint(m, F.gradEasy) ?? 0, 0],
+      order: (uint(m, F.insertOrder) ?? 0) === 1 ? 0 : 1,
+      perDay: uint(m, F.newPerDay) ?? 0,
+      ...obj(newOther),
+    },
+    rev: {
+      bury: flag(F.buryReviews),
+      ease4: f32Json(float(m, F.easyMult)),
+      ivlFct: f32Json(float(m, F.ivlMult)),
+      maxIvl: uint(m, F.maxIvl) ?? 0,
+      perDay: uint(m, F.reviewsPerDay) ?? 0,
+      hardFactor: f32Json(float(m, F.hardMult)),
+      ...obj(revOther),
+    },
+    lapse: {
+      delays: f32s(readFloats(m, F.relearnSteps)),
+      leechAction: uint(m, F.leechAction) ?? 0,
+      leechFails: uint(m, F.leechThreshold) ?? 0,
+      minInt: uint(m, F.minLapseIvl) ?? 0,
+      mult: f32Json(float(m, F.lapseMult)),
+      ...obj(lapseOther),
+    },
+    dyn: false,
+    newMix: uint(m, F.newMix) ?? 0,
+    newPerDayMinimum: uint(m, F.newPerDayMin) ?? 0,
+    interdayLearningMix: uint(m, F.interdayMix) ?? 0,
+    reviewOrder: uint(m, F.reviewOrder) ?? 0,
+    newSortOrder: uint(m, F.sortOrder) ?? 0,
+    newGatherPriority: uint(m, F.gatherPriority) ?? 0,
+    buryInterdayLearning: flag(F.buryInterday),
+    fsrsWeights: f32s(readFloats(m, F.fsrs4)),
+    fsrsParams5: f32s(readFloats(m, F.fsrs5)),
+    fsrsParams6: f32s(readFloats(m, F.fsrs6)),
+    desiredRetention: f32Json(float(m, F.desiredRetention)),
+    ignoreRevlogsBeforeDate: string(m, F.ignoreBefore) ?? '',
+    easyDaysPercentages: f32s(readFloats(m, F.easyDays)),
+    stopTimerOnAnswer: flag(F.stopTimer),
+    secondsToShowQuestion: f32Json(float(m, F.secsQuestion)),
+    secondsToShowAnswer: f32Json(float(m, F.secsAnswer)),
+    questionAction: uint(m, F.questionAction) ?? 0,
+    answerAction: uint(m, F.answerAction) ?? 0,
+    waitForAudio: flag(F.waitForAudio),
+    sm2Retention: f32Json(float(m, F.historicalRetention)),
+    weightSearch: string(m, F.paramSearch) ?? '',
+    ...topOther,
+  };
 }

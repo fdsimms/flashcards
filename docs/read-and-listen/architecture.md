@@ -563,11 +563,19 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
     meanings, one call of up to 150 words with the line each is in, and kept for the language
     (`word_ipa`), so a tap never makes a call; a word it gives nothing usable for is kept empty and not
     asked again. A failed call waits `FAILURE_COOLDOWN` and its cost is reported (`/api/costs`, `ipa`).
-  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving,
-  and the card back shows that field plainly. The field isn't in `omnilanguageFieldNames` yet: it
-  has to be added to the live note type first (AnkiMCP's `add_field`, which makes every device download the
-  whole collection once, so sync every device first), and only then there. Until then the editor leaves
-  the prefilled key out, since it only shows the note type's fields.
+  Saving a word to the deck fills the note's **Pronunciation** field with the IPA, to check before saving.
+  **On a card** (18 November 2026, by the owner's decision) the back shows that field after the answer:
+  behind a "Show pronunciation" tap when the card already keeps a reading behind one (a Transliteration, a
+  KanaReading: Thai, Japanese), so the sound isn't given away while the reading is hidden, and plainly
+  otherwise (`renderCard`). The MCP's `fill_pronunciation` fills the field for notes already in the deck,
+  from `/api/pronunciations` (`ipa.ipa_of_entry`, the same lookup a text's token gets, so a card and the
+  popup agree): previewed first, never over a field with anything in it, and a note whose IPA is `ai`
+  is tagged `ipa-unverified`. It reads only and never asks Claude for a word's IPA, so it costs nothing.
+  A daily fill for notes added since (`set_pronunciation_auto_fill`) is off until the owner turns it on.
+  The field is in `omnilanguageFieldNames`, after Forms, where `add_field` puts it: the live note type
+  needs it too (`add_field`, which makes every device download the whole collection once, so sync every
+  device first), or a TSV with no `#columns` header maps by position onto a field that isn't there.
+  The editor leaves the prefilled key out of a note type that has no such field.
 
 ## Languages
 
@@ -1017,6 +1025,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   texts, up to 150 words a call, so texts written before this are filled in. A failed call waits
   `FAILURE_COOLDOWN` and never keeps a text from being served. The cost is `meanings` in `/api/costs`.
   The deck's meaning wins over a kept one.
+- **Kanji in the word popup** (18 November 2026). A Japanese word's popup lists each kanji in it once,
+  with its English meanings and kun and on readings (`kanji.py`, `data/kanji.json`, from KANJIDIC2,
+  CC BY-SA 4.0, so the list carries the credit line). It's a lookup in a file shipped with the server:
+  nothing is generated, asked of a model or fetched, and `kanji` is on every word the server sends
+  (null for a word with none). A kanji KANJIDIC2 doesn't list (々) is skipped. The marked words list
+  shows the same block (`ReadKanji`). With a WaniKani token entered, each kanji also carries the level
+  that teaches it, read from WaniKani once a study day and kept on the phone (`useKanjiLevels`,
+  `src/wanikani/kanjiLevels.ts`); without one there is no tag.
 - **Word forms** (13 November 2026). The popup's "Dictionary form" line says what a word is a form
   of, not which form. After a text is written (`Engine.fill_forms`, `forms.py`), one Claude call a
   text is given each word that is a form of another (the ones with a dictionary form shown) with the

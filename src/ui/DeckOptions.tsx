@@ -7,20 +7,22 @@ import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings } from '../core/types';
+import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
 import { deckScripts } from '../core/fontScripts';
 import type { Script } from '../core/fonts';
 import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
+import { DeckNewCardOrder } from './DeckNewCardOrder';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
 import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
-/** Settings made in the app for one deck: the progress gate, forms practice, lookalike words and recordings. */
-export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
+/** Settings made in the app for one deck: the progress gate, new card order, forms practice, lookalike words and recordings. */
+export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
@@ -125,6 +127,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
         {inProgress !== undefined ? (
           <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
         ) : null}
+        {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}
         {filtered ? null : (
           <Group>
             <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />

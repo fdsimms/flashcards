@@ -1,6 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import { parseFuriganaData, type FuriganaData } from './furigana';
+import { parseKanjiLevels, type KanjiLevels } from './kanjiLevels';
 import { parseSnapshot, type Snapshot } from './offline';
 import { parseStats, type WaniKaniStats } from './stats';
 import { parsePrefs, parseState, type WaniKaniPrefs, type WaniKaniState } from './prefs';
@@ -57,6 +58,7 @@ export function saveState(state: WaniKaniState): void {
 const OFFLINE_FILE = 'wanikani-offline.json';
 const AUDIO_FOLDER = 'wanikani-audio';
 const FURIGANA_FILE = 'wanikani-furigana.json';
+const KANJI_LEVELS_FILE = 'wanikani-kanji-levels.json';
 
 /** The offline copy (offline.ts), in the documents folder: a few megabytes, too big for the Keychain. */
 export async function loadSnapshot(): Promise<Snapshot | null> {
@@ -146,6 +148,8 @@ export function clearOffline(): void {
     // What furigana knows from WaniKani (furigana.ts) goes with the token too.
     const furigana = new File(Paths.document, FURIGANA_FILE);
     if (furigana.exists) furigana.delete();
+    const levels = new File(Paths.document, KANJI_LEVELS_FILE);
+    if (levels.exists) levels.delete();
     const dir = new Directory(Paths.document, AUDIO_FOLDER);
     if (dir.exists) dir.delete();
   } catch {
@@ -167,6 +171,26 @@ export async function loadFuriganaData(): Promise<FuriganaData | null> {
 export function saveFuriganaData(data: FuriganaData): void {
   try {
     const f = new File(Paths.document, FURIGANA_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(data));
+  } catch {
+    // Nothing to do: it's read from WaniKani again next time.
+  }
+}
+
+/** Each kanji's WaniKani level (kanjiLevels.ts), in the documents folder. */
+export async function loadKanjiLevels(): Promise<KanjiLevels | null> {
+  try {
+    const f = new File(Paths.document, KANJI_LEVELS_FILE);
+    return parseKanjiLevels(f.exists ? await f.text() : null);
+  } catch {
+    return null;
+  }
+}
+
+export function saveKanjiLevels(data: KanjiLevels): void {
+  try {
+    const f = new File(Paths.document, KANJI_LEVELS_FILE);
     if (!f.exists) f.create();
     f.writeSync(JSON.stringify(data));
   } catch {

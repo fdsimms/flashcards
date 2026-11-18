@@ -7,6 +7,8 @@
  * matching table, which is also how Franki reads and writes them.
  */
 
+import type { DeckConfigJson } from './deckConfigRow';
+
 export const SYNC_VERSION = 11;
 /** Sent as the client version (`c` in the header, `cv` in meta). The server only logs it. */
 export const CLIENT_VERSION = 'franki,1.0,ios';
@@ -71,7 +73,7 @@ export interface DeckJson {
 /** `UnchunkedChanges`: note types, decks with their options, tags, and maybe the whole config. */
 export interface UnchunkedChanges {
   models: { id: number | string; mod?: number }[];
-  decks: [DeckJson[], { id: number | string; mod?: number }[]];
+  decks: [DeckJson[], DeckConfigJson[]];
   tags: string[];
   conf?: Record<string, unknown>;
   crt?: number;

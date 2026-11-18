@@ -191,6 +191,7 @@ def test_a_spanish_text_renders_with_spaces_deck_flags_and_glosses_from_the_entr
         "stretch": True,
         "deck": True,
         "wanikani": False,
+        "kanji": None,
         "rank": None,
         "grammar": None,
         "form": None,

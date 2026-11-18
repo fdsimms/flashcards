@@ -1,6 +1,6 @@
 import { decodeMessage, uint, utf8Decode, utf8Encode } from '../protobuf';
 import type { SyncClient } from './client';
-import { deckConfigRow, type DeckConfigJson } from './deckConfigRow';
+import { deckConfigJson, deckConfigRow, type DeckConfigJson } from './deckConfigRow';
 import { deckJson, deckRow } from './deckRows';
 import { parseJson, stringifyJson } from './json';
 import { cleanField, sortFieldAndChecksum } from './noteFields';
@@ -59,7 +59,7 @@ export type SyncOutcome = { mediaUsn: number } & (
    * The two collections can't be merged: one has to replace the other. `schema`: they have
    * different histories (the server was set up from another copy, or something forced a full
    * sync). `sanity`: their counts disagreed after a sync. `local`: the kept collection has
-   * changes to decks or note types (from the app it was exported from) that only an upload sends.
+   * changes to note types (from the app it was exported from) that only an upload sends.
    */
   | { kind: 'fullSyncRequired'; uploadOk: boolean; downloadOk: boolean; reason: 'schema' | 'sanity' | 'local' }
 );
@@ -77,13 +77,13 @@ export async function localMeta(db: SyncDb): Promise<Local & { empty: boolean }>
 
 /**
  * Rows of the collated tables marked as changed here that only a full upload can send. Decks
- * changed here (made, renamed or collapsed on the deck list) are sent in applyChanges, deleted
- * ones as graves; nothing Franki does changes a note type or a preset. (Tags can't be read at
- * all without the collation.)
+ * and presets changed here (a deck made, renamed or collapsed on the deck list, a preset's new
+ * card order) are sent in applyChanges, deleted decks as graves; nothing Franki does changes a
+ * note type. (Tags can't be read at all without the collation.)
  */
 async function localUnsendable(db: SyncDb): Promise<number> {
   let n = 0;
-  for (const t of ['notetypes', 'deck_config']) {
+  for (const t of ['notetypes']) {
     n += (await db.first<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t} WHERE usn = -1`))!.n;
   }
   return n;
@@ -137,6 +137,14 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
       if (decks.length) {
         mine.decks = [decks.map((d) => deckJson({ id: Number(d.id), name: d.name, mtime: d.mtime_secs, usn: serverUsn, common: d.common, kind: d.kind })), []];
         await db.run('UPDATE decks SET usn = ? WHERE usn = -1', serverUsn);
+      }
+      // Presets changed here, as Anki's changed_deck_config sends them: the server's usn, as JSON.
+      const confs = await db.all<{ id: number; name: string; mtime_secs: number; config: Uint8Array }>(
+        'SELECT id, name, mtime_secs, config FROM deck_config NOT INDEXED WHERE usn = -1',
+      );
+      if (confs.length) {
+        mine.decks[1] = confs.map((c) => deckConfigJson({ id: Number(c.id), name: c.name, mtime: c.mtime_secs, usn: serverUsn, config: c.config }));
+        await db.run('UPDATE deck_config SET usn = ? WHERE usn = -1', serverUsn);
       }
       if (localIsNewer) {
         mine.conf = await allConfig(db);
