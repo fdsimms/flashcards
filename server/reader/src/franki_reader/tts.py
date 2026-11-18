@@ -26,8 +26,8 @@ from typing import Any, Protocol
 from franki_speech import Part, SpeechClient, SpeechError, WordMark
 from franki_speech.loudness import LoudnessError, trim_trailing_silence
 
-# How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -20%.
-SLOW_RATE = 0.8
+# How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -35%.
+SLOW_RATE = 0.65
 
 DEFAULT_VOICES = {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"}
 
