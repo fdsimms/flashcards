@@ -92,7 +92,7 @@ def router(ctx: AppContext) -> APIRouter:
         if clips is None or engine.synthesize is None:
             return None, 0
         voice = engine.voices_for(language)["female" if gender == "female" else "male"]
-        key = ClipCache.key(line, f"{voice}@slow" if slow else voice)
+        key = ClipCache.key(line, f"{voice}@slow{SLOW_RATE}" if slow else voice)
         if clips.path(key) is not None:
             return key, 0
         locale = LANGUAGES[language].locale

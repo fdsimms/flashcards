@@ -3,6 +3,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import type { Api, AudioLesson, AudioSource, Shelf, ShelfText } from '../../reader/api';
 import { EMPTY_INDEX, lessonFile, lineFile, linesWithAudio, parseIndex, type DownloadIndex, type SavedText } from '../../reader/downloads';
 import { wholeText } from '../../reader/offlineApi';
+import { SLOW_RATE } from '../../reader/playbackRate';
 import { connection } from '../connection';
 
 /**
@@ -124,7 +125,7 @@ export const downloads = {
         }
         if (slow && entry.slow[line] === undefined) {
           const { times } = await api.slowTimes(card.id, line);
-          entry.bytes += await download(api.audioSource(card.id, line, 0.8), lineFile(card.id, line, true));
+          entry.bytes += await download(api.audioSource(card.id, line, SLOW_RATE), lineFile(card.id, line, true));
           entry.slow = { ...entry.slow, [line]: times };
         }
         keep();

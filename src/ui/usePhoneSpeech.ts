@@ -21,7 +21,7 @@ export function usePhoneSpeech(repo: Repo) {
   return useMemo(() => ({
     /** An Omnilanguage card's word, in its note's language. */
     sayWord: (text: string, lang: string | undefined) => Speech.speak(text, wordSpeech(voices.current, settings.current, lang)),
-    /** A line of conversation (Situations), in its language: at the chosen speed, or that times `slow` (0.8) for a slow one. */
+    /** A line of conversation (Situations), in its language: at the chosen speed, or that times `slow` (`SLOW_RATE`) for a slow one. */
     sayLine: (text: string, lang: string, slow: boolean) => {
       Speech.stop().catch(() => {});
       Speech.speak(text, lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE));
