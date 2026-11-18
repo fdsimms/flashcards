@@ -96,7 +96,7 @@ import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
-import { ChangeRatingStrip, useRatingOffer } from './ChangeRating';
+import { LastAnswerLine, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -236,8 +236,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => (settling ? afterPaint(() => setSettling(null)) : undefined), [settling]);
   // Show answer timing, in the ⋯ menu (useAnswerTiming.ts).
   const timing = useAnswerTiming();
-  // The strip offering to change the last answer to Again (ChangeRating.tsx).
-  const ratingOffer = useRatingOffer();
+  // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
+  const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
@@ -531,7 +531,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Again
+   * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Good or Again
    * answers the card it just undid, in the same step as the undo, so that card never comes back
    * to the screen between the two. The caller then holds `busy`, and `cards` is the list with that
    * card (and the siblings its first answer buried) put back as they were.
@@ -603,13 +603,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
       lastAnswered.current = cur;
-      // Hard, Good and Easy can be changed to Again from the next card for a few seconds.
-      const word = htmlToText(nt.fields.Entry ?? '');
+      // The last answer stays on the line above the buttons until the next one, to undo or change. A
+      // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      ratingOffer.show(rating > 1 && !preview ? { cardId: cur.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
+      lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating] });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
-      // card), nor for Change to Again's `redo` (its queue is from before the undo).
+      // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
       const buriedIds = new Set(siblings.map((sb) => sb.id));
       const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when);
       const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
@@ -679,7 +679,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         } catch (e) {
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
           setHistory((h) => h.filter((r) => r !== record));
-          ratingOffer.show(null);
+          lastAnswer.show(null);
           setReloads((n) => n + 1);
           Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
         } finally {
@@ -703,12 +703,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   };
 
   /**
-   * Takes the last answer back. With `again`, the same card is then answered Again in this same step
-   * (Change to Again), so the card never comes back to the screen between the two.
+   * Takes the last answer back. With `to`, the same card is then answered that rating in this same
+   * step (Change to Good, Change to Again), so the card never comes back to the screen between the two.
    */
-  // Read through a function: TypeScript would otherwise keep the `null` assigned to the ref above, across the `await`.
-  const lastAnsweredId = () => lastAnswered.current?.id;
-  const undo = async (again = false): Promise<boolean> => {
+  const undo = async (to?: RatingValue): Promise<boolean> => {
     const last = history[history.length - 1];
     if (!last || busy.current) return false;
     busy.current = true;
@@ -722,7 +720,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
       if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {
         setHistory([]);
-        ratingOffer.show(null);
+        lastAnswer.show(null);
         Alert.alert("Couldn't undo that answer", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
         return false;
       }
@@ -747,12 +745,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
       lastAnswered.current = null;
-      ratingOffer.show(null);
+      lastAnswer.show(null);
       const noteOf = n ?? notes.get(last.before.noteId);
-      if (again && noteOf) {
-        await answer(1, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
-        // `lastAnswered` is set only once the answer is saved, so a failed one (which alerts) isn't confirmed.
-        if (lastAnsweredId() === last.before.id) ratingOffer.show({ cardId: last.before.id, rating: 1, changed: true });
+      if (to && noteOf) {
+        await answer(to, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
         return true;
       }
       setPreferId(last.before.id);
@@ -768,12 +764,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     }
   };
 
-  // Change to Again: take the last answer back and answer the same card Again, in one step.
-  const changeToAgain = async () => {
-    const o = ratingOffer.offer;
+  // Change to Good or Again: take the last answer back and answer the same card again, in one step.
+  const changeLast = async (to: RatingValue) => {
+    const o = lastAnswer.last;
     const last = history[history.length - 1];
-    if (!o || !last || last.before.id !== o.cardId) { ratingOffer.show(null); return; }
-    await undo(true);
+    if (!o || !last || last.before.id !== o.cardId) { lastAnswer.show(null); return; }
+    await undo(to);
   };
 
   // A session that runs past the day's start counts the new day's answers from nothing, with the
@@ -1257,7 +1253,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onPress={() => onEditNote({ noteId: note.id }, (result) => {
               if (!result) return;
               // A deleted note's cards are gone, so an answer to one can't be undone any more.
-              if ('deleted' in result) setHistory([]);
+              if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
               else setPreferId(current.id);
               setReloads((n) => n + 1);
             })}
@@ -1285,8 +1281,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
         </Stack.Toolbar>
       }
-      footer={footer}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={() => undo()} /> : null}
+      footer={<>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
