@@ -8,14 +8,21 @@ const review = (id: number): Outcome => ({ kind: 'review', assignmentId: id, sub
 describe('options', () => {
   it('starts typed, with meaning and reading asked apart', () => {
     expect(parsePrefs(null)).toEqual(DEFAULT_PREFS);
-    expect(DEFAULT_PREFS).toMatchObject({ answer: 'type', separate: true });
+    expect(DEFAULT_PREFS).toMatchObject({ typeMeaning: true, typeReading: true, separate: true });
   });
 
   it('keeps what was saved and drops what it cannot read', () => {
     expect(parsePrefs(JSON.stringify({ answer: 'flip', separate: false, newPerDay: 5, productionDeck: 'J' })))
-      .toEqual({ ...DEFAULT_PREFS, answer: 'flip', separate: false, newPerDay: 5, productionDeck: 'J' });
+      .toEqual({ ...DEFAULT_PREFS, typeMeaning: false, typeReading: false, separate: false, newPerDay: 5, productionDeck: 'J' });
     expect(parsePrefs(JSON.stringify({ answer: 'shout', newPerDay: -1 }))).toEqual(DEFAULT_PREFS);
     expect(parsePrefs('{nope')).toEqual(DEFAULT_PREFS);
+  });
+
+  it('types meanings and readings separately, reading the old single choice for both', () => {
+    expect(parsePrefs(JSON.stringify({ typeMeaning: false }))).toMatchObject({ typeMeaning: false, typeReading: true });
+    expect(parsePrefs(JSON.stringify({ typeReading: false }))).toMatchObject({ typeMeaning: true, typeReading: false });
+    expect(parsePrefs(JSON.stringify({ answer: 'type' }))).toMatchObject({ typeMeaning: true, typeReading: true });
+    expect(parsePrefs(JSON.stringify({ answer: 'flip', typeReading: true }))).toMatchObject({ typeMeaning: false, typeReading: true });
   });
 
   it('animates level ups unless that was turned off, and reads nothing else as off', () => {

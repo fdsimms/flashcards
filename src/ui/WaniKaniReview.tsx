@@ -13,7 +13,7 @@ import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, sessionItems, sessionProgress, startStudy,
+  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
   dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
@@ -32,6 +32,9 @@ import { useHeaderInset } from './useHeaderInset';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
+
+/** The longest the card's resize after the keyboard may take (ms). */
+const KEYBOARD_SLIDE_MS = 150;
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -109,8 +112,6 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [typed, setTyped] = useState('');
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
-  // How answers are given is fixed for the session when it's built: its questions were made for it.
-  const [typing, setTyping] = useState(prefs.answer === 'type');
   // When the offline copy this session was built from was made; null when it came from WaniKani.
   const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
   // How many refused answers this screen has said were dropped: marked seen as it closes.
@@ -163,8 +164,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         const read = new Map((await withComponents(own, src.subjects)).map((s) => [s.id, s]));
         const items = lessonKind ? sessionItems([], lessons, read, lessonCount) : sessionItems(reviews, [], read, 0);
         // The user's own synonyms count as right answers when typing; without them, only WaniKani's do.
-        const typed = prefs.answer === 'type';
-        const syn = typed ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
+        const typed: TypedKinds = { meaning: prefs.typeMeaning, reading: prefs.typeReading };
+        const syn = typed.meaning ? await src.synonyms(items.map((i) => i.subjectId)).catch(() => new Map<number, string[]>()) : new Map<number, string[]>();
         if (gone) return;
         setSubjects(read);
         // Saved on this phone and not sent yet counts too.
@@ -172,8 +173,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         setCopySavedAt(src.savedAt ?? null);
         setKind(lessonKind ? 'lessons' : 'reviews');
         setNext({ lessons: lessonKind ? 0 : lessonCount, held, apprentice });
-        setTyping(typed);
-        setStudy(startStudy(buildSession(items, { mode: questionMode(prefs.answer, prefs.separate), lessonBatch: user.lessonBatch }), typed));
+        setStudy(startStudy(buildSession(items, { mode: questionMode(typed, prefs.separate), lessonBatch: user.lessonBatch }), typed));
       } catch (e) {
         if (gone) return;
         const why = e instanceof WaniKaniError ? e.problem : 'unavailable';
@@ -186,7 +186,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  const keyboard = useKeyboardInset();
+  // Capped: the keyboard comes up on every question, and its full slide made each new card feel slow.
+  const keyboard = useKeyboardInset(KEYBOARD_SLIDE_MS);
 
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -324,6 +325,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRetry(null);
     setVerdict(v);
     setRevealed(true);
+    // The keyboard comes down once the answer is judged so the whole card shows; the next question brings it back (autoFocus).
+    Keyboard.dismiss();
     if (v.result === 'correct') {
       haptic.select();
       // The stage popup comes with the right answer, not with the Next press after it.
@@ -502,7 +505,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   if (lesson) {
     // The last lesson of a batch leads into its quiz.
     footer = <Button label={study.session.queue[1]?.kind === 'lesson' ? 'Next' : 'Start the quiz'} onPress={() => answer(true)} />;
-  } else if (typing) {
+  } else if (isTyped(study.typed, question.kind)) {
     const result = verdict?.result;
     footer = (
       <>
@@ -513,14 +516,15 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          // Stays editable after Check (input is ignored once judged): a non-editable box drops the keyboard, and the next question's autofocus brings it back, resizing the card under the stage popup.
+          // Not editable once judged, so a tap on the box doesn't bring the keyboard back over the answer.
+          editable={!verdict}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
-          returnKeyType={verdict ? 'next' : 'done'}
+          returnKeyType="done"
           placeholder={question.kind === 'reading' ? 'Reading' : 'Meaning'}
           accessibilityLabel={question.kind === 'reading' ? 'Type the reading' : 'Type the meaning'}
           placeholderTextColor={result ? c.onRating : c.textTertiary}

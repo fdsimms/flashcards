@@ -20,10 +20,23 @@ import { asksReading, type Assignment, type Subject } from './subjects';
  * Undo: WaniKani can't take an answer back, so the latest finished item's answer is held here and
  * sent only when the next answer is given or the session closes (`Study`). Until then every answer
  * since the last one sent can be undone. A typed answer that was wrong stays a miss when it's
- * undone (`keepMisses`): its right answer has been shown, so undo would otherwise turn it into a pass.
+ * undone (`Study.typed`): its right answer has been shown, so undo would otherwise turn it into a pass.
  */
 
 export type QuestionKind = 'meaning' | 'reading' | 'both' | 'lesson';
+
+/** Which questions are answered by typing; the others show the answer and are rated. */
+export interface TypedKinds {
+  meaning: boolean;
+  reading: boolean;
+}
+
+export const NOTHING_TYPED: TypedKinds = { meaning: false, reading: false };
+
+/** Whether this question is answered by typing. A lesson's teaching step and a combined card never are. */
+export function isTyped(typed: TypedKinds, kind: QuestionKind): boolean {
+  return kind === 'meaning' || kind === 'reading' ? typed[kind] : false;
+}
 
 export type QuestionMode = 'together' | 'apart' | 'adjacent';
 
@@ -99,8 +112,8 @@ export function sessionItems(reviews: Assignment[], lessons: Assignment[], subje
 }
 
 /** Which question mode the options mean: typing can't take both answers in one box. */
-export function questionMode(answer: 'type' | 'flip', separate: boolean): QuestionMode {
-  return separate ? 'apart' : answer === 'flip' ? 'together' : 'adjacent';
+export function questionMode(typed: TypedKinds, separate: boolean): QuestionMode {
+  return separate ? 'apart' : typed.meaning || typed.reading ? 'adjacent' : 'together';
 }
 
 /** Lessons shown before each quiz when WaniKani's own batch size isn't known. */
@@ -287,15 +300,15 @@ export interface Study {
   /** Sessions to go back to, newest last; none past the last outcome sent. */
   history: Session[];
   /**
-   * Whether undo keeps the misses it goes back past (typed answers, where a miss is the checker's
+   * Which questions are typed. Undoing a typed answer keeps its miss (it is the checker's
    * verdict and its right answer was shown). Rated answers are the user's own call, so undoing
    * Again takes the miss back too, for a mistaken tap.
    */
-  keepMisses: boolean;
+  typed: TypedKinds;
 }
 
-export function startStudy(session: Session, keepMisses = false): Study {
-  return { session, held: null, history: [], keepMisses };
+export function startStudy(session: Session, typed: TypedKinds = NOTHING_TYPED): Study {
+  return { session, held: null, history: [], typed };
 }
 
 /** Answers the current question. `send` is what must now go to WaniKani: the outcome that was held. */
@@ -322,7 +335,7 @@ export function canUndo(study: Study): boolean {
 
 /**
  * Takes back the latest answer, and drops the held outcome it made. Null when there's nothing to undo.
- * With `keepMisses`, every item keeps the misses it has now, so the question undone comes back with
+ * When the question undone was typed, every item keeps the misses it has now, so it comes back with
  * its miss still counted. `missShown` says the current question was just judged wrong and its right
  * answer shown, but not counted yet (typing, before Next): that miss is counted too, so undoing the
  * answer before it can't clear it.
@@ -330,7 +343,8 @@ export function canUndo(study: Study): boolean {
 export function studyUndo(study: Study, missShown = false): Study | null {
   if (!study.history.length) return null;
   const back = study.history[study.history.length - 1];
-  const kept = study.keepMisses ? withMisses(back.progress, study.session.progress) : back.progress;
+  const undone = back.queue[0];
+  const kept = undone && isTyped(study.typed, undone.kind) ? withMisses(back.progress, study.session.progress) : back.progress;
   const q = study.session.queue[0];
   const progress = missShown && q && q.kind !== 'lesson' ? { ...kept, [q.assignmentId]: missed(kept[q.assignmentId], q.kind) } : kept;
   const session = progress === back.progress ? back : { ...back, progress };
