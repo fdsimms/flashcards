@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import type { Settings } from './api';
+import { parseSeasonChoices } from './stories';
 import { parseSeen } from './vocabCheck';
 import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 
@@ -13,6 +14,7 @@ import { DEFAULT_PREFS, parsePrefs, type Prefs } from './prefs';
 const PASSPHRASE_KEY = 'reader.passphrase';
 const PREFS_KEY = 'reader.prefs';
 const VOCAB_SEEN_KEY = 'reader.vocabSeen.';
+const SEASONS_KEY = 'reader.seasons.';
 
 export const loadPassphrase = () => SecureStore.getItemAsync(PASSPHRASE_KEY);
 export const savePassphrase = (value: string) => SecureStore.setItemAsync(PASSPHRASE_KEY, value);
@@ -47,6 +49,19 @@ export async function loadVocabSeen(language: string): Promise<string[]> {
 
 export function saveVocabSeen(language: string, words: string[]): void {
   SecureStore.setItemAsync(VOCAB_SEEN_KEY + language, JSON.stringify(words)).catch(() => undefined);
+}
+
+/** Which of a story's seasons the reader opened or closed on its page (stories.ts, seasonOpen). */
+export async function loadSeasonChoices(storyId: number): Promise<Record<number, boolean>> {
+  try {
+    return parseSeasonChoices(await SecureStore.getItemAsync(SEASONS_KEY + storyId));
+  } catch {
+    return {};
+  }
+}
+
+export function saveSeasonChoices(storyId: number, chosen: Record<number, boolean>): void {
+  SecureStore.setItemAsync(SEASONS_KEY + storyId, JSON.stringify(chosen)).catch(() => undefined);
 }
 
 const SETTINGS_FILE = 'reader-settings.json';
