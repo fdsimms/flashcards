@@ -31,7 +31,10 @@ than declaring the deck done.
 **Learning steps are Anki's, applied on top of FSRS** (`stepOutcome` in `scheduler.ts`, from
 rslib's states/steps.rs): the ts-fsrs engines run with no steps, for the memory state and
 intervals, because ts-fsrs's own steps graduate a card on a step of a day or more and give Hard a
-different delay. Each deck's preset steps apply, else Anki's defaults. A step crossing into a
+different delay. **FSRS counts the days since the
+last answer as Anki does** (`daysSinceLastReview`): to the end of today's study day, never ts-fsrs's
+own count between UTC dates, which made a step across UTC midnight a day's wait. Each deck's preset steps apply, else Anki's defaults. A
+relearning card keeps the interval its lapse gave it (`relearnDays`), as Anki's does. A step crossing into a
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
 review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
 
@@ -73,7 +76,8 @@ Burying options), in Franki's tables and in the kept collection in the answer's 
 
 **Counts shown in two places come from one function.** The deck list (`deckRows`) and the review
 screen both call `treeQueue`, with input from `queueInput`, so a deck never says "20 new" and then
-opens with none. A check that
+opens with none. (Anki's own deck list counts a sibling its queue then buries, so with sibling
+burying on Franki's list can show fewer than Anki's; the queues match.) A check that
 predicts what another code path will do calls that code path's function; don't write a lookalike.
 Anything that leaves cards out goes in through `queueInput` too, for both: lookalikes of a word just
 seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by

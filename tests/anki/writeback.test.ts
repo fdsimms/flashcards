@@ -9,7 +9,7 @@ import {
   cardStateParams, previewAgain, previewReturn, previewRevlogEntry, queueForType, revlogDifficulty, revlogEntry, revlogParams, type AnkiCardRow,
 } from '../../src/anki/writeback';
 import { makeCards } from '../../src/core/cards';
-import { fsrsDecay, rawInterval, review } from '../../src/core/scheduler';
+import { fsrsDecay, review } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
@@ -100,6 +100,18 @@ describe('mapping an answer to Anki', () => {
     expect(u.ivl).toBe(graduated.sched.scheduledDays);
   });
 
+  it("writes a relearning card's interval as the one its lapse gave it, as Anki does", () => {
+    const mature: Card = { ...card, sched: { ...card.sched, state: 2, stability: 40, difficulty: 5, reps: 6, scheduledDays: 30, lastReview: new Date(2026, 9, 12, 12).toISOString() } };
+    const lapsed: Card = { ...mature, sched: review(mature.sched, 1, now).sched };
+    expect(lapsed.sched.state).toBe(3);
+    expect(lapsed.sched.scheduledDays).toBeGreaterThan(0);
+    expect(lapsed.sched.scheduledDays).toBeLessThan(30);
+    expect(cardUpdate(lapsed, row({ type: 2, queue: 2, ivl: 30 }), { clock: CLOCK, now })).toMatchObject({ type: 3, ivl: lapsed.sched.scheduledDays });
+    // One forgotten before Franki kept that interval keeps the row's.
+    const older: Card = { ...lapsed, sched: { ...lapsed.sched, scheduledDays: 0 } };
+    expect(cardUpdate(older, row({ type: 3, queue: 1, ivl: 30 }), { clock: CLOCK, now }).ivl).toBe(30);
+  });
+
   it('sends a filtered-deck card home and keeps a suspended card suspended', () => {
     const after: Card = { ...card, suspended: true, sched: review(card.sched, 4, now).sched };
     expect(cardUpdate(after, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: -1 });
@@ -140,7 +152,7 @@ describe('mapping an answer to Anki', () => {
     expect(data({}, row({ data: '{"pos":12,"decay":0.3}' })).decay).toBe(0.3);
   });
 
-  it("gives a forgotten review Anki's interval and ease while it relearns", () => {
+  it("gives a review Anki's ease change, and a forgotten one its lapse's interval while it relearns", () => {
     const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, relearnSteps: [10, 30] };
     const base = review(review(card.sched, 4, now, params).sched, 3, new Date(2026, 11, 20, 20), params).sched;
     expect(base.state).toBe(2);
@@ -149,11 +161,11 @@ describe('mapping an answer to Anki', () => {
     const current = row({ type: 2, queue: 2, ivl: 40, factor: 2500, reps: 2 });
     const ctx = { clock: CLOCK, now: later, desiredRetention: 0.9, steps: { learn: 2, relearn: 2 }, weights: [] as number[] };
 
-    // Again: FSRS's interval for the new memory state, unfuzzed, at least a day; ease 200 down.
+    // Again: the interval its lapse gave it (the scheduler's), and ease 200 down.
     const lapsed: Card = { ...card, sched: review(base, 1, later, params).sched };
     expect(lapsed.sched.state).toBe(3);
     const u = cardUpdate(lapsed, current, { ...ctx, rating: 1 });
-    expect(u.ivl).toBe(Math.max(1, Math.round(rawInterval(lapsed.sched.stability, 0.9, []))));
+    expect(u.ivl).toBe(lapsed.sched.scheduledDays);
     expect(u.ivl).toBeLessThan(40);
     expect(u).toMatchObject({ type: 3, factor: 2300 });
     expect(cardUpdate(lapsed, { ...current, factor: 1400 }, { ...ctx, rating: 1 }).factor).toBe(1300);
@@ -167,8 +179,8 @@ describe('mapping an answer to Anki', () => {
     // A review passed: Hard 150 down, Good as it was, Easy 150 up.
     const passed = (rating: 2 | 3 | 4) => cardUpdate({ ...reviewed, sched: review(base, rating, later, params).sched }, current, { ...ctx, rating }).factor;
     expect([passed(2), passed(3), passed(4)]).toEqual([2350, 2500, 2650]);
-    // Without the button or the weights (an older caller), both stay as they were.
-    expect(cardUpdate(lapsed, current, { clock: CLOCK, now: later })).toMatchObject({ ivl: 40, factor: 2500 });
+    // Without the button (an older caller), the ease stays as it was.
+    expect(cardUpdate(lapsed, current, { clock: CLOCK, now: later }).factor).toBe(2500);
   });
 
   it('never reuses a review log id', () => {

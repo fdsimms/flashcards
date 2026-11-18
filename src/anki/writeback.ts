@@ -1,4 +1,4 @@
-import { fsrsDecay, rawInterval, type RatingValue } from '../core/scheduler';
+import { fsrsDecay, type RatingValue } from '../core/scheduler';
 import type { CardState } from '../core/cardState';
 import { ankiToday } from '../core/order';
 import type { Card } from '../core/types';
@@ -94,9 +94,9 @@ export function cardUpdate(
     clock: AnkiClock; now: Date; desiredRetention?: number;
     /** How many learning and relearning steps the card's deck has: Anki's `left` counts the steps still to go. */
     steps?: { learn: number; relearn: number };
-    /** The button pressed, which Anki's ease and a forgotten card's interval follow. */
+    /** The button pressed, which Anki's ease follows. */
     rating?: RatingValue;
-    /** The card's deck's FSRS weights (none for Anki's defaults), for `decay` and a forgotten card's interval. */
+    /** The card's deck's FSRS weights (none for Anki's defaults), for `decay`. */
     weights?: number[];
   },
 ): AnkiCardUpdate {
@@ -128,11 +128,9 @@ export function cardUpdate(
     const steps = ctx.steps ?? DEFAULT_STEP_COUNTS;
     left = Math.max(1, (s.state === 1 ? steps.learn : steps.relearn) - s.learningSteps);
     if (s.state === 1) ivl = 0;
-    // A forgotten card's interval is FSRS's for its new memory state, unfuzzed, at least a day,
-    // each time it's forgotten; so is one kept on a short wait with no relearning steps.
-    else if (ctx.weights && (ctx.rating === 1 || steps.relearn === 0)) {
-      ivl = Math.max(1, Math.round(rawInterval(s.stability, ctx.desiredRetention ?? 0.9, ctx.weights)));
-    }
+    // A relearning card's interval is the one its lapse gave it (scheduler.ts's `relearnDays`); one
+    // forgotten before Franki kept that has none here, and keeps the row's.
+    else if (s.scheduledDays > 0) ivl = s.scheduledDays;
   }
   if (card.suspended) queue = -1;
 

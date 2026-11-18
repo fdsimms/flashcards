@@ -65,7 +65,7 @@ export interface AnkiLink {
     before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
     /** The card's deck's step counts, for Anki's `left`. */
     steps?: { learn: number; relearn: number };
-    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay` and a forgotten card's interval. */
+    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay`. */
     weights?: number[];
     /**
      * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
