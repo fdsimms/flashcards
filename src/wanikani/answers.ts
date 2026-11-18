@@ -111,7 +111,7 @@ export function checkReading(subject: Subject, typed: string): Verdict {
   if (other && subject.type === 'kanji') {
     const wanted = subject.readings.find((r) => r.accepted)?.type;
     const name = wanted === 'onyomi' ? "on'yomi" : wanted === 'kunyomi' ? "kun'yomi" : 'other reading';
-    return { result: 'retry', message: `That's one of its readings, but WaniKani wants the ${name}.` };
+    return { result: 'retry', message: `Not that one. WaniKani wants the ${name}.` };
   }
   return { result: 'wrong' };
 }
