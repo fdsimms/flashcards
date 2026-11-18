@@ -1230,7 +1230,7 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   other running and ended stories, with how far through the season each is and whether its next
   episode is ready; See all opens Stories); **Quick texts** (what the shelf has: texts asked for
   that aren't story episodes, the name used for them in the app since then, with Play all); **Hear
-  again**; **Read before** (quick texts read, newest first; See all opens the full list); and Marked
+  again**; **Reread** (quick texts read, newest first; See all opens the full list); and Marked
   words. A quick text's cover says its length, model and reason; the line count is gone. Play all
   plays only the Quick texts row: the reader's Next after an episode still goes on to the shelf
   (`playOrder`), while Play all moving on stays within it (`upNextOrder`). The header's + opens a
@@ -1257,7 +1257,7 @@ next episode is the top of the shelf.
   the pinned one passes the pin to the newest running story. Stories (`GET /api/stories`) lists the
   language's stories, running then ended; a story's page pins, ends and continues it (`POST
   /api/stories/{id}/pin`, `/end`, `/continue`). An ended story's episodes stay on its page and in
-  Read before's full list. **Spending:** each running story writes its next episode once its last one
+  Reread's full list. **Spending:** each running story writes its next episode once its last one
   is read (the top-up goes through them all), so a story left unread writes nothing more and each has
   at most one episode waiting. Only the pinned story's episode is downloaded for offline. Play all
   never includes an episode (Shelf, Browse).

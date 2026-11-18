@@ -34,7 +34,7 @@ export function ReadPastTexts({ api, story, onOpen, onListen }: { api: Api; stor
   useEffect(() => { load(); }, [load]);
 
   return (
-    <Screen title={story === undefined ? 'Read before' : 'Your story'}>
+    <Screen title={story === undefined ? 'Reread' : 'Your story'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}

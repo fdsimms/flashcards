@@ -54,7 +54,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   /** Opens having a story or a quick text written. */
   onNew: () => void;
   onLanguagePage: () => void;
-  /** Every text read before, from the Read before row's See all. */
+  /** Every text read before, from the Reread row's See all. */
   onPast: () => void;
   /** Opens a quick text read before, to read or listen to again. */
   onReadAgain: (text: PastText) => void;
@@ -301,7 +301,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             <ReadListenAgain api={api} onPlay={onListenAgain} />
 
             {readBeforeTexts.length > 0 ? (
-              <CoverRow title="Read before" action={{ label: 'See all', accessibilityLabel: 'See all texts read before', onPress: onPast }}>
+              <CoverRow title="Reread" action={{ label: 'See all', accessibilityLabel: 'See all texts read before', onPress: onPast }}>
                 {readBeforeTexts.map((t) => <PastCover key={t.id} text={t} onPress={() => onReadAgain(t)} />)}
               </CoverRow>
             ) : null}
