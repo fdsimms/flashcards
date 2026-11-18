@@ -160,8 +160,9 @@ const dayMs = 86400000;
 /**
  * A card in a filtered deck takes its place in that deck's order as its due (Anki stores it
  * from -100000 up), so it's due now and sorts ahead of every ordinary card, in the deck's order.
+ * A card that has gone home (no `filteredDeck`) isn't in one, whatever place a row still holds.
  */
-export const inFilteredOrder = (c: Card) => c.filteredDue !== undefined && c.filteredDue < 0;
+export const inFilteredOrder = (c: Card) => c.filteredDeck !== undefined && c.filteredDue !== undefined && c.filteredDue < 0;
 
 /** The day a card is due on, as a number to sort by: its filtered-deck place, else its study day. */
 function dueDay(c: Card, h: number): number {

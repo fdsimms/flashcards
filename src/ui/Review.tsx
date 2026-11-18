@@ -573,7 +573,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const updated: Card = {
         ...cur, sched: res.sched, buriedAt: undefined, suspended: cur.suspended || (isLeech && leech.suspend),
         // Out of a filtered deck once it's a review (or a finished preview), as in Anki; still learning, it stays.
-        filteredDeck: previewAgainAt ? cur.filteredDeck : preview || res.sched.state === 2 ? undefined : cur.filteredDeck,
+        // Its place in that deck (`filteredDue`) goes with it: left behind, the queue still reads the card as due whatever its due date.
+        ...(!previewAgainAt && (preview || res.sched.state === 2) ? { filteredDeck: undefined, filteredDue: undefined } : {}),
         previewDue: previewAgainAt?.toISOString(),
         // Write-back stamps the Anki card's mod, which seeds Anki's review order.
         ankiMod: cur.ankiId ? Math.floor(when.getTime() / 1000) : cur.ankiMod,
