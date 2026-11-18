@@ -54,6 +54,14 @@ _TEXT_LOCALE = re.compile(r"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?-([A-Za-z]{2}|\d{
 # space. Kept short: the voice's own pause at a space adds to it (200 ms made gaps too long). A space beside a Latin word ("OK ค่ะ") isn't a break and is left alone.
 THAI_PAUSE = "<break time='60ms'/>"
 _THAI_BREAK = re.compile(r"(?<=[\u0e00-\u0e7f?!])\s+(?=[\u0e00-\u0e7f])")
+# A conjunction that opens a clause (\u0e41\u0e15\u0e48 but, \u0e41\u0e25\u0e30 and, \u0e2b\u0e23\u0e37\u0e2d or) is said straight on from the clause
+# before it: a speaker barely stops there, and a break (even a short one) made the voice end the
+# clause on a falling tone and sound halting. Its space is dropped, with no pause put in its place.
+# Only after Thai text, so a conjunction that starts a new sentence ("\u0e44\u0e2b\u0e21? \u0e41\u0e15\u0e48") keeps its break. \u0e41\u0e15\u0e48\u0e25\u0e30
+# (each) and \u0e41\u0e15\u0e48\u0e07- (dress, compose) are other words, not the conjunction.
+_THAI_CONJUNCTION = re.compile(
+    r"(?<=[\u0e00-\u0e7f])\s+(?=(?:\u0e41\u0e15\u0e48(?![\u0e25\u0e30\u0e07])|\u0e41\u0e25\u0e30|\u0e2b\u0e23\u0e37\u0e2d))"
+)
 
 # Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's
 # place with SSML's <sub alias>. Add a word here when a recording gets it wrong. The respellings are
@@ -380,6 +388,7 @@ def _voice_element(part: Part, rate: float, language: str | None) -> str:
         alias = escape(part.reading, {"'": "&apos;"})
         body = f"<sub alias='{alias}'>{body}</sub>"
     if spoken_in.split("-")[0] == "th":
+        body = _THAI_CONJUNCTION.sub("", body)
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
         for word, alias in THAI_PRONUNCIATIONS.items():
             body = body.replace(word, f"<sub alias='{alias}'>{word}</sub>")
