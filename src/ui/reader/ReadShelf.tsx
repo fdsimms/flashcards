@@ -25,10 +25,10 @@ import { SavedMark } from './SavedMark';
 /**
  * Read & Listen's home: one language's texts as rows of covers, like a streaming app's
  * (docs/read-and-listen/architecture.md, Shelf, Browse). On top, a banner for the story pinned to it
- * with its next episode; then rows that scroll sideways: the other stories, the quick texts written
- * and not yet read (with Play all), texts to hear again, and quick texts read before. Nothing is
+ * with its next episode; then rows that scroll sideways: the other stories, the texts written
+ * and not yet read (with Play all), texts to hear again, and texts read before. Nothing is
  * written unasked, so opening a text never waits, since it's written already; the header's + has a
- * story or a quick text written (`onNew`, a sheet). The language is a menu in the header, and its
+ * series, dialogue or story written (`onNew`, a sheet). The language is a menu in the header, and its
  * settings are behind the sliders button.
  *
  * A text is written in the background after it's asked for, so this asks again while something is
@@ -51,12 +51,12 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onOpen: (open: OpenText) => void;
   /** Writes a text on `topicId` practicing the words just studied (the reader waits for it). */
   onPractice: (topic: { id: number; name: string }) => void;
-  /** Opens having a story or a quick text written. */
+  /** Opens having a series, dialogue or story written. */
   onNew: () => void;
   onLanguagePage: () => void;
   /** Every text read before, from the Reread row's See all. */
   onPast: () => void;
-  /** Opens a quick text read before, to read or listen to again. */
+  /** Opens a text read before, to read or listen to again. */
   onReadAgain: (text: PastText) => void;
   /** A story's own page: its episodes, Last time, and pinning or ending it. */
   onStory: (storyId: number) => void;
@@ -76,7 +76,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   const [refreshing, setRefreshing] = useState(false);
   // Undefined when the count couldn't be read (offline), so the row stops waiting for it.
   const [markedCount, setMarkedCount] = useState<number | null | undefined>(null);
-  // The stories besides the banner's and the quick texts read before; both need the server, and
+  // The stories besides the banner's and the texts read before; both need the server, and
   // are left empty when it can't be reached.
   const [stories, setStories] = useState<StoryListItem[]>([]);
   const [past, setPast] = useState<PastText[]>([]);
@@ -236,7 +236,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
             {/* Writing needs the server, so offline there's no +. */}
-            {problem ? null : <Stack.Toolbar.Button icon="plus" accessibilityLabel={`New ${name} story or quick text`} onPress={onNew} />}
+            {problem ? null : <Stack.Toolbar.Button icon="plus" accessibilityLabel={`New ${name} series, dialogue or story`} onPress={onNew} />}
             <Stack.Toolbar.Button icon="slider.horizontal.3" accessibilityLabel={`${name} settings`} onPress={onLanguagePage} />
           </Stack.Toolbar>
         </>
@@ -273,19 +273,19 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
             <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNew} offline={!!problem} />
 
             {others.length > 0 ? (
-              <CoverRow title="Your stories" action={{ label: 'See all', accessibilityLabel: 'See all stories', onPress: onStories }}>
+              <CoverRow title="Your series" action={{ label: 'See all', accessibilityLabel: 'See all series', onPress: onStories }}>
                 {others.map((s) => <StoryCover key={s.id} story={s} onPress={() => onStory(s.id)} />)}
               </CoverRow>
             ) : null}
 
             {shelf.texts.length > 0 || shelf.writing.length > 0 ? (
               <CoverRow
-                title={problem ? 'Downloaded' : 'Quick texts'}
+                title={problem ? 'Downloaded' : 'Texts'}
                 action={summary ? { label: `Play all · ${playMinutes(shelf)} min`, accessibilityLabel: `Play all: ${summary}`, onPress: playAll } : null}
               >
                 {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={problem ? undefined : () => textActions(t)} />)}
                 {shelf.writing.map((w, i) => (
-                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new quick text'} form={w.form} />
+                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} form={w.form} />
                 ))}
               </CoverRow>
             ) : problem ? (
@@ -293,7 +293,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
                 <Help>{`No ${LANGUAGES[shelf.language].name} texts are on this iPhone. They download once you're online, as Settings, Read & Listen says.`}</Help>
               </View>
             ) : (
-              <CoverRow title="Quick texts">
+              <CoverRow title="Texts">
                 <NewCover onPress={onNew} />
               </CoverRow>
             )}
@@ -318,7 +318,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   );
 }
 
-// How many quick texts read before the home shows; See all lists the rest.
+// How many texts read before the home shows; See all lists the rest.
 const READ_BEFORE = 10;
 
 function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText; saved: SavedState | null; onPress: () => void; onLongPress?: () => void }) {
@@ -340,7 +340,7 @@ function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText
   );
 }
 
-/** A quick text being written: shown where it'll land, and not tappable until it does. */
+/** A text being written: shown where it'll land, and not tappable until it does. */
 function WritingCover({ title, form }: { title: string; form: Form }) {
   const c = useTheme();
   return (
@@ -364,7 +364,7 @@ function NewCover({ onPress }: { onPress: () => void }) {
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
-      accessibilityLabel="New story or quick text. Nothing is written until you ask."
+      accessibilityLabel="New series, dialogue or story. Nothing is written until you ask."
       style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, alignItems: 'center', justifyContent: 'center', gap: space.s }}
     >
       <Icon name="plus" size={24} color={c.textSecondary} />
@@ -380,8 +380,8 @@ function StoryCover({ story, onPress }: { story: StoryListItem; onPress: () => v
     <Cover
       tint={useCoverTint(`story:${story.id}`)}
       width={150}
-      kind={story.running ? 'Story' : 'Story · Ended'}
-      title={story.title || 'Your story'}
+      kind={story.running ? 'Series' : 'Series · Ended'}
+      title={story.title || 'Your series'}
       meta={meta.text}
       metaColor={meta.ready ? c.countDue : undefined}
       progress={seasonProgress(story)}
@@ -427,10 +427,10 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
     if (offline) return null;
     return (
       <View style={{ marginHorizontal: space.l, padding: space.l, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.m }}>
-        <Text style={{ ...type.overline, color: c.accentInk }}>Story</Text>
-        <Text style={{ fontSize: 28, fontWeight: '800', color: c.text }}>Start a story</Text>
+        <Text style={{ ...type.overline, color: c.accentInk }}>Series</Text>
+        <Text style={{ fontSize: 28, fontWeight: '800', color: c.text }}>Start a series</Text>
         <Help>Each episode picks up where the last one ended, with the same people and places, so the same words keep coming back.</Help>
-        <Button label="Start a story" onPress={onNew} />
+        <Button label="Start a series" onPress={onNew} />
       </View>
     );
   }
@@ -438,7 +438,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
   return (
     <View style={{ marginHorizontal: space.l, padding: space.l + 4, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.s }}>
       <Text style={{ ...type.overline, color: c.accentInk }}>{bannerOverline(story)}</Text>
-      <Text accessibilityRole="header" style={{ fontSize: 30, fontWeight: '800', lineHeight: 34, color: c.text }}>{story.title || 'Your story'}</Text>
+      <Text accessibilityRole="header" style={{ fontSize: 30, fontWeight: '800', lineHeight: 34, color: c.text }}>{story.title || 'Your series'}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
         <Text style={{ ...type.subhead, color: c.textSecondary, flexShrink: 1 }}>{bannerLine(story)}</Text>
         {saved ? <SavedMark state={saved} /> : null}
@@ -454,7 +454,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       ) : null}
       <View style={{ flexDirection: 'row', gap: space.s, paddingTop: space.s }}>
         {next ? <Button label={`Play episode ${next.episode}`} onPress={() => onOpen(next.id)} style={{ flex: 1 }} /> : null}
-        {offline ? null : <Button label={next ? 'Episodes' : 'Open story'} variant="secondary" onPress={() => onStory(story.id)} style={next ? undefined : { flex: 1 }} />}
+        {offline ? null : <Button label={next ? 'Episodes' : 'Open series'} variant="secondary" onPress={() => onStory(story.id)} style={next ? undefined : { flex: 1 }} />}
       </View>
       <GlossPopover
         tapped={tapped}

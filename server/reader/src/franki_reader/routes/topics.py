@@ -150,28 +150,28 @@ def router(ctx: AppContext) -> APIRouter:
         # words), whichever story it is.
         found = store.get_story(engine.conn, story_id)
         if found is None:
-            raise HTTPException(404, "No such story.")
+            raise HTTPException(404, "No such series.")
         return listed_story_json(engine, found, card=True)
 
     @routes.post("/api/stories/{story_id}/pin", status_code=204, dependencies=authed)
     async def pin_story(story_id: int) -> Response:
         # Shows a running story on the shelf's card, in place of the one there.
         if not store.pin_story(engine.conn, story_id):
-            raise HTTPException(404, "That story isn't running.")
+            raise HTTPException(404, "That series isn't running.")
         return Response(status_code=204)
 
     @routes.post("/api/stories/{story_id}/end", status_code=204, dependencies=authed)
     async def end_story(story_id: int) -> Response:
         # No more episodes; the ones written stay in Past texts.
         if not store.end_story(engine.conn, story_id):
-            raise HTTPException(404, "That story has already ended.")
+            raise HTTPException(404, "That series has already ended.")
         return Response(status_code=204)
 
     @routes.post("/api/stories/{story_id}/continue", status_code=204, dependencies=authed)
     async def continue_story(story_id: int, background: BackgroundTasks) -> Response:
         # Runs an ended story again; its next episode is written in the background.
         if not store.continue_story(engine.conn, story_id):
-            raise HTTPException(404, "That story is already running.")
+            raise HTTPException(404, "That series is already running.")
         background.add_task(engine.top_up)
         return Response(status_code=204)
 

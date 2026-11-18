@@ -17,9 +17,9 @@ export function bannerLine(story: ShelfStory): string {
   return `Pull down to check for episode ${n}`;
 }
 
-/** The banner's overline: "Story · Season 1", or just "Story" from a server older than seasons. */
+/** The banner's overline: "Series · Season 1", or just "Series" from a server older than seasons. */
 export function bannerOverline(story: Pick<ShelfStory, 'season'>): string {
-  return story.season ? `Story · Season ${story.season}` : 'Story';
+  return story.season ? `Series · Season ${story.season}` : 'Series';
 }
 
 /** A story cover's bottom line, and whether it's an episode ready (shown in the due color). */
@@ -40,7 +40,7 @@ export function pastMeta(text: Pick<PastText, 'read_at' | 'rating'>, now: Date, 
   return [ago ? `Read ${ago}` : null, text.rating ? RATING_TEXT[text.rating] : null].filter(Boolean).join(' · ');
 }
 
-/** The quick texts read before, newest first: past texts that aren't story episodes (those are on their story's page). */
+/** The texts read before, newest first: past texts that aren't story episodes (those are on their story's page). */
 export function readBefore(texts: PastText[], limit: number): PastText[] {
   return texts.filter((t) => !t.episode).slice(0, limit);
 }
