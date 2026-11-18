@@ -206,8 +206,9 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
           <ProgressBar value={index / prompts.length} label="Progress through this practice" />
           {typeOnly ? null : (
             <Segments<AnswerMode>
-              options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type' }]}
-              value={mode}
+              // A gender is always picked: Type is dimmed and Pick shown, without changing the saved choice.
+              options={[{ value: 'pick', label: 'Pick' }, { value: 'type', label: 'Type', disabled: !!prompt?.pickOnly && !!prompt.choices }]}
+              value={picking ? 'pick' : mode}
               onChange={switchMode}
             />
           )}
