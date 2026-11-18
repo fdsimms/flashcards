@@ -390,6 +390,12 @@ export interface DeckRow extends DeckNode {
   unstudied: number;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
+  /**
+   * The deck's own daily new card limit, from its preset (or the app's default), not today's: no
+   * Custom Study limit for today and no vacation scaling. With `unstudied`, how many days of new
+   * cards it has left (src/reader/newWords.ts). Missing from a row kept from before it was counted.
+   */
+  newPerDay?: number;
 }
 
 /**
@@ -477,7 +483,8 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     }
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck), cap };
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, ...(gate ? { gate } : {}) };
+    const newPerDay = input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, newPerDay, ...(gate ? { gate } : {}) };
   });
 }
 
