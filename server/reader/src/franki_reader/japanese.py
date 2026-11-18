@@ -39,7 +39,7 @@ from franki_reader.coverage import Status
 _DATA = Path(__file__).parent / "data"
 
 # Morpheme kinds (Sudachi's part of speech, first level).
-_VERB, _ADJECTIVE, _AUXILIARY, _PARTICLE = "動詞", "形容詞", "助動詞", "助詞"
+_NOUN, _VERB, _ADJECTIVE, _AUXILIARY, _PARTICLE = "名詞", "動詞", "形容詞", "助動詞", "助詞"
 _NA_ADJECTIVE, _PREFIX, _SUFFIX, _SYMBOL, _SPACE = "形状詞", "接頭辞", "接尾辞", "補助記号", "空白"
 _INFLECTING = {_VERB, _ADJECTIVE, _AUXILIARY, _NA_ADJECTIVE}
 # Joining particles that belong to the verb or adjective before them.
@@ -230,13 +230,20 @@ def _core(ms: list[Morpheme]) -> list[Morpheme]:
     return core
 
 
-def is_phrase(entry: str) -> bool:
+def is_phrase(entry: str, *, nouns_are_one_word: bool = False) -> bool:
     """Whether a deck entry (or a word of a text) is a phrase: an alternative of several words once
     what conjugates the last is set aside, as the lexicon files phrases, and not counting a prefix
-    or suffix, which the reader joins to its word (約束を破る, 気を失う; not 経験する, 静かな or お茶)."""
+    or suffix, which the reader joins to its word (約束を破る, 気を失う; not 経験する, 静かな or お茶).
+
+    Sudachi splits a numeral from its noun (一月 is 一 and 月), so by that count 一月 is a phrase.
+    With `nouns_are_one_word`, an entry made only of nouns is one word, as Japanese writes a
+    compound with no space: 一月, 百円 and 一日中 are words, while 約束を破る (a particle) and 近い
+    うちに (an adjective) stay phrases. Tiering asks it this way (`frequency.entry_place`); the
+    reader's own word checks keep the default, which they were built on."""
     for alternative in _alternatives(entry):
         ms = [m for m in morphemes(alternative) if m.is_word]
-        if len([m for m in _core(ms) if m.pos not in (_PREFIX, _SUFFIX)]) > 1:
+        words = [m for m in _core(ms) if m.pos not in (_PREFIX, _SUFFIX)]
+        if len(words) > 1 and not (nouns_are_one_word and all(m.pos == _NOUN for m in words)):
             return True
     return False
 

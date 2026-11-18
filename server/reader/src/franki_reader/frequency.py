@@ -36,13 +36,14 @@ def _thai() -> dict[str, int]:
     return _ranks(tuple(w for w in lines if w and not w.startswith("#")))
 
 
-def rank_of(word: str, lexicon: Checker) -> int | None:
+def rank_of(word: str, lexicon: Checker, *, nouns_are_one_word: bool = False) -> int | None:
     """The word's place in its language's list (1 is the most common), or None when it's past the
-    end of the list, isn't a word, or is a phrase."""
+    end of the list, isn't a word, or is a phrase. For Japanese, `nouns_are_one_word` files a run of
+    nouns (一月) as one word rather than a phrase (`japanese.is_phrase`)."""
     if not is_word(word):
         return None
     if isinstance(lexicon, JapaneseLexicon):
-        if is_phrase(word):
+        if is_phrase(word, nouns_are_one_word=nouns_are_one_word):
             return None  # 気を失う would otherwise rank as 気
         ranks = _ranks(japanese_words())
         keys = [lemma_key(lexicon.lemma_of(word) or word), lemma_key(word)]
@@ -80,7 +81,8 @@ def entry_place(entry: str, lexicon: Checker) -> EntryPlace:
     as bać) and by its best alternative (der/die Mitwirkende); one left with several words is a
     phrase. Thai's entry is a phrase when it isn't on the list and the default dictionary cuts it
     into several words, and Japanese's when it isn't on the list and the lexicon files it as a
-    phrase (`japanese.is_phrase`: 約束を破る). Unlike `rank_of`, this reads a whole entry."""
+    phrase (`japanese.is_phrase`: 約束を破る, but not a run of nouns, which is one word: 一月).
+    Unlike `rank_of`, this reads a whole entry."""
     if isinstance(lexicon, SpacedLexicon):
         keys = lexicon.entry_keys(entry)
         found = [
@@ -89,10 +91,10 @@ def entry_place(entry: str, lexicon: Checker) -> EntryPlace:
         if found:
             return EntryPlace(min(found))
         return EntryPlace(None, phrase=any(len(k) > 1 for k in keys))
-    rank = rank_of(entry, lexicon)
+    rank = rank_of(entry, lexicon, nouns_are_one_word=True)
     if rank is not None:
         return EntryPlace(rank)
     if isinstance(lexicon, JapaneseLexicon):
-        return EntryPlace(None, phrase=is_phrase(entry))
+        return EntryPlace(None, phrase=is_phrase(entry, nouns_are_one_word=True))
     pieces = [p for p in word_tokenize(entry.strip(), engine="newmm") if is_word(p)]
     return EntryPlace(None, phrase=len(pieces) > 1)

@@ -85,6 +85,17 @@ def test_a_japanese_phrase_is_a_phrase_and_never_ranked_as_one_of_its_words() ->
     assert rank_of("約束を破った", ja) is None
 
 
+def test_a_japanese_compound_of_nouns_is_tiered_as_a_word_not_a_phrase() -> None:
+    # 一月 was a phrase (Sudachi splits 一 from 月), so every month went to the first tier.
+    ja = lexicon_from([], "ja")
+    for compound in ("一月", "十一月", "百円", "一日中"):
+        assert not entry_place(compound, ja).phrase, compound
+    # Only a tiering ask changes that: the reader's word popup still ranks nothing for it.
+    assert rank_of("一月", ja) is None
+    # A word the list has is ranked once it is one word.
+    assert entry_place("月曜日", ja).rank == rank_of("月曜日", ja)
+
+
 def test_a_japanese_word_with_its_endings_or_affixes_is_still_a_word() -> None:
     ja = lexicon_from([], "ja")
     assert entry_place("経験する", ja).rank == rank_of("経験", ja)
