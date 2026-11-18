@@ -63,7 +63,7 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * check after it (docs/read-and-listen/architecture.md, Client). Nothing here answers a card.
  *
  * Layout: the title, practice words, the lines (each with
- * its own replay button, an EN button that shows that line's English alone, and an explain button
+ * a "Show translation" link that shows that line's English alone under its words, its own replay button, and an explain button
  * that opens Claude's note on its grammar and vocabulary under it), then Done, with
  * the player pinned under the scroll view. Done swaps the lines for the end view (the check, stats,
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
@@ -943,19 +943,33 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     ))}
                   </View>
                 )}
-                {/* Under the words, above anything they reveal, so a button doesn't move when English or an explanation opens. */}
+                {/* The translation sits right under the words, above the buttons. While it's hidden, a
+                    "Show translation" link holds its place (tap the English again to hide it), so the
+                    buttons below only move down when it opens. With Show English on it's always shown. */}
+                {!listenOnly && (english || lineEnglish.includes(i)) ? (
+                  <Tappable
+                    onPress={() => { haptic.tap(); toggleLineEnglish(i); }}
+                    disabled={english}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Hide translation for line ${i + 1}`}
+                    style={{ alignSelf: 'flex-start', marginTop: space.xs }}
+                  >
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text>
+                  </Tappable>
+                ) : !listenOnly ? (
+                  <Tappable
+                    onPress={() => { haptic.tap(); toggleLineEnglish(i); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show translation for line ${i + 1}`}
+                    hitSlop={{ top: space.s, bottom: space.s }}
+                    style={{ alignSelf: 'flex-start', marginTop: space.xs }}
+                  >
+                    <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
+                  </Tappable>
+                ) : null}
                 <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.s }}>
                   {line.audio ? (
                     <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
-                  ) : null}
-                  {!english && !listenOnly ? (
-                    <RoundButton
-                      label="EN"
-                      accessibilityLabel={lineEnglish.includes(i) ? `Hide English for line ${i + 1}` : `Show English for line ${i + 1}`}
-                      on={lineEnglish.includes(i)}
-                      expanded={lineEnglish.includes(i)}
-                      onPress={() => toggleLineEnglish(i)}
-                    />
                   ) : null}
                   {!listenOnly ? (
                     <RoundButton
@@ -968,9 +982,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                   ) : null}
                   {!listenOnly ? <RegisterChip register={line.register} /> : null}
                 </View>
-                {!listenOnly && (english || lineEnglish.includes(i)) ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary, marginTop: 2 }}>{line.english}</Text>
-                ) : null}
                 {!listenOnly && explained.includes(i) ? <LineExplanation api={api} textId={text.id} line={i} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} /> : null}
               </View>
             </View>
@@ -1209,13 +1220,12 @@ function ToggleRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-/** A line's replay and EN buttons: a full tap target, filled when on. One of `icon` or `label`. */
-function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }: {
-  icon?: SFSymbol;
-  label?: string;
+/** A line's replay and explain buttons: a full tap target, filled when on. */
+function RoundButton({ icon, accessibilityLabel, on, expanded, onPress }: {
+  icon: SFSymbol;
   accessibilityLabel: string;
   on: boolean;
-  /** For a button that shows something under the line (English, an explanation): whether it's showing. */
+  /** For a button that shows something under the line (an explanation): whether it's showing. */
   expanded?: boolean;
   onPress: () => void;
 }) {
@@ -1233,7 +1243,7 @@ function RoundButton({ icon, label, accessibilityLabel, on, expanded, onPress }:
         backgroundColor: on ? c.accentFill : c.fill,
       }}
     >
-      {icon ? <Icon name={icon} size={16} color={fg} weight="semibold" /> : <Text style={{ ...type.footnote, fontWeight: '700', color: fg }}>{label}</Text>}
+      <Icon name={icon} size={16} color={fg} weight="semibold" />
     </Tappable>
   );
 }
