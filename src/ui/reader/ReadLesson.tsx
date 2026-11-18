@@ -1,4 +1,4 @@
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayerStatus } from 'expo-audio';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Word } from '../../reader/api';
@@ -11,14 +11,16 @@ import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 
-// Background playback is on once a lesson plays, so it goes on with the screen locked, and is
-// turned off again on the way out (Review's card audio doesn't need it).
+// Background playback is on once a lesson plays, so it goes on with the screen locked. The player
+// host turns it off again when the lesson stops (Review's card audio doesn't need it).
 const LESSON_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
  * or forward 15 seconds to hear a phrase again, and the phrases behind a row, hidden until asked
- * for so the lesson can be heard first. The lock screen shows the lesson's controls. What you say
+ * for so the lesson can be heard first. The lock screen shows the lesson's controls. It plays on
+ * Read & Listen's shared player (useReaderPlayer): leaving while it plays carries it on in the tab
+ * bar's mini-player, and opening it from there picks it up where it is. What you say
  * aloud isn't recorded or checked. Once the phrases show, each is words to tap for their meanings, as a
  * card's example sentence is (the server's glosses; a phrase it has no answer for stays plain text).
  */
@@ -26,15 +28,18 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   api: Api; lesson: AudioLesson; onDeleted: () => void;
 } & Pick<CardGlossing, 'onPlayWord' | 'onAddWord'>) {
   const c = useTheme();
-  const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  const status = useAudioPlayerStatus(player);
+  const host = useReaderPlayerHost();
+  const player = host.player;
+  const live = useAudioPlayerStatus(player);
   const [showPhrases, setShowPhrases] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Play all carried on by the mini-player keeps going while a lesson is only open; the lesson takes
-  // over (stops it, and has the lock screen and background playback) once it plays, and gives them
-  // up on the way out only then, so leaving a lesson never stops Play all with the phone locked.
-  const host = useReaderPlayerHost();
-  const playing = useRef(false);
+  // Whatever the shared player carries on in the mini-player (Play all, or this lesson) keeps going
+  // while a lesson is only open; the lesson takes the player over (stops that one, and has the lock
+  // screen and background playback) once it plays, and gives it up on the way out only then, so
+  // leaving a lesson never stops Play all with the phone locked. `owned` is whether the player is
+  // this lesson's: until then the screen shows a lesson at its start, not what the player holds.
+  const owned = useRef(false);
+  const [mine, setMine] = useState(false);
   // Each phrase's and line's words by `glossKey`, asked for once the phrases are opened.
   const [glossed, setGlossed] = useState<Map<string, Word[]>>(new Map());
   useEffect(() => {
@@ -55,30 +60,37 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   };
 
   useEffect(() => {
-    playing.current = false;
-    player.replace(api.lessonAudio(lesson.id));
+    // Opened from the mini-player: this lesson is already on the player, and plays on.
+    const resumed = host.resumeLesson(lesson.id);
+    owned.current = resumed;
+    setMine(resumed);
     return () => {
-      player.pause();
-      if (!playing.current) return;
-      player.clearLockScreenControls();
-      setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined);
+      if (!owned.current) return;
+      owned.current = false;
+      // Playing carries on in the mini-player; a paused or finished lesson stops, as the reader's does.
+      if (player.playing) host.handOffLesson(lesson); else host.stop();
     };
-  }, [api, lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the player is stable; the lesson is what changes
+  }, [lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the host and its player are stable; the lesson is what changes
 
   const takeOver = async () => {
-    if (playing.current) return;
-    playing.current = true;
+    if (owned.current) return;
+    owned.current = true;
+    setMine(true);
     host.claim();
+    player.replace(api.lessonAudio(lesson.id));
+    // Play all leaves the player at its line's speed.
+    player.setPlaybackRate(1, 'high');
     await setAudioModeAsync(LESSON_AUDIO_MODE).catch(() => undefined);
     player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
   };
 
+  const status = mine ? live : { playing: false, currentTime: 0, duration: 0 };
   const duration = status.duration > 0 ? status.duration : lesson.duration_ms / 1000;
   const progress = duration > 0 ? Math.min(1, status.currentTime / duration) : 0;
 
   const toggle = async () => {
     haptic.tap();
-    if (status.playing) {
+    if (mine && status.playing) {
       player.pause();
       return;
     }
@@ -88,6 +100,7 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
   };
   const skip = (by: number) => {
     haptic.tap();
+    if (!owned.current) return;
     player.seekTo(skipTo(status.currentTime, by, status.duration)).catch(() => undefined);
   };
 
@@ -100,6 +113,8 @@ export function ReadLesson({ api, lesson, onDeleted, onPlayWord, onAddWord }: {
         onPress: async () => {
           try {
             await api.deleteLesson(lesson.id);
+            // A deleted lesson isn't carried on in the mini-player.
+            if (owned.current) { owned.current = false; setMine(false); host.stop(); }
             onDeleted();
           } catch (e) {
             setError(e instanceof ApiError ? e.message : "Couldn't delete the lesson. Try again.");

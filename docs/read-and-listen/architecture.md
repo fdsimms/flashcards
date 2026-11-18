@@ -434,7 +434,7 @@ aloud is never heard by the phone.
   stages sends none, and the row shows the first step. A ready
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
   a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
-  until asked for so the lesson can be heard first. Background playback is on only once it plays, while it's open; playing it stops Play all on the mini-player, and only opening it leaves Play all going.
+  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, back and forward 15 seconds, stop), a tap on the pill reopens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all.
 - **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
   dialogue was made of words never taught). It is played first and acted out last, so
   `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
