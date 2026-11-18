@@ -502,7 +502,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          editable={!verdict}
+          // Stays editable after Check (input is ignored once judged): a non-editable box drops the keyboard, and the next question's autofocus brings it back, resizing the card under the stage popup.
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
@@ -579,7 +579,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
           >
-            <Reveal key={`${item.assignmentId}:${question.kind}:${study.session.finished.length}:${study.session.queue.length}`} rise={10} style={{ gap: space.xl }}>
+            {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
+            <View style={{ gap: space.xl }}>
               <SubjectFront subject={subject} label={label} />
               {showMeaning || showReading ? (
                 <>
@@ -596,7 +597,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
                   />
                 </>
               ) : null}
-            </Reveal>
+            </View>
           </ScrollView>
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
