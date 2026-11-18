@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
 import { todayProgress } from '../core/todaySummary';
-import { DeckRowLink, groupByTopLevel, NoDecksCard, settleDelay, WarningBanner, type DeckAction } from './DeckList';
+import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Screen } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
@@ -94,6 +94,12 @@ export function Today(props: {
   decks: DeckRow[];
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
+  /**
+   * False while the pieces Today is made of (the counts, "Studied today", the extras, grammar due)
+   * are still arriving: a spinner shows, then everything fades in together (useTodayReady), so the
+   * screen doesn't shift as each one lands. Undefined shows it at once.
+   */
+  ready?: boolean;
   /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
   studied?: StudiedToday;
   /** Today's extras (DailyExtras.tsx), under the day's count. */
@@ -131,6 +137,7 @@ export function Today(props: {
   }, [props.decks, props.extra?.due, props.extra?.fresh]); // eslint-disable-line react-hooks/exhaustive-deps
   const backup = props.sync ? undefined : props.backup;
   const anyDecks = props.decks.length > 0 || !!props.extra;
+  const ready = props.ready !== false;
   return (
     <Screen
       title="Today"
@@ -144,13 +151,15 @@ export function Today(props: {
       }
     >
       <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
+      {!ready ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={readable}
         // Always mounted, as on Decks: one added once sync's settings load moved the content down.
         refreshControl={<RefreshControl refreshing={syncTap.pulling} onRefresh={syncTap.pull} tintColor={c.textSecondary} />}
       >
-        <View style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        {/* One fade for the whole screen, the first time it shows (ready). */}
+        <Reveal style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
           {anyDecks ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
           {backup?.overdue ? (
@@ -168,10 +177,8 @@ export function Today(props: {
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.extrasStrip}
           {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (
-            groups.map((g, gi) => (
-              // Each family of decks settles in a beat after the one above, the first time the list shows.
-              <Reveal key={g[0].deck} delay={settleDelay(gi)}>
-              <Group>
+            groups.map((g) => (
+              <Group key={g[0].deck}>
                 {g.map((row, i) => (
                   <DeckRowLink
                     key={row.deck}
@@ -187,12 +194,12 @@ export function Today(props: {
                   />
                 ))}
               </Group>
-              </Reveal>
             ))
           )}
           {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
-        </View>
+        </Reveal>
       </ScrollView>
+      )}
       {syncTap.shown ? <SyncingPill top={header.top} /> : null}
       </View>
     </Screen>
