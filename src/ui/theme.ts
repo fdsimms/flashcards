@@ -19,6 +19,8 @@ const light = {
   raisedEdge: '#d6d0c2',
   text: '#1b1b1b',
   textSecondary: '#5f636b',
+  /** Reading text on a card's back (an example sentence, a note, a mnemonic): between `text` and `textSecondary`, so it stays easy to read without competing with the word. */
+  textBody: '#3b3e45',
   /** Icons, chevrons and a count of zero: things meant to recede, at 3:1 (WCAG's floor for icons). Words that carry information use textSecondary. */
   textTertiary: '#898c95',
   /** Words that are quiet but still say something (a count of zero, an unselected wheel value), at 4.5:1 on the screen and its wells. Not for icons: those use textTertiary. */
@@ -160,6 +162,7 @@ const dark: typeof light = {
   raisedEdge: '#3a3f4c',
   text: '#f1f1f1',
   textSecondary: '#a2a8b3',
+  textBody: '#ccd0d7',
   textTertiary: '#6c727d',
   textDim: '#8a909b',
   controlEdge: '#6e7480',
