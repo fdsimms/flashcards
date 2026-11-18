@@ -100,6 +100,7 @@ def shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict
         **({"practice": practice_words(text, engine)} if practice else {}),
         "id": text.id,
         "title": text.title,
+        "title_english": text.title_english,
         "topic": topic.name if topic else "",
         "topic_id": text.topic_id,
         "form": text.form,

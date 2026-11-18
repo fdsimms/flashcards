@@ -8,7 +8,7 @@ import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { playMinutes, playOrder, reasonLabel, shelfDetail, upNextOrder, upNextSummary } from '../../reader/shelf';
+import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Group, HeaderAction, Help, Icon, NavRow, Screen, Tappable } from '../kit';
@@ -327,16 +327,16 @@ function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText
   return (
     <Cover
       tint={useCoverTint(text.id)}
-      kind={shelfDetail(text)}
+      kind={cardDetail(text)}
       title={text.title}
+      subtitle={text.title_english}
       meta={reason}
       metaColor={text.reason === 'due' ? c.countDue : undefined}
       onPress={onPress}
       onLongPress={onLongPress}
-      accessibilityLabel={`${text.title}. ${shelfDetail(text)}. ${reason}${saved ? `. ${SAVED_LABEL[saved]}` : ''}`}
-    >
-      {saved ? <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><SavedMark state={saved} /></View> : null}
-    </Cover>
+      accessibilityLabel={`${text.title}. ${text.title_english ? `${text.title_english}. ` : ''}${cardDetail(text)}. ${reason}${saved ? `. ${SAVED_LABEL[saved]}` : ''}`}
+      corner={saved ? <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden><SavedMark state={saved} /></View> : null}
+    />
   );
 }
 

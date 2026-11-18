@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, episodeLabel, modelLabel, shelfDetail, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
+import { cardDetail, episodeLabel, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -13,15 +13,6 @@ describe('the shelf', () => {
     expect(minutesFor(12)).toBe(4);
     expect(minutesFor(1)).toBe(1);
     expect(cardDetail(text({ form: 'story', lines: 12 }))).toBe('Story · 4 min');
-  });
-
-  it('names the model that wrote a text, and says nothing for one from a server that does not say', () => {
-    expect(modelLabel({ model: 'claude-haiku-5-5' })).toBe('Haiku');
-    expect(modelLabel({ model: 'claude-sonnet-5-5' })).toBe('Sonnet');
-    expect(modelLabel({ model: '' })).toBeNull();
-    expect(modelLabel({})).toBeNull();
-    expect(shelfDetail(text({ form: 'dialogue', lines: 8, model: 'claude-haiku-5-5' }))).toBe('Dialogue · 3 min · Haiku');
-    expect(shelfDetail(text({ form: 'dialogue', lines: 8 }))).toBe('Dialogue · 3 min');
   });
 
   it('says why each text is there', () => {
