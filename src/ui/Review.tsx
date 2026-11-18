@@ -220,10 +220,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
   const [preferId, setPreferId] = useState<string>();
-  // The strip offering to change the last answer to Again (ChangeRating.tsx), and the card it's undone for.
+  // The strip offering to change the last answer to Again (ChangeRating.tsx).
   const ratingOffer = useRatingOffer();
   const holdOffer = useHoldOffer();
-  const [againFor, setAgainFor] = useState<string | null>(null);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
@@ -369,11 +368,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
   const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
-  const baseContext = (card: Card, when: Date): AnswerContext => {
+  const baseContext = (card: Card, when: Date, params = cardParams): AnswerContext => {
     const seed = fuzzSeed(card.ankiId, card.sched.reps) ?? BigInt.asUintN(64, fnvHash(card.id) + BigInt(card.sched.reps));
     // A card in a filtered deck has no preset there, so Anki fuzzes it without balancing.
     const balance = collection.loadBalancer === false || card.filteredDeck ? undefined : balancerFor(loadSnapshot.current, card, {
-      preset: cardParams?.presetId, seed, easyDays: cardParams?.easyDays, buryReviews: !!cardParams?.bury?.reviews,
+      preset: params?.presetId, seed, easyDays: params?.easyDays, buryReviews: !!params?.bury?.reviews,
       nextDayAt: nextStudyDayStart(when, H),
     });
     return { seed, dayStartsAtHour: H, balance };
@@ -383,8 +382,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // A lookalike may have given the answer away: counted from when it was seen, unless turned off, or unless
   // that wouldn't change Good's interval (the offer isn't shown then, so it mustn't apply unseen).
   const soonerApplies = !!forms.countFrom && goodFrom(forms.countFrom) !== goodFrom();
-  const answerContext = (card: Card, when: Date): AnswerContext => ({
-    ...baseContext(card, when), countFrom: card.id === current?.id && soonerApplies ? forms.countFrom : undefined,
+  const answerContext = (card: Card, when: Date, params = cardParams): AnswerContext => ({
+    ...baseContext(card, when, params), countFrom: card.id === current?.id && soonerApplies ? forms.countFrom : undefined,
   });
   const intervals = current && revealed ? previewIntervals(current.sched, now, cardParams, answerContext(current, now)) : undefined;
 
@@ -493,71 +492,82 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (rendered) speak(autoplayFor(rendered, false));
   }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const answer = async (rating: RatingValue, miss?: string) => {
-    if (!current || !note || busy.current || current === lastAnswered.current) return;
-    busy.current = true;
-    haptic.answer();
-    cardMotion.current?.flash(rating);
+  /**
+   * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Again
+   * answers the card it just undid, in the same step as the undo, so that card never comes back
+   * to the screen between the two. The caller then holds `busy`, and `cards` is the list with that
+   * card (and the siblings its first answer buried) put back as they were.
+   */
+  const answer = async (rating: RatingValue, miss?: string, redo?: { card: Card; note: Note; cards: Card[]; takenMs: number }) => {
+    const cur = redo ? redo.card : current;
+    const nt = redo ? redo.note : note;
+    const params = redo ? paramsForDeck(cardHomeDeck(redo.card, redo.note.deck), allParams) : cardParams;
+    const pool = redo ? redo.cards : cards ?? [];
+    if (!cur || !nt) return;
+    if (!redo && (busy.current || cur === lastAnswered.current)) return;
+    if (!redo) busy.current = true;
+    if (!redo) haptic.answer();
+    if (!redo) cardMotion.current?.flash(rating);
     try {
       // Rebuilding the queue for the next card blocks JS for a while on a big deck, and the haptic's
       // native call isn't sent until that's done. One frame here lets the haptic and the flash out first.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (!redo) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const when = new Date();
       // A filtered deck that doesn't reschedule only previews: the card's schedule stays as it
       // was, and it goes home to its own deck (Anki would show it again after a short delay first).
-      const filtered = current.filteredDeck ? paramsForDeck(current.filteredDeck, allParams)?.filtered : undefined;
+      const filtered = cur.filteredDeck ? paramsForDeck(cur.filteredDeck, allParams)?.filtered : undefined;
       const preview = filtered?.reschedule === false;
       // Again, Hard and Good show a previewed card again after the deck's delay; Easy, or a delay of 0, finishes it.
       const delay = preview ? [0, filtered.previewSecs?.again ?? 0, filtered.previewSecs?.hard ?? 0, filtered.previewSecs?.good ?? 0, 0][rating] : 0;
       const previewAgainAt = delay > 0 ? new Date(when.getTime() + delay * 1000) : undefined;
-      const res = preview ? { sched: current.sched, log: previewLog(current, rating, when) } : review(current.sched, rating, when, cardParams, answerContext(current, when));
+      const res = preview ? { sched: cur.sched, log: previewLog(cur, rating, when) } : review(cur.sched, rating, when, params, answerContext(cur, when, params));
       // A forgotten review can make the card a leech: its note is tagged, and the card suspended if the preset says so, as in Anki.
-      const leech = cardParams?.leech ?? DEFAULT_LEECH;
-      const isLeech = !preview && becameLeech(current.sched, res.sched, leech);
+      const leech = params?.leech ?? DEFAULT_LEECH;
+      const isLeech = !preview && becameLeech(cur.sched, res.sched, leech);
       const updated: Card = {
-        ...current, sched: res.sched, buriedAt: undefined, suspended: current.suspended || (isLeech && leech.suspend),
+        ...cur, sched: res.sched, buriedAt: undefined, suspended: cur.suspended || (isLeech && leech.suspend),
         // Out of a filtered deck once it's a review (or a finished preview), as in Anki; still learning, it stays.
-        filteredDeck: previewAgainAt ? current.filteredDeck : preview || res.sched.state === 2 ? undefined : current.filteredDeck,
+        filteredDeck: previewAgainAt ? cur.filteredDeck : preview || res.sched.state === 2 ? undefined : cur.filteredDeck,
         previewDue: previewAgainAt?.toISOString(),
         // Write-back stamps the Anki card's mod, which seeds Anki's review order.
-        ankiMod: current.ankiId ? Math.floor(when.getTime() / 1000) : current.ankiMod,
+        ankiMod: cur.ankiId ? Math.floor(when.getTime() / 1000) : cur.ankiMod,
       };
       // The note's other cards that its preset holds back until tomorrow, as Anki does.
-      const siblings = preview ? [] : siblingsToBury(current, cards ?? [], cardParams?.bury, when, H);
+      const siblings = preview ? [] : siblingsToBury(cur, pool, params?.bury, when, H);
       const buried = siblings.map((s): Card => ({ ...s, buriedAt: when.toISOString(), ankiMod: s.ankiId ? Math.floor(when.getTime() / 1000) : s.ankiMod }));
       // Counted in the deck the card is studied in, as Anki counts it (a filtered deck's answers count there).
       // Time capped at the preset's maximum answer time, as Anki caps it, so a phone put down mid-card doesn't swell the summary.
       // `reviewId` and `anki` are filled in by the write below; undo waits for it (`reviewWrites.idle()`).
-      const takenMs = answerTimeMs(when.getTime() - shownAt.current, cardParams);
+      const takenMs = redo ? redo.takenMs : answerTimeMs(when.getTime() - shownAt.current, params);
       const record: AnswerRecord = {
-        before: current, deck: cardDeck(current, note.deck), buried: siblings,
-        rating, takenMs, preview, counts: answerCounts(current, when, H, !!preview), ...(rating === 1 && miss ? { miss } : {}),
+        before: cur, deck: cardDeck(cur, nt.deck), buried: siblings,
+        rating, takenMs, preview, counts: answerCounts(cur, when, H, !!preview), ...(rating === 1 && miss ? { miss } : {}),
       };
-      const stepCounts = { learn: (cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
-      const desiredRetention = cardParams?.desiredRetention;
-      const interday = !preview && isInterdayLearning(current, H);
-      const noteBefore = note;
+      const stepCounts = { learn: (params?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (params?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
+      const desiredRetention = params?.desiredRetention;
+      const interday = !preview && isInterdayLearning(cur, H);
+      const noteBefore = nt;
 
       // The next card shows now. The answer is written behind it, in order (below), so the screen
       // doesn't wait on the database. If a write fails, the answer is taken off the screen again.
       // Now a review, it weighs on the days the load balancer spreads later answers over, as in Anki.
-      if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, cardParams?.presetId, updated.sched.scheduledDays);
+      if (updated.sched.state === 2) recordAnswer(loadSnapshot.current, updated, params?.presetId, updated.sched.scheduledDays);
       // As a reload (`studiedToday`) counts it: a preview or an early review uses none.
       setStudied((s) => bumpStudied(s, record.deck, record.counts, 1));
       setHistory((h) => [...h, record]);
-      misses.answered(current.id, rating === 1 ? miss : undefined);
-      if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(note)) sheets.request(confusedSheetFor(note.id));
+      misses.answered(cur.id, rating === 1 ? miss : undefined);
+      if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(nt)) sheets.request(confusedSheetFor(nt.id));
       // Reads the hook typed for this card, so it's called before the next card clears it.
-      void ownHook.answered(note);
-      forms.answered({ cardId: current.id, ...res.log });
+      if (!redo) void ownHook.answered(nt);
+      forms.answered({ cardId: cur.id, ...res.log });
       // Functional update: `cards` from this render's closure is stale once the awaits return.
       const changed = new Map([updated, ...buried].map((c) => [c.id, c]));
       setCards((prev) => prev && prev.map((c) => changed.get(c.id) ?? c));
-      lastAnswered.current = current;
+      lastAnswered.current = cur;
       // Hard, Good and Easy can be changed to Again from the next card for a few seconds.
-      const word = htmlToText(note.fields.Entry ?? '');
+      const word = htmlToText(nt.fields.Entry ?? '');
       holdOffer.show(null);
-      ratingOffer.show(rating > 1 && !preview ? { cardId: current.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
+      ratingOffer.show(rating > 1 && !preview ? { cardId: cur.id, rating, interval: intervals?.[rating], ...(word ? { word } : {}) } : null);
       setPreferId(undefined);
       setRevealedAt(undefined);
       setNow(when);
@@ -628,7 +638,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         }
       });
     } finally {
-      busy.current = false;
+      if (!redo) busy.current = false;
     }
   };
 
@@ -643,7 +653,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     }
   };
 
-  const undo = async (): Promise<boolean> => {
+  /**
+   * Takes the last answer back. With `again`, the same card is then answered Again in this same step
+   * (Change to Again), so the card never comes back to the screen between the two.
+   */
+  // Read through a function: TypeScript would otherwise keep the `null` assigned to the ref above, across the `await`.
+  const lastAnsweredId = () => lastAnswered.current?.id;
+  const undo = async (again = false): Promise<boolean> => {
     const last = history[history.length - 1];
     if (!last || busy.current) return false;
     busy.current = true;
@@ -682,10 +698,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setCards((prev) => prev && prev.map((c) => restored.get(c.id) ?? c));
       // The card shown again is the very one answered: it can be answered again now.
       lastAnswered.current = null;
+      ratingOffer.show(null);
+      const noteOf = n ?? notes.get(last.before.noteId);
+      if (again && noteOf) {
+        await answer(1, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
+        // `lastAnswered` is set only once the answer is saved, so a failed one (which alerts) isn't confirmed.
+        if (lastAnsweredId() === last.before.id) ratingOffer.show({ cardId: last.before.id, rating: 1, changed: true });
+        return true;
+      }
       setPreferId(last.before.id);
       setRevealedAt(undefined);
       setNow(new Date());
-      ratingOffer.show(null);
       return true;
     } catch (e) {
       Alert.alert("Couldn't undo that answer", failureText(e, { next: 'Try again.' }));
@@ -696,22 +719,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     }
   };
 
-  // Change to Again: take the last answer back, then answer the same card Again once it's the current one again.
+  // Change to Again: take the last answer back and answer the same card Again, in one step.
   const changeToAgain = async () => {
     const o = ratingOffer.offer;
     const last = history[history.length - 1];
     if (!o || !last || last.before.id !== o.cardId) { ratingOffer.show(null); return; }
-    if (await undo()) setAgainFor(o.cardId);
+    await undo(true);
   };
-  useEffect(() => {
-    if (!againFor || !current || current.id !== againFor || !note) return;
-    setAgainFor(null);
-    (async () => {
-      await answer(1);
-      // `lastAnswered` is set only once the answer is saved, so a failed one (which alerts) isn't confirmed.
-      if (lastAnswered.current?.id === againFor) ratingOffer.show({ cardId: againFor, rating: 1, changed: true });
-    })();
-  }, [againFor, current, note]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A session that runs past the day's start counts the new day's answers from nothing, with the
   // load balancer's days read afresh: the cards are loaded again once the clock crosses it.
@@ -831,7 +845,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   if (!cards) return <Screen title={title} largeTitle={false}><Loading error={loadError} onRetry={() => setReloads((n) => n + 1)} /></Screen>;
 
   const undoButton = history.length
-    ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} />
+    ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={() => undo()} />
     : null;
 
   if (!current || !note || (!rendered && !page)) {
@@ -1221,7 +1235,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={footer}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={undo} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : ratingOffer.offer && !revealed ? <ChangeRatingStrip offer={ratingOffer.offer} onChange={changeToAgain} onUndo={() => undo()} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
