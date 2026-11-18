@@ -86,7 +86,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   const done = index >= prompts.length;
   const prompt = prompts[index];
   const current = answered.length > index ? answered[index] : undefined;
-  const picking = mode === 'pick' && !!prompt?.choices;
+  const picking = (mode === 'pick' || !!prompt?.pickOnly) && !!prompt?.choices;
 
   // Under every form the prompt stands for (`promptKeys`), so each keeps its own history.
   const log = async (p: FormPrompt, correct: boolean, given: string) => {
@@ -228,7 +228,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
           ) : (
             <Field
               key={index}
-              label={prompt.typeHint ? `Type ${prompt.typeHint}` : 'Your answer'}
+              label="Your answer"
               value={current ? current.given : typed}
               onChangeText={setTyped}
               editable={!current}

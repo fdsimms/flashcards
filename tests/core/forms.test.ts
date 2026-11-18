@@ -406,24 +406,25 @@ describe('promptFor', () => {
     const table = omniNote({ Entry: 'une table', Language: 'french', Gender: 'f' });
     expect(promptFor(table, formsOf(table).forms[0], [], seeded()).headword).toBe('table');
   });
-  it('says what to type for a gender, with a gap before the word when it is an article', () => {
+  it('always picks a gender, with a gap before the word when it is an article', () => {
     const okno = omniNote({ Entry: 'okno', Meaning: 'window', Language: 'polish', Gender: 'n' });
     const p = promptFor(okno, formsOf(okno).forms[0], [], seeded());
     expect(p.answers).toEqual(['to']);
     expect(p.gap).toBe(true);
-    expect(p.typeHint).toBe('ten, ta or to');
+    expect(p.pickOnly).toBe(true);
+    expect([...p.choices!].sort()).toEqual(['ta', 'ten', 'to']);
     // Spanish has no neuter, and el agua is asked as a word, so there's nothing to put in a gap.
     const agua = omniNote({ Entry: 'el agua', Language: 'spanish', Gender: 'f' });
     const word = promptFor(agua, formsOf(agua).forms[0], [], seeded());
     expect(word.gap).toBeUndefined();
-    expect(word.typeHint).toBe('masculine or feminine');
+    expect([...word.choices!].sort()).toEqual(['feminine', 'masculine']);
     const mesa = omniNote({ Entry: 'la mesa', Language: 'spanish', Gender: 'f' });
-    expect(promptFor(mesa, formsOf(mesa).forms[0], [], seeded()).typeHint).toBe('el or la');
+    expect([...promptFor(mesa, formsOf(mesa).forms[0], [], seeded()).choices!].sort()).toEqual(['el', 'la']);
   });
-  it('gives no type hint or gap to a form that is not a gender', () => {
+  it('does not make a form that is not a gender pick-only, or give it a gap', () => {
     const note = esperar();
     const p = promptFor(note, formsOf(note).forms[0], [], seeded());
-    expect(p.typeHint).toBeUndefined();
+    expect(p.pickOnly).toBeUndefined();
     expect(p.gap).toBeUndefined();
   });
   it('accepts a listed form without its article', () => {
