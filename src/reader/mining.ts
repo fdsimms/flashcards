@@ -1,5 +1,6 @@
 import { htmlToText } from '../core/html';
 import type { Note } from '../core/types';
+import { isNoForm } from '../core/wordGrammar';
 import type { AspectPair, Language, Word } from './api';
 
 /**
@@ -88,7 +89,8 @@ export type PairFollowUp =
 export function pairFollowUp(saved: Note, notes: Note[], partnerMeaning?: string | null): PairFollowUp | null {
   const partner = textOf(saved.fields.AspectPartner);
   const word = textOf(saved.fields.Entry);
-  if (!partner || !word || sameVerb(partner, word)) return null;
+  // "-" says the verb has no partner: nothing to add or link.
+  if (!partner || isNoForm(partner) || !word || sameVerb(partner, word)) return null;
   const own = saved.tags.find((t): t is keyof typeof OTHER_ASPECT => t in OTHER_ASPECT);
   const other = own ? OTHER_ASPECT[own] : undefined;
   const found = notes.find((n) => n.id !== saved.id && n.model === saved.model && sameVerb(textOf(n.fields.Entry), partner));
