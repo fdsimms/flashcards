@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { DEFAULT_PREFS, hasSlow, parsePrefs, speedFor } from '../../src/reader/prefs';
 
 test('saved settings come back', () => {
-  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest' }))).toEqual({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest' });
+  expect(parsePrefs(JSON.stringify({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest', listeningActivity: false }))).toEqual({ rate: 0.65, highlight: true, markNames: false, paragraphs: false, thaiFont: 'loopless', textSize: 'larger', followWords: false, shareCounts: true, hiddenMarks: ['stretch', 'marked'], checkEnglish: true, guessFirst: false, quizKnown: true, listenFirst: true, listenTwice: true, listenAgain: 3, situationsAzure: true, formQuiz: false, slowLanguages: ['th', 'pl'], explainInLanguage: true, thaiToneMarks: true, topicImages: true, offlineDownloads: 'any', episodeOrder: 'oldest', listeningActivity: false });
 });
 
 test('nothing saved, or something unreadable, gives the defaults', () => {
@@ -31,6 +31,12 @@ test('names are marked unless the reader turned that off', () => {
   expect(DEFAULT_PREFS.markNames).toBe(true);
   expect(parsePrefs(JSON.stringify({ markNames: false })).markNames).toBe(false);
   expect(parsePrefs(JSON.stringify({ markNames: 'no' })).markNames).toBe(true);
+});
+
+test('the listening Live Activity is shown unless the reader turned it off', () => {
+  expect(DEFAULT_PREFS.listeningActivity).toBe(true);
+  expect(parsePrefs(JSON.stringify({ listeningActivity: false })).listeningActivity).toBe(false);
+  expect(parsePrefs(JSON.stringify({ listeningActivity: 'no' })).listeningActivity).toBe(true);
 });
 
 test('counts are sent to the server only once that is turned on', () => {

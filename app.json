@@ -18,6 +18,7 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
+        "NSSupportsLiveActivities": true,
         "NSPhotoLibraryUsageDescription": "Franki only reads a photo when you pick one to use as a file, such as an image for a card. It never looks through your photo library on its own."
       }
     },
@@ -35,6 +36,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withListeningActivity",
       "expo-sharing",
       [
         "expo-font",

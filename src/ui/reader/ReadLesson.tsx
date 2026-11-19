@@ -11,6 +11,7 @@ import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } fro
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { lessonAudioMode } from '../useLessonTurns';
+import { beginListening, type ListeningControls } from '../listeningActivity';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonTranscript } from './LessonTranscript';
 import { LessonTurnPanel } from './LessonTurnPanel';
@@ -77,6 +78,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     const resumed = host.resumeLesson(lesson.id);
     owned.current = resumed;
     setMine(resumed);
+    if (resumed) showActivity();
     return () => {
       if (!owned.current) return;
       owned.current = false;
@@ -84,6 +86,10 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
       if (player.playing || heldNow.current) host.handOffLesson(lesson); else host.stop();
     };
   }, [lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the host and its player are stable; the lesson is what changes
+
+  // The lock screen's and Dynamic Island's activity, with this screen answering its buttons (through the ref, so they act on the latest render).
+  const buttons = useRef<ListeningControls>({ previous: () => undefined, toggle: () => undefined, next: () => undefined });
+  const showActivity = () => beginListening({ kind: 'lesson', title: lesson.title, detail: '' }, () => buttons.current);
 
   const takeOver = async () => {
     if (owned.current) return;
@@ -98,6 +104,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     // too while a microphone setting needs it. The player host turns both off when the lesson stops.
     await setAudioModeAsync(lessonAudioMode(turns.wantsRecording())).catch(() => undefined);
     player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
+    showActivity();
   };
 
   const status = mine ? live : { playing: false, currentTime: 0, duration: 0 };
@@ -124,6 +131,8 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     waits.moved();
     player.seekTo(skipTo(status.currentTime, by, status.duration)).catch(() => undefined);
   };
+
+  buttons.current = { previous: () => skip(-SKIP_SECONDS), toggle: () => { void toggle(); }, next: () => skip(SKIP_SECONDS) };
 
   const confirmDelete = () => {
     Alert.alert('Delete this lesson?', `"${lesson.title}" and its recording are removed from the server.`, [
