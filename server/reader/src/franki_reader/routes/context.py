@@ -22,6 +22,7 @@ from franki_reader import (
     vocab_check,
 )
 from franki_reader.ask_phrase import AskPhrase
+from franki_reader.cram_themes import WriteThemes
 from franki_reader.engine import Engine
 from franki_reader.explain import CheckNatural, Explain, ExplainForm, ExplainPhrase
 from franki_reader.gateway import ReadDue, ReadReviews
@@ -68,6 +69,7 @@ class AppContext:
     ask_about_card: ask_card.AskCard | None
     fix_flagged_card: fix_card.FixCard | None
     find_lesson_words: lesson_words.FindWords | None
+    write_cram_themes: WriteThemes | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens
     # with STATUS_TOKEN.
     authed: Sequence[Any]

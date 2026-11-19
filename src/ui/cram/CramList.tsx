@@ -4,15 +4,16 @@ import { ScrollView } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { dayName, isAwaitingFinish, isRunning, roundStatus, type Cram } from '../../core/cram';
 import { haptic } from '../haptics';
-import { Group, Help, NavRow, Screen, SectionTitle } from '../kit';
+import { Button, Group, Help, NavRow, Screen, SectionTitle } from '../kit';
 import { readable, space, useTheme } from '../theme';
 import { useCramClock, useCrams } from '../useCrams';
 
 /**
  * Practice, Cram: every cram, the ones coming up first, then those finished. The + button starts
- * one. With none yet, says what a cram is for.
+ * one. With none yet, says what a cram is for. Plan the next lesson (Read & Listen on, a cram finished)
+ * asks for theme ideas.
  */
-export function CramList({ repo }: { repo: NoteStore }) {
+export function CramList({ repo, onPlan }: { repo: NoteStore; onPlan?: () => void }) {
   const c = useTheme();
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
@@ -39,6 +40,12 @@ export function CramList({ repo }: { repo: NoteStore }) {
           <Help>
             A cram is a set of words to know by a day coming up, like a lesson with a tutor or a trip. Until that day, Franki offers short practice rounds on just those words, and their reviews are due no later than that day. Tap + to start one.
           </Help>
+        ) : null}
+        {onPlan && past.length ? (
+          <>
+            <Button label="Plan the next lesson" onPress={() => { haptic.tap(); onPlan(); }} />
+            <Help>Shows themes built around the words you didn't use and what you missed in rounds.</Help>
+          </>
         ) : null}
         {current.length ? (
           <Group>

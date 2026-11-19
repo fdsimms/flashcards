@@ -547,6 +547,15 @@ aloud is never heard by the phone.
   learner already knows. Not run on a device yet: the lock screen controls and background playback
   are untested.
 
+## Cram themes
+
+Themes to talk about at a lesson with a tutor (19 November 2026, the owner: from a video on preparing for tutoring, "a way to help generate themes to talk about"). On a new cram's sheet, "Suggest themes" (and "Plan the next lesson" on the cram list, once a cram is finished) opens Theme ideas: three themes, each with a title, a reason, chips for the words it reuses (from last time, missed, recently added) and new words, and counts. A theme opens to its words, common words the deck lacks (a + sends one to the note queue), questions to steer the lesson with (tap to hear) and "Things to say", a short story built from the owner's words that can be edited and listened to. "Use theme" fills the cram's sheet: the title is the name, the theme's deck words are the first words, and the questions and story are kept on the cram (`Cram.theme`, shown on its page).
+
+- **The app picks the seeds, the server writes, the code checks** (`src/core/cramThemes.ts`, `cram_themes.py`). The phone sends up to 60 studied words in the language, each labeled why it's on offer (the last finished cram's unused words, missed in the latest cram's last round or tagged leech, added in the last 14 days, else just studied), the Practice tools' live misses as lines ("Telling the time: band:thum"), and the titles to avoid (every cram's name and theme, and the ideas already shown). The server adds the common words the deck lacks (`word_suggestions.suggest`) and sends Claude both lists numbered. Claude answers with numbers, so only a word really in a list can be named; a new word takes the list's meaning, else Claude's. Questions and the story are kept only when written in the language's own script (`lesson_words.is_written`, shared with Find word). A theme with no words or fewer than two questions is dropped, not repaired.
+- **Cheap model, one call per tap** (`CHEAP_MODEL`, effort low; cost kept as "cram_themes" in `call_costs`, its own block in `/api/costs`). It's asked when Theme ideas opens, on Show different themes, and when Comfortable/Stretch changes; never in the background.
+- **Nothing here grades or writes.** A theme's words are only tagged when the cram is saved (the cram's own tag, as any cram), a word to learn is only queued, and the notes it becomes are saved in the note editor, where saving is the approval. The ideas and the picked theme live in memory (`themeStore.ts`) and go when the sheet closes.
+- **No personal data as a seed**: a journal or the calendar is never sent; the seeds are the deck, the rounds and Practice only.
+
 ## Speaking
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 3), with one setting

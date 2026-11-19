@@ -267,6 +267,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       Claude. Its cost is kept in `call_costs` (feature
                                       "lesson_topics") and counts under `lesson_topics` in
                                       /api/costs
+    POST  /api/cram/themes            {language, words: [{id, text, english, kind: carried | missed |
+                                      fresh | deck}], weak_spots?, avoid?, stretch?} themes to talk
+                                      about at a lesson, written by Claude from the words:
+                                      {themes: [{title, why, word_ids, new_words: [{word,
+                                      english}], questions: [{text, english}], story}]}. 503
+                                      without Claude. Its cost is kept in `call_costs` (feature
+                                      "cram_themes") and counts under `cram_themes` in /api/costs
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
@@ -325,6 +332,7 @@ from franki_reader import (
     aspect,
     comprehension,
     config,
+    cram_themes,
     drills,
     fix_card,
     forms,
@@ -342,6 +350,7 @@ from franki_reader import (
     vocab_check,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
+from franki_reader.cram_themes import WriteThemes
 from franki_reader.engine import Engine
 from franki_reader.explain import (
     CheckNatural,
@@ -441,6 +450,7 @@ def create_app(
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
     fix_flagged_card: fix_card.FixCard | None = None,
     find_lesson_words: lesson_words.FindWords | None = None,
+    write_cram_themes: WriteThemes | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -529,6 +539,7 @@ def create_app(
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
+        write_cram_themes=write_cram_themes,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -572,6 +583,7 @@ def production_app() -> FastAPI:
     ask_about_phrase: ask_phrase.AskPhrase | None = None
     fix_flagged_card: fix_card.FixCard | None = None
     find_lesson_words: lesson_words.FindWords | None = None
+    write_cram_themes: WriteThemes | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -601,6 +613,7 @@ def production_app() -> FastAPI:
         ask_about_phrase = ask_phrase.claude_ask_phrase(client)
         fix_flagged_card = fix_card.claude_fix_card(client)
         find_lesson_words = lesson_words.claude_find_words(client)
+        write_cram_themes = cram_themes.claude_themes(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -692,4 +705,5 @@ def production_app() -> FastAPI:
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
+        write_cram_themes=write_cram_themes,
     )

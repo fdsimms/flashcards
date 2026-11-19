@@ -4025,6 +4025,63 @@
         }
       }
     },
+    "/api/cram/themes": {
+      "post": {
+        "summary": "Cram Themes Route",
+        "description": "Themes for a lesson, written by Claude from the learner's words. Reads the snapshot of\nthe deck for the common words it lacks; adds no note, writes no card and grades nothing.",
+        "operationId": "cram_themes_route_api_cram_themes_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThemesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThemesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mnemonics": {
       "post": {
         "summary": "Make Mnemonics",
@@ -6403,6 +6460,24 @@
         ],
         "title": "LessonIn"
       },
+      "LineOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "LineOut"
+      },
       "MarkIn": {
         "properties": {
           "text": {
@@ -6616,6 +6691,46 @@
           "content"
         ],
         "title": "PhraseTurnIn"
+      },
+      "PoolIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "English"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "carried",
+              "missed",
+              "fresh",
+              "deck"
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "english",
+          "kind"
+        ],
+        "title": "PoolIn"
       },
       "PronunciationIn": {
         "properties": {
@@ -7378,6 +7493,131 @@
         ],
         "title": "SuggestionOut"
       },
+      "ThemeOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          },
+          "word_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Word Ids"
+          },
+          "new_words": {
+            "items": {
+              "$ref": "#/components/schemas/WordOut"
+            },
+            "type": "array",
+            "title": "New Words"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/LineOut"
+            },
+            "type": "array",
+            "title": "Questions"
+          },
+          "story": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "why",
+          "word_ids",
+          "new_words",
+          "questions",
+          "story"
+        ],
+        "title": "ThemeOut"
+      },
+      "ThemesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/PoolIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "minItems": 1,
+            "title": "Words"
+          },
+          "weak_spots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Weak Spots"
+          },
+          "avoid": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Avoid"
+          },
+          "stretch": {
+            "type": "boolean",
+            "title": "Stretch",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "ThemesIn"
+      },
+      "ThemesOut": {
+        "properties": {
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/ThemeOut"
+            },
+            "type": "array",
+            "title": "Themes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "themes"
+        ],
+        "title": "ThemesOut"
+      },
       "TopicImageIn": {
         "properties": {
           "language": {
@@ -7596,6 +7836,24 @@
           "text"
         ],
         "title": "WordIn"
+      },
+      "WordOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "english"
+        ],
+        "title": "WordOut"
       },
       "WordSuggestionOut": {
         "properties": {
