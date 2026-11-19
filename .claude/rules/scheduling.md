@@ -36,7 +36,11 @@ last answer as Anki does** (`daysSinceLastReview`): to the end of today's study 
 own count between UTC dates, which made a step across UTC midnight a day's wait. Each deck's preset steps apply, else Anki's defaults. A
 relearning card keeps the interval its lapse gave it (`relearnDays`), as Anki's does. A step crossing into a
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
-review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
+review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so. **The
+tag comes off once the word has recovered** (`leechRecovered`, `src/core/leechRecovery.ts`): every
+studied card of the note is an unsuspended review scheduled `LEECH_RECOVERED_DAYS` (21) or more out.
+Anki never removes it; Franki does because its Leeches filter, Trouble and cram read the tag as a
+live signal. Undo puts the tag back (`leechClearedNoteId`).
 
 **Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
 the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
