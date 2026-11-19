@@ -4,9 +4,10 @@ import { compareTyped } from '../../core/typedCompare';
 import type { SituationFeedback, SituationTurn } from '../../reader/api';
 import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
-import { Button, Card, Icon, Tappable } from '../kit';
+import { Button, Icon, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
+import { RoundRing } from './RoundRing';
 
 type TextLook = { fontSize: number; lineHeight: number; fontFamily?: string };
 
@@ -92,11 +93,12 @@ export function MyLine({ text, look, lang }: { text: string; look: TextLook; lan
 }
 
 /**
- * How it went: each of the owner's lines with Claude's correction against it and a note, then the
- * words worth adding, each with Add (to the note queue, filled in there and saved in the note editor:
- * nothing reaches the deck until it's saved).
+ * How it went, as the body of a card: a ring for how many of the owner's lines were right, each of
+ * those lines with Claude's correction against it and a note, then the words worth adding, each with
+ * Add (to the note queue, filled in there and saved in the note editor: nothing reaches the deck until
+ * it's saved).
  */
-export function SituationResult({ feedback, mine, look, lang, added, onAdd }: {
+export function SituationResult({ feedback, mine, look, lang, added, onAdd, scene }: {
   feedback: SituationFeedback;
   /** The owner's lines, by their index in the conversation. */
   mine: Map<number, string>;
@@ -106,32 +108,42 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd }: {
   added: Record<string, 'adding' | 'added' | 'failed'>;
   /** Null when there's no deck to add to (an older server). */
   onAdd: ((word: { word: string; english: string }) => void) | null;
+  /** The scene, over the ring. */
+  scene: string;
 }) {
   const c = useTheme();
+  const right = feedback.lines.filter((l) => l.verdict === 'right').length;
   return (
-    <View style={{ gap: space.m }}>
-      <Card style={{ gap: space.m }}>
+    <View style={{ gap: space.l, width: '100%' }}>
+      {feedback.lines.length ? (
+        <View style={{ alignItems: 'center', gap: space.s }}>
+          <Text numberOfLines={2} style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>{scene}</Text>
+          <RoundRing right={right} asked={feedback.lines.length} what="lines right" />
+          <Text style={{ ...type.body, color: c.text }}>of your lines were right</Text>
+        </View>
+      ) : null}
+      <View style={{ gap: space.m }}>
         <Text style={{ ...type.overline, color: c.textSecondary }}>Your lines</Text>
         {feedback.lines.map((l, i) => {
           const own = mine.get(l.index) ?? '';
-          const right = l.verdict === 'right';
+          const ok = l.verdict === 'right';
           return (
             <View key={l.index} style={{ gap: space.xs, borderTopWidth: i ? hairline : 0, borderTopColor: c.border, paddingTop: i ? space.m : 0 }}>
-              {right ? (
+              {ok ? (
                 <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{own}</Text>
               ) : (
                 <TypedDiff comparison={compareTyped(l.corrected, own)} showExpected size="body" lang={lang} expectedLabel="Corrected" showLine={false} />
               )}
-              <Text style={{ ...type.footnote, color: right ? c.countDue : c.textSecondary }}>{l.note}</Text>
+              <Text style={{ ...type.footnote, color: ok ? c.countDue : c.textSecondary }}>{l.note}</Text>
             </View>
           );
         })}
         {feedback.lines.length < mine.size ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Claude said nothing about ${mine.size - feedback.lines.length} of your lines.`}</Text>
         ) : null}
-      </Card>
+      </View>
       {feedback.words.length ? (
-        <Card style={{ gap: space.s }}>
+        <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
           <Text style={{ ...type.overline, color: c.textSecondary }}>Words to add</Text>
           {feedback.words.map((w) => {
             const state = added[w.word];
@@ -150,7 +162,7 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd }: {
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             Add puts the word in the note queue, filled in, for you to save in the note editor.
           </Text>
-        </Card>
+        </View>
       ) : null}
     </View>
   );

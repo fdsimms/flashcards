@@ -13,7 +13,8 @@ import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
@@ -21,10 +22,14 @@ import { MyLine, SituationResult, TheirLine } from './SituationParts';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
-import { ControlLabel, ToolScreen, useToolLanguage } from './ToolScreen';
+import { PracticeCard } from './PracticeCard';
+import { ToolScreen, useToolLanguage } from './ToolScreen';
+import { CardSurface } from '../SwipeCard';
 
 /**
- * Situations (server/reader situations.py): pick a scene or type one, then talk it through with Claude,
+ * Situations (server/reader situations.py), as Review's card (PracticeCard.tsx): a scene on a card, Another for the next
+ * and Start (or type one of your own), then the conversation is the card, with Hold to talk or a field under it, and
+ * How it went is a card with a ring for the lines right. Pick a scene or type one, then talk it through with Claude,
  * who plays the other person from the deck's words, each of their lines spoken by the phone's voice (or
  * by an Azure voice, a setting in Read & Listen's). Finish
  * asks for feedback on each of the owner's lines and words worth adding. The conversation lives here and
@@ -102,17 +107,74 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const [own, setOwn] = useState('');
+  const [typing, setTyping] = useState(false);
   const [scenes, setScenes] = useState<{ language: Language; names: string[] } | null>(null);
+  const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
+  const motion = useRef<CardMotion | null>(null);
   useEffect(() => {
     let live = true;
     setError(null);
     api.situationScenes(language)
-      .then((names) => { if (live) setScenes({ language, names }); })
+      .then((names) => { if (live) { const some = names.slice(0, 12); setScenes({ language, names: some }); setAt(some.length ? Math.floor(Math.random() * some.length) : 0); } })
       .catch((e) => { if (live) setError(failureText(e, { what: "Couldn't get the scenes.", next: 'Try again, or type your own.' })); });
     return () => { live = false; };
   }, [api, language, loads]);
+
+  const names = scenes && scenes.language === language ? scenes.names : null;
+  const scene = names?.length ? names[at % names.length] : undefined;
+  // With no scene to show (still loading, none, or none could be read) the field is the way in.
+  const writing = typing || (!!names && !scene) || !!error;
+  const loading = !names && !error;
+
+  const front = writing ? (
+    <View style={{ gap: space.l, width: '100%', alignItems: 'center' }}>
+      <Text style={{ ...type.overline, color: c.textSecondary }}>Your own scene</Text>
+      <TextInput
+        value={own}
+        onChangeText={setOwn}
+        onSubmitEditing={() => own.trim() && onStart(own)}
+        returnKeyType="go"
+        placeholder="A situation, in English: returning a shirt that's too small"
+        accessibilityLabel="A situation of your own, in English"
+        placeholderTextColor={c.textTertiary}
+        selectionColor={c.accent}
+        keyboardAppearance={dark ? 'dark' : 'light'}
+        maxLength={200}
+        autoFocus={typing}
+        style={{
+          ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m, alignSelf: 'stretch',
+          borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+        }}
+      />
+      {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : null}
+      {scene ? (
+        <Tappable onPress={() => { haptic.select(); setTyping(false); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
+          <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Pick a scene instead</Text>
+        </Tappable>
+      ) : null}
+    </View>
+  ) : (
+    <View style={{ gap: space.m, alignItems: 'center' }}>
+      <Text style={{ ...type.overline, color: c.textSecondary }}>Your scene</Text>
+      <Text selectable maxFontSizeMultiplier={1.4} style={{ ...type.largeTitle, fontSize: 36, color: c.text, textAlign: 'center' }}>{scene}</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', maxWidth: 280 }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
+      {focus ? <Text style={{ ...type.subhead, color: c.text, textAlign: 'center', maxWidth: 280 }}>{`Practicing: ${focus.title}. Claude works it into the scene and comments on how you used it at the end.`}</Text> : null}
+      <Tappable onPress={() => { haptic.select(); setTyping(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center', marginTop: space.s }}>
+        <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Type your own</Text>
+      </Tappable>
+    </View>
+  );
+
+  const footer = writing ? (
+    <Button label="Start" onPress={() => onStart(own)} disabled={!own.trim()} />
+  ) : (
+    <View style={{ flexDirection: 'row', gap: space.s }}>
+      <Button variant="secondary" label="Another" style={{ flex: 1 }} onPress={() => names && setAt((i) => (i + 1) % names.length)} disabled={!names || names.length < 2} />
+      <Button label="Start" style={{ flex: 1 }} onPress={() => scene && onStart(scene)} disabled={!scene} />
+    </View>
+  );
 
   return (
     <ToolScreen
@@ -123,44 +185,18 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       onRandomize={() => undefined}
       onShow={() => undefined}
       onMark={() => undefined}
-      actions={{ primary: { label: 'Start', onPress: () => onStart(own), disabled: !own.trim() } }}
+      fill
+      footer={footer}
+      menu={[(
+        <Stack.Toolbar.Menu key="lines" inline title="Their lines">
+          <Stack.Toolbar.MenuAction isOn={!heardOnly} onPress={() => onHeardOnly(false)}>Read and heard</Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction isOn={heardOnly} onPress={() => onHeardOnly(true)}>Heard only</Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      )]}
     >
-      <Help>Talk your way through a scene. Claude plays the other person using words from your deck, and tells you at the end what to fix.</Help>
-      {focus ? <Help>{`Practicing: ${focus.title}. Claude works it into the scene and comments on how you used it at the end.`}</Help> : null}
-      <View style={{ gap: space.s }}>
-        <ControlLabel>Your own</ControlLabel>
-        <TextInput
-          value={own}
-          onChangeText={setOwn}
-          onSubmitEditing={() => own.trim() && onStart(own)}
-          returnKeyType="go"
-          placeholder="A situation, in English: returning a shirt that's too small"
-          accessibilityLabel="A situation of your own, in English"
-          placeholderTextColor={c.textTertiary}
-          selectionColor={c.accent}
-          keyboardAppearance={dark ? 'dark' : 'light'}
-          maxLength={200}
-          style={{
-            ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.m,
-            borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
-          }}
-        />
-      </View>
-      <View style={{ gap: space.s }}>
-        <ControlLabel>Or pick one</ControlLabel>
-        {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : !scenes || scenes.language !== language ? <Loading /> : (
-          <Group>
-            {scenes.names.slice(0, 12).map((name, i) => <NavRow key={name} first={i === 0} label={name} onPress={() => onStart(name)} />)}
-          </Group>
-        )}
-      </View>
-      <View style={{ gap: space.s }}>
-        <ControlLabel>Their lines</ControlLabel>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-          <Chip label="Read and heard" selected={!heardOnly} onPress={() => onHeardOnly(false)} />
-          <Chip label="Heard only" selected={heardOnly} onPress={() => onHeardOnly(true)} />
-        </View>
-      </View>
+      {loading ? <View style={{ padding: space.l }}><Loading /></View> : (
+        <PracticeCard questionKey={writing ? 'own' : scene ?? ''} cardKey={writing ? 'own' : scene ?? ''} swipe={false} motion={motion} onMark={() => {}} front={front} />
+      )}
     </ToolScreen>
   );
 }
@@ -323,9 +359,13 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} />
-        </ScrollView>
+        <View style={{ flex: 1 }}>
+          <CardSurface>
+            <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.m }}>
+              <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
+            </ScrollView>
+          </CardSurface>
+        </View>
       </Screen>
     );
   }
@@ -410,21 +450,25 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }} {...scrollProps}
-          onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
-          onContentSizeChange={(_w, h) => { sizes.current.content = h; }}
-        >
-          {chat.roles ? (
-            <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
-          ) : null}
-          {chat.lines.map((l, i) => (l.speaker === 'them'
-            ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
-            : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
-          {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
-          {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
-          {problem ? <ErrorNote message={problem.message} onRetry={problem.retry} /> : null}
-          {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}
-        </ScrollView>
+        <View style={{ flex: 1 }}>
+          <CardSurface>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.l, gap: space.m }} {...scrollProps}
+              onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
+              onContentSizeChange={(_w, h) => { sizes.current.content = h; }}
+            >
+              {chat.roles ? (
+                <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
+              ) : null}
+              {chat.lines.map((l, i) => (l.speaker === 'them'
+                ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
+                : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
+              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
+              {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
+              {problem ? <ErrorNote message={problem.message} onRetry={problem.retry} /> : null}
+              {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}
+            </ScrollView>
+          </CardSurface>
+        </View>
       </Screen>
     </View>
   );

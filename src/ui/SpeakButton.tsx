@@ -89,12 +89,12 @@ export function HoldToTalk({ spoken, disabled, onRelease }: { spoken: Spoken; di
       restOpacity={disabled ? 0.45 : 1}
       scaleTo={0.98}
       style={{
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s, minHeight: 52, borderRadius: radius.pill,
-        paddingHorizontal: space.l, backgroundColor: spoken.listening ? c.danger : c.fill,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s, minHeight: 56, borderRadius: radius.pill,
+        paddingHorizontal: space.l, backgroundColor: spoken.listening ? c.danger : c.accent,
       }}
     >
-      <Icon name="mic.fill" size={18} color={spoken.listening ? c.onRating : c.text} />
-      <Text style={{ ...type.headline, color: spoken.listening ? c.onRating : c.text }}>{spoken.listening ? 'Let go to send' : 'Hold to talk'}</Text>
+      <Icon name="mic.fill" size={20} color={spoken.listening ? c.onRating : c.onAccent} />
+      <Text style={{ ...type.headline, color: spoken.listening ? c.onRating : c.onAccent }}>{spoken.listening ? 'Let go to send' : 'Hold to talk'}</Text>
     </Tappable>
   );
 }
