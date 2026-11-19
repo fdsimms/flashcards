@@ -33,19 +33,26 @@ export function useVoiceSettings(repo: Repo): VoiceSettings {
  * fails (the note is saved either way). Offline it's held instead, and recorded when the connection
  * comes back (HeldWork.tsx).
  */
-export function afterSave(recorder: RecordDeps | null, saved: Note, opts: { added: boolean; recording?: Recording; settings: VoiceSettings }) {
-  if (!recorder) return;
+export function afterSave(
+  recorder: RecordDeps | null,
+  saved: Note,
+  /** `onFailure` takes a failed recording in place of the alert, for a caller saving many notes that says so once. */
+  opts: { added: boolean; recording?: Recording; settings: VoiceSettings; onFailure?: (e: unknown) => void },
+): Promise<void> {
+  if (!recorder) return Promise.resolve();
   const r = opts.recording;
   if (r && saved.fields.Audio?.includes(`[sound:${r.name}]`)) sendRecording(recorder, r).catch(() => undefined);
   const voice = recordingVoice(saved, opts.settings);
   if (opts.added && voice && needsRecording(saved)) {
     const hold = () => { void heldRecordings.update((list) => holdRecording(list, { noteId: saved.id, voice })); };
-    if (connection.cantReachHome()) { hold(); return; }
-    recordNote(recorder, saved.id, voice).catch((e) => {
+    if (connection.cantReachHome()) { hold(); return Promise.resolve(); }
+    return recordNote(recorder, saved.id, voice).then(() => undefined, (e) => {
       if (isOffline(e)) { hold(); return; }
-      Alert.alert('Saved without a recording', failureText(e, { next: "Record it later with Record audio in the note editor, or from the deck's options." }));
+      if (opts.onFailure) opts.onFailure(e);
+      else Alert.alert('Saved without a recording', failureText(e, { next: "Record it later with Record audio in the note editor, or from the deck's options." }));
     });
   }
+  return Promise.resolve();
 }
 
 /** Record audio, under the fields of an Omnilanguage note with no recording. */

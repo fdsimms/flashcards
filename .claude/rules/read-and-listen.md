@@ -27,9 +27,11 @@ they win and this is stale. The rules that must not break:
   checks a read leaves nothing to send), and the app's side imports nothing that schedules or
   writes cards (`tests/reader/noGrading.test.ts` fails the build on it). Adding a marked word or a
   selected phrase to the deck goes through the note editor, opened by the `read-words` and `reader`
-  routes (and the vocabulary check), where saving is the approval. The one save outside it links a
-  verb's aspect partner already in the deck, after "Link them" in an alert naming both
-  (`useAddMinedWord`, listed in the test's `EXEMPT`). There is no daily cap on additions.
+  routes (and the vocabulary check), where saving is the approval. The saves outside it each follow
+  an alert: linking a verb's aspect partner already in the deck, after "Link them" in an alert naming
+  both (`useAddMinedWord`), and the note queue's "Approve all", after "Add N notes" in an alert naming
+  how many (`useApproveQueued`), which saves the ready notes as written. Both are listed in the
+  test's `EXEMPT`. There is no daily cap on additions.
 - **Generate, then verify in code.** The model writes lines as `|`-split strings with stretch words
   in `*asterisks*`; the server re-segments every line itself (lexicon-first for Thai, by lemma for
   the rest, `spaced.py`) and sends drafts under the floor back with the unknown words named. Never trust the

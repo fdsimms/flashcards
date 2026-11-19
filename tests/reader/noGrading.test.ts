@@ -51,7 +51,10 @@ const EXEMPT: Record<string, string[]> = {
   // Add to deck saves a note itself in one case: after a verb is saved in the note editor, linking
   // its aspect partner already in the deck, once "Link them" is tapped in the alert that names
   // both. That tap is the approval; every new note still opens in the note editor.
-  'approved by an alert': ['src/ui/useAddMinedWord.ts'],
+  // Approve all (queued notes) saves every ready note as the editor would, once "Add N notes" is tapped in
+  // the alert that names how many; the screen itself imports no writer, and an Approve all never runs
+  // without that alert.
+  'approved by an alert': ['src/ui/useAddMinedWord.ts', 'src/ui/useApproveQueued.ts'],
 };
 const ALL_EXEMPT = Object.values(EXEMPT).flat();
 
