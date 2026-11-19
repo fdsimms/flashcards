@@ -6,10 +6,15 @@ import { smooth, space, type, useTheme } from './theme';
 /**
  * Said under "Reviews done" when the Apprentice limit is holding lessons back: how many items are
  * at Apprentice against the limit, and what makes lessons start again. The count can be above the
- * limit (a missed item drops back to Apprentice), so it's shown as a number, not a full bar.
+ * limit (a missed item drops back to Apprentice), so the bar runs to the larger of the two and
+ * marks the limit on it, with what's past the limit in a darker segment.
  */
 export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; limit: number }) {
   const c = useTheme();
+  const total = Math.max(apprentice, limit, 1);
+  const withinLimit = `${(Math.min(apprentice, limit) / total) * 100}%` as const;
+  const limitAt = `${(limit / total) * 100}%` as const;
+  const over = apprentice > limit;
   return (
     <Card style={{ alignSelf: 'stretch', marginTop: space.l }}>
       <View
@@ -23,11 +28,20 @@ export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; l
           </View>
           <Text style={{ ...type.headline, color: c.text }}>Lessons paused</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-          <Text style={{ fontSize: 48, lineHeight: 52, fontWeight: '700', color: c.warningInk, fontVariant: ['tabular-nums'] }}>{apprentice}</Text>
-          <View>
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>at Apprentice</Text>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{`limit ${limit}`}</Text>
+        <View style={{ gap: space.s }}>
+          <Text style={{ ...type.headline, color: c.text }}>
+            <Text style={{ color: c.warningInk, fontVariant: ['tabular-nums'] }}>{apprentice}</Text> at Apprentice
+          </Text>
+          <View style={{ height: 10, justifyContent: 'center' }}>
+            <View style={{ height: 10, borderRadius: 5, ...smooth, overflow: 'hidden', flexDirection: 'row', backgroundColor: c.fill }}>
+              <View style={{ width: withinLimit, backgroundColor: c.warning }} />
+              {over ? <View style={{ flex: 1, backgroundColor: c.warningInk }} /> : null}
+            </View>
+            <View style={{ position: 'absolute', left: limitAt, marginLeft: -1, top: -4, bottom: -4, width: 2, borderRadius: 1, backgroundColor: c.text }} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>0</Text>
+            <Text style={{ ...type.footnote, fontWeight: '600', color: c.text, fontVariant: ['tabular-nums'] }}>{`Limit ${limit}`}</Text>
           </View>
         </View>
         <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>Lessons resume once some of these move up to Guru.</Text>
