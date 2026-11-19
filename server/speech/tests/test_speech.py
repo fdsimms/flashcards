@@ -48,6 +48,20 @@ def test_ssml_pauses_at_a_thai_clause_break() -> None:
     assert "<break" not in ssml("¿Qué tal? Bien.", "es-MX-JorgeNeural")
 
 
+def test_ssml_runs_a_thai_clause_on_into_its_conjunction() -> None:
+    out = ssml("ต้นกำลังกินขนมปังอยู่ แต่หยุดกิน และดูผู้ชายคนนั้น ผู้ชาย", VOICE)
+    assert "ต้นกำลังกินขนมปังอยู่แต่หยุดกินและดูผู้ชายคนนั้น" + THAI_PAUSE + "ผู้ชาย" in out
+    # A conjunction opening a new sentence keeps its break, and แต่ละ / แต่ง- aren't the conjunction.
+    out = ssml("ไปไหม? แต่ละคนมาแล้ว แต่งตัวเสร็จ หรือยัง", VOICE)
+    assert f"ไปไหม?{THAI_PAUSE}แต่ละคนมาแล้ว{THAI_PAUSE}แต่งตัวเสร็จหรือยัง" in out
+    assert f"ไปไหม?{THAI_PAUSE}แต่" in ssml("ไปไหม? แต่ผมไม่ไป", VOICE)
+    # The other clause openers run on too, and their lookalikes keep the break.
+    out = ssml("ผมไม่ไป เพราะฝนตก ถ้าคุณไป แล้วผมจะไป เมื่อคุณมา", VOICE)
+    assert "ผมไม่ไปเพราะฝนตกถ้าคุณไปแล้วผมจะไปเมื่อคุณมา" in out
+    out = ssml("ผมไป แล้วแต่คุณ ผมมา เมื่อวานนี้", VOICE)
+    assert f"ผมไป{THAI_PAUSE}แล้วแต่คุณ{THAI_PAUSE}ผมมา{THAI_PAUSE}เมื่อวานนี้" in out
+
+
 def test_ssml_respells_a_thai_word_the_voice_misreads() -> None:
     out = ssml("มะม่วงราคาห้าสิบบาทค่ะ", VOICE)
     assert "<sub alias='มะ\u200bม่วง'>มะม่วง</sub>ราคา" in out
