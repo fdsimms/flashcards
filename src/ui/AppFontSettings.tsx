@@ -79,7 +79,7 @@ export function AppFontSettings() {
           <SwitchRow
             first
             label="Use on cards"
-            hint="Card fronts and backs use this font too. A deck set to change fonts each session uses its own."
+            hint="Card fronts and backs use this font too. A deck with its own card font uses that instead."
             value={settings.onCards}
             onValueChange={(onCards) => change({ ...settings, onCards })}
           />

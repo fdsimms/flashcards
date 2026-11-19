@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  APP_FONT_OPTIONS, CYCLE_FONTS, coverageLine, fontCovers, fontOption, fontsCovering, missingScripts, DEFAULT_FONT_SETTINGS, cardFontFor, fontFileName, fontFileNames, launchFont, normalizeFontWeight,
+  APP_FONT_OPTIONS, CYCLE_FONTS, coverageLine, fontCovers, fontOption, fontsCovering, missingScripts, DEFAULT_FONT_SETTINGS, cardFontFor, deckFontMode, poolForMode, fontFileName, fontFileNames, launchFont, normalizeFontWeight,
   parseFontSettings, resolveFontFace, togglePoolFont, type AppFont,
 } from '../../src/core/fonts';
 import { deckCardFonts } from '../../src/core/deckTree';
@@ -61,6 +61,27 @@ describe('togglePoolFont', () => {
     expect(togglePoolFont(['lora'], 'nunito')).toEqual(['nunito', 'lora']);
     expect(togglePoolFont(['nunito', 'lora'], 'nunito')).toEqual(['lora']);
     expect(togglePoolFont(['lora'], 'lora')).toEqual(['lora']);
+  });
+});
+
+describe('deckFontMode and poolForMode', () => {
+  it('reads one font as a fixed font and several as randomized', () => {
+    expect(deckFontMode([])).toBe('app');
+    expect(deckFontMode(['inter'])).toBe('deck');
+    expect(deckFontMode(['inter', 'lora'])).toBe('random');
+  });
+  it('keeps the first font when going to a deck font, and the chosen fonts when randomizing', () => {
+    expect(poolForMode('deck', ['inter', 'lora'], ['manrope'])).toEqual(['inter']);
+    expect(poolForMode('random', ['inter'], ['manrope', 'inter'])).toEqual(['inter']);
+    expect(poolForMode('random', ['inter', 'lora'], ['manrope'])).toEqual(['inter', 'lora']);
+  });
+  it('starts from the fonts that can draw the deck when none was chosen', () => {
+    expect(poolForMode('deck', [], ['manrope', 'inter'])).toEqual(['manrope']);
+    expect(poolForMode('random', [], ['manrope', 'inter'])).toEqual(['manrope', 'inter']);
+    expect(poolForMode('deck', [], [])).toEqual([]);
+  });
+  it('clears the list for the app font', () => {
+    expect(poolForMode('app', ['inter'], ['inter'])).toEqual([]);
   });
 });
 
