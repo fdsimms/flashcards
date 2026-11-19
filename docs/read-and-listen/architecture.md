@@ -2012,13 +2012,21 @@ suggest words to add, so the deck keeps going without the owner having to think 
   Keep going list for that deck, a deck under it or the deck it's in (`useNewWordsStep`). Both open
   Suggested words (`src/ui/reader/SuggestedWords.tsx`, the `read-new-words` route). Mocked first; the
   owner picked a card on Today over a chip in Today's extras, and kept the session row too.
-- **The words** (`GET /api/word-suggestions`, `word_suggestions.py`), neither source asking Claude:
+- **The words** (`GET /api/word-suggestions`, `word_suggestions.py`), the first two sources not asking Claude:
   words in texts read to the end that count as unknown, by dictionary form, the most texts first; then
   the language's most common words from just past the `common` setting (Thai, which counts none, from
-  the top; English has none, 19 November 2026: its list is everyday words like kidnap, and its deck is
-  for words a well-read native speaker doesn't know). Up to 50 of each. Left out: anything in the deck in any form, studied or not; WaniKani's
+  the top). Up to 50 of each. Left out: anything in the deck in any form, studied or not; WaniKani's
   words for Japanese (the owner's choice); words in the note queue; and words dismissed with Not
   interested (`POST /api/word-suggestions/dismiss`, the `dismissed_words` table, never suggested again).
+- **English has a third source and no common words** (19 November 2026, the owner: the common list
+  offered kidnap and refund, and the English deck is for words a well-read native speaker doesn't know).
+  Claude writes rare words from the deck's own (`rare_words.py`, Sonnet, `LANGUAGES[..].writes_rare_words`),
+  shown as "Rare words from Claude" (`written`). Checked in code: one lowercase word with a meaning, none
+  in the deck, queue or dismissals, none already kept, and none on the common-word list. The words that
+  pass are kept (`written_words`), so opening the screen asks nothing until fewer than 20 are left, and
+  then one call asks for 40, told the words to avoid (kept and dismissed ones). The x teaches it: a
+  dismissed word is never suggested again and is listed as one to avoid. A call that fails is said on
+  the screen (`written_error`), not dropped. Its cost is kept in `call_costs` (feature "rare_words").
   The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
   of the deck has (`entryKeys`, an entry with or without its article) and words held for Claude.
 - **The screen** groups the words by source, each with its meaning when one is known (a text's gloss,

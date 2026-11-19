@@ -15,6 +15,7 @@ from franki_reader import (
     lesson_words,
     note_queue,
     production,
+    rare_words,
     sentences,
     situations,
     store,
@@ -70,6 +71,7 @@ class AppContext:
     fix_flagged_card: fix_card.FixCard | None
     find_lesson_words: lesson_words.FindWords | None
     write_cram_themes: WriteThemes | None
+    write_rare_words: rare_words.WriteRareWords | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens
     # with STATUS_TOKEN.
     authed: Sequence[Any]

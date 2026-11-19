@@ -162,6 +162,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
               </Group>
             </View>
           )) : <Help>{`There are no words to suggest for ${name} right now. Read a text and its new words will show here.`}</Help>}
+          {found.words.written_error ? <ErrorNote message={`Couldn't get rare words from Claude. ${found.words.written_error}`} /> : null}
           {error ? <ErrorNote message={error} /> : null}
           {sections.length ? <Help>The x leaves a word out of later suggestions too.</Help> : null}
         </ScrollView>

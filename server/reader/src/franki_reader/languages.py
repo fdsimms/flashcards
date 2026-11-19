@@ -75,11 +75,16 @@ class Language:
         return self.code != "th"
 
     @property
+    def writes_rare_words(self) -> bool:
+        """Whether Suggested words has Claude write rare words (rare_words.py) instead of offering
+        the language's most common ones. English does: its list is everyday words (kidnap, refund),
+        and its deck holds only the words a well-read native speaker doesn't know."""
+        return self.code == "en"
+
+    @property
     def suggests_common(self) -> bool:
-        """Whether Suggested words offers the language's most common words the deck lacks. English
-        doesn't: its list is everyday words (kidnap, refund), and the English deck holds only the
-        words a well-read native speaker doesn't know, so only words met in texts are suggested."""
-        return self.code != "en"
+        """Whether Suggested words offers the language's most common words the deck lacks."""
+        return not self.writes_rare_words
 
     @property
     def notes_query(self) -> str:

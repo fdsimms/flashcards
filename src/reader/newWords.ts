@@ -101,7 +101,7 @@ export function entryKeys(headwords: Iterable<string>): Set<string> {
   return out;
 }
 
-export type SuggestionSection = { key: 'texts' | 'common'; title: string; words: WordSuggestion[] };
+export type SuggestionSection = { key: 'texts' | 'common' | 'written'; title: string; words: WordSuggestion[] };
 
 /**
  * The screen's sections, in order, without the words the deck has (`entries`) or that are held for
@@ -113,6 +113,7 @@ export function suggestionSections(s: WordSuggestions, entries: ReadonlySet<stri
   return ([
     { key: 'texts', title: 'From texts you read', words: s.texts.filter(keep) },
     { key: 'common', title: 'Common words not in the deck', words: s.common.filter(keep) },
+    { key: 'written', title: 'Rare words from Claude', words: s.written.filter(keep) },
   ] as SuggestionSection[]).filter((x) => x.words.length);
 }
 
