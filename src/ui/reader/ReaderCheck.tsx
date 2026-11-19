@@ -1,15 +1,18 @@
 import { useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import type { Api, ReaderText, TextLine } from '../../reader/api';
+import type { Api, Language, ReaderText, TextLine } from '../../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { choiceText } from '../../reader/choices';
+import { LANGUAGES } from '../../reader/languages';
 import { isSlow, NORMAL_RATE, RATES } from '../../reader/playbackRate';
 import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
+import { saidAs } from '../../reader/wordAudio';
 import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
+import { PlayPill } from '../PlayButton';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
@@ -20,13 +23,15 @@ import { TranslationRow } from '../TranslationRow';
  * stays until Next. `picks` lives in the reader, so the score is logged with the reading however the
  * screen is left. Nothing here grades a card.
  */
-export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, onDone }: {
+export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, onPlayWord, onDone }: {
   api: Api;
   text: ReaderText;
   questions: CheckQuestion[];
   picks: CheckPicks;
   textStyle: ReadTextStyle;
   onPick: (key: string, pick: number | null) => void;
+  /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -117,6 +122,13 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 {q.word}
               </Text>
               <LineWords line={line} word={q.word} textStyle={textStyle} centered />
+              <View style={{ marginTop: space.xs }}>
+                <PlayPill
+                  label={`Play ${q.word}`}
+                  onPlay={() => onPlayWord(q.word, text.language, saidAs(text.language, q.word, line?.words.find((w) => w.text === q.word)?.translit))}
+                  speech={LANGUAGES[text.language].speech}
+                />
+              </View>
             </View>
           )}
         </Card>

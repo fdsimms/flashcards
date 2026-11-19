@@ -962,6 +962,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           picks={checkPicks ?? {}}
           textStyle={readStyle(text, thaiFont, textSize)}
           onPick={(key, pick) => setCheckPicks((prev) => ({ ...prev, [key]: pick }))}
+          onPlayWord={onPlayWord}
           onDone={() => setChecking(false)}
         />
       ) : null}
