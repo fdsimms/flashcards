@@ -101,6 +101,12 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
   const bandInset = Math.max(0, (textStyle.lineHeight - textStyle.fontSize * 1.1) / 2);
   // The word being spoken takes the band over a highlight or a name, as it moves on in a moment.
   const band = ringed || phrasePart ? null : spoken ? c.spoken : slot === 'right' ? c.goodFill : highlighted ? c.highlight : named ? c.nameFill : null;
+  const underline: { width: number; style: 'solid' | 'dashed'; color: string } | null = showFlag
+    ? { width: 2, style: 'solid', color: c.countNew }
+    : role === 'practice' ? { width: 1.5, style: 'solid', color: c.onSpeakerB }
+    : role === 'avoid' ? { width: 1.5, style: 'dashed', color: c.textTertiary }
+    : role === 'review' || role === 'unset' ? { width: 1, style: 'solid', color: c.textTertiary }
+    : null;
   return (
     <Pressable
       ref={viewRef}
@@ -136,26 +142,21 @@ export function WordView({ word, grammar, textStyle, flagged, highlighted, named
         style={[
           { fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: stretch ? c.accent : c.text },
           stretch ? textStyle.font.emphasis : null,
-          // The underline is a bottom border, not textDecoration: iOS draws a text underline through
-          // Thai's below-the-line vowels and consonant feet. The border is always there (transparent
-          // when unused) so every word is the same height and a row stays aligned.
-          // Grammar is underlined solid when practiced, dashed when it slipped in while avoided, and
-          // with a thin gray line when it's a known point worked in or one not set yet (thinner by
-          // half a point, made up below it so the row's height doesn't change); a marked word's
-          // blue line takes its place (thicker by half a point, taken from below it the same way).
+          // Every word has the same transparent bottom border so a row stays aligned; the visible
+          // underline is drawn below, as a line under the glyphs rather than under the line box.
           { borderBottomWidth: 1.5, borderBottomColor: 'transparent' },
-          role === 'practice' || role === 'avoid' ? {
-            borderStyle: role === 'practice' ? 'solid' : 'dashed',
-            borderBottomColor: role === 'practice' ? c.onSpeakerB : c.textTertiary,
-          } : null,
-          role === 'review' || role === 'unset' ? {
-            borderStyle: 'solid', borderBottomWidth: 1, marginBottom: 0.5, borderBottomColor: c.textTertiary,
-          } : null,
-          showFlag ? { borderStyle: 'solid', borderBottomWidth: 2, marginBottom: -0.5, borderBottomColor: c.countNew } : null,
         ]}
       >
         {word.text}
       </Text>
+      {underline ? (
+        // A bottom border on a View, not textDecoration: iOS draws a text underline through Thai's
+        // below-the-line vowels and consonant feet. It sits at the bottom of the glyph area (the
+        // same inset the band uses), not the bottom of the line box, which is far lower for Thai.
+        // Solid when practiced, dashed when it slipped in while avoided, thin gray when it's a known
+        // point worked in or not set yet; a marked word's blue line takes its place.
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 3 + bandInset, borderBottomWidth: underline.width, borderStyle: underline.style, borderBottomColor: underline.color }} />
+      ) : null}
     </Pressable>
   );
 }

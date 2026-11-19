@@ -174,6 +174,10 @@ Franki's (Client, below).
   gone: below); the lines show who's speaking instead, and "Show the text" brings the words back. The
   reading is then logged with `listen_only` true. A text already read can be played this way too:
   Listen again, below.
+  Removed from the end view on 19 November 2026, by the owner: its Listen without the text button
+  (the header's remains), Write episode N and Next: title. The end view ends with one button, Back to
+  Read & Listen, which still logs the text as read; the story's next episode is written from that, as
+  from any other way of leaving. Play all still moves on by itself.
 - While audio plays, the text scrolls to keep the line being spoken in view.
 - **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
   Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
@@ -237,7 +241,7 @@ Franki's (Client, below).
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
   the popover open with the choices as a record, the right one marked with a check alone (with a
-  haptic, no bounce; the other choices fold away at once) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  haptic, no bounce; the other choices fold away at once) or "Meaning" and a wrong pick marked with an X alone (19 November 2026: "Your pick" crowded the row; 16 November 2026, the owner:
   a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
