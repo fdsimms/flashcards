@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DRILL_STEPS, drawQuestion, drillAnswer, drillStep, hasDrills, NUMBER_STEPS, questionKey, suggestedRating, TIME_STEPS } from '../../src/tools/skills';
+import {
+  DRILL_STEPS, drawQuestion, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  languageOfDeck, skillDrafts, skillGroups, suggestedRating, TIME_STEPS,
+} from '../../src/tools/skills';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
 
@@ -70,5 +73,62 @@ describe('skill drills', () => {
     expect(suggestedRating([true, false, true])).toBe(2);
     expect(suggestedRating([false, false, true])).toBe(1);
     expect(suggestedRating([])).toBe(3);
+  });
+});
+
+
+describe('skill cards in the collection', () => {
+  it('offers the groups a language has', () => {
+    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'consonants']);
+    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers']);
+    expect(skillGroups('en')).toEqual([]);
+    expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
+  });
+
+  it('writes one drill card per step, the later steps suspended', () => {
+    const drafts = skillDrafts('th', 'Thai', ['time']);
+    expect(drafts).toHaveLength(4);
+    expect(drafts.map((d) => d.suspended)).toEqual([false, true, true, true]);
+    expect(drafts[0].tags).toEqual([SKILL_TAG, 'skill::drill::time-hours', 'skill::lang::th']);
+    expect(drafts[0].fields.Front).toContain("Thai · Telling the time: O'clock and half past");
+  });
+
+  it('writes a card per consonant, none suspended, and none for a language without them', () => {
+    const drafts = skillDrafts('th', 'Thai', ['consonants']);
+    expect(drafts).toHaveLength(44);
+    expect(drafts.every((d) => !d.suspended && d.tags.includes('skill::consonants'))).toBe(true);
+    expect(new Set(drafts.map((d) => d.fields.Front)).size).toBe(44);
+    expect(skillDrafts('pl', 'Polish', ['consonants'])).toEqual([]);
+  });
+
+  it('gives each language its own first field, so the same step in two languages is two notes', () => {
+    expect(skillDrafts('th', 'Thai', ['numbers'])[0].fields.Front).not.toBe(skillDrafts('pl', 'Polish', ['numbers'])[0].fields.Front);
+  });
+
+  it('reads a drill back from its tags', () => {
+    expect(drillOfTags(['skill', 'skill::drill::numbers-99', 'skill::lang::pl'])).toMatchObject({ step: { id: 'numbers-99' }, language: 'pl' });
+    expect(drillOfTags(['skill::drill::numbers-99', 'skill::lang::pl'])).toBeUndefined();
+    expect(drillOfTags(['skill', 'skill::consonants', 'skill::lang::th'])).toBeUndefined();
+    expect(drillOfTags(['skill', 'skill::drill::nope', 'skill::lang::th'])).toBeUndefined();
+    expect(drillOfTags(['skill', 'skill::drill::time-any', 'skill::lang::xx'])).toBeUndefined();
+  });
+
+  it('releases a step once the step before has settled, in the same language only', () => {
+    const cards = [
+      { id: 'a', stepId: 'time-hours', language: 'th' as const, suspended: false, settled: true },
+      { id: 'b', stepId: 'time-quarters', language: 'th' as const, suspended: true, settled: false },
+      { id: 'c', stepId: 'time-five', language: 'th' as const, suspended: true, settled: false },
+      { id: 'd', stepId: 'time-quarters', language: 'pl' as const, suspended: true, settled: false },
+      { id: 'e', stepId: 'time-hours', language: 'pl' as const, suspended: false, settled: false },
+    ];
+    expect(releasable(cards)).toEqual(['b']);
+  });
+});
+
+describe("a deck's language", () => {
+  it('is read from its name, as Review reads it', () => {
+    expect(languageOfDeck('Languages::Thai')).toEqual({ language: 'th', name: 'Thai' });
+    expect(languageOfDeck('Polski::Verbs')).toEqual({ language: 'pl', name: 'Polish' });
+    expect(languageOfDeck('🧠 Trivia')).toBeUndefined();
   });
 });

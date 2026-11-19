@@ -50,6 +50,13 @@ export async function createDeck(store: NoteStore, input: string, refresh: () =>
   return made;
 }
 
+/** The deck called `input`, made if Franki has none by that name yet (as `createDeck` makes one). Returns its name. */
+export async function ensureDeck(store: NoteStore, input: string, refresh: () => Promise<void>, now: Date = new Date()): Promise<string> {
+  const name = checkedName(input);
+  const taken = (await frankiDecks(store)).find((d) => sameDeckName(d, name));
+  return taken ?? createDeck(store, name, refresh, now);
+}
+
 /** Renames the deck `from`, and every deck under it, to `input`. Returns the new name. */
 export async function renameDeck(store: NoteStore, from: string, input: string, refresh: () => Promise<void>, now: Date = new Date()): Promise<string> {
   const to = checkedName(input);

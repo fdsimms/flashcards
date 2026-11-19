@@ -1,8 +1,11 @@
 import type { Language } from '../reader/api';
+import { speechLangFor } from '../core/cards';
+import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
 import { clockText, randomTime, type ClockTime, type MinuteStep, type TimeSaying } from './time';
+import { CLASS_NAMES, CONSONANTS } from './thai/letters';
 import { NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
@@ -108,4 +111,118 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
 export function suggestedRating(results: readonly boolean[]): 1 | 2 | 3 {
   const missed = results.filter((r) => !r).length;
   return missed === 0 ? 3 : missed === 1 ? 2 : 1;
+}
+
+// ==== Skill cards in the collection ====
+
+/**
+ * Skill cards are Basic notes (Front, Back) in a `<deck>::Skills` subdeck, told apart by their tags:
+ * `skill`, the group or drill step (`skill::drill::time-hours`, `skill::consonants`) and the language
+ * (`skill::lang::th`). A note type of their own would need a full upload of the collection, since the
+ * phone never sends note types; Basic is in every Anki collection, and Anki on the computer shows the
+ * card as it is written here.
+ */
+export const SKILL_TAG = 'skill';
+export const SKILL_NOTE_TYPE = 'Basic';
+export const SKILLS_SUBDECK = 'Skills';
+
+export type SkillGroup = DrillGroup | 'consonants';
+
+export interface SkillGroupInfo {
+  id: SkillGroup;
+  title: string;
+  /** What adding it puts in the deck, in a line. */
+  detail: string;
+  /** How many cards it adds. */
+  count: number;
+}
+
+/** The language a deck is in, read from its name as Review reads a card's (`speechLangFor`), with its name; undefined when the name doesn't give one. */
+export function languageOfDeck(deck: string): { language: Language; name: string } | undefined {
+  const speech = speechLangFor({ id: '', deck, model: '', fields: {}, tags: [] });
+  const language = LANGUAGE_ORDER.find((l) => LANGUAGES[l].speech === speech);
+  return language ? { language, name: LANGUAGES[language].name } : undefined;
+}
+
+/** The groups a language has, in the order they're offered. */
+export function skillGroups(language: Language): SkillGroupInfo[] {
+  const out: SkillGroupInfo[] = [];
+  const steps = (ladder: DrillStep[]) => ladder.map((s) => s.title.charAt(0).toLowerCase() + s.title.slice(1)).join(', ');
+  if (hasDrills('time', language)) out.push({ id: 'time', title: GROUP_TITLES.time, detail: `${TIME_STEPS.length} drill cards: ${steps(TIME_STEPS)}`, count: TIME_STEPS.length });
+  if (hasDrills('numbers', language)) out.push({ id: 'numbers', title: GROUP_TITLES.numbers, detail: `${NUMBER_STEPS.length} drill cards: ${steps(NUMBER_STEPS)}`, count: NUMBER_STEPS.length });
+  if (language === 'th') out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
+  return out;
+}
+
+export interface SkillDraft {
+  fields: { Front: string; Back: string };
+  tags: string[];
+  /** Added suspended: a drill step whose step before hasn't settled yet. */
+  suspended: boolean;
+}
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** The notes adding `groups` in `language` writes, in order. */
+export function skillDrafts(language: Language, languageName: string, groups: SkillGroup[]): SkillDraft[] {
+  const lang = `${SKILL_TAG}::lang::${language}`;
+  const drafts: SkillDraft[] = [];
+  for (const group of groups) {
+    if (group === 'consonants') {
+      if (language !== 'th') continue;
+      for (const c of CONSONANTS) {
+        drafts.push({
+          fields: {
+            Front: `<div style="font-size:64px">${esc(c.letter)}</div><div>Which class?</div>`,
+            Back: `<div><b>${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
+          },
+          tags: [SKILL_TAG, `${SKILL_TAG}::consonants`, lang],
+          suspended: false,
+        });
+      }
+      continue;
+    }
+    if (!hasDrills(group, language)) continue;
+    for (const step of DRILL_STEPS.filter((s) => s.group === group)) {
+      drafts.push({
+        fields: {
+          // The language leads, so the same step for two languages isn't the same first field.
+          Front: `<div><b>${esc(languageName)} · ${esc(GROUP_TITLES[group])}: ${esc(step.title)}</b></div><div>${esc(step.selfCheck)}</div>`,
+          Back: '<div>Rate how it went. In Franki this card is a short drill.</div>',
+        },
+        tags: [SKILL_TAG, `${SKILL_TAG}::drill::${step.id}`, lang],
+        suspended: !!step.after,
+      });
+    }
+  }
+  return drafts;
+}
+
+/** The drill a note's tags make it, with its language; undefined for any other note. */
+export function drillOfTags(tags: readonly string[]): { step: DrillStep; language: Language } | undefined {
+  if (!tags.includes(SKILL_TAG)) return undefined;
+  const step = tags.map((t) => t.startsWith(`${SKILL_TAG}::drill::`) ? drillStep(t.slice(`${SKILL_TAG}::drill::`.length)) : undefined).find(Boolean);
+  const language = tags.map((t) => t.startsWith(`${SKILL_TAG}::lang::`) ? t.slice(`${SKILL_TAG}::lang::`.length) : undefined)
+    .find((l): l is Language => !!l && (LANGUAGE_ORDER as string[]).includes(l));
+  return step && language ? { step, language } : undefined;
+}
+
+/** A skill card's place for releasing the next step: its drill step and language, whether it's suspended, and whether it has settled. */
+export interface SkillCardState {
+  id: string;
+  stepId: string;
+  language: Language;
+  suspended: boolean;
+  /** Started and scheduled a week or more out (the progress gate's line, src/core/progress.ts). */
+  settled: boolean;
+}
+
+/** The suspended cards to release: those whose step before, in the same language, has settled. */
+export function releasable(cards: readonly SkillCardState[]): string[] {
+  const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
+  return cards.filter((c) => {
+    if (!c.suspended) return false;
+    const after = drillStep(c.stepId)?.after;
+    return !!after && settled.has(`${c.language}|${after}`);
+  }).map((c) => c.id);
 }
