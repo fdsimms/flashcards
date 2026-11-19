@@ -3,9 +3,9 @@ import { Text, View } from 'react-native';
 import { compareTyped } from '../../core/typedCompare';
 import type { WritingCheck } from '../../reader/api';
 import { verdictLine } from '../../reader/production';
-import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
 
 /**
@@ -23,6 +23,7 @@ export function WritingResult({ check, attempt, lang, onPlay }: {
   onPlay?: () => void;
 }) {
   const c = useTheme();
+  const { playing, tap } = useSoundingButton();
   const tone = check.used_word === false || check.verdict === 'almost' ? c.warning : check.verdict === 'right' ? c.countDue : c.danger;
   const icon = check.verdict === 'right' && check.used_word !== false ? 'checkmark.circle.fill' : check.verdict === 'wrong' ? 'xmark.circle.fill' : 'exclamationmark.circle.fill';
   const comparison = compareTyped(check.corrected, attempt);
@@ -38,12 +39,12 @@ export function WritingResult({ check, attempt, lang, onPlay }: {
         </View>
         {onPlay ? (
           <Tappable
-            onPress={() => { haptic.tap(); onPlay(); }}
+            onPress={() => tap(onPlay)}
             accessibilityRole="button"
-            accessibilityLabel="Play the corrected version"
+            accessibilityLabel={playing ? 'Pause' : 'Play the corrected version'}
             style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Icon name="play.fill" size={16} color={c.accent} />
+            <Icon name={playing ? 'pause.fill' : 'play.fill'} size={16} color={c.accent} />
           </Tappable>
         ) : null}
       </View>

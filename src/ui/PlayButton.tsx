@@ -4,24 +4,27 @@ import { languageKey, languageName } from '../core/voices';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, lift, MIN_TAP, radius, smooth, space, useTheme } from './theme';
+import { useSoundingButton } from './useSoundingButton';
 import { useVoiceLink } from './useVoiceLink';
 
 /**
  * A play button for text read in the phone's voice: a play icon, and beside it, when the language
  * is known, a gear icon that opens that language's voice and speed (Settings, Voices), so a
- * voice that sounds wrong can be changed from the screen that played it. `speech` is the language
+ * voice that sounds wrong can be changed from the screen that played it. While its sound plays the
+ * play icon is a pause icon, and tapping it stops the sound. `speech` is the language
  * the text is read in (th-TH); without one it's the play icon alone.
  */
 export function PlayPill({ label, onPlay, speech, raised }: { label: string; onPlay: () => void; speech?: string; raised?: boolean }) {
   const c = useTheme();
   const openVoice = useVoiceLink();
+  const { playing, tap } = useSoundingButton();
   const half = { minHeight: MIN_TAP, minWidth: MIN_TAP + space.s, alignItems: 'center', justifyContent: 'center' } as const;
   // Raised: floating over a card, whose own fill is the pill's usual fill, so it's the accent color with a shadow to stand off it.
   const icon = raised ? c.onAccent : c.accent;
   const pill = (
     <View style={{ flexDirection: 'row', alignItems: 'stretch', borderRadius: radius.pill, backgroundColor: raised ? c.accent : c.fill, overflow: 'hidden', ...smooth }}>
-      <Tappable onPress={() => { haptic.tap(); onPlay(); }} accessibilityRole="button" accessibilityLabel={label} scaleTo={0.94} style={half}>
-        <Icon name="play.fill" size={18} color={icon} />
+      <Tappable onPress={() => tap(onPlay)} accessibilityRole="button" accessibilityLabel={playing ? 'Pause' : label} scaleTo={0.94} style={half}>
+        <Icon name={playing ? 'pause.fill' : 'play.fill'} size={18} color={icon} />
       </Tappable>
       {speech ? (
         <>

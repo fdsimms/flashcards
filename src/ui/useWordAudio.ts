@@ -8,6 +8,7 @@ import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { recordingIndex, wordPlayback } from '../reader/wordAudio';
 import { usePhoneSpeech } from './usePhoneSpeech';
+import { trackPlayer } from './useSoundingButton';
 
 /**
  * Plays a word tapped in Read & Listen: the recording on its deck note when it has one and the
@@ -20,12 +21,13 @@ export function useWordAudio(repo: Repo) {
   const notes = useRef<Promise<Note[]> | null>(null);
   const indexes = useRef(new Map<Language, Map<string, string>>());
   const player = useRef<AudioPlayer | null>(null);
+  const untrack = useRef<(() => void) | null>(null);
   const speaking = useRef(false);
 
   useEffect(() => {
     notes.current = repo.listNotes();
     notes.current.catch(() => undefined);
-    return () => { player.current?.remove(); player.current = null; Speech.stop(); };
+    return () => { untrack.current?.(); untrack.current = null; player.current?.remove(); player.current = null; Speech.stop(); };
   }, [repo]);
 
   // `say`: what to speak in place of the word when there's no recording, e.g. a Japanese word's kana,
@@ -43,7 +45,10 @@ export function useWordAudio(repo: Repo) {
     player.current?.pause();
     const uri = what.file ? mediaFileUri(what.file) : undefined;
     if (uri) {
-      player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+      if (!player.current) {
+        player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
+        untrack.current = trackPlayer(player.current);
+      }
       player.current.replace({ uri });
       player.current.play();
       return;
