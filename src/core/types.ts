@@ -1,5 +1,6 @@
 import type { AppFont } from './fonts';
 import type { Segment } from './highlight';
+import type { GrammarCell } from './wordGrammar';
 
 /**
  * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
@@ -194,19 +195,23 @@ export interface RenderedSide {
     /**
      * What the block is, for layout: `chips` are small tags (`chips` holds them), the `example*`
      * blocks are one example sentence's lines (set tight together), a `note` is set off in a
-     * callout, `forms` is a labeled list of the word's forms (`rows`), and `wanted` is the short line
+     * callout, `grammar` is the Grammar box: what kind of word it is (`pattern`) and its forms, each under its name (`cells`; wordGrammar.ts), and `wanted` is the short line
      * under a reverse card's meaning that says which of the words with that meaning is asked for
      * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), a `gloss` is a meaning shown under the word it translates,
      * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
      * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), and a `transliteration` is the word's romanization, set larger than an example's. A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'forms' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration';
     /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
     field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
     reading?: string;
     chips?: string[];
-    /** A `forms` block's lines: one of the word's forms each, under its label ("plural", "genitive"). */
+    /** A `grammar` block's top line: what kind of word it is ("Strong verb. The prefix ab splits off."). */
+    pattern?: string;
+    /** A `grammar` block's forms, each under the name of what it is ("genitive", "past", "takes"). */
+    cells?: GrammarCell[];
+    /** A `counting` block's lines. */
     rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];
     /** Shown dimmed before an emphasized word: этот / эта / это before a Russian noun, as Anki's template does. */
     prefix?: string;

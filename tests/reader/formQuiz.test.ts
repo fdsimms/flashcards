@@ -28,24 +28,22 @@ describe('slotWords', () => {
 
 describe('slotView', () => {
   it('is the pill while open, and the plain word where there is no slot', () => {
-    expect(slotView(mice, undefined, true, false)).toBe('open');
-    expect(slotView(word('lubię'), undefined, true, false)).toBeNull();
+    expect(slotView(mice, undefined, true)).toBe('open');
+    expect(slotView(word('lubię'), undefined, true)).toBeNull();
   });
 
   it('is the plain word with the quiz off', () => {
-    expect(slotView(mice, undefined, false, false)).toBeNull();
+    expect(slotView(mice, undefined, false)).toBeNull();
   });
 
-  it('shows the word while its line plays, then goes back to the pill', () => {
-    expect(slotView(mice, undefined, true, true)).toBeNull();
-    expect(slotView(mice, undefined, true, false)).toBe('open');
+  it('stays the pill while its line plays', () => {
+    expect(slotView(mice, undefined, true)).toBe('open');
   });
 
   it('keeps a tint for a right answer and shows a missed or skipped word plainly', () => {
-    expect(slotView(mice, 'right', true, false)).toBe('right');
-    expect(slotView(mice, 'right', true, true)).toBe('right');
-    expect(slotView(mice, 'missed', true, false)).toBeNull();
-    expect(slotView(mice, 'skipped', true, false)).toBeNull();
+    expect(slotView(mice, 'right', true)).toBe('right');
+    expect(slotView(mice, 'missed', true)).toBeNull();
+    expect(slotView(mice, 'skipped', true)).toBeNull();
   });
 });
 

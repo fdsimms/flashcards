@@ -5,6 +5,7 @@ import { failureText } from '../../core/failure';
 import type { Api, FormExplanation, Language, Word } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { checkForm, formReason, markDecider, type FormCheck, type Settled } from '../../reader/formQuiz';
+import { usePrimers } from './ReadFormSheet';
 import { Button, HeaderAction, Icon, Tappable } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
@@ -67,6 +68,9 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
     input.current?.focus();
   };
   const reason = formReason(word);
+  // What the form means, from the same fixed text as the form chip's sheet; left out until it has loaded.
+  const { primers } = usePrimers(api, language);
+  const meaning = word.form ? primers?.find((p) => p.id === word.form?.id)?.summary : undefined;
   const sentence = { ...type.reading, color: c.text };
 
   return (
@@ -89,10 +93,11 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         </Text>
 
         <View style={{ gap: 2 }}>
-          <Text style={{ ...type.cardBack, color: c.accent }}>{word.lemma}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>
-            {word.gloss ? `${word.gloss}. ` : ''}Type the form that fits the sentence.
+          <Text style={{ ...type.cardBack, color: c.accent }}>
+            {word.lemma}
+            {word.gloss ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{`   "${word.gloss}"`}</Text> : null}
           </Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>Type the form that fits the sentence.</Text>
         </View>
 
         <View
@@ -128,9 +133,10 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         {checked ? (
           <View accessibilityLiveRegion="polite" style={{ gap: space.xs }}>
             <Text style={{ ...type.headline, color: tint }}>
-              {right ? 'Right' : result === 'accents' ? `The letters are right, but the accents aren't. The text has ${word.text}` : `The text has ${word.text}`}
+              {right ? 'Right' : result === 'accents' ? `The letters are right, but the accents aren't. The text has "${word.text}".` : `The text has "${word.text}".`}
             </Text>
             {reason ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{reason}</Text> : null}
+            {meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
           </View>
         ) : null}
 

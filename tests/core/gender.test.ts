@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { articleIsSpoken, bareNoun, elidesBefore, genderArticle, genderOf, leadingArticle, pluralWord, withArticle } from '../../src/core/gender';
+import { articleIsSpoken, bareNoun, bareVerb, elidesBefore, genderArticle, genderOf, leadingArticle, pluralWord, spokenEntry, verbMarker, withArticle } from '../../src/core/gender';
 
 describe('gender for coloring', () => {
   it('reads m, f and n from the Gender field, however it is cased or spaced', () => {
@@ -90,6 +90,30 @@ describe('a noun without the article its Gender gives', () => {
     expect(bareNoun('de', 'm', 'Tisch')).toBe('Tisch');
     expect(bareNoun('de', undefined, 'der Tisch')).toBe('der Tisch');
     expect(bareNoun('ru', 'm', 'этот стол')).toBe('этот стол');
+  });
+});
+
+describe("a Norwegian verb's å", () => {
+  it('goes before a bare verb, and nowhere else', () => {
+    expect(verbMarker('nb', 'verb', 'huske')).toBe('å');
+    expect(verbMarker('nb', ' Verb ', 'huske')).toBe('å');
+    expect(verbMarker('nb', 'noun', 'huske')).toBeUndefined();
+    expect(verbMarker('nb', 'phrase', 'gå seg vill')).toBeUndefined();
+    expect(verbMarker('nb', 'verb', 'å huske')).toBeUndefined();
+    expect(verbMarker('de', 'verb', 'werfen')).toBeUndefined();
+  });
+  it('is said with the verb, as an article is with its noun', () => {
+    expect(spokenEntry('nb', undefined, 'verb', 'huske')).toBe('å huske');
+    expect(spokenEntry('nb', 'f', 'noun', 'huske')).toBe('ei huske');
+    expect(spokenEntry('de', 'f', 'noun', 'Einstellung')).toBe('die Einstellung');
+    expect(spokenEntry('pl', 'm', 'noun', 'stół')).toBe('stół');
+    expect(spokenEntry('de', undefined, 'verb', 'werfen')).toBe('werfen');
+  });
+  it('comes off a verb when the word is added', () => {
+    expect(bareVerb('nb', 'verb', 'å huske')).toBe('huske');
+    expect(bareVerb('nb', 'phrase', 'å gå seg vill')).toBe('å gå seg vill');
+    expect(bareVerb('nb', 'verb', 'åpne')).toBe('åpne');
+    expect(bareVerb('de', 'verb', 'werfen')).toBe('werfen');
   });
 });
 

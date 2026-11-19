@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { scrollTarget } from '../../src/reader/follow';
+import { lineSide, scrollTarget } from '../../src/reader/follow';
 
 const bare = { height: 500, insetTop: 0 };
 
@@ -36,4 +36,17 @@ test('a line under the header is not in view', () => {
 test('the top of the content is at minus the header, where the screen opened', () => {
   expect(scrollTarget({ y: 4, height: 80 }, 50, underHeader)).toBe(-100);
   expect(scrollTarget({ y: 20, height: 80 }, -100, underHeader)).toBeNull();
+});
+
+test('lineSide says which way the line lies, and null when it is in view', () => {
+  expect(lineSide({ y: 300, height: 80 }, 200, bare)).toBeNull();
+  expect(lineSide({ y: 100, height: 80 }, 200, bare)).toBe('above');
+  expect(lineSide({ y: 900, height: 80 }, 200, bare)).toBe('below');
+  // Cut off at the bottom edge is still below.
+  expect(lineSide({ y: 650, height: 80 }, 200, bare)).toBe('below');
+});
+
+test('lineSide counts a line under the header as above', () => {
+  expect(lineSide({ y: 300, height: 40 }, 250, underHeader)).toBe('above');
+  expect(lineSide({ y: 360, height: 40 }, 250, underHeader)).toBeNull();
 });

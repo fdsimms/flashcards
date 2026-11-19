@@ -25,15 +25,15 @@ export function slotWords(text: ReaderText): Word[] {
 }
 
 /**
- * How a slot word is drawn. Off, or a word that isn't a slot, is the plain word. While its line plays the
- * word is the plain word too, since the voice is saying it: listening first is a fair way to answer. Once
- * answered right it keeps a tint; once missed or skipped it's plain.
+ * How a slot word is drawn. Off, or a word that isn't a slot, is the plain word. An open slot stays a pill
+ * while its line plays (the playing line's shading goes behind it). Once answered right it keeps a tint;
+ * once missed or skipped it's plain.
  */
-export function slotView(word: Word, settled: Settled | undefined, enabled: boolean, linePlaying: boolean): SlotView {
+export function slotView(word: Word, settled: Settled | undefined, enabled: boolean): SlotView {
   if (!enabled || !isSlotWord(word)) return null;
   if (settled === 'right') return 'right';
   if (settled) return null;
-  return linePlaying ? null : 'open';
+  return 'open';
 }
 
 /**

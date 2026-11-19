@@ -1,7 +1,7 @@
 // The note queue, app side: words typed in Quick add, filled in by Claude on Read & Listen's server, then
 // reviewed here. Saving a note in the note editor is the approval step: nothing in this file (or the
 // screens that use it) creates a note or touches a card. Pure, so it's tested.
-import { bareNoun, genderOf } from '../core/gender';
+import { bareNoun, bareVerb, genderOf } from '../core/gender';
 import type { Language, NoteQueue, QueuedNote } from './api';
 
 /**
@@ -63,10 +63,11 @@ export const firstReady = (items: QueuedNote[]): QueuedNote | undefined => items
 /**
  * The new note a ready word starts as, for the note editor: the fields Claude wrote under the Entry,
  * and its part of speech as the tag, as the owner's finished notes carry it. A noun's article is left off
- * the Entry when its Gender gives that same article (the card shows it from the Gender).
+ * the Entry when its Gender gives that same article (the card shows it from the Gender), and a Norwegian
+ * verb's å likewise (the card shows it before a verb).
  */
 export function reviewTarget(note: QueuedNote): { deck: string; model: string; fields: Record<string, string>; tags?: string[] } {
-  const target = { deck: note.deck, model: 'Omnilanguage', fields: { Entry: bareNoun(note.language, genderOf(note.fields.Gender ?? ''), note.entry), ...note.fields } };
+  const target = { deck: note.deck, model: 'Omnilanguage', fields: { Entry: bareVerb(note.language, note.fields.PartOfSpeech ?? '', bareNoun(note.language, genderOf(note.fields.Gender ?? ''), note.entry)), ...note.fields } };
   const part = note.fields.PartOfSpeech;
   return part ? { ...target, tags: [part] } : target;
 }

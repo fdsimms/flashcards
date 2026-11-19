@@ -30,6 +30,12 @@ describe('typeItAnswers', () => {
     expect(typeItAnswers(japanese(), card('reverse'))).toEqual(['食べる', 'たべる']);
     expect(typeItAnswers(japanese({ KanaReading: 'きょう、こんにち' }), card('reverse'))).toEqual(['食べる', 'きょう', 'こんにち']);
   });
+  it("takes the word with what the card puts before it: a noun's article, a Norwegian verb's å", () => {
+    const norwegian = (over: Record<string, string>) => ({ ...omniNote({ Language: 'norwegian', Transliteration: '', ...over }), deck: 'Norsk' });
+    expect(typeItAnswers(norwegian({ Entry: 'huske', PartOfSpeech: 'verb' }), card('reverse'))).toEqual(['huske', 'å huske']);
+    expect(typeItAnswers(norwegian({ Entry: 'huske', PartOfSpeech: 'noun', Gender: 'f' }), card('reverse'))).toEqual(['huske', 'ei huske']);
+    expect(typeItAnswers(norwegian({ Entry: 'å gå seg vill', PartOfSpeech: 'phrase' }), card('reverse'))).toEqual(['å gå seg vill']);
+  });
   it('takes only the word in another language, and nothing without Type it', () => {
     expect(typeItAnswers(omniNote(), card('reverse'))).toEqual(['หนังสือ']);
     expect(typeItAnswers(japanese(), card('forward'))).toEqual([]);
