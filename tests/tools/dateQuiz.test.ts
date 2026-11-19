@@ -16,7 +16,7 @@ function seeded(seed: number) {
 
 describe('the ways to answer a date', () => {
   it('lists them in the order the screen offers them', () => {
-    expect(DATE_MODES).toEqual(['say', 'pick', 'type', 'tap']);
+    expect(DATE_MODES).toEqual(['say', 'pick', 'type', 'tap', 'explore']);
   });
 });
 

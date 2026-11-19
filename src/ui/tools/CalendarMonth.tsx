@@ -15,6 +15,11 @@ export function dateLabel(d: CalendarDate): string {
   return `${WEEKDAYS[weekdayOf(d)]}, ${MONTHS[d.month - 1]} ${d.day}, ${d.year}`;
 }
 
+/** A date's weekday and month in words, for a question that shows the date as text ("Thursday", "November"). */
+export function dateWords(d: CalendarDate): { weekday: string; month: string } {
+  return { weekday: WEEKDAYS[weekdayOf(d)], month: MONTHS[d.month - 1] };
+}
+
 /**
  * A month as a calendar: tap a day to choose it, the arrows go back or forward a month, the double
  * arrows a year. The week starts on `weekStartsOn` (0 Sunday, 1 Monday), as calendars do where the
