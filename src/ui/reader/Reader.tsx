@@ -857,7 +857,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                               {...phraseLook(range.start + k, word, l.words)}
                               playing={shaded === range.start + k}
                               spoken={spoken.has(word)}
-                              slot={quiz.view(word, shaded === range.start + k)}
+                              slot={quiz.view(word)}
                               onPress={tap}
                               onLongPress={phraseDrag.begin}
                               viewRef={phraseDrag.wordRef(word)}
@@ -923,7 +923,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                             hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
-                            slot={quiz.view(word, shaded === i)}
+                            slot={quiz.view(word)}
                             onPress={tap}
                             onLongPress={phraseDrag.begin}
                             viewRef={phraseDrag.wordRef(word)}
