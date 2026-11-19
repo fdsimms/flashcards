@@ -1,6 +1,7 @@
 // Which line plays next. 'Play' runs the dialogue from a line to the end, skipping lines with no
 // audio; a line's own replay button plays that line alone. 'Repeat line' plays the line that just
 // finished again until it has played the chosen number of times (or until it's turned off, for ∞).
+// 'Loop text' starts the text again from its first line when the last one has played.
 type HasAudio = { audio: boolean };
 
 /** Plays per line the repeat chip steps through: 1 is off, Infinity is until turned off. */
@@ -53,9 +54,21 @@ export function nextLine(
   repeat: number = 1,
   /** How many times the line that just finished has played in this round, counting that play. */
   played: number = 1,
+  /** Loop text: after the last line, go back to the first. Only while playing on (Play all). */
+  loop: boolean = false,
 ): number | null {
   if (played < repeat) return finished;
-  return playingAll ? firstLine(lines, finished + 1) : null;
+  if (!playingAll) return null;
+  return firstLine(lines, finished + 1) ?? (loop ? firstLine(lines) : null);
+}
+
+/**
+ * Whether the line that just finished was the text's last, so Loop text starts it again. The
+ * screen counts that first pass as the text played through (and later ones as nothing), and
+ * a one-line text's "again" is a new pass, not another play of the line.
+ */
+export function wrapsToStart(lines: HasAudio[], finished: number, playingAll: boolean, repeat: number, played: number, loop: boolean): boolean {
+  return loop && playingAll && played >= repeat && firstLine(lines, finished + 1) === null;
 }
 
 /** The nearest line before `from` that has audio (the previous-line button), else null. */

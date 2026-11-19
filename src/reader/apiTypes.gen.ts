@@ -575,7 +575,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Phrase Chat */
+        get: operations["phrase_chat_api_texts__text_id__lines__line__ask_get"];
         put?: never;
         /** Ask About Phrase In Line */
         post: operations["ask_about_phrase_in_line_api_texts__text_id__lines__line__ask_post"];
@@ -3452,6 +3453,46 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    phrase_chat_api_texts__text_id__lines__line__ask_get: {
+        parameters: {
+            query: {
+                phrase: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                text_id: number;
+                line: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: {
+                            [key: string]: string;
+                        }[];
                     };
                 };
             };

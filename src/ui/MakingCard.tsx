@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, Easing, Text, View } from 'react-native';
 import type { StageStep } from '../reader/making';
 import { Card, Icon } from './kit';
 import { Pop, useReduceMotion } from './motion';
+import { MARK, WorkingMark } from './WorkingMark';
 import { space, type, useTheme } from './theme';
 
 /**
@@ -38,40 +39,42 @@ export function MakingBody({ title, steps, detail }: { title: string; steps?: St
   );
 }
 
-const MARK = 18;
+/** Just the checklist, for a row or banner that already has its own title. */
+export function MakingSteps({ steps }: { steps: StageStep[] }) {
+  const at = steps.findIndex((s) => s.status === 'now');
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={at >= 0 ? `${steps[at].label}, step ${at + 1} of ${steps.length}` : undefined}
+      style={{ gap: space.xs, paddingTop: space.xs }}
+    >
+      {steps.map((s) => (
+        <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          <StepMark status={s.status} />
+          <StepLabel status={s.status} label={s.label} />
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /**
- * A step's marker: a gold arc turns around the current step, and a step that has just finished
+ * A step's marker: the current step gets the turning mark, and a step that has just finished
  * springs its check in. A step already done when the card first shows is drawn without the spring.
  */
 function StepMark({ status }: { status: StageStep['status'] }) {
   const c = useTheme();
-  const reduce = useReduceMotion();
-  const turn = useRef(new Animated.Value(0)).current;
   const first = useRef(status);
-  useEffect(() => {
-    if (status !== 'now' || reduce) return undefined;
-    turn.setValue(0);
-    const loop = Animated.loop(Animated.timing(turn, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }));
-    loop.start();
-    return () => loop.stop();
-  }, [status, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <View style={{ width: MARK, height: MARK, alignItems: 'center', justifyContent: 'center' }}>
-      {status === 'done' ? (
+      {status === 'now' ? (
+        <WorkingMark />
+      ) : status === 'done' ? (
         first.current === 'done' ? <Icon name="checkmark.circle.fill" size={14} color={c.accent} /> : <Pop from={0.4} bounciness={12}><Icon name="checkmark.circle.fill" size={14} color={c.accent} /></Pop>
       ) : (
-        <Icon name={status === 'now' ? 'circle.inset.filled' : 'circle'} size={status === 'now' ? 10 : 14} color={status === 'todo' ? c.textTertiary : c.accent} />
+        <Icon name="circle" size={14} color={c.textTertiary} />
       )}
-      {status === 'now' ? (
-        <Animated.View
-          style={{
-            position: 'absolute', width: MARK, height: MARK, borderRadius: MARK / 2, borderWidth: 2,
-            borderColor: 'transparent', borderTopColor: c.accent, borderRightColor: c.accent,
-            transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
-          }}
-        />
-      ) : null}
     </View>
   );
 }

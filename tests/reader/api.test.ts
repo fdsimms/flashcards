@@ -204,6 +204,14 @@ test('a phrase is explained from its first line, with its last line in the body'
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ phrase: 'ya lo sé', simple: true, in_language: false, to_line: 1 });
 });
 
+test('the kept conversation about a phrase is read by its line and phrase', async () => {
+  const turns = [{ role: 'user', content: 'Why?' }, { role: 'assistant', content: 'Because.' }];
+  const { impl, calls } = fakeFetch(json({ turns }));
+  expect(await createApi('https://x/reader', 'p', impl).phraseChat(3, 1, 'คน หนึ่ง')).toEqual(turns);
+  expect(calls[0].init.method).toBe('GET');
+  expect(calls[0].url).toBe(`https://x/reader/api/texts/3/lines/1/ask?phrase=${encodeURIComponent('คน หนึ่ง')}`);
+});
+
 test('a naturalness check is asked of the line and comes back as the server sent it', async () => {
   const answer = { verdict: 'stiff', reason: 'Too written.', alternative: 'Pourquoi tu regardes ça ?' };
   const { impl, calls } = fakeFetch(json(answer));

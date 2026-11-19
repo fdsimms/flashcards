@@ -142,8 +142,8 @@ function useReaderPlayer(): ReaderPlayerHost {
     const c = carrying.current;
     if (!c) return;
     if (status.error) {
-      // A line with no sound is passed over, as the reader does.
-      const step = afterLine({ ...c.handoff, repeat: 1 });
+      // A line with no sound is passed over, as the reader does. Not around to the first line: a text whose only voiced line fails would loop forever.
+      const step = afterLine({ ...c.handoff, repeat: 1, loop: false });
       if (step.kind === 'line') void playLine(step.line); else end(false);
       return;
     }

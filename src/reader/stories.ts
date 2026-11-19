@@ -1,7 +1,8 @@
 // Stories in words (docs/read-and-listen/architecture.md, Stories): the Stories list and a story's
 // page. Several stories run at once, one pinned to the top of Read & Listen. Pure, so it's tested.
-import type { PastText, StoryListItem } from './api';
+import type { PastText, StoryListItem, TextStage } from './api';
 import type { EpisodeOrder } from './prefs';
+import { currentStep, textSteps } from './making';
 import { episodeLabel } from './shelf';
 
 /** The episode a story's row is about: the one waiting, else the next to be written. */
@@ -27,11 +28,18 @@ export function storyNext(story: StoryListItem): { text: string; ready: boolean 
 }
 
 
+/** A running story's row while its next episode is written: "Writing episode 3: adding the translations". Null otherwise. */
+export function storyWriting(story: StoryListItem): string | null {
+  if (!story.running || story.next || !story.writing) return null;
+  const step = currentStep(textSteps(story.stage));
+  return `Writing episode ${nextEpisode(story)}: ${step.charAt(0).toLowerCase()}${step.slice(1)}`;
+}
+
 export type EpisodeSection = { season: number; rows: EpisodeRow[] };
 
 export type EpisodeRow =
   | { kind: 'read'; episode: number; title: string; text: PastText }
-  | { kind: 'next'; episode: number; title: string; textId: number | null; status: string; ready: boolean };
+  | { kind: 'next'; episode: number; title: string; textId: number | null; status: string; ready: boolean; stage: TextStage | null };
 
 /**
  * A story's page lists its episodes by season: the ones read (from Past texts, first to last), then
@@ -47,7 +55,7 @@ export function episodeSections(story: StoryListItem, read: PastText[]): Episode
   const next = storyNext(story);
   if (next) {
     const episode = story.next ? story.next.episode : story.read + 1;
-    rows.push({ kind: 'next', episode, title: story.next?.title ?? `Episode ${episode}`, textId: story.next?.id ?? null, status: next.text, ready: next.ready });
+    rows.push({ kind: 'next', episode, title: story.next?.title ?? `Episode ${episode}`, textId: story.next?.id ?? null, status: next.text, ready: next.ready, stage: story.writing ? story.stage ?? null : null });
   }
   const sections: EpisodeSection[] = [];
   for (const row of rows) {

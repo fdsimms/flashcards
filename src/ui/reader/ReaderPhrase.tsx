@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Api, Language, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
 import { popupSpace, roomIsBelow } from '../../reader/phrase';
 import { Icon, Tappable, ErrorNote } from '../kit';
+import { MakingBody } from '../MakingCard';
 import { registerLabel } from '../../reader/register';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
@@ -44,7 +45,7 @@ const POPUP_MAX_SHARE = 0.6;
  * the buttons stay put and the explanation between them scrolls.
  *
  * "Ask a question" opens a field under the explanation, and Claude's answers stack under it
- * (`usePhraseQuestions`; kept only while the popup is open, never graded or added to the deck).
+ * (`usePhraseQuestions`; the server keeps them for 2 hours, never graded or added to the deck).
  * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
  * phrase's heading and the latest answer aren't behind the keyboard.
  */
@@ -158,10 +159,7 @@ export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, m
             {error ? (
               <ErrorNote message={error} onRetry={() => load(simple)} />
             ) : answer === null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                <ActivityIndicator color={c.accent} />
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text>
-              </View>
+              <MakingBody title="Asking Claude" detail="Working out what this phrase means." />
             ) : (
               <>
                 <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{answer.meaning}</Text>

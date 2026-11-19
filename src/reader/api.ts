@@ -784,9 +784,14 @@ export function createApi(
     explainPhrase: (textId: number, line: number, toLine: number, phrase: string, simple: boolean, inLanguage = false) =>
       call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage, to_line: toLine }),
     // Claude's answer to a question typed about a selected phrase, from the conversation so far (the last turn is the
-    // new question): asked only when the owner sends one, and not kept (ui/reader/usePhraseQuestions.ts).
+    // new question): asked only when the owner sends one. The server keeps the conversation for a couple of hours
+    // (`phraseChat`), so it comes back when the popup is reopened (ui/reader/usePhraseQuestions.ts). `line` and
+    // `toLine` are the phrase's first and last lines, as for explainPhrase.
     askPhrase: async (textId: number, line: number, toLine: number, phrase: string, turns: { role: 'user' | 'assistant'; content: string }[], inLanguage = false) =>
       (await call<{ answer: string }>('POST', `/api/texts/${textId}/lines/${line}/ask`, { phrase, turns, in_language: inLanguage, to_line: toLine })).answer,
+    // The conversation kept about a phrase since its last answer; none once it has expired.
+    phraseChat: async (textId: number, line: number, phrase: string) =>
+      (await call<{ turns: { role: 'user' | 'assistant'; content: string }[] }>('GET', `/api/texts/${textId}/lines/${line}/ask?phrase=${encodeURIComponent(phrase)}`)).turns,
     // Why a word has the form it has in its line (the form quiz's Explain), kept per word.
     explainForm: async (textId: number, line: number, word: Word) =>
       (await call<{ explanation: FormExplanation }>('POST', `/api/texts/${textId}/lines/${line}/form`, {

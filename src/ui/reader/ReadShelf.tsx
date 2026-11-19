@@ -1,7 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type Form, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
+import { ApiError, type Api, type Form, type TextStage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
 import { bannerLine, bannerOverline, pastMeta, readBefore, seasonProgress, storyCoverMeta } from '../../reader/browse';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
@@ -16,6 +16,8 @@ import { Button, Card, ErrorNote, Group, HeaderAction, Help, Icon, NavRow, Scree
 import { Cover, CoverRow, useCoverTint } from './Cover';
 import { PracticeWordPill } from './PracticeWordPill';
 import { GlossPopover, type Tapped } from './Reader';
+import { MakingSteps } from '../MakingCard';
+import { currentStep, textSteps } from '../../reader/making';
 import { SkeletonList } from '../Skeleton';
 import { radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useConnectionProblem } from '../connection';
@@ -302,7 +304,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
               >
                 {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={problem ? undefined : () => textActions(t)} />)}
                 {shelf.writing.map((w, i) => (
-                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} form={w.form} />
+                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} form={w.form} stage={w.stage} />
                 ))}
               </CoverRow>
             ) : problem ? (
@@ -358,17 +360,17 @@ function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText
 }
 
 /** A text being written: shown where it'll land, and not tappable until it does. */
-function WritingCover({ title, form }: { title: string; form: Form }) {
+function WritingCover({ title, form, stage }: { title: string; form: Form; stage?: TextStage | null }) {
   const c = useTheme();
   return (
-    <View accessible accessibilityLabel={`${title}. Being written.`} style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, justifyContent: 'space-between' }}>
+    <View accessible accessibilityLabel={`${title}. ${currentStep(textSteps(stage))}.`} style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, justifyContent: 'space-between' }}>
       <View style={{ gap: space.xs + 2 }}>
         <Text style={{ ...type.overline, fontSize: 11, color: c.textSecondary }}>{form === 'story' ? 'Story' : 'Dialogue'}</Text>
         <Text style={{ fontSize: 19, fontWeight: '800', lineHeight: 22, color: c.text }}>{title}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
         <ActivityIndicator size="small" color={c.textSecondary} />
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>Being written</Text>
+        <Text style={{ ...type.footnote, color: c.textSecondary }}>{currentStep(textSteps(stage))}</Text>
       </View>
     </View>
   );
@@ -460,6 +462,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
         <Text style={{ ...type.subhead, color: c.textSecondary, flexShrink: 1 }}>{bannerLine(story)}</Text>
         {saved ? <SavedMark state={saved} /> : null}
       </View>
+      {story.writing && !next ? <MakingSteps steps={textSteps(story.stage)} /> : null}
       {next && next.stretch.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingTop: space.xs }}>
           {next.stretch.map((w) => {

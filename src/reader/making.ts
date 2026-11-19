@@ -9,6 +9,11 @@ export function stepsAt<S extends string>(stages: readonly { stage: S; label: st
   return stages.map((s, i) => ({ label: s.label, status: i < at ? 'done' : i === at ? 'now' : 'todo' }));
 }
 
+/** The label of the step under way ("Adding the translations"), for a place too small to list them all. */
+export function currentStep(steps: StageStep[]): string {
+  return (steps.find((s) => s.status === 'now') ?? steps[0]).label;
+}
+
 /** What writing a text goes through on the server, in order (engine.py's `TextStage`). */
 export const TEXT_STAGES: readonly { stage: TextStage; label: string }[] = [
   { stage: 'writing', label: 'Writing the text' },

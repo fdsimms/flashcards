@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PastText, ShelfText, StoryListItem } from '../../src/reader/api';
-import { episodeSections, orderSections, parseSeasonChoices, seasonOpen, seasonsFold, seasonSummary, storyNext, storyPlace } from '../../src/reader/stories';
+import { episodeSections, storyWriting, orderSections, parseSeasonChoices, seasonOpen, seasonsFold, seasonSummary, storyNext, storyPlace } from '../../src/reader/stories';
 
 const episode = (n: number): ShelfText => ({
   id: 10 + n, title: 'Le zoo', topic: 'Night at the Zoo', topic_id: 1, form: 'story', lines: 12,
@@ -44,7 +44,8 @@ describe("a story's page", () => {
 
   it('names an episode not written yet by its number, and lists no next one for an ended story', () => {
     const [only] = episodeSections(story({ read: 1, writing: true }), [past(1)]);
-    expect(only.rows[1]).toMatchObject({ kind: 'next', title: 'Episode 2', textId: null, status: 'Writing episode 2', ready: false });
+    expect(only.rows[1]).toMatchObject({ kind: 'next', title: 'Episode 2', textId: null, status: 'Writing episode 2', ready: false, stage: null });
+    expect(episodeSections(story({ read: 1, writing: true, stage: 'recording' }), [past(1)])[0].rows[1]).toMatchObject({ stage: 'recording' });
     expect(episodeSections(story({ running: false, read: 1 }), [past(1)])[0].rows.map((r) => r.kind)).toEqual(['read']);
   });
 
@@ -87,5 +88,17 @@ describe("a story's seasons", () => {
     expect(parseSeasonChoices('{"1":true,"2":false,"x":true,"3":"yes"}')).toEqual({ 1: true, 2: false });
     expect(parseSeasonChoices('nope')).toEqual({});
     expect(parseSeasonChoices(null)).toEqual({});
+  });
+});
+
+describe('storyWriting', () => {
+  it('names the step under way while the next episode is written', () => {
+    expect(storyWriting(story({ read: 2, writing: true, stage: 'translating' }))).toBe('Writing episode 3: adding the translations');
+    expect(storyWriting(story({ read: 2, writing: true }))).toBe('Writing episode 3: writing the text');
+  });
+
+  it('is null when nothing is being written, an episode is waiting, or the story ended', () => {
+    expect(storyWriting(story({ writing: false }))).toBeNull();
+    expect(storyWriting(story({ writing: true, running: false }))).toBeNull();
   });
 });
