@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatBadge } from '../../src/reader/playback';
+import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatBadge, wrapsToStart } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -30,6 +30,26 @@ test('with a repeat count, the line plays again until it has played that many ti
 test('repeating forever never moves on', () => {
   const lines = [{ audio: true }, { audio: true }];
   expect(nextLine(lines, 0, true, Infinity, 500)).toBe(0);
+});
+
+test('Loop text goes back to the first line with audio after the last, only while playing on', () => {
+  expect(nextLine(lines, 3, true, 1, 1, true)).toBe(1);
+  expect(nextLine(lines, 3, true, 1, 1, false)).toBeNull();
+  expect(nextLine(lines, 3, false, 1, 1, true)).toBeNull();
+  // Looping doesn't cut a line's repeats short, and doesn't loop in the middle of the text.
+  expect(nextLine(lines, 3, true, 2, 1, true)).toBe(3);
+  expect(nextLine(lines, 1, true, 1, 1, true)).toBe(3);
+  // A text with a single line with audio plays that line again.
+  expect(nextLine([{ audio: false }, { audio: true }], 1, true, 1, 1, true)).toBe(1);
+});
+
+test('the text wraps only when the last line has finished its repeats with Loop text on', () => {
+  expect(wrapsToStart(lines, 3, true, 1, 1, true)).toBe(true);
+  expect(wrapsToStart(lines, 3, true, 2, 1, true)).toBe(false);
+  expect(wrapsToStart(lines, 3, true, 2, 2, true)).toBe(true);
+  expect(wrapsToStart(lines, 1, true, 1, 1, true)).toBe(false);
+  expect(wrapsToStart(lines, 3, true, 1, 1, false)).toBe(false);
+  expect(wrapsToStart(lines, 3, false, 1, 1, true)).toBe(false);
 });
 
 test('the repeat chip steps through the counts and wraps back to off', () => {
