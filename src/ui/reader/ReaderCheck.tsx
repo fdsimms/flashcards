@@ -114,7 +114,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 accessibilityLabel={`${label}${under ? `. ${under}` : ''}${right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
                 scaleTo={0.98}
                 style={{
-                  minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: space.m,
+                  minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
                   borderRadius: radius.m, ...smooth,
                   backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
                   borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
@@ -124,9 +124,13 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 {typeof choice === 'string' ? (
                   <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400' }}>{label}</Text>
                 ) : (
-                  <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text, fontWeight: right ? '600' : '400' }}>{label}</Text>
+                  // The text and its English share a line so four answers fit above the evidence and Next;
+                  // a long text wraps and the English drops under it.
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: space.m }}>
+                    <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{label}</Text>
+                    {under && (english || answered) ? <Text style={{ ...type.footnote, color: c.textSecondary, marginLeft: 'auto', textAlign: 'right' }}>{under}</Text> : null}
+                  </View>
                 )}
-                {under && (english || answered) ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{under}</Text> : null}
                 {wrongPick ? <Text style={{ ...type.caption, color: c.textSecondary }}>Your answer</Text> : null}
               </Tappable>
             );
