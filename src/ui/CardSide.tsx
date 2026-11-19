@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
+import type { SFSymbol } from 'expo-symbols';
 import { GENDER_WORDS } from '../core/cards';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
@@ -23,7 +24,15 @@ type Item = { b: Block; i: number };
 
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
-const genderColor = (c: Colors, g: Gender) => (g === 'm' ? c.genderM : g === 'f' ? c.genderF : c.genderN);
+/** A hint button's name and icon: an example's two lines are named by their role, the word's own by its tap label without "Show" (Transliteration). */
+function hintButton(b: Block): { label: string; icon: SFSymbol } {
+  if (b.role === 'exampleRomanized') return { label: 'Romanization', icon: 'textformat' };
+  if (b.role === 'exampleTranslation') return { label: 'Translation', icon: 'globe' };
+  const word = (b.tapLabel ?? '').replace(/^Show /, '');
+  return { label: word.charAt(0).toUpperCase() + word.slice(1), icon: b.role === 'transliteration' || b.role === 'reading' ? 'textformat' : 'waveform' };
+}
+
+const genderColor =(c: Colors, g: Gender) => (g === 'm' ? c.genderM : g === 'f' ? c.genderF : c.genderN);
 const toneColor = (c: Colors, t: Tone) => (t === 'low' ? c.toneLow : t === 'falling' ? c.toneFalling : t === 'high' ? c.toneHigh : c.toneRising);
 
 /** A Thai romanization with each syllable colored by its tone; mid tone keeps the text's own color. The tone marks stay, so color is never the only signal. */
@@ -87,18 +96,27 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
 
   // Consecutive lines of one example sentence are laid out together; every other block is its own group.
-  const groups = useMemo(() => {
+  // The hidden lines that follow one another outside an example (transliteration, pronunciation, reading) share
+  // one bar of buttons, which comes ahead of the run; `bars` holds those groups. Each line keeps its own group
+  // after it, drawn only while it is open.
+  const { groups, bars } = useMemo(() => {
     const out: Item[][] = [];
+    const bars = new Set<Item[]>();
+    let bar: Item[] | null = null;
     side.blocks.forEach((b, i) => {
       // Furigana over the word says what the reading line would.
       if (b.role === 'reading' && furigana && wordRuns) return;
       const last = out[out.length - 1];
       // A note's second example starts its own box.
-      if (isExample(b) && last && isExample(last[0].b) && !(b.role === 'example' && last.some((it) => it.b.role === 'example'))) last.push({ b, i });
-      else out.push([{ b, i }]);
+      if (isExample(b) && last && isExample(last[0].b) && !(b.role === 'example' && last.some((it) => it.b.role === 'example'))) { last.push({ b, i }); return; }
+      if (b.tapLabel && !isExample(b) && !showHints) {
+        if (!bar) { bar = []; bars.add(bar); out.push(bar); }
+        bar.push({ b, i });
+      } else bar = null;
+      out.push([{ b, i }]);
     });
-    return out;
-  }, [side.blocks, furigana, wordRuns]);
+    return { groups: out, bars };
+  }, [side.blocks, furigana, wordRuns, showHints]);
 
   // A block that shows a whole note field, with its edit icon when the card lets it be edited.
   const editable = (b: Block, node: React.ReactElement) => (b.field && onEditField
@@ -108,43 +126,31 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // An editable block's box leaves room at its right for the edit icon.
   const editRoom = (b: Block) => (b.field && onEditField ? { paddingRight: EDIT_ICON_ROOM } : null);
 
-  const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
-  // An example's romanization and translation buttons open their line and close it again.
+  // A hint button opens its line and closes it again.
   const toggle = (i: number) => { haptic.select(); setShownHints((prev) => { const next = new Set(prev); if (!next.delete(i)) next.add(i); return next; }); };
 
-  // A hidden line outside the example sentence: a centered link.
-  const hint = ({ b, i }: Item) => (
-    <Tappable
-      key={i}
-      accessibilityRole="button"
-      onPress={() => reveal(i)}
-      style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}
-    >
-      <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
-    </Tappable>
-  );
-
-  // The hidden lines inside an Example box share one row of buttons under the sentence, so several examples stay short.
-  // A button highlights while its line is open, and a second tap closes the line.
-  const hintButtons = (items: Item[]) => (
-    <View key="buttons" style={{ flexDirection: 'row', borderTopWidth: hairline, borderTopColor: c.border }}>
+  // A row of buttons for hidden lines: under an Example's sentence (so several examples stay short), or on its own
+  // for the word's transliteration, pronunciation and reading. A button highlights while its line is open, and a
+  // second tap closes the line.
+  const hintButtons = (items: Item[], topEdge: boolean) => (
+    <View key="buttons" style={{ flexDirection: 'row', borderTopWidth: topEdge ? hairline : 0, borderTopColor: c.border }}>
       {items.map((it, k) => {
         const on = shownHints.has(it.i);
-        const romanized = it.b.role === 'exampleRomanized';
+        const { label, icon } = hintButton(it.b);
         return (
           <Tappable
             key={it.i}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={romanized ? 'Romanization' : 'Translation'}
+            accessibilityLabel={label}
             onPress={() => toggle(it.i)}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 2, minHeight: MIN_TAP,
               backgroundColor: on ? c.accentFill : undefined, borderLeftWidth: k ? hairline : 0, borderLeftColor: c.border,
             }}
           >
-            <Icon name={romanized ? 'textformat' : 'globe'} size={16} color={c.accentInk} />
-            <Text style={{ ...type.callout, color: c.accentInk }}>{romanized ? 'Romanization' : 'Translation'}</Text>
+            <Icon name={icon} size={16} color={c.accentInk} />
+            <Text style={{ ...type.callout, color: c.accentInk }}>{label}</Text>
           </Tappable>
         );
       })}
@@ -208,14 +214,18 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.filter((it) => it.b.role === 'example').map((it) => (
                   <View key={it.i} style={{ padding: space.m, paddingBottom: space.s }}>{line(it)}</View>))}
-                {buttons.length ? hintButtons(buttons) : null}
+                {buttons.length ? hintButtons(buttons, true) : null}
                 {opened.map((it) => (it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: buttons.length ? space.s : 0, paddingBottom: space.s }}>{line(it)}</View>))}
               </View>
             </View>
           );
         }
-        if (hidden(first)) return hint(first);
+        if (bars.has(group)) {
+          return <View key={`bar-${first.i}`} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>{hintButtons(group, false)}</View>;
+        }
+        // A closed line shows through its button in the bar above.
+        if (hidden(first)) return null;
 
         const { b, i } = first;
         if (b.role === 'chips') {
