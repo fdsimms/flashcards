@@ -12,7 +12,7 @@ import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection,
 import { syncMedia } from './sync/mediaSync';
 import { SyncError } from './sync/protocol';
 import { reviewWrites } from '../core/writeQueue';
-import { runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
+import { isRetryable, runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
 import { adoptDownloadedCollection, refreshFromKeptCollection } from './transfer';
 
 /**
@@ -139,6 +139,25 @@ async function readiedCopy(at: number): Promise<File> {
 
 /** Syncs now. `choose` is asked only when one side would replace the other and lose something. */
 export async function syncNow(
+  repo: Repo & AnkiLink,
+  choose: (q: FullSyncQuestion) => Promise<'download' | 'upload' | null>,
+): Promise<SyncReport> {
+  try {
+    return await syncOnce(repo, choose);
+  } catch (e) {
+    // A one-off hiccup (a file or database briefly busy, a dropped request) mostly works a moment
+    // later, and a failure recorded now shows as a banner until the next run clears it. So a
+    // retryable failure is tried once more before it's recorded.
+    if (!isRetryable(e)) throw e;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
+    return await syncOnce(repo, choose);
+  }
+}
+
+/** How long a failed sync waits before its one quiet retry. */
+const RETRY_AFTER_MS = 2000;
+
+async function syncOnce(
   repo: Repo & AnkiLink,
   choose: (q: FullSyncQuestion) => Promise<'download' | 'upload' | null>,
 ): Promise<SyncReport> {
