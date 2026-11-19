@@ -13,7 +13,7 @@ import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -108,6 +108,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   const dark = useColorScheme() === 'dark';
   const [own, setOwn] = useState('');
   const [typing, setTyping] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
   const [scenes, setScenes] = useState<{ language: Language; names: string[] } | null>(null);
   const [at, setAt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +129,14 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   const writing = typing || (!!names && !scene) || !!error;
   const loading = !names && !error;
 
-  const front = writing ? (
+  const front = browsing && names?.length ? (
+    <View style={{ gap: space.m, width: '100%' }}>
+      <Text style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>Pick a scene</Text>
+      <Group>
+        {names.map((name, i) => <NavRow key={name} first={i === 0} label={name} onPress={() => onStart(name)} />)}
+      </Group>
+    </View>
+  ) : writing ? (
     <View style={{ gap: space.l, width: '100%', alignItems: 'center' }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>Your own scene</Text>
       <TextInput
@@ -161,13 +169,22 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       <Text selectable maxFontSizeMultiplier={1.4} style={{ ...type.largeTitle, fontSize: 36, color: c.text, textAlign: 'center' }}>{scene}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', maxWidth: 280 }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
       {focus ? <Text style={{ ...type.subhead, color: c.text, textAlign: 'center', maxWidth: 280 }}>{`Practicing: ${focus.title}. Claude works it into the scene and comments on how you used it at the end.`}</Text> : null}
-      <Tappable onPress={() => { haptic.select(); setTyping(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center', marginTop: space.s }}>
-        <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Type your own</Text>
-      </Tappable>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xl, marginTop: space.s }}>
+        {names && names.length > 1 ? (
+          <Tappable onPress={() => { haptic.select(); setBrowsing(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
+            <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Browse all</Text>
+          </Tappable>
+        ) : null}
+        <Tappable onPress={() => { haptic.select(); setTyping(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
+          <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Type your own</Text>
+        </Tappable>
+      </View>
     </View>
   );
 
-  const footer = writing ? (
+  const footer = browsing && names?.length ? (
+    <Button variant="secondary" label="Back to one scene" onPress={() => setBrowsing(false)} />
+  ) : writing ? (
     <Button label="Start" onPress={() => onStart(own)} disabled={!own.trim()} />
   ) : (
     <View style={{ flexDirection: 'row', gap: space.s }}>
@@ -195,7 +212,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       )]}
     >
       {loading ? <View style={{ padding: space.l }}><Loading /></View> : (
-        <PracticeCard questionKey={writing ? 'own' : scene ?? ''} cardKey={writing ? 'own' : scene ?? ''} swipe={false} motion={motion} onMark={() => {}} front={front} />
+        <PracticeCard questionKey={browsing ? 'browse' : writing ? 'own' : scene ?? ''} cardKey={browsing ? 'browse' : writing ? 'own' : scene ?? ''} swipe={false} motion={motion} onMark={() => {}} front={front} />
       )}
     </ToolScreen>
   );
