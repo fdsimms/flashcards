@@ -1016,7 +1016,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
           {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
-              <SessionMissList rows={sessionMisses.rows} />
+              <SessionMissList
+                rows={sessionMisses.rows}
+                onOpen={(noteId) => onEditNote({ noteId }, (result) => {
+                  if (!result) return;
+                  // As the toolbar's edit button: a deleted note's cards are gone, so an answer to one can't be undone.
+                  if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
+                  setReloads((n) => n + 1);
+                })}
+              />
               <FormsCheck items={forms.toCheck} onPractice={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))} />
               {extraCard}
               <NextSteps steps={steps} />
