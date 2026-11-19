@@ -71,6 +71,7 @@ export default function ReviewRoute() {
       earlierDeck={earlierDeck?.split('::').pop()}
       onEarlierDeck={earlierDeck ? () => router.replace({ pathname: '/review', params: { deck: earlierDeck } }) : undefined}
       onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })}
+      onSkillCards={() => router.push({ pathname: '/skill-cards', params: { deck } })}
       onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'decks' } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}
