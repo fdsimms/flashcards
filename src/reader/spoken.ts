@@ -9,8 +9,8 @@ const LAST_WORD_LINGER_MS = 400;
 
 /**
  * The indices of the words being spoken `ms` into their line's audio. A word stays lit through the
- * pause after it until the next one starts. Words that start together (one word to Azure, two
- * here) light up together. None before the first word, after the last has ended, or in a line
+ * pause after it until the next one starts. Words that start together (which the server avoids,
+ * sharing one of Azure's words out by letters, but can't always) light up together. None before the first word, after the last has ended, or in a line
  * recorded without timings.
  */
 export function spokenWords(words: Word[], ms: number): number[] {

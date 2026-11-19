@@ -8,10 +8,12 @@ from pydantic import BaseModel, Field
 
 from franki_reader import (
     cast,
+    read_plan,
     store,
 )
 from franki_reader.generator import Form
 from franki_reader.languages import (
+    HIDDEN_LANGUAGES,
     LANGUAGES,
     Code,
     CommonCount,
@@ -42,6 +44,10 @@ class SettingsUpdate(BaseModel):
     decks: dict[Code, Annotated[str, Field(max_length=500)]] | None = None
     # How many of a language's most common words count as known. Not Thai's: only its deck counts.
     common: dict[Code, CommonCount] | None = None
+    # How each language is handled by the daily reading tasks (read_plan.py).
+    daily_tasks: dict[Code, read_plan.Mode] | None = None
+    # How many rotating languages get a task a day.
+    daily_rotate_count: int | None = Field(default=None, ge=1, le=10)
     # An Azure voice for each of a language's voice slots; an empty name goes back to the default.
     voices: dict[Code, dict[VoiceSlot, Annotated[str, Field(max_length=100)]]] | None = None
     # A voice and pitch for each kind of story character (cast.py); null goes back to the default.
@@ -96,6 +102,12 @@ def router(ctx: AppContext) -> APIRouter:
             "voices": voices,
             "common": common,
             "cast": story_cast,
+            # Every language's mode, the default where none was chosen.
+            "daily_tasks": {
+                code: current.daily_tasks.get(code, read_plan.DEFAULT_MODE)
+                for code in LANGUAGES
+                if code not in HIDDEN_LANGUAGES
+            },
         }
 
     @routes.get("/api/settings", dependencies=authed)
@@ -125,6 +137,8 @@ def router(ctx: AppContext) -> APIRouter:
                 common.pop(code, None)
             else:
                 common[code] = count
+        daily_tasks: dict[str, str] = dict(current.daily_tasks)
+        daily_tasks.update({str(code): mode for code, mode in (body.daily_tasks or {}).items()})
         decks = dict(current.decks)
         changed_decks: list[Code] = []
         for code, name in (body.decks or {}).items():
@@ -167,6 +181,8 @@ def router(ctx: AppContext) -> APIRouter:
             voices=voices,
             cast=story_cast,
             common=common,
+            daily_tasks=daily_tasks,
+            daily_rotate_count=body.daily_rotate_count or current.daily_rotate_count,
         )
         store.save_settings(engine.conn, updated)
         for code in changed_decks:

@@ -474,6 +474,11 @@ class Settings:
     # How many of each language's most common words count as known, where it isn't the default
     # (languages.py). Thai has none: only its deck counts.
     common: dict[str, int] = field(default_factory=dict)
+    # How each language is handled by the daily reading tasks other apps show (read_plan.py): "daily",
+    # "rotate" or "off", where it isn't the default (rotate).
+    daily_tasks: dict[str, str] = field(default_factory=dict)
+    # How many rotating languages get a task each study day.
+    daily_rotate_count: int = 1
 
     def common_for(self, language: Code) -> int:
         return self.common.get(language, LANGUAGES[language].common)
@@ -2192,6 +2197,29 @@ def load_settings(conn: sqlite3.Connection) -> Settings:
 def save_settings(conn: sqlite3.Connection, settings: Settings) -> None:
     with conn:
         _set_meta(conn, "settings", json.dumps(settings.__dict__))
+
+
+# The rotating languages picked for one study day's reading tasks (read_plan.py), kept so the day's
+# list doesn't change as texts are read.
+_READ_PLAN_KEY = "read_plan"
+
+
+def load_read_plan(conn: sqlite3.Connection) -> tuple[datetime | None, list[str]]:
+    """The study day (when it began, naive UTC) the picks were made for, and the picks."""
+    raw = _get_meta(conn, _READ_PLAN_KEY)
+    if not raw:
+        return None, []
+    saved = json.loads(raw)
+    return datetime.fromisoformat(saved["day"]), list(saved["rotating"])
+
+
+def save_read_plan(conn: sqlite3.Connection, day_start: datetime, rotating: list[str]) -> None:
+    with conn:
+        _set_meta(
+            conn,
+            _READ_PLAN_KEY,
+            json.dumps({"day": day_start.isoformat(), "rotating": rotating}),
+        )
 
 
 # Set once the texts waiting to be read when word timings came in have been re-recorded with them

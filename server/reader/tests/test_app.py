@@ -3,6 +3,7 @@ import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -163,8 +164,8 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     from franki_reader.tts import AudioCache
 
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
-        # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms (a
-        # slow recording takes 1538: slower speech is longer).
+        # Timed: the whole line as one word from 0 to 1000 ms, which the server shares out over
+        # its words (a slow recording takes 1538: slower speech is longer).
         end = round(1000 / rate)
         tag = b"slow" if rate < 1 else b""
         return Spoken(b"ID3" + tag + text.encode(), [WordMark(text, 0, end)] if timed else None)
@@ -183,6 +184,18 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     return started(create_app(engine, "open sesame"))
 
 
+def shares_out(times: list[list[int] | None], end: int) -> bool:
+    """Whether a line's word times, spoken as one word from 0 to `end`, run from 0 to `end` a word
+    at a time in order."""
+    timed = [t for t in times if t is not None]
+    return (
+        len(timed) > 1
+        and timed[0][0] == 0
+        and timed[-1][1] == end
+        and all(a[1] == b[0] and a[0] < a[1] for a, b in pairwise(timed))
+    )
+
+
 def test_lines_say_whether_they_have_audio() -> None:
     c = client()  # no text to speech set up
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
@@ -196,9 +209,10 @@ def test_each_word_says_when_its_spoken_once_its_line_is_recorded_with_timings(
     c = speaking_client(tmp_path, timed=True)
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     text = next_text(c, topic["id"]).json()
-    words = [w for line in text["lines"] for w in line["words"]]
-    assert all(w["time"] == [0, 1000] for w in words if w["status"] is not None)
-    assert all("time" not in w for w in words if w["status"] is None)
+    for line in text["lines"]:
+        words = line["words"]
+        assert shares_out([w.get("time") for w in words if w["status"] is not None], 1000)
+        assert all("time" not in w for w in words if w["status"] is None)
 
     untimed = speaking_client(tmp_path / "untimed")
     topic = untimed.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
@@ -224,14 +238,13 @@ def test_a_slow_recording_is_made_when_asked_for_and_its_words_have_their_own_ti
     words = text["lines"][1]["words"]
     assert len(answer["times"]) == len(words)
     for word, when in zip(words, answer["times"], strict=True):
-        assert when == ([0, round(1000 / SLOW_RATE)] if word["status"] is not None else None)
+        assert (when is None) == (word["status"] is None)
+    assert shares_out(answer["times"], round(1000 / SLOW_RATE))
     assert c.get(f"/api/texts/{text['id']}/lines/9/slow", headers=AUTH).status_code == 404
     assert c.get(f"{base}/slow").status_code == 401
     # The text's own words keep the normal recording's times.
     again = c.get(f"/api/texts/{text['id']}", headers=AUTH).json()
-    assert all(
-        w["time"] == [0, 1000] for w in again["lines"][1]["words"] if w["status"] is not None
-    )
+    assert shares_out([w.get("time") for w in again["lines"][1]["words"]], 1000)
 
 
 def test_a_lines_audio_is_served_as_mp3(tmp_path: Path) -> None:
@@ -404,6 +417,9 @@ VOICES = {
     },
 }
 
+# Every language rotates until chosen otherwise (read_plan.DEFAULT_MODE).
+DAILY_TASKS = {code: "rotate" for code in LANGUAGES if code not in HIDDEN_LANGUAGES}
+
 # What the first story character of each kind is given in each language when nothing was chosen.
 CAST = {
     code: {
@@ -424,6 +440,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -435,6 +453,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
@@ -445,6 +465,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -593,6 +615,8 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 
@@ -1341,6 +1365,7 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
                 "reading_seconds": 0,
             },
         ],
+        "read_and_listen_today": [],
         "franki": None,
     }
 
@@ -1368,6 +1393,48 @@ def test_status_counts_texts_waiting_and_the_last_one_read() -> None:
     assert all(
         x["waiting"] == 0 for x in body["read_and_listen_languages"] if x["language"] != "th"
     )
+
+
+def test_status_lists_the_languages_that_get_a_reading_task_today() -> None:
+    c = status_client()
+    # Nothing is waiting anywhere, so nothing is listed.
+    assert c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen_today"] == []
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    c.post(f"/api/texts/{text['id']}/reading", json={"finished": True}, headers=AUTH)
+    write_asked(c, "Haggling")
+    shelf_settled(c, 1)
+
+    listed = c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen_today"]
+    # Thai rotates by default, and is the one with a text waiting. It was read today, which counts.
+    assert listed[0]["language"] == "th"
+    assert listed[0]["mode"] == "rotate"
+    assert listed[0]["done"] is True
+    assert listed[0]["waiting"] >= 1
+
+
+def test_the_daily_reading_task_settings_can_be_read_and_changed() -> None:
+    c = client()
+    first = c.get("/api/settings", headers=AUTH).json()
+    assert first["daily_tasks"] == DAILY_TASKS
+    assert first["daily_rotate_count"] == 1
+    changed = c.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"daily_tasks": {"th": "daily", "nb": "off"}, "daily_rotate_count": 2},
+    ).json()
+    assert changed["daily_tasks"] == {**DAILY_TASKS, "th": "daily", "nb": "off"}
+    assert changed["daily_rotate_count"] == 2
+    # A change names only the languages it changes.
+    again = c.patch("/api/settings", headers=AUTH, json={"daily_tasks": {"de": "daily"}}).json()
+    assert again["daily_tasks"] == {**DAILY_TASKS, "th": "daily", "nb": "off", "de": "daily"}
+    assert again["daily_rotate_count"] == 2
+    for bad in (
+        {"daily_tasks": {"th": "sometimes"}},
+        {"daily_rotate_count": 0},
+        {"daily_rotate_count": 11},
+    ):
+        assert c.patch("/api/settings", headers=AUTH, json=bad).status_code == 422
 
 
 def test_the_status_key_opens_status_and_nothing_else() -> None:

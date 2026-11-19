@@ -1,11 +1,15 @@
 """When each of a line's words is spoken, for the reader to follow along with the audio.
 
 Azure reports the words as its voice split them (`WordMark`), which needn't be how the line is
-split here: in Thai it segments by itself, so one of its words can be two of ours (ชายหาด for
-ชาย|หาด) or the other way round. Each of its words is found in the line's text, in order, and a word
-here takes the time of every one of Azure's it overlaps, so two words Azure spoke as one light up
-together. A word Azure reported that can't be found (a respelling in the SSML, a number it read
-out) is skipped; the words around it still have their times.
+split here. In Thai it reports a whole run of text between spaces as one word, so one of its words
+can be several of ours (ต้นกำลังร้องไห้ for ต้น|กำลัง|ร้องไห้), and a word of ours can also be two of
+its (ชายหาด for ชาย|หาด). Each of its words is found in the line's text, in order, and its time is
+shared out over its letters, so a word here takes the stretch of every one of Azure's it overlaps
+that its own letters account for: a run of three words lights up one word at a time, not all at
+once. Only letters and digits count, not Thai's vowel and tone marks written above and below
+(unicode category M), since those don't lengthen the word much; it's an estimate within the run,
+Azure giving no finer time. A word Azure reported that can't be found (a respelling in the SSML, a
+number it read out) is skipped; the words around it still have their times.
 """
 
 from __future__ import annotations
@@ -39,10 +43,32 @@ def word_times(pieces: list[str], marks: list[WordMark]) -> list[tuple[int, int]
     start = 0
     for piece in pieces:
         end = start + len(piece)
-        over = [m for s, e, m in found if s < end and e > start] if piece.strip() else []
-        out.append((min(m.start for m in over), max(m.end for m in over)) if over else None)
+        over = (
+            [_share(text, s, e, m, start, end) for s, e, m in found if s < end and e > start]
+            if piece.strip()
+            else []
+        )
+        out.append((min(t[0] for t in over), max(t[1] for t in over)) if over else None)
         start = end
     return out
+
+
+def _weight(text: str) -> int:
+    """How many of `text`'s characters take time to say: letters and digits, not marks."""
+    return sum(1 for ch in text if unicodedata.category(ch)[0] in "LN")
+
+
+def _share(text: str, s: int, e: int, mark: WordMark, start: int, end: int) -> tuple[int, int]:
+    """The part of `mark`'s time (spoken as `text[s:e]`) that falls on `text[start:end]`, shared
+    out by letters."""
+    whole = _weight(text[s:e])
+    if not whole:
+        return mark.start, mark.end
+    a, b = max(s, start), min(e, end)
+    before = _weight(text[s:a])
+    through = before + _weight(text[a:b])
+    span = mark.end - mark.start
+    return mark.start + round(span * before / whole), mark.start + round(span * through / whole)
 
 
 def add_times(words: list[dict[str, Any]], marks: list[WordMark] | None) -> None:

@@ -1,15 +1,19 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
 import { counts, firstReady } from '../../reader/noteQueue';
 import { haptic } from '../haptics';
+import type { Approval } from '../useApproveQueued';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
 const BETWEEN_EDITORS_MS = 400;
+
+/** Refused notes listed by name after an approval; the rest are counted. */
+const MAX_SHOWN = 5;
 
 const STATUS = {
   ready: { icon: 'checkmark.circle.fill', label: 'Ready' },
@@ -92,10 +96,11 @@ function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; mea
 /**
  * The words in the note queue, by state. A ready note (or a failed one, to fill in by hand) opens in the
  * note editor with what Claude wrote in it; saving there is the approval, and the word leaves the queue
- * once it's saved. "Review" goes through the ready notes one after another until one is cancelled. This
- * screen writes nothing to the deck itself (CLAUDE.md, Read & Listen).
+ * once it's saved. "Review" goes through the ready notes one after another until one is cancelled.
+ * "Approve all" adds every ready note as written, after an alert naming how many. This screen writes
+ * nothing to the deck itself: both ways save through its props (CLAUDE.md, Read & Listen).
  */
-export function ReadNoteQueue({ queue, error, held, getItems, onReview, onRetry, onRemove, onRemoveHeld, onRefresh }: {
+export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApproveAll, onRetry, onRemove, onRemoveHeld, onRefresh }: {
   /** Null until the server has answered. */
   queue: NoteQueue | null;
   /** The last problem reaching the server, if the last ask failed. */
@@ -107,12 +112,15 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onRetry,
   getItems: () => QueuedNote[];
   /** Opens the note editor with the word filled in, resolving true once the note is saved. */
   onReview: (note: QueuedNote) => Promise<boolean>;
+  /** Saves every ready note as it is and takes it off the queue (useApproveQueued); the alert asking first is this screen's. */
+  onApproveAll: (notes: QueuedNote[]) => Promise<Approval>;
   onRetry: (id: number) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onRefresh: () => void;
 }) {
   const c = useTheme();
   const [problem, setProblem] = useState<string | null>(null);
+  const [approving, setApproving] = useState(false);
   const reviewing = useRef(false);
 
   /** `what` says what failed, e.g. "Couldn't remove kot from the queue." */
@@ -146,6 +154,43 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onRetry,
     }
   };
 
+  // The alert names how many notes are added, and its button is the approval (useApproveQueued).
+  const approveAll = () => {
+    const notes = getItems().filter((x) => x.state === 'ready');
+    if (!notes.length) return;
+    Alert.alert(
+      notes.length === 1 ? 'Add 1 note to your deck?' : `Add ${notes.length} notes to your deck?`,
+      "They're saved as Claude wrote them, without opening each one. To change one first, open it from the list instead.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: notes.length === 1 ? 'Add 1 note' : `Add ${notes.length} notes`,
+          onPress: async () => {
+            if (reviewing.current) return;
+            reviewing.current = true;
+            setApproving(true);
+            setProblem(null);
+            try {
+              const done = await onApproveAll(notes);
+              haptic.success();
+              const lines = [
+                ...done.refused.slice(0, MAX_SHOWN).map((r) => `${r.entry}: ${r.reason}`),
+                ...(done.refused.length > MAX_SHOWN ? [`and ${done.refused.length - MAX_SHOWN} more`] : []),
+                ...(done.stuck.length ? [`Saved ${done.stuck.join(', ')} but couldn't take ${done.stuck.length === 1 ? 'it' : 'them'} off the queue. Remove ${done.stuck.length === 1 ? 'it' : 'them'} from the list yourself.`] : []),
+              ];
+              if (lines.length) setProblem(`${done.refused.length ? `Added ${done.saved} of ${notes.length} notes. The rest are still queued.\n` : ''}${lines.join('\n')}`);
+            } catch (e) {
+              setProblem(failureText(e, { what: "Couldn't add the notes.", next: 'Try again.' }));
+            } finally {
+              reviewing.current = false;
+              setApproving(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const items = queue?.items ?? [];
   const n = counts(items);
   const sections = [
@@ -158,7 +203,12 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onRetry,
   return (
     <Screen
       title="Queued notes"
-      footer={ready ? <Button label={n.ready === 1 ? 'Review 1 note' : `Review ${n.ready} notes`} onPress={() => review(ready, true)} /> : undefined}
+      footer={ready ? (
+        <>
+          <Button label={n.ready === 1 ? 'Review 1 note' : `Review ${n.ready} notes`} onPress={() => review(ready, true)} disabled={approving} />
+          <Button variant="secondary" label={n.ready === 1 ? 'Approve 1 note' : `Approve all ${n.ready}`} onPress={approveAll} busy={approving} />
+        </>
+      ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {queue && !queue.available ? (

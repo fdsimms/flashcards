@@ -38,6 +38,16 @@ export function parseTags(text: string): string[] {
   return [...seen.values()];
 }
 
+/**
+ * Whether a note being added differs from how its editor opened: blank fields don't count, and a
+ * note opened already filled in (Read & Listen's queued words, a cram's tag) isn't changed until
+ * something in it is.
+ */
+export function addDraftChanged(start: { fields: Record<string, string>; tags: string }, now: { fields: Record<string, string>; tags: string }): boolean {
+  const filled = (fields: Record<string, string>) => JSON.stringify(Object.entries(fields).filter(([, v]) => v.trim()).sort(([a], [b]) => a.localeCompare(b)));
+  return filled(start.fields) !== filled(now.fields) || parseTags(start.tags).join(' ') !== parseTags(now.tags).join(' ');
+}
+
 /** The fields a note shows first, as plain text: Omnilanguage's Entry and Meaning, else the first two. */
 export function notePreview(note: Note): { front: string; back: string } {
   const line = (html: string | undefined) => htmlToText(html ?? '').replace(/\s+/g, ' ').trim();

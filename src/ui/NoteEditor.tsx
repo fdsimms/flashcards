@@ -9,7 +9,7 @@ import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
-import { asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
+import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
@@ -55,6 +55,8 @@ export function NoteEditor(props: {
   const [model, setModel] = useState<string>('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [tags, setTags] = useState('');
+  // What a note being added opened with (filled in by Read & Listen or a cram), so opening it isn't a change.
+  const [start, setStart] = useState<{ fields: Record<string, string>; tags: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   // Until the note (or, adding one, the decks and note types) is in, the form isn't shown.
@@ -114,12 +116,14 @@ export function NoteEditor(props: {
         setDeck(startDeck);
         const asked = props.target.model;
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
+        const startFields = props.target.fields ?? {};
         if (props.target.fields) setFields(props.target.fields);
         // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
         const cs = await props.repo.collectionSettings();
         const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), new Date(), cs.dayStartsAtHour);
         const startTags = [...new Set([...(props.target.tags ?? []), ...crams])];
         if (startTags.length) setTags(startTags.join(' '));
+        setStart({ fields: startFields, tags: startTags.join(' ') });
       }
       setLoaded(true);
     })().catch((e) => setLoadError(failureText(e, { what: "Couldn't open the note.", next: 'Try again.' })));
@@ -148,7 +152,7 @@ export function NoteEditor(props: {
   const changed = editing
     ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, asEdited(original.fields[f] ?? '')])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))
-    : Object.values(fields).some((v) => v.trim()) || tags.trim() !== '';
+    : !!start && addDraftChanged(start, { fields, tags });
 
   // A ref, not `busy`: a second tap on the header's Save can land before the re-render that disables
   // it reaches the native button, and would add the note twice.

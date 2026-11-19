@@ -16,15 +16,31 @@ def test_each_word_takes_the_time_azure_spoke_it() -> None:
     assert word_times(pieces, marks) == [(50, 300), (300, 520), None, (740, 900), (900, 1200)]
 
 
-def test_two_words_azure_spoke_as_one_light_up_together() -> None:
+def test_two_words_azure_spoke_as_one_share_its_time_by_letters() -> None:
     assert word_times(
         ["มา", "ที่", "ชาย", "หาด"],
         [
             WordMark("มา", 0, 200),
             WordMark("ที่", 200, 350),
-            WordMark("ชายหาด", 350, 900),
+            WordMark("ชายหาด", 350, 950),
         ],
-    ) == [(0, 200), (200, 350), (350, 900), (350, 900)]
+    ) == [(0, 200), (200, 350), (350, 650), (650, 950)]
+
+
+def test_a_run_between_spaces_lights_one_word_at_a_time() -> None:
+    # Azure reports Thai's runs between spaces as one word each. Vowel and tone marks written
+    # above and below don't count: ต้น is 2 letters, กำลัง 4 and ร้องไห้ 5, of 11.
+    assert word_times(
+        ["ต้น", "กำลัง", "ร้องไห้", " ", "มะลิ"],
+        [WordMark("ต้นกำลังร้องไห้", 0, 1100), WordMark("มะลิ", 1300, 1600)],
+    ) == [(0, 200), (200, 600), (600, 1100), None, (1300, 1600)]
+
+
+def test_a_word_partly_in_two_of_azures_takes_its_share_of_each() -> None:
+    assert word_times(
+        ["ไป", "ชายหาด", "สวย"],
+        [WordMark("ไปชาย", 0, 500), WordMark("หาดสวย", 500, 1100)],
+    ) == [(0, 200), (200, 800), (800, 1100)]
 
 
 def test_a_word_azure_split_runs_from_its_first_part_to_its_last() -> None:

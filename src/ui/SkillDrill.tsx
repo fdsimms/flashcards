@@ -22,11 +22,14 @@ import { AnswerContent } from './tools/ToolScreen';
 
 export interface Drill { step: DrillStep; language: Language }
 
+/** The chip's symbol for each kind of drill. */
+const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
+
 interface DrillState { key: string; question: DrillQuestion; shown: boolean; results: boolean[] }
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
 export function useSkillDrill(showing: string | undefined, drill: Drill | undefined) {
-  const first = useMemo(() => (drill && showing ? drawQuestion(drill.step) : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const first = useMemo(() => (drill && showing ? drawQuestion(drill.step, undefined, Math.random, drill.language) : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
   const live = state && state.key === showing ? state : first && showing ? { key: showing, question: first, shown: false, results: [] } : null;
   const done = !!live && live.results.length >= DRILL_QUESTIONS;
@@ -44,7 +47,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
-      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question), shown: false, results });
+      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question, Math.random, drill.language), shown: false, results });
       return last;
     },
   };
@@ -74,7 +77,7 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
   return (
     <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
       <View style={{ position: 'absolute', top: space.m, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
-        <Icon name={drill.step.group === 'time' ? 'clock' : 'number'} size={12} color={c.accentInk} />
+        <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
         <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>{`Skill · ${GROUP_TITLES[drill.step.group]}`}</Text>
       </View>
       {revealed && skill.done ? (
@@ -91,7 +94,7 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
         <Reveal key={`${skill.results.length}`} rise={6} duration={140} style={{ alignItems: 'center', gap: space.l }}>
           <Dots results={skill.results} at={skill.results.length} />
           {question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
-          <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : 48, color: c.text, fontVariant: ['tabular-nums'] }}>{questionText(question)}</Text>
+          <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>
           {answer ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
               <View style={{ height: 1, backgroundColor: c.textTertiary, opacity: 0.6 }} />

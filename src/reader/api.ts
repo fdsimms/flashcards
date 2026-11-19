@@ -169,6 +169,9 @@ export type FormPrimer = {
 export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja' | 'en';
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
+/** How a language is handled by the daily reading tasks: a task every day, taking turns with the others, or none. */
+export type DailyTaskMode = 'daily' | 'rotate' | 'off';
+
 export type CommonCount = 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
 
 // A and B are a dialogue's two speakers; N is a story's narrator. `paragraph`: this line opens a
@@ -405,6 +408,10 @@ export type Settings = {
   stretch_words: StretchWords; lines: Length; form: Form; language: Language;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
   common?: Partial<Record<Language, CommonCount>>;
+  /** How each language is handled by the daily reading tasks other apps show (dailyTasks.ts); missing from a server older than the setting. */
+  daily_tasks?: Partial<Record<Language, DailyTaskMode>>;
+  /** How many rotating languages get a task a day (1 to 10). */
+  daily_rotate_count?: number;
   /** Each language's story characters' voices (the defaults where none were chosen); missing from a server older than story voices. */
   cast?: Partial<Record<Language, Record<CastKind, CastVoice>>>;
 };

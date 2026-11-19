@@ -1607,6 +1607,18 @@ in the current language, with when one was last read to the end. Nothing else le
   with `waiting` (often 0) and `last_read_at`, so dundundun can make one task per language and
   choose which get one today (its Settings, Franki). `read_and_listen` stays as the current
   language's entry, for a build of dundundun from before this.
+- **Today's languages** (`read_and_listen_today`, 19 November 2026): which languages get a reading
+  task today, chosen here and not by the other app (`read_plan.py`), since which language to read
+  next depends on what has been read. Each language is Every day, Rotate or Off (Settings, Daily
+  reading tasks: `daily_tasks`, `daily_rotate_count`; a language not set rotates). Every day
+  languages are listed while a text is waiting. Rotating languages take turns, the one read least
+  recently first; one never read goes before any that was, and of those the one with most texts
+  waiting (a name order sent German first for two days running, the day dundundun decided this
+  itself). A rotating language read to the end today counts as a turn. The picks are kept for the
+  study day (`meta.read_plan`), so the list doesn't change as texts are read and written. `done` is
+  whether a text in it was read to the end since the study day began. dundundun shows one task for
+  each entry and chooses nothing. The choices are in Settings, Read & Listen, Daily reading tasks
+  (`ReadDailyTasks`, `src/reader/dailyTasks.ts`): a menu per language and a stepper for the count.
 - **Its own key.** It opens with the passphrase or with `STATUS_TOKEN` (`READER_STATUS_TOKEN` in
   `server/.env`), a key that opens this route and nothing else, so the other app never holds the
   passphrase that writes texts and spends on Claude and Azure.
@@ -1750,9 +1762,13 @@ in the current language, with when one was last read to the end. Nothing else le
 - **The word being spoken is lit as a line plays** (since 13 November 2026). Each line is recorded
   through Azure's Speech SDK (`SpeechClient.speak`), which reports when each word starts and ends;
   the REST API it was recorded with before gives audio only. The timings are kept beside the MP3
-  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`): in Thai
-  Azure segments by itself, so a word here takes the time of every one of Azure's it overlaps, and
-  two words Azure spoke as one light up together. Each word goes to the app with its `time`; the
+  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`) each time a
+  line is served. In Thai Azure reports a whole run of text between spaces as one word, so until 19
+  November 2026 every word in a run lit up at once; now each of Azure's words has its time shared
+  out over its letters (not Thai's vowel and tone marks), and a word here takes the share its
+  letters account for, so a run lights up a word at a time. It's an estimate within the run, as
+  Azure gives no finer time, and since the raw timings are what's cached it applied to every text
+  already recorded. Each word goes to the app with its `time`; the
   app reads the player's position every 50 ms while a timed line plays (`useSpokenWords`) and fills
   the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
   karaoke-style "read so far". A word stays lit through the pause after it. It's on unless turned
