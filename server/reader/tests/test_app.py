@@ -404,6 +404,9 @@ VOICES = {
     },
 }
 
+# Every language rotates until chosen otherwise (read_plan.DEFAULT_MODE).
+DAILY_TASKS = {code: "rotate" for code in LANGUAGES if code not in HIDDEN_LANGUAGES}
+
 # What the first story character of each kind is given in each language when nothing was chosen.
 CAST = {
     code: {
@@ -424,6 +427,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -435,6 +440,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
@@ -445,6 +452,8 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -593,6 +602,8 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "voices": VOICES,
         "cast": CAST,
         "common": COMMON,
+        "daily_tasks": DAILY_TASKS,
+        "daily_rotate_count": 1,
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 
@@ -1341,6 +1352,7 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
                 "reading_seconds": 0,
             },
         ],
+        "read_and_listen_today": [],
         "franki": None,
     }
 
@@ -1368,6 +1380,48 @@ def test_status_counts_texts_waiting_and_the_last_one_read() -> None:
     assert all(
         x["waiting"] == 0 for x in body["read_and_listen_languages"] if x["language"] != "th"
     )
+
+
+def test_status_lists_the_languages_that_get_a_reading_task_today() -> None:
+    c = status_client()
+    # Nothing is waiting anywhere, so nothing is listed.
+    assert c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen_today"] == []
+    topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
+    text = next_text(c, topic["id"]).json()
+    c.post(f"/api/texts/{text['id']}/reading", json={"finished": True}, headers=AUTH)
+    write_asked(c, "Haggling")
+    shelf_settled(c, 1)
+
+    listed = c.get("/api/status", headers=STATUS_KEY).json()["read_and_listen_today"]
+    # Thai rotates by default, and is the one with a text waiting. It was read today, which counts.
+    assert listed[0]["language"] == "th"
+    assert listed[0]["mode"] == "rotate"
+    assert listed[0]["done"] is True
+    assert listed[0]["waiting"] >= 1
+
+
+def test_the_daily_reading_task_settings_can_be_read_and_changed() -> None:
+    c = client()
+    first = c.get("/api/settings", headers=AUTH).json()
+    assert first["daily_tasks"] == DAILY_TASKS
+    assert first["daily_rotate_count"] == 1
+    changed = c.patch(
+        "/api/settings",
+        headers=AUTH,
+        json={"daily_tasks": {"th": "daily", "nb": "off"}, "daily_rotate_count": 2},
+    ).json()
+    assert changed["daily_tasks"] == {**DAILY_TASKS, "th": "daily", "nb": "off"}
+    assert changed["daily_rotate_count"] == 2
+    # A change names only the languages it changes.
+    again = c.patch("/api/settings", headers=AUTH, json={"daily_tasks": {"de": "daily"}}).json()
+    assert again["daily_tasks"] == {**DAILY_TASKS, "th": "daily", "nb": "off", "de": "daily"}
+    assert again["daily_rotate_count"] == 2
+    for bad in (
+        {"daily_tasks": {"th": "sometimes"}},
+        {"daily_rotate_count": 0},
+        {"daily_rotate_count": 11},
+    ):
+        assert c.patch("/api/settings", headers=AUTH, json=bad).status_code == 422
 
 
 def test_the_status_key_opens_status_and_nothing_else() -> None:
