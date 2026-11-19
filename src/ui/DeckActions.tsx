@@ -3,6 +3,9 @@ import { ActionSheetIOS, Alert } from 'react-native';
 import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { deckDeletionWarning } from '../core/deckNames';
+import { deckSuspension, deckSuspensionWarning } from '../core/deckSuspension';
+import { setCardStates } from '../anki/noteService';
+import { reviewWrites } from '../core/writeQueue';
 import type { DeckMove } from '../core/deckOrder';
 import { isInDeck } from '../core/deckTree';
 import { useApp } from './AppContext';
@@ -13,7 +16,7 @@ import { failureText } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
- * deck" in the toolbar, a menu on each deck's row, and dragging a row (DeckDrag.tsx). Names are asked for in the system's text prompt;
+ * deck" in the toolbar, a menu on each deck's row (Suspend all and Unsuspend all included), and dragging a row (DeckDrag.tsx). Names are asked for in the system's text prompt;
  * a name that's refused (taken, empty, inside the deck itself) asks again, saying why.
  */
 export function useDeckActions(onOptions: (deck: string) => void) {
@@ -74,6 +77,38 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     ]);
   }, [repo, decks, run, fromAnki]);
 
+  /** Suspends or unsuspends every card of a deck and its subdecks, after saying how many and which subdecks. */
+  const setSuspended = useCallback(async (deck: string, suspend: boolean) => {
+    const verb = suspend ? 'Suspend' : 'Unsuspend';
+    let plan;
+    let dayStartsAtHour;
+    try {
+      // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
+      await reviewWrites.idle();
+      const [notes, cards, settings] = await Promise.all([repo.listNotes(), repo.listCards(), repo.collectionSettings()]);
+      plan = deckSuspension(notes, cards, deck, suspend);
+      dayStartsAtHour = settings.dayStartsAtHour;
+    } catch (e) {
+      Alert.alert(`Couldn't ${verb.toLowerCase()} the cards`, failureText(e, { next: 'Try again.' }));
+      return;
+    }
+    if (!plan.cards.length) {
+      Alert.alert(suspend ? 'Nothing to suspend' : 'Nothing to unsuspend', `Every card in "${deck}" and its subdecks is already ${suspend ? 'suspended' : 'unsuspended'}.`);
+      return;
+    }
+    const targets = plan.cards;
+    Alert.alert(`${verb} all cards in "${deck}"?`, deckSuspensionWarning(plan, suspend), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: verb, style: suspend ? 'destructive' : 'default',
+        onPress: () => run(`Couldn't ${verb.toLowerCase()} the cards`, async () => {
+          const { ankiError } = await setCardStates(repo, targets, (s) => ({ ...s, suspended: suspend }), new Date(), dayStartsAtHour);
+          if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+        }),
+      },
+    ]);
+  }, [repo, run]);
+
   /** A deck dragged to a new place. Dropped into a collapsed deck, that deck opens to show it there. */
   const move = useCallback((m: DeckMove) => {
     run("Couldn't move the deck", async () => {
@@ -89,15 +124,17 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     if (action === 'rename') rename(deck);
     if (action === 'options') onOptions(deck);
     if (action === 'export') shareDeckNotes(repo, deck).catch((e) => Alert.alert("Couldn't export the notes", failureText(e, { next: 'Try again.' })));
+    if (action === 'suspend') setSuspended(deck, true);
+    if (action === 'unsuspend') setSuspended(deck, false);
     if (action === 'delete') remove(deck);
-  }, [openNoteEditor, refresh, rename, onOptions, remove, repo]);
+  }, [openNoteEditor, refresh, rename, onOptions, remove, setSuspended, repo]);
 
   /** The sheet the ⋯ button on a deck's row opens: the same choices as the long-press menu. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
-    const options = ['Add note', 'Rename', 'Deck options', 'Export notes', 'Delete', 'Cancel'];
-    const actions: DeckAction[] = ['note', 'rename', 'options', 'export', 'delete'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 5, destructiveButtonIndex: 4 }, (i) => {
+    const options = ['Add note', 'Rename', 'Deck options', 'Export notes', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
+    const actions: DeckAction[] = ['note', 'rename', 'options', 'export', 'suspend', 'unsuspend', 'delete'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 7, destructiveButtonIndex: 6 }, (i) => {
       if (i < actions.length) act(deck, actions[i]);
     });
   }, [act]);
