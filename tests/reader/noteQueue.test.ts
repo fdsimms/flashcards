@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { bannerOf, counts, firstReady, parseWords, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
+import { approvalDraft, bannerOf, counts, firstReady, parseWords, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
@@ -82,6 +82,30 @@ describe('the queue', () => {
 
   it('never lets a written field replace the entry', () => {
     expect(reviewTarget(note({ fields: { Entry: 'other' } })).fields.Entry).toBe('other');
+  });
+});
+
+describe('approvalDraft', () => {
+  const names = ['Entry', 'Meaning', 'Context', 'Audio'];
+
+  it('saves what the editor would: stored fields in the note type\'s order, blanks filled in', () => {
+    const draft = approvalDraft(note({ fields: { Meaning: 'sniggers', Context: 'Il ricane.\nElle aussi.' } }), names, []);
+    expect(draft).toEqual({
+      deck: 'Languages::Français',
+      model: 'Omnilanguage',
+      fields: { Entry: 'ricane', Meaning: 'sniggers', Context: 'Il ricane.<br>Elle aussi.', Audio: '' },
+      tags: [],
+    });
+    expect(Object.keys(draft.fields)).toEqual(names);
+  });
+
+  it("drops a field the note type doesn't have", () => {
+    expect(approvalDraft(note({ fields: { Meaning: 'sniggers', Mystery: 'x' } }), names, []).fields).not.toHaveProperty('Mystery');
+  });
+
+  it('tags the note with its part of speech and a running cram, once each', () => {
+    const draft = approvalDraft(note({ fields: { PartOfSpeech: 'verb' } }), [...names, 'PartOfSpeech'], ['verb', 'cram::trip-2026-11-20']);
+    expect(draft.tags).toEqual(['verb', 'cram::trip-2026-11-20']);
   });
 });
 
