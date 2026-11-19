@@ -74,6 +74,7 @@ import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
+import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
 import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
@@ -123,7 +124,7 @@ const AUDIO_MODE = { playsInSilentMode: true };
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
 /** A sheet Review can raise (src/ui/useSheetQueue.ts); the key makes asking twice for the same one a single sheet. */
 type ReviewSheet =
-  | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string }
+  | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string; step?: { n: number; of: number } }
   | { key: string; kind: 'confused'; noteId: string }
   | { key: string; kind: 'ask'; card: CardForClaude }
   | { key: string; kind: 'agentFlag'; noteId: string; cardId: string };
@@ -216,11 +217,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The sheets Review raises, one at a time (src/core/sheetQueue.ts): iOS drops a sheet asked for
-  // while another is on screen. A leech's hint sheet is asked for by the answer that made the card a
-  // leech, and names the card when that answer suspended it, so saving a hint can bring it back; it
-  // also opens from Write a mnemonic in the ⋯ menu, with no misses to report. The link sheet is for
+  // while another is on screen. A leech's hint sheet is asked for from the summary, one per leech
+  // made in the session, and names the card when its answer suspended it, so saving a hint can bring
+  // it back; it also opens from Write a mnemonic in the ⋯ menu, with no misses to report. The link sheet is for
   // words mixed up, and Ask Claude's is for the card it was opened for, as text.
+  // A leech made in this session doesn't stop the review: it waits in `pendingHints` for the
+  // summary's row, which raises one hint sheet after another (src/core/pendingHints.ts).
   const sheets = useSheetQueue<ReviewSheet>();
+  const [pendingHints, setPendingHints] = useState<PendingHint[]>([]);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -698,7 +702,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             }
           }
           if (isLeech && canAddMnemonic(noteBefore)) {
-            sheets.request({ key: `leech:${noteBefore.id}`, kind: 'leech', noteId: noteBefore.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) });
+            setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
         } catch (e) {
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
@@ -761,6 +765,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
+      setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
@@ -844,8 +849,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         gloss={htmlToText(sheetNote.fields.Meaning ?? '') || undefined}
         misses={sheet.misses}
         suspended={!!sheet.suspendedCardId}
+        step={sheet.step}
         suggest={suggestHints && question ? () => suggestHints(question) : undefined}
-        onSkip={() => sheets.close(sheet.key)}
+        onSkip={() => { setPendingHints((list) => removePendingHint(list, sheet.noteId)); sheets.close(sheet.key); }}
+        onSkipRest={() => {
+          // The ones still waiting are dropped from the queue, then this one is closed.
+          for (const p of pendingHints) sheets.close(`leech:${p.noteId}`);
+          setPendingHints([]);
+        }}
         onSave={async (hint) => {
           // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
           const suspended = cards?.find((c) => c.id === sheet.suspendedCardId && c.suspended);
@@ -863,6 +874,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
             setNow(when);
           }
+          setPendingHints((list) => removePendingHint(list, sheet.noteId));
           sheets.close(sheet.key);
           if (cardError) {
             Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
@@ -970,6 +982,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const mixing = sessionMisses.practice.length;
     // What can be done with the session just finished: rows in the list, so the footer stays two buttons.
     const steps: NextStep[] = [
+      ...(pendingHints.length ? [{
+        key: 'hints', label: 'Write hints for cards you keep missing', detail: pendingHints.length === 1 ? '1 card' : `${pendingHints.length} cards`, icon: { name: 'lightbulb' as const, color: c.accent },
+        onPress: () => pendingHints.forEach((p, i) => sheets.request({ key: `leech:${p.noteId}`, kind: 'leech', noteId: p.noteId, misses: p.misses, ...(p.suspendedCardId ? { suspendedCardId: p.suspendedCardId } : {}), step: { n: i + 1, of: pendingHints.length } })),
+      }] : []),
       ...sessionMisses.practice.map((p) => ({
         key: `${p.request.mode}|${p.request.language}`, label: p.label, icon: { name: 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMixups?.(p.request),
       })),
