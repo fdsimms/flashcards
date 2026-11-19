@@ -6,9 +6,10 @@ import { prefs } from '../../reader/storage';
 
 /**
  * The questions asked about the selected phrase and Claude's answers, for the phrase popup. They
- * live only while the popup is open and are sent again with each follow-up (the server adds the
- * line and the text); nothing is asked until a question is sent, and nothing here is kept,
- * graded or added to the deck.
+ * are sent again with each follow-up (the server adds the line and the text); nothing is asked
+ * until a question is sent. The server keeps the conversation for a couple of hours after its
+ * last answer, so reopening the popup on the same phrase (after swiping it away, say) loads it
+ * back. Nothing is graded or added to the deck.
  */
 export function usePhraseQuestions(api: Api, textId: number, line: number, phrase: string) {
   const [turns, setTurns] = useState<AskTurn[]>([]);
@@ -18,6 +19,14 @@ export function usePhraseQuestions(api: Api, textId: number, line: number, phras
   const busy = useRef(false);
   const open = useRef(true);
   useEffect(() => () => { open.current = false; }, []);
+  // The kept conversation, unless a question was already sent before it arrived. Not being able to
+  // load it (offline, an older server) just starts a new one.
+  useEffect(() => {
+    api.phraseChat(textId, line, phrase).then((kept) => {
+      if (open.current && !busy.current) setTurns((now) => (now.length ? now : kept));
+    }).catch(() => {});
+    // Once per phrase; a new phrase mounts a new popup.
+  }, []);
 
   const send = async (question: string, from: AskTurn[] = turns) => {
     if (busy.current || !question.trim()) return false;

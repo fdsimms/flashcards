@@ -5,6 +5,8 @@ import { ApiError, type Api, type Language, type PastText, type StoryListItem } 
 import { bannerOverline } from '../../reader/browse';
 import { saidAs } from '../../reader/wordAudio';
 import type { EpisodeOrder } from '../../reader/prefs';
+import { MakingSteps } from '../MakingCard';
+import { textSteps } from '../../reader/making';
 import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
 import { loadSeasonChoices, prefs, savePrefs, saveSeasonChoices } from '../../reader/storage';
 import { haptic } from '../haptics';
@@ -208,6 +210,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
   const ready = row.kind === 'next' && row.ready;
   const tappable = row.kind === 'read' || row.textId !== null;
   const detail = row.kind === 'read' ? 'Already read' : row.status;
+  const writing = row.kind === 'next' && row.textId === null && row.status.startsWith('Writing');
   return (
     <Pressable
       disabled={!tappable}
@@ -227,7 +230,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.headline, color: c.text }}>{row.title}</Text>
-        {row.kind === 'read' ? null : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
+        {row.kind === 'read' ? null : writing && row.kind === 'next' ? <MakingSteps steps={textSteps(row.stage)} /> : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
       </View>
       {row.kind === 'read' ? <Icon name="checkmark" size={16} color={c.goodInk} weight="bold" /> : null}
     </Pressable>

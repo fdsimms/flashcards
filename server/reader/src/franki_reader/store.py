@@ -139,6 +139,16 @@ CREATE TABLE IF NOT EXISTS phrase_explanations (
     cost_usd REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (text_id, line, phrase, simple)
 );
+-- The questions asked about a phrase and Claude's answers, kept briefly so swiping the popup away
+-- doesn't lose them (PHRASE_CHAT_TTL). One row per phrase; the whole conversation is replaced on each answer.
+CREATE TABLE IF NOT EXISTS phrase_chats (
+    text_id INTEGER NOT NULL REFERENCES texts(id),
+    line INTEGER NOT NULL,
+    phrase TEXT NOT NULL,
+    turns TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (text_id, line, phrase)
+);
 -- Why a word has the form it has (the form quiz's Explain), asked once per word of a line on the owner's tap.
 CREATE TABLE IF NOT EXISTS form_explanations (
     text_id INTEGER NOT NULL REFERENCES texts(id),
@@ -1660,6 +1670,41 @@ def save_phrase_explanation(
                 now.isoformat(),
                 cost_usd,
             ),
+        )
+
+
+# How long a phrase's conversation is kept after its last answer.
+PHRASE_CHAT_TTL = timedelta(hours=2)
+
+
+def get_phrase_chat(
+    conn: sqlite3.Connection, text_id: int, line: int, phrase: str, now: datetime
+) -> list[dict[str, str]]:
+    """The kept conversation about a phrase, or none once PHRASE_CHAT_TTL has passed since its last answer."""
+    row = conn.execute(
+        "SELECT turns FROM phrase_chats"
+        " WHERE text_id = ? AND line = ? AND phrase = ? AND updated_at >= ?",
+        (text_id, line, phrase, (now - PHRASE_CHAT_TTL).isoformat()),
+    ).fetchone()
+    return json.loads(row[0]) if row else []
+
+
+def save_phrase_chat(
+    conn: sqlite3.Connection,
+    text_id: int,
+    line: int,
+    phrase: str,
+    turns: list[dict[str, str]],
+    now: datetime,
+) -> None:
+    with conn:
+        conn.execute(
+            "DELETE FROM phrase_chats WHERE updated_at < ?", ((now - PHRASE_CHAT_TTL).isoformat(),)
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO phrase_chats (text_id, line, phrase, turns, updated_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (text_id, line, phrase, json.dumps(turns, ensure_ascii=False), now.isoformat()),
         )
 
 

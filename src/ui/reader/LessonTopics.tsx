@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { lessonRequestWords, type LessonWord } from '../../core/lessonWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
 import { haptic } from '../haptics';
 import { ErrorNote, Icon, Tappable } from '../kit';
+import { WorkingMark } from '../WorkingMark';
 import { radius, space, type, useTheme } from '../theme';
 
 /**
@@ -79,7 +80,12 @@ export function LessonTopics({ api, language, words, onPick }: {
             ))}
           </View>
           <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="More ideas" style={{ alignSelf: 'flex-end' }}>
-            {asking ? <ActivityIndicator color={c.accent} /> : <Text style={{ ...type.footnote, color: c.accentInk }}>More ideas</Text>}
+            {asking ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                <WorkingMark />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>Thinking of ideas</Text>
+              </View>
+            ) : <Text style={{ ...type.footnote, color: c.accentInk }}>More ideas</Text>}
           </Tappable>
         </>
       ) : (
@@ -90,7 +96,7 @@ export function LessonTopics({ api, language, words, onPick }: {
           accessibilityLabel="Suggest topics"
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, alignSelf: 'flex-start', paddingVertical: space.xs }}
         >
-          {asking ? <ActivityIndicator color={c.accent} /> : <Icon name="sparkles" size={16} color={c.accentInk} />}
+          {asking ? <WorkingMark /> : <Icon name="sparkles" size={16} color={c.accentInk} />}
           <Text style={{ ...type.subhead, color: c.accentInk }}>{asking ? 'Thinking of ideas' : 'Suggest topics'}</Text>
         </Tappable>
       )}
