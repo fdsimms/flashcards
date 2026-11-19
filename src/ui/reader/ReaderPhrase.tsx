@@ -44,7 +44,7 @@ const POPUP_MAX_SHARE = 0.6;
  * the buttons stay put and the explanation between them scrolls.
  *
  * "Ask a question" opens a field under the explanation, and Claude's answers stack under it
- * (`usePhraseQuestions`; kept only while the popup is open, never graded or added to the deck).
+ * (`usePhraseQuestions`; the server keeps them for 2 hours, never graded or added to the deck).
  * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
  * phrase's heading and the latest answer aren't behind the keyboard.
  */

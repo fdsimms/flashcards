@@ -3,7 +3,7 @@ whether a native speaker would say it."""
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from franki_reader import (
@@ -248,7 +248,28 @@ def router(ctx: AppContext) -> APIRouter:
         store.save_call_cost(
             engine.conn, "ask_phrase", text.language, engine.clock(), used.cost_usd()
         )
+        store.save_phrase_chat(
+            engine.conn,
+            text_id,
+            line,
+            phrase,
+            [*({"role": t.role, "content": t.content.strip()} for t in body.turns)]
+            + [{"role": "assistant", "content": answer}],
+            engine.clock(),
+        )
         return {"answer": answer}
+
+    @routes.get("/api/texts/{text_id}/lines/{line}/ask", dependencies=authed)
+    async def phrase_chat(
+        text_id: int, line: int, phrase: str = Query(min_length=1, max_length=300)
+    ) -> dict[str, list[dict[str, str]]]:
+        # The conversation about this phrase from the last couple of hours (store.PHRASE_CHAT_TTL), so
+        # reopening the popup shows it again; none when it has expired or the phrase wasn't asked about.
+        return {
+            "turns": store.get_phrase_chat(
+                engine.conn, text_id, line, phrase.strip(), engine.clock()
+            )
+        }
 
     @routes.post("/api/texts/{text_id}/lines/{line}/form", dependencies=authed)
     async def explain_form_in_line(text_id: int, line: int, body: FormExplainIn) -> dict[str, Any]:
