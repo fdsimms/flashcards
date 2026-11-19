@@ -1,28 +1,39 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { Stack } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { japaneseFont } from '../../core/script';
 import { LANGUAGES } from '../../reader/languages';
 import type { Phrase } from '../../tools/phrase';
 import { randomWord, type ScriptMode } from '../../tools/script';
 import { toolPrefs } from '../../tools/storage';
-import { SYLLABLES, TONE_NAMES, TONES, toneOf, toneSteps, type Tone } from '../../tools/thai/script';
+import { SYLLABLES, TONE_NAMES, toneOf, toneSteps, type Tone } from '../../tools/thai/script';
 import { SCRIPTS, toolLanguage } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Card } from '../kit';
-import { Reveal } from '../motion';
+import { Button } from '../kit';
+import type { CardMotion } from '../SwipeCard';
 import { hairline, space, type, useTheme } from '../theme';
 import { useFont } from '../AppFont';
 import type { ToolScreenProps } from './index';
-import { AnswerCard, ChipChoice, nextOnly, PlayButton, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
+import { AnswerContent, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { LetterDrill } from './LetterDrill';
-import { OptionChoices } from './OptionChoices';
+import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
+import { ToneContour, ToneContours } from './ToneContour';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
 const MODES: { value: ScriptMode; label: string }[] = [{ value: 'tone', label: 'Name the tone' }, { value: 'read', label: 'Read it aloud' }, { value: 'consonants', label: 'Consonants' }, { value: 'vowels', label: 'Vowels' }];
 
+/** Reading the script's exercises as the header menu's Practice section (Thai only), for ScriptTool and LetterDrill. */
+export function practiceMenu(mode: ScriptMode, onChange: (m: ScriptMode) => void): React.ReactNode[] {
+  return [(
+    <Stack.Toolbar.Menu key="practice" inline title="Practice">
+      {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) onChange(m.value); }}>{m.label}</Stack.Toolbar.MenuAction>)}
+    </Stack.Toolbar.Menu>
+  )];
+}
+
 /**
- * Reading the script: a word in the language's own letters. Read it aloud, then show the answer
+ * Reading the script, as Review's card (PracticeCard.tsx): Practice is in the header's gear menu. A word in the language's own letters. Read it aloud, then show the answer
  * (with its stress, or tone, and a romanization) and mark it Missed it or Got it; a miss shows
  * what's worth knowing to read it. In Thai, Name the tone asks for the syllable's tone, worked
  * out from how it's written (thai/script.ts), and shows the steps; Consonants and Vowels are
@@ -39,7 +50,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
   const [savedMode, setMode] = useToolPref('scriptMode');
   // Only Thai has tones to name and letters to place; the other languages are read aloud.
   const mode: ScriptMode = language === 'th' ? savedMode : 'read';
-  const practice = language === 'th' ? <ChipChoice label="Practice" options={MODES} value={mode} onChange={(m) => { setMode(m); answer.hide(); }} /> : null;
+  const practice = language === 'th' ? practiceMenu(mode, (m) => { setMode(m); answer.hide(); }) : undefined;
   const script = SCRIPTS[language];
   const [held, setHeld] = useState(() => {
     const l = toolLanguage(tool, toolPrefs().language);
@@ -84,12 +95,65 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
     if (spoken) answer.speak(spoken);
   };
 
-  let actions: ToolActions | undefined;
-  if (mode === 'tone') actions = pick ? { primary: { label: 'Next', onPress: next } } : { secondary: { label: 'Another one', onPress: next }, primary: { label: 'Show answer', onPress: () => chooseTone(null) } };
-  else if (answer.missed) actions = nextOnly(next);
+  const swipeOn = useSwipeSetting(repo);
+  const motion = useRef<CardMotion | null>(null);
+  const reading = mode === 'read';
 
   if (mode === 'consonants' || mode === 'vowels') {
     return <LetterDrill tool={tool} repo={repo} language={language} onLanguage={setLanguage} mode={mode} practice={practice} />;
+  }
+
+  // A mark, from a button or a swipe: Missed it with a rule keeps the answer up with the rule until Next.
+  const markAndMove = (right: boolean) => {
+    haptic.answer();
+    motion.current?.flash(right ? 3 : 1);
+    mark(right);
+    if (!right && rule) answer.miss();
+    else next();
+  };
+  const showAnswer = () => answer.show(spoken);
+  const swipe = swipeOn && reading && answer.shown && !answer.missed;
+  const answered = reading ? answer.shown : !!pick;
+
+  const front = (
+    <View style={{ alignItems: 'center', gap: space.xs }}>
+      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text, textAlign: 'center' }}>{word?.shown}</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
+    </View>
+  );
+
+  let back: React.ReactNode;
+  let footer: React.ReactNode;
+  if (mode === 'tone' && syllable && tone && word) {
+    back = pick ? (
+      <View style={{ gap: space.m }}>
+        {pick.tone === null ? null : (
+          <View style={{ alignItems: 'center' }}>
+            {pick.tone === tone
+              ? <Status tone="good">{`Right. ${TONE_NAMES[tone]} tone.`}</Status>
+              : <Status tone="bad">{`Not quite. It's ${TONE_NAMES[tone].toLowerCase()}.`}</Status>}
+          </View>
+        )}
+        <View style={{ alignItems: 'center' }}><ToneContour tone={tone} width={64} /></View>
+        <View style={{ gap: space.xs }}>
+          <Text style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{word.answer.roman}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{word.meaning}</Text>
+        </View>
+        <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
+          <Text style={{ ...type.overline, color: c.textSecondary }}>How to tell</Text>
+          {toneSteps(syllable).map((step) => <Text key={step} style={{ ...type.subhead, color: c.text }}>{step}</Text>)}
+        </View>
+      </View>
+    ) : undefined;
+    footer = (
+      <View style={{ gap: space.s }}>
+        <ToneContours tone={tone} picked={pick} onChoose={chooseTone} />
+        {pick ? <Button label="Next" onPress={next} /> : <Button variant="secondary" label="Show answer" onPress={() => chooseTone(null)} />}
+      </View>
+    );
+  } else {
+    back = answer.shown && word ? <AnswerContent centered answer={{ everyday: word.answer, also: [] }} rule={answer.missed ? rule : undefined} onPlay={answer.speak} /> : undefined;
+    footer = <SayFooter shown={answer.shown} missed={answer.missed} onShow={showAnswer} onNext={next} onMark={markAndMove} />;
   }
 
   return (
@@ -99,59 +163,25 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
       onLanguage={(l) => { setLanguage(l); answer.hide(); }}
       shown={answer.shown}
       onRandomize={next}
-      onShow={() => answer.show(spoken)}
-      onMark={(right) => {
-        mark(right);
-        if (!right && rule) answer.miss();
-        else next();
-      }}
-      actions={actions}
+      onShow={showAnswer}
+      onMark={markAndMove}
+      fill
+      lockGesture={swipe}
+      footer={footer}
+      menu={practice}
     >
-      <Card style={{ minHeight: 140, alignItems: 'center', justifyContent: 'center', gap: space.xs }}>
-        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text }}>{word?.shown}</Text>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
-      </Card>
-
-      {mode === 'tone' && syllable && tone && word ? (
-        <>
-          <ToneChoices tone={tone} picked={pick} onChoose={chooseTone} />
-          {pick ? (
-            <Reveal>
-              <Card>
-                {pick.tone === null ? null : pick.tone === tone
-                  ? <Status tone="good">{`Right. ${TONE_NAMES[tone]} tone.`}</Status>
-                  : <Status tone="bad">{`Not quite. It's ${TONE_NAMES[tone].toLowerCase()}.`}</Status>}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-                  <View style={{ flex: 1, gap: space.xs }}>
-                    <Text style={{ ...type.cardBack, color: c.text }}>{word.answer.roman}</Text>
-                    <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.meaning}</Text>
-                  </View>
-                  <PlayButton label={`Play ${word.shown}`} onPress={() => spoken && answer.speak(spoken)} />
-                </View>
-                <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
-                  <Text style={{ ...type.overline, color: c.textSecondary }}>How to tell</Text>
-                  {toneSteps(syllable).map((step) => <Text key={step} style={{ ...type.subhead, color: c.text }}>{step}</Text>)}
-                </View>
-              </Card>
-            </Reveal>
-          ) : null}
-        </>
-      ) : (
-        <AnswerCard
-          shown={answer.shown}
-          prompt={`Read it aloud in ${LANGUAGES[language].name}, then show the answer.`}
-          answer={word && { everyday: word.answer, also: [] }}
-          rule={answer.missed ? rule : undefined}
-          onPlay={() => spoken && answer.speak(spoken)}
-        />
-      )}
-
-      {practice}
+      <PracticeCard
+        questionKey={key}
+        cardKey={`${key}|${answer.shown}|${answer.missed}|${String(pick?.tone ?? '')}`}
+        swipe={swipe}
+        motion={motion}
+        onMark={markAndMove}
+        onTap={reading && !answer.shown ? showAnswer : undefined}
+        onPlay={answered && spoken ? () => answer.speak(spoken) : undefined}
+        speech={LANGUAGES[language].speech}
+        front={front}
+        back={back}
+      />
     </ToolScreen>
   );
-}
-
-/** The five tones to choose from, the right one and a wrong pick marked once chosen. */
-function ToneChoices({ tone, picked, onChoose }: { tone: Tone; picked: { tone: Tone | null } | null; onChoose: (t: Tone) => void }) {
-  return <OptionChoices options={TONES.map((t) => ({ value: t, label: TONE_NAMES[t] }))} right={tone} picked={picked && { choice: picked.tone }} onChoose={onChoose} />;
 }

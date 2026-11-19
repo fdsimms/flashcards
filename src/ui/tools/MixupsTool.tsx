@@ -159,13 +159,11 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
       onMark={() => next()}
       fill
       footer={footer}
-      menu={(
-        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
-          <Stack.Toolbar.Menu inline title="Tell them apart">
-            {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); setOverride((o) => ({ ...o, mode: undefined })); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      )}
+      menu={[
+        <Stack.Toolbar.Menu key="1" inline title="Tell them apart">
+          {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); setOverride((o) => ({ ...o, mode: undefined })); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+      ]}
     >
       {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !set ? <View style={{ padding: space.l }}><Loading /></View> : !question ? (
         <View style={{ padding: space.l }}>
