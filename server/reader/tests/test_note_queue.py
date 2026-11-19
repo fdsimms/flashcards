@@ -145,10 +145,25 @@ def test_a_german_noun_gets_gender_plural_and_genitive() -> None:
 def test_a_german_verb_gets_class_auxiliary_and_key_forms() -> None:
     fields = got_fields(
         "de", "abwerfen", part_of_speech="verb", verb_class="Strong", auxiliary="haben",
-        key_forms="warf ab", gender="m", plural="x",
+        pattern="Strong verb. The prefix ab splits off.", form_past="warf ab",
+        form_perfect="hat abgeworfen", gender="m", plural="x",
     )  # fmt: skip
     assert fields["VerbClass"] == "strong" and fields["Auxiliary"] == "haben"
-    assert fields["KeyForms"] == "warf ab" and "Gender" not in fields and "Plural" not in fields
+    # Each form is a line under the name of what it is, the pattern first.
+    assert fields["KeyForms"] == (
+        "pattern: Strong verb. The prefix ab splits off.<br>past: warf ab<br>perfect: hat abgeworfen"
+    )
+    assert "Gender" not in fields and "Plural" not in fields
+    # A form that doesn't pass is left out; the rest of the lines are kept.
+    partly = got_fields(
+        "de",
+        "abwerfen",
+        part_of_speech="verb",
+        form_past="warf | ab",
+        form_perfect="hat abgeworfen",
+    )
+    assert partly["KeyForms"] == "perfect: hat abgeworfen"
+    assert "KeyForms" not in got_fields("de", "abwerfen", part_of_speech="verb")
     assert "Auxiliary" not in got_fields("de", "abwerfen", part_of_speech="verb", auxiliary="have")
 
 
@@ -175,30 +190,40 @@ def test_a_russian_verb_gets_its_aspect_partner_and_first_person() -> None:
         "добиваться",
         part_of_speech="verb",
         aspect_partner="добиться",
-        key_forms="добиваюсь",
+        form_i="добиваюсь",
+        form_genitive="x",
         **ru,
     )
-    assert fields["AspectPartner"] == "добиться" and fields["KeyForms"] == "добиваюсь"
+    assert fields["AspectPartner"] == "добиться" and fields["KeyForms"] == "I: добиваюсь"
 
 
 def test_polish_key_forms_are_for_nouns_and_verbs_alike() -> None:
+    forms: dict[str, Any] = {
+        "form_genitive": "mężczyzny", "form_plural": "mężczyźni", "form_i": "mam", "form_you": "masz",
+    }  # fmt: skip
     noun = got_fields(
-        "pl", "ten mężczyzna", part_of_speech="noun", gender="m", key_forms="mężczyzny, mężczyźni"
+        "pl", "ten mężczyzna", part_of_speech="noun", gender="m",
+        pattern="Masculine personal, declined like a feminine noun in -a.", **forms,
+    )  # fmt: skip
+    assert noun["Gender"] == "m" and noun["KeyForms"] == (
+        "pattern: Masculine personal, declined like a feminine noun in -a.<br>genitive: mężczyzny<br>plural: mężczyźni"
     )
-    assert noun["KeyForms"] == "mężczyzny, mężczyźni" and noun["Gender"] == "m"
     assert (
-        got_fields("pl", "mieć", part_of_speech="verb", key_forms="mam, masz")["KeyForms"]
-        == "mam, masz"
+        got_fields("pl", "mieć", part_of_speech="verb", **forms)["KeyForms"]
+        == "I: mam<br>you: masz"
+    )
+    assert "KeyForms" not in got_fields(
+        "pl", "ale", part_of_speech="conjunction", pattern="x", **forms
     )
 
 
 def test_a_greek_verb_gets_its_class_and_aorist_and_a_greek_noun_only_its_gender() -> None:
     el: dict[str, Any] = {"romanization": "x", "transliteration": "x"}
     verb = got_fields(
-        "el", "αντιπαθώ", part_of_speech="verb", verb_class="active", key_forms="αντιπάθησα", **el
+        "el", "αντιπαθώ", part_of_speech="verb", verb_class="active", form_past="αντιπάθησα", **el
     )
-    assert verb["VerbClass"] == "active" and verb["KeyForms"] == "αντιπάθησα"
-    noun = got_fields("el", "ο γραμματέας", part_of_speech="noun", gender="m", key_forms="x", **el)
+    assert verb["VerbClass"] == "active" and verb["KeyForms"] == "past: αντιπάθησα"
+    noun = got_fields("el", "ο γραμματέας", part_of_speech="noun", gender="m", form_past="x", **el)
     assert noun["Gender"] == "m" and not {"KeyForms", "VerbClass"} & noun.keys()
 
 
@@ -212,7 +237,7 @@ def test_a_japanese_word_gets_its_kanji_in_hanzi() -> None:
 def test_languages_with_no_extras_get_only_the_common_fields() -> None:
     for language in ("en",):
         fields = got_fields(
-            language, "x", part_of_speech="noun", gender="m", key_forms="x", classifier="x"
+            language, "x", part_of_speech="noun", gender="m", form_past="x", classifier="x"
         )
         assert set(fields) == {
             "Meaning", "Context", "ContextTranslation", "Register", "Language", "GenerateReverse",

@@ -1,5 +1,5 @@
 import { examplesOf } from './examples';
-import { genderArticle, genderOf, pluralWord, spokenEntry } from './gender';
+import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
@@ -7,6 +7,7 @@ import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { fieldIsEmpty, templateOrdinals } from './template';
 import type { Card, CardKind, Note, NoteType, RenderedCard, RenderedSide } from './types';
+import { grammarText, wordGrammar } from './wordGrammar';
 
 /**
  * Language names, in English and as the language writes itself, with the BCP-47 tag a note in it
@@ -168,12 +169,6 @@ export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | u
   return card.back.speak || file ? { text: card.back.speak, file } : undefined;
 }
 
-/** Omnilanguage's fields that hold one of the word's forms, with the label each is shown under. */
-const FORM_ROWS: [field: string, label: string][] = [
-  ['KeyForms', 'key forms'], ['Plural', 'plural'], ['Genitive', 'genitive'], ['Classifier', 'counting word'],
-  ['Auxiliary', 'auxiliary'], ['AspectPartner', 'aspect pair'],
-];
-
 /** The Gender field's one-letter values, as words for a chip. Any other value is shown as written. */
 /** "Two" in Thai, the number a counted example uses. */
 const THAI_TWO = 'สอง';
@@ -195,10 +190,10 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const entry = t(note, 'Entry');
   // What the phone's voice may say: nothing in a language that isn't known, which it would read as
   // English. A recording (`audioFile`) still plays.
-  // A noun's article from its Gender (gender.ts), unless the Entry already starts with one.
+  // A noun's article from its Gender, or a Norwegian verb's å (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
-  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry);
-  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), entry) : undefined;
+  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry) ?? verbMarker(lang2, t(note, 'PartOfSpeech'), entry);
+  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), t(note, 'PartOfSpeech'), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
@@ -216,10 +211,11 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const detail = (): Block[] => {
     const b: Block[] = [];
     const gender = t(note, 'Gender');
-    const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, t(note, 'Register'), t(note, 'Dialect'), t(note, 'VerbClass')]
+    // "neutral" says a word is ordinary, which a chip needn't: the field keeps it, to tell ordinary from never judged.
+    const register = t(note, 'Register');
+    const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, register.toLowerCase() === 'neutral' ? '' : register, t(note, 'Dialect')]
       .filter(Boolean);
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta, gender: genderOf(gender) });
-    // The word's other forms, as Anki's template shows them in pills and its key forms line.
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
     pushIf(b, counting.map((w) => `${t(note, 'Entry')}${THAI_TWO}${w}`).join('\n'), 'Counting', undefined, undefined,
@@ -227,9 +223,9 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
         const known = THAI_COUNTING_WORDS[w];
         return { label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}`, ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
       }) });
-    const rows = FORM_ROWS.filter(([field]) => !(field === 'Classifier' && counting.length))
-      .map(([field, label]) => ({ label, value: t(note, field) })).filter((r) => r.value);
-    pushIf(b, rows.map((r) => `${r.label}: ${r.value}`).join('\n'), 'Forms', undefined, undefined, { role: 'forms', rows });
+    // What kind of word it is and its forms, each under its name (wordGrammar.ts): the verb class is its top line, not a chip.
+    const grammar = wordGrammar(note, counting.length > 0);
+    if (grammar) pushIf(b, grammarText(grammar), 'Grammar', undefined, undefined, { role: 'grammar', ...(grammar.pattern ? { pattern: grammar.pattern } : {}), cells: grammar.cells });
     // What helps remember the word itself comes before the example sentence that uses it.
     pushIf(b, t(note, 'Mnemonic'), 'Mnemonic', undefined, undefined, { field: 'Mnemonic' });
     pushIf(b, t(note, 'Notes'), 'Notes', undefined, undefined, { role: 'note', field: 'Notes' });

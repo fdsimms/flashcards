@@ -1868,9 +1868,12 @@ in the current language, with when one was last read to the end. Nothing else le
   (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
-  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner and KeyForms; Polish
-  noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and KeyForms; Japanese
-  Hanzi. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
+  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and
+  verbs; Polish noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and
+  KeyForms; Japanese Hanzi. KeyForms is written a line to a form, each under the name of what it is
+  (`pattern:` first, then `genitive:`, `plural:`, `I:`, `you:`, `past:`, `perfect:`), which is what the
+  card's Grammar box reads and the MCP holds notes to; Claude answers each form under a key of its own
+  and `check` writes the lines. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
   only when they pass, and one that doesn't is left out without failing the word. Generate, then verify: a word is kept
   only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
   no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word

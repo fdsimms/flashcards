@@ -54,8 +54,8 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
 
 /**
  * One side of a natively rendered card: the word or question large and centered, the details
- * under it in smaller text with their labels. On the back, the tags are chips, the word's forms
- * are a labeled list, an example sentence's lines sit close together with the word highlighted,
+ * under it in smaller text with their labels. On the back, the tags are chips, the word's grammar
+ * is a box of its forms, each under its name, an example sentence's lines sit close together with the word highlighted,
  * and a note, mnemonic, kanji or etymology is set off in a box under its label, laid out like the Example's.
  * `showHints` shows the lines Anki hides behind a tap (romanization, translation) without one.
  * With `gloss` (each example sentence's words from Read & Listen's server), an example sentence's words can
@@ -254,16 +254,32 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
-        if (b.role === 'forms') {
+        if (b.role === 'grammar') {
+          const cells = b.cells ?? [];
           return (
             <View key={i} style={{ gap: space.xs }}>
               {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-              {(b.rows ?? []).map((r) => (
-                <View key={r.label} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.m }}>
-                  <Text style={{ ...type.footnote, color: c.textTertiary, minWidth: 104 }}>{r.label}</Text>
-                  <Text style={{ ...(hasThai(r.value) ? thai : { ...type.body, lineHeight: 24 }), ...ja(r.value), color: c.text, flex: 1 }}>{r.value}</Text>
-                </View>
-              ))}
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.s + 2 }}>
+                {b.pattern ? <Text style={{ ...type.subhead, color: c.textBody, lineHeight: 21 }}>{b.pattern}</Text> : null}
+                {b.pattern && cells.length ? <View style={{ height: hairline, backgroundColor: c.border }} /> : null}
+                {cells.length ? (
+                  // Two forms to a row; what the word takes, and a line with no label, run the box's width.
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: space.s + 2 }}>
+                    {cells.map((cell, k) => (
+                      <View key={`${cell.label}-${k}`} style={{ width: cell.wide ? '100%' : '50%', paddingRight: space.m }}>
+                        <Text style={{ ...type.footnote, color: c.textTertiary }}>{cell.label}</Text>
+                        <Text style={{ ...(hasThai(cell.value) ? thai : { ...type.body, lineHeight: 24 }), ...ja(cell.value), color: c.text }}>
+                          {(cell.segments ?? [{ text: cell.value, marked: false }]).map((s, n) => (
+                            // The letters where the form leaves the word: in the accent, with its weight, so color isn't the only signal.
+                            s.marked ? <Text key={n} style={{ color: c.accentInk, fontWeight: '600' }}>{s.text}</Text> : <React.Fragment key={n}>{s.text}</React.Fragment>
+                          ))}
+                        </Text>
+                        {cell.detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{cell.detail}</Text> : null}
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             </View>
           );
         }

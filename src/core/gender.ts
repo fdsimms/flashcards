@@ -90,6 +90,28 @@ export function pluralWord(lang: string, value: string, entry: string): string |
   return word && !startsWithGenderWord(lang, entry) ? word : undefined;
 }
 
+/**
+ * The word a verb is named with, by language: Norwegian's å (å huske). The Entry is the bare verb, and the card
+ * shows this before it and the voice says it, as with a noun's article, so the word stays one a sentence or
+ * a word list can be matched against. The MCP holds notes to the bare verb (omnilanguage.py,
+ * entry-infinitive-marker) and says the same word in its recordings (articles.py, `VERB_MARKERS`).
+ */
+const VERB_MARKERS: Record<string, string> = { nb: 'å' };
+
+/** The marker to show before a bare verb, or undefined: not a verb, a language with none, or an Entry that already starts with it. */
+export function verbMarker(lang: string, partOfSpeech: string, entry: string): string | undefined {
+  const word = VERB_MARKERS[lang];
+  if (!word || partOfSpeech.trim().toLowerCase() !== 'verb' || entry.trim().toLowerCase().startsWith(`${word} `)) return undefined;
+  return word;
+}
+
+/** A verb as it's written in the Entry: without the marker the card puts before it (å huske -> huske). Used when a word is added. */
+export function bareVerb(lang: string, partOfSpeech: string, entry: string): string {
+  const word = VERB_MARKERS[lang];
+  const e = entry.trim();
+  return word && partOfSpeech.trim().toLowerCase() === 'verb' && e.toLowerCase().startsWith(`${word} `) ? e.slice(word.length).trim() : entry;
+}
+
 /** An article and its word as they're written or said: l'amertume, but el blindaje. */
 export const withArticle = (article: string, word: string): string => (/['’]$/.test(article) ? `${article}${word}` : `${article} ${word}`);
 
@@ -108,8 +130,13 @@ export function bareNoun(lang: string, gender: Gender | undefined, entry: string
   return genderArticle(lang, gender, rest)?.toLowerCase() === split.article.toLowerCase().replace('’', "'") ? rest : entry;
 }
 
-/** What the voice or a recording says for a note's word: the article and the Entry where the article is spoken, else the Entry. */
-export function spokenEntry(lang: string, gender: Gender | undefined, entry: string): string {
+/**
+ * What the voice or a recording says for a note's word: the article and the Entry where the article is spoken,
+ * a verb with its marker (å huske), else the Entry.
+ */
+export function spokenEntry(lang: string, gender: Gender | undefined, partOfSpeech: string, entry: string): string {
   const article = genderArticle(lang, gender, entry);
-  return article && articleIsSpoken(lang) ? withArticle(article, entry) : entry;
+  if (article && articleIsSpoken(lang)) return withArticle(article, entry);
+  const marker = verbMarker(lang, partOfSpeech, entry);
+  return marker ? `${marker} ${entry}` : entry;
 }
