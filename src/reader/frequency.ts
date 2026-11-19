@@ -36,10 +36,15 @@ function thousands(n: number): string {
  */
 export function wordFrequency(word: Pick<Word, 'status' | 'rank'>): WordFrequency | null {
   if (word.rank === undefined || word.status === null || word.status === 'name') return null;
-  if (word.rank === null) {
+  return rankFrequency(word.rank);
+}
+
+/** The band, bars and place for a rank already known to belong to a word (null: past the end of the list). */
+export function rankFrequency(rank: number | null): WordFrequency {
+  if (rank === null) {
     const place = `Beyond the top ${thousands(FREQUENCY_LIST_SIZE)}`;
     return { band: 'Rare', bars: 1, place, spoken: `Rare. ${place} most common words` };
   }
-  const found = BANDS.find((b) => word.rank! <= b.upTo)!;
-  return { band: found.band, bars: found.bars, place: `#${thousands(word.rank)}`, spoken: `${found.band}. Number ${thousands(word.rank)} among the most common words` };
+  const found = BANDS.find((b) => rank <= b.upTo)!;
+  return { band: found.band, bars: found.bars, place: `#${thousands(rank)}`, spoken: `${found.band}. Number ${thousands(rank)} among the most common words` };
 }

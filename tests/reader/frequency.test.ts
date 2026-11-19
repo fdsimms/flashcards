@@ -1,5 +1,11 @@
 import { expect, test } from 'vitest';
-import { wordFrequency } from '../../src/reader/frequency';
+import { rankFrequency, wordFrequency } from '../../src/reader/frequency';
+
+test('a suggested word, which is never a name, is banded by its rank alone', () => {
+  expect(rankFrequency(2410)).toMatchObject({ band: 'Common', bars: 3, place: '#2,410' });
+  expect(rankFrequency(null)).toMatchObject({ band: 'Rare', bars: 1 });
+  expect(rankFrequency(2410)).toEqual(wordFrequency({ status: 'unknown', rank: 2410 }));
+});
 
 test('a word is banded by its place in the list, with the place shown', () => {
   expect(wordFrequency({ status: 'known', rank: 1 })).toMatchObject({ band: 'Very common', bars: 4, place: '#1' });
