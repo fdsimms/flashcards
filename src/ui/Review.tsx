@@ -99,7 +99,7 @@ import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
-import { LastAnswerLine, useLastAnswer } from './ChangeRating';
+import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -722,7 +722,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!last || busy.current) return false;
     busy.current = true;
     writes.current++;
-    haptic.tap();
+    buttonHaptic(to);
     try {
       // The answer's own writes finish first: they give the review row and the Anki write to take back.
       await reviewWrites.idle();
@@ -760,8 +760,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const noteOf = n ?? notes.get(last.before.noteId);
       if (to && noteOf) {
         await answer(to, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
+        lastAnswer.announce(to === 3 ? 'good' : 'again');
         return true;
       }
+      lastAnswer.announce('undone');
       setPreferId(last.before.id);
       setRevealedAt(undefined);
       setNow(new Date());
@@ -1312,7 +1314,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
         </Stack.Toolbar>
       }
-      footer={<>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
+      footer={<>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
       floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
     >
       {queue ? (

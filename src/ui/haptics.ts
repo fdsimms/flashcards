@@ -18,4 +18,6 @@ export const haptic = {
   lift: () => quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
   /** Something finished well: a deck cleared. */
   success: () => quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
+  /** An answer changed to Again. */
+  warning: () => quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),
 };
