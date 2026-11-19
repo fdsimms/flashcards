@@ -14,7 +14,7 @@ import { Ruby } from './Ruby';
 import type { FuriganaSetting, Run } from '../core/furigana';
 import { CardSentence } from './CardSentence';
 import { TranslationRow } from './TranslationRow';
-import { EditableField } from './EditableField';
+import { EDIT_ICON_ROOM, EditableField } from './EditableField';
 import type { EditableField as FieldName } from '../core/editField';
 import type { SentenceGloss } from './useCardGlosses';
 
@@ -73,7 +73,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   furigana?: FuriganaSetting;
   /** The card's word as runs with their readings (`cardWordRuns`), or null to draw it as before. */
   wordRuns?: Run[] | null;
-  /** Given on the back: Mnemonic and Notes get a pencil that edits them in place, saving the note through this. */
+  /** Given on the back: Mnemonic and Notes get an edit icon that edits them in place, saving the note through this. */
   onEditField?: (field: FieldName, text: string) => Promise<void>;
   /** Whether one of those boxes is open (the card holds off swipe-to-rate while it is). */
   onEditing?: (editing: boolean) => void;
@@ -100,10 +100,13 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     return out;
   }, [side.blocks, furigana, wordRuns]);
 
-  // A block that shows a whole note field, with its pencil when the card lets it be edited.
+  // A block that shows a whole note field, with its edit icon when the card lets it be edited.
   const editable = (b: Block, node: React.ReactElement) => (b.field && onEditField
     ? <EditableField key={node.key} label={b.label ?? b.field} text={b.text} onSave={(text) => onEditField(b.field!, text)} onEditing={onEditing}>{node}</EditableField>
     : node);
+
+  // An editable block's box leaves room at its right for the edit icon.
+  const editRoom = (b: Block) => (b.field && onEditField ? { paddingRight: EDIT_ICON_ROOM } : null);
 
   const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
   // An example's romanization and translation buttons open their line and close it again.
@@ -308,7 +311,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           return editable(b, (
             <View key={i} style={{ gap: space.xs }}>
               {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m }}>
+              <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, ...editRoom(b) }}>
                 <Text style={{ ...type.subhead, color: c.textBody, lineHeight: 21 }}>{b.text}</Text>
               </View>
             </View>
@@ -319,7 +322,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         return editable(b, (
           <View key={i} style={{ gap: space.xs }}>
             {b.label ? <Text style={{ ...type.overline, color: c.accent }}>{b.label}</Text> : null}
-            <View style={boxed ? { backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m } : b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
+            <View style={boxed ? { backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, ...editRoom(b) } : b.icon ? { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s } : undefined}>
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis && b.reading && furigana && wordRuns ? (
                 <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
