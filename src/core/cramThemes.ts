@@ -89,6 +89,12 @@ export function weakSpots(marks: Marks, language: Language, now: number, titleOf
   return lines.sort((a, b) => b.misses - a.misses).slice(0, THEME_WEAK_MAX).map((l) => l.line);
 }
 
+/** What Practice has been missing and the corrections kept from rehearsals, as one list within what the server takes: Practice's first, up to half, then the kept ones. */
+export function combineWeakSpots(practice: string[], kept: string[]): string[] {
+  const first = practice.slice(0, THEME_WEAK_MAX / 2);
+  return [...first, ...kept.slice(0, THEME_WEAK_MAX - first.length)];
+}
+
 /** The titles not to suggest again: those already on screen, then every cram's name and theme, newest first. */
 export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
   const seen = new Set<string>();
