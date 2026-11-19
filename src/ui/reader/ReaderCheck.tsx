@@ -74,18 +74,22 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
       </View>
       <ProgressBar value={at / questions.length} label="Progress through this check" />
       <Reveal key={q.key} rise={10} style={{ gap: space.m }}>
+        {q.kind === 'text' ? (
+          // The question sits on the screen itself, not in a card, so a boxed row is always something to tap.
+          <View style={{ gap: space.s, paddingHorizontal: space.xs, paddingTop: space.s }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
+              <Text style={{ ...type.overline, color: c.accentInk }}>Question</Text>
+              <Chip label="English" selected={english} onPress={toggleEnglish} />
+            </View>
+            <Text selectable style={{ fontSize: textStyle.fontSize * 1.25, lineHeight: textStyle.lineHeight * 1.25, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text }}>
+              {q.question}
+            </Text>
+            {english || answered ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{q.english}</Text> : null}
+            <View style={{ height: hairline, backgroundColor: c.border, marginTop: space.xs }} />
+          </View>
+        ) : (
         <Card style={{ gap: space.s, paddingVertical: space.l }}>
-          {q.kind === 'text' ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-                <Text selectable style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text, flex: 1 }}>
-                  {q.question}
-                </Text>
-                <Chip label="English" selected={english} onPress={toggleEnglish} />
-              </View>
-              {english || answered ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{q.english}</Text> : null}
-            </>
-          ) : q.kind === 'listen' ? (
+          {q.kind === 'listen' ? (
             <View style={{ alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text, textAlign: 'center' }}>Which line did you hear?</Text>
               <Tappable
@@ -116,6 +120,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
             </View>
           )}
         </Card>
+        )}
         <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
           {q.choices.map((choice, i) => {
             const label = typeof choice === 'string' ? choice : choice.text;
