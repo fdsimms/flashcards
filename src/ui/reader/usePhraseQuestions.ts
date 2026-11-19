@@ -10,7 +10,7 @@ import { prefs } from '../../reader/storage';
  * line and the text); nothing is asked until a question is sent, and nothing here is kept,
  * graded or added to the deck.
  */
-export function usePhraseQuestions(api: Api, textId: number, line: number, phrase: string) {
+export function usePhraseQuestions(api: Api, textId: number, line: number, toLine: number, phrase: string) {
   const [turns, setTurns] = useState<AskTurn[]>([]);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function usePhraseQuestions(api: Api, textId: number, line: number, phras
     setAsking(true);
     setError(null);
     try {
-      const answer = await api.askPhrase(textId, line, phrase, next, prefs().explainInLanguage);
+      const answer = await api.askPhrase(textId, line, toLine, phrase, next, prefs().explainInLanguage);
       if (open.current) setTurns([...next, { role: 'assistant', content: answer }]);
     } catch (e) {
       if (open.current) setError(failureText(e, { what: "Couldn't get an answer.", next: 'Try again.' }));

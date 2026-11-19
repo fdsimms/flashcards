@@ -18,6 +18,7 @@ from franki_reader.ask_phrase import (
     PhraseQuestion,
     claude_ask_phrase,
     messages_for,
+    phrase_context,
     system_for,
 )
 from franki_reader.engine import Engine
@@ -186,6 +187,23 @@ def test_refuses_a_phrase_that_isnt_in_the_line_and_a_last_turn_that_isnt_a_ques
         == 422
     )
     assert c.post(url(text_id, 99), json=good, headers=AUTH).status_code == 404
+
+
+def test_a_question_about_a_phrase_over_two_lines_reads_both() -> None:
+    seen: list[PhraseQuestion] = []
+
+    async def ask(q: PhraseQuestion) -> tuple[str, Usage]:
+        seen.append(q)
+        return "ok", COST
+
+    c, text_id, _ = client(ask)
+    lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
+    first, second = ("".join(w["text"] for w in ln["words"]) for ln in lines[:2])
+    good = {**body(c, text_id), "phrase": f"{first[-3:].strip()} {second[:3].strip()}"}
+    assert c.post(url(text_id), json=good, headers=AUTH).status_code == 400
+    assert c.post(url(text_id), json={**good, "to_line": 1}, headers=AUTH).status_code == 200
+    assert seen[0].index == 0 and seen[0].through == 1
+    assert "Lines 1-2: " in phrase_context(seen[0])
 
 
 def test_needs_the_passphrase() -> None:

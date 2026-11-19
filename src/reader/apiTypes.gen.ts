@@ -1606,6 +1606,8 @@ export interface components {
              * @default false
              */
             in_language: boolean;
+            /** To Line */
+            to_line?: number | null;
         };
         /** AspectIn */
         AspectIn: {
@@ -1945,6 +1947,8 @@ export interface components {
              * @default false
              */
             in_language: boolean;
+            /** To Line */
+            to_line?: number | null;
         };
         /** PhraseTurnIn */
         PhraseTurnIn: {

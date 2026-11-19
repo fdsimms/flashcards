@@ -231,6 +231,9 @@ class PhraseRequest:
     title: str = ""
     index: int = 0
     in_language: bool = False  # the notes in the line's language rather than English
+    # The phrase's last line when it runs on past `index`; `line` and `english` then hold all of
+    # them, joined. None for one line.
+    through: int | None = None
 
 
 # {meaning, points}, and what asking for it cost.
@@ -272,16 +275,27 @@ class CheckRequest:
 CheckNatural = Callable[[CheckRequest], Awaitable[tuple[dict[str, str], Usage]]]
 
 
-def whole_text(context: tuple[str, ...], title: str, index: int) -> list[str]:
-    """The text as numbered lines, the selected one marked, for a prompt; none without context."""
+def whole_text(
+    context: tuple[str, ...], title: str, index: int, through: int | None = None
+) -> list[str]:
+    """The text as numbered lines, the selected one (or ones, `index` through `through`) marked,
+    for a prompt; none without context."""
     if not context:
         return []
+    last = index if through is None else through
     out = [f"The whole text{f' ({title})' if title else ''}:"]
     out.extend(
-        f"{i + 1}. {c}" + ("   <- the selected line" if i == index else "")
+        f"{i + 1}. {c}" + ("   <- the selected line" if index <= i <= last else "")
         for i, c in enumerate(context)
     )
     return out
+
+
+def line_label(index: int, through: int | None = None) -> str:
+    """ "Line 3", or "Lines 3-4" for a phrase that runs on."""
+    if through is None or through == index:
+        return f"Line {index + 1}"
+    return f"Lines {index + 1}-{through + 1}"
 
 
 def request_message(request: ExplainRequest) -> str:
@@ -293,16 +307,12 @@ def request_message(request: ExplainRequest) -> str:
 
 
 def phrase_message(request: PhraseRequest) -> str:
-    base = ExplainRequest(
-        request.language,
-        request.line,
-        request.english,
-        request.context,
-        request.simple,
-        request.title,
-        request.index,
-    )
-    return request_message(base) + f"\nSelected phrase: {request.phrase}"
+    lines = [f"Language: {LANGUAGES[request.language].name}"]
+    lines.extend(whole_text(request.context, request.title, request.index, request.through))
+    lines.append(f"{line_label(request.index, request.through)}: {request.line}")
+    lines.append(f"English: {request.english}")
+    lines.append(f"Selected phrase: {request.phrase}")
+    return "\n".join(lines)
 
 
 def form_message(request: FormRequest) -> str:

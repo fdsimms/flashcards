@@ -37,6 +37,7 @@ from franki_reader.explain import (
     request_message,
 )
 from franki_reader.generator import TextRequest, Usage
+from franki_reader.routes.explain import MAX_PHRASE_LINES
 
 POINTS = [{"phrase": "ฉัน", "note": "I, said by anyone."}]
 
@@ -278,6 +279,49 @@ def test_refuses_a_phrase_that_isnt_in_the_line() -> None:
     assert c.post(phrase_url(text_id, 99), json={"phrase": "x"}, headers=AUTH).status_code == 404
 
 
+def test_explains_a_phrase_that_runs_on_into_the_next_line() -> None:
+    seen: list[PhraseRequest] = []
+
+    async def explain(request: PhraseRequest) -> tuple[dict[str, Any], Usage]:
+        seen.append(request)
+        return ANSWER, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+
+    c, text_id = client(None, explain)
+    first, second = line_text(c, text_id, 0), line_text(c, text_id, 1)
+    # The end of one line and the start of the next, joined with a space as the app joins them.
+    phrase = f"{first[-3:].strip()} {second[:3].strip()}"
+    response = c.post(phrase_url(text_id), json={"phrase": phrase, "to_line": 1}, headers=AUTH)
+    assert response.status_code == 200 and response.json() == ANSWER
+    assert seen[0].index == 0 and seen[0].through == 1
+    assert seen[0].line.startswith(first.strip()) and seen[0].line.endswith(second.strip())
+    lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
+    assert seen[0].english == f"{lines[0]['english']} {lines[1]['english']}"
+    # Without its last line it isn't in the one line, so it's refused rather than explained wrong.
+    alone = c.post(phrase_url(text_id), json={"phrase": phrase}, headers=AUTH)
+    assert alone.status_code == 400 and len(seen) == 1
+
+
+def test_refuses_a_phrase_over_lines_out_of_order_missing_or_too_many() -> None:
+    async def explain(request: PhraseRequest) -> tuple[dict[str, Any], Usage]:
+        raise AssertionError("not asked")
+
+    c, text_id = client(None, explain)
+    phrase = line_text(c, text_id, 1)[:2]
+    for to_line in (0, 99):
+        response = c.post(
+            phrase_url(text_id, 1), json={"phrase": phrase, "to_line": to_line}, headers=AUTH
+        )
+        assert response.status_code == 404
+    count = len(c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"])
+    if count > MAX_PHRASE_LINES:
+        too_many = c.post(
+            phrase_url(text_id, 0),
+            json={"phrase": line_text(c, text_id, 0)[:2], "to_line": MAX_PHRASE_LINES},
+            headers=AUTH,
+        )
+        assert too_many.status_code == 400 and "at most" in too_many.json()["detail"]
+
+
 def test_a_failed_phrase_is_not_kept_and_says_so_without_claude() -> None:
     results: list[Any] = [
         ExplainFailed("Claude didn't explain this phrase. Try again in a moment.")
@@ -356,6 +400,25 @@ def test_the_phrase_request_names_the_phrase_and_its_line() -> None:
     # The whole text is numbered, with the selected line marked.
     assert "1. A: ¿Sabes? (Do you know?)\n" in message
     assert "2. B: Sí, ya lo sé. (Yes, I know.)   <- the selected line" in message
+
+
+def test_a_phrase_over_lines_names_and_marks_each_of_them() -> None:
+    message = phrase_message(
+        PhraseRequest(
+            "es",
+            "lo sé. ¿Y tú",
+            "Sí, ya lo sé. ¿Y tú?",
+            "Yes, I know. And you?",
+            ("A: Sí, ya lo sé. (Yes, I know.)", "A: ¿Y tú? (And you?)", "B: No. (No.)"),
+            title="En la calle",
+            index=0,
+            through=1,
+        )
+    )
+    assert "Lines 1-2: Sí, ya lo sé. ¿Y tú?" in message
+    assert "1. A: Sí, ya lo sé. (Yes, I know.)   <- the selected line" in message
+    assert "2. A: ¿Y tú? (And you?)   <- the selected line" in message
+    assert "3. B: No. (No.)\n" in message and message.count("<- the selected line") == 2
 
 
 # ==== Does this sound natural? ====
