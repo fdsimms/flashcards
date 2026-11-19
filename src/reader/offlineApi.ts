@@ -29,6 +29,8 @@ const notKept = () => new ApiError("This text isn't on this iPhone, and the serv
 
 export function withOffline(api: Api, deps: OfflineDeps): Api {
   const kept = (id: number) => deps.index().texts.find((t) => t.id === id && t.complete) ?? null;
+  /** A text's saved recordings, whole or not: a text being kept as it plays (useKeepPlaying) plays the lines saved so far from the phone, so it carries on if the connection drops. */
+  const saved = (id: number) => deps.index().texts.find((t) => t.id === id) ?? null;
   /** The reader's language: one switched to offline (held to send), else the server's as last read. */
   const language = (): Language | null => {
     const switched = deps.held().filter((a) => a.kind === 'language').at(-1);
@@ -119,7 +121,7 @@ export function withOffline(api: Api, deps: OfflineDeps): Api {
     logListen: (id) => sendOrHold({ kind: 'listen', textId: id }, () => api.logListen(id)),
     chooseNext: (id, choice) => sendOrHold({ kind: 'choice', textId: id, choice }, () => api.chooseNext(id, choice)),
     audioSource: (id: number, line: number, rate = 1) => {
-      const copy = kept(id);
+      const copy = saved(id);
       const slow = isSlow(rate);
       if (copy && (slow ? copy.slow[line] !== undefined : copy.lines.includes(line))) {
         const uri = deps.file(slowOrNormal(id, line, slow));
@@ -128,7 +130,7 @@ export function withOffline(api: Api, deps: OfflineDeps): Api {
       return api.audioSource(id, line, rate);
     },
     slowTimes: async (id: number, line: number) => {
-      const times = kept(id)?.slow[line];
+      const times = saved(id)?.slow[line];
       if (times) return { times };
       if (deps.unreachable()) throw new ApiError("The slow recording isn't on this iPhone.", 0);
       return api.slowTimes(id, line);

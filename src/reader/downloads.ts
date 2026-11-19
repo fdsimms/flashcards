@@ -23,6 +23,8 @@ export interface SavedText {
   /** Every recording it needs is kept: only then is it shown as on this iPhone. */
   complete: boolean;
   bytes: number;
+  /** Kept because it was played from Past texts or Listen again, not from the shelf: no shelf plan touches it, and only the latest PAST_KEPT are kept. */
+  past?: boolean;
 }
 
 /** An audio lesson kept on the phone because Download was tapped. */
@@ -59,6 +61,41 @@ export function mayDownload(setting: OfflineDownloads, path: NetworkPath): boole
   return setting === 'any' || path === 'wifi';
 }
 
+/**
+ * Whether a text being played may be kept on the phone as it plays, whatever the connection: it is
+ * already streaming over it, so keeping it costs about what listening does. Only Off, or no
+ * connection, stops it (the Wi-Fi only setting is for downloads nobody asked for).
+ */
+export function mayKeepWhilePlaying(setting: OfflineDownloads, path: NetworkPath): boolean {
+  return setting !== 'off' && path !== 'none';
+}
+
+/** A text's shelf card from the shelves last read, or null when it isn't on one (a past text). */
+export function shelfCardFor(index: Pick<DownloadIndex, 'shelves'>, id: number): ShelfText | null {
+  for (const shelf of Object.values(index.shelves)) {
+    const found = shelf && shelfCards(shelf).find((t) => t.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** How many played past texts stay on the phone: the latest ones, so replaying a few doesn't pile up. */
+export const PAST_KEPT = 10;
+
+/** The shelf card for a text that isn't on a shelf (a past text), made from the text itself. */
+export function cardOfText(text: ReaderText): ShelfText {
+  return {
+    id: text.id, title: text.title, topic: text.topic ?? text.title, topic_id: text.topicId, form: text.form,
+    lines: text.lines.length, stretch: text.stretch, reason: text.reason ?? 'asked', coverage: text.coverage, episode: text.episode ?? 0,
+  };
+}
+
+/** The played past texts to delete, oldest first, beyond the latest PAST_KEPT (the index lists a text where it was last saved). */
+export function pastOverflow(index: Pick<DownloadIndex, 'texts'>): number[] {
+  const past = index.texts.filter((t) => t.past);
+  return past.slice(0, Math.max(0, past.length - PAST_KEPT)).map((t) => t.id);
+}
+
 /** Whether a tapped lesson Download asks first: on cellular, unless the setting is Any connection. */
 export function asksBeforeLesson(setting: OfflineDownloads, path: NetworkPath): boolean {
   return path === 'cellular' && setting !== 'any';
@@ -84,7 +121,7 @@ export function planTexts(shelf: Shelf, index: Pick<DownloadIndex, 'texts'>): { 
   const complete = new Set(index.texts.filter((t) => t.complete).map((t) => t.id));
   return {
     fetch: shelfCards(shelf).filter((t) => !complete.has(t.id)),
-    drop: index.texts.filter((t) => t.language === shelf.language && !on.has(t.id)).map((t) => t.id),
+    drop: index.texts.filter((t) => !t.past && t.language === shelf.language && !on.has(t.id)).map((t) => t.id),
   };
 }
 
@@ -128,7 +165,7 @@ export const SAVED_LABEL: Record<SavedState, string> = { saved: 'On this iPhone'
  * at all is known for it.
  */
 export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, language: Language): Shelf | null {
-  const kept = new Map(index.texts.filter((t) => t.complete && !read.has(t.id)).map((t) => [t.id, t]));
+  const kept = new Map(index.texts.filter((t) => t.complete && !t.past && !read.has(t.id)).map((t) => [t.id, t]));
   const base = index.shelves[language];
   if (!base) {
     const texts = [...kept.values()].filter((t) => t.language === language);

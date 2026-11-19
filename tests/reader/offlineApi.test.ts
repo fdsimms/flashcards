@@ -133,6 +133,12 @@ describe('withOffline: audio', () => {
     expect(api.audioSource(3, 0).headers).toEqual({ Authorization: 'Bearer p' });
   });
 
+  it('plays the lines saved so far from a text still being kept as it plays', () => {
+    const { api } = setup({ index: { texts: [saved(2, { complete: false, lines: [0], slow: {} })] } });
+    expect(api.audioSource(2, 0)).toEqual({ uri: 'file:///kept/text-2/line-0.mp3' });
+    expect(api.audioSource(2, 1).uri).toBe('https://x/api/texts/2/lines/1/audio');
+  });
+
   it("answers a kept slow line's times, and fails fast offline for one not kept", async () => {
     const { api } = setup({ unreachable: true, index: { texts: [saved(2, { slow: { 0: [[0, 100]] } })] } });
     await expect(api.slowTimes(2, 0)).resolves.toEqual({ times: [[0, 100]] });

@@ -55,6 +55,7 @@ import { ReaderXray } from './ReaderXray';
 import { characterOfWord, firstSeen } from '../../reader/xray';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
+import { useKeepPlaying } from './useKeepPlaying';
 import { useLinePlayback } from './useLinePlayback';
 import { useConnectionProblem } from '../connection';
 import { idleRecording, RecordIconButton, RecordYourself } from '../RecordYourself';
@@ -225,12 +226,16 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const loadId = useRef(0);
   useEffect(() => () => { mounted.current = false; }, []);
 
+  const keepPlaying = useKeepPlaying();
   // The audio, line by line (useLinePlayback.ts): this screen counts what's heard and moves on.
   const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, breaking, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, toggleLoop, startOver, reset: resetPlayback } = useLinePlayback({
     api,
     playerHost,
     text,
-    onPlay: (r) => setSession((s) => (s ? heard(s, r) : s)),
+    onPlay: (r) => {
+      if (text && (source.kind === 'shelf' || source.kind === 'past')) keepPlaying(text.id, text.language ?? 'th', source.kind === 'past');
+      setSession((s) => (s ? heard(s, r) : s));
+    },
     onLineHeard: (line) => markHeard(line),
     onPlayedThrough: (looping) => {
       if (!text) return;
