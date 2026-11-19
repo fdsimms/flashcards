@@ -176,7 +176,7 @@ src/tools    the Practice tab's tools (similar words, sentences, situations, tim
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). Skill cards (skills.ts) are the one way practice reaches the collection: Add
              skill cards (Deck options) writes Basic notes through saveNote after a preview the learner approves
-             (src/anki/skillCards.ts), and a drill card in Review is rated by the learner's tap, its suggested rating only outlined. It may check an answer, or take Missed it / Got it, and keep only a
+             (src/anki/skillCards.ts), or the MCP's hourly job writes them for a deck whose automatic switch the learner turned on (skillSettings.ts), and a drill card in Review is rated by the learner's tap, its suggested rating only outlined. It may check an answer, or take Missed it / Got it, and keep only a
              fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
              question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);

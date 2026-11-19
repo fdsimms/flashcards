@@ -10,7 +10,7 @@ import { deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from
  * Adding skill cards (src/tools/skills.ts) to a deck: Basic notes in its `::Skills` subdeck, made
  * there if it isn't yet, each through `saveNote` as any note is, so Anki and sync carry them. A later
  * drill step is suspended once added, and Review releases it when the step before settles. Run only
- * from Add now, after the learner has seen what it adds: that tap is the approval. The MCP's daily job
+ * from Add now, after the learner has seen what it adds: that tap is the approval. The MCP's hourly job
  * (server/mcp/franki_mcp/skills.py) adds the same cards for a deck whose automatic switch is on, which
  * is its approval (skillSettings.ts).
  */
