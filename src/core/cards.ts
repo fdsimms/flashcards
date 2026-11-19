@@ -278,7 +278,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // With no recording and no language to speak it in, there is nothing to hear: say so rather than play nothing.
   if (!say && !soundFiles(note.fields.Audio).length) {
     front.push({
-      text: "This word has no recording, and its language isn't known, so there's nothing to play. To hear it, set the note's Language field (Italian, for example).",
+      text: "This word has no recording, and its language isn't known, so there's nothing to play. To hear it, set the note's Language field (e.g. Italian).",
       role: 'note',
     });
   }

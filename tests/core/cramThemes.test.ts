@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import type { Cram } from '../../src/core/cram';
 import {
-  FRESH_DAYS, markWords, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
+  combineWeakSpots, FRESH_DAYS, markWords, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
   type ThemeWord,
 } from '../../src/core/cramThemes';
 import type { Card, Note } from '../../src/core/types';
@@ -73,6 +73,17 @@ describe('weakSpots', () => {
     const lines = weakSpots(many, 'th', at, (id) => `Tool ${id}`);
     expect(lines).toHaveLength(THEME_WEAK_MAX);
     expect(lines.every((l) => l.length <= THEME_WEAK_CHARS)).toBe(true);
+  });
+});
+
+describe('combineWeakSpots', () => {
+  it("puts Practice's lines first, at most half the list, then the kept corrections, within what the server takes", () => {
+    const practice = Array.from({ length: 6 }, (_, i) => `P${i}`);
+    const kept = Array.from({ length: 6 }, (_, i) => `K${i}`);
+    expect(combineWeakSpots(practice, kept)).toEqual(['P0', 'P1', 'P2', 'P3', 'K0', 'K1', 'K2', 'K3']);
+    expect(combineWeakSpots(['P0'], kept)).toEqual(['P0', 'K0', 'K1', 'K2', 'K3', 'K4', 'K5']);
+    expect(combineWeakSpots([], [])).toEqual([]);
+    expect(combineWeakSpots(practice, kept)).toHaveLength(THEME_WEAK_MAX);
   });
 });
 

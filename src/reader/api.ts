@@ -200,7 +200,7 @@ export type SituationRoles = { you: string; them: string; name: string; gender: 
 export type SituationLine = { speaker: 'them' | 'you'; text: string };
 // `focus`: a grammar topic the scene practices (Your topics), so the other person uses it and the feedback comments on it.
 export type SituationFocus = { title: string; lead: string };
-export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[] };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };

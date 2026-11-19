@@ -8,7 +8,9 @@ import type { Language, SituationFeedback, SituationFocus, SituationTurn } from 
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
-import { canFinish, canSend, conversationOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
+import { canFinish, canSend, conversationOf, rehearsalOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
+import { keep, keepable } from '../../reader/corrections';
+import { loadKept, saveKept } from '../../reader/correctionsStorage';
 import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
@@ -23,6 +25,8 @@ import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { PracticeCard } from './PracticeCard';
+import { SituationKeep, type KeepState } from './SituationKeep';
+import { SituationRehearse } from './SituationRehearse';
 import { ToolScreen, useToolLanguage } from './ToolScreen';
 import { CardSurface } from '../SwipeCard';
 
@@ -43,6 +47,9 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
   const [feedback, setFeedback] = useState<SituationFeedback | null>(null);
   // Opened from a grammar topic's page (Your topics): the scene practices that topic.
   const focus = focusOf(params.focus);
+  // Opened from a cram or a theme (Rehearse): its title is the scene and its words are worked in, until another scene is picked.
+  const rehearsal = rehearsalOf(params);
+  const [other, setOther] = useState(false);
 
   if (!readerApi) {
     return (
@@ -51,6 +58,16 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
           <Card><Help>{"Situations are played by Claude on Read & Listen's server. Turn on Read & Listen in Settings to use them."}</Help></Card>
         </ScrollView>
       </Screen>
+    );
+  }
+  if (!chat && rehearsal && !other) {
+    return (
+      <SituationRehearse
+        title={tool.title}
+        rehearsal={rehearsal}
+        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words)); }}
+        onPickOther={() => setOther(true)}
+      />
     );
   }
   if (!chat) {
@@ -76,7 +93,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
       heardOnly={heardOnly}
       feedback={feedback}
       onFeedback={setFeedback}
-      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus)); }}
+      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words)); }}
       onDone={onClose}
     />
   );
@@ -253,6 +270,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const [problem, setProblem] = useState<{ message: string; retry?: () => void } | null>(null);
   const [added, setAdded] = useState<Record<string, 'adding' | 'added' | 'failed'>>({});
   const [deck, setDeck] = useState<string | null | undefined>(undefined);
+  const [keptState, setKeptState] = useState<KeepState>('idle');
   // Counts requests: an answer that comes back after the screen moved on (Finish, Again, Back) is dropped.
   const asking = useRef(0);
   const saying = useRef(0);
@@ -365,6 +383,19 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const name = chat.roles?.name ?? 'Them';
   if (feedback) {
     const mine = new Map(chat.lines.flatMap((l, i) => (l.speaker === 'you' ? [[i, l.text] as const] : [])));
+    const keepable_ = keepable(feedback, mine);
+    // Kept only when tapped: a rehearsal's mistakes shape the next theme ideas (src/reader/corrections.ts).
+    const keepThese = async () => {
+      if (keptState === 'saving' || keptState === 'kept') return;
+      setKeptState('saving');
+      try {
+        saveKept(keep(await loadKept(), chat.language, keepable_, Date.now()));
+        setKeptState('kept');
+        haptic.success();
+      } catch {
+        setKeptState('failed');
+      }
+    };
     return (
       <Screen
         title="How it went"
@@ -380,6 +411,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           <CardSurface>
             <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.m }}>
               <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
+              {chat.words && keepable_.length ? <SituationKeep count={keepable_.length} state={keptState} onKeep={() => void keepThese()} /> : null}
             </ScrollView>
           </CardSurface>
         </View>

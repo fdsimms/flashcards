@@ -4,10 +4,11 @@ import { ScrollView, Text, View } from 'react-native';
 import type { Api, ReaderText, TextLine } from '../../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { choiceText } from '../../reader/choices';
-import { speedFor } from '../../reader/prefs';
+import { isSlow, NORMAL_RATE, RATES } from '../../reader/playbackRate';
+import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, ProgressBar, Tappable } from '../kit';
+import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
@@ -34,7 +35,11 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   const [english, setEnglish] = useState(prefs().checkEnglish);
   const q = questions[at];
   const answered = q ? q.key in picks : false;
-  const play = useLinePlayer(api, text);
+  // The reader's speed (the story page's Slow and Normal), shared through the saved setting.
+  const slowOffered = hasSlow(prefs(), text.language);
+  const [chosenRate, setRate] = useState(prefs().rate);
+  const rate = slowOffered ? chosenRate : NORMAL_RATE;
+  const play = useLinePlayer(api, text, rate);
 
   // A listening question plays its line as it comes up.
   useEffect(() => {
@@ -42,6 +47,12 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   }, [q?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!q) return null;
+  // The speed is a different recording, so the line starts again at the new one.
+  const changeRate = (next: number) => {
+    savePrefs({ ...prefs(), rate: next });
+    setRate(next);
+    play(q.line, next);
+  };
   const toggleEnglish = () => {
     setEnglish(!english);
     savePrefs({ ...prefs(), checkEnglish: !english });
@@ -85,6 +96,14 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
               >
                 <Icon name="play.fill" size={24} color={c.onAccent} />
               </Tappable>
+              {slowOffered ? (
+                <Segments
+                  style={{ alignSelf: 'stretch' }}
+                  options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))}
+                  value={rate}
+                  onChange={changeRate}
+                />
+              ) : null}
               <Help>Play it as often as you like.</Help>
             </View>
           ) : (
@@ -154,12 +173,12 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
 
 const KIND_LABEL: Record<CheckQuestion['kind'], string> = { text: 'About the text', listen: 'Listening', word: 'A word from the text' };
 
-/** Plays one of the text's lines at the reader's speed, on a player of its own. */
-function useLinePlayer(api: Api, text: ReaderText) {
+/** Plays one of the text's lines at `rate` (the reader's speed unless one is given), on a player of its own. */
+function useLinePlayer(api: Api, text: ReaderText, rate: number) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  return (line: number) => {
+  return (line: number, at = rate) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line, speedFor(prefs(), text.language)));
+    player.replace(api.audioSource(text.id, line, at));
     player.play();
   };
 }
