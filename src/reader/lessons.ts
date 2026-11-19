@@ -2,7 +2,7 @@
 // its player say about a lesson, and the arithmetic of the player's skip buttons. A lesson is made
 // by the server in the background and played as one MP3; nothing here grades a card or writes a
 // note. Pure, so it's tested.
-import type { AudioLesson, Language, LessonStage } from './api';
+import type { AudioLesson, Language, LessonReview, LessonStage } from './api';
 import { stepsAt, type StageStep } from './making';
 
 /** The languages the server makes lessons in (server lesson_service.LESSON_LANGUAGES): the shelf offers lessons only in these. */
@@ -88,4 +88,16 @@ export type Particle = 'khrap' | 'kha';
 /** The ending as kept, khrap for anything else (the server's own default). */
 export function parseParticle(raw: string | null): Particle {
   return raw === 'kha' ? 'kha' : 'khrap';
+}
+
+/** About how long a review of `phrases` runs: each asked twice, about 8 seconds a time. */
+export function reviewMinutes(phrases: number): number {
+  return Math.max(1, Math.round((phrases * 2 * 8) / 60));
+}
+
+/** The line on the review card: how many phrases, from how many lessons, and why they're there. */
+export function reviewDetail(review: LessonReview): string {
+  const n = review.phrases;
+  const from = review.lessons.length;
+  return `${n} ${n === 1 ? 'phrase' : 'phrases'} from ${from === 1 ? 'an earlier lesson' : `${from} earlier lessons`}: the ones you asked to hear again or answered slowly.`;
 }

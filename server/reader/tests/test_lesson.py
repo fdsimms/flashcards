@@ -294,6 +294,32 @@ class TestBuildScript:
         assert last_taught < asked < role
         assert steps[asked + 2] == Say("male", MIX.text)
 
+    def test_marks_each_silence_the_learner_speaks_in(self) -> None:
+        steps = lesson.build_script(PLAN_WITH_MIXES)
+        for i, step in enumerate(steps):
+            if not isinstance(step, Silence):
+                continue
+            before = steps[i - 1]
+            assert isinstance(before, Say)
+            # A repeat-after step (slow, after the first hearing), a question, or a cue for the
+            # learner's line.
+            first_hearing = steps[i - 2] == Say("narrator", "Listen.")
+            cue = steps[i - 2]
+            # A role-play line new to the learner is heard after its cue, then repeated.
+            heard_first = isinstance(cue, Say) and cue.text.startswith("You say:")
+            prompts = (
+                (before.slow and not first_hearing)
+                or heard_first
+                or before.text.startswith(("How do you say:", "You say:"))
+            )
+            assert step.answer == prompts, (before, step)
+            # An old lesson's pauses are found by length (lesson_audio.find_pauses): every answer
+            # is longer than any other gap.
+            if step.answer:
+                assert step.ms >= lesson.PAUSE_MIN_MS
+            else:
+                assert step.ms <= lesson.AFTER_NATIVE_MS
+
     def test_a_line_made_of_taught_words_is_asked_cold_and_any_other_is_heard_first(self) -> None:
         lines = (
             Line("A", "Je voudrais un café.", "I'd like a coffee."),
@@ -582,3 +608,75 @@ def test_given_phrases_are_squashed_each_once_and_capped() -> None:
     assert given[0] == Phrase("Un café", "a coffee", ("Un café",))
     assert len(given) == lesson.MAX_GIVEN
     assert all(p.text != "un café." for p in given)
+
+
+def placed_at(steps: list[lesson.Step], say_ms: int = 1000) -> list[lesson.Placed]:
+    out: list[lesson.Placed] = []
+    at = 0
+    for step in steps:
+        length = step.ms if isinstance(step, Silence) else say_ms
+        out.append(lesson.Placed(step, at, at + length))
+        at += length
+    return out
+
+
+class TestScriptOf:
+    def test_a_question_is_answered_by_the_native_line_after_its_turn(self) -> None:
+        phrase = PLAN.phrases[0]
+        placed = placed_at(lesson._ask(phrase, "male"))
+        entries = lesson.script_of(PLAN, placed)["entries"]
+        assert [e["kind"] for e in entries] == ["say", "turn", "say"]
+        turn = entries[1]
+        assert turn["text"] == phrase.text
+        assert turn["english"] == phrase.english
+        # Again replays the question.
+        assert turn["replay"] == 0
+        assert (turn["start"], turn["end"]) == (placed[1].start, placed[1].end)
+        assert entries[2] == {
+            "kind": "say",
+            "voice": "native",
+            "text": phrase.text,
+            "english": phrase.english,
+            "start": placed[2].start,
+            "end": placed[2].end,
+        }
+
+    def test_a_repeat_is_of_the_line_just_heard_and_again_replays_it(self) -> None:
+        phrase = PLAN.phrases[-1]
+        steps = lesson._teach(phrase, "male")
+        placed = placed_at(steps)
+        turns = [e for e in lesson.script_of(PLAN, placed)["entries"] if e["kind"] == "turn"]
+        assert [t["text"] for t in turns] == lesson.build_up(phrase)
+        # A part being built up has no meaning of its own; the whole phrase does.
+        assert turns[0]["english"] is None
+        assert turns[-1]["english"] == phrase.english
+        # The first replays "Listen and repeat." with its part, said with no silence between.
+        listen = next(p for p in placed if p.step == Say("narrator", "Listen and repeat."))
+        assert turns[0]["replay"] == listen.start
+
+    def test_finds_each_phrase_said_at_normal_speed_for_a_card(self) -> None:
+        placed = placed_at(lesson.build_script(PLAN))
+        clips = lesson.script_of(PLAN, placed)["phrase_clips"]
+        assert len(clips) == len(PLAN.phrases)
+        for phrase, clip in zip(PLAN.phrases, clips, strict=True):
+            at = next(p for p in placed if p.start == clip[0])
+            assert at.step == Say("male", phrase.text)
+            assert isinstance(placed[placed.index(at) - 1].step, Silence)
+
+
+class TestReview:
+    def test_asks_each_phrase_then_all_again_in_the_other_order(self) -> None:
+        plan = lesson.review_plan(PLAN.phrases[:3])
+        asked = [
+            s.text
+            for s in lesson.build_review(plan)
+            if isinstance(s, Say) and s.text.startswith("How do you say:")
+        ]
+        english = [p.english for p in PLAN.phrases[:3]]
+        assert asked == [f"How do you say: {e}" for e in english + english[::-1]]
+        assert plan.title == lesson.REVIEW_TITLE
+        assert plan.scene == "3 phrases from earlier lessons"
+
+    def test_every_answer_is_a_turn(self) -> None:
+        steps = lesson.build_review(lesson.review_plan(PLAN.phrases[:2]))
+        assert sum(1 for s in steps if isinstance(s, Silence) and s.answer) == 4

@@ -96,6 +96,14 @@ class Say:
 @dataclass(frozen=True)
 class Silence:
     ms: int
+    # Where the learner speaks (repeats, answers, says their line), as opposed to a breath between
+    # two things said. The app can stop at these and wait for a tap (`lesson_audio.Rendered.pauses`).
+    answer: bool = False
+
+
+def answer(text: str) -> Silence:
+    """The silence for saying `text`: sized to it (`pause_ms`), and marked as the learner's turn."""
+    return Silence(pause_ms(word_count(text)), answer=True)
 
 
 Step = Say | Silence
@@ -375,7 +383,7 @@ def _ask(phrase: Phrase, learner: Learner) -> list[Step]:
     native voice answers."""
     return [
         Say("narrator", f"How do you say: {phrase.english}"),
-        Silence(pause_ms(word_count(phrase.text))),
+        answer(phrase.text),
         Say(learner, phrase.text),
         Silence(AFTER_NATIVE_MS),
     ]
@@ -393,7 +401,7 @@ def _teach(phrase: Phrase, learner: Learner) -> list[Step]:
     for chunk in build_up(phrase):
         steps += [
             Say(learner, chunk, slow=True),
-            Silence(pause_ms(word_count(chunk))),
+            answer(chunk),
         ]
     return steps
 
@@ -439,7 +447,7 @@ def _role_play(
         elif words_of(line.text) <= known:
             steps += [
                 Say("narrator", f"You say: {line.english}"),
-                Silence(pause_ms(word_count(line.text))),
+                answer(line.text),
                 Say(learner, line.text),
                 Silence(AFTER_NATIVE_MS),
             ]
@@ -447,7 +455,7 @@ def _role_play(
             steps += [
                 Say("narrator", f"You say: {line.english}"),
                 Say(learner, line.text),
-                Silence(pause_ms(word_count(line.text))),
+                answer(line.text),
             ]
     return steps
 
@@ -515,3 +523,120 @@ def describe(plan: Plan) -> dict[str, Any]:
             for line in plan.dialogue
         ],
     }
+
+
+@dataclass(frozen=True)
+class Placed:
+    """A step where it falls in the lesson's audio, in milliseconds from the start."""
+
+    step: Step
+    start: int
+    end: int
+
+
+_PROMPTS = ("How do you say:", "You say:")
+
+
+def script_of(plan: Plan, placed: list[Placed]) -> dict[str, Any]:
+    """What the app follows the lesson with (docs/read-and-listen/architecture.md, Audio lessons):
+    each thing said, and each turn of the learner's, with where it falls; and where each phrase is
+    first said at normal speed, so it can be cut out for a card.
+
+    A turn's `text` is what the learner is to say: the native line after it when the narrator has
+    just asked for it, otherwise the native line just heard (a repeat). Its `english` is the
+    phrase's, mix's or dialogue line's meaning, and none for a part being built up. `replay` is where
+    its prompt starts (the run of things said with no silence between, before the turn), for Again.
+    """
+    meanings = {p.text: p.english for p in (*plan.phrases, *plan.mixes)}
+    meanings.update({line.text: line.english for line in plan.dialogue})
+    entries: list[dict[str, Any]] = []
+    for i, here in enumerate(placed):
+        step = here.step
+        if isinstance(step, Say):
+            native = step.voice != "narrator"
+            entries.append(
+                {
+                    "kind": "say",
+                    "voice": "native" if native else "narrator",
+                    "text": step.text,
+                    "english": meanings.get(step.text) if native else None,
+                    "start": here.start,
+                    "end": here.end,
+                }
+            )
+            continue
+        if not step.answer:
+            continue
+        before = placed[i - 1].step if i > 0 else None
+        after = placed[i + 1].step if i + 1 < len(placed) else None
+        asked = isinstance(before, Say) and before.text.startswith(_PROMPTS)
+        expected = after if asked else before
+        if not isinstance(expected, Say) or expected.voice == "narrator":
+            continue
+        replay = i
+        while replay > 0 and isinstance(placed[replay - 1].step, Say):
+            replay -= 1
+        entries.append(
+            {
+                "kind": "turn",
+                "text": expected.text,
+                "english": meanings.get(expected.text),
+                "start": here.start,
+                "end": here.end,
+                "replay": placed[replay].start if replay < i else here.start,
+            }
+        )
+    # A phrase for a card is the answer to its question (the learner's own voice, normal speed);
+    # failing that, anywhere it's said at normal speed (a dialogue line).
+    clips: list[list[int] | None] = []
+    for phrase in plan.phrases:
+        said = [
+            (i, p)
+            for i, p in enumerate(placed)
+            if isinstance(p.step, Say)
+            and p.step.voice != "narrator"
+            and not p.step.slow
+            and p.step.text == phrase.text
+        ]
+        answers = [
+            p
+            for i, p in said
+            if i > 0 and (gap := placed[i - 1].step) and isinstance(gap, Silence) and gap.answer
+        ]
+        best = answers[0] if answers else said[0][1] if said else None
+        clips.append(None if best is None else [best.start, best.end])
+    return {"entries": entries, "phrase_clips": clips}
+
+
+# A review (lesson_service.make_review): phrases from earlier lessons the learner asked to hear
+# again or answered slowly. Offered once there are REVIEW_MIN of them, and made of at most REVIEW_MAX.
+REVIEW_MIN = 3
+REVIEW_MAX = 12
+REVIEW_TITLE = "Review"
+
+
+def review_plan(phrases: tuple[Phrase, ...]) -> Plan:
+    n = len(phrases)
+    return Plan(
+        REVIEW_TITLE,
+        f"{n} {'phrase' if n == 1 else 'phrases'} from earlier lessons",
+        (),
+        phrases,
+    )
+
+
+def build_review(plan: Plan, learner: Learner = "male") -> list[Step]:
+    """Each phrase asked for in English and answered, then all of them once more in the other
+    order, so each comes back after the others have been in between. Nothing new is taught."""
+    steps: list[Step] = [
+        Say("narrator", "A review of phrases from your earlier lessons."),
+        Silence(BEAT_MS),
+    ]
+    for phrase in plan.phrases:
+        steps += _ask(phrase, learner)
+    if len(plan.phrases) > 1:
+        steps += [Say("narrator", "Once more, in a different order."), Silence(BEAT_MS)]
+        for phrase in reversed(plan.phrases):
+            steps += _ask(phrase, learner)
+    steps.append(Say("narrator", "That's the end of the review."))
+    return steps

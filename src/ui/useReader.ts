@@ -80,7 +80,7 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
     hold: (action) => heldReader.update((list) => [...list, action]),
     shelfRead: downloads.setShelf,
     stale: (id) => downloads.dropTexts([id]),
-    lessonsRead: (language, lessons) => downloads.dropLessons(lessonsGone(language, lessons, downloads.get())),
+    lessonsRead: (language, lessons) => { downloads.dropLessons(lessonsGone(language, lessons, downloads.get())); downloads.refreshLessons(lessons); },
     settings: () => settingsRef.current,
   }) : null), [serverApi]);
   useEffect(() => { void downloads.load(); void heldReader.load(); }, []);

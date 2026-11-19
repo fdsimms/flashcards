@@ -9,6 +9,10 @@ import { MIXUP_MODES, type MixupMode } from './mixups';
 import { SCRIPT_MODES, type ScriptMode } from './script';
 import { MINUTE_STEPS, type MinuteStep } from './time';
 
+/** Telling the time's modes: Say it and Listen as the other tools, and Explore, setting the clock to any time to see how it's said (nothing marked). */
+export const TIME_MODES = ['say', 'listen', 'explore'] as const;
+export type TimeMode = (typeof TIME_MODES)[number];
+
 /**
  * What the Practice tools remember between launches: the language last practiced (shared by every
  * tool, since it's the language you're working on) and each tool's own choices. Pure, so it's
@@ -18,7 +22,7 @@ export interface ToolPrefs {
   language?: Language;
   /** Telling the time: the step a random time's minutes come in, and whether it's said or heard. */
   minuteStep: MinuteStep;
-  timeMode: AnswerMode;
+  timeMode: TimeMode;
   /** Saying dates: whether the weekday and the year are said. */
   dateWeekday: boolean;
   dateYear: boolean;
@@ -58,7 +62,7 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
   return {
     ...(language ? { language } : {}),
     minuteStep: MINUTE_STEPS.find((s) => s === saved.minuteStep) ?? DEFAULT_TOOL_PREFS.minuteStep,
-    timeMode: ANSWER_MODES.find((m) => m === saved.timeMode) ?? DEFAULT_TOOL_PREFS.timeMode,
+    timeMode: TIME_MODES.find((m) => m === saved.timeMode) ?? DEFAULT_TOOL_PREFS.timeMode,
     dateWeekday: typeof saved.dateWeekday === 'boolean' ? saved.dateWeekday : DEFAULT_TOOL_PREFS.dateWeekday,
     dateYear: typeof saved.dateYear === 'boolean' ? saved.dateYear : DEFAULT_TOOL_PREFS.dateYear,
     dateMode: DATE_MODES.find((m) => m === saved.dateMode) ?? DEFAULT_TOOL_PREFS.dateMode,

@@ -4,6 +4,8 @@ import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import type { Particle } from '../../reader/lessons';
 import { Card, Group, Help, NavRow, Segments } from '../kit';
+import { useReaderPlayerHost } from '../useReaderPlayer';
+import { LessonTurnSettings } from './LessonTurnSettings';
 
 /** Settings, Lessons: how audio lessons sound. Kept here, with Read & Listen's other screens, because it reads its types. */
 export function LessonSettingsRows({ readerOn, narrator, defaultNarrator, language, particle, onParticle, onOpen }: {
@@ -15,6 +17,8 @@ export function LessonSettingsRows({ readerOn, narrator, defaultNarrator, langua
   onParticle: (particle: Particle) => void;
   onOpen: (route: string) => void;
 }) {
+  // The same settings as the lesson player's switches, held by the shared player (useLessonWaits, useLessonTurns).
+  const { waits, turns } = useReaderPlayerHost();
   // Lessons are made by Read & Listen's server, so with it off there is nothing here to set.
   if (!readerOn) {
     return (
@@ -31,6 +35,15 @@ export function LessonSettingsRows({ readerOn, narrator, defaultNarrator, langua
       <Group>
         <NavRow first label="Narrator" detail={narrator || defaultNarrator ? azureVoiceName(narrator || defaultNarrator!) : "The server's own voice"} onPress={() => onOpen('/read-narrator')} />
       </Group>
+      <Group>
+        <LessonTurnSettings waits={waits} turns={turns} />
+      </Group>
+      <Help>
+        Waiting, a lesson stops where you're meant to speak and goes on when you tap Continue (or Play on the lock screen); off, it plays
+        straight through. The microphone is on only during a pause, and what it hears stays on this iPhone: only its loudness is read, to
+        tell when you've stopped, and your answer is played back and then deleted. With either on, Bluetooth headphones sound like a phone
+        call while a lesson plays. Also on each lesson's screen.
+      </Help>
       {language === 'th' ? (
         <Card>
           <Segments

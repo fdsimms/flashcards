@@ -156,3 +156,65 @@ def test_makes_a_real_mp3_about_as_long_as_the_script() -> None:
     # The MP3 decodes back to about as much audio as was laid down.
     decoded = asyncio.run(lesson_audio.ffmpeg_decode(out.audio))
     assert 1900 <= pcm_ms(decoded) <= 2300
+
+
+def test_keeps_where_each_answer_silence_is() -> None:
+    fakes = Fakes()
+    steps: list[Step] = [
+        Say("narrator", "Hi."),
+        Silence(100, answer=True),
+        Say("male", "Salut."),
+        Silence(50),
+        Say("narrator", "Go."),
+        Silence(200, answer=True),
+        Say("male", "Oui."),
+    ]
+    out = asyncio.run(run(steps, fakes))
+    # A breath between two things said isn't a place to wait; the learner's turns are.
+    assert out.pauses == ((3, 103), (162, 362))
+
+
+def loud(ms: int) -> bytes:
+    # Full-scale square wave, little-endian 16-bit.
+    one = (8000).to_bytes(2, "little", signed=True) + (-8000).to_bytes(2, "little", signed=True)
+    return one * (ms * BYTES_PER_MS // 4)
+
+
+def test_finds_long_quiet_runs_and_passes_over_short_ones() -> None:
+    pcm = loud(500) + silence(1400) + loud(300) + silence(3000) + loud(400)
+    assert lesson_audio.quiet_runs(pcm) == [(2200, 5200)]
+
+
+def test_quiet_running_to_the_end_is_not_an_answer() -> None:
+    assert lesson_audio.quiet_runs(loud(300) + silence(4000)) == []
+
+
+def test_a_little_noise_still_counts_as_quiet() -> None:
+    hiss = (100).to_bytes(2, "little", signed=True) * (3000 * BYTES_PER_MS // 2)
+    assert lesson_audio.quiet_runs(loud(200) + hiss + loud(200)) == [(200, 3200)]
+
+
+@needs_ffmpeg
+def test_finds_the_answer_silences_in_a_real_lesson_mp3() -> None:
+    async def speak(clip: Say) -> bytes:
+        return tone(800)
+
+    async def keep(clip: bytes) -> bytes:
+        return clip
+
+    steps: list[Step] = [
+        Say("narrator", "How do you say: hello"),
+        Silence(3000, answer=True),
+        Say("male", "Salut."),
+        Silence(1400),
+        Say("narrator", "That means: hi"),
+        Silence(4000, answer=True),
+        Say("male", "Bonjour."),
+    ]
+    out = asyncio.run(render(steps, speak, level_clip=keep))
+    found = asyncio.run(lesson_audio.find_pauses(out.audio))
+    # The same two, give or take the MP3's padding and a frame; the 1.4 s gap isn't one.
+    assert len(found) == len(out.pauses) == 2
+    for (start, end), (kept_start, kept_end) in zip(found, out.pauses, strict=True):
+        assert abs(start - kept_start) <= 120
+        assert abs(end - kept_end) <= 120

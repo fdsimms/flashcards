@@ -1,7 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Api, AudioLesson, AudioSource, Shelf, ShelfText } from '../../reader/api';
-import { EMPTY_INDEX, lessonFile, lineFile, linesWithAudio, parseIndex, type DownloadIndex, type SavedText } from '../../reader/downloads';
+import { EMPTY_INDEX, lessonFile, lessonsRefreshed, lineFile, linesWithAudio, parseIndex, type DownloadIndex, type SavedText } from '../../reader/downloads';
 import { wholeText } from '../../reader/offlineApi';
 import { SLOW_RATE } from '../../reader/playbackRate';
 import { connection } from '../connection';
@@ -159,6 +159,12 @@ export const downloads = {
     } finally {
       savingLessons.delete(lesson.id); savingVersion++; changed();
     }
+  },
+
+  /** Brings the kept lessons' details up to date with the server's list (lessonsRefreshed), so one opened offline has what was found since it was kept. */
+  refreshLessons(listed: readonly AudioLesson[]) {
+    const lessons = lessonsRefreshed(listed, index);
+    if (lessons) write({ ...index, lessons });
   },
 
   dropLessons(ids: readonly number[]) {

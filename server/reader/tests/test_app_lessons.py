@@ -1,3 +1,4 @@
+import asyncio
 import random
 import shutil
 import sqlite3
@@ -12,11 +13,11 @@ from fastapi.testclient import TestClient
 from scripted import ENTRIES, IN_RANGE, ScriptedModel
 from test_app import AUTH, NOW
 
-from franki_reader import store
+from franki_reader import lesson_audio, store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
-from franki_reader.lesson import Phrase
+from franki_reader.lesson import Phrase, Say, Silence, Step
 from franki_reader.lesson_topics import TopicsFailed, WriteTopics
 from franki_reader.lesson_writer import LessonFailed, WriteGiven, WritePlan
 from franki_reader.tts import Spoken
@@ -124,6 +125,10 @@ def test_the_routes_need_the_passphrase(tmp_path: Path) -> None:
     assert c.post("/api/lessons", json={"language": "fr", "scene": "x"}).status_code == 401
     assert c.get("/api/lessons/1/audio").status_code == 401
     assert c.delete("/api/lessons/1").status_code == 401
+    assert c.post("/api/lessons/review", json={"language": "fr"}).status_code == 401
+    assert c.get("/api/lessons/1/phrases/0/audio").status_code == 401
+    mark = {"text": "x", "english": "x", "reason": "again"}
+    assert c.post("/api/lessons/1/marks", json=mark).status_code == 401
 
 
 def test_lists_the_languages_a_lesson_can_be_made_in(tmp_path: Path) -> None:
@@ -131,6 +136,7 @@ def test_lists_the_languages_a_lesson_can_be_made_in(tmp_path: Path) -> None:
     assert body == {
         "languages": ["fr", "th", "es", "de", "ru", "el", "pl", "nb", "ja"],
         "lessons": [],
+        "review": None,
     }
 
 
@@ -212,6 +218,9 @@ def test_makes_a_lesson_in_the_background_and_serves_its_audio(tmp_path: Path) -
     assert row["scene"] == "ordering a coffee"
     assert [p["english"] for p in row["phrases"]] == ["A coffee.", "Please.", "The check, please."]
     assert row["duration_ms"] > 60_000
+    # Every place the learner speaks: each phrase built up and asked, the recalls, the role-play.
+    assert len(row["pauses"]) >= 8
+    assert all(0 < start < end <= row["duration_ms"] for start, end in row["pauses"])
     audio = c.get(f"/api/lessons/{row['id']}/audio", headers=AUTH)
     assert audio.status_code == 200
     assert audio.headers["content-type"] == "audio/mpeg"
@@ -338,6 +347,133 @@ def test_makes_a_lesson_from_given_phrases(tmp_path: Path) -> None:
     row = wait_for(c, made.json()["id"])
     assert row["state"] == "ready", row
     assert [p["text"] for p in row["phrases"]] == ["Un café.", "presque"]
+
+
+@needs_ffmpeg
+def test_finds_the_pauses_of_a_lesson_made_before_they_were_kept(tmp_path: Path) -> None:
+    async def speak(clip: Say) -> bytes:
+        return tone()
+
+    async def keep(clip: bytes) -> bytes:
+        return clip
+
+    steps: list[Step] = [Say("narrator", "Go."), Silence(3500, answer=True), Say("male", "Oui.")]
+    rendered = asyncio.run(lesson_audio.render(steps, speak, level_clip=keep))
+    conn = store.connect(":memory:")
+    lesson_id = store.add_lesson(conn, "fr", "an old one", NOW)
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET state = 'ready', duration_ms = ? WHERE id = ?",
+            (rendered.duration_ms, lesson_id),
+        )
+    (tmp_path / "lessons").mkdir()
+    (tmp_path / "lessons" / f"{lesson_id}.mp3").write_bytes(rendered.audio)
+    c = lesson_client(tmp_path, conn=conn)
+    first = c.get("/api/lessons", headers=AUTH).json()["lessons"][0]
+    # Not known yet: listened for once the list has been sent.
+    assert first["pauses"] is None
+    [(start, end)] = c.get("/api/lessons", headers=AUTH).json()["lessons"][0]["pauses"]
+    [(kept_start, kept_end)] = rendered.pauses
+    assert abs(start - kept_start) <= 120
+    assert abs(end - kept_end) <= 120
+
+
+def test_an_old_lesson_whose_audio_is_gone_keeps_playing_straight_through(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    lesson_id = store.add_lesson(conn, "fr", "an old one", NOW)
+    with conn:
+        conn.execute("UPDATE lessons SET state = 'ready' WHERE id = ?", (lesson_id,))
+    c = lesson_client(tmp_path, conn=conn)
+    assert c.get("/api/lessons", headers=AUTH).json()["lessons"][0]["pauses"] is None
+    assert c.get("/api/lessons", headers=AUTH).json()["lessons"][0]["pauses"] is None
+
+
+def made(c: TestClient) -> dict[str, Any]:
+    lesson_id = c.post(
+        "/api/lessons", json={"language": "fr", "scene": "a coffee"}, headers=AUTH
+    ).json()["id"]
+    row = wait_for(c, lesson_id)
+    assert row["state"] == "ready", row
+    return row
+
+
+@needs_ffmpeg
+def test_a_lesson_comes_with_its_transcript_and_each_phrase_can_be_cut_out(
+    tmp_path: Path,
+) -> None:
+    c = lesson_client(tmp_path, mp3=tone())
+    row = made(c)
+    turns = [e for e in row["script"] if e["kind"] == "turn"]
+    assert [[t["start"], t["end"]] for t in turns] == row["pauses"]
+    assert any(t["english"] == "The check, please." for t in turns)
+    clip = c.get(f"/api/lessons/{row['id']}/phrases/0/audio", headers=AUTH)
+    assert clip.status_code == 200
+    assert clip.headers["content-type"] == "audio/mpeg"
+    assert 0 < len(clip.content) < 20_000
+    assert c.get(f"/api/lessons/{row['id']}/phrases/9/audio", headers=AUTH).status_code == 404
+
+
+def test_an_older_lesson_has_no_transcript_and_no_phrase_audio(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    lesson_id = store.add_lesson(conn, "fr", "an old one", NOW)
+    with conn:
+        conn.execute("UPDATE lessons SET state = 'ready' WHERE id = ?", (lesson_id,))
+    c = lesson_client(tmp_path, conn=conn)
+    assert c.get("/api/lessons", headers=AUTH).json()["lessons"][0]["script"] is None
+    audio = c.get(f"/api/lessons/{lesson_id}/phrases/0/audio", headers=AUTH)
+    assert audio.status_code == 404
+
+
+def mark(c: TestClient, lesson_id: int, text: str, reason: str = "again") -> int:
+    return c.post(
+        f"/api/lessons/{lesson_id}/marks",
+        json={"text": text, "english": f"{text} in English", "reason": reason},
+        headers=AUTH,
+    ).status_code
+
+
+def review_on_offer(c: TestClient) -> Any:
+    return c.get("/api/lessons?language=fr", headers=AUTH).json()["review"]
+
+
+@needs_ffmpeg
+def test_marked_phrases_are_offered_as_a_review_once_there_are_enough(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    c = lesson_client(tmp_path, mp3=tone(), conn=conn)
+    row = made(c)
+    assert mark(c, row["id"], "Un café.") == 204
+    assert mark(c, row["id"], "Un café.", "slow") == 204
+    assert mark(c, row["id"], "S'il vous plaît.") == 204
+    # Two phrases (one marked twice) aren't a review yet.
+    assert review_on_offer(c) is None
+    refused = c.post("/api/lessons/review", json={"language": "fr"}, headers=AUTH)
+    assert refused.status_code == 409
+    assert mark(c, row["id"], "L'addition, s'il vous plaît.", "slow") == 204
+    assert review_on_offer(c) == {
+        "phrases": 3,
+        "lessons": [{"title": "At the café", "count": 3}],
+    }
+    review_id = c.post("/api/lessons/review", json={"language": "fr"}, headers=AUTH).json()["id"]
+    review = wait_for(c, review_id)
+    assert review["state"] == "ready", review
+    assert review["title"] == "Review"
+    assert [p["text"] for p in review["phrases"]] == [
+        "Un café.",
+        "S'il vous plaît.",
+        "L'addition, s'il vous plaît.",
+    ]
+    # Each phrase asked twice, every answer a turn.
+    assert len(review["pauses"]) == 6
+    # The phrases went into the review, so none are waiting now.
+    assert review_on_offer(c) is None
+    # Asked to hear again after its review, a phrase waits for the next one.
+    assert mark(c, row["id"], "Un café.") == 204
+    assert [m.text for m in store.open_lesson_marks(conn, "fr")] == ["Un café."]
+
+
+def test_marks_a_phrase_only_in_a_lesson_that_is_there(tmp_path: Path) -> None:
+    c = lesson_client(tmp_path)
+    assert mark(c, 99, "Un café.") == 404
 
 
 TOPICS_USED = Usage(input_tokens=200, output_tokens=60, model="claude-sonnet-5-5")

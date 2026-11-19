@@ -20,6 +20,7 @@ export default function ReadLessonRoute() {
   if (!reader.api || !lesson) return <Redirect href="/lessons" />;
   return (
     <ReadLesson api={reader.api} lesson={lesson} onDeleted={() => router.back()}
+      onAddToDeck={reader.settings?.decks?.[lesson.language] ? () => router.push({ pathname: '/lesson-add', params: { lesson: raw! } }) : undefined}
       onPlayWord={playWord}
       onAddWord={async (word, meaning, lang, pronunciation) => {
         const wordDeck = reader.settings?.decks?.[lang];

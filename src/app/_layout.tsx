@@ -37,6 +37,7 @@ function RootStack() {
       <Stack.Screen name="read-write" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* Audio lessons' words to teach: chosen from the decks, or typed in, as sheets (full height for the keyboard). */}
       <Stack.Screen name="lesson-words" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
+      <Stack.Screen name="lesson-add" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       <Stack.Screen name="lesson-word-add" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* A cram's sheet (Practice, Cram): its name, its day and its first words, full height for the keyboard. */}
       <Stack.Screen name="cram-edit" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
