@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Keyboard, ScrollView, Text, View } from 'react-native';
+import { Keyboard, ScrollView, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Language, type TextModel } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Tappable } from '../kit';
+import { WorkingMark } from '../WorkingMark';
 import { hairline, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -127,7 +128,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
       title={`New ${languageName}${kind}`}
       largeTitle={false}
  toolbar={cancel}
-      footer={<Button label="Write" onPress={write} busy={busy === 'write'} disabled={!name.trim() || busy !== null} />}
+      footer={<Button label="Write" onPress={write} busy={busy === 'write'} busyLabel="Starting to write" disabled={!name.trim() || busy !== null} />}
     >
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -149,9 +150,13 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ ...type.headline, color: c.text }}>Surprise me</Text>
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>An idea you haven't tried, picked for your deck</Text>
+              {busy === 'surprise' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                  <WorkingMark />
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>Picking an idea from your deck</Text>
+                </View>
+              ) : <Text style={{ ...type.footnote, color: c.textSecondary }}>An idea you haven't tried, picked for your deck</Text>}
             </View>
-            {busy === 'surprise' ? <ActivityIndicator color={c.textSecondary} /> : null}
           </Tappable>
         </Group>
 

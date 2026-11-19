@@ -147,7 +147,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
         ) : (
           <>
             <Button variant="secondary" label="Stop" style={{ flex: 1 }} onPress={() => { asking.current++; onDone(); }} />
-            <Button label="Check" style={{ flex: 2 }} busy={checking} disabled={!attempt.trim()} onPress={ask} />
+            <Button label="Check" style={{ flex: 2 }} busy={checking} busyLabel="Checking your writing" disabled={!attempt.trim()} onPress={ask} />
           </>
         )}
       </View>

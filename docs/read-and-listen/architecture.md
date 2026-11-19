@@ -183,6 +183,17 @@ Franki's (Client, below).
   Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
   kept: it starts at Off each time a text opens, and a line started fresh (Play, a skip, a line's own
   replay button) begins its count again.
+- **Loop text and Start over** (19 November 2026, the owner: the repeat button was assumed to loop
+  the whole story). Loop text, beside Repeat line, plays the text again from its first line each time
+  the last one ends (`nextLine`'s `loop`, `wrapsToStart`), and combines with Repeat line (each line
+  its count, then round again). Start over, beside Play, plays from the first line with audio, at
+  any time. Neither is kept: both start Off, like the repeat count. **Only the first pass counts**:
+  the first time round ends it is the text played through (a listen-only past text counts as heard
+  again), but with Loop text on Play all stays on this text instead of moving to the next shelf text,
+  and later passes count nothing, so looping can't pad the Listen again schedule. The mini-player
+  carries the loop on when the reader closes (`Handoff.loop`), but passes over a line with no sound
+  rather than around to the first. The three icons are drawn (`PlayerIcons.tsx`), since SF Symbols
+  have no pair that tells one line from the whole text.
 - **Record yourself** in the player, beside Repeat line, records the line playing or last played
   ("Record line 2"), pausing playback; Stop (or 30 seconds) ends the take and plays it back. Yours
   replays it, Compare plays the line as it was played and then the take, either stops while it plays, and

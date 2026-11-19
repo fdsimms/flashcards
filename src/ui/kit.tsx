@@ -15,6 +15,7 @@ import { useConnectionProblem } from './connection';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
+import { WorkingMark } from './WorkingMark';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -457,6 +458,8 @@ export function Button(props: {
   disabled?: boolean;
   /** Shows a spinner in place of the label, and can't be pressed. */
   busy?: boolean;
+  /** With `busy`: says what is happening beside the turning mark, for a wait on Claude. Without it, a bare spinner. */
+  busyLabel?: string;
   /** What VoiceOver says when the label alone isn't enough: a button repeated down a list names its row. */
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -486,7 +489,12 @@ export function Button(props: {
         props.style,
       ]}
     >
-      {props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
+      {props.busy && props.busyLabel ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          <WorkingMark color={fg} />
+          <Text style={{ ...type.headline, color: fg }}>{props.busyLabel}</Text>
+        </View>
+      ) : props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
     </Tappable>
   );
 }

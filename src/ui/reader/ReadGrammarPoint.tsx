@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import type { PracticeRecord } from '../../core/forms';
 import { grammarPoint } from '../../core/grammar';
 import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, suggestKnowIt } from '../../core/grammarPage';
@@ -12,6 +12,7 @@ import { GrammarExplanation, type ExplanationGlossing } from './GrammarExplanati
 import { haptic } from '../haptics';
 import { grammarTag } from '../grammarTag';
 import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tag, Tappable } from '../kit';
+import { MakingCard } from '../MakingCard';
 import { hairline, radius, space, type, useTheme, readable, smooth } from '../theme';
 
 /**
@@ -140,7 +141,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
     <Screen title={point.name}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {!page && !error ? <ActivityIndicator color={c.accent} /> : null}
+        {!page && !error ? <MakingCard title="Loading the page" detail="Getting the explanation and examples" /> : null}
         {page ? (
           <View style={{ gap: space.s }}>
             {/* A point not set yet has no segment selected. */}
