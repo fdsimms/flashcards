@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
 import {
-  CASE_LANGUAGES, caseNouns, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorNote, inDeck,
+  CASE_CUES, CASE_LANGUAGES, caseNouns, caseRows, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorNote, inDeck,
   languageDeck, nounFor, type Governor,
 } from '../../src/tools/cases';
 import { omniNote } from '../support/fixtures';
@@ -125,5 +125,25 @@ describe('inDeck, languageDeck and governorNote', () => {
     });
     expect(tags).toEqual(['preposition']);
     expect(governorNote(polish, gov('dzwonić do'), 'polish').fields.Entry).toBe('dzwonić');
+  });
+});
+
+describe('the case choices', () => {
+  it('has a cue for every case any language asks', () => {
+    for (const language of Object.values(CASE_LANGUAGES)) {
+      for (const k of language!.cases) expect(CASE_CUES[k], k).toBeTruthy();
+    }
+  });
+
+  it('lays the choices out in rows of at most three', () => {
+    expect(caseRows(2)).toEqual([2]);
+    expect(caseRows(3)).toEqual([3]);
+    expect(caseRows(4)).toEqual([2, 2]);
+    expect(caseRows(5)).toEqual([3, 2]);
+    expect(caseRows(6)).toEqual([3, 3]);
+    for (const language of Object.values(CASE_LANGUAGES)) {
+      const n = language!.cases.length;
+      expect(caseRows(n).reduce((a, b) => a + b, 0)).toBe(n);
+    }
   });
 });

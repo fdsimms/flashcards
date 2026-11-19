@@ -4,17 +4,17 @@ import { failureText } from '../../core/failure';
 import type { Note } from '../../core/types';
 import { LANGUAGES } from '../../reader/languages';
 import {
-  CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorLabel,
+  CASE_CUES, CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRows, caseRule, checkCaseForm, drawGovernor, governorId,
   governorNote, inDeck, languageDeck, nounFor, type CaseNoun, type GovernedCase, type Governor,
 } from '../../tools/cases';
 import { useApp } from '../AppContext';
-import { ChoiceButton } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Card, ErrorNote, Field, Help, Loading, NavRow, Group } from '../kit';
-import { Reveal } from '../motion';
-import { space, type, useTheme } from '../theme';
+import { Button, ErrorNote, Field, Help, Loading, NavRow, Group, Tappable } from '../kit';
+import type { CardMotion } from '../SwipeCard';
+import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
-import { RuleLine, Status, ToolScreen, useAnswer, useToolLanguage, type ToolActions } from './ToolScreen';
+import { PracticeCard } from './PracticeCard';
+import { RuleLine, Status, ToolScreen, useAnswer, useToolLanguage } from './ToolScreen';
 import { useMarks } from './useMarks';
 
 type Step = 'case' | 'form' | 'done';
@@ -26,8 +26,9 @@ interface Question {
 }
 
 /**
- * Which case (src/tools/cases.ts): the case after a preposition or verb, picked from the
- * language's cases, then a studied noun typed in it. A word missing from the deck is offered to
+ * Which case (src/tools/cases.ts), as Review's card (PracticeCard.tsx): the case after a preposition or
+ * verb, picked from the language's cases (footer buttons, each with a cue), then a studied noun typed in it
+ * under the word, in the card. A word missing from the deck is offered to
  * the note editor, where saving is the approval. Nothing here grades a card.
  */
 export function CasesTool({ tool, repo }: ToolScreenProps) {
@@ -95,12 +96,6 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
   };
   const skip = () => { setStep('done'); };
 
-  const actions: ToolActions = step === 'case'
-    ? { secondary: { label: 'Another one', onPress: ask }, primary: { label: "I don't know", onPress: () => pickCase(null), disabled: !question } }
-    : step === 'form'
-      ? { secondary: { label: 'Skip', onPress: skip }, primary: { label: 'Check', onPress: check, disabled: !typed.trim() } }
-      : { primary: { label: 'Next', onPress: ask } };
-
   const g = question?.governor;
   const noun = question?.noun;
   const form = g && noun ? noun.forms[g.case]![0] : undefined;
@@ -113,6 +108,94 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
     openNoteEditor({ deck: target ?? null, model: 'Omnilanguage', fields, tags }, (result) => { if (result) setLoads((n) => n + 1); });
   };
 
+  const motion = useRef<CardMotion | null>(null);
+  const ready = !error && !!deck && !!g && !!cases;
+
+  let front: React.ReactNode;
+  let back: React.ReactNode;
+  let footer: React.ReactNode = <View />;
+  if (ready) {
+    front = (
+      <View style={{ alignItems: 'center', gap: space.xs }}>
+        <Text style={{ ...type.overline, color: c.textSecondary }}>{g.kind === 'verb' ? 'Verb' : g.kind === 'phrase' ? 'Phrase' : 'Preposition'}</Text>
+        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 44, color: c.text, textAlign: 'center' }}>{g.word}</Text>
+        <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{g.sense ? `${g.meaning} (${g.sense})` : g.meaning}</Text>
+        {step === 'case' ? <Text style={{ ...type.body, color: c.text, marginTop: space.s }}>Which case comes after it?</Text> : null}
+      </View>
+    );
+    back = step === 'case' ? undefined : (
+      <View style={{ gap: space.m }}>
+        <View style={{ alignItems: 'center' }}>
+          {picked === g.case
+            ? <Status tone="good">{`${caseName(g.case)}.`}</Status>
+            : <Status tone="bad">{`${picked ? 'Not quite. ' : ''}It's the ${g.case}.`}</Status>}
+        </View>
+        {noun ? (
+          <View style={{ gap: space.s }}>
+            <View style={{ alignItems: 'center', gap: 2 }}>
+              <Text style={{ ...type.title, fontWeight: '600', color: c.text }}>
+                {`${g.word} `}
+                {step === 'done' ? <Text style={{ color: c.accent }}>{form}</Text> : <Text style={{ color: c.accent }}>_____</Text>}
+              </Text>
+              <Text style={{ ...type.subhead, color: c.textSecondary }}>{`${noun.headword} · ${noun.meaning}`}</Text>
+            </View>
+            <Field
+              key={governorId(g)}
+              label="Your answer"
+              value={typed}
+              onChangeText={setTyped}
+              editable={step === 'form'}
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+              autoFocus
+              returnKeyType="done"
+              keyboardLanguage={LANGUAGES[language].speech}
+              onSubmitEditing={check}
+              error={step === 'done' && verdict !== undefined && verdict !== 'right'}
+            />
+            {step === 'done' && verdict ? (
+              <View style={{ alignItems: 'center' }}>
+                {verdict === 'right'
+                  ? <Status tone="good">Right.</Status>
+                  : <Status tone="bad">{`${verdict === 'almost' ? 'Almost' : 'Not quite'}. It's ${form}.`}</Status>}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {step === 'done' ? (
+          <View style={{ gap: space.s }}>
+            <RuleLine rule={caseRule(cases, g)} />
+            {!noun ? (
+              <Help>{`None of the ${LANGUAGES[language].name} nouns you're studying list their ${g.case} yet, so there's no noun to put in it. A noun's cases come from its Forms field.`}</Help>
+            ) : null}
+          </View>
+        ) : null}
+        {step === 'done' && missing ? (
+          <Group>
+            <NavRow
+              first
+              label={`Add ${g.entry ?? g.word} to your deck`}
+              detail={target ? `It isn't in ${target.split('::').pop()} yet.` : `You have no ${LANGUAGES[language].name} deck yet: pick one in the editor.`}
+              onPress={addToDeck}
+            />
+          </Group>
+        ) : null}
+      </View>
+    );
+    footer = step === 'case' ? (
+      <View style={{ gap: space.s }}>
+        <CaseChoices cases={cases.cases} onChoose={pickCase} />
+        <Button variant="secondary" label="I don't know" onPress={() => pickCase(null)} />
+      </View>
+    ) : step === 'form' ? (
+      <View style={{ flexDirection: 'row', gap: space.s }}>
+        <Button variant="secondary" label="Skip" style={{ flex: 1 }} onPress={skip} />
+        <Button label="Check" style={{ flex: 1 }} onPress={check} disabled={!typed.trim()} />
+      </View>
+    ) : <Button label="Next" onPress={ask} />;
+  }
+
   return (
     <ToolScreen
       tool={tool}
@@ -122,87 +205,56 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
       onRandomize={ask}
       onShow={() => pickCase(null)}
       onMark={() => ask()}
-      actions={actions}
+      fill
+      footer={footer}
     >
-      {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : !deck || !g || !cases ? <Loading /> : (
-        <>
-          <Card style={{ alignItems: 'center', gap: space.s, paddingVertical: space.xl }}>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{g.kind === 'verb' ? 'Verb' : g.kind === 'phrase' ? 'Phrase' : 'Preposition'}</Text>
-            <Text selectable style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>
-              {g.word}
-              {step === 'done' && form ? <Text style={{ color: c.accent }}>{` ${form}`}</Text> : null}
-            </Text>
-            <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-              {g.sense ? `${g.meaning} (${g.sense})` : g.meaning}
-            </Text>
-            {step === 'case' ? <Text style={{ ...type.body, color: c.text, marginTop: space.s }}>Which case comes after it?</Text> : null}
-          </Card>
-
-          {step === 'case' ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-              {cases.cases.map((k) => <ChoiceButton key={k} label={caseName(k)} state="open" onPress={() => pickCase(k)} />)}
-            </View>
-          ) : (
-            <Reveal style={{ gap: space.s }}>
-              {picked === g.case
-                ? <Status tone="good">{`${caseName(g.case)}.`}</Status>
-                : <Status tone="bad">{`${picked ? 'Not quite. ' : ''}It's the ${g.case}.`}</Status>}
-            </Reveal>
-          )}
-
-          {step !== 'case' && noun ? (
-            <View style={{ gap: space.s }}>
-              <View style={{ alignItems: 'center', gap: 2 }}>
-                <Text style={{ ...type.title, fontWeight: '600', color: c.text }}>
-                  {`${g.word} `}
-                  {step === 'done' ? <Text style={{ color: c.accent }}>{form}</Text> : <Text style={{ color: c.accent }}>_____</Text>}
-                </Text>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>{`${noun.headword} · ${noun.meaning}`}</Text>
-              </View>
-              <Field
-                key={governorId(g)}
-                label="Your answer"
-                value={typed}
-                onChangeText={setTyped}
-                editable={step === 'form'}
-                autoCapitalize="none"
-                autoCorrect={false}
-                spellCheck={false}
-                autoFocus
-                returnKeyType="done"
-                keyboardLanguage={LANGUAGES[language].speech}
-                onSubmitEditing={check}
-                error={step === 'done' && verdict !== undefined && verdict !== 'right'}
-              />
-              {step === 'done' && verdict ? (
-                verdict === 'right'
-                  ? <Status tone="good">Right.</Status>
-                  : <Status tone="bad">{`${verdict === 'almost' ? 'Almost' : 'Not quite'}. It's ${form}.`}</Status>
-              ) : null}
-            </View>
-          ) : null}
-
-          {step === 'done' ? (
-            <Card style={{ gap: space.s }}>
-              <RuleLine rule={caseRule(cases, g)} />
-              {!noun ? (
-                <Help>{`None of the ${LANGUAGES[language].name} nouns you're studying list their ${g.case} yet, so there's no noun to put in it. A noun's cases come from its Forms field.`}</Help>
-              ) : null}
-            </Card>
-          ) : null}
-
-          {step === 'done' && missing ? (
-            <Group>
-              <NavRow
-                first
-                label={`Add ${g.entry ?? g.word} to your deck`}
-                detail={target ? `It isn't in ${target.split('::').pop()} yet.` : `You have no ${LANGUAGES[language].name} deck yet: pick one in the editor.`}
-                onPress={addToDeck}
-              />
-            </Group>
-          ) : null}
-        </>
+      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !ready ? <View style={{ padding: space.l }}><Loading /></View> : (
+        <PracticeCard
+          questionKey={governorId(g)}
+          cardKey={`${governorId(g)}|${step}`}
+          swipe={false}
+          motion={motion}
+          onMark={() => {}}
+          onPlay={step === 'done' ? () => answer.speak({ text: form ? `${g.word} ${form}` : g.word }) : undefined}
+          speech={LANGUAGES[language].speech}
+          front={front}
+          back={back}
+        />
       )}
     </ToolScreen>
+  );
+}
+
+/** The language's cases to choose from: each a name over a short cue, in rows of at most three. */
+function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k: GovernedCase) => void }) {
+  const c = useTheme();
+  let from = 0;
+  return (
+    <View style={{ gap: space.s }}>
+      {caseRows(cases.length).map((n, r) => {
+        const row = cases.slice(from, from + n);
+        from += n;
+        return (
+          <View key={r} style={{ flexDirection: 'row', gap: space.s }}>
+            {row.map((k) => (
+              <Tappable
+                key={k}
+                onPress={() => onChoose(k)}
+                accessibilityRole="button"
+                accessibilityLabel={`${caseName(k)}, ${CASE_CUES[k]}`}
+                scaleTo={0.97}
+                style={{
+                  flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 1, paddingHorizontal: space.xs, paddingVertical: space.xs + 2,
+                  backgroundColor: c.surface, borderRadius: radius.m + 2, ...smooth, borderWidth: hairline, borderColor: c.border,
+                }}
+              >
+                <Text maxFontSizeMultiplier={1.3} style={{ ...type.headline, fontSize: 16, color: c.text }}>{caseName(k)}</Text>
+                <Text maxFontSizeMultiplier={1.3} style={{ ...type.caption, color: c.textSecondary }}>{CASE_CUES[k]}</Text>
+              </Tappable>
+            ))}
+          </View>
+        );
+      })}
+    </View>
   );
 }
