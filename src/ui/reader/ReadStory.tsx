@@ -14,9 +14,10 @@ import { Button, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } f
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
-import { PracticeWordPill } from './PracticeWordPill';
+import { PracticeWordRow } from './PracticeWordPill';
 import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
+import { ReadStoryCharacters } from './ReadStoryCharacters';
 import { GlossPopover, type Tapped } from './Reader';
 
 // While its next episode is being written, check back this often.
@@ -140,12 +141,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               {story.about ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{story.about}</Text> : null}
               <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyPlace(story)}</Text>
               {next && next.stretch.length > 0 ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingTop: space.xs }}>
-                  {next.stretch.map((w) => {
-                    const word = next.practice?.find((p) => p.text === w);
-                    return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
-                  })}
-                </View>
+                <PracticeWordRow words={next.stretch} practice={next.practice} onTap={(word, x, y) => setTapped({ word, x, y })} />
               ) : null}
               {next ? <Button label={`Play episode ${next.episode}`} onPress={() => onOpen(next.id)} style={{ marginTop: space.s }} /> : null}
             </View>
@@ -157,6 +153,8 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               tapped={tapped?.word ?? null}
               onTap={(word, x, y) => { haptic.tap(); setTapped({ word, x, y }); }}
             />
+
+            {story.xray?.length ? <ReadStoryCharacters characters={story.xray} read={story.read} /> : null}
 
             {(() => {
               const sections = episodeSections(story, read);

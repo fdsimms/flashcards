@@ -46,6 +46,12 @@ export type AspectPair = {
 /** One kanji of a word (KANJIDIC2, server/reader/src/franki_reader/kanji.py): kun readings are written with a dot before the okurigana (さむ.い). */
 export type WordKanji = { char: string; meanings: string[]; on: string[]; kun: string[]; strokes: number };
 
+/**
+ * A character of a series as X-Ray shows them, as far as the episode being read (server/reader/src/franki_reader/xray.py):
+ * a few facts from the episodes up to it and nothing later. `here` is whether they turn up in the open text.
+ */
+export type StoryCharacter = { name: string; description: string; first_episode: number; here?: boolean };
+
 export type Word = {
   text: string;
   status: 'known' | 'partial' | 'unknown' | 'name' | null; // 'name': a name the model marked; null for spaces and punctuation
@@ -62,6 +68,8 @@ export type Word = {
   // How formal the word is where it's used: the deck note's own Register, else the one Claude gave it in its
   // text. '' for a word with none (and for a name); absent from a server older than it.
   register?: Register | '';
+  // The series character a name word is (StoryCharacter.name), so a tap can show their card. Absent from a server older than X-Ray, and from any word that isn't a character's name.
+  character?: string;
   stretch: boolean;
   deck: boolean; // a deck word, as against one known for being common (every language but Thai)
   wanikani?: boolean; // known for being learned in WaniKani (Japanese; absent from a server older than it)
@@ -284,6 +292,8 @@ export type ReaderText = {
   // A story episode's "Last time": what happened in the episode before it, shown above the text.
   // Missing for a first episode, any other text, and a server older than this.
   last_time?: { recap: string; line: RecapLine | null };
+  // X-Ray: the series' characters as of this episode. Missing for a text that isn't an episode and from a server older than X-Ray.
+  xray?: StoryCharacter[];
   // Questions about what happens, for the check after reading. Missing from a server older than
   // them, and empty for a text written before them or whose questions couldn't be written.
   questions?: TextQuestion[];
@@ -336,6 +346,8 @@ export type ShelfStory = {
   // The same in the story's language, as words to tap, with that line's English. Null for an
   // episode written before it was asked for, and missing from a server older than it.
   last_recap_line?: RecapLine | null;
+  // X-Ray: the characters as of the last episode read. Missing from a server older than X-Ray.
+  xray?: StoryCharacter[];
   next: ShelfText | null;
   writing: boolean;
   /** Where the episode being written has got to. Missing from a server older than stages. */
