@@ -2138,6 +2138,8 @@ export interface components {
             /** Scene */
             scene: string;
             focus?: components["schemas"]["SituationFocus"] | null;
+            /** Words */
+            words?: string[];
             roles?: components["schemas"]["SituationRoles"] | null;
             /** Lines */
             lines?: components["schemas"]["SituationLine"][];

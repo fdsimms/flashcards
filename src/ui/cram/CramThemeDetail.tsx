@@ -20,7 +20,7 @@ type AddWords = (language: Language, deck: string, entries: { entry: string; mea
  * and questions to steer the lesson with, each read aloud when tapped. "Things to say" is the
  * story, the same screen with `view="story"`. Use theme hands the theme to the new cram's sheet.
  */
-export function CramThemeDetail({ repo, index, view, decks, add, onStory, onUse }: {
+export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehearse, onUse }: {
   repo: Repo;
   index: number;
   view: 'theme' | 'story';
@@ -28,6 +28,8 @@ export function CramThemeDetail({ repo, index, view, decks, add, onStory, onUse 
   decks: { deck: string; language: Language }[];
   add: AddWords;
   onStory: () => void;
+  /** Opens Situations on the theme: its title is the scene and its deck words are worked in. */
+  onRehearse: (language: Language, scene: string, words: { text: string; english: string }[]) => void;
   onUse: () => void;
 }) {
   const { suggested } = useThemeState();
@@ -47,10 +49,10 @@ export function CramThemeDetail({ repo, index, view, decks, add, onStory, onUse 
   const deck = decks.find((d) => d.language === suggested.language)?.deck;
   return view === 'story'
     ? <Story repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words).map((w) => w.text)} toolbar={toolbar} />
-    : <Theme repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words)} deck={deck} add={add} onStory={onStory} toolbar={toolbar} />;
+    : <Theme repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words)} deck={deck} add={add} onStory={onStory} onRehearse={() => onRehearse(suggested.language, theme.title, themeDeckWords(theme, suggested.words))} toolbar={toolbar} />;
 }
 
-function Theme({ repo, theme, language, words, deck, add, onStory, toolbar }: {
+function Theme({ repo, theme, language, words, deck, add, onStory, onRehearse, toolbar }: {
   repo: Repo;
   theme: CramTheme;
   language: Language;
@@ -58,6 +60,7 @@ function Theme({ repo, theme, language, words, deck, add, onStory, toolbar }: {
   deck: string | undefined;
   add: AddWords;
   onStory: () => void;
+  onRehearse: () => void;
   toolbar: React.ReactNode;
 }) {
   const c = useTheme();
@@ -130,11 +133,10 @@ function Theme({ repo, theme, language, words, deck, add, onStory, toolbar }: {
             </Tappable>
           ))}
         </Card>
-        {theme.story ? (
-          <Group>
-            <NavRow first icon={{ name: 'text.bubble', color: c.accent }} label="Things to say" detail="A short story to tell, from your words." onPress={() => { haptic.tap(); onStory(); }} />
-          </Group>
-        ) : null}
+        <Group>
+          {theme.story ? <NavRow first icon={{ name: 'text.bubble', color: c.accent }} label="Things to say" detail="A short story to tell, from your words." onPress={() => { haptic.tap(); onStory(); }} /> : null}
+          <NavRow first={!theme.story} icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }} label="Rehearse" detail="Talk it through with Claude." onPress={() => { haptic.tap(); onRehearse(); }} />
+        </Group>
       </ScrollView>
     </Screen>
   );

@@ -34,6 +34,10 @@ MAX_UNKNOWN = 2  # words in one of their lines outside the known ones
 MAX_LINES = 40  # lines in a conversation
 MAX_LINE = 400  # characters in one line
 MAX_WORDS = 6  # words to add
+MAX_REHEARSAL_WORDS = (
+    15  # words a cram's rehearsal asks the other person to work in (an audio lesson's limit)
+)
+MAX_REHEARSAL_WORD = 200  # characters in one of them, with its meaning
 MAX_TOKENS = 3000
 FEEDBACK_TOKENS = 6000
 
@@ -178,6 +182,9 @@ class Conversation:
     roles: Roles | None  # None until the first turn sets them
     lines: tuple[Line, ...]
     focus: Focus | None = None
+    # Words the learner wants to use, from a cram they're rehearsing (each "word (meaning)"). The
+    # other person is only asked to work them in where the scene allows; none is required.
+    words: tuple[str, ...] = ()
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
@@ -192,17 +199,27 @@ def _focus_text(focus: Focus) -> str:
 
 def play_intro(conversation: Conversation) -> str:
     """The cached start of a turn's system prompt: the role, the scene and, when the owner is
-    practicing a structure, a sentence asking the other person to work it in."""
+    practicing a structure or rehearsing words, a sentence asking the other person to work them in."""
     intro = _PLAY.format(language=LANGUAGES[conversation.language].name, scene=conversation.scene)
-    if conversation.focus is None:
+    notes: list[str] = []
+    if conversation.focus is not None:
+        notes.append(
+            f"The learner is practicing this structure: {_focus_text(conversation.focus)}. Use it "
+            "naturally in your own lines where the scene allows, and phrase your questions so the "
+            "learner has a natural chance to use it too. Never name it or explain it during the scene."
+        )
+    if conversation.words:
+        listed = "; ".join(conversation.words)
+        notes.append(
+            f"The learner is rehearsing for a lesson and wants to use these words: {listed}. Use "
+            "them naturally in your own lines where the scene allows, and phrase your questions so the "
+            "learner has a natural chance to use them too. Never list them, name them or explain them "
+            "during the scene, and do not force one in where it doesn't fit."
+        )
+    if not notes:
         return intro
-    note = (
-        f"The learner is practicing this structure: {_focus_text(conversation.focus)}. Use it "
-        "naturally in your own lines where the scene allows, and phrase your questions so the "
-        "learner has a natural chance to use it too. Never name it or explain it during the scene."
-    )
     head, _, words = intro.rpartition("The word list")
-    return f"{head}{note}\n\nThe word list{words}"
+    return f"{head}{chr(10).join(notes)}\n\nThe word list{words}"
 
 
 def feedback_system(conversation: Conversation) -> str:
