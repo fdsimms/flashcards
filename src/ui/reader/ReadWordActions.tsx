@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
+import { useSoundingButton } from '../useSoundingButton';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 
 /**
@@ -13,15 +14,16 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../the
 
 export function WordPlayButton({ onPress }: { onPress: () => void }) {
   const c = useTheme();
+  const { playing, tap } = useSoundingButton();
   return (
     <Tappable
-      onPress={() => { haptic.tap(); onPress(); }}
+      onPress={() => tap(onPress)}
       accessibilityRole="button"
-      accessibilityLabel="Play word"
+      accessibilityLabel={playing ? 'Pause' : 'Play word'}
       scaleTo={0.92}
       style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Icon name="play.fill" size={18} color={c.accent} weight="semibold" />
+      <Icon name={playing ? 'pause.fill' : 'play.fill'} size={18} color={c.accent} weight="semibold" />
     </Tappable>
   );
 }
