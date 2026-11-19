@@ -139,7 +139,19 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "8282e0ab-8ac4-4b35-b6b4-fdf558c392c4"
+        "projectId": "8282e0ab-8ac4-4b35-b6b4-fdf558c392c4",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "FrankiListening",
+                  "bundleIdentifier": "com.fdsimms.franki.FrankiListening"
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "scheme": "franki"
