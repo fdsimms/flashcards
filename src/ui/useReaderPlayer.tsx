@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import type { Api, AudioLesson } from '../reader/api';
 import { afterLine, linePosition, skipTo, type Handoff } from '../reader/handoff';
 import { lineAudio } from '../reader/lineAudio';
+import { LOOP_BREAK_SOURCE } from './loopBreak';
 import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
 import { createPreloader, type Preloader } from '../reader/preload';
 import { preloadFiles } from './preloadFiles';
@@ -57,7 +58,7 @@ export interface ReaderPlayerHost {
   /** A lesson's screen opened: true when it's the lesson carrying on, which then plays on under the screen instead of stopping. */
   resumeLesson: (id: number) => boolean;
   /** The reader closed on Play all: carry on from `handoff`. */
-  handOff: (api: Api, handoff: Handoff) => void;
+  handOff: (api: Api, handoff: Handoff, breakTo?: number) => void;
   /** The reader closed without Play all: stop what it was playing. */
   release: () => void;
   toggle: () => void;
@@ -81,7 +82,8 @@ function useReaderPlayer(): ReaderPlayerHost {
   attachListeningPlayer(player.current);
   const preloader = useRef<Preloader | null>(null);
   preloader.current ??= createPreloader(preloadFiles);
-  const carrying = useRef<{ api: Api; handoff: Handoff } | null>(null);
+  /** `breakTo`: the first line a looped text goes on to once its break has played. */
+  const carrying = useRef<{ api: Api; handoff: Handoff; breakTo?: number } | null>(null);
   // The lesson carrying on after its screen was closed; never set together with `carrying`.
   const carryingLesson = useRef<AudioLesson | null>(null);
   const listener = useRef<{ remove: () => void } | null>(null);
@@ -129,6 +131,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     const c = carrying.current;
     if (!c) return;
     const mine = ++starting.current;
+    c.breakTo = undefined;
     const { api, handoff } = c;
     const audio = (await preloader.current!.take(handoff.textId, line, handoff.rate)) ?? (await lineAudio(api, handoff.textId, line, handoff.rate));
     if (starting.current !== mine || carrying.current !== c) return;
@@ -154,8 +157,22 @@ function useReaderPlayer(): ReaderPlayerHost {
       return;
     }
     if (status.didJustFinish) {
+      if (c.breakTo !== undefined) {
+        // The break (loopBreak.ts) has played: round again from the first line.
+        const line = c.breakTo;
+        c.breakTo = undefined;
+        void playLine(line);
+        return;
+      }
       const step = afterLine(c.handoff);
-      if (step.kind === 'again') {
+      if (step.kind === 'wrap') {
+        // A chime and a pause before the text starts again, not straight back to the first line.
+        c.breakTo = step.line;
+        starting.current++;
+        player.current!.replace(LOOP_BREAK_SOURCE);
+        player.current!.setPlaybackRate(1, 'high');
+        player.current!.play();
+      } else if (step.kind === 'again') {
         c.handoff = { ...c.handoff, played: c.handoff.played + 1 };
         player.current!.seekTo(0).then(() => player.current!.play(), () => undefined);
       } else if (step.kind === 'line') void playLine(step.line);
@@ -199,10 +216,10 @@ function useReaderPlayer(): ReaderPlayerHost {
     return true;
   }, []);
 
-  const handOff = useCallback((api: Api, handoff: Handoff) => {
+  const handOff = useCallback((api: Api, handoff: Handoff, breakTo?: number) => {
     listener.current?.remove();
     carryingLesson.current = null;
-    carrying.current = { api, handoff };
+    carrying.current = { api, handoff, breakTo };
     listener.current = player.current!.addListener('playbackStatusUpdate', onStatus);
     // The reader's own switch to background playing is undone as it closes; carrying on needs it kept.
     setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);

@@ -13,7 +13,7 @@ import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
 import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
-import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
+import { firstLine, LOOP_BREAK_NOTE, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
@@ -226,7 +226,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   useEffect(() => () => { mounted.current = false; }, []);
 
   // The audio, line by line (useLinePlayback.ts): this screen counts what's heard and moves on.
-  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, toggleLoop, startOver, reset: resetPlayback } = useLinePlayback({
+  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, breaking, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, toggleLoop, startOver, reset: resetPlayback } = useLinePlayback({
     api,
     playerHost,
     text,
@@ -668,7 +668,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <>
           {hasAudio ? (
             <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
-              rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} loopText={loopText} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat} onLoop={toggleLoop} onStartOver={startOver}
+              rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} loopText={loopText} breaking={breaking} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat} onLoop={toggleLoop} onStartOver={startOver}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
         </>
@@ -1295,7 +1295,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   );
 }
 
-function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, loopText, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, loopText, breaking, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1311,6 +1311,8 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   played: number;
   /** Loop text: Play all goes back to the first line after the last. */
   loopText: boolean;
+  /** The pause between the last line and the first, while Loop text goes round. */
+  breaking: boolean;
   silentLine: number | null;
   onToggle: () => void;
   onRate: (rate: number) => void;
@@ -1336,7 +1338,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   );
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const loopNote = repeating ? `${repeatNote}. Looping the whole text.` : 'Looping the whole text';
-  const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : loopText ? loopNote : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
+  const note = breaking ? LOOP_BREAK_NOTE : silentLine !== null ? `Line ${silentLine + 1} has no audio.` : loopText ? loopNote : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
   const label = current === null && !note ? null : (
     <View style={{ alignItems: 'center' }}>
       {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
