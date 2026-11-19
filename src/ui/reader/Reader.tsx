@@ -233,7 +233,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     playerHost,
     text,
     onPlay: (r) => {
-      if (text && source.kind === 'shelf') keepPlaying(text.id, text.language ?? 'th');
+      if (text && (source.kind === 'shelf' || source.kind === 'past')) keepPlaying(text.id, text.language ?? 'th', source.kind === 'past');
       setSession((s) => (s ? heard(s, r) : s));
     },
     onLineHeard: (line) => markHeard(line),

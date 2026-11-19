@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AudioLesson, Shelf, ShelfStory, ShelfText } from '../../src/reader/api';
 import { card, readerText, saved } from '../support/reader';
 import {
-  asksBeforeLesson, EMPTY_INDEX, mayKeepWhilePlaying, shelfCardFor, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
+  asksBeforeLesson, EMPTY_INDEX, mayKeepWhilePlaying, shelfCardFor, cardOfText, pastOverflow, PAST_KEPT, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
   languagesToKeep, readOffline, savedState, usageText, type DownloadIndex,
 } from '../../src/reader/downloads';
 
@@ -46,6 +46,26 @@ describe('keeping a text as it plays', () => {
     expect(shelfCardFor(index, 1)?.id).toBe(1);
     expect(shelfCardFor(index, 2)?.id).toBe(2);
     expect(shelfCardFor(index, 3)).toBeNull();
+  });
+});
+
+describe('played past texts', () => {
+  const past = (id: number) => saved(id, { past: true });
+
+  it('are left alone by the shelf plan and left off the shelf shown offline', () => {
+    const index = { ...EMPTY_INDEX, texts: [past(7), saved(1)] };
+    expect(planTexts(shelf([card({ id: 1 })]), index).drop).toEqual([]);
+    expect(offlineShelf({ ...index, shelves: {} }, new Set(), 'pl')?.texts.map((t) => t.id)).toEqual([1]);
+  });
+
+  it('keep only the latest few, oldest dropped first', () => {
+    const texts = Array.from({ length: PAST_KEPT + 2 }, (_, i) => past(100 + i));
+    expect(pastOverflow({ texts: [saved(1), ...texts] })).toEqual([100, 101]);
+    expect(pastOverflow({ texts: [saved(1), past(5)] })).toEqual([]);
+  });
+
+  it('get a card made from the text', () => {
+    expect(cardOfText(readerText(4))).toMatchObject({ id: 4, lines: readerText(4).lines.length });
   });
 });
 

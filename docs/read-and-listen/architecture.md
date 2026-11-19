@@ -2029,7 +2029,9 @@ in seconds when nothing answers, while a slow answer (a Claude explanation) is l
   setting is for downloads nobody asked for. It keeps the same things as the automatic download (the
   text with its check questions, every line's recording, the slow ones where the language has Slow),
   and the lines saved so far play from the phone (`withOffline`'s `audioSource`) before the text is
-  whole, so a tunnel mid-download doesn't stop it. What needs Claude (Explain, Retell) can't be kept.
+  whole, so a tunnel mid-download doesn't stop it. A text played from Past texts or Listen again is
+  kept the same way, marked `past`: the shelf plan leaves it alone and the shelf shown offline
+  leaves it out, and only the latest ten stay (`pastOverflow`). What needs Claude (Explain, Retell) can't be kept.
 - **Every screen gets the server through `withOffline`** (`src/reader/offlineApi.ts`, in
   `useReader`): a kept text opens from the phone when the server can't be reached, its lines play
   from the files online too, and the shelf shown offline is the kept texts under the heading
