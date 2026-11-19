@@ -529,6 +529,8 @@ class Engine:
                 store.name_story(self.conn, story.id, result.series, result.cast)
             if story:
                 store.set_story_plan(self.conn, story.id, result.plan)
+                if context:
+                    store.add_story_characters(self.conn, story.id, result.xray, context.episode)
                 # Before the audio, which reads the voices: a new character is given one now and
                 # keeps it in every later episode.
                 store.add_story_voices(
@@ -1061,6 +1063,9 @@ class Engine:
             ending=tuple(ln.english for ln in told[-1].lines[-STORY_ENDING_LINES:]) if told else (),
             chosen=chosen,
             plan=story.plan,
+            known=tuple(
+                f"{c['name']}: {c['facts'][-1]['text']}" for c in story.characters if c["facts"]
+            ),
         )
 
     def relisten(

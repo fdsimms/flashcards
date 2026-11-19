@@ -17,6 +17,7 @@ import { useCoverTint } from './Cover';
 import { PracticeWordRow } from './PracticeWordPill';
 import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
+import { ReadStoryCharacters } from './ReadStoryCharacters';
 import { GlossPopover, type Tapped } from './Reader';
 
 // While its next episode is being written, check back this often.
@@ -152,6 +153,8 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               tapped={tapped?.word ?? null}
               onTap={(word, x, y) => { haptic.tap(); setTapped({ word, x, y }); }}
             />
+
+            {story.xray?.length ? <ReadStoryCharacters characters={story.xray} read={story.read} /> : null}
 
             {(() => {
               const sections = episodeSections(story, read);

@@ -1455,6 +1455,21 @@ next episode is the top of the shelf.
   sends none and the card keeps its running episode number.
   Every shelf text also sends `created_at` (when it was written, with its UTC offset). The story card
   showed it as "Released Nov 16" until the shelf's layout was simplified (17 November 2026, Shelf).
+- **X-Ray** (added 19 November 2026, by the owner): who a series' characters are, as far as the
+  episode being read. Every episode's reply carries `xray`, a list of `{name, fact}` for each named
+  character it introduces or tells something new about (a fact is English, under twelve words, true
+  as of that episode; it is `xray` because `characters` on a text already means the drawn dialogue
+  speakers). The request lists what is already known ("Characters so far") and says not to repeat
+  it. The story keeps one entry per character with each fact tagged by the episode that gave it
+  (`stories.characters`, `xray.py`), so a card shown for episode N uses only facts up to N and gives
+  nothing later away. A series already running has none until its next episode, whose request asks
+  for every named character with `since`, the episode each first appeared in. `GET /api/texts/{id}`
+  sends `xray` (each character's description, `first_episode` and whether they turn up in the text)
+  and tags each name word that is one with `character`; matching allows an inflected name
+  (`xray.matches`). A series' own page sends `xray` as of the last episode read. In the app a tap on
+  a character's name shows their description in place of "A name", with See all characters; the
+  reader's header has a Characters button opening the sheet (in this episode first, then earlier),
+  and the series page lists them. Display only: nothing here rates or writes a card.
 - **Not the container plot** (added 14 November 2026). With a small vocabulary nearly every text was
   someone opening a box or drawer, finding something, and a stranger arriving to explain it. Every
   request, dialogues included, now says that plot is overused unless the topic is about it, and to
