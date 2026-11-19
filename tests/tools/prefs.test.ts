@@ -7,6 +7,11 @@ describe("the Practice tools' saved settings", () => {
       .toEqual({ language: 'pl', minuteStep: 15, timeMode: 'listen', moneyAnswer: 'listen', dateWeekday: false, dateYear: true, dateMode: 'type', moneyMode: 'price', moneyMax: 100, numberKind: 'phone', numberMode: 'listen', countMode: 'pick', countMax: 100, scriptMode: 'read', mixupMode: 'ear' });
   });
 
+  it('reads Explore as a saved mode of telling the time and saying dates', () => {
+    expect(parseToolPrefs('{"timeMode":"explore"}').timeMode).toBe('explore');
+    expect(parseToolPrefs('{"dateMode":"explore"}').dateMode).toBe('explore');
+  });
+
   it('falls back to the defaults for anything missing, unknown or unreadable', () => {
     expect(parseToolPrefs(null)).toEqual(DEFAULT_TOOL_PREFS);
     expect(parseToolPrefs('not json')).toEqual(DEFAULT_TOOL_PREFS);

@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Text, View, type TextInputInstance } from 'react-native';
 import { LANGUAGES } from '../../reader/languages';
@@ -8,12 +9,15 @@ import { moneyPatterns } from '../../tools/patterns';
 import { moneyRule } from '../../tools/rules';
 import { toolPrefs } from '../../tools/storage';
 import { CURRENCY_OF, MONEY_SAYERS, toolLanguage } from '../../tools/tools';
-import { Card, Field } from '../kit';
+import { haptic } from '../haptics';
+import { Field } from '../kit';
+import type { CardMotion } from '../SwipeCard';
 import { space, type, useTheme } from '../theme';
 import { Cash } from './Cash';
 import type { ToolScreenProps } from './index';
-import { ListenCard, ListenResult, useListenCheck, useSpeakEach } from './Listen';
-import { AnswerCard, ChipChoice, nextOnly, ToolScreen, useAnswer, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
+import { useListenCheck, useSpeakEach } from './Listen';
+import { ListenBack, ListenFooter, ListenPrompt, PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
+import { AnswerContent, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -21,9 +25,10 @@ const MODES: { value: MoneyMode; label: string }[] = [{ value: 'count', label: '
 const ANSWERS: { value: AnswerMode; label: string }[] = [{ value: 'say', label: 'Say it' }, { value: 'listen', label: 'Listen' }];
 
 /**
- * Counting money: an amount in the chosen language's own money, as notes and coins to add up or
- * as a price to read, then said in that language and marked Missed it or Got it (Missed it shows
- * the rule behind the answer first, where there's one: rules.ts). A new amount comes with each
+ * Counting money, as Review's card (PracticeCard.tsx): Practice, Amounts up to and Answer by are in
+ * the header's menu. An amount in the chosen language's own money, as notes and coins to add up or
+ * as a price to read, tapped for how it's said in that language and marked Missed it or Got it, swiped too
+ * when swipe is on (Missed it shows the rule behind the answer first, where there's one: rules.ts). A new amount comes with each
  * Another one or mark, leaning toward the kinds missed lately (useMarks), and with a change of
  * language, mode or size, since another currency is priced in other steps. An amount missed comes
  * back once a few amounts later (useRetries). Listen reads a price aloud instead, and the amount
@@ -79,17 +84,57 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
     Keyboard.dismiss();
     listen.check(parseTypedAmount(typedText, currency) === amount);
   };
-  const amountsChoice = (
-    <ChipChoice
-      label="Amounts up to"
-      options={MONEY_MAXES.map((m) => ({ value: m, label: m.toLocaleString('en-US') }))}
-      value={max}
-      onChange={(m) => { setMax(m); next(m); }}
-    />
-  );
-  let actions: ToolActions | undefined;
-  if (listening) actions = listen.actions({ canCheck: !!typedText.trim(), onCheck: check, onNext: () => next() });
-  else if (answer.missed) actions = nextOnly(() => next());
+  const swipeOn = useSwipeSetting(repo);
+  const motion = useRef<CardMotion | null>(null);
+  const swipe = swipeOn && !listening && answer.shown && !answer.missed;
+
+  // A mark, from a button or a swipe: Missed it with a rule keeps the answer up with the rule until Next.
+  const markAndMove = (right: boolean) => {
+    haptic.answer();
+    motion.current?.flash(right ? 3 : 1);
+    mark(right);
+    if (!right && rule) answer.miss();
+    else next();
+  };
+  const showAnswer = () => answer.show(saying?.everyday);
+
+  let front: React.ReactNode;
+  let back: React.ReactNode;
+  let footer: React.ReactNode;
+  if (listening) {
+    front = (
+      <ListenPrompt label="Play the price again" hint="Listen, then type the price you heard." onPlay={() => saying && answer.speak(saying.everyday)}>
+        <PriceField key={key} label={`The price you heard, in ${currency.symbol}`} typed={typedText} onType={(text) => setTyped({ key, text })} onSubmit={check} checked={listen.verdict} />
+        {listen.verdict ? null : (
+          <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
+            {currency.minorStep ? 'Type the amount in digits, with a comma or a dot before the cents.' : 'Type the amount in digits.'}
+          </Text>
+        )}
+      </ListenPrompt>
+    );
+    back = listen.verdict && saying ? <ListenBack right={listen.verdict.right} wrong={`Not quite. It's ${saying.written.text}.`} answer={{ everyday: saying.everyday, also: saying.also }} rule={rule} onPlay={answer.speak} /> : undefined;
+    footer = <ListenFooter verdict={listen.verdict} canCheck={!!typedText.trim()} onCheck={check} onRetry={listen.retry} onNext={() => next()} />;
+  } else {
+    front = (
+      <View style={{ alignItems: 'center', gap: space.m }}>
+        <Text style={{ ...type.overline, color: c.textSecondary }}>{mode === 'count' ? 'Notes and coins' : 'Price'}</Text>
+        {mode === 'count' ? (
+          <Cash pieces={pieces} currency={currency} />
+        ) : (
+          <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 44, fontVariant: ['tabular-nums'], color: c.text, textAlign: 'center' }}>{saying?.written.text}</Text>
+        )}
+      </View>
+    );
+    back = answer.shown && saying ? (
+      <AnswerContent
+        centered
+        answer={{ everyday: saying.everyday, also: saying.also, last: mode === 'count' ? { title: 'As written', phrase: saying.written } : undefined }}
+        rule={answer.missed ? rule : undefined}
+        onPlay={answer.speak}
+      />
+    ) : undefined;
+    footer = <SayFooter shown={answer.shown} missed={answer.missed} onShow={showAnswer} onNext={() => next()} onMark={markAndMove} />;
+  }
 
   return (
     <ToolScreen
@@ -98,56 +143,37 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       onLanguage={(l) => { setLanguage(l); answer.hide(); }}
       shown={answer.shown}
       onRandomize={() => next()}
-      onShow={() => answer.show(saying?.everyday)}
-      onMark={(right) => {
-        mark(right);
-        if (!right && rule) answer.miss();
-        else next();
-      }}
-      actions={actions}
-    >
-      {listening ? (
-        <>
-          <ListenCard label="Play the price again" hint="Listen, then type the price you heard." onPlay={() => saying && answer.speak(saying.everyday)} />
-          <PriceField key={key} label={`The price you heard, in ${currency.symbol}`} typed={typedText} onType={(text) => setTyped({ key, text })} onSubmit={check} checked={listen.verdict} />
-          {listen.verdict && saying ? (
-            <ListenResult right={listen.verdict.right} wrong={`Not quite. It's ${saying.written.text}.`} saying={saying} rule={rule} onPlay={answer.speak} />
-          ) : (
-            <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
-              {currency.minorStep ? 'Type the amount in digits, with a comma or a dot before the cents.' : 'Type the amount in digits.'}
-            </Text>
-          )}
-          {amountsChoice}
-        </>
-      ) : (
-        <>
-          <Card style={{ minHeight: 150, justifyContent: 'center' }}>
-            {mode === 'count' ? (
-              <Cash pieces={pieces} currency={currency} />
-            ) : (
-              <View style={{ alignItems: 'center', gap: space.xs }}>
-                <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 44, fontVariant: ['tabular-nums'], color: c.text }}>{saying?.written.text}</Text>
-              </View>
-            )}
-          </Card>
-
-          <ChipChoice label="Practice" options={MODES} value={mode} onChange={(m) => { setMode(m); next(); }} />
-
-          {amountsChoice}
-
-          <AnswerCard
-            shown={answer.shown}
-            prompt={mode === 'count'
-              ? `Add up the notes and coins, say the total in ${LANGUAGES[language].name}, then show the answer.`
-              : `Say the price in ${LANGUAGES[language].name} out loud, then show the answer.`}
-            answer={saying && { everyday: saying.everyday, also: saying.also, last: mode === 'count' ? { title: 'As written', phrase: saying.written } : undefined }}
-            rule={answer.missed ? rule : undefined}
-            onPlay={answer.speak}
-          />
-        </>
+      onShow={showAnswer}
+      onMark={markAndMove}
+      fill
+      lockGesture={swipe}
+      footer={footer}
+      menu={(
+        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
+          <Stack.Toolbar.Menu inline title="Practice">
+            {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); next(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu inline title="Amounts up to">
+            {MONEY_MAXES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === max} onPress={() => { if (m !== max) { setMax(m); next(m); } }}>{m.toLocaleString('en-US')}</Stack.Toolbar.MenuAction>)}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu inline title="Answer by">
+            {ANSWERS.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === answerMode} onPress={() => { if (m.value !== answerMode) { setAnswerMode(m.value); answer.hide(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
       )}
-
-      <ChipChoice label="Answer by" options={ANSWERS} value={answerMode} onChange={(m) => { setAnswerMode(m); answer.hide(); }} />
+    >
+      <PracticeCard
+        questionKey={`${key}|${answerMode}|${mode}`}
+        cardKey={`${key}|${answerMode}|${answer.shown}|${answer.missed}|${listen.verdict?.right ?? ''}`}
+        swipe={swipe}
+        motion={motion}
+        onMark={markAndMove}
+        onTap={!listening && !answer.shown ? showAnswer : undefined}
+        onPlay={saying && (listening ? !!listen.verdict : answer.shown) ? () => answer.speak(saying.everyday) : undefined}
+        speech={LANGUAGES[language].speech}
+        front={front}
+        back={back}
+      />
     </ToolScreen>
   );
 }

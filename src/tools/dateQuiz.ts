@@ -7,8 +7,11 @@ import { distinct, type Phrase } from './phrase';
  * scheduled or saved.
  */
 
-/** Say it aloud and show the answer; pick the phrase; type it; or read the phrase and tap the date. */
-export const DATE_MODES = ['say', 'pick', 'type', 'tap'] as const;
+/**
+ * Say it aloud and show the answer; pick the phrase; type it; or read the phrase and tap the date.
+ * Explore is outside the quiz: tap any day on the calendar to see how it's said, with nothing marked.
+ */
+export const DATE_MODES = ['say', 'pick', 'type', 'tap', 'explore'] as const;
 export type DateMode = (typeof DATE_MODES)[number];
 
 /** A reading in kana only: Japanese's, which is all a typed answer in Japanese may give. */
