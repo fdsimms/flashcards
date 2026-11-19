@@ -38,6 +38,26 @@ export function MakingBody({ title, steps, detail }: { title: string; steps?: St
   );
 }
 
+/** Just the checklist, for a row or banner that already has its own title. */
+export function MakingSteps({ steps }: { steps: StageStep[] }) {
+  const at = steps.findIndex((s) => s.status === 'now');
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={at >= 0 ? `${steps[at].label}, step ${at + 1} of ${steps.length}` : undefined}
+      style={{ gap: space.xs, paddingTop: space.xs }}
+    >
+      {steps.map((s) => (
+        <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          <StepMark status={s.status} />
+          <StepLabel status={s.status} label={s.label} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const MARK = 18;
 
 /**

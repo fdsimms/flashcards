@@ -44,7 +44,8 @@ describe("a story's page", () => {
 
   it('names an episode not written yet by its number, and lists no next one for an ended story', () => {
     const [only] = episodeSections(story({ read: 1, writing: true }), [past(1)]);
-    expect(only.rows[1]).toMatchObject({ kind: 'next', title: 'Episode 2', textId: null, status: 'Writing episode 2', ready: false });
+    expect(only.rows[1]).toMatchObject({ kind: 'next', title: 'Episode 2', textId: null, status: 'Writing episode 2', ready: false, stage: null });
+    expect(episodeSections(story({ read: 1, writing: true, stage: 'recording' }), [past(1)])[0].rows[1]).toMatchObject({ stage: 'recording' });
     expect(episodeSections(story({ running: false, read: 1 }), [past(1)])[0].rows.map((r) => r.kind)).toEqual(['read']);
   });
 
