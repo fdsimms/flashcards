@@ -226,3 +226,50 @@ export function releasable(cards: readonly SkillCardState[]): string[] {
     return !!after && settled.has(`${c.language}|${after}`);
   }).map((c) => c.id);
 }
+
+// ==== Progress ====
+
+/** A skill card as Skills needs it, read off the card where it's shown. */
+export interface SkillCardInfo {
+  tags: readonly string[];
+  suspended: boolean;
+  /** Answered at least once. */
+  started: boolean;
+  /** Its next review a week or more out (the progress gate's line). */
+  settled: boolean;
+  /** Study days until it's due: 0 today, negative overdue. */
+  dueInDays: number;
+  /** FSRS's chance of recall now, in percent; undefined before its first review. */
+  percent?: number;
+}
+
+export interface SkillRow { title: string; detail: string; meter?: number; locked: boolean }
+export interface SkillSection { title: string; rows: SkillRow[] }
+
+const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Next in ${days} days`);
+
+/** What Skills shows for a deck's skill cards: each drill step in ladder order, and a set of single cards as how many have settled. */
+export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
+  const sections: SkillSection[] = [];
+  for (const group of ['time', 'numbers'] as DrillGroup[]) {
+    const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
+      const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
+      if (!card) return [];
+      const before = step.after ? drillStep(step.after)?.title : undefined;
+      if (card.suspended) return [{ title: step.title, detail: before ? `Comes in after ${before.charAt(0).toLowerCase() + before.slice(1)} settles` : 'Suspended', locked: true }];
+      if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
+      return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
+    });
+    if (rows.length) sections.push({ title: GROUP_TITLES[group], rows });
+  }
+  const letters = cards.filter((c) => c.tags.includes(`${SKILL_TAG}::consonants`));
+  if (letters.length) {
+    const settled = letters.filter((c) => c.settled).length;
+    const fresh = letters.filter((c) => !c.started).length;
+    sections.push({
+      title: 'Letters',
+      rows: [{ title: 'Consonant classes', detail: `${settled} of ${letters.length} settled${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / letters.length) * 100), locked: false }],
+    });
+  }
+  return sections;
+}

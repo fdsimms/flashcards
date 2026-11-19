@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DRILL_STEPS, drawQuestion, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  languageOfDeck, skillDrafts, skillGroups, suggestedRating, TIME_STEPS,
+  languageOfDeck, skillDrafts, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
@@ -130,5 +130,36 @@ describe("a deck's language", () => {
     expect(languageOfDeck('Languages::Thai')).toEqual({ language: 'th', name: 'Thai' });
     expect(languageOfDeck('Polski::Verbs')).toEqual({ language: 'pl', name: 'Polish' });
     expect(languageOfDeck('🧠 Trivia')).toBeUndefined();
+  });
+});
+
+
+describe('skill progress', () => {
+  const info = (tag: string, over: Partial<SkillCardInfo> = {}) => ({
+    tags: ['skill', tag, 'skill::lang::th'], suspended: false, started: true, settled: false, dueInDays: 3, percent: 90, ...over,
+  });
+
+  it('lists each drill step in order, locked, new or with when it is due', () => {
+    const sections = skillSections([
+      info('skill::drill::time-quarters', { suspended: true }),
+      info('skill::drill::time-hours', { dueInDays: 12, percent: 94 }),
+      info('skill::drill::numbers-10', { started: false }),
+      info('skill::drill::numbers-99', { dueInDays: 1 }),
+    ]);
+    expect(sections.map((s) => s.title)).toEqual(['Telling the time', 'Numbers']);
+    expect(sections[0].rows).toEqual([
+      { title: "O'clock and half past", detail: 'Next in 12 days', meter: 94, locked: false },
+      { title: 'Quarter past and to', detail: "Comes in after o'clock and half past settles", locked: true },
+    ]);
+    expect(sections[1].rows.map((r) => r.detail)).toEqual(['Not started yet', 'Due tomorrow']);
+  });
+
+  it('counts a set of letters by how many have settled', () => {
+    const sections = skillSections([info('skill::consonants', { settled: true }), info('skill::consonants'), info('skill::consonants', { started: false })]);
+    expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 settled · 1 not started', meter: 33, locked: false }] }]);
+  });
+
+  it('is empty with no skill cards', () => {
+    expect(skillSections([])).toEqual([]);
   });
 });

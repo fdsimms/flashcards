@@ -1,18 +1,23 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, Text } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { addSkillCards } from '../anki/skillCards';
 import { refreshFromKeptCollection } from '../anki/transfer';
+import { studyDayStart } from '../core/day';
 import { failureText } from '../core/failure';
-import { DRILL_STEPS, languageOfDeck, SKILLS_SUBDECK, skillGroups, type SkillGroup } from '../tools/skills';
+import { retrievability } from '../core/order';
+import { isInProgress } from '../core/progress';
+import { paramsForDeck } from '../core/scheduler';
+import { DRILL_STEPS, languageOfDeck, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillGroup, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Screen, SwitchRow } from './kit';
-import { readable, space, type, useTheme } from './theme';
+import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
+import { hairline, radius, readable, space, type, useTheme } from './theme';
 
 /**
- * Add skill cards (src/tools/skills.ts, src/anki/skillCards.ts), from a deck's options: what adding
- * them puts in the deck, group by group, and a sample of how a drill card reads in Anki on the
- * computer. Nothing is written until Add, which is the approval.
+ * Skill cards (src/tools/skills.ts, src/anki/skillCards.ts), from a deck's options: how the deck's
+ * skills are doing (each drill step's next review and FSRS's chance of recall, what's still locked),
+ * then what adding them puts in the deck, group by group, with a sample of how a drill card reads in
+ * Anki on the computer. Nothing is written until Add, which is the approval.
  */
 export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void }) {
   const c = useTheme();
@@ -22,6 +27,30 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
   const [picked, setPicked] = useState<Set<SkillGroup>>(() => new Set(groups.map((g) => g.id)));
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const busy = useRef(false);
+  const [sections, setSections] = useState<SkillSection[]>([]);
+  const [loads, setLoads] = useState(0);
+  // The deck's skill cards, read again after an Add.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const [notes, cards, params, settings] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.collectionSettings()]);
+      const now = new Date();
+      const H = settings.dayStartsAtHour;
+      const today = studyDayStart(now, H).getTime();
+      const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
+      const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
+        const n = skillNotes.get(cd.noteId)!;
+        const r = retrievability(cd, now, paramsForDeck(n.deck, params)?.weights ?? []);
+        return {
+          tags: n.tags, suspended: !!cd.suspended, started: cd.sched.state !== 0, settled: cd.sched.state !== 0 && !isInProgress(cd),
+          dueInDays: Math.round((studyDayStart(new Date(cd.sched.due), H).getTime() - today) / 86_400_000),
+          percent: r === undefined ? undefined : Math.round(r * 100),
+        };
+      });
+      if (live) setSections(skillSections(info));
+    })().catch(() => { if (live) setSections([]); });
+    return () => { live = false; };
+  }, [repo, deck, loads]);
   const count = groups.filter((g) => picked.has(g.id)).reduce((n, g) => n + g.count, 0);
   const sample = DRILL_STEPS.find((s) => picked.has(s.group));
   const subdeck = `${deck.split('::').pop()}::${SKILLS_SUBDECK}`;
@@ -41,6 +70,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
       parts.push('Later drill steps wait, suspended, until the step before has a review a week or more out.');
+      setLoads((n) => n + 1);
       Alert.alert('Skill cards added', parts.join(' '), [{ text: 'OK', onPress: onDone }]);
     } catch (e) {
       Alert.alert("Couldn't add skill cards", failureText(e, { next: 'Try again.' }));
@@ -52,7 +82,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
 
   return (
     <Screen
-      title="Add skill cards"
+      title="Skill cards"
       largeTitle={false}
       footer={found && groups.length ? (
         <Button
@@ -70,6 +100,28 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
           <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
         ) : (
           <>
+            {sections.map((sec) => (
+              <View key={sec.title} style={{ gap: space.s }}>
+                <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{sec.title}</Text>
+                <Card style={{ gap: 0, paddingVertical: space.xs }}>
+                  {sec.rows.map((row, i) => (
+                    <View key={row.title} accessible accessibilityLabel={`${row.title}. ${row.detail}${row.meter !== undefined ? `. ${row.meter} percent` : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={{ ...type.body, color: row.locked ? c.textSecondary : c.text }}>{row.title}</Text>
+                        <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.detail}</Text>
+                      </View>
+                      {row.locked ? <Icon name="lock" size={14} color={c.textTertiary} /> : row.meter !== undefined ? (
+                        <View style={{ width: 64, height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
+                          <View style={{ width: `${row.meter}%`, height: '100%', borderRadius: radius.pill, backgroundColor: row.meter >= 80 ? c.good : c.warning }} />
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                </Card>
+              </View>
+            ))}
+            {sections.length ? <Help>The bar is FSRS's chance you'd get it right now. For a set of single cards, it's how many have a review a week or more out.</Help> : null}
+            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Add skill cards</Text>
             <Help>{`Skill cards go into ${subdeck}, made if it isn't there. They come up in your reviews like any card, and FSRS spaces them. A drill card asks a few questions, then you rate it. Later steps are added suspended and come in as the step before settles.`}</Help>
             <Group>
               {groups.map((g, i) => (
