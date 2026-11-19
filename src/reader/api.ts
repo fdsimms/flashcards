@@ -773,8 +773,8 @@ export function createApi(
       call<AspectPair>('POST', '/api/aspect-pair', { language, word, ...(line ? { line } : {}) }),
     // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
     // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
-    // language's deck has been read on the server.
-    glosses: (language: Language, sentences: { text: string; english: string }[]) =>
+    // language's deck has been read on the server. A card's headword is asked with `parts`, and comes back split into the words it is made of.
+    glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.

@@ -1877,3 +1877,16 @@ def test_several_stories_run_and_any_running_one_can_be_pinned_to_the_card() -> 
         True,
         True,
     ]
+
+
+def test_glosses_split_a_headword_into_its_parts_and_ask_for_the_meaning_of_each() -> None:
+    c = client()
+    body = {"language": "th", "sentences": [{"text": "ความคิด", "english": "idea", "parts": True}]}
+    out = c.post("/api/glosses", json=body, headers=AUTH).json()
+    assert out["ready"] is True
+    assert [w["text"] for w in out["sentences"][0]] == ["ความ", "คิด"]
+    # Without the flag it is segmented as a sentence is, which keeps a compound whole.
+    whole = c.post(
+        "/api/glosses", json={"language": "th", "sentences": [{"text": "ความคิด"}]}, headers=AUTH
+    ).json()
+    assert [w["text"] for w in whole["sentences"][0]] == ["ความคิด"]
