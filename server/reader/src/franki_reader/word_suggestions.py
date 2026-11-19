@@ -1,5 +1,6 @@
 """Words to add to a language's deck, for when its new cards are running low (docs/read-and-listen/
-architecture.md, Suggested words). Two sources, neither of which asks Claude:
+architecture.md, Suggested words). Two sources, neither of which asks Claude (English's rare words, which Claude writes, are
+`rare_words.py`'s):
 
 - Words met in the texts read to the end that aren't in the deck: each by its dictionary form, the
   ones in the most texts first. They count as unknown in the texts (`lexicon.status`), so a word the
@@ -54,7 +55,20 @@ def excluded(
     return deck_lexicon(language, [*(e.text for e in entries), *others], wanikani)
 
 
-def _left_out(word: str, skip: Checker) -> bool:
+def skip_for(
+    conn: sqlite3.Connection, language: Code, entries: Iterable[Entry], wanikani: Iterable[Entry]
+) -> Checker:
+    """`excluded` for the language's deck, with the words queued for it and dismissed from it."""
+    queued = [n.entry for n in store.queued_notes(conn) if n.language == language]
+    return excluded(
+        language,
+        entries,
+        [w.text for w in wanikani],
+        [*queued, *store.dismissed_words(conn, language)],
+    )
+
+
+def left_out(word: str, skip: Checker) -> bool:
     return skip.entry_of(word) is not None or skip.status(word) == "known"
 
 
@@ -75,7 +89,7 @@ def from_texts(
                 if is_name or not is_word(piece) or lexicon.status(piece) == "known":
                     continue
                 word = lemma_for(piece, lexicon) or piece
-                if _left_out(word, skip) or _left_out(piece, skip):
+                if left_out(word, skip) or left_out(piece, skip):
                     continue
                 key = _key(word, language)
                 shown, meaning, seen, rank = found.get(key, (word, "", set(), None))
@@ -100,7 +114,7 @@ def from_common(
         if place < start:
             continue
         key = _key(word, language)
-        if key in seen or _left_out(word, skip):
+        if key in seen or left_out(word, skip):
             continue
         seen.add(key)
         meaning = meanings.get(word) or meanings.get(word.casefold()) or ""
@@ -121,13 +135,7 @@ def suggest(
     """The words from texts read and the common words for `language` (the module's docstring).
     `entries` and `lexicon` are the reader's snapshot of the deck, `wanikani` Japanese's WaniKani
     words and `meanings` what a word's gloss falls back on (`Engine.meanings`)."""
-    queued = [n.entry for n in store.queued_notes(conn) if n.language == language]
-    skip = excluded(
-        language,
-        entries,
-        [w.text for w in wanikani],
-        [*queued, *store.dismissed_words(conn, language)],
-    )
+    skip = skip_for(conn, language, entries, wanikani)
     vocab = {lemma: meaning for lemma, _, meaning, _ in store.vocab_items(conn, language)}
     texts = from_texts(
         [t for t, _ in store.finished_texts(conn, language)], lexicon, skip, meanings, language

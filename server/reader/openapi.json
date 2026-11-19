@@ -5529,7 +5529,7 @@
     "/api/word-suggestions": {
       "get": {
         "summary": "Get Word Suggestions",
-        "description": "Reads the snapshot of the deck only: nothing here adds a note or grades a card. A word\nsaved since the snapshot was read can still be listed; the app leaves out what its own\ncopy of the deck already has.",
+        "description": "Reads the snapshot of the deck only, and for English may ask Claude for rare words (a\ncall only when the kept ones run short): nothing here adds a note or grades a card. A word\nsaved since the snapshot was read can still be listed; the app leaves out what its own\ncopy of the deck already has.",
         "operationId": "get_word_suggestions_api_word_suggestions_get",
         "parameters": [
           {
@@ -7959,15 +7959,28 @@
             },
             "type": "array",
             "title": "Common"
+          },
+          "written": {
+            "items": {
+              "$ref": "#/components/schemas/WordSuggestionOut"
+            },
+            "type": "array",
+            "title": "Written"
+          },
+          "written_error": {
+            "type": "string",
+            "title": "Written Error"
           }
         },
         "type": "object",
         "required": [
           "texts",
-          "common"
+          "common",
+          "written",
+          "written_error"
         ],
         "title": "WordSuggestionsOut",
-        "description": "The words from texts read, then the common words the deck lacks, each source best first."
+        "description": "The words from texts read, the common words the deck lacks and, for English, the rare words\nClaude wrote, each source best first. `written_error` says why Claude's words are missing."
       },
       "WriteIn": {
         "properties": {

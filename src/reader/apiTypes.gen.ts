@@ -1564,7 +1564,8 @@ export interface paths {
         };
         /**
          * Get Word Suggestions
-         * @description Reads the snapshot of the deck only: nothing here adds a note or grades a card. A word
+         * @description Reads the snapshot of the deck only, and for English may ask Claude for rare words (a
+         *     call only when the kept ones run short): nothing here adds a note or grades a card. A word
          *     saved since the snapshot was read can still be listed; the app leaves out what its own
          *     copy of the deck already has.
          */
@@ -2360,13 +2361,18 @@ export interface components {
         };
         /**
          * WordSuggestionsOut
-         * @description The words from texts read, then the common words the deck lacks, each source best first.
+         * @description The words from texts read, the common words the deck lacks and, for English, the rare words
+         *     Claude wrote, each source best first. `written_error` says why Claude's words are missing.
          */
         WordSuggestionsOut: {
             /** Texts */
             texts: components["schemas"]["WordSuggestionOut"][];
             /** Common */
             common: components["schemas"]["WordSuggestionOut"][];
+            /** Written */
+            written: components["schemas"]["WordSuggestionOut"][];
+            /** Written Error */
+            written_error: string;
         };
         /** WriteIn */
         WriteIn: {

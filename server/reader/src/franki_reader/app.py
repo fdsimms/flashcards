@@ -133,8 +133,13 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/note-queue/{id}/retry  a failed word waiting to be filled again
     DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
     GET   /api/word-suggestions       ?language=: words to add when the deck's new cards run low
-                                      (word_suggestions.py): {texts, common: [{word, meaning, rank,
-                                      texts}]}, from texts read and the common words the deck lacks
+                                      (word_suggestions.py): {texts, common, written: [{word, meaning,
+                                      rank, texts}], written_error}, from texts read and the common
+                                      words the deck lacks; for English, no common words, but rare
+                                      ones Claude writes (rare_words.py, kept in `written_words`,
+                                      asked again only when fewer than 20 are left; its cost is kept
+                                      in `call_costs`, feature "rare_words"; `written_error` says why
+                                      none came, "" when nothing went wrong)
     POST  /api/word-suggestions/dismiss  {language, word}: Not interested, never suggested again
     GET   /api/grammar/{id}           one point's page: {id, state, seen, choices (its language's,
                                       for the related points), examples: [{text_id, title, line,
@@ -346,6 +351,7 @@ from franki_reader import (
     meanings,
     note_queue,
     production,
+    rare_words,
     sentences,
     situations,
     store,
@@ -454,6 +460,7 @@ def create_app(
     fix_flagged_card: fix_card.FixCard | None = None,
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
+    write_rare_words: rare_words.WriteRareWords | None = None,
 ) -> FastAPI:
     app = FastAPI(title="franki-reader")
 
@@ -543,6 +550,7 @@ def create_app(
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
+        write_rare_words=write_rare_words,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -587,6 +595,7 @@ def production_app() -> FastAPI:
     fix_flagged_card: fix_card.FixCard | None = None
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
+    write_rare_words: rare_words.WriteRareWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -617,6 +626,7 @@ def production_app() -> FastAPI:
         fix_flagged_card = fix_card.claude_fix_card(client)
         find_lesson_words = lesson_words.claude_find_words(client)
         write_cram_themes = cram_themes.claude_themes(client)
+        write_rare_words = rare_words.claude_rare_words(client)
 
         def ask_for(
             entries: list[Entry], language: Code, model: TextModel = MODEL, effort: Effort = EFFORT
@@ -709,4 +719,5 @@ def production_app() -> FastAPI:
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
+        write_rare_words=write_rare_words,
     )

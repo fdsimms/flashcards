@@ -74,6 +74,8 @@ describe('the suggested words', () => {
       { word: 'quedarse', meaning: 'to stay', rank: 212, texts: 0 },
       { word: 'desarrollar', meaning: '', rank: 1640, texts: 0 },
     ],
+    written: [],
+    written_error: '',
   };
   it('leaves out what the deck has now, by entry with or without its article, and what is held or dismissed', () => {
     const entries = entryKeys(['la receta', 'Hablar', '']);
@@ -83,7 +85,13 @@ describe('the suggested words', () => {
     expect(sections.map((x) => [x.key, x.words.map((w) => w.word)])).toEqual([['texts', ['aprovechar']], ['common', ['quedarse']]]);
   });
   it('drops a section with nothing left', () => {
-    expect(suggestionSections({ texts: [], common: s.common }, new Set(), new Set(), new Set()).map((x) => x.title)).toEqual(['Common words not in the deck']);
+    expect(suggestionSections({ ...s, texts: [] }, new Set(), new Set(), new Set()).map((x) => x.title)).toEqual(['Common words not in the deck']);
+  });
+  it('shows the rare words Claude wrote last, with their meaning and no source', () => {
+    const written = [{ word: 'perspicacious', meaning: 'keen in judgment', rank: null, texts: 0 }];
+    const sections = suggestionSections({ ...s, written }, new Set(), new Set(), new Set());
+    expect(sections.map((x) => x.title)).toEqual(['From texts you read', 'Common words not in the deck', 'Rare words from Claude']);
+    expect(suggestionDetail(written[0])).toBe('keen in judgment');
   });
   it('ticks the first words in the order shown, and sends them with no meaning so Claude writes one', () => {
     const sections = suggestionSections(s, new Set(), new Set(), new Set());

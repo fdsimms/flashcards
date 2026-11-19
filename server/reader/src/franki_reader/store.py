@@ -5,7 +5,7 @@ import json
 import logging
 import sqlite3
 import statistics
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
@@ -232,6 +232,16 @@ CREATE TABLE IF NOT EXISTS dismissed_words (
     language TEXT NOT NULL,
     word TEXT NOT NULL,
     dismissed_at TEXT NOT NULL,
+    PRIMARY KEY (language, word)
+);
+-- English words Claude suggested for the deck (rare_words.py), kept after the checks so opening
+-- Suggested words doesn't ask again each time. Per language; shown until the deck, the queue or
+-- a dismissal has the word.
+CREATE TABLE IF NOT EXISTS written_words (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    created_at TEXT NOT NULL,
     PRIMARY KEY (language, word)
 );
 -- The note queue (note_queue.py): words the owner typed in the app, for Claude to fill in the other
@@ -1798,6 +1808,7 @@ CallFeature = Literal[
     "fix_card",
     "lesson_words",
     "topic_image",
+    "rare_words",
 ]
 
 
@@ -3211,6 +3222,28 @@ def dismiss_word(conn: sqlite3.Connection, language: Code, word: str, now: datet
             "INSERT OR IGNORE INTO dismissed_words (language, word, dismissed_at) VALUES (?, ?, ?)",
             (language, word, now.isoformat()),
         )
+
+
+def save_written_words(
+    conn: sqlite3.Connection, language: Code, words: Iterable[tuple[str, str]], now: datetime
+) -> None:
+    """Keeps the words Claude suggested that passed the checks, each with its meaning."""
+    with conn:
+        conn.executemany(
+            "INSERT OR IGNORE INTO written_words (language, word, meaning, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            [(language, w, m, now.isoformat()) for w, m in words],
+        )
+
+
+def written_words(conn: sqlite3.Connection, language: Code) -> list[tuple[str, str]]:
+    """The words Claude suggested for the language, as (word, meaning), the oldest first."""
+    return list(
+        conn.execute(
+            "SELECT word, meaning FROM written_words WHERE language = ? ORDER BY created_at, rowid",
+            (language,),
+        )
+    )
 
 
 def dismissed_words(conn: sqlite3.Connection, language: Code) -> list[str]:
