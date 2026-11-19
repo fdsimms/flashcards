@@ -1840,6 +1840,11 @@ export interface components {
              * @default
              */
             english: string;
+            /**
+             * Parts
+             * @default false
+             */
+            parts: boolean;
         };
         /** GlossesIn */
         GlossesIn: {

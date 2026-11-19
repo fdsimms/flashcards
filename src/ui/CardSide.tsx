@@ -38,6 +38,9 @@ function EntryText({ text, gender, c }: { text: string; gender?: Gender; c: Colo
   return <><Text style={{ color: genderColor(c, gender) }}>{split.article}</Text>{split.rest}</>;
 }
 
+/** The gloss that splits a card's headword into the words it is made of, if the server has answered for it. */
+const headwordGloss = (gloss: SentenceGloss[] | null | undefined, text: string) => gloss?.find((g) => g.parts && g.words.map((w) => w.text).join('') === text);
+
 /** Text with its marked segments picked out, as a card's word is in its example sentence. */
 function MarkedText({ text, segments, style, c, tones }: { text: string; segments?: Segment[]; style: TextStyle; c: Colors; tones?: boolean }) {
   const plain = (t: string) => (tones ? <ToneSpans text={t} c={c} /> : t);
@@ -155,7 +158,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     if (b.role === 'example') {
       const plain = hasCyrillic(b.text) ? { fontSize: 19, lineHeight: 28 } : { fontSize: type.title.fontSize, lineHeight: 34 };
       const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.textBody };
-      const sentenceGloss = gloss?.find((g) => g.words.map((w) => w.text).join('') === b.text);
+      const sentenceGloss = gloss?.find((g) => !g.parts && g.words.map((w) => w.text).join('') === b.text);
       if (sentenceGloss) return <CardSentence key={i} gloss={sentenceGloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
@@ -326,6 +329,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis && b.reading && furigana && wordRuns ? (
                 <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
+              ) : b.emphasis && which === 'back' && headwordGloss(gloss, b.text) ? (
+                // A compound's parts, each tapped for its meaning as an example sentence's words are (CardSentence).
+                <CardSentence gloss={headwordGloss(gloss, b.text)!} style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text }} center />
               ) : b.emphasis ? (
                 <Text style={{ ...withThaiLineHeight(b.role === 'meaning' ? { ...type.reading, fontWeight: '400' as const } : type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}

@@ -19,7 +19,7 @@ from franki_reader.mnemonics import (
     MnemonicRequest,
     MnemonicsFailed,
 )
-from franki_reader.reader import render_sentence
+from franki_reader.reader import compound_parts, render_parts, render_sentence
 from franki_reader.routes.context import AppContext
 
 MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
@@ -61,6 +61,9 @@ class GlossSentence(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
     # The sentence's translation, which tells Claude which sense a word has.
     english: str = Field(default="", max_length=1000)
+    # A card's headword, to come back split into the words it is made of (Thai compounds) instead of
+    # segmented as a sentence is, which keeps a compound whole because it is a word.
+    parts: bool = False
 
 
 class GlossesIn(BaseModel):
@@ -233,7 +236,13 @@ def router(ctx: AppContext) -> APIRouter:
         """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
         language = body.language
         entries, lexicon = engine.snapshot(language)
-        sentences = [(s.text, s.english) for s in body.sentences]
+        # A headword's parts are asked about one by one, as the words of a sentence are: with the
+        # headword's meaning as the English, which tells Claude what ความ does in ความคิด.
+        sentences = [
+            (piece, s.english)
+            for s in body.sentences
+            for piece in ((compound_parts(s.text, lexicon) or []) if s.parts else [s.text])
+        ]
 
         async def after() -> None:
             await engine.refresh_lexicon(language)
@@ -244,11 +253,14 @@ def router(ctx: AppContext) -> APIRouter:
             return {"ready": False, "sentences": []}
         known = engine.meanings(language)
         translits = {e.text: e.translit for e in entries if e.translit}
+        ai_ipa = engine.ai_ipa(language)
         return {
             "ready": True,
             "sentences": [
-                render_sentence(text, lexicon, known, translits, engine.ai_ipa(language))
-                for text, _ in sentences
+                render_parts(s.text, lexicon, known, translits, ai_ipa)
+                if s.parts
+                else render_sentence(s.text, lexicon, known, translits, ai_ipa)
+                for s in body.sentences
             ],
         }
 

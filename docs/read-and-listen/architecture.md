@@ -316,6 +316,18 @@ Franki's (Client, below).
   `meanings.py` does for texts, with the sentence's ContextTranslation as the line's English), so
   they have one next time. Until then, offline, or with Read & Listen off, the sentence shows as
   before. Tapping a word grades nothing.
+- **A Thai compound's parts on a card's headword** (19 November 2026, by the owner's decision: the
+  server splits it, no new note field). On the back of a Thai card, a headword that is a compound
+  (ความคิด) is drawn as the example sentence's words are: a dotted underline under each part, a tick
+  where two touch, and a tap on a part opens the same popover (its meaning, play, pronunciation, Add to
+  deck for a part not in the deck). The phone asks for the headword in the same `/api/glosses` call, as a
+  sentence with `parts: true`, its Meaning as the English, and keeps the answer apart from a sentence of
+  the same text (`partsKey`). The server splits it with `Lexicon.parts`: the general Thai dictionary and
+  the deck's entries, never into the word itself (`word_tokenize` returns a compound whole, because
+  it is a word), fewest parts first, then the most that are deck entries. A word that doesn't split
+  (one part, under four letters, not Thai) comes back whole and the card draws it as before. A part with
+  no meaning is glossed in the background as a sentence's words are. Only Thai: the other languages
+  write a compound with no gap the dictionary can cut. Tapping a part grades nothing.
 
 ## Using the language
 

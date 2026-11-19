@@ -6251,6 +6251,11 @@
             "maxLength": 1000,
             "title": "English",
             "default": ""
+          },
+          "parts": {
+            "type": "boolean",
+            "title": "Parts",
+            "default": false
           }
         },
         "type": "object",
