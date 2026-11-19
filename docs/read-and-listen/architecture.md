@@ -1396,6 +1396,10 @@ next episode is the top of the shelf.
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
   request.
+- **The last episode's ending is quoted too** (added 19 November 2026). A recap is one or two
+  sentences, so it dropped small state: an episode ended with the cake still baking and the next
+  opened with it burnt. The next request now also quotes the previous episode's last
+  `STORY_ENDING_LINES` (3) lines in English (`StoryContext.ending`) and says not to contradict them.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.

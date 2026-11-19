@@ -178,6 +178,10 @@ class StoryContext:
     title: str = ""  # the story's name, from the first episode on
     cast: str = ""  # its characters and setting, from the first episode
     recaps: tuple[str, ...] = ()  # one sentence for each earlier episode, oldest first
+    # The last lines of the previous episode in English. A recap is a sentence or two, so on its
+    # own it drops the small state the episode ended on (a cake still baking), and the next
+    # episode contradicted it.
+    ending: tuple[str, ...] = ()
     # The English of what the reader chose at the end of the last episode, if they chose.
     chosen: str = ""
     # Where the model last said the season was heading, replaced by every episode's own.
@@ -657,6 +661,9 @@ def request_message(request: TextRequest) -> str:
 # carry the story, and the request stays short.
 STORY_RECAPS = 12
 
+# How many of the last episode's final lines the next episode's request quotes.
+STORY_ENDING_LINES = 3
+
 
 _CHOICES_ASK = (
     f'In "choices", end the episode on a decision: give {MIN_CHOICES} or {MAX_CHOICES} short '
@@ -765,6 +772,14 @@ def _story_intro(story: StoryContext) -> str:
         if story.chosen
         else ""
     )
+    ending = (
+        "How the last episode ended, in its final lines (English). Open in the same state of "
+        "things: don't contradict anything here, and let any time that has passed show:\n"
+        + "\n".join(f"> {ln}" for ln in story.ending)
+        + "\n"
+        if story.ending
+        else ""
+    )
     where = f'episode {story.episode} of an ongoing story, "{story.title}"'
     if story.season_episode == 1:
         place = (
@@ -793,7 +808,7 @@ def _story_intro(story: StoryContext) -> str:
             else "The season has no plan yet: decide how it ends in its finale.\n"
         )
     return (
-        f"{place}\n{plan}{picked}"
+        f"{place}\n{plan}{picked}{ending}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
         f"The story so far, a recap of each episode:\n{so_far}\n"
         f"{_STORY_RULES}\n"
