@@ -108,6 +108,13 @@ def test_thai_starts_at_the_top_of_its_list() -> None:
     assert common[0].rank == 1
 
 
+def test_english_suggests_no_common_words() -> None:
+    # Its common list is everyday words, and the deck is for words a native speaker doesn't know.
+    conn = store.connect(":memory:")
+    _, common = suggest(conn, "en", [], lexicon_from([], "en"), [], {})
+    assert common == []
+
+
 def test_routes() -> None:
     conn = connect(common=3)
     write(conn, "Aprovechamos|la|casa.")

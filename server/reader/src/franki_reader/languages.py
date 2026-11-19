@@ -75,6 +75,13 @@ class Language:
         return self.code != "th"
 
     @property
+    def suggests_common(self) -> bool:
+        """Whether Suggested words offers the language's most common words the deck lacks. English
+        doesn't: its list is everyday words (kidnap, refund), and the English deck holds only the
+        words a well-read native speaker doesn't know, so only words met in texts are suggested."""
+        return self.code != "en"
+
+    @property
     def notes_query(self) -> str:
         """Anki's search for the word list: the deck and its subdecks, less the ones skipped."""
         deck = _escape(self.deck)
