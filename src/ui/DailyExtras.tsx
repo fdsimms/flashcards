@@ -5,7 +5,7 @@ import { LANGUAGES } from '../reader/languages';
 import { saveToolPrefs } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { haptic } from './haptics';
-import { Button, Card, Help, Icon, Tappable } from './kit';
+import { Button, Card, Divider, Help, Icon, Tag, Tappable } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { TOOL_SCREENS } from './tools';
 import type { GrammarDue } from './useGrammarDue';
@@ -14,11 +14,11 @@ import type { ExtraItem, useDailyExtras } from './useDailyExtras';
 type Extras = ReturnType<typeof useDailyExtras>;
 
 /**
- * Today's extras on the Today tab (src/tools/extras.ts): a strip of chips under the day's count,
- * one per extra, checked off once it's done. A tap opens the drill or the text. Grammar due today
- * (`grammarDue`, from the same schedule as the Grammar screen) is a chip for each language that has
- * some; it isn't one of the day's planned extras, so it isn't counted in "done". Nothing shows when
- * there is nothing, so the list is as it was.
+ * Today's extras on the Today tab (src/tools/extras.ts): one row per extra with a progress bar under
+ * the count, checked off once it's done. A tap opens the drill or the text. Grammar due today
+ * (`grammarDue`, from the same schedule as the Grammar screen) is its own group of rows, one per
+ * language that has some; it isn't one of the day's planned extras, so it isn't counted in "done".
+ * Nothing shows when there is nothing, so the list is as it was.
  */
 export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue?: GrammarDue | null }) {
   const c = useTheme();
@@ -29,47 +29,107 @@ export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue
     haptic.tap();
     setProblem(await extras.open(item.extra));
   };
+  const planned = extras.items.length;
   return (
     <Card style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Today's extras</Text>
-        {extras.items.length ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${extras.done} of ${extras.items.length} done`}</Text> : null}
+        {planned ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${extras.done} of ${planned} done`}</Text> : null}
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-        {extras.items.map((item) => (
-          <Tappable
-            key={`${item.extra.language}|${item.extra.kind}`}
-            onPress={() => tap(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`${item.title}. ${item.detail}`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.m, borderRadius: radius.pill, ...smooth, backgroundColor: item.done ? c.goodFill : c.fill }}
-          >
-            <Icon name={item.done ? 'checkmark.circle.fill' : extraIcon(item)} size={16} color={item.done ? c.countDue : c.textSecondary} />
-            <Text style={{ ...type.subhead, color: item.done ? c.textSecondary : c.text }}>{chipLabel(item)}</Text>
-          </Tappable>
-        ))}
-        {grammarDue?.languages.map(({ language, count }) => (
-          <Tappable
-            key={`grammar|${language}`}
-            onPress={() => { haptic.tap(); saveToolPrefs({ language }); router.push({ pathname: '/tool', params: { id: 'grammar' } }); }}
-            accessibilityRole="button"
-            accessibilityLabel={`${LANGUAGES[language].name} grammar: ${count} due today`}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: 36, paddingVertical: space.s, paddingLeft: space.m, paddingRight: space.m, borderRadius: radius.pill, ...smooth, backgroundColor: c.accentFill }}
-          >
-            <Icon name={TOOL_SCREENS.grammar.icon} size={16} color={c.accent} />
-            <Text style={{ ...type.subhead, color: c.text }}>{`${LANGUAGES[language].name} grammar: ${count} due`}</Text>
-          </Tappable>
-        ))}
-      </View>
+      {planned ? (
+        <>
+          <View accessible accessibilityRole="progressbar" accessibilityLabel={`${extras.done} of ${planned} done`} style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}>
+            <View style={{ height: 4, width: `${(extras.done / planned) * 100}%`, backgroundColor: c.countDue }} />
+          </View>
+          <ExtraRows>
+            {extras.items.map((item, i) => (
+              <ExtraRow
+                key={`${item.extra.language}|${item.extra.kind}`}
+                first={i === 0}
+                icon={item.done ? 'checkmark.circle.fill' : extraIcon(item)}
+                iconColor={item.done ? c.countDue : c.textSecondary}
+                tileFill={item.done ? c.goodFill : c.surface}
+                title={extraWhat(item.extra.kind)}
+                done={item.done}
+                detail={item.done ? 'Done' : LANGUAGES[item.extra.language].name}
+                accessibilityLabel={`${item.title}. ${item.detail}`}
+                onPress={() => tap(item)}
+              />
+            ))}
+          </ExtraRows>
+        </>
+      ) : null}
+      {grammarDue?.languages.length ? (
+        <>
+          <Text style={{ ...type.footnote, color: c.textSecondary, marginTop: planned ? space.xs : 0 }}>Grammar due</Text>
+          <ExtraRows>
+            {grammarDue.languages.map(({ language, count }, i) => (
+              <ExtraRow
+                key={`grammar|${language}`}
+                first={i === 0}
+                icon={TOOL_SCREENS.grammar.icon}
+                iconColor={c.violetInk}
+                tileFill={c.violetFill}
+                title={LANGUAGES[language].name}
+                badge={{ text: String(count), color: c.violetInk, fill: c.violetFill }}
+                accessibilityLabel={`${LANGUAGES[language].name} grammar: ${count} due today`}
+                onPress={() => { haptic.tap(); saveToolPrefs({ language }); router.push({ pathname: '/tool', params: { id: 'grammar' } }); }}
+              />
+            ))}
+          </ExtraRows>
+        </>
+      ) : null}
       {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
     </Card>
   );
 }
 
+const TILE = 30;
+
+/** A quiet well holding `ExtraRow`s, set inside the card. */
+function ExtraRows({ children }: { children: React.ReactNode }) {
+  const c = useTheme();
+  return <View style={{ backgroundColor: c.fill, borderRadius: radius.m, overflow: 'hidden', ...smooth }}>{children}</View>;
+}
+
+function ExtraRow({ icon, iconColor, tileFill, title, detail, badge, done, first, accessibilityLabel, onPress }: {
+  icon: React.ComponentProps<typeof Icon>['name'];
+  iconColor: string;
+  tileFill: string;
+  title: string;
+  detail?: string;
+  badge?: React.ComponentProps<typeof Tag>;
+  done?: boolean;
+  first?: boolean;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 48, paddingVertical: space.s, paddingHorizontal: space.m }}
+    >
+      {first ? null : <Divider inset={space.m + TILE + space.m} />}
+      <View style={{ width: TILE, height: TILE, borderRadius: radius.s, ...smooth, backgroundColor: tileFill, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={16} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ ...type.subhead, fontWeight: '500', color: done ? c.textSecondary : c.text, textDecorationLine: done ? 'line-through' : 'none' }}>{title}</Text>
+        {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
+      </View>
+      {badge ? <Tag {...badge} /> : null}
+      <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
+    </Tappable>
+  );
+}
+
 const extraIcon = (item: ExtraItem) => (item.extra.kind === 'read' ? 'book' as const : TOOL_SCREENS[item.extra.kind].icon);
 
-/** "Thai Numbers": the language and what, without the colon the list rows use. */
-const chipLabel = (item: ExtraItem) => item.title.replace(': ', ' ');
+/** What an extra asks for, without its language ("Read a text", "Counting things"). */
+const extraWhat = (kind: ExtraItem['extra']['kind']) => (kind === 'read' ? 'Read a text' : toolById(kind)?.title ?? '');
 
 /**
  * The end of a deck's session: the next extra for that deck's language, if it has one today and
@@ -83,7 +143,7 @@ export function ExtraCard({ extras, language }: { extras: Extras; language: keyo
   if (!item) return null;
   const { kind } = item.extra;
   const name = LANGUAGES[language].name;
-  const what = kind === 'read' ? 'Read a text' : toolById(kind)?.title ?? '';
+  const what = extraWhat(kind);
   const about = kind === 'read' ? `Opens Read & Listen in ${name}.` : toolById(kind)?.summary ?? '';
   const go = async () => {
     if (busy) return;
