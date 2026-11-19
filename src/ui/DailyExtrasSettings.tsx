@@ -61,7 +61,7 @@ export function DailyExtrasSettings() {
               <SwitchRow
                 first
                 label="Suggest extras each day"
-                hint="Short drills from the Practice tab and a text to read, picked from what you've missed lately. Nothing here changes when a card is due."
+                hint="Short drills from the Practice tab and a text to read, picked from what you've missed lately. Time, dates, money and numbers come up as skill cards in their decks instead. Nothing here changes when a card is due."
                 value={prefs.on}
                 onValueChange={(on) => save({ ...prefs, on })}
               />
@@ -94,7 +94,7 @@ export function DailyExtrasSettings() {
 
                 <SectionTitle>What's suggested</SectionTitle>
                 <Group>
-                  <SwitchRow first label="Drills from the Practice tab" hint="Time, dates, money, numbers, counting and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
+                  <SwitchRow first label="Drills from the Practice tab" hint="Counting things and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
                   <SwitchRow
                     label="A text to read"
                     hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}
