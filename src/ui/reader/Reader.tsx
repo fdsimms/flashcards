@@ -183,7 +183,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [formQuizOn, setFormQuizOn] = useState(prefs().formQuiz);
   const quiz = useFormQuiz(text, formQuizOn);
   const [tapped, setTapped] = useState<Tapped | null>(null);
-  // A phrase being selected (its last word not tapped yet) or selected, explained under its line.
+  // A phrase being selected (its last word not reached yet) or selected, explained beside it; it can run over several lines.
   const [phrase, setPhrase] = useState<PhrasePick | null>(null);
   // Grammar points marked from the popover while reading, by id (ReadGrammarNote).
   const [grammarChosen, setGrammarChosen] = useState<Record<string, GrammarChoice>>({});
@@ -535,7 +535,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
   // A word's part in the phrase: where it sits in the selected phrase.
   const phraseLook = (line: number, word: Word, words: Word[]) => {
-    const here = phrase?.line === line ? words.indexOf(word) : -1;
+    const range = phrase ? phraseRange(phrase) : null;
+    const here = range && line >= range.from.line && line <= range.to.line ? words.indexOf(word) : -1;
     return { phrasePart: here >= 0 ? phrasePart(phrase, line, here) : null };
   };
 
@@ -601,14 +602,13 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   // Where the finished phrase is on screen, for its popup to open beside. Measured once the phrase is
   // complete and no longer dragged; the popup is a modal, so the text can't scroll under it.
   const [phraseAnchor, setPhraseAnchor] = useState<PhraseAnchor | null>(null);
-  const phraseKey = phrase ? `${phrase.line}:${phrase.start}:${phrase.end}` : null;
+  const phraseKey = phrase ? `${phrase.start.line}:${phrase.start.index}:${phrase.end.line}:${phrase.end.index}` : null;
   useEffect(() => {
     setPhraseAnchor(null);
     const range = phrase && text && !phraseDrag.dragging ? phraseRange(phrase) : null;
     if (!phrase || !text || !range) return;
-    const words = text.lines[phrase.line]?.words;
-    const first = words?.[range.from];
-    const last = words?.[range.to];
+    const first = text.lines[range.from.line]?.words[range.from.index];
+    const last = text.lines[range.to.line]?.words[range.to.index];
     if (!first || !last) return;
     let current = true;
     Promise.all([phraseDrag.measureWord(first), phraseDrag.measureWord(last)]).then(([a, b]) => {
@@ -1076,11 +1076,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
       {text && phrase && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
         <PhraseExplanation
-          key={`${phrase.line}:${phraseText(text.lines[phrase.line].words, phrase)}`}
+          key={`${phraseRange(phrase).from.line}:${phraseRange(phrase).to.line}:${phraseText(text.lines, phrase)}`}
           api={api}
           textId={text.id}
-          line={phrase.line}
-          phrase={phraseText(text.lines[phrase.line].words, phrase)}
+          line={phraseRange(phrase).from.line}
+          toLine={phraseRange(phrase).to.line}
+          phrase={phraseText(text.lines, phrase)}
           anchor={phraseAnchor}
           // Only into the deck of the language being read.
           mining={mining?.language === text.language ? mining : undefined}

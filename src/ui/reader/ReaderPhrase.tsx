@@ -34,7 +34,7 @@ const POPUP_GAP = 12;
 const POPUP_MAX_SHARE = 0.6;
 
 /**
- * A phrase selected in a line, explained by Claude, in a popup beside the phrase. Like
+ * A phrase selected in the text (in one line, or running on into the next few), explained by Claude, in a popup beside the phrase. Like
  * LineExplanation it asks the server when it mounts (the server keeps each phrase's answer, so
  * asking again costs nothing), and "Explain more simply" asks for the plainer version. Add to deck
  * only opens the note editor: nothing reaches the deck unless the note is saved there (CLAUDE.md,
@@ -49,10 +49,12 @@ const POPUP_MAX_SHARE = 0.6;
  * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
  * phrase's heading and the latest answer aren't behind the keyboard.
  */
-export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, onClose }: {
+export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, mining, onClose }: {
   api: Api;
   textId: number;
+  /** The phrase's first line and its last (the same line unless it runs on). */
   line: number;
+  toLine: number;
   phrase: string;
   anchor: PhraseAnchor;
   mining?: PhraseMining;
@@ -70,7 +72,7 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
     anchor, windowHeight: height, insetTop: insets.top, insetBottom: insets.bottom, keyboard, typing: asking,
     below, gap: POPUP_GAP, edge: space.s, share: POPUP_MAX_SHARE,
   });
-  const questions = usePhraseQuestions(api, textId, line, phrase);
+  const questions = usePhraseQuestions(api, textId, line, toLine, phrase);
   const [simple, setSimple] = useState(false);
   const [answer, setAnswer] = useState<Explained | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function PhraseExplanation({ api, textId, line, phrase, anchor, mining, o
     setAnswer(null);
     body.current?.scrollTo({ y: 0, animated: false });
     try {
-      const got = await api.explainPhrase(textId, line, phrase, wantSimple, prefs().explainInLanguage);
+      const got = await api.explainPhrase(textId, line, toLine, phrase, wantSimple, prefs().explainInLanguage);
       if (latest.current === mine) { setAnswer(got); setSimple(wantSimple); }
     } catch (e) {
       if (latest.current === mine) { setError(failureText(e, { what: "Couldn't explain this phrase.", next: 'Try again.' })); setSimple(wantSimple); }

@@ -2008,7 +2008,7 @@
             "schema": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 300,
+              "maxLength": 1200,
               "title": "Phrase"
             }
           },
@@ -5653,7 +5653,7 @@
         "properties": {
           "phrase": {
             "type": "string",
-            "maxLength": 300,
+            "maxLength": 1200,
             "minLength": 1,
             "title": "Phrase"
           },
@@ -5670,6 +5670,17 @@
             "type": "boolean",
             "title": "In Language",
             "default": false
+          },
+          "to_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Line"
           }
         },
         "type": "object",
@@ -6550,7 +6561,7 @@
         "properties": {
           "phrase": {
             "type": "string",
-            "maxLength": 300,
+            "maxLength": 1200,
             "minLength": 1,
             "title": "Phrase"
           },
@@ -6563,6 +6574,17 @@
             "type": "boolean",
             "title": "In Language",
             "default": false
+          },
+          "to_line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Line"
           }
         },
         "type": "object",

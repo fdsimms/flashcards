@@ -38,11 +38,20 @@ class ExplainIn(BaseModel):
         return int(self.simple) + 2 * int(self.in_language)
 
 
+# The most lines one selected phrase may span (the line in the path and the ones after it, up to
+# `to_line`). The app keeps a drag within the same number: MAX_PHRASE_LINES in
+# src/reader/phrase.ts. Keep the two the same.
+MAX_PHRASE_LINES = 4
+
+
 class PhraseIn(BaseModel):
-    # As it appears in the line: the words the owner selected and what's between them.
-    phrase: str = Field(min_length=1, max_length=300)
+    # As it appears in the text: the words the owner selected and what's between them, with a
+    # space where it runs on from one line into the next.
+    phrase: str = Field(min_length=1, max_length=1200)
     simple: bool = False
     in_language: bool = False
+    # The phrase's last line, when it runs on past the line in the path; None for that line alone.
+    to_line: int | None = None
 
     @property
     def version(self) -> int:
@@ -55,11 +64,12 @@ class PhraseTurnIn(BaseModel):
 
 
 class AskPhraseIn(BaseModel):
-    # As for PhraseIn: the phrase as it appears in the line.
-    phrase: str = Field(min_length=1, max_length=300)
+    # As for PhraseIn: the phrase as it appears in the text, and its last line.
+    phrase: str = Field(min_length=1, max_length=1200)
     # The conversation so far, ending with the new question.
     turns: list[PhraseTurnIn] = Field(min_length=1, max_length=40)
     in_language: bool = False
+    to_line: int | None = None
 
 
 class FormExplainIn(BaseModel):
@@ -77,6 +87,28 @@ def whole_text_lines(text: StoredText, plain: list[str]) -> tuple[str, ...]:
         f"{f'{ln.speaker}: ' if text.form == 'dialogue' else ''}{p} ({ln.english})"
         for ln, p in zip(text.lines, plain, strict=True)
     )
+
+
+def phrase_lines(
+    text: StoredText, plain: list[str], line: int, to_line: int | None, phrase: str
+) -> tuple[str, str]:
+    """The lines a selected phrase is in, joined, and their English, joined: line `line` alone, or
+    it and the ones after it through `to_line`. Raises the HTTP error the app shows when the lines
+    aren't in the text, span more than MAX_PHRASE_LINES, or don't hold the phrase."""
+    last = line if to_line is None else to_line
+    if not 0 <= line < len(text.lines) or not line <= last < len(text.lines):
+        raise HTTPException(404, "No such line.")
+    if last - line >= MAX_PHRASE_LINES:
+        raise HTTPException(
+            400, f"A phrase can run over at most {MAX_PHRASE_LINES} lines. Select a shorter one."
+        )
+    joined = " ".join(plain[line : last + 1])
+    # The app joins the pieces the server split the lines into, so the phrase is part of them as
+    # written; spaces are ignored in case the split and the lines disagree on them.
+    if not phrase or "".join(phrase.split()) not in "".join(joined.split()):
+        raise HTTPException(400, "That phrase isn't in this line. Select it again.")
+    english = " ".join(ln.english for ln in text.lines[line : last + 1])
+    return joined, english
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -154,15 +186,12 @@ def router(ctx: AppContext) -> APIRouter:
     @routes.post("/api/texts/{text_id}/lines/{line}/phrase", dependencies=authed)
     async def explain_phrase_in_line(text_id: int, line: int, body: PhraseIn) -> dict[str, Any]:
         text = store.get_text(engine.conn, text_id)
-        if text is None or not 0 <= line < len(text.lines):
+        if text is None:
             raise HTTPException(404, "No such line.")
         spaced = LANGUAGES[text.language].spaced
         plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
         phrase = body.phrase.strip()
-        # The app joins the pieces the server split the line into, so the phrase is part of the
-        # line as written; spaces are ignored in case the split and the line disagree on them.
-        if not phrase or "".join(phrase.split()) not in "".join(plain[line].split()):
-            raise HTTPException(400, "That phrase isn't in this line. Select it again.")
+        lines, english = phrase_lines(text, plain, line, body.to_line, phrase)
         kept = store.get_phrase_explanation(engine.conn, text_id, line, phrase, body.version)
         if kept is not None:
             return kept
@@ -180,13 +209,14 @@ def router(ctx: AppContext) -> APIRouter:
                     PhraseRequest(
                         text.language,
                         phrase,
-                        plain[line],
-                        text.lines[line].english,
+                        lines,
+                        english,
                         whole_text_lines(text, plain),
                         body.simple,
                         text.title,
                         line,
                         body.in_language,
+                        through=body.to_line,
                     )
                 )
             except ExplainFailed as e:
@@ -212,13 +242,12 @@ def router(ctx: AppContext) -> APIRouter:
         text_id: int, line: int, body: AskPhraseIn
     ) -> dict[str, str]:
         text = store.get_text(engine.conn, text_id)
-        if text is None or not 0 <= line < len(text.lines):
+        if text is None:
             raise HTTPException(404, "No such line.")
         spaced = LANGUAGES[text.language].spaced
         plain = [parse_line(ln.text, spaced)[0] for ln in text.lines]
         phrase = body.phrase.strip()
-        if not phrase or "".join(phrase.split()) not in "".join(plain[line].split()):
-            raise HTTPException(400, "That phrase isn't in this line. Select it again.")
+        lines, english = phrase_lines(text, plain, line, body.to_line, phrase)
         if body.turns[-1].role != "user":
             raise HTTPException(422, "The last turn has to be your question.")
         if ask_about_phrase is None:
@@ -232,13 +261,14 @@ def router(ctx: AppContext) -> APIRouter:
                 ask_phrase.PhraseQuestion(
                     text.language,
                     phrase,
-                    plain[line],
-                    text.lines[line].english,
+                    lines,
+                    english,
                     whole_text_lines(text, plain),
                     text.title,
                     line,
                     [Turn(t.role, t.content.strip()) for t in body.turns],
                     body.in_language,
+                    through=body.to_line,
                 )
             )
         except ask_phrase.AskPhraseFailed as e:
@@ -261,7 +291,7 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.get("/api/texts/{text_id}/lines/{line}/ask", dependencies=authed)
     async def phrase_chat(
-        text_id: int, line: int, phrase: str = Query(min_length=1, max_length=300)
+        text_id: int, line: int, phrase: str = Query(min_length=1, max_length=1200)
     ) -> dict[str, list[dict[str, str]]]:
         # The conversation about this phrase from the last couple of hours (store.PHRASE_CHAT_TTL), so
         # reopening the popup shows it again; none when it has expired or the phrase wasn't asked about.

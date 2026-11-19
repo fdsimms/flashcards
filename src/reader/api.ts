@@ -791,14 +791,16 @@ export function createApi(
       uri: `${root}/api/situations/audio/${encodeURIComponent(key)}`,
       headers: { Authorization: `Bearer ${passphrase}` },
     }),
-    // A phrase selected in a line (as it appears there), explained the same way and kept per phrase.
-    explainPhrase: (textId: number, line: number, phrase: string, simple: boolean, inLanguage = false) =>
-      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage }),
+    // A phrase selected in the text (as it appears there), explained the same way and kept per phrase. `line` is its
+    // first line and `toLine` its last: a phrase can run on into the next lines (reader/phrase.ts, MAX_PHRASE_LINES).
+    explainPhrase: (textId: number, line: number, toLine: number, phrase: string, simple: boolean, inLanguage = false) =>
+      call<PhraseExplanation>('POST', `/api/texts/${textId}/lines/${line}/phrase`, { phrase, simple, in_language: inLanguage, to_line: toLine }),
     // Claude's answer to a question typed about a selected phrase, from the conversation so far (the last turn is the
     // new question): asked only when the owner sends one. The server keeps the conversation for a couple of hours
-    // (`phraseChat`), so it comes back when the popup is reopened (ui/reader/usePhraseQuestions.ts).
-    askPhrase: async (textId: number, line: number, phrase: string, turns: { role: 'user' | 'assistant'; content: string }[], inLanguage = false) =>
-      (await call<{ answer: string }>('POST', `/api/texts/${textId}/lines/${line}/ask`, { phrase, turns, in_language: inLanguage })).answer,
+    // (`phraseChat`), so it comes back when the popup is reopened (ui/reader/usePhraseQuestions.ts). `line` and
+    // `toLine` are the phrase's first and last lines, as for explainPhrase.
+    askPhrase: async (textId: number, line: number, toLine: number, phrase: string, turns: { role: 'user' | 'assistant'; content: string }[], inLanguage = false) =>
+      (await call<{ answer: string }>('POST', `/api/texts/${textId}/lines/${line}/ask`, { phrase, turns, in_language: inLanguage, to_line: toLine })).answer,
     // The conversation kept about a phrase since its last answer; none once it has expired.
     phraseChat: async (textId: number, line: number, phrase: string) =>
       (await call<{ turns: { role: 'user' | 'assistant'; content: string }[] }>('GET', `/api/texts/${textId}/lines/${line}/ask?phrase=${encodeURIComponent(phrase)}`)).turns,

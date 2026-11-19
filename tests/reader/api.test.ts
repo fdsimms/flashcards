@@ -188,13 +188,20 @@ test("an explanation comes with the line's grammar, and none from an older serve
   expect((await createApi('https://x', 'p', older.impl).explainLine(3, 1, false)).grammar).toEqual([]);
 });
 
-test('a question about a phrase posts the phrase and the conversation, and returns the answer text', async () => {
+test('a question about a phrase posts the phrase, its last line and the conversation, and returns the answer text', async () => {
   const { impl, calls } = fakeFetch(json({ answer: 'It introduces someone new.' }));
   const turns = [{ role: 'user' as const, content: 'Why หนึ่ง here?' }];
-  const got = await createApi('https://x/reader', 'p', impl).askPhrase(3, 1, 'ผู้หญิงคนหนึ่ง', turns, true);
+  const got = await createApi('https://x/reader', 'p', impl).askPhrase(3, 1, 2, 'ผู้หญิงคนหนึ่ง', turns, true);
   expect(got).toBe('It introduces someone new.');
   expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/ask');
-  expect(JSON.parse(calls[0].init.body as string)).toEqual({ phrase: 'ผู้หญิงคนหนึ่ง', turns, in_language: true });
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ phrase: 'ผู้หญิงคนหนึ่ง', turns, in_language: true, to_line: 2 });
+});
+
+test('a phrase is explained from its first line, with its last line in the body', async () => {
+  const { impl, calls } = fakeFetch(json({ meaning: 'm', literal: '', points: [] }));
+  await createApi('https://x/reader', 'p', impl).explainPhrase(3, 1, 1, 'ya lo sé', true);
+  expect(calls[0].url).toBe('https://x/reader/api/texts/3/lines/1/phrase');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ phrase: 'ya lo sé', simple: true, in_language: false, to_line: 1 });
 });
 
 test('the kept conversation about a phrase is read by its line and phrase', async () => {
