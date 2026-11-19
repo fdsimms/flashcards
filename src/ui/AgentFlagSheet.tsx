@@ -7,6 +7,7 @@ import type { FixProposal } from '../core/fixCard';
 import { htmlToText } from '../core/html';
 import { Button, Chip, ErrorNote, Field } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
+import { AskingText } from './AskingText';
 
 /**
  * "Flag for Claude to check", shared by Review's menu and Trouble cards: a reason, and a note in the
@@ -93,7 +94,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
   const asking = phase === 'asking';
   const heading = phase === 'proposal'
     ? (proposal?.changes.length ? `Claude suggests ${proposal.changes.length === 1 ? 'one change' : `${proposal.changes.length} changes`}` : 'Claude found nothing to change')
-    : asking ? 'Asking Claude…' : word ? `Flag ${word} for Claude to check` : 'Flag for Claude to check';
+    : asking ? null : word ? `Flag ${word} for Claude to check` : 'Flag for Claude to check';
   return (
     <Modal visible={visible} onDismiss={onDismiss} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal={!busy} onRequestClose={() => { if (!busy) onClose(); }} backdropColor={c.surface}>
       <ScrollView
@@ -103,7 +104,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
         <View style={{ gap: space.xs }}>
-          <Text style={{ ...type.headline, color: c.text }}>{heading}</Text>
+          {heading === null ? <AskingText style={{ ...type.headline, color: c.text }} /> : <Text style={{ ...type.headline, color: c.text }}>{heading}</Text>}
           {phase === 'form' ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
               {fix

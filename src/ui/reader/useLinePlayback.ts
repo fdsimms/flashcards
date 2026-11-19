@@ -30,15 +30,19 @@ const READER_AUDIO_MODE = LISTENING_MODE;
  * Kept out of Reader.tsx so the screen holds what's read and this holds what's heard; the logic of
  * which line comes next is src/reader/playback.ts.
  */
-export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, onPlayedThrough }: {
+export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLineHeard, onPlayedThrough }: {
   api: Api;
   playerHost: ReaderPlayerHost;
   text: ReaderText | null;
+  /** How Up Next logs the text once played to its end, if this closes on Play all (`Handoff.from`), read as it closes. */
+  queueAs: () => 'shelf' | 'past' | null;
   onPlay: (rate: number) => void;
   onLineHeard: (line: number) => void;
   onPlayedThrough: (looping: boolean) => void;
 }) {
   const player = playerHost.player;
+  const queueAsRef = useRef(queueAs);
+  queueAsRef.current = queueAs;
   // The reader opening takes over from a Play all that carried on after the last one closed.
   useEffect(() => { playerHost.claim(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, as it opens
   const status = useAudioPlayerStatus(player);
@@ -88,7 +92,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     return () => {
       const l = carryOn.current;
       if (l.text && l.playingAll && l.current !== null && l.playing) {
-        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate }, l.breakTo ?? undefined);
+        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() }, l.breakTo ?? undefined);
         return;
       }
       playerHost.release();

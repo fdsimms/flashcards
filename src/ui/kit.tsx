@@ -192,7 +192,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, onPress, first, icon, disabled, action }: {
+export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPress, first, icon, disabled, action }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -202,6 +202,8 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, first, i
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
   loading?: boolean;
   onPress: () => void;
+  /** A menu of more things to do with it (Up Next's Play Next and Play Later). */
+  onLongPress?: () => void;
   first?: boolean;
   icon?: { name: SFSymbol; color: string };
   /** Dimmed and not tappable; the detail should say why. */
@@ -214,6 +216,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, first, i
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}

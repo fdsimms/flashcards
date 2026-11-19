@@ -2,6 +2,7 @@
 // reviewed here. Saving a note in the note editor is the approval step: nothing in this file (or the
 // screens that use it) creates a note or touches a card. Pure, so it's tested.
 import { bareNoun, bareVerb, genderOf } from '../core/gender';
+import { editTextToField } from '../core/noteEditing';
 import type { Language, NoteQueue, QueuedNote } from './api';
 
 /**
@@ -70,6 +71,21 @@ export function reviewTarget(note: QueuedNote): { deck: string; model: string; f
   const target = { deck: note.deck, model: 'Omnilanguage', fields: { Entry: bareVerb(note.language, note.fields.PartOfSpeech ?? '', bareNoun(note.language, genderOf(note.fields.Gender ?? ''), note.entry)), ...note.fields } };
   const part = note.fields.PartOfSpeech;
   return part ? { ...target, tags: [part] } : target;
+}
+
+/**
+ * What "Approve all" saves for a ready note: the same note the editor would open on `reviewTarget`, saved
+ * as it would save it untouched. The editor's text becomes stored fields (`editTextToField`), only the
+ * note type's own fields are kept (`fieldNames`, in its order), and `extraTags` (a running cram's) are added.
+ */
+export function approvalDraft(note: QueuedNote, fieldNames: readonly string[], extraTags: readonly string[]): { deck: string; model: string; fields: Record<string, string>; tags: string[] } {
+  const target = reviewTarget(note);
+  return {
+    deck: target.deck,
+    model: target.model,
+    fields: Object.fromEntries(fieldNames.map((f) => [f, editTextToField(target.fields[f] ?? '')])),
+    tags: [...new Set([...(target.tags ?? []), ...extraTags])],
+  };
 }
 
 const notes = (n: number) => (n === 1 ? '1 note' : `${n} notes`);

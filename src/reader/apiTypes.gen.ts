@@ -2105,6 +2105,12 @@ export interface components {
             common?: {
                 [key: string]: 0 | 250 | 500 | 1000 | 2000 | 3000 | 5000 | 10000;
             } | null;
+            /** Daily Tasks */
+            daily_tasks?: {
+                [key: string]: "daily" | "rotate" | "off";
+            } | null;
+            /** Daily Rotate Count */
+            daily_rotate_count?: number | null;
             /** Voices */
             voices?: {
                 [key: string]: {

@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
+import { dailyTasksSummary } from '../reader/dailyTasks';
 import { useApp } from '../ui/AppContext';
 import { ReadSettings } from '../ui/reader/ReadSettings';
 
@@ -17,6 +18,8 @@ export default function ReadSettingsRoute() {
       onSyncSetup={() => router.push('/sync')}
       voices={reader.settings?.voices}
       onVoices={(language) => router.push({ pathname: '/read-voices', params: { language } })}
+      dailySummary={dailyTasksSummary(reader.settings)}
+      onDailyTasks={() => router.push('/read-daily-tasks')}
       shareCounts={reader.shareCounts}
       onShareCounts={reader.setShareCounts}
     />

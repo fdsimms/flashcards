@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Form, type TextStage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
 import { bannerLine, bannerOverline, pastMeta, readBefore, seasonProgress, storyCoverMeta } from '../../reader/browse';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
@@ -24,6 +24,8 @@ import { useConnectionProblem } from '../connection';
 import { prefs } from '../../reader/storage';
 import { useDownloads, useSaving } from './readerDownloads';
 import { SavedMark } from './SavedMark';
+import { pastItem, shelfItem } from '../../reader/audioQueue';
+import { useQueueMenu } from '../useQueueMenu';
 
 /**
  * Read & Listen's home: one language's texts as rows of covers, like a streaming app's
@@ -196,21 +198,24 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     if (texts.length > 0) onOpen({ textId: texts[0], order: texts, playAll: true });
   };
 
+  // A text's long-press: Up Next's Play Now, Play Next and Play Later (useQueueMenu), and Remove.
+  const queueMenu = useQueueMenu();
   const textActions = (text: ShelfText) => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: text.title, options: ['Remove', 'Cancel'], cancelButtonIndex: 1, destructiveButtonIndex: 0 },
-      async (i) => {
+    if (!shelf) return;
+    // Remove needs the server; Up Next plays a downloaded text offline.
+    queueMenu(shelfItem(text, shelf.language), problem ? [] : [{
+      label: 'Remove',
+      destructive: true,
+      onPress: async () => {
         setActionError(null);
         try {
-          if (i === 0) await api.skip(text.id);
-          else return;
-          haptic.tap();
+          await api.skip(text.id);
         } catch (e) {
           setActionError(e instanceof ApiError ? e.message : "Couldn't change that. Try again.");
         }
         load();
       },
-    );
+    }]);
   };
 
   const [practiceBusy, setPracticeBusy] = useState(false);
@@ -302,7 +307,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
                 title={problem ? 'Downloaded' : 'Texts'}
                 action={summary ? { label: `Play all · ${playMinutes(shelf)} min`, accessibilityLabel: `Play all: ${summary}`, onPress: playAll } : null}
               >
-                {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={problem ? undefined : () => textActions(t)} />)}
+                {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />)}
                 {shelf.writing.map((w, i) => (
                   <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} form={w.form} stage={w.stage} />
                 ))}
@@ -321,7 +326,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
 
             {readBeforeTexts.length > 0 ? (
               <CoverRow title="Reread" action={{ label: 'See all', accessibilityLabel: 'See all texts read before', onPress: onPast }}>
-                {readBeforeTexts.map((t) => <PastCover key={t.id} text={t} onPress={() => onReadAgain(t)} />)}
+                {readBeforeTexts.map((t) => <PastCover key={t.id} text={t} onPress={() => onReadAgain(t)} onLongPress={() => queueMenu(pastItem(t, shelf.language))} />)}
               </CoverRow>
             ) : null}
 
@@ -409,7 +414,7 @@ function StoryCover({ story, onPress }: { story: StoryListItem; onPress: () => v
   );
 }
 
-function PastCover({ text, onPress }: { text: PastText; onPress: () => void }) {
+function PastCover({ text, onPress, onLongPress }: { text: PastText; onPress: () => void; onLongPress?: () => void }) {
   const { reader } = useApp();
   return (
     <Cover
@@ -419,6 +424,7 @@ function PastCover({ text, onPress }: { text: PastText; onPress: () => void }) {
       title={text.title}
       meta={pastMeta(text, new Date(), reader.dayStartsAtHour)}
       onPress={onPress}
+      onLongPress={onLongPress}
     />
   );
 }

@@ -21,6 +21,7 @@ describe('settings pages', () => {
     expect(searchSettings('khrap').map((e) => e.id)).toEqual(['particle']);
     expect(searchSettings('narr').map((e) => e.id)).toEqual(['narrator']);
     expect(searchSettings('wait answer').map((e) => e.id)).toEqual(['lessonWait']);
+    expect(searchSettings('autoplay').map((e) => e.id)).toEqual(['keepPlaying']);
   });
 
   it('needs every word, ignores case, and finds nothing for a blank query', () => {

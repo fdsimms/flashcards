@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DATE_STEPS, DRILL_STEPS, drawQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  languageOfDeck, skillDrafts, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  heardRight, languageOfDeck, missingWords, skillDrafts, skillOffer, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
@@ -79,7 +79,7 @@ describe('skill drills', () => {
 
 describe('skill cards in the collection', () => {
   it('offers the groups a language has', () => {
-    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels']);
+    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'classifiers']);
     expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'cases']);
     expect(skillGroups('en')).toEqual([]);
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
@@ -203,5 +203,68 @@ describe('dates and money drills', () => {
     const tag = (t: string, settled: boolean) => ({ tags: ['skill', `skill::${t}`], suspended: false, started: true, settled, dueInDays: 2, percent: 80 });
     const sections = skillSections([tag('consonants', true), tag('vowels', false), tag('cases', true)]);
     expect(sections.map((s) => [s.title, s.rows.map((r) => r.title)])).toEqual([['Letters', ['Consonant classes', 'Vowel length']], ['Grammar', ['Which case']]]);
+  });
+});
+
+describe('the five additions', () => {
+  it('writes a classifier card per Thai noun, and none for a language without classifiers', () => {
+    const drafts = skillDrafts;
+    const groups = skillGroups;
+    const th = drafts('th', 'Thai', ['classifiers']);
+    expect(th.length).toBeGreaterThan(10);
+    expect(th[0].fields.Front).toContain('Which classifier?');
+    expect(th[0].tags).toContain('skill::classifiers');
+    expect(groups('th').some((g) => g.id === 'classifiers')).toBe(true);
+    expect(groups('ja').find((g) => g.id === 'classifiers')?.title).toBe('Counters');
+    expect(drafts('pl', 'Polish', ['classifiers'])).toEqual([]);
+  });
+
+  it('waits for the words a step needs, and says so', () => {
+    const release = releasable;
+    const sections = skillSections;
+    expect(stepWords('numbers-999', 'th')).toEqual(['ร้อย']);
+    expect(stepWords('money-10000', 'pl')).toEqual(['tysiąc']);
+    expect(stepWords('time-quarters', 'pl')).toEqual(['kwadrans']);
+    expect(stepWords('numbers-99', 'th')).toEqual([]);
+    expect(missingWords(['ร้อย'], ['หนึ่งร้อย', 'แมว'])).toEqual(['ร้อย']);
+    expect(missingWords(['ร้อย'], ['ร้อย'])).toEqual([]);
+    expect(missingWords(['sto'], ['Sto, setka'])).toEqual([]);
+    expect(missingWords(['sto'], ['stopa'])).toEqual(['sto']);
+    const cards = [
+      { id: 'a', stepId: 'numbers-99', language: 'th' as const, suspended: false, settled: true },
+      { id: 'b', stepId: 'numbers-999', language: 'th' as const, suspended: true, settled: false, missing: ['ร้อย'] },
+    ];
+    expect(release(cards)).toEqual([]);
+    expect(release([cards[0], { ...cards[1], missing: [] }])).toEqual(['b']);
+    const shown = sections([{ tags: ['skill', 'skill::drill::numbers-999'], suspended: true, started: false, settled: false, dueInDays: 0, missing: ['ร้อย'] }]);
+    expect(shown[0].rows[0].detail).toBe('Waiting for ร้อย in your deck');
+  });
+
+  it('suggests Hard for a drill all right but slow', () => {
+    expect(suggestedRating([true, true, true], [2000, 3000, 2500], 'time')).toBe(3);
+    expect(suggestedRating([true, true, true], [9000, 7000, 1000], 'time')).toBe(2);
+    expect(suggestedRating([true, false, true], [1000, 1000, 1000], 'time')).toBe(2);
+    expect(suggestedRating([true, true, true], [9000, 9000, 9000])).toBe(3);
+  });
+
+  it('takes a spoken answer said any accepted way, or as the digits the phone wrote', () => {
+    const q = { kind: 'number' as const, question: { kind: 'number' as const, n: 1350 } };
+    const said = drillAnswer(q, 'th')!.everyday.text;
+    expect(heardRight(q, said, 'th')).toBe(true);
+    expect(heardRight(q, said.replace(/\s/g, '') + '.', 'th')).toBe(true);
+    expect(heardRight(q, '1350', 'th')).toBe(true);
+    expect(heardRight(q, '1,350', 'th')).toBe(true);
+    expect(heardRight(q, '1351', 'th')).toBe(false);
+    expect(heardRight(q, '', 'th')).toBe(false);
+    const t = { kind: 'time' as const, time: { hour: 14, minute: 45 } };
+    expect(heardRight(t, '14:45', 'pl')).toBe(true);
+    expect(heardRight(t, '2:45', 'pl')).toBe(true);
+    expect(heardRight({ kind: 'money', amount: 135000 }, '1350', 'th')).toBe(true);
+  });
+
+  it('offers skill cards for a language deck without any', () => {
+    expect(skillOffer('Thai', [])).toBe('Thai');
+    expect(skillOffer('Thai', [{ deck: 'Thai::Skills', tags: ['skill'] }])).toBeUndefined();
+    expect(skillOffer('🧠 Trivia', [])).toBeUndefined();
   });
 });

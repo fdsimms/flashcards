@@ -5,8 +5,10 @@ import type { Api, Language, WordSuggestions } from '../../reader/api';
 import {
   firstTicked, suggestionDetail, suggestionSections, tickedEntries, wordsToTick,
 } from '../../reader/newWords';
+import { rankFrequency } from '../../reader/frequency';
 import { connection } from '../connection';
 import { haptic } from '../haptics';
+import { FrequencyMeter } from './FrequencyMeter';
 import { Button, Divider, ErrorNote, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 
@@ -128,6 +130,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
                 {s.words.map((w, i) => {
                   const on = picked.has(w.word);
                   const detail = suggestionDetail(w);
+                  const frequency = rankFrequency(w.rank);
                   return (
                     <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 60, paddingRight: space.xs }}>
                       {i ? <Divider inset={space.l + 24 + space.m} /> : null}
@@ -135,7 +138,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
                         onPress={() => toggle(w.word)}
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: on }}
-                        accessibilityLabel={[w.word, detail].filter(Boolean).join(', ')}
+                        accessibilityLabel={[w.word, detail, frequency.spoken].filter(Boolean).join(', ')}
                         style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingLeft: space.l }}
                       >
                         <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={24} color={on ? c.accent : c.controlEdge} />
@@ -143,6 +146,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
                           <Text style={{ ...type.body, color: c.text }}>{w.word}</Text>
                           {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
                         </View>
+                        <FrequencyMeter frequency={frequency} />
                       </Tappable>
                       <Tappable
                         onPress={() => void dismiss(w.word)}

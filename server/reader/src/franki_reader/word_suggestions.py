@@ -6,7 +6,8 @@ architecture.md, Suggested words). Two sources, neither of which asks Claude:
   `common` setting counts as known is never one.
 - The language's most common words the deck lacks, most common first, from just past the `common`
   setting (the words before it count as known already, which the vocabulary check suggested); Thai
-  counts no common words, so it starts at the top.
+  counts no common words, so it starts at the top. English has none: its common words are all
+  ones a native speaker knows, and its deck is for the ones they don't (`suggests_common`).
 
 A word is left out when it's in the deck in any form, studied or not, learned in WaniKani (Japanese),
 waiting in the note queue, or dismissed with "Not interested" (`store.dismiss_word`). Nothing here
@@ -131,6 +132,8 @@ def suggest(
     texts = from_texts(
         [t for t, _ in store.finished_texts(conn, language)], lexicon, skip, meanings, language
     )
+    if not LANGUAGES[language].suggests_common:
+        return texts, []
     settings = store.load_settings(conn)
     start = settings.common_for(language) if LANGUAGES[language].counts_common else 0
     common = from_common(language, start, skip, [s.word for s in texts], {**meanings, **vocab})

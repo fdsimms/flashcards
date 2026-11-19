@@ -6,6 +6,7 @@ import { noteQueueStore } from '../reader/noteQueueStore';
 import { useApp } from '../ui/AppContext';
 import { ReadNoteQueue } from '../ui/reader/ReadNoteQueue';
 import { heldWords, useHeldWords } from '../ui/held';
+import { useApproveQueued } from '../ui/useApproveQueued';
 import { useNoteQueue } from '../ui/useNoteQueue';
 
 /** The queued notes, opened from the deck list's card: review what Claude filled in, one note at a time. */
@@ -13,6 +14,7 @@ export default function ReadNoteQueueRoute() {
   const { reader, openNoteEditor } = useApp();
   const { queue, error, refresh, retry, remove } = useNoteQueue(reader.api);
   const held = useHeldWords();
+  const approveAll = useApproveQueued(remove);
   if (!reader.api) return <Redirect href="/read-settings" />;
   return (
     <ReadNoteQueue
@@ -25,6 +27,7 @@ export default function ReadNoteQueueRoute() {
       onReview={(note) => new Promise<boolean>((resolve) => openNoteEditor(reviewTarget(note), (result) => {
         resolve(!!result && 'saved' in result);
       }))}
+      onApproveAll={approveAll}
       onRetry={retry}
       onRemove={remove}
       onRefresh={refresh}

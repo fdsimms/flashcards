@@ -4,6 +4,7 @@ import type { AskTurn } from '../../core/askCard';
 import { haptic } from '../haptics';
 import { ErrorNote, Icon, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
+import { AskingText } from '../AskingText';
 
 /** The questions asked about the phrase and the answers, under its explanation. */
 export function PhraseThread({ turns, asking, error, onRetry }: { turns: AskTurn[]; asking: boolean; error: string | null; onRetry?: () => void }) {
@@ -23,7 +24,7 @@ export function PhraseThread({ turns, asking, error, onRetry }: { turns: AskTurn
       {asking ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <ActivityIndicator color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text>
+          <AskingText style={{ ...type.subhead, color: c.textSecondary }} />
         </View>
       ) : null}
       {error ? <ErrorNote message={error} onRetry={onRetry} /> : null}
