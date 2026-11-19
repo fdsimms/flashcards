@@ -197,6 +197,25 @@ export function togglePoolFont(pool: AppFont[], id: AppFont): AppFont[] {
   return pool.length > 1 ? pool.filter((f) => f !== id) : pool;
 }
 
+/** How a deck's cards pick their font: the app's (no list), one fixed font, or a different one of several each session. */
+export type DeckFontMode = 'app' | 'deck' | 'random';
+
+/** The mode a saved `cardFonts` list means. One font is a fixed font; a list of several is a randomized one. */
+export function deckFontMode(pool: readonly AppFont[]): DeckFontMode {
+  return pool.length === 0 ? 'app' : pool.length === 1 ? 'deck' : 'random';
+}
+
+/**
+ * The `cardFonts` list to save when a deck switches to `mode`, keeping what was chosen: the deck's first font
+ * stays the fixed one, and a fixed font is the first one checked when randomizing. `covering` is the fonts
+ * that can draw the deck, used when nothing was chosen yet (all of them to randomize, the first for one).
+ */
+export function poolForMode(mode: DeckFontMode, pool: readonly AppFont[], covering: readonly AppFont[]): AppFont[] {
+  if (mode === 'app') return [];
+  const from = pool.length ? pool : covering;
+  return mode === 'deck' ? from.slice(0, 1) : [...from];
+}
+
 /**
  * The font a card shows in a deck that cycles. It comes from the card and the session, not from a draw
  * made as the card appears, so a card keeps one font across its front, its back and an undo, and gets

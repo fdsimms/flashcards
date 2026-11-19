@@ -317,9 +317,9 @@ export interface DeckSettings {
   /** Note id to when Franki first saw the tag on it, kept on the deck whose switch is on. */
   priorityStamps?: Record<string, string>;
   /**
-   * The fonts this deck's cards cycle through, one per card for each review session (`cardFontFor`).
-   * An empty list means the app's font, and sets that for a subdeck whose parent cycles; unset, the
-   * deck takes its parent's (`deckCardFonts`).
+   * The fonts this deck's cards are set in: one font is fixed (Deck font), several are randomized, one
+   * per card for each review session (`cardFontFor`). An empty list means the app's font, and sets that
+   * for a subdeck whose parent sets fonts; unset, the deck takes its parent's (`deckCardFonts`).
    */
   cardFonts?: AppFont[];
 }
