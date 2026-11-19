@@ -1,7 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { SETTINGS_PAGES, searchSettings, type SettingsEntry } from '../core/settingsPages';
+import { DECK_OPTIONS_LIST, SETTINGS_PAGES, searchSettings, type SettingsEntry } from '../core/settingsPages';
 import type { Repo } from '../db/repo';
 import { useFontSettings } from './AppFont';
 import { fontOption } from '../core/fonts';
@@ -10,7 +10,8 @@ import { space, useTheme, readable } from './theme';
 
 /**
  * Every setting, from one place. The screens that aren't about one page (Anki, Backup, WaniKani),
- * then one row per page (the same page the gear in that tab's header opens), then what applies
+ * then one row per page (the same page the gear in that tab's header opens), then each deck's
+ * options (a list of decks, the same options as a deck's own menu opens), then what applies
  * everywhere (font, voices, speaking). Typing in the search bar lists the settings that match, each
  * opening the screen or page it's on (`src/core/settingsPages.ts`).
  */
@@ -42,7 +43,7 @@ export function Settings({ repo, backupText, wanikaniOn, onAnki, onBackup, onWan
 
   const found = searchSettings(query);
   const open = (e: SettingsEntry) => (e.route ? onOpen(e.route) : onPage(e.page));
-  const pageTitle = (e: SettingsEntry) => (e.page === 'settings' ? 'Settings' : SETTINGS_PAGES.find((p) => p.id === e.page)?.title);
+  const pageTitle = (e: SettingsEntry) => (e.page === 'settings' ? 'Settings' : e.page === 'deck' ? 'Deck options' : SETTINGS_PAGES.find((p) => p.id === e.page)?.title);
 
   return (
     <Screen title="Settings">
@@ -65,6 +66,10 @@ export function Settings({ repo, backupText, wanikaniOn, onAnki, onBackup, onWan
             <SectionTitle>By page</SectionTitle>
             <Group>
               {SETTINGS_PAGES.map((p, i) => <NavRow key={p.id} first={i === 0} label={p.title} detail={p.summary} onPress={() => onPage(p.id)} />)}
+            </Group>
+            <SectionTitle>By deck</SectionTitle>
+            <Group>
+              <NavRow first label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
             </Group>
             <SectionTitle>Everywhere</SectionTitle>
             <Group>

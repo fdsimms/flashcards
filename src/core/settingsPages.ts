@@ -22,7 +22,7 @@ export interface SettingsPageInfo {
 /** In the order Settings lists them: the tab bar's. */
 export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
   { id: 'today', title: 'Today', summary: 'Study reminder, vacation mode' },
-  { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana' },
+  { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana, deck options' },
   { id: 'read', title: 'Read & Listen', summary: 'Turn it on or off, language' },
   { id: 'lessons', title: 'Lessons', summary: 'Narrator, waiting for and hearing your answers, Thai polite ending' },
   { id: 'practice', title: 'Practice', summary: 'Daily extras' },
@@ -34,14 +34,20 @@ export function settingsPage(id: string | undefined): SettingsPageInfo | undefin
 
 export interface SettingsEntry {
   id: string;
-  /** The page it's on, or `settings` for a row on Settings itself (Font, Voices, Anki...). */
-  page: SettingsPageId | 'settings';
+  /**
+   * The page it's on, `settings` for a row on Settings itself (Font, Voices, Anki...), or `deck`
+   * for one of a deck's options, which opens the list of decks to pick which.
+   */
+  page: SettingsPageId | 'settings' | 'deck';
   label: string;
   /** Words that should find it that its label doesn't have. */
   keywords?: readonly string[];
   /** The screen the row opens, when it opens one of its own (a switch has none: its page is the destination). */
   route?: string;
 }
+
+/** The list of decks, each opening its Deck options (src/ui/DeckOptionsList.tsx). */
+export const DECK_OPTIONS_LIST = '/deck-options-list';
 
 export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'anki', page: 'settings', label: 'Anki', keywords: ['sync', 'import', 'export', 'apkg', 'server'], route: '/anki' },
@@ -50,6 +56,18 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text'], route: '/app-font' },
   { id: 'voices', page: 'settings', label: 'Voices', keywords: ['text to speech', 'tts', 'azure', 'read aloud'], route: '/voices' },
   { id: 'speaking', page: 'settings', label: 'Speaking', keywords: ['answer by speaking', 'microphone', 'dictation', 'recognizer'], route: '/speaking' },
+  { id: 'deckOptions', page: 'settings', label: 'Deck options', keywords: ['per deck', 'each deck', 'subdeck'], route: DECK_OPTIONS_LIST },
+
+  // A deck's own options (src/ui/DeckOptions.tsx and the parts beside it), found by name.
+  { id: 'deckGate', page: 'deck', label: 'Limit cards in progress', keywords: ['progress gate', 'cap', 'maximum', 'new cards'], route: DECK_OPTIONS_LIST },
+  { id: 'deckNewOrder', page: 'deck', label: 'New cards', keywords: ['order', 'frequency', 'sort'], route: DECK_OPTIONS_LIST },
+  { id: 'deckCustomStudy', page: 'deck', label: 'Custom study', keywords: ['study more', 'extra', 'limit'], route: DECK_OPTIONS_LIST },
+  { id: 'deckSkills', page: 'deck', label: 'Skill cards', keywords: ['drills', 'times', 'numbers', 'dates', 'prices', 'money', 'letters', 'consonants', 'vowels', 'classifiers', 'cases'], route: DECK_OPTIONS_LIST },
+  { id: 'deckPriority', page: 'deck', label: 'Tagged cards first', keywords: ['priority', 'tags'], route: DECK_OPTIONS_LIST },
+  { id: 'deckFonts', page: 'deck', label: 'Card fonts', keywords: ['font', 'typeface', 'script'], route: DECK_OPTIONS_LIST },
+  { id: 'deckForms', page: 'deck', label: 'Forms practice', keywords: ['conjugation', 'declension', 'grammar'], route: DECK_OPTIONS_LIST },
+  { id: 'deckLookalikes', page: 'deck', label: 'Lookalike words', keywords: ['confused', 'similar', 'apart', 'sooner'], route: DECK_OPTIONS_LIST },
+  { id: 'deckRecordings', page: 'deck', label: 'Record audio', keywords: ['recordings', 'azure', 'voice'], route: DECK_OPTIONS_LIST },
 
   { id: 'reminder', page: 'today', label: 'Study reminder', keywords: ['notification', 'daily'], route: '/reminder' },
   { id: 'vacation', page: 'today', label: 'Vacation mode', keywords: ['pause', 'break', 'away'], route: '/vacation' },

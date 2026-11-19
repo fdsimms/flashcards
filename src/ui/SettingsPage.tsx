@@ -5,7 +5,7 @@ import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons
 import { failureText } from '../core/failure';
 import { THAI_TEXT_CHOICES, type ThaiTextSize } from '../core/script';
 import type { FuriganaMode } from '../core/furigana';
-import { settingsPage, type SettingsPageId } from '../core/settingsPages';
+import { DECK_OPTIONS_LIST, settingsPage, type SettingsPageId } from '../core/settingsPages';
 import type { Repo } from '../db/repo';
 import { Group, Help, NavRow, Screen, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
@@ -120,6 +120,9 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
         <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
       </Group>
       <Help>The last five apply to Omnilanguage cards. Other note types use the buttons and their own templates.</Help>
+      <Group>
+        <NavRow first label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
+      </Group>
     </>
   );
 }
