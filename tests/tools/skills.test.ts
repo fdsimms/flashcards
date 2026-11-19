@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DRILL_STEPS, drawQuestion, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  DATE_STEPS, DRILL_STEPS, drawQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   languageOfDeck, skillDrafts, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 
@@ -9,7 +9,7 @@ const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.
 describe('skill drills', () => {
   it('gives every step a unique id, and each later step the one before it', () => {
     expect(new Set(DRILL_STEPS.map((s) => s.id)).size).toBe(DRILL_STEPS.length);
-    for (const ladder of [TIME_STEPS, NUMBER_STEPS]) {
+    for (const ladder of [TIME_STEPS, NUMBER_STEPS, DATE_STEPS, MONEY_STEPS]) {
       expect(ladder[0].after).toBeUndefined();
       ladder.slice(1).forEach((s, i) => expect(s.after).toBe(ladder[i].id));
     }
@@ -79,8 +79,8 @@ describe('skill drills', () => {
 
 describe('skill cards in the collection', () => {
   it('offers the groups a language has', () => {
-    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'consonants']);
-    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers']);
+    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels']);
+    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'cases']);
     expect(skillGroups('en')).toEqual([]);
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
   });
@@ -161,5 +161,47 @@ describe('skill progress', () => {
 
   it('is empty with no skill cards', () => {
     expect(skillSections([])).toEqual([]);
+  });
+});
+
+describe('dates and money drills', () => {
+  it('asks a date with the parts of its step, and says it in the language', () => {
+    for (const step of DATE_STEPS) {
+      const q = drawQuestion(step);
+      if (q.kind !== 'date') throw new Error('not a date');
+      expect(q.parts).toEqual((step as unknown as { parts: unknown }).parts);
+      expect(drillAnswer(q, 'th')?.last?.title).toBe('As written');
+    }
+    expect(questionText({ kind: 'date', date: { year: 2026, month: 11, day: 12 }, parts: { weekday: true, year: true } })).toBe('Thursday, November 12, 2026');
+    expect(questionText({ kind: 'date', date: { year: 2026, month: 11, day: 12 }, parts: { weekday: false, year: false } })).toBe('November 12');
+  });
+
+  it("asks a price within the step, in the language's own money", () => {
+    for (let k = 0; k < 100; k++) {
+      const q = drawQuestion(MONEY_STEPS[0], undefined, Math.random, 'th');
+      if (q.kind !== 'money') throw new Error('not money');
+      expect(q.amount).toBeGreaterThan(0);
+      expect(q.amount).toBeLessThanOrEqual(100 * 100);
+    }
+    expect(questionText({ kind: 'money', amount: 135000 }, 'th')).toBe('฿1,350');
+    expect(drillAnswer({ kind: 'money', amount: 135000 }, 'th')?.everyday.text).toBeTruthy();
+  });
+
+  it('writes a card per Thai vowel and per case-taking word, with unique first fields', () => {
+    const vowels = skillDrafts('th', 'Thai', ['vowels']);
+    expect(vowels.length).toBeGreaterThan(10);
+    expect(new Set(vowels.map((d) => d.fields.Front)).size).toBe(vowels.length);
+    expect(vowels[0].fields.Back).toMatch(/Short|Long/);
+    const cases = skillDrafts('pl', 'Polish', ['cases']);
+    expect(cases.length).toBeGreaterThan(10);
+    expect(new Set(cases.map((d) => d.fields.Front)).size).toBe(cases.length);
+    expect(cases[0].fields.Back).toContain('takes the');
+    expect(skillDrafts('th', 'Thai', ['cases'])).toEqual([]);
+  });
+
+  it('counts vowels with the letters and cases under grammar', () => {
+    const tag = (t: string, settled: boolean) => ({ tags: ['skill', `skill::${t}`], suspended: false, started: true, settled, dueInDays: 2, percent: 80 });
+    const sections = skillSections([tag('consonants', true), tag('vowels', false), tag('cases', true)]);
+    expect(sections.map((s) => [s.title, s.rows.map((r) => r.title)])).toEqual([['Letters', ['Consonant classes', 'Vowel length']], ['Grammar', ['Which case']]]);
   });
 });

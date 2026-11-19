@@ -134,7 +134,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
         {filtered ? null : (
           <Group>
             <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
-            <NavRow label="Skill cards" detail="Times, numbers and letters as cards in your reviews" onPress={onSkillCards} />
+            <NavRow label="Skill cards" detail="Times, numbers, dates, prices, letters and cases as cards in your reviews" onPress={onSkillCards} />
           </Group>
         )}
         {settings ? <DeckPriorityOptions deck={deck} notes={allNotes} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}

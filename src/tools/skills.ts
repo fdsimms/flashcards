@@ -5,8 +5,11 @@ import type { NumberQuestion, NumberSaying } from './number';
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
 import { clockText, randomTime, type ClockTime, type MinuteStep, type TimeSaying } from './time';
-import { CLASS_NAMES, CONSONANTS } from './thai/letters';
-import { NUMBER_SAYERS, TIME_SAYERS } from './tools';
+import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
+import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
+import { CURRENCIES, randomAmount, type MoneyMax } from './money';
+import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
  * Skill cards' drills: a skill with endless questions (any time, any number) as a ladder of steps,
@@ -16,7 +19,7 @@ import { NUMBER_SAYERS, TIME_SAYERS } from './tools';
  * outline (src/ui/tools/SkillDrill.tsx), and the learner's tap is what reaches FSRS.
  */
 
-export type DrillGroup = 'time' | 'numbers';
+export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money';
 
 export interface DrillStep {
   /** Stable across versions: it's written into the card (`SkillId`) and read back to find the drill. */
@@ -31,6 +34,8 @@ export interface DrillStep {
 
 interface TimeStep extends DrillStep { group: 'time'; minutes: 'hours' | 'quarters' | MinuteStep }
 interface NumberStep extends DrillStep { group: 'numbers'; min: number; max: number }
+interface DateStep extends DrillStep { group: 'dates'; parts: DateParts }
+interface MoneyStep extends DrillStep { group: 'money'; max: MoneyMax }
 
 export const TIME_STEPS: TimeStep[] = [
   { id: 'time-hours', group: 'time', title: "O'clock and half past", minutes: 'hours', selfCheck: 'Say three times aloud: one on the hour, one at half past, one in the evening.' },
@@ -46,27 +51,62 @@ export const NUMBER_STEPS: NumberStep[] = [
   { id: 'numbers-big', group: 'numbers', title: 'Thousands and up', min: 1000, max: 999_999, after: 'numbers-999', selfCheck: 'Say three numbers in the thousands aloud, such as 2,400, 15,031 and 680,000.' },
 ];
 
-export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS];
+export const DATE_STEPS: DateStep[] = [
+  { id: 'dates-day', group: 'dates', title: 'Day and month', parts: { weekday: false, year: false }, selfCheck: "Say today's date aloud, then your birthday, then the first of next month." },
+  { id: 'dates-weekday', group: 'dates', title: 'With the weekday', parts: { weekday: true, year: false }, after: 'dates-day', selfCheck: "Say today's date aloud with its weekday, then the same for a week from now." },
+  { id: 'dates-year', group: 'dates', title: 'With the weekday and year', parts: { weekday: true, year: true }, after: 'dates-weekday', selfCheck: 'Say aloud the full date of today, of your birthday this year, and of New Year\'s Day.' },
+];
 
-export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers' };
+export const MONEY_STEPS: MoneyStep[] = [
+  { id: 'money-100', group: 'money', title: 'Prices up to 100', max: 100, selfCheck: 'Say three small prices aloud, such as a coffee, a snack and a bus fare.' },
+  { id: 'money-1000', group: 'money', title: 'Prices up to 1,000', max: 1000, after: 'money-100', selfCheck: 'Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.' },
+  { id: 'money-10000', group: 'money', title: 'Prices up to 10,000', max: 10000, after: 'money-1000', selfCheck: 'Say three prices up to 10,000 aloud, such as a phone, a flight and a month\'s rent.' },
+];
+
+export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS];
+
+export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money' };
 
 export const drillStep = (id: string): DrillStep | undefined => DRILL_STEPS.find((s) => s.id === id);
 
 /** Whether the language has the drills of a group (a saying for each question). */
 export function hasDrills(group: DrillGroup, language: Language): boolean {
-  return group === 'time' ? !!TIME_SAYERS[language] : !!NUMBER_SAYERS[language];
+  if (group === 'time') return !!TIME_SAYERS[language];
+  if (group === 'numbers') return !!NUMBER_SAYERS[language];
+  if (group === 'dates') return !!DATE_SAYERS[language];
+  return !!MONEY_SAYERS[language] && !!CURRENCY_OF[language];
 }
 
 /** How many questions a drill asks before the card is rated. */
 export const DRILL_QUESTIONS = 3;
 
-export type DrillQuestion = { kind: 'time'; time: ClockTime } | { kind: 'number'; question: NumberQuestion };
+export type DrillQuestion =
+  | { kind: 'time'; time: ClockTime }
+  | { kind: 'number'; question: NumberQuestion }
+  | { kind: 'date'; date: CalendarDate; parts: DateParts }
+  | { kind: 'money'; amount: number };
 
 /** A question's key, so the same one isn't asked twice in a row. */
-export const questionKey = (q: DrillQuestion): string => (q.kind === 'time' ? clockText(q.time) : String(q.question.kind === 'phone' ? q.question.written : q.question.n));
+export function questionKey(q: DrillQuestion): string {
+  switch (q.kind) {
+    case 'time': return clockText(q.time);
+    case 'number': return String(q.question.kind === 'phone' ? q.question.written : q.question.n);
+    case 'date': return `${q.date.year}-${q.date.month}-${q.date.day}`;
+    case 'money': return String(q.amount);
+  }
+}
 
-/** A question for `step`, never `previous` again. */
-export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random): DrillQuestion {
+/** A question for `step` in `language`, never `previous` again. */
+export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language): DrillQuestion {
+  if (step.group === 'dates') {
+    const s = step as DateStep;
+    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random), parts: s.parts };
+  }
+  if (step.group === 'money') {
+    const s = step as MoneyStep;
+    const currency = CURRENCIES[(language && CURRENCY_OF[language]) || 'EUR'];
+    return { kind: 'money', amount: randomAmount(currency, s.max, previous?.kind === 'money' ? previous.amount : undefined, random) };
+  }
   if (step.group === 'time') {
     const s = step as TimeStep;
     const last = previous?.kind === 'time' ? previous.time : undefined;
@@ -88,9 +128,21 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
   return { kind: 'number', question: { kind: 'number', n } };
 }
 
-/** How a question reads on the card: its digits ("14:45", "2,400"). */
-export function questionText(q: DrillQuestion): string {
-  return q.kind === 'time' ? clockText(q.time) : q.question.kind === 'number' ? q.question.n.toLocaleString('en-US') : '';
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** How a question reads on the card: its digits ("14:45", "2,400"), the date in English with the parts asked, or the price as the language writes it. */
+export function questionText(q: DrillQuestion, language?: Language): string {
+  switch (q.kind) {
+    case 'time': return clockText(q.time);
+    case 'number': return q.question.kind === 'phone' ? q.question.written : q.question.n.toLocaleString('en-US');
+    case 'date': {
+      const day = `${MONTHS[q.date.month - 1]} ${q.date.day}`;
+      const withDay = q.parts.weekday ? `${WEEKDAYS[weekdayOf(q.date)]}, ${day}` : day;
+      return q.parts.year ? `${withDay}, ${q.date.year}` : withDay;
+    }
+    case 'money': return (language && MONEY_SAYERS[language]?.(q.amount).written.text) ?? String(q.amount);
+  }
 }
 
 /** A question's answer in `language`: the usual way to say it, the other ways heard, and a formal or written form where there is one. */
@@ -98,6 +150,14 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
   if (q.kind === 'time') {
     const s: TimeSaying | undefined = TIME_SAYERS[language]?.(q.time);
     return s && { everyday: s.everyday, also: s.also, last: { title: 'Formal', phrase: s.formal } };
+  }
+  if (q.kind === 'date') {
+    const s = DATE_SAYERS[language]?.(q.date, q.parts);
+    return s && { everyday: s.everyday, also: s.also, last: { title: 'As written', phrase: s.written } };
+  }
+  if (q.kind === 'money') {
+    const s = MONEY_SAYERS[language]?.(q.amount);
+    return s && { everyday: s.everyday, also: s.also };
   }
   const s: NumberSaying | undefined = NUMBER_SAYERS[language]?.(q.question);
   return s && { everyday: s.everyday, also: s.also };
@@ -126,7 +186,7 @@ export const SKILL_TAG = 'skill';
 export const SKILL_NOTE_TYPE = 'Basic';
 export const SKILLS_SUBDECK = 'Skills';
 
-export type SkillGroup = DrillGroup | 'consonants';
+export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases';
 
 export interface SkillGroupInfo {
   id: SkillGroup;
@@ -150,7 +210,14 @@ export function skillGroups(language: Language): SkillGroupInfo[] {
   const steps = (ladder: DrillStep[]) => ladder.map((s) => s.title.charAt(0).toLowerCase() + s.title.slice(1)).join(', ');
   if (hasDrills('time', language)) out.push({ id: 'time', title: GROUP_TITLES.time, detail: `${TIME_STEPS.length} drill cards: ${steps(TIME_STEPS)}`, count: TIME_STEPS.length });
   if (hasDrills('numbers', language)) out.push({ id: 'numbers', title: GROUP_TITLES.numbers, detail: `${NUMBER_STEPS.length} drill cards: ${steps(NUMBER_STEPS)}`, count: NUMBER_STEPS.length });
-  if (language === 'th') out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
+  if (hasDrills('dates', language)) out.push({ id: 'dates', title: GROUP_TITLES.dates, detail: `${DATE_STEPS.length} drill cards: ${steps(DATE_STEPS)}`, count: DATE_STEPS.length });
+  if (hasDrills('money', language)) out.push({ id: 'money', title: GROUP_TITLES.money, detail: `${MONEY_STEPS.length} drill cards: ${steps(MONEY_STEPS)}`, count: MONEY_STEPS.length });
+  if (language === 'th') {
+    out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
+    out.push({ id: 'vowels', title: 'Vowel length', detail: `${VOWELS.length} cards, one per vowel`, count: VOWELS.length });
+  }
+  const cases = CASE_LANGUAGES[language];
+  if (cases) out.push({ id: 'cases', title: 'Which case', detail: `${cases.governors.length} cards, one per preposition or verb`, count: cases.governors.length });
   return out;
 }
 
@@ -177,6 +244,36 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
             Back: `<div><b>${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
           },
           tags: [SKILL_TAG, `${SKILL_TAG}::consonants`, lang],
+          suspended: false,
+        });
+      }
+      continue;
+    }
+    if (group === 'vowels') {
+      if (language !== 'th') continue;
+      for (const v of VOWELS) {
+        const [sound, ...why] = vowelSteps(v);
+        drafts.push({
+          fields: {
+            Front: `<div style="font-size:64px">${esc(v.shown)}</div><div>Short or long?</div>`,
+            Back: `<div><b>${v.long ? 'Long' : 'Short'}</b></div><div>${esc(vowelSyllable(v))} · ${esc(sound)}</div>${why.length ? `<div>${esc(why.join(' '))}</div>` : ''}`,
+          },
+          tags: [SKILL_TAG, `${SKILL_TAG}::vowels`, lang],
+          suspended: false,
+        });
+      }
+      continue;
+    }
+    if (group === 'cases') {
+      const cases = CASE_LANGUAGES[language];
+      if (!cases) continue;
+      for (const g of cases.governors) {
+        drafts.push({
+          fields: {
+            Front: `<div style="font-size:40px"><b>${esc(governorId(g))}</b></div><div>${esc(g.meaning)}</div><div>Which case comes after it?</div>`,
+            Back: `<div><b>${esc(caseName(g.case))}</b></div><div>${esc(caseRule(cases, g))}</div>`,
+          },
+          tags: [SKILL_TAG, `${SKILL_TAG}::cases`, lang],
           suspended: false,
         });
       }
@@ -251,7 +348,7 @@ const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomor
 /** What Skills shows for a deck's skill cards: each drill step in ladder order, and a set of single cards as how many have settled. */
 export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sections: SkillSection[] = [];
-  for (const group of ['time', 'numbers'] as DrillGroup[]) {
+  for (const group of ['time', 'numbers', 'dates', 'money'] as DrillGroup[]) {
     const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
       const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
       if (!card) return [];
@@ -262,14 +359,19 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
     });
     if (rows.length) sections.push({ title: GROUP_TITLES[group], rows });
   }
-  const letters = cards.filter((c) => c.tags.includes(`${SKILL_TAG}::consonants`));
-  if (letters.length) {
-    const settled = letters.filter((c) => c.settled).length;
-    const fresh = letters.filter((c) => !c.started).length;
-    sections.push({
-      title: 'Letters',
-      rows: [{ title: 'Consonant classes', detail: `${settled} of ${letters.length} settled${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / letters.length) * 100), locked: false }],
-    });
+  const sets: { section: string; tag: string; title: string }[] = [
+    { section: 'Letters', tag: 'consonants', title: 'Consonant classes' },
+    { section: 'Letters', tag: 'vowels', title: 'Vowel length' },
+    { section: 'Grammar', tag: 'cases', title: 'Which case' },
+  ];
+  for (const set of sets) {
+    const of = cards.filter((c) => c.tags.includes(`${SKILL_TAG}::${set.tag}`));
+    if (!of.length) continue;
+    const settled = of.filter((c) => c.settled).length;
+    const fresh = of.filter((c) => !c.started).length;
+    const row: SkillRow = { title: set.title, detail: `${settled} of ${of.length} settled${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / of.length) * 100), locked: false };
+    const into = sections.find((x) => x.title === set.section);
+    if (into) into.rows.push(row); else sections.push({ title: set.section, rows: [row] });
   }
   return sections;
 }
