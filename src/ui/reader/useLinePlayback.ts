@@ -7,12 +7,13 @@ import { NORMAL_RATE } from '../../reader/playbackRate';
 import { hasSlow } from '../../reader/prefs';
 import { withTimes } from '../../reader/spoken';
 import { prefs, savePrefs } from '../../reader/storage';
+import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording } from '../useSelfRecording';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
 import { useSpokenWords } from './useSpokenWords';
 
 /** Listening goes on with the screen locked or in another app, while the reader is open. */
-const READER_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+const READER_AUDIO_MODE = LISTENING_MODE;
 
 /**
  * The reader's audio, line by line (Reader.tsx's header says how it behaves): the shared player,
@@ -84,7 +85,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
         return;
       }
       playerHost.release();
-      setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined);
+      setAudioModeAsync(IDLE_MODE).catch(() => undefined);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- reads the latest values from `carryOn` as it closes
 

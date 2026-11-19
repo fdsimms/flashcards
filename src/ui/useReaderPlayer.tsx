@@ -1,3 +1,4 @@
+import { IDLE_MODE, LISTENING_MODE } from './listeningAudio';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { Api, AudioLesson } from '../reader/api';
@@ -69,8 +70,8 @@ export interface ReaderPlayerHost {
   watchLesson: (lesson: AudioLesson | null, api?: Api | null) => void;
 }
 
-const BACKGROUND_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
-const FOREGROUND_MODE = { playsInSilentMode: true, shouldPlayInBackground: false };
+const BACKGROUND_MODE = LISTENING_MODE;
+const FOREGROUND_MODE = IDLE_MODE;
 
 function useReaderPlayer(): ReaderPlayerHost {
   const player = useRef<AudioPlayer | null>(null);
