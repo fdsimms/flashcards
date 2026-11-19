@@ -754,9 +754,11 @@ Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" 
 Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
   line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
   ("train", "move", "draft").
-Sense: only for a word with one sense whose English gloss alone could be read another way (cause: what makes
-  something happen). One short line, lowercase, no markup, shown under the meaning. Empty when the gloss is
-  clear, and never beside a numbered Meaning: the numbers and ContextLabels already say which sense.
+Sense: only when the word covers some, not all, of its English gloss's common senses, so the learner doesn't
+  assume it works wherever the gloss does (leke, "to play": only play for fun, not an instrument or a sport).
+  One short line, lowercase, no markup, shown under the meaning. Empty when the word spans the same senses as
+  the gloss, since a Sense would then imply the others don't apply, and never beside a numbered Meaning: the
+  numbers and ContextLabels already say which sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
