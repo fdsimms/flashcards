@@ -204,7 +204,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
   const c = useTheme();
   const ready = row.kind === 'next' && row.ready;
   const tappable = row.kind === 'read' || row.textId !== null;
-  const detail = row.kind === 'read' ? 'Read' : row.status;
+  const detail = row.kind === 'read' ? 'Already read' : row.status;
   return (
     <Pressable
       disabled={!tappable}
