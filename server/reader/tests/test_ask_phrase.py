@@ -1,6 +1,6 @@
 import itertools
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -191,3 +191,32 @@ def test_refuses_a_phrase_that_isnt_in_the_line_and_a_last_turn_that_isnt_a_ques
 def test_needs_the_passphrase() -> None:
     c, text_id, _ = client(_never)
     assert c.post(url(text_id), json=body(c, text_id)).status_code in (401, 403)
+
+
+def test_the_conversation_is_kept_for_a_while_and_then_forgotten() -> None:
+    async def ask(q: PhraseQuestion) -> tuple[str, Usage]:
+        return "Because of the classifier.", COST
+
+    c, text_id, conn = client(ask)
+    sent = body(c, text_id)
+    kept_url = f"{url(text_id)}?phrase={sent['phrase']}"
+    assert c.get(kept_url, headers=AUTH).json() == {"turns": []}
+    assert c.post(url(text_id), json=sent, headers=AUTH).status_code == 200
+    assert c.get(kept_url, headers=AUTH).json() == {
+        "turns": [
+            {"role": "user", "content": "Why this order?"},
+            {"role": "assistant", "content": "Because of the classifier."},
+        ]
+    }
+    # Another phrase has its own conversation.
+    assert c.get(f"{url(text_id)}?phrase=zzz", headers=AUTH).json() == {"turns": []}
+    # Past the time limit it's gone, and saving another phrase's chat clears the old row.
+    later = datetime(2026, 10, 19, 9) + store.PHRASE_CHAT_TTL + timedelta(minutes=1)
+    assert store.get_phrase_chat(conn, text_id, 0, sent["phrase"], later) == []
+    store.save_phrase_chat(conn, text_id, 1, "x", [], later)
+    assert conn.execute("SELECT COUNT(*) FROM phrase_chats").fetchone()[0] == 1
+
+
+def test_reading_a_kept_conversation_needs_the_passphrase() -> None:
+    c, text_id, _ = client(None)
+    assert c.get(f"{url(text_id)}?phrase=x").status_code in (401, 403)

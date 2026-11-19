@@ -94,8 +94,12 @@ Franki's (Client, below).
   modeled on Ask Claude about a card) takes the phrase, as for Explain a phrase, and the
   conversation so far, and answers with Haiku given the line, its English and the whole text,
   which the prompt says to use only where it sharpens the answer. The answer is English, or the
-  language being read with Explain in the language on. Questions are asked only when sent, are
-  not kept (closing the popup clears them), and are not graded or added to the deck. Each call
+  language being read with Explain in the language on. Questions are asked only when sent and are not graded or added to the deck.
+  The conversation is kept on the server per phrase for 2 hours after its last answer
+  (`phrase_chats`, `store.PHRASE_CHAT_TTL`; 19 November 2026, by the owner's request after a
+  swipe away lost one, who wanted the time kept short), so reopening the popup on that phrase
+  shows it again (`GET /api/texts/{id}/lines/{n}/ask?phrase=`); expired rows are deleted on the
+  next save. Each call
   is kept in `call_costs` (feature `ask_phrase`) and counts under `explanations` in `/api/costs`.
   There are no starter questions. The popup needs the server for its explanation, so with no
   connection the Ask button isn't shown.
