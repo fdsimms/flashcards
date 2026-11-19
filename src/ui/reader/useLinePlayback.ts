@@ -11,6 +11,7 @@ import { withTimes } from '../../reader/spoken';
 import { prefs, savePrefs } from '../../reader/storage';
 import { beginListening, type ListeningControls } from '../listeningActivity';
 import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
+import { LOOP_BREAK_SOURCE } from '../loopBreak';
 import { useSelfRecording } from '../useSelfRecording';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
 import { useSpokenWords } from './useSpokenWords';
@@ -51,12 +52,14 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   // a line ends, this is when the player isn't playing but the reader is still going: the play button
   // keeps showing Pause through it instead of flashing to Play between lines.
   const [awaitingSound, setAwaitingSound] = useState(false);
+  // The break before a looped text starts again (loopBreak.ts) is playing, and the first line it goes on to.
+  const [breakTo, setBreakTo] = useState<number | null>(null);
   const sounding = status.playing || awaitingSound || (playingAll && status.didJustFinish);
   useEffect(() => { if (status.playing) setAwaitingSound(false); }, [status.playing]);
   // The line to shade: the one sounding now. `current` stays set after a pause or the end of a line
   // (Play and the "Line n of m" label need it), so shading it would leave a stopped line lit. Between
   // two lines of Play all the player is briefly not playing, so that gap keeps the shade too.
-  const shaded = status.playing || status.isBuffering || (playingAll && status.didJustFinish) ? current : null;
+  const shaded = breakTo === null && (status.playing || status.isBuffering || (playingAll && status.didJustFinish)) ? current : null;
   const [chosenRate, setRate] = useState(prefs().rate);
   // The speed played at: the one chosen, or normal in a language that doesn't offer Slow (Settings).
   const slowOffered = text ? hasSlow(prefs(), text.language) : true;
@@ -89,7 +92,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     return () => {
       const l = carryOn.current;
       if (l.text && l.playingAll && l.current !== null && l.playing) {
-        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() });
+        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() }, l.breakTo ?? undefined);
         return;
       }
       playerHost.release();
@@ -106,8 +109,8 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   // The first time a loop wraps counts as the text played through; later passes count nothing.
   const countedLoop = useRef(false);
   // What the mini-player needs to carry on, as of the latest render, for when this closes.
-  const carryOn = useRef({ text: null as ReaderText | null, current: null as number | null, playingAll: false, playing: false, repeat: 1, played: 1, loop: false, rate: NORMAL_RATE });
-  carryOn.current = { text, current, playingAll, playing: status.playing || status.isBuffering || (playingAll && status.didJustFinish), repeat, played, loop: loopText, rate: playedRate.current };
+  const carryOn = useRef({ text: null as ReaderText | null, current: null as number | null, playingAll: false, playing: false, repeat: 1, played: 1, loop: false, rate: NORMAL_RATE, breakTo: null as number | null });
+  carryOn.current = { text, current, playingAll, playing: status.playing || status.isBuffering || (playingAll && status.didJustFinish), repeat, played, loop: loopText, rate: playedRate.current, breakTo };
   // The words being spoken in the line playing, lit as the voice reaches them (useSpokenWords.ts),
   // unless that's turned off in Read & Listen's settings. Read from prefs on each render rather than
   // kept in state, so a change made there shows here without reopening the text.
@@ -169,6 +172,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     self.stop(false);
     self.stopTake();
     setSilentLine(null);
+    setBreakTo(null);
     startLine(i, r);
     setCurrent(i);
     setPlayed(1);
@@ -232,6 +236,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     player.pause();
     starting.current++;
     setAwaitingSound(false);
+    setBreakTo(null);
     playerHost.preloader.clear();
     setCurrent(null);
     setPlayingAll(false);
@@ -240,12 +245,31 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
 
   useEffect(() => {
     if (!status.didJustFinish || current === null || !text) return;
+    if (breakTo !== null) {
+      // The break has played: round again from the first line, unless Loop text was turned off during it.
+      setBreakTo(null);
+      if (loopText) playLine(breakTo, true);
+      else { setPlayingAll(false); setAwaitingSound(false); }
+      return;
+    }
     onLineHeard(current);
     const next = nextLine(text.lines, current, playingAll, repeat, played, loopText);
     const wraps = wrapsToStart(text.lines, current, playingAll, repeat, played, loopText);
     if (wraps && !countedLoop.current) {
       countedLoop.current = true;
       onPlayedThrough(true);
+    }
+    if (wraps && next !== null) {
+      // Not straight back to the first line: a chime and a pause first, with the text scrolled back to the top.
+      // `current` moves now, so the screen follows it; the break's end starts the line (above).
+      setBreakTo(next);
+      setCurrent(next);
+      setPlayed(1);
+      starting.current++;
+      player.replace(LOOP_BREAK_SOURCE);
+      player.setPlaybackRate(1, 'high');
+      player.play();
+      return;
     }
     if (next === current) {
       // The same source again: rewind rather than reload it. A one-line text looping is a new round, not another play.
@@ -272,7 +296,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a load error only
 
   return {
-    player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, silentLine, self, spoken,
+    player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, breaking: breakTo !== null, silentLine, self, spoken,
     playLine, skip, togglePlay, changeRate, cycleRepeat, toggleLoop, startOver, reset,
   };
 }

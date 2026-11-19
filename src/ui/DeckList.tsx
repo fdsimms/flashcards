@@ -17,7 +17,7 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
 /** What a deck's long-press menu and its ⋯ button offer besides studying it. */
-export type DeckAction = 'note' | 'rename' | 'options' | 'export' | 'delete';
+export type DeckAction = 'note' | 'rename' | 'options' | 'export' | 'suspend' | 'unsuspend' | 'delete';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
 export function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
@@ -295,6 +295,8 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
           <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
           <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
           <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
+          <Link.MenuAction icon="pause.circle" onPress={() => onAction('suspend')}>Suspend all</Link.MenuAction>
+          <Link.MenuAction icon="play.circle" onPress={() => onAction('unsuspend')}>Unsuspend all</Link.MenuAction>
           <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
         </Link.Menu>
       </Link>
@@ -342,7 +344,7 @@ export function DeckList(props: {
   onNewDeck: () => void;
   /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
   onQuickAdd?: () => void;
-  /** The ⋯ button on a deck's row: add a note, rename, options, export, delete (DeckActions.tsx). */
+  /** The ⋯ button on a deck's row: add a note, rename, options, export, suspend or unsuspend all, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** One of those, chosen from the menu a long press on the row opens. */
   onDeckAction: (deck: string, action: DeckAction) => void;

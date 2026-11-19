@@ -1,5 +1,5 @@
 import type { Language, TextLine } from './api';
-import { firstLine, nextLine, previousLine } from './playback';
+import { firstLine, nextLine, previousLine, wrapsToStart } from './playback';
 
 /**
  * Play all carrying on after the reader is left: the mini-player on the tab bar takes over what
@@ -31,13 +31,14 @@ export type Handoff = {
   from?: 'shelf' | 'past' | null;
 };
 
-export type Step = { kind: 'again' } | { kind: 'line'; line: number } | { kind: 'end' };
+export type Step = { kind: 'again' } | { kind: 'line'; line: number } | { kind: 'wrap'; line: number } | { kind: 'end' };
 
-/** What to do when the line has played to its end: repeat it, play the next (the first again, when looping), or stop. */
+/** What to do when the line has played to its end: repeat it, play the next, go round to the first after a break (when looping), or stop. */
 export function afterLine(h: Handoff): Step {
   if (h.played < h.repeat) return { kind: 'again' };
   const next = nextLine(h.lines, h.current, true, h.repeat, h.played, h.loop);
-  return next === null ? { kind: 'end' } : { kind: 'line', line: next };
+  if (next === null) return { kind: 'end' };
+  return wrapsToStart(h.lines, h.current, true, h.repeat, h.played, h.loop) ? { kind: 'wrap', line: next } : { kind: 'line', line: next };
 }
 
 /** The line a skip button goes to, or null when there's none that way. */
