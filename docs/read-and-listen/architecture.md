@@ -174,6 +174,10 @@ Franki's (Client, below).
   gone: below); the lines show who's speaking instead, and "Show the text" brings the words back. The
   reading is then logged with `listen_only` true. A text already read can be played this way too:
   Listen again, below.
+  Removed from the end view on 19 November 2026, by the owner: its Listen without the text button
+  (the header's remains), Write episode N and Next: title. The end view ends with one button, Back to
+  Read & Listen, which still logs the text as read; the story's next episode is written from that, as
+  from any other way of leaving. Play all still moves on by itself.
 - While audio plays, the text scrolls to keep the line being spoken in view.
 - **Repeat line** in the player plays the current line again, for shadowing. One chip steps through
   Off, 2×, 3×, 5× and ∞ (a count is the line's total plays; ∞ goes until turned off). The count isn't
