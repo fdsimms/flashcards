@@ -241,7 +241,7 @@ Franki's (Client, below).
   first), replaces the Show meaning row on a known word with four choices (its meaning and three other
   glosses from the text, as the check after reading builds them) and I don't know: any answer keeps
   the popover open with the choices as a record, the right one marked with a check alone (with a
-  haptic, no bounce; the other choices fold away at once) or "Meaning" and a wrong pick marked "Your pick" (16 November 2026, the owner:
+  haptic, no bounce; the other choices fold away at once) or "Meaning" and a wrong pick marked with an X alone (19 November 2026: "Your pick" crowded the row; 16 November 2026, the owner:
   a right answer used to close it, so the meaning was never seen). A text with fewer than three other glosses has no quiz. **A lookup is logged when the meaning
   is shown**, not at the tap (`Session.glossed`), so a word recalled isn't counted as looked up, which
   keeps effective coverage (`recognition.py`) honest; marking a word unknown shows its meaning too.
@@ -1181,7 +1181,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   when the line stops, until it's answered or skipped. The sheet (`ReaderFormQuiz`) shows the line with a
   blank, the dictionary form and its meaning, and a field. Typing is compared with the form in the text
   (`typedCompare`, case and spacing ignored, accents counted: Polish ę is not e), and a wrong answer says
-  what the text has and the form's name with the helper word (`formReason`). After a miss, **Explain why** asks Claude on the server why the line has that form (`POST /api/texts/{id}/lines/{n}/form`, `explain.py` `FORM_SYSTEM`: the word that decides it, irregular patterns, what it's confused with), only on the tap and kept per word in `form_explanations`; it counts with the other explanations in `/api/costs`. **Practice only:** nothing
+  what the text has and the form's name with the helper word (`formReason`). After a miss, **Explain why** asks Claude on the server why the line has that form (`POST /api/texts/{id}/lines/{n}/form`, `explain.py` `FORM_SYSTEM`: not paragraphs, which weren't read, but four short parts the sheet draws (`ReaderFormQuiz.tsx`, `FormWhy`): the line with the deciding word marked (`deciding`, kept only if it is in the line, `markDecider`), one `rule` sentence, up to two `changes` shown as before and after chips, and a `tip`), only on the tap and kept per word in `form_explanations` (an answer kept as paragraphs is asked again); it counts with the other explanations in `/api/costs`. **Practice only:** nothing
   grades a card, rates, schedules or is saved; the answers last as long as the text is open
   (`useFormQuiz`), and `tests/reader/noGrading.test.ts` scans the hook. It's on by default, with a switch
   in the reading options menu (when the text has slots) and in Settings, Read & Listen, Word forms
@@ -1396,6 +1396,10 @@ next episode is the top of the shelf.
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
   request.
+- **The last episode's ending is quoted too** (added 19 November 2026). A recap is one or two
+  sentences, so it dropped small state: an episode ended with the cake still baking and the next
+  opened with it burnt. The next request now also quotes the previous episode's last
+  `STORY_ENDING_LINES` (3) lines in English (`StoryContext.ending`) and says not to contradict them.
 - **An episode is a story-form text like any other**: the same coverage target, revision loop and
   stretch words, filed under the story's own hidden topic. The next one is written only once the
   last has been read, so at most one waits.
@@ -1868,9 +1872,12 @@ in the current language, with when one was last read to the end. Nothing else le
   (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
-  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner and KeyForms; Polish
-  noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and KeyForms; Japanese
-  Hanzi. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
+  KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and
+  verbs; Polish noun Gender, KeyForms for nouns and verbs; Greek verb VerbClass (active, deponent) and
+  KeyForms; Japanese Hanzi. KeyForms is written a line to a form, each under the name of what it is
+  (`pattern:` first, then `genitive:`, `plural:`, `I:`, `you:`, `past:`, `perfect:`), which is what the
+  card's Grammar box reads and the MCP holds notes to; Claude answers each form under a key of its own
+  and `check` writes the lines. Spanish, Norwegian and English have nothing beyond the common fields. The extras are kept
   only when they pass, and one that doesn't is left out without failing the word. Generate, then verify: a word is kept
   only if it was asked for and its fields pass `check` (one sentence, balanced bold, no other markup,
   no `|`, `*` or em dashes); anything else is `failed` with the reason, never repaired, and a failed word

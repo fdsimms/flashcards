@@ -35,7 +35,7 @@ export function ReadFormChip({ name, onPress }: { name: string; onPress: () => v
 const loaded = new Map<Language, FormPrimer[]>();
 
 /** The primers of a language, loaded on first use. A failure isn't kept, so the next try asks again. */
-function usePrimers(api: Api, language: Language) {
+export function usePrimers(api: Api, language: Language) {
   const [primers, setPrimers] = useState<FormPrimer[] | null>(loaded.get(language) ?? null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(() => {

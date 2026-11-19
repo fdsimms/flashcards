@@ -43,7 +43,7 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain }: {
+export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
   /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
@@ -70,6 +70,10 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
   onWords: () => void;
   /** The language was changed here; the app-wide settings follow. */
   onLanguage: () => void;
+  /** A link's language (franki://read?language=de, from a dundundun task): the shelf switches to it. */
+  openLanguage?: string;
+  /** The link's language was handled (switched to, or not one the server has), so the route clears it. */
+  onOpenedLanguage?: () => void;
   /** Opens a deck's review: the language's deck, from the card shown while its reviews are due. */
   onReview: (deck: string) => void;
   /** Plays finished texts again with their words hidden, one after another, from the card offering them. */
@@ -170,6 +174,16 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     switchedTo.current = practice.language;
     if (shelf.language !== practice.language) changeLanguage(practice.language);
   }, [practice, shelf]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A link names a language: switch to it once the shelf has loaded, then tell the route, so the
+  // same link opened again later (after switching by hand) is handled again. A code the server
+  // doesn't list is ignored rather than sent as a settings change it would refuse.
+  useEffect(() => {
+    if (!openLanguage || !shelf) return;
+    const wanted = shelf.languages.find((l) => l.code === openLanguage);
+    if (wanted && wanted.code !== shelf.language) changeLanguage(wanted.code);
+    onOpenedLanguage?.();
+  }, [openLanguage, shelf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const order = shelf ? playOrder(shelf) : [];
   const summary = shelf ? upNextSummary(shelf) : null;

@@ -78,12 +78,14 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
   return (
     // Each row carries its own bottom padding (not a gap) so a folded row leaves no space; the
     // negative margin takes back the last row's.
-    <View style={{ marginTop: space.xs, marginBottom: -space.s }}>
+    // maxWidth keeps it inside the popover's text column, clear of the play button beside it.
+    <View style={{ marginTop: space.xs, marginBottom: -space.s, flexShrink: 1, maxWidth: '100%' }}>
       {choices.map((choice, i) => {
         const right = i === answer;
         const wrongPick = i === picked && !right;
-        // A right pick is marked by the check alone; the other two rows say what they are.
-        const note = right ? (gotIt ? null : 'Meaning') : wrongPick ? 'Your pick' : null;
+        // A right pick is marked by the check alone; the meaning, when it wasn't picked, says so. A
+        // wrong pick is marked by an X alone (its row is dimmer red, and VoiceOver says "your pick").
+        const note = right && !gotIt ? 'Meaning' : null;
         const row = (
           <View
             accessible
@@ -98,7 +100,8 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
             {right || wrongPick ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 {right ? <Icon name="checkmark.circle.fill" size={18} color={c.good} /> : null}
-                {note ? <Text style={{ ...type.footnote, color: right ? c.goodInk : c.danger }}>{note}</Text> : null}
+                {wrongPick ? <Icon name="xmark.circle.fill" size={18} color={c.danger} /> : null}
+                {note ? <Text style={{ ...type.footnote, color: c.goodInk }}>{note}</Text> : null}
               </View>
             ) : null}
           </View>

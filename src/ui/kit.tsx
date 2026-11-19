@@ -410,17 +410,19 @@ export function SwipeToReveal({ open, onOpenChange, action, onFullSwipe, width =
 }
 
 /** The button a `SwipeToReveal` row slides open onto: a symbol over a short label, filling the space. */
-export function SwipeAction({ icon, label, accessibilityLabel, onPress }: { icon: SFSymbol; label: string; accessibilityLabel: string; onPress: () => void }) {
+export function SwipeAction({ icon, label, accessibilityLabel, onPress, destructive }: { icon: SFSymbol; label: string; accessibilityLabel: string; onPress: () => void; destructive?: boolean }) {
   const c = useTheme();
+  const fill = destructive ? c.danger : c.accent;
+  const ink = destructive ? c.onRating : c.onAccent;
   return (
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: c.accent, opacity: pressed ? 0.8 : 1 })}
+      style={({ pressed }) => ({ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: fill, opacity: pressed ? 0.8 : 1 })}
     >
-      <Icon name={icon} size={22} color={c.onAccent} />
-      <Text style={{ ...type.footnote, color: c.onAccent, fontWeight: '600' }}>{label}</Text>
+      <Icon name={icon} size={22} color={ink} />
+      <Text style={{ ...type.footnote, color: ink, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
 }

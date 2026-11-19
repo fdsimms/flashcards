@@ -25,15 +25,15 @@ export function slotWords(text: ReaderText): Word[] {
 }
 
 /**
- * How a slot word is drawn. Off, or a word that isn't a slot, is the plain word. While its line plays the
- * word is the plain word too, since the voice is saying it: listening first is a fair way to answer. Once
- * answered right it keeps a tint; once missed or skipped it's plain.
+ * How a slot word is drawn. Off, or a word that isn't a slot, is the plain word. An open slot stays a pill
+ * while its line plays (the playing line's shading goes behind it). Once answered right it keeps a tint;
+ * once missed or skipped it's plain.
  */
-export function slotView(word: Word, settled: Settled | undefined, enabled: boolean, linePlaying: boolean): SlotView {
+export function slotView(word: Word, settled: Settled | undefined, enabled: boolean): SlotView {
   if (!enabled || !isSlotWord(word)) return null;
   if (settled === 'right') return 'right';
   if (settled) return null;
-  return linePlaying ? null : 'open';
+  return 'open';
 }
 
 /**
@@ -68,6 +68,45 @@ export function checkForm(typed: string, word: Pick<Word, 'text' | 'translit'>, 
   const compared = compareTypedAnswer(answers, typed.trim(), japanese ? 'ja-JP' : undefined);
   if (compared.sameWords) return 'right';
   return compared.sameLetters ? 'accents' : 'wrong';
+}
+
+/** A piece of the sentence, and whether it's the word that decides the form. */
+export type Piece = { text: string; mark: boolean };
+
+// Letters of the scripts that put spaces between words: a match of the deciding word can't sit inside one.
+const SPACED_LETTER = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{M}]/u;
+
+/**
+ * The text before and after the blank as pieces, with the deciding word the explanation names marked in
+ * whichever side holds it (the nearest one before the blank, else the first after). It must be a whole word
+ * where the script has spaces, so "ein" isn't found inside "einen"; Thai and Japanese have none to check.
+ * A deciding word that isn't there leaves both sides unmarked.
+ */
+export function markDecider(before: string, after: string, deciding: string): { before: Piece[]; after: Piece[] } {
+  const split = (text: string, at: number): Piece[] =>
+    [
+      { text: text.slice(0, at), mark: false },
+      { text: text.slice(at, at + deciding.length), mark: true },
+      { text: text.slice(at + deciding.length), mark: false },
+    ].filter((piece) => piece.text);
+  const whole = (text: string, at: number) =>
+    !SPACED_LETTER.test(text.charAt(at - 1)) && !SPACED_LETTER.test(text.charAt(at + deciding.length));
+  const find = (text: string, last: boolean) => {
+    let found = -1;
+    for (let at = text.indexOf(deciding); at >= 0; at = text.indexOf(deciding, at + 1)) {
+      if (!whole(text, at)) continue;
+      found = at;
+      if (!last) break;
+    }
+    return found;
+  };
+  const plain = (text: string): Piece[] => (text ? [{ text, mark: false }] : []);
+  if (!deciding) return { before: plain(before), after: plain(after) };
+  const inBefore = find(before, true);
+  if (inBefore >= 0) return { before: split(before, inBefore), after: plain(after) };
+  const inAfter = find(after, false);
+  if (inAfter >= 0) return { before: plain(before), after: split(after, inAfter) };
+  return { before: plain(before), after: plain(after) };
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
-import { scrollTarget, type Box } from '../../reader/follow';
+import { lineSide, scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
@@ -31,6 +31,7 @@ import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { ReadWordTitle } from './ReadWordTitle';
 import { ReadGlossLine } from './ReadWordTips';
+import { ReaderJumpToLine } from './ReaderJumpToLine';
 import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
@@ -254,15 +255,30 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const viewTop = useRef(0);
   const headerHeight = useHeaderHeight();
 
+  // Which way the current line lies from what's on screen, for the button that scrolls back to it.
+  const [lineOff, setLineOff] = useState<'above' | 'below' | null>(null);
+  const currentBox = () => {
+    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
+    return at < 0 ? undefined : lineBoxes.current[at];
+  };
+  const frame = () => ({ height: viewHeight.current, insetTop: Math.max(0, headerHeight - viewTop.current) });
+  const updateLineOff = () => {
+    const box = currentBox();
+    const side = listenOnly || !box || !viewHeight.current ? null : lineSide(box, scrollY.current ?? -frame().insetTop, frame());
+    setLineOff((prev) => (prev === side ? prev : side));
+  };
+  const followCurrent = () => {
+    const box = currentBox();
+    if (!box || !viewHeight.current) return;
+    const y = scrollTarget(box, scrollY.current ?? -frame().insetTop, frame());
+    if (y !== null) scroller.current?.scrollTo({ y, animated: true });
+  };
+
   useEffect(() => {
     // Listening without the text there's nothing to follow: the rows are only labels.
     if (listenOnly) return;
-    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
-    const box = at < 0 ? undefined : lineBoxes.current[at];
-    if (!box || !viewHeight.current) return;
-    const insetTop = Math.max(0, headerHeight - viewTop.current);
-    const y = scrollTarget(box, scrollY.current ?? -insetTop, { height: viewHeight.current, insetTop });
-    if (y !== null) scroller.current?.scrollTo({ y, animated: true });
+    followCurrent();
+    updateLineOff();
   }, [current]);
 
   const load = async () => {
@@ -685,7 +701,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             viewHeight.current = e.nativeEvent.layout.height;
             scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
           }}
-          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; updateLineOff(); }}
           scrollEventThrottle={100}
           // Off while a phrase is dragged, or the scroll takes the finger back on its first move.
           scrollEnabled={!phraseDrag.dragging}
@@ -786,7 +802,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                               {...phraseLook(range.start + k, word, l.words)}
                               playing={shaded === range.start + k}
                               spoken={spoken.has(word)}
-                              slot={quiz.view(word, shaded === range.start + k)}
+                              slot={quiz.view(word)}
                               onPress={tap}
                               onLongPress={phraseDrag.begin}
                               viewRef={phraseDrag.wordRef(word)}
@@ -852,7 +868,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                             hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
-                            slot={quiz.view(word, shaded === i)}
+                            slot={quiz.view(word)}
                             onPress={tap}
                             onLongPress={phraseDrag.begin}
                             viewRef={phraseDrag.wordRef(word)}
@@ -926,6 +942,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             </View>
           )}
         </ScrollView>
+      ) : null}
+
+      {text && session && !ended && !listenOnly && lineOff && current !== null ? (
+        <ReaderJumpToLine line={current + 1} side={lineOff} onPress={followCurrent} />
       ) : null}
 
       {text && session && ended && checking && !drilling ? (

@@ -2,8 +2,8 @@ import { isOmnilanguage, speechLangFor } from './cards';
 import { studyDayStart } from './day';
 import { inheritedSetting } from './deckTree';
 import { formsOf, headword, withoutArticle, type PracticeRecord } from './forms';
-import { htmlToText } from './html';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
+import { keyFormValues } from './wordGrammar';
 
 /**
  * Lookalike words: notes whose words look alike (esperar, espero, esperanza), so seeing one can
@@ -117,7 +117,7 @@ export function lookalikeIndex(notes: Note[]): Map<string, Set<string>> {
     const forms = new Set<string>();
     // Gender (an article) and the counting word (a different word that goes with this one) don't look like it.
     for (const f of formsOf(n).forms) if (f.key !== 'field:Gender' && f.key !== 'field:Classifier') for (const a of f.answers) forms.add(lookalikeForm(a, lang));
-    for (const k of htmlToText(n.fields.KeyForms ?? '').split(/[,;\n]/)) if (k.trim()) forms.add(lookalikeForm(k, lang));
+    for (const k of keyFormValues(n.fields.KeyForms)) forms.add(lookalikeForm(k, lang));
     (byLang.get(lang) ?? byLang.set(lang, []).get(lang)!).push({ id: n.id, word, forms });
   }
   for (const [lang, words] of byLang) {

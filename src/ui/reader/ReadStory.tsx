@@ -10,7 +10,7 @@ import { textSteps } from '../../reader/making';
 import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
 import { loadSeasonChoices, prefs, savePrefs, saveSeasonChoices } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Divider, ErrorNote, Group, Help, Screen, SectionTitle } from '../kit';
+import { Button, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
@@ -100,7 +100,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
   ]);
 
   const next = story?.next ?? null;
-  const overline = !story ? '' : !story.running ? 'Series · Ended' : story.pinned ? `${bannerOverline(story)} · Pinned` : bannerOverline(story);
+  const overline = !story ? '' : !story.running ? 'Series · Ended' : bannerOverline(story);
 
   return (
     <Screen
@@ -206,7 +206,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
   const c = useTheme();
   const ready = row.kind === 'next' && row.ready;
   const tappable = row.kind === 'read' || row.textId !== null;
-  const detail = row.kind === 'read' ? 'Read' : row.status;
+  const detail = row.kind === 'read' ? 'Already read' : row.status;
   const writing = row.kind === 'next' && row.textId === null && row.status.startsWith('Writing');
   return (
     <Pressable
@@ -227,8 +227,9 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ ...type.headline, color: c.text }}>{row.title}</Text>
-        {writing && row.kind === 'next' ? <MakingSteps steps={textSteps(row.stage)} /> : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
+        {row.kind === 'read' ? null : writing && row.kind === 'next' ? <MakingSteps steps={textSteps(row.stage)} /> : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
       </View>
+      {row.kind === 'read' ? <Icon name="checkmark" size={16} color={c.goodInk} weight="bold" /> : null}
     </Pressable>
   );
 }

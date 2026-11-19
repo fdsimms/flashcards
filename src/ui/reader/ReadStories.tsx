@@ -5,7 +5,7 @@ import { ApiError, type Api, type StoryListItem } from '../../reader/api';
 import { WorkingMark } from '../WorkingMark';
 import { storyNext, storyPlace, storyWriting } from '../../reader/stories';
 import { haptic } from '../haptics';
-import { Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tag } from '../kit';
+import { Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { readable, space, type, useTheme } from '../theme';
 
@@ -105,15 +105,12 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
-      accessibilityLabel={[name, story.pinned ? 'Pinned' : null, place, writing ?? next?.text].filter(Boolean).join('. ')}
+      accessibilityLabel={[name, place, writing ?? next?.text].filter(Boolean).join('. ')}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: 3 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
-          <Text style={{ ...type.headline, color: c.text }}>{name}</Text>
-          {story.pinned ? <Tag text="Pinned" color={c.accentInk} fill={c.accentFill} /> : null}
-        </View>
+        <Text style={{ ...type.headline, color: c.text }}>{name}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{place}</Text>
         {writing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>

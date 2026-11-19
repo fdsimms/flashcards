@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, View, useColorScheme, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
-import type { Api, Language, Word } from '../../reader/api';
+import type { Api, FormExplanation, Language, Word } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { checkForm, formReason, type FormCheck, type Settled } from '../../reader/formQuiz';
+import { checkForm, formReason, markDecider, type FormCheck, type Settled } from '../../reader/formQuiz';
+import { usePrimers } from './ReadFormSheet';
 import { Button, HeaderAction, Icon, Tappable } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
@@ -16,7 +17,8 @@ import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
  * graded, rated or saved, and a miss changes no card's schedule. Skip, a right answer or Done ends the
  * slot, so the text shows the word; closing the sheet any other way leaves it open. After a miss,
  * Explain asks Claude on the server why the line has that form (api.explainForm, kept per word),
- * only on the tap.
+ * only on the tap, and shows it as the line with the deciding word marked, the change as before and
+ * after, and a tip, not as paragraphs.
  */
 export function ReaderFormQuiz({ api, language, textId, line, word, before, after, onSettle, onClose }: {
   api: Api;
@@ -42,15 +44,15 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
   const tint = right ? c.countDue : checked ? c.danger : c.accent;
 
   // Why the line has this form: asked on the tap, and an answer that arrives after the sheet is closed is dropped.
-  const [why, setWhy] = useState<{ state: 'loading' } | { state: 'done'; paragraphs: string[] } | { state: 'failed'; message: string } | null>(null);
+  const [why, setWhy] = useState<{ state: 'loading' } | { state: 'done'; explanation: FormExplanation } | { state: 'failed'; message: string } | null>(null);
   const alive = useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
   const explain = async () => {
     if (why?.state === 'loading') return;
     setWhy({ state: 'loading' });
     try {
-      const paragraphs = await api.explainForm(textId, line, word);
-      if (alive.current) setWhy({ state: 'done', paragraphs });
+      const explanation = await api.explainForm(textId, line, word);
+      if (alive.current) setWhy({ state: 'done', explanation });
     } catch (e) {
       if (alive.current) setWhy({ state: 'failed', message: failureText(e, { what: "Couldn't explain this form.", next: 'Try again.' }) });
     }
@@ -66,6 +68,9 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
     input.current?.focus();
   };
   const reason = formReason(word);
+  // What the form means, from the same fixed text as the form chip's sheet; left out until it has loaded.
+  const { primers } = usePrimers(api, language);
+  const meaning = word.form ? primers?.find((p) => p.id === word.form?.id)?.summary : undefined;
   const sentence = { ...type.reading, color: c.text };
 
   return (
@@ -88,10 +93,11 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         </Text>
 
         <View style={{ gap: 2 }}>
-          <Text style={{ ...type.cardBack, color: c.accent }}>{word.lemma}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>
-            {word.gloss ? `${word.gloss}. ` : ''}Type the form that fits the sentence.
+          <Text style={{ ...type.cardBack, color: c.accent }}>
+            {word.lemma}
+            {word.gloss ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{`   "${word.gloss}"`}</Text> : null}
           </Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>Type the form that fits the sentence.</Text>
         </View>
 
         <View
@@ -127,9 +133,10 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         {checked ? (
           <View accessibilityLiveRegion="polite" style={{ gap: space.xs }}>
             <Text style={{ ...type.headline, color: tint }}>
-              {right ? 'Right' : result === 'accents' ? `The letters are right, but the accents aren't. The text has ${word.text}` : `The text has ${word.text}`}
+              {right ? 'Right' : result === 'accents' ? `The letters are right, but the accents aren't. The text has "${word.text}".` : `The text has "${word.text}".`}
             </Text>
             {reason ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{reason}</Text> : null}
+            {meaning ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
           </View>
         ) : null}
 
@@ -148,12 +155,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
               </Tappable>
             ) : null}
             {why?.state === 'failed' ? <Text style={{ ...type.subhead, color: c.danger }}>{why.message}</Text> : null}
-            {why?.state === 'done' ? (
-              <View accessibilityLiveRegion="polite" style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.s }}>
-                <Text style={{ ...type.overline, color: c.textSecondary }}>Why {word.text}</Text>
-                {why.paragraphs.map((p, i) => <Text key={i} style={{ ...type.body, color: c.text }}>{p}</Text>)}
-              </View>
-            ) : null}
+            {why?.state === 'done' ? <FormWhy word={word} before={before} after={after} explanation={why.explanation} /> : null}
           </View>
         ) : null}
 
@@ -174,5 +176,47 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         </View>
       </ScrollView>
     </Modal>
+  );
+}
+
+/**
+ * Why the form: the line with the deciding word marked and the answer in its place, what that word does,
+ * the change as before and after chips, and a tip. The server keeps each part short (explain.py, clean_form).
+ */
+function FormWhy({ word, before, after, explanation }: { word: Word; before: string; after: string; explanation: FormExplanation }) {
+  const c = useTheme();
+  const pieces = markDecider(before, after, explanation.deciding);
+  const sentence = (parts: { text: string; mark: boolean }[]) =>
+    parts.map((p, i) => (p.mark
+      ? <Text key={i} style={{ backgroundColor: c.accentFill, color: c.accentInk, fontWeight: '600' }}>{p.text}</Text>
+      : p.text));
+  const chip = (text: string, tone: 'plain' | 'accent' | 'answer') => (
+    <View style={{ borderRadius: radius.s, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, backgroundColor: tone === 'answer' ? c.dangerFill : tone === 'accent' ? c.accentFill : c.surface }}>
+      <Text style={{ ...type.headline, color: tone === 'answer' ? c.danger : tone === 'accent' ? c.accentInk : c.text }}>{text}</Text>
+    </View>
+  );
+  return (
+    <View accessibilityLiveRegion="polite" style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.m }}>
+      <Text style={{ ...type.overline, color: c.textSecondary }}>Why {word.text}</Text>
+      <Text style={{ ...type.reading, color: c.text }}>
+        {sentence(pieces.before)}
+        <Text style={{ color: c.danger, fontWeight: '600', textDecorationLine: 'underline' }}>{word.text}</Text>
+        {sentence(pieces.after)}
+      </Text>
+      <Text style={{ ...type.body, color: c.text }}>{explanation.rule}</Text>
+      {explanation.changes.map((change, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.s }}>
+          {chip(change.before, 'plain')}
+          <Icon name="arrow.right" size={14} color={c.textSecondary} />
+          {chip(change.after, i === 0 ? 'answer' : 'accent')}
+        </View>
+      ))}
+      {explanation.tip ? (
+        <Text style={{ ...type.body, color: c.text }}>
+          <Text style={{ fontWeight: '600', color: c.accentInk }}>Check  </Text>
+          {explanation.tip}
+        </Text>
+      ) : null}
+    </View>
   );
 }
