@@ -4,7 +4,7 @@ import { ApiError, type Api, type AudioLesson, type Language, type LessonReview 
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
 import { LessonReviewCard } from './LessonReviewCard';
 import { LessonTopics } from './LessonTopics';
@@ -42,6 +42,8 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const [review, setReview] = useState<LessonReview | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  // The row slid open on its Delete action; one at a time.
+  const [openLesson, setOpenLesson] = useState<number | null>(null);
   const chosen = useLessonWords(language);
   const downloadButton = useLessonDownloads(api);
   const problem = useConnectionProblem();
@@ -106,9 +108,10 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
     }
   };
 
-  // A lesson that failed has nothing to play, so tapping it offers to delete it.
+  // A lesson that failed has nothing to play, so tapping it offers to delete it; swiping a row does too.
   const confirmDelete = (lesson: AudioLesson) => {
-    Alert.alert('Delete this lesson?', `"${lesson.title}" didn't finish, so there's nothing to play.`, [
+    const why = lesson.state === 'failed' ? `"${lesson.title}" didn't finish, so there's nothing to play.` : `"${lesson.title}" will be deleted from your server and this iPhone. This can't be undone.`;
+    Alert.alert('Delete this lesson?', why, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => remove(lesson) },
     ]);
@@ -155,13 +158,21 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
                 {l.state === 'making' ? (
                   <LessonMakingRow lesson={l} first={i === 0} />
                 ) : (
-                  <NavRow
-                    first={i === 0}
-                    label={l.title}
-                    detail={lessonDetail(l)}
-                    onPress={() => (l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
-                    action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : l.state === 'ready' ? downloadButton(l) : undefined}
-                  />
+                  <SwipeToReveal
+                    open={openLesson === l.id}
+                    onOpenChange={(open) => setOpenLesson(open ? l.id : null)}
+                    onFullSwipe={() => confirmDelete(l)}
+                    action={<SwipeAction destructive icon="trash" label="Delete" accessibilityLabel={`Delete ${l.title}`} onPress={() => { setOpenLesson(null); confirmDelete(l); }} />}
+                  >
+                    <NavRow
+                      first={i === 0}
+                      label={l.title}
+                      detail={lessonDetail(l)}
+                      // Tapping a row that's slid open closes it, rather than opening the lesson.
+                      onPress={() => (openLesson === l.id ? setOpenLesson(null) : l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
+                      action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : l.state === 'ready' ? downloadButton(l) : undefined}
+                    />
+                  </SwipeToReveal>
                 )}
               </View>
             ))}
