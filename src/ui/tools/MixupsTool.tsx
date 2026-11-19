@@ -1,3 +1,4 @@
+import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
@@ -6,22 +7,25 @@ import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { MIXUP_MODES, mixupQuestion, mixupSet, nextMixup, type MixupMode, type MixupQuestion, type MixupSet, type MixupWord } from '../../tools/mixups';
 import { haptic } from '../haptics';
-import { Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
-import { Reveal } from '../motion';
+import { Button, Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
+import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useFont } from '../AppFont';
 import { useWordAudio } from '../useWordAudio';
 import type { ToolScreenProps } from './index';
-import { ChipChoice, PlayButton, Status, ToolScreen, useToolLanguage, useToolPref, type ToolActions } from './ToolScreen';
+import { ListenPrompt, PracticeCard } from './PracticeCard';
+import { PlayButton, Status, ToolScreen, useToolLanguage, useToolPref } from './ToolScreen';
 import { useRetries } from './useRetries';
 
+/** The three ways, in the header's menu. */
 const MODES: { value: MixupMode; label: string }[] = [{ value: 'meaning', label: 'By meaning' }, { value: 'ear', label: 'By ear' }, { value: 'pairs', label: 'Your pairs' }];
 
 /** A word's romanization (or reading) and meaning as one string, for the spoken label; shown on separate lines. */
 const detail = (w: MixupWord) => [w.roman, w.meaning].filter(Boolean).join(' · ');
 
 /**
- * Similar words (src/tools/mixups.ts): a meaning and the word for it among its look-alikes or the
+ * Similar words (src/tools/mixups.ts), as Review's card (PracticeCard.tsx): the question is the card,
+ * the choices are footer buttons, and Tell them apart is in the header's menu. A meaning and the word for it among its look-alikes or the
  * words linked to it as ones you mix up, or a word played and which of its sound-alikes it was.
  * Opened from Review's session end with the words just missed (`notes`, a JSON list of note ids, and `mode`), it asks those first. A miss
  * comes back a few questions later. Nothing here grades a card.
@@ -94,9 +98,55 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
   const next = () => { if (set) ask(set, question?.target.noteId); };
 
   const owed = focus.filter((id) => !asked.current.includes(id)).length;
-  const actions: ToolActions = picked !== undefined
-    ? { primary: { label: 'Next', onPress: next } }
-    : { secondary: { label: 'Another word', onPress: next }, primary: { label: "I don't know", onPress: () => choose(null), disabled: !question } };
+  const motion = useRef<CardMotion | null>(null);
+  const answered = picked !== undefined;
+  const missed = answered && !!question && picked !== question.target.noteId;
+
+  let front: React.ReactNode;
+  let back: React.ReactNode;
+  let footer: React.ReactNode;
+  if (question) {
+    const meaning = question.target.meaning ?? '';
+    front = (
+      <View style={{ gap: space.l }}>
+        {mode !== 'ear' ? (
+          <View style={{ alignItems: 'center', gap: space.m }}>
+            <Text style={{ ...type.overline, color: c.textSecondary }}>Which one means</Text>
+            <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: meaning.length > 28 ? 28 : 40, fontWeight: '700', color: c.text, textAlign: 'center' }}>{meaning}</Text>
+            <View style={{ width: 36, height: 3, borderRadius: 2, backgroundColor: c.accent }} />
+            {question.target.partOfSpeech ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{question.target.partOfSpeech}</Text> : null}
+          </View>
+        ) : (
+          <ListenPrompt wave label="Play the word again" hint="Which did you hear?" onPlay={() => void play(question.target.word, language)} />
+        )}
+        {owed ? <Help>{`From your last session: ${owed} more ${owed === 1 ? 'word' : 'words'} to go.`}</Help> : null}
+      </View>
+    );
+    back = answered ? (
+      <View style={{ gap: space.s, alignItems: 'center' }}>
+        {picked === question.target.noteId
+          ? <Status tone="good">Right.</Status>
+          : <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>}
+        {missed && mode === 'ear' ? <Help>Play each word to compare how they sound.</Help> : null}
+      </View>
+    ) : undefined;
+    footer = (
+      <View style={{ gap: space.s }}>
+        {question.choices.map((w) => (
+          <Choice
+            key={w.noteId}
+            word={w}
+            state={picked === undefined ? 'open' : w.noteId === question.target.noteId ? 'right' : w.noteId === picked ? 'wrong' : 'other'}
+            onPress={() => choose(w.noteId)}
+            onPlay={picked === undefined ? undefined : () => void play(w.word, language)}
+          />
+        ))}
+        {answered ? <Button label="Next" onPress={next} /> : <Button variant="secondary" label="I don't know" onPress={() => choose(null)} />}
+      </View>
+    );
+  } else {
+    footer = <View />;
+  }
 
   return (
     <ToolScreen
@@ -107,61 +157,39 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
       onRandomize={next}
       onShow={() => choose(null)}
       onMark={() => next()}
-      actions={actions}
-    >
-      {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : !set ? <Loading /> : !question ? (
-        <Card>
-          <Help>
-            {mode === 'ear'
-              ? `None of the ${LANGUAGES[language].name} words you're studying sound like another one in your deck.`
-              : mode === 'pairs'
-                ? `You haven't linked any ${LANGUAGES[language].name} words you're studying yet. When you mix two up in Review, choose Mixed up with another word on Again's menu, or Link a confusing word in the ⋯ menu.`
-                : `None of the ${LANGUAGES[language].name} words you're studying look like another one with a different meaning.`}
-          </Help>
-        </Card>
-      ) : (
-        <>
-          <Card style={{ alignItems: 'center', gap: space.s, paddingVertical: space.xl }}>
-            {mode !== 'ear' ? (
-              <>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Which one means</Text>
-                <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{question.target.meaning}</Text>
-                {question.target.partOfSpeech ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{question.target.partOfSpeech}</Text> : null}
-              </>
-            ) : (
-              <>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Which did you hear?</Text>
-                <PlayButton label="Play the word again" onPress={() => void play(question.target.word, language)} />
-              </>
-            )}
-          </Card>
-          <View style={{ gap: space.s }}>
-            {question.choices.map((w) => (
-              <Choice
-                key={w.noteId}
-                word={w}
-                state={picked === undefined ? 'open' : w.noteId === question.target.noteId ? 'right' : w.noteId === picked ? 'wrong' : 'other'}
-                onPress={() => choose(w.noteId)}
-                onPlay={picked === undefined ? undefined : () => void play(w.word, language)}
-              />
-            ))}
-          </View>
-          {picked !== undefined ? (
-            <Reveal style={{ gap: space.xs }}>
-              {picked === question.target.noteId
-                ? <Status tone="good">Right.</Status>
-                : (
-                  <>
-                    <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>
-                    {mode === 'ear' ? <Help>Play each word to compare how they sound.</Help> : null}
-                  </>
-                )}
-            </Reveal>
-          ) : null}
-          {owed ? <Help>{`From your last session: ${owed} more ${owed === 1 ? 'word' : 'words'} to go.`}</Help> : null}
-        </>
+      fill
+      footer={footer}
+      menu={(
+        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
+          <Stack.Toolbar.Menu inline title="Tell them apart">
+            {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); setOverride((o) => ({ ...o, mode: undefined })); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar.Menu>
       )}
-      <ChipChoice label="Tell them apart" options={MODES} value={mode} onChange={(m) => { setMode(m); setOverride((o) => ({ ...o, mode: undefined })); }} />
+    >
+      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !set ? <View style={{ padding: space.l }}><Loading /></View> : !question ? (
+        <View style={{ padding: space.l }}>
+          <Card>
+            <Help>
+              {mode === 'ear'
+                ? `None of the ${LANGUAGES[language].name} words you're studying sound like another one in your deck.`
+                : mode === 'pairs'
+                  ? `You haven't linked any ${LANGUAGES[language].name} words you're studying yet. When you mix two up in Review, choose Mixed up with another word on Again's menu, or Link a confusing word in the ⋯ menu.`
+                  : `None of the ${LANGUAGES[language].name} words you're studying look like another one with a different meaning.`}
+            </Help>
+          </Card>
+        </View>
+      ) : (
+        <PracticeCard
+          questionKey={`${question.target.noteId}|${scope}`}
+          cardKey={`${question.target.noteId}|${scope}|${String(picked)}`}
+          swipe={false}
+          motion={motion}
+          onMark={() => {}}
+          front={front}
+          back={back}
+        />
+      )}
     </ToolScreen>
   );
 }
@@ -189,7 +217,7 @@ function Choice({ word, state, onPress, onPlay }: {
       style={{
         flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + 16, paddingHorizontal: space.l, paddingVertical: space.s,
         backgroundColor: state === 'right' ? c.goodFill : state === 'wrong' ? c.dangerFill : c.surface,
-        borderRadius: radius.m, ...smooth, borderWidth: marked ? 1.5 : hairline, borderColor: tint,
+        borderRadius: radius.m + 2, ...smooth, borderWidth: marked ? 1.5 : hairline, borderColor: tint,
       }}
     >
       {state === 'right' ? <Icon name="checkmark.circle.fill" size={20} color={c.countDue} /> : null}

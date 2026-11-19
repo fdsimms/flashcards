@@ -106,11 +106,12 @@ export function SayFooter({ shown, missed, onShow, onNext, onMark }: { shown: bo
 }
 
 /** A listening question: a large play button to hear it again, what to do, and the tool's answer field under them. */
-export function ListenPrompt({ label, hint, onPlay, children }: { label: string; hint: string; onPlay: () => void; children?: React.ReactNode }) {
+export function ListenPrompt({ label, hint, onPlay, wave, children }: { label: string; hint: string; onPlay: () => void; /** A sound wave over the button, for a word heard rather than a time or an amount. */ wave?: boolean; children?: React.ReactNode }) {
   const c = useTheme();
   return (
     <View style={{ gap: space.l }}>
       <View style={{ alignItems: 'center', gap: space.m }}>
+        {wave ? <SoundWave /> : null}
         <Tappable
           onPress={() => { haptic.tap(); onPlay(); }}
           accessibilityRole="button"
@@ -144,6 +145,17 @@ export function ListenFooter({ verdict, canCheck, onCheck, onRetry, onNext }: { 
     <View style={{ flexDirection: 'row', gap: space.s }}>
       <Button variant="secondary" label="Try again" style={{ flex: 1 }} onPress={onRetry} />
       <Button label="Next" style={{ flex: 1 }} onPress={onNext} />
+    </View>
+  );
+}
+
+/** A still sound wave: bars of uneven height in the accent, over a play button. Decorative. */
+const WAVE = [14, 26, 38, 20, 46, 30, 18, 40, 52, 34, 22, 44, 28, 16, 36, 48, 24, 42, 30, 18, 38, 26, 14];
+function SoundWave() {
+  const c = useTheme();
+  return (
+    <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 54 }}>
+      {WAVE.map((h, i) => <View key={i} style={{ width: 4, height: h, borderRadius: 2, backgroundColor: c.accent, opacity: 0.8 }} />)}
     </View>
   );
 }
