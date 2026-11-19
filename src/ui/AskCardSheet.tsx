@@ -6,6 +6,7 @@ import { failureText } from '../core/failure';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
+import { AskingText } from './AskingText';
 
 /**
  * Ask Claude about the card on screen, from Review's ⋯ menu. It opens over the card as iOS's own
@@ -110,7 +111,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
             <Text selectable={t.role === 'assistant'} style={{ ...type.subhead, color: t.role === 'user' ? c.onAccent : c.text }}>{t.content}</Text>
           </View>
         ))}
-        {asking ? <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text> : null}
+        {asking ? <AskingText style={{ ...type.subhead, color: c.textSecondary }} /> : null}
         {error ? <ErrorNote message={error} onRetry={failed ? () => { setTurns((prev) => prev.slice(0, -1)); void send(failed); } : undefined} /> : null}
         {ask && !asking && !turns.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
