@@ -46,6 +46,8 @@ class SituationIn(BaseModel):
     language: Code
     scene: str = Field(min_length=1, max_length=200)
     focus: SituationFocus | None = None
+    # Words from a cram being rehearsed, each "word (meaning)", for the other person to work in.
+    words: list[str] = Field(default_factory=list, max_length=situations.MAX_REHEARSAL_WORDS)
     roles: SituationRoles | None = None
     lines: list[SituationLine] = Field(default_factory=list, max_length=situations.MAX_LINES)
     # Whether to record their next line with Azure. The app turns it off when it reads their lines
@@ -60,7 +62,14 @@ class SituationIn(BaseModel):
             if self.focus and self.focus.title.strip()
             else None
         )
-        return situations.Conversation(self.language, self.scene.strip(), roles, lines, focus)
+        words = tuple(
+            w
+            for w in (" ".join(w.split())[: situations.MAX_REHEARSAL_WORD] for w in self.words)
+            if w
+        )
+        return situations.Conversation(
+            self.language, self.scene.strip(), roles, lines, focus, words
+        )
 
 
 class SlowClipIn(BaseModel):

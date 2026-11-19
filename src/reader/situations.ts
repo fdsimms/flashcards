@@ -2,7 +2,8 @@
 // the other person from the deck's words. The conversation lives here, in the app, and goes to the server with
 // each turn. What's worth keeping in it, and what a line the owner wrote holds. Pure, so it's tested; nothing
 // here grades a card or writes a note.
-import type { SituationConversation, SituationFocus, SituationLine, SituationRoles, SituationTurn } from './api';
+import type { Language, SituationConversation, SituationFocus, SituationLine, SituationRoles, SituationTurn } from './api';
+import { LANGUAGES } from './languages';
 
 /** Lines in a conversation; the server takes no more. The screen offers to finish before it's reached. */
 export const MAX_LINES = 40;
@@ -21,16 +22,18 @@ export interface Chat {
   done: boolean;
   /** The grammar topic this scene practices, when opened from one. */
   focus?: SituationFocus;
+  /** Set when a cram or theme is being rehearsed (even with no words): the words, each "word (meaning)", that the other person works in where they fit. */
+  words?: string[];
 }
 
-export function startChat(language: Chat['language'], scene: string, focus?: SituationFocus): Chat {
-  return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}) };
+export function startChat(language: Chat['language'], scene: string, focus?: SituationFocus, words?: string[]): Chat {
+  return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}), ...(words ? { words } : {}) };
 }
 
 /** What goes to the server: the scene, the parts, and every line as text. */
 export function conversationOf(chat: Chat): SituationConversation {
   const lines: SituationLine[] = chat.lines.map((l) => (l.speaker === 'them' ? { speaker: 'them', text: l.turn.line } : { speaker: 'you', text: l.text }));
-  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}) };
+  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}), ...(chat.words?.length ? { words: chat.words } : {}) };
 }
 
 /** The chat with their line added: the parts from a first turn, and whether it ended the scene. */
@@ -79,4 +82,36 @@ export function lineParts(text: string): { text: string; asked: boolean }[] {
   }
   if (at < text.length) out.push({ text: text.slice(at), asked: false });
   return out;
+}
+
+/** The most words a rehearsal sends, and the longest one with its meaning: the server's `MAX_REHEARSAL_WORDS` and `MAX_REHEARSAL_WORD`. */
+export const REHEARSAL_WORDS_MAX = 15;
+export const REHEARSAL_WORD_MAX = 200;
+/** The longest scene the server takes. */
+const SCENE_MAX = 200;
+
+/** A cram or theme rehearsed in Situations: its title is the scene, and its words are worked into the other person's lines. */
+export interface Rehearsal {
+  language: Language;
+  scene: string;
+  words: string[];
+}
+
+/** The route parameters that open Situations on a rehearsal. A word too long to send is left out, and no more than `REHEARSAL_WORDS_MAX` go. */
+export function rehearsalParams(language: Language, scene: string, words: { text: string; english: string }[]): Record<string, string> {
+  const listed = words
+    .map((w) => `${w.text.trim()} (${w.english.trim()})`)
+    .filter((w, i) => words[i].text.trim() && words[i].english.trim() && w.length <= REHEARSAL_WORD_MAX)
+    .slice(0, REHEARSAL_WORDS_MAX);
+  return { id: 'situations', language, scene: scene.trim().slice(0, SCENE_MAX), words: JSON.stringify(listed) };
+}
+
+/** The rehearsal a route's parameters ask for; undefined when there's no scene or the language isn't one Read & Listen plays. */
+export function rehearsalOf(params: { language?: string; scene?: string; words?: string }): Rehearsal | undefined {
+  const scene = params.scene?.trim().slice(0, SCENE_MAX);
+  if (!scene || !params.language || !(params.language in LANGUAGES)) return undefined;
+  let raw: unknown = [];
+  try { raw = params.words ? JSON.parse(params.words) : []; } catch { /* no words */ }
+  const words = (Array.isArray(raw) ? raw : []).filter((w): w is string => typeof w === 'string' && !!w.trim() && w.length <= REHEARSAL_WORD_MAX).slice(0, REHEARSAL_WORDS_MAX);
+  return { language: params.language as Language, scene, words };
 }

@@ -423,6 +423,38 @@ def test_scenes_without_claude_and_the_passphrase() -> None:
     assert app.get("/api/situations/audio/" + "0" * 32, headers=AUTH).status_code == 404
 
 
+# ==== Words to rehearse ====
+
+
+def test_rehearsal_words_reach_the_turn_prompt_and_are_absent_without_any() -> None:
+    from franki_reader.situations import Focus, play_intro
+
+    plain = talk(("you", "ครับ"))
+    rehearsing = Conversation(
+        "th", SCENE, ROLES, plain.lines, None, ("สั่ง (to order)", "เผ็ด (spicy)")
+    )
+    assert "rehearsing" not in play_intro(plain)
+    intro = play_intro(rehearsing)
+    assert "สั่ง (to order); เผ็ด (spicy)" in intro
+    assert "do not force one in where it doesn't fit" in intro
+    assert intro.endswith("M mature, Y young):\n") and "The word list" in intro
+    both = Conversation("th", SCENE, ROLES, plain.lines, Focus("Serial verbs"), rehearsing.words)
+    assert "Serial verbs" in play_intro(both) and "สั่ง (to order)" in play_intro(both)
+
+
+def test_the_turn_endpoint_passes_rehearsal_words_on_tidied_and_refuses_too_many() -> None:
+    play, seen = playing(START, START)
+    app = client(play)
+    base = {"language": "th", "scene": SCENE}
+    app.post("/api/situations/turn", json=base, headers=AUTH)
+    words = [" สั่ง  (to order) ", "", "x" * 300]
+    app.post("/api/situations/turn", json={**base, "words": words}, headers=AUTH)
+    assert seen[0].words == ()
+    assert seen[1].words == ("สั่ง (to order)", "x" * 200)
+    many = {**base, "words": ["a"] * 16}
+    assert app.post("/api/situations/turn", json=many, headers=AUTH).status_code == 422
+
+
 # ==== A structure to practice ====
 
 

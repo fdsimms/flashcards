@@ -1,14 +1,18 @@
 import { useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import type { Api, ReaderText, TextLine } from '../../reader/api';
+import type { Api, Language, ReaderText, TextLine } from '../../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { choiceText } from '../../reader/choices';
-import { speedFor } from '../../reader/prefs';
+import { LANGUAGES } from '../../reader/languages';
+import { isSlow, NORMAL_RATE, RATES } from '../../reader/playbackRate';
+import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
+import { saidAs } from '../../reader/wordAudio';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, ProgressBar, Tappable } from '../kit';
+import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
+import { PlayPill } from '../PlayButton';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
@@ -19,13 +23,15 @@ import { TranslationRow } from '../TranslationRow';
  * stays until Next. `picks` lives in the reader, so the score is logged with the reading however the
  * screen is left. Nothing here grades a card.
  */
-export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, onDone }: {
+export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, onPlayWord, onDone }: {
   api: Api;
   text: ReaderText;
   questions: CheckQuestion[];
   picks: CheckPicks;
   textStyle: ReadTextStyle;
   onPick: (key: string, pick: number | null) => void;
+  /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
+  onPlayWord: (word: string, language: Language, say?: string) => void;
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -34,7 +40,11 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   const [english, setEnglish] = useState(prefs().checkEnglish);
   const q = questions[at];
   const answered = q ? q.key in picks : false;
-  const play = useLinePlayer(api, text);
+  // The reader's speed (the story page's Slow and Normal), shared through the saved setting.
+  const slowOffered = hasSlow(prefs(), text.language);
+  const [chosenRate, setRate] = useState(prefs().rate);
+  const rate = slowOffered ? chosenRate : NORMAL_RATE;
+  const play = useLinePlayer(api, text, rate);
 
   // A listening question plays its line as it comes up.
   useEffect(() => {
@@ -42,6 +52,12 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   }, [q?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!q) return null;
+  // The speed is a different recording, so the line starts again at the new one.
+  const changeRate = (next: number) => {
+    savePrefs({ ...prefs(), rate: next });
+    setRate(next);
+    play(q.line, next);
+  };
   const toggleEnglish = () => {
     setEnglish(!english);
     savePrefs({ ...prefs(), checkEnglish: !english });
@@ -63,18 +79,22 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
       </View>
       <ProgressBar value={at / questions.length} label="Progress through this check" />
       <Reveal key={q.key} rise={10} style={{ gap: space.m }}>
+        {q.kind === 'text' ? (
+          // The question sits on the screen itself, not in a card, so a boxed row is always something to tap.
+          <View style={{ gap: space.s, paddingHorizontal: space.xs, paddingTop: space.s }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
+              <Text style={{ ...type.overline, color: c.accentInk }}>Question</Text>
+              <Chip label="English" selected={english} onPress={toggleEnglish} />
+            </View>
+            <Text selectable style={{ fontSize: textStyle.fontSize * 1.25, lineHeight: textStyle.lineHeight * 1.25, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text }}>
+              {q.question}
+            </Text>
+            {english || answered ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{q.english}</Text> : null}
+            <View style={{ height: hairline, backgroundColor: c.border, marginTop: space.xs }} />
+          </View>
+        ) : (
         <Card style={{ gap: space.s, paddingVertical: space.l }}>
-          {q.kind === 'text' ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-                <Text selectable style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text, flex: 1 }}>
-                  {q.question}
-                </Text>
-                <Chip label="English" selected={english} onPress={toggleEnglish} />
-              </View>
-              {english || answered ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{q.english}</Text> : null}
-            </>
-          ) : q.kind === 'listen' ? (
+          {q.kind === 'listen' ? (
             <View style={{ alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text, textAlign: 'center' }}>Which line did you hear?</Text>
               <Tappable
@@ -85,6 +105,14 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
               >
                 <Icon name="play.fill" size={24} color={c.onAccent} />
               </Tappable>
+              {slowOffered ? (
+                <Segments
+                  style={{ alignSelf: 'stretch' }}
+                  options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))}
+                  value={rate}
+                  onChange={changeRate}
+                />
+              ) : null}
               <Help>Play it as often as you like.</Help>
             </View>
           ) : (
@@ -94,9 +122,17 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 {q.word}
               </Text>
               <LineWords line={line} word={q.word} textStyle={textStyle} centered />
+              <View style={{ marginTop: space.xs }}>
+                <PlayPill
+                  label={`Play ${q.word}`}
+                  onPlay={() => onPlayWord(q.word, text.language, saidAs(text.language, q.word, line?.words.find((w) => w.text === q.word)?.translit))}
+                  speech={LANGUAGES[text.language].speech}
+                />
+              </View>
             </View>
           )}
         </Card>
+        )}
         <View accessibilityRole="radiogroup" style={{ gap: space.s }}>
           {q.choices.map((choice, i) => {
             const label = typeof choice === 'string' ? choice : choice.text;
@@ -114,7 +150,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 accessibilityLabel={`${label}${under ? `. ${under}` : ''}${right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
                 scaleTo={0.98}
                 style={{
-                  minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: space.m,
+                  minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
                   borderRadius: radius.m, ...smooth,
                   backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
                   borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
@@ -124,9 +160,13 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 {typeof choice === 'string' ? (
                   <Text style={{ ...type.body, color: c.text, fontWeight: right ? '600' : '400' }}>{label}</Text>
                 ) : (
-                  <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text, fontWeight: right ? '600' : '400' }}>{label}</Text>
+                  // The text and its English share a line so four answers fit above the evidence and Next;
+                  // a long text wraps and the English drops under it.
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: space.m }}>
+                    <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{label}</Text>
+                    {under && (english || answered) ? <Text style={{ ...type.footnote, color: c.textSecondary, marginLeft: 'auto', textAlign: 'right' }}>{under}</Text> : null}
+                  </View>
                 )}
-                {under && (english || answered) ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{under}</Text> : null}
                 {wrongPick ? <Text style={{ ...type.caption, color: c.textSecondary }}>Your answer</Text> : null}
               </Tappable>
             );
@@ -154,12 +194,12 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
 
 const KIND_LABEL: Record<CheckQuestion['kind'], string> = { text: 'About the text', listen: 'Listening', word: 'A word from the text' };
 
-/** Plays one of the text's lines at the reader's speed, on a player of its own. */
-function useLinePlayer(api: Api, text: ReaderText) {
+/** Plays one of the text's lines at `rate` (the reader's speed unless one is given), on a player of its own. */
+function useLinePlayer(api: Api, text: ReaderText, rate: number) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  return (line: number) => {
+  return (line: number, at = rate) => {
     if (!text.lines[line]?.audio) return;
-    player.replace(api.audioSource(text.id, line, speedFor(prefs(), text.language)));
+    player.replace(api.audioSource(text.id, line, at));
     player.play();
   };
 }

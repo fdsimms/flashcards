@@ -92,7 +92,7 @@ export function cramId(name: string, date: string, taken: Iterable<string> = [])
 
 /** Why a name or date can't be saved, in the words to show, or undefined when they can. */
 export function cramProblem(name: string, date: string, now: Date, dayStartsAtHour: number): string | undefined {
-  if (!name.trim()) return 'Give the cram a name, for example "Thai lesson".';
+  if (!name.trim()) return 'Give the cram a name, e.g. "Thai lesson".';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Choose a date.';
   if (date < studyDayKey(now, dayStartsAtHour)) return 'Choose today or a day after it.';
   return undefined;
