@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from franki_mcp.articles import ARTICLES, LANGUAGE_CODES, _LEADING, article_for, with_article
+from franki_mcp.articles import ARTICLES, LANGUAGE_CODES, VERB_MARKERS, _LEADING, article_for, marker_for, with_article
 
 GENDER_TS = Path(__file__).resolve().parents[3] / "src" / "core" / "gender.ts"
 
@@ -74,3 +74,19 @@ def test_the_leading_articles_match_the_apps():
 
 def test_every_language_name_maps_to_a_code_with_a_table():
     assert set(LANGUAGE_CODES.values()) == set(ARTICLES)
+
+
+def test_a_norwegian_verb_is_said_with_its_marker():
+    assert marker_for("norwegian", "verb", "huske") == "å"
+    assert marker_for("Norsk", " Verb ", "huske") == "å"
+    # A noun, a phrase that already starts with it, and every other language get none.
+    assert marker_for("norwegian", "noun", "huske") is None
+    assert marker_for("norwegian", "verb", "å gå seg vill") is None
+    assert marker_for("german", "verb", "werfen") is None
+    assert with_article("å", "huske") == "å huske"
+
+
+def test_the_verb_markers_match_the_apps():
+    block = re.search(r"const VERB_MARKERS[^=]*=\s*\{([^}]*)\}", _ts())
+    assert block
+    assert dict(re.findall(r"(\w+): '([^']+)'", block.group(1))) == VERB_MARKERS

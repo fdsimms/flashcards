@@ -281,3 +281,11 @@ def test_quick_add_labels_its_key_forms_with_labels_from_the_list():
     labels = set(re.findall(r'_form\(\s*"\w+",\s*"([^"]+)"', source)) | set(re.findall(r'label="([^"]+)"', source))
     assert {"pattern", "past", "genitive", "I"} <= labels
     assert {label.lower() for label in labels} <= set(o.FORM_LABELS)
+
+
+def test_a_norwegian_verb_is_stored_bare_and_a_phrase_keeps_its_marker():
+    verb = {"Entry": "å huske", "Meaning": "to remember", "Language": "norwegian", "Register": "neutral", "PartOfSpeech": "verb"}
+    assert o.fix(verb, rules=["entry-infinitive-marker"]).fields["Entry"] == "huske"
+    # The card puts å back before a verb only, so a phrase's stays in its Entry.
+    assert "entry-infinitive-marker" not in rules({**verb, "Entry": "å gå seg vill", "PartOfSpeech": "phrase"})
+    assert "entry-infinitive-marker" not in rules({**verb, "PartOfSpeech": ""})

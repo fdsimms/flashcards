@@ -173,6 +173,17 @@ describe('cards', () => {
     expect(renderCard(note, 'forward').front.speak).toBe('spodnie');
     expect(renderCard(men, 'forward').front.blocks[0]).toMatchObject({ text: 'ludzie', prefix: 'ci' });
   });
+  it("puts å before a Norwegian verb and says it, and leaves a phrase or another language's verb alone", () => {
+    const note = omniNote({ Entry: 'huske', Meaning: 'to remember', Language: 'norwegian', PartOfSpeech: 'verb', Transliteration: '' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks[0]).toMatchObject({ text: 'huske', prefix: 'å' });
+    expect(forward.front.speak).toBe('å huske');
+    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'huske', prefix: 'å' });
+    const phrase = renderCard({ ...note, fields: { ...note.fields, Entry: 'å gå seg vill', PartOfSpeech: 'phrase' } }, 'forward');
+    expect(phrase.front.blocks[0].prefix).toBeUndefined();
+    expect(phrase.front.speak).toBe('å gå seg vill');
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'werfen', Language: 'german' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
+  });
   it('adds no Polish gender word before an Entry that already starts with one, whichever it is', () => {
     const note = omniNote({ Entry: 'ci ludzie', Meaning: 'people', Language: 'polish', Gender: 'm', Transliteration: '' });
     for (const entry of ['ci ludzie', 'te drzwi', 'ten mężczyzna', 'ta kobieta', 'to dziecko']) {

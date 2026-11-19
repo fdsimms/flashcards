@@ -112,7 +112,7 @@ LANGUAGE_NAMES = {
 RULES: dict[str, str] = {
     "entry-markup": "Entry has markup or stray spaces",
     "entry-article": "Entry starts with the article that Gender already gives",
-    "entry-infinitive-marker": 'Entry starts with "å"',
+    "entry-infinitive-marker": 'A Norwegian verb\'s Entry starts with "å", which the card adds',
     "entry-aspect-pair": "Entry holds an aspect pair; the partner belongs in AspectPartner",
     "entry-brackets": "Entry has a bracketed preposition or note",
     "meaning-markup": "Meaning has markup or HTML entities",
@@ -422,8 +422,10 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             add("entry-article", "Entry", "format",
                 f'Write the bare noun ("{elided.group(1)}"): the card puts the article in front from Gender.',
                 {"Entry": _escape(elided.group(1))})  # fmt: skip
-    if lang and lang.name == "norwegian" and entry.startswith("å "):
-        add("entry-infinitive-marker", "Entry", "format", 'Write the verb without "å".', {"Entry": _escape(entry[2:])})
+    # Only a verb's: the card puts å back before a verb, and nothing would put it back before a phrase.
+    if lang and lang.name == "norwegian" and pos == "verb" and entry.startswith("å "):
+        add("entry-infinitive-marker", "Entry", "format", 'Write the bare verb: the card puts "å" before a Norwegian verb.',
+            {"Entry": _escape(entry[2:])})  # fmt: skip
     if lang and lang.aspect_pairs and " / " in entry and pos == "verb":
         first, _, second = entry.partition(" / ")
         fix = {"Entry": _escape(first)}
@@ -786,7 +788,7 @@ _PER_LANGUAGE = {
     "greek": "Gender: m, f or n (m/f for a noun that takes either). Plural: every noun's nominative plural.\n"
              "VerbClass: active; deponent only for a verb with no active form; passive for the -μαι form of an active verb.\n"
              "KeyForms for a verb: past: αντιπάθησα (the aorist). No romanization.",
-    "norwegian": "Bokmål. Gender: m, f or n. Plural: every noun's indefinite plural. A verb is entered without å.\n"
+    "norwegian": "Bokmål. Gender: m, f or n. Plural: every noun's indefinite plural. A verb is entered without å: the card shows and says it.\n"
                  "KeyForms for a verb: present: tømmer, past: tømte, participle: tømt.",
     "russian": "Gender: m, f or n. AspectPartner: every verb's partner of the other aspect, as one word.\n"
                "KeyForms for a noun: genitive: стола, plural: столы; for a verb: I: добиваюсь, you: добиваешься (present, or the "

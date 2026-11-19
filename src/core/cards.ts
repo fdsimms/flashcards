@@ -1,5 +1,5 @@
 import { examplesOf } from './examples';
-import { genderArticle, genderOf, pluralWord, spokenEntry } from './gender';
+import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
@@ -190,10 +190,10 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   const entry = t(note, 'Entry');
   // What the phone's voice may say: nothing in a language that isn't known, which it would read as
   // English. A recording (`audioFile`) still plays.
-  // A noun's article from its Gender (gender.ts), unless the Entry already starts with one.
+  // A noun's article from its Gender, or a Norwegian verb's å (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
-  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry);
-  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), entry) : undefined;
+  const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry) ?? verbMarker(lang2, t(note, 'PartOfSpeech'), entry);
+  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), t(note, 'PartOfSpeech'), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
