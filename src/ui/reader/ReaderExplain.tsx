@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { noteWithExample } from '../../core/grammar';
 import { ApiError, type Api, type ExplainPoint, type GrammarChoice, type GrammarState, type LineGrammar } from '../../reader/api';
@@ -7,6 +7,7 @@ import { GRAMMAR_CHOICES, grammarStateWord } from '../../reader/grammar';
 import { prefs } from '../../reader/storage';
 import { grammarTag } from '../grammarTag';
 import { HeaderAction, Tappable, ErrorNote, Segments, Tag } from '../kit';
+import { MakingBody } from '../MakingCard';
 import { haptic } from '../haptics';
 import { NaturalPill, NaturalResult, useNaturalCheck } from './ReaderNatural';
 import { hairline, radius, space, type, useTheme, smooth } from '../theme';
@@ -64,10 +65,7 @@ export function LineExplanation({ api, textId, line, grammarChosen, onGrammarCho
       {error ? (
         <ErrorNote message={error} onRetry={() => load(simple)} />
       ) : points === null ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          <ActivityIndicator color={c.accent} />
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>Asking Claude…</Text>
-        </View>
+        <MakingBody title="Asking Claude" detail="Explaining this line." />
       ) : (
         <>
           {points.map((p, i) => (

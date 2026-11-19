@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { Modal, ScrollView, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Api, FormPrimer, Language, Word } from '../../reader/api';
 import { aboutWord, pieces } from '../../reader/formPrimer';
 import { haptic } from '../haptics';
+import { MakingBody } from '../MakingCard';
 import { ErrorNote, HeaderAction, Icon, Tappable } from '../kit';
 import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 import { failureText } from '../../core/failure';
@@ -124,7 +125,7 @@ export function ReadFormSheet({ api, language, word, onClose }: { api: Api; lang
         ) : primers ? (
           <Text style={{ ...type.subhead, color: c.textSecondary }}>There's no explanation for this form yet.</Text>
         ) : (
-          <ActivityIndicator color={c.accent} />
+          <MakingBody title="Loading the explanation" detail="Getting the explanation and examples" />
         )}
         <View style={{ gap: space.xs }}>
           <Text style={{ ...type.overline, color: c.textSecondary }}>In your text</Text>
