@@ -1406,7 +1406,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
-            <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
+            <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
