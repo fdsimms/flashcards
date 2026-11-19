@@ -44,6 +44,11 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   languages came to write a Meaning four ways. An update is checked only for the fields it writes,
   so an old note can be corrected a field at a time. `tests/test_omnilanguage.py` holds every
   example the guide shows to its own rules.
+- **Skill cards come from the app's own definitions** (`skills.py`): the notes it adds are read from
+  `skill_catalog.json`, which `src/tools/skillCatalog.ts` writes (`npm run catalog:skills`), and
+  `tests/tools/skillCatalog.test.ts` fails when the file is stale, so the server has no second copy of
+  a card's text. A deck's settings are one config value shared with the app (`frankiSkillCards`,
+  `src/anki/skillSettings.ts`); the hourly job only adds where `on` and `auto` are both set.
 - **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
   did): what applies to every tool goes there, and a tool's own rules go in its description.
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;

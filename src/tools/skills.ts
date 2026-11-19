@@ -287,6 +287,9 @@ export const SKILLS_SUBDECK = 'Skills';
 
 export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
 
+/** Every skill group, for reading a saved list of them back (src/anki/skillSettings.ts) without trusting it. */
+export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'cases', 'classifiers'];
+
 /** The languages that count with a classifier or counter, and what it's called. */
 const CLASSIFIER_NAMES: Partial<Record<Language, { one: string; title: string }>> = { th: { one: 'classifier', title: 'Classifiers' }, ja: { one: 'counter', title: 'Counters' } };
 

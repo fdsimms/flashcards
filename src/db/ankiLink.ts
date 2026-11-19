@@ -3,6 +3,7 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
+import { setAnkiSkillSettings, skillSettingsByName, type SkillSettings } from '../anki/skillSettings';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
   cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, ankiDayNumber, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
@@ -97,6 +98,10 @@ export interface AnkiLink {
   ankiProgressGates(): Promise<Map<string, number>>;
   /** Sets or, with no cap, removes a deck's gate in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
   setAnkiProgressGate(deck: string, cap: number | undefined, now?: Date): Promise<boolean>;
+  /** Each deck's skill card settings kept in the collection (`src/anki/skillSettings.ts`), by deck name; a deck with none has the defaults. Read without a sync. */
+  ankiSkillSettings(): Promise<Map<string, SkillSettings>>;
+  /** Saves a deck's skill card settings in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
+  setAnkiSkillSettings(deck: string, settings: SkillSettings, now?: Date): Promise<boolean>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -347,6 +352,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     },
 
     setAnkiProgressGate: (deck, cap, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiProgressGate(c, deck, cap, now))),
+
+    async ankiSkillSettings() {
+      await attach();
+      if (!attached) return new Map();
+      const decks = (await db.getAllAsync<{ id: number; name: string }>(SQL.decks)).map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
+      const row = await db.getFirstAsync<{ val: Uint8Array | string }>(SQL.skillSettings);
+      return skillSettingsByName(decks, row?.val);
+    },
+
+    setAnkiSkillSettings: (deck, settings, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiSkillSettings(c, deck, settings, now))),
 
     detachAnki: detach,
     attachAnki: attach,
