@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SyncClient } from '../../../src/anki/sync/client';
 import type { SyncOutcome } from '../../../src/anki/sync/collectionSync';
 import * as collectionSync from '../../../src/anki/sync/collectionSync';
-import { runSync, syncErrorText, type SyncDeps } from '../../../src/anki/sync/runSync';
+import { isRetryable, runSync, syncErrorText, type SyncDeps } from '../../../src/anki/sync/runSync';
 import { SyncError } from '../../../src/anki/sync/protocol';
 
 const client = new SyncClient('https://anki.example', 'k', async () => { throw new Error('no network in this test'); });
@@ -127,5 +127,16 @@ describe('what a sync says', async () => {
     expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 1, edits: 3, reason: 'schema' }).message)
       .toMatch(/loses 1 answer and 3 other changes \(notes added, edited or deleted, cards suspended, buried or flagged\) made in Franki/);
     expect(fullSyncPrompt({ uploadOk: true, downloadOk: true, unsent: 0, edits: 0, reason: 'local' }).message).not.toMatch(/loses/);
+  });
+});
+
+describe('which failures get a quiet retry', () => {
+  it('retries a busy database or a dropped request', () => {
+    expect(isRetryable(new Error('Error code 1: database scratch is already in use'))).toBe(true);
+    expect(isRetryable(new SyncError('network', 'timed out'))).toBe(true);
+    expect(isRetryable(new SyncError('server', 'busy'))).toBe(true);
+  });
+  it("doesn't retry what trying again can't change", () => {
+    for (const kind of ['auth', 'clock', 'sanity'] as const) expect(isRetryable(new SyncError(kind, 'x'))).toBe(false);
   });
 });

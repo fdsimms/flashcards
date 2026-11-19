@@ -115,6 +115,14 @@ async function syncTheCollection(deps: SyncDeps): Promise<{ report: SyncReport; 
   return { report, mediaUsn: outcome.mediaUsn };
 }
 
+/**
+ * Whether a failed sync is worth one quiet retry. Not when trying again can't change the answer:
+ * the sign-in was refused, the phone's clock is off, or the counts differ and a full sync is needed.
+ */
+export function isRetryable(e: unknown): boolean {
+  return !(e instanceof SyncError && (e.kind === 'auth' || e.kind === 'clock' || e.kind === 'sanity'));
+}
+
 /** A sync failure as one line for the person: what went wrong, and what to do about it. */
 export function syncErrorText(e: unknown): string {
   if (e instanceof SyncError) {
