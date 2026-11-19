@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Card, Note } from '../../src/core/types';
 import type { Word } from '../../src/reader/api';
-import { dotOffsets, glossesOf, glossKey, glossRequests, keptForDisk, MAX_SENTENCES, parseKept, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
+import { dotOffsets, glossesOf, glossKey, glossRequests, keptForDisk, MAX_SENTENCES, parseKept, partsKey, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
 
 const DECKS = { th: 'Languages::Thai', es: 'Languages::Spanish' };
 
@@ -47,6 +47,33 @@ describe('the sentences a session asks about', () => {
   it('asks about at most MAX_SENTENCES in one call', () => {
     const many = new Map(Array.from({ length: MAX_SENTENCES + 5 }, (_, i) => [`${i}`, note(`${i}`, 'Languages::Thai', `ประโยค ${i}`)]));
     expect(glossRequests([...many.keys()].map((id) => card(id)), many, DECKS)[0].sentences).toHaveLength(MAX_SENTENCES);
+  });
+});
+
+describe("a card's headword", () => {
+  const thai = (id: string, entry: string, deck = 'Languages::Thai'): Note => ({ ...note(id, deck, undefined), fields: { Entry: entry, Meaning: 'idea; thought' } });
+
+  it('is asked for apart, to be split into its parts, with its Meaning as the English', () => {
+    const requests = glossRequests([card('1')], new Map([['1', thai('1', 'ความคิด')]]), DECKS);
+    expect(requests).toEqual([{ language: 'th', sentences: [{ text: 'ความคิด', english: 'idea; thought', parts: true }] }]);
+  });
+
+  it('is left out for a phrase, a short word, a word that is not Thai and a language the server does not split', () => {
+    const notes = new Map([['1', thai('1', 'ไม่ เป็นไร')], ['2', thai('2', 'คิด')], ['3', thai('3', 'house')], ['4', thai('4', 'ความคิด', 'Languages::Spanish')]]);
+    expect(glossRequests([card('1'), card('2'), card('3'), card('4')], notes, DECKS)).toEqual([]);
+  });
+
+  it('is kept apart from a sentence of the same text, and asked once', () => {
+    expect(partsKey('th', 'ความคิด')).not.toBe(glossKey('th', 'ความคิด'));
+    const notes = new Map([['1', thai('1', 'ความคิด')]]);
+    expect(glossRequests([card('1')], notes, DECKS, new Set([partsKey('th', 'ความคิด')]))).toEqual([]);
+    expect(glossRequests([card('1'), card('1', { id: '1:reverse', kind: 'reverse' })], notes, DECKS)[0].sentences).toHaveLength(1);
+  });
+
+  it("is kept under its own key when its parts spell it", () => {
+    const request = { language: 'th' as const, sentences: [{ text: 'ความคิด', english: '', parts: true as const }] };
+    expect([...glossesOf(request, [[word('ความ'), word('คิด')]]).keys()]).toEqual([partsKey('th', 'ความคิด')]);
+    expect(glossesOf(request, [[word('ความ'), word('คิ')]]).size).toBe(0);
   });
 });
 

@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drawQuestion, drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
@@ -27,9 +27,19 @@ export interface Drill { step: DrillStep; language: Language }
 /** The chip's symbol for each kind of drill. */
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
 
+/**
+ * The questions missed the last time a card was answered Again, by card id. When the card comes
+ * back they're asked again before any new one, as a failed card in Anki comes back unchanged. Kept
+ * in memory only, and dropped as soon as the card is answered with anything but Again.
+ */
+const carriedMisses = new Map<string, DrillQuestion[]>();
+
 interface DrillState {
   key: string;
   question: DrillQuestion;
+  /** Missed questions still to ask again, and the ones missed so far in this showing. */
+  retry: DrillQuestion[];
+  missed: DrillQuestion[];
   shown: boolean;
   results: boolean[];
   /** When the question came up, and how long each answer took to give (to Show answer, or to the end of speaking it). */
@@ -40,10 +50,14 @@ interface DrillState {
 }
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
-export function useSkillDrill(showing: string | undefined, drill: Drill | undefined) {
-  const first = useMemo(() => (drill && showing ? { question: drawQuestion(drill.step, undefined, Math.random, drill.language), at: Date.now() } : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
+export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
+  const first = useMemo(() => {
+    if (!drill || !showing) return undefined;
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language);
+    return { ...next, at: Date.now() };
+  }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
-  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, shown: false, results: [], askedAt: first.at, times: [] } : null;
+  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, retry: first.retry, missed: [], shown: false, results: [], askedAt: first.at, times: [] } : null;
   const done = !!live && live.results.length >= DRILL_QUESTIONS;
   const reveal = (heard?: string) => {
     if (!live || live.shown || !drill) return;
@@ -72,8 +86,16 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
-      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question, Math.random, drill.language), shown: false, results, askedAt: Date.now(), times: live.times });
+      const missed = right ? live.missed : [...live.missed, live.question];
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language);
+      setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
+    },
+    /** The card was answered: after Again, what was missed comes back with it; any other rating lets it go. */
+    rated: (rating: number) => {
+      if (!cardId) return;
+      if (rating === 1 && live?.missed.length) carriedMisses.set(cardId, live.missed);
+      else carriedMisses.delete(cardId);
     },
   };
 }

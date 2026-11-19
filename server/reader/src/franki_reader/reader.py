@@ -8,7 +8,7 @@ from typing import Any
 
 from franki_reader import form_primers, form_quiz, grammar, helpers
 from franki_reader.capitalized import demote_capitalized_nouns
-from franki_reader.coverage import Checker, is_word, parse_line, segment_line
+from franki_reader.coverage import Checker, Lexicon, is_word, parse_line, segment_line
 from franki_reader.frequency import rank_of
 from franki_reader.ipa import ipa_for
 from franki_reader.japanese import JapaneseLexicon
@@ -209,6 +209,26 @@ def render_sentence(
     demote_capitalized_nouns(words, lexicon, {})
     join_split_verbs(words, lexicon, meanings, deck_translits, set())
     return words
+
+
+def compound_parts(entry: str, lexicon: Checker) -> list[str] | None:
+    """The words a card's headword is made of (ความคิด: ความ + คิด), for Thai, whose compounds are
+    written without a gap. None for a word that doesn't split, and for every other language."""
+    return lexicon.parts(entry) if isinstance(lexicon, Lexicon) else None
+
+
+def render_parts(
+    entry: str,
+    lexicon: Checker,
+    meanings: dict[str, str],
+    deck_translits: dict[str, str],
+    ai_ipa: Mapping[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """A card's headword split into the words it is made of, each as the popover shows it (as
+    `render_sentence` does a sentence's). A word that doesn't split comes back whole, which the
+    app draws as it always has."""
+    pieces = compound_parts(entry, lexicon) or [entry]
+    return [word_out(p, lexicon, meanings, deck_translits, ai_ipa=ai_ipa) for p in pieces]
 
 
 _REFLEXIVE_PRONOUNS = frozenset({"me", "te", "se", "nos", "os"})

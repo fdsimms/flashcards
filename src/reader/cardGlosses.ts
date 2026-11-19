@@ -7,6 +7,7 @@ import { cardHomeDeck } from '../core/deckTree';
 import { examplesOf } from '../core/examples';
 import type { Segment } from '../core/highlight';
 import { htmlToText } from '../core/html';
+import { hasThai } from '../core/script';
 import type { Card, Note } from '../core/types';
 import type { Language, Word } from './api';
 import { languageOfDeck } from './practice';
@@ -14,12 +15,34 @@ import { languageOfDeck } from './practice';
 /** At most this many sentences are asked about in one call (the server's MAX_GLOSS_SENTENCES). */
 export const MAX_SENTENCES = 1000;
 
-export type GlossSentence = { text: string; english: string };
+/** A sentence to split and gloss, or (`parts`) a card's headword to split into the words it is made of. */
+export type GlossSentence = { text: string; english: string; parts?: true };
 export type GlossRequest = { language: Language; sentences: GlossSentence[] };
 
 /** How a sentence's words are kept: its language and its text as the card shows it. */
 export function glossKey(language: Language, text: string): string {
   return `${language}\u0000${text}`;
+}
+
+/**
+ * How a headword's parts are kept: apart from a sentence of the same text, which is segmented
+ * differently (a compound stays whole there, because it is a word).
+ */
+export function partsKey(language: Language, text: string): string {
+  return glossKey(language, `\u0001${text}`);
+}
+
+/** The languages whose compounds the server splits into parts (`Lexicon.parts`): Thai, written without gaps. */
+const PARTS_LANGUAGES: ReadonlySet<Language> = new Set<Language>(['th']);
+
+/**
+ * The headword to ask the parts of, or null: one Thai word long enough to be a compound (the
+ * server's `Lexicon.parts` takes four letters or more), never a phrase.
+ */
+export function partsHeadword(language: Language, note: Note): string | null {
+  if (!PARTS_LANGUAGES.has(language)) return null;
+  const text = htmlToText(note.fields.Entry ?? '');
+  return text.length >= 4 && hasThai(text) && !/\s/.test(text) ? text : null;
 }
 
 /**
@@ -45,6 +68,14 @@ export function glossRequests(
     if (!note) continue;
     const language = cardLanguage(card, note, decks);
     if (!language) continue;
+    // The headword is asked for apart, to be split into its parts; its Meaning tells which sense each part has.
+    const headword = partsHeadword(language, note);
+    if (headword && !seen.has(partsKey(language, headword))) {
+      seen.add(partsKey(language, headword));
+      const request = out.get(language) ?? { language, sentences: [] };
+      out.set(language, request);
+      if (request.sentences.length < MAX_SENTENCES) request.sentences.push({ text: headword, english: htmlToText(note.fields.Meaning ?? ''), parts: true });
+    }
     // Each of a note's examples (examples.ts) is a sentence of its own, as its box on the card shows it.
     for (const example of examplesOf(note)) {
       const text = htmlToText(example.context);
@@ -66,7 +97,7 @@ export function glossesOf(request: GlossRequest, answer: Word[][]): Map<string, 
   const out = new Map<string, Word[]>();
   request.sentences.forEach((s, i) => {
     const words = answer[i];
-    if (words?.length && words.map((w) => w.text).join('') === s.text) out.set(glossKey(request.language, s.text), words);
+    if (words?.length && words.map((w) => w.text).join('') === s.text) out.set(s.parts ? partsKey(request.language, s.text) : glossKey(request.language, s.text), words);
   });
   return out;
 }

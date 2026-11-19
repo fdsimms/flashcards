@@ -26,8 +26,10 @@ type Laid = { y?: number; width?: number };
  * the line between them, so the sentence shows where it splits. The card's own word keeps its
  * highlight. Tapping a word only shows it: nothing is graded or written (reader/cardGlosses.ts).
  */
-export function CardSentence({ gloss, segments, style, furigana }: {
+export function CardSentence({ gloss, segments, style, furigana, center }: {
   gloss: SentenceGloss; segments?: Segment[]; style: TextStyle;
+  /** Centered, for a headword's parts (it is set in the middle of the card, as the word is). */
+  center?: boolean;
   /** The furigana setting, once the answer shows: each word's reading (its gloss's `translit`) over its kanji. */
   furigana?: FuriganaSetting;
 }) {
@@ -52,7 +54,7 @@ export function CardSentence({ gloss, segments, style, furigana }: {
   });
 
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: center ? 'center' : undefined }}>
       {pieces.flatMap((piece, i) => {
         if (!piece.tappable) {
           // A space becomes a gap; punctuation after a word is drawn with it, below.

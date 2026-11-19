@@ -4,7 +4,7 @@ import { examplesOf } from '../core/examples';
 import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
 import type { Api, Language, Word } from '../reader/api';
-import { cardLanguage, glossesOf, glossKey, glossRequests, keptForDisk, parseKept } from '../reader/cardGlosses';
+import { cardLanguage, glossesOf, glossKey, glossRequests, keptForDisk, parseKept, partsHeadword, partsKey } from '../reader/cardGlosses';
 import type { Pronunciation } from '../reader/mining';
 
 /** What a card needs to gloss its example sentence: Read & Listen's server, its decks, and what a popover's buttons do. */
@@ -18,8 +18,8 @@ export type CardGlossing = {
   onAddWord: (word: string, meaning: string, language: Language, pronunciation?: Pronunciation) => Promise<boolean>;
 };
 
-/** One card's example sentence as words to tap, with what the popover's buttons do. */
-export type SentenceGloss = Omit<CardGlossing, 'decks'> & { language: Language; words: Word[] };
+/** One card's example sentence as words to tap, with what the popover's buttons do. With `parts`, the card's headword split into the words it is made of. */
+export type SentenceGloss = Omit<CardGlossing, 'decks'> & { language: Language; words: Word[]; parts?: true };
 
 // Kept on the phone (the newest KEPT_SENTENCES, in the documents folder), so a sentence studied
 // again needs no call, and a session that can't reach the server (the subway) still shows what an
@@ -78,15 +78,19 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
     }
   }, [glossing, cards, notes]);
 
-  // One gloss for each of the note's examples whose words are kept; the card matches each to its box by its text.
+  // One gloss for each of the note's examples whose words are kept, and one for its headword when that splits; the card matches each to its box by its text.
   return useCallback((card: Card, note: Note): SentenceGloss[] => {
     if (!glossing) return [];
     const language = cardLanguage(card, note, glossing.decks);
     if (!language) return [];
     const { api, onPlayWord, onAddWord } = glossing;
-    return examplesOf(note).flatMap((example) => {
+    const sentences = examplesOf(note).flatMap((example) => {
       const words = kept.get(glossKey(language, htmlToText(example.context)));
       return words ? [{ api, onPlayWord, onAddWord, language, words }] : [];
     });
+    // The headword, once the server has split it into two or more words.
+    const headword = partsHeadword(language, note);
+    const parts = headword ? kept.get(partsKey(language, headword)) : undefined;
+    return parts && parts.length > 1 ? [...sentences, { api, onPlayWord, onAddWord, language, words: parts, parts: true as const }] : sentences;
   }, [glossing]);
 }
