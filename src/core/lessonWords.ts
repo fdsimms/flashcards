@@ -5,7 +5,7 @@ import { isDue } from './queue';
 import type { Card, Note } from './types';
 
 /**
- * The words an audio lesson is asked to teach (Lessons, Words to teach): chosen from the decks or
+ * The words an audio lesson is asked to teach (Lessons, Words and phrases to teach): chosen from the decks or
  * typed in, sent to the server as the lesson's `phrases` (docs/read-and-listen/architecture.md,
  * Audio lessons). They live only in the draft of the lesson being made. Typing one never makes a
  * note, and nothing here grades a card.

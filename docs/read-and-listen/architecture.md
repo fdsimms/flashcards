@@ -434,7 +434,7 @@ aloud is never heard by the phone.
   lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
   keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
   The Lessons tab asks the same way (18 November 2026, the owner's request): the New lesson card's
-  "Words to teach (optional)" row takes up to 15 words, chosen from the decks (`LessonWordPicker.tsx`: the
+  "Words and phrases to teach (optional)" row takes up to 15 words, chosen from the decks (`LessonWordPicker.tsx`: the
   language's notes, newest first, or only those due today or lapsed, searched by word or meaning; what's
   offered is what `lessonPhraseOf` would send) or typed in (`LessonWordAdd.tsx`, for a tutor's or a book's
   words; never saved as a note). The draft is per language and held in memory (`useLessonWords`), emptied once
