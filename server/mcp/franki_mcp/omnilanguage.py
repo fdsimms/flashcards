@@ -749,11 +749,14 @@ Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" 
   numbers them, one to a line (<br>), the most common first, three at most:
   "1. train<br>2. move (in a game)<br>3. draft (of air)". Number only senses worth being tested on: every one
   listed has to be recalled to pass the card. A rarer sense is left out, or gets a note of its own; two
-  different words spelled alike are two notes. A short bracket to pin a sense down. No slashes, sub-senses
-  or markup; grammar and usage go in Notes.
+  different words spelled alike are two notes. A short bracket pins
+  down a numbered sense. No slashes, sub-senses or markup; grammar and usage go in Notes.
 Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
   line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
-  ("train", "move", "draft"). Sense is no longer written: the numbers say it.
+  ("train", "move", "draft").
+Sense: only for a word with one sense whose English gloss alone could be read another way (cause: what makes
+  something happen). One short line, lowercase, no markup, shown under the meaning. Empty when the gloss is
+  clear, and never beside a numbered Meaning: the numbers and ContextLabels already say which sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
