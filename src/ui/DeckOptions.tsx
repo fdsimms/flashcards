@@ -21,8 +21,8 @@ import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
-/** Settings made in the app for one deck: the progress gate, new card order, forms practice, lookalike words and recordings. */
-export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; recorder: RecordDeps | null }) {
+/** Settings made in the app for one deck: the progress gate, new card order, skill cards, forms practice, lookalike words and recordings. */
+export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; onSkillCards: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
@@ -134,6 +134,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, recorder }: { repo: Rep
         {filtered ? null : (
           <Group>
             <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
+            <NavRow label="Skill cards" detail="Times, numbers and letters as cards in your reviews" onPress={onSkillCards} />
           </Group>
         )}
         {settings ? <DeckPriorityOptions deck={deck} notes={allNotes} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
