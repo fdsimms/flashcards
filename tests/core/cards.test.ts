@@ -92,33 +92,41 @@ describe('cards', () => {
     const back = renderCard(note, 'forward').back.blocks;
     expect(back.map((b) => b.role)).toEqual(['meaning', 'transliteration', 'chips', undefined, 'note', 'example', 'exampleRomanized', 'exampleTranslation']);
     expect(back[3]?.label).toBe('Mnemonic');
-    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'neutral']);
+    // A neutral register is the ordinary case: the chips leave it out.
+    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['verb']);
     expect(back.find((b) => b.role === 'example')).toMatchObject({ segments: [{ text: 'ขอ', marked: false }, { text: 'ดม', marked: true }, { text: 'ดอกไม้หน่อยครับ', marked: false }], label: undefined, tapLabel: undefined });
     expect(back.find((b) => b.role === 'exampleRomanized')).toMatchObject({ tapLabel: 'Show romanization' });
     expect(back.find((b) => b.role === 'exampleRomanized')?.segments?.find((s) => s.marked)?.text).toBe('dom');
     expect(back.find((b) => b.role === 'note')?.label).toBe('Notes');
   });
-  it("lists the word's forms under the tags and before the example, as Anki's pills show them", () => {
+  it("puts the word's grammar in one box under the tags and before the example, each form under its name", () => {
     const note = omniNote({
       Entry: 'die Einstellung', Meaning: 'settings', Language: 'german', Gender: 'f', Register: 'neutral',
       Plural: 'Einstellungen', Genitive: 'der Einstellung', Context: 'Die <b>Einstellungen</b> sind im Menü.', Transliteration: '',
     });
     const back = renderCard(note, 'forward').back.blocks;
-    expect(back.map((b) => b.role)).toEqual(['meaning', 'chips', 'forms', 'example']);
-    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['feminine', 'neutral']);
-    expect(back.find((b) => b.role === 'forms')).toMatchObject({
-      label: 'Forms', rows: [{ label: 'plural', value: 'Einstellungen' }, { label: 'genitive', value: 'der Einstellung' }],
+    expect(back.map((b) => b.role)).toEqual(['meaning', 'chips', 'grammar', 'example']);
+    expect(back.find((b) => b.role === 'chips')?.chips).toEqual(['feminine']);
+    expect(back.find((b) => b.role === 'grammar')).toMatchObject({
+      label: 'Grammar', text: 'plural: Einstellungen\ngenitive: der Einstellung',
+      cells: [{ label: 'plural', value: 'Einstellungen', segments: [{ text: 'Einstellung', marked: false }, { text: 'en', marked: true }] }, { label: 'genitive', value: 'der Einstellung' }],
     });
     expect(back.find((b) => b.role === 'example')?.segments?.find((s) => s.marked)?.text).toBe('Einstellungen');
   });
-  it('shows key forms, the counting word, the auxiliary and the aspect pair as forms, and verb class and dialect as tags', () => {
-    const rows = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'forms')?.rows;
-    expect(rows({ KeyForms: 'warf ab', Auxiliary: 'haben' })).toEqual([{ label: 'key forms', value: 'warf ab' }, { label: 'auxiliary', value: 'haben' }]);
-    expect(rows({ Entry: 'counter', Classifier: '個' })).toEqual([{ label: 'counting word', value: '個' }]);
-    expect(rows({ AspectPartner: 'добиться' })).toEqual([{ label: 'aspect pair', value: 'добиться' }]);
-    const chips = renderCard(omniNote({ PartOfSpeech: 'verb', VerbClass: 'strong', Dialect: 'Isan', Gender: 'common' }), 'forward')
-      .back.blocks.find((b) => b.role === 'chips')?.chips;
-    expect(chips).toEqual(['verb', 'common', 'Isan', 'strong']);
+  it('shows labeled key forms, the counting word, the auxiliary and the aspect pair as cells, and the verb class as the top line', () => {
+    const box = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'grammar');
+    const cells = (over: Record<string, string>) => box(over)?.cells?.map((c) => [c.label, c.value]);
+    expect(cells({ KeyForms: 'past: warf ab', Auxiliary: 'haben' })).toEqual([['past', 'warf ab'], ['auxiliary', 'haben']]);
+    // An older note's line with no label stays whole, under the name it has today.
+    expect(box({ KeyForms: 'warf ab' })?.cells).toEqual([{ label: 'key forms', value: 'warf ab', wide: true }]);
+    expect(cells({ Entry: 'counter', Classifier: '個' })).toEqual([['counting word', '個']]);
+    expect(cells({ AspectPartner: 'добиться' })).toEqual([['aspect pair', 'добиться']]);
+    const verb = renderCard(omniNote({ PartOfSpeech: 'verb', VerbClass: 'strong', Dialect: 'Isan', Gender: 'common' }), 'forward').back.blocks;
+    expect(verb.find((b) => b.role === 'chips')?.chips).toEqual(['verb', 'common', 'Isan']);
+    expect(verb.find((b) => b.role === 'grammar')).toMatchObject({ pattern: 'strong', cells: [] });
+    // A register that isn't neutral is still a chip.
+    expect(renderCard(omniNote({ Register: 'casual' }), 'forward').back.blocks.find((b) => b.role === 'chips')?.chips).toEqual(['casual']);
+    expect(renderCard(omniNote({ Register: 'neutral' }), 'forward').back.blocks.some((b) => b.role === 'chips')).toBe(false);
   });
   it('shows a Thai noun counted with its counting word, not as a form', () => {
     const back = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks;
@@ -126,11 +134,11 @@ describe('cards', () => {
     expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง', counts: { roman: 'hèng', what: expect.stringContaining('hospitals') } }] });
     // A counting word with no description still shows counted.
     expect(back({ Classifier: 'ซอง' }).find((b) => b.role === 'counting')?.rows).toEqual([{ label: 'ซอง', value: 'หนังสือสองซอง' }]);
-    expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'forms')).toBe(false);
-    // Several counting words each get a line; the other forms stay under Forms.
+    expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'grammar')).toBe(false);
+    // Several counting words each get a line; the other forms stay in the Grammar box.
     const several = back({ Classifier: 'ตัว, คัน', Plural: 'x' });
     expect(several.find((b) => b.role === 'counting')?.rows?.map((r) => r.value)).toEqual(['หนังสือสองตัว', 'หนังสือสองคัน']);
-    expect(several.find((b) => b.role === 'forms')?.rows).toEqual([{ label: 'plural', value: 'x' }]);
+    expect(several.find((b) => b.role === 'grammar')?.cells).toEqual([{ label: 'plural', value: 'x' }]);
     expect(back({}).some((b) => b.role === 'counting')).toBe(false);
   });
   it('labels the Hanzi field Kanji on a Japanese note', () => {
@@ -164,6 +172,17 @@ describe('cards', () => {
     expect(renderCard(note, 'forward').front.blocks[0]).toMatchObject({ text: 'spodnie', prefix: 'te' });
     expect(renderCard(note, 'forward').front.speak).toBe('spodnie');
     expect(renderCard(men, 'forward').front.blocks[0]).toMatchObject({ text: 'ludzie', prefix: 'ci' });
+  });
+  it("puts å before a Norwegian verb and says it, and leaves a phrase or another language's verb alone", () => {
+    const note = omniNote({ Entry: 'huske', Meaning: 'to remember', Language: 'norwegian', PartOfSpeech: 'verb', Transliteration: '' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks[0]).toMatchObject({ text: 'huske', prefix: 'å' });
+    expect(forward.front.speak).toBe('å huske');
+    expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'huske', prefix: 'å' });
+    const phrase = renderCard({ ...note, fields: { ...note.fields, Entry: 'å gå seg vill', PartOfSpeech: 'phrase' } }, 'forward');
+    expect(phrase.front.blocks[0].prefix).toBeUndefined();
+    expect(phrase.front.speak).toBe('å gå seg vill');
+    expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'werfen', Language: 'german' } }, 'forward').front.blocks[0].prefix).toBeUndefined();
   });
   it('adds no Polish gender word before an Entry that already starts with one, whichever it is', () => {
     const note = omniNote({ Entry: 'ci ludzie', Meaning: 'people', Language: 'polish', Gender: 'm', Transliteration: '' });

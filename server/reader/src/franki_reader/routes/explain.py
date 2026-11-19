@@ -294,7 +294,7 @@ def router(ctx: AppContext) -> APIRouter:
 
         async def ask() -> dict[str, Any]:
             try:
-                paragraphs, used = await explain_form_(
+                explanation, used = await explain_form_(
                     FormRequest(
                         text.language,
                         word,
@@ -312,9 +312,9 @@ def router(ctx: AppContext) -> APIRouter:
                 keep_failed_cost("form_explain", text.language, e.usage)
                 raise HTTPException(503, str(e)) from e
             store.save_form_explanation(
-                engine.conn, text_id, line, word, paragraphs, engine.clock(), used.cost_usd()
+                engine.conn, text_id, line, word, explanation, engine.clock(), used.cost_usd()
             )
-            return {"explanation": paragraphs}
+            return {"explanation": explanation}
 
         return await explaining.run(("form", text_id, line, word), ask)
 

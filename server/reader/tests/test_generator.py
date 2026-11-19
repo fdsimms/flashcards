@@ -900,3 +900,17 @@ def test_a_story_episode_asks_with_its_own_effort() -> None:
     client, calls = _client_replying("claude-sonnet-5-5")
     asyncio.run(claude_ask(client, [], "th", MODEL, STORY_EFFORT)([]))
     assert calls[0]["output_config"]["effort"] == STORY_EFFORT
+
+
+def test_story_request_quotes_the_last_episodes_ending() -> None:
+    from franki_reader.generator import StoryContext
+
+    msg = request_message(
+        TextRequest(
+            "a stall",
+            story=StoryContext(2, "", "Noi's stall", ending=("The cake is not done yet.",)),
+        )
+    )
+    assert "> The cake is not done yet." in msg
+    none = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")))
+    assert "How the last episode ended" not in none

@@ -214,6 +214,17 @@ export type TextModel = 'claude-sonnet-5-5' | 'claude-haiku-5-5';
 
 // One thing worth knowing about a line: the part of it, and what to know.
 export type ExplainPoint = { phrase: string; note: string };
+/** Why a word has the form it has in its line (the form quiz's Explain): a few short parts the sheet draws, not paragraphs. */
+export type FormExplanation = {
+  /** The word of the line that decides the form, as written there, or '' when no single word does. */
+  deciding: string;
+  /** One sentence on what that word does to the hidden one. */
+  rule: string;
+  /** The change as before and after (the first is the dictionary form and the form in the line), at most two. */
+  changes: { before: string; after: string }[];
+  /** One sentence on telling this form from the one it's confused with, or ''. */
+  tip: string;
+};
 /** A phrase selected in a line, explained: what it means there, and what to know about its parts. */
 export type PhraseExplanation = {
   meaning: string;
@@ -781,7 +792,7 @@ export function createApi(
       (await call<{ turns: { role: 'user' | 'assistant'; content: string }[] }>('GET', `/api/texts/${textId}/lines/${line}/ask?phrase=${encodeURIComponent(phrase)}`)).turns,
     // Why a word has the form it has in its line (the form quiz's Explain), kept per word.
     explainForm: async (textId: number, line: number, word: Word) =>
-      (await call<{ explanation: string[] }>('POST', `/api/texts/${textId}/lines/${line}/form`, {
+      (await call<{ explanation: FormExplanation }>('POST', `/api/texts/${textId}/lines/${line}/form`, {
         word: word.text, lemma: word.lemma, form: word.form?.name, helper: word.form?.helper ?? '',
       })).explanation,
     // Records a line's slow version if it isn't yet, and says when each of the line's words is spoken in it

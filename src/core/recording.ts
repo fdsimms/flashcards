@@ -18,12 +18,12 @@ export const RECORDING_RATE = 1;
 
 /**
  * What's read aloud: the Entry as Review reads it with the phone's voice, so a noun's article from its Gender
- * is said with it (die Einstellung, l'amertume) where the language says one.
+ * is said with it (die Einstellung, l'amertume) where the language says one, and a Norwegian verb's å.
  */
 export function recordingText(note: Note): string {
   const entry = htmlToText(note.fields.Entry ?? '').replace(/\s+/g, ' ').trim();
   const lang = speechLangFor(note)?.slice(0, 2) ?? '';
-  return isOmnilanguage(note) ? spokenEntry(lang, genderOf(htmlToText(note.fields.Gender ?? '')), entry) : entry;
+  return isOmnilanguage(note) ? spokenEntry(lang, genderOf(htmlToText(note.fields.Gender ?? '')), htmlToText(note.fields.PartOfSpeech ?? ''), entry) : entry;
 }
 
 /**
