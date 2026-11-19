@@ -14,8 +14,8 @@ export interface SavedText {
   language: Language;
   /** The text as the server gave it, to open with no connection. */
   text: ReaderText;
-  /** Its shelf card, for the shelf shown offline. */
-  card: ShelfText;
+  /** Its shelf card, for the shelf shown offline; missing for a text kept because it's in Up Next (a Reread text). */
+  card?: ShelfText;
   /** Lines whose normal-speed recording is kept. */
   lines: number[];
   /** Lines whose slow recording is kept, with its word times (the slow recording's own). */
@@ -47,7 +47,7 @@ export function parseIndex(raw: unknown): DownloadIndex {
   if (!o || o.version !== 1 || !Array.isArray(o.texts) || !Array.isArray(o.lessons)) return EMPTY_INDEX;
   return {
     version: 1,
-    texts: o.texts.filter((t) => typeof t?.id === 'number' && Array.isArray(t.lines) && t.text && t.card),
+    texts: o.texts.filter((t) => typeof t?.id === 'number' && Array.isArray(t.lines) && t.text),
     lessons: o.lessons.filter((l) => typeof l?.lesson?.id === 'number'),
     shelves: o.shelves && typeof o.shelves === 'object' ? o.shelves : {},
   };
@@ -77,14 +77,15 @@ export function shelfCards(shelf: Pick<Shelf, 'story' | 'texts'>): ShelfText[] {
 /**
  * What to do after reading the shelf: the texts on it not kept yet (or kept only in part) to
  * download, in shelf order, and the kept texts of that language that have left it (read, or
- * removed) to delete. Texts of other languages are left alone: this shelf says nothing about them.
+ * removed) to delete, unless they're in Up Next (`queued`), which keeps them until they leave it.
+ * Texts of other languages are left alone: this shelf says nothing about them.
  */
-export function planTexts(shelf: Shelf, index: Pick<DownloadIndex, 'texts'>): { fetch: ShelfText[]; drop: number[] } {
+export function planTexts(shelf: Shelf, index: Pick<DownloadIndex, 'texts'>, queued: ReadonlySet<number> = new Set()): { fetch: ShelfText[]; drop: number[] } {
   const on = new Set(playOrder(shelf));
   const complete = new Set(index.texts.filter((t) => t.complete).map((t) => t.id));
   return {
     fetch: shelfCards(shelf).filter((t) => !complete.has(t.id)),
-    drop: index.texts.filter((t) => t.language === shelf.language && !on.has(t.id)).map((t) => t.id),
+    drop: index.texts.filter((t) => t.language === shelf.language && !on.has(t.id) && !queued.has(t.id)).map((t) => t.id),
   };
 }
 
@@ -131,10 +132,11 @@ export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, la
   const kept = new Map(index.texts.filter((t) => t.complete && !read.has(t.id)).map((t) => [t.id, t]));
   const base = index.shelves[language];
   if (!base) {
-    const texts = [...kept.values()].filter((t) => t.language === language);
+    // Only shelf texts: one kept for Up Next alone has no card, and wasn't on the shelf.
+    const texts = [...kept.values()].flatMap((t) => (t.language === language && t.card ? [t.card] : []));
     if (!texts.length) return null;
     const languages = Object.values(index.shelves).find((s) => s?.languages.length)?.languages ?? [];
-    return { language, languages, texts: texts.map((t) => t.card), writing: [], story: null };
+    return { language, languages, texts, writing: [], story: null };
   }
   const next = base.story?.next && kept.has(base.story.next.id) ? base.story.next : null;
   return {

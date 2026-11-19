@@ -6,6 +6,7 @@ import { prefs } from '../../reader/storage';
 import { useApp } from '../AppContext';
 import { connection, useBackOnline } from '../connection';
 import { downloads, useDownloads } from './readerDownloads';
+import { useAudioQueue } from '../useAudioQueue';
 
 /** Asks the mounted ShelfDownloads to look again now (the setting changed). */
 let kick: () => void = () => {};
@@ -17,7 +18,8 @@ export const downloadNow = () => kick();
  * the app and when the connection comes back (the reader's language, then every language with texts
  * ready, so a language can be switched to offline), and plans again whenever any screen reads one;
  * then downloads what's missing, one text at a time, and deletes what has left its shelf. The slow
- * recordings come too for a language with Slow speed on. Drawn once, under AppProvider, and draws
+ * recordings come too for a language with Slow speed on. A text in Up Next is kept while it's there
+ * (useAudioQueue saves a Reread one when it's added). Drawn once, under AppProvider, and draws
  * nothing.
  */
 export function ShelfDownloads() {
@@ -28,6 +30,10 @@ export function ShelfDownloads() {
   language.current = reader.settings?.language;
   const running = useRef(false);
   const again = useRef(false);
+  // The texts in Up Next, which stay kept while they're there even once they've left the shelf.
+  const { queue } = useAudioQueue();
+  const queued = useRef(new Set<number>());
+  queued.current = new Set([queue.now, ...queue.next].flatMap((i) => (i?.kind === 'text' ? [i.textId] : [])));
 
   const run = async (readShelf: boolean) => {
     if (!server) return;
@@ -53,7 +59,7 @@ export function ShelfDownloads() {
             shelf = await server.shelf(lang);
             downloads.setShelf(shelf);
           }
-          const plan = planTexts(shelf, downloads.get());
+          const plan = planTexts(shelf, downloads.get(), queued.current);
           downloads.dropTexts(plan.drop);
           for (const card of plan.fetch) {
             // The setting or the network can change between texts.

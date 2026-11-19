@@ -14,6 +14,7 @@ import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../the
 import { useAudioQueue } from '../useAudioQueue';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonScrubber } from './LessonScrubber';
+import type { ReaderSource } from './Reader';
 
 /**
  * Now Playing, opened from the tab bar's player: what Up Next is playing (useAudioQueue.ts), with
@@ -49,8 +50,14 @@ export function NowPlaying() {
   const open = () => {
     router.back();
     if (now.kind === 'lesson') router.push({ pathname: '/read-lesson', params: { lesson: JSON.stringify(now.lesson) } });
-    else if (now.past) router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text: now.past }) } });
-    else router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', textId: now.textId, order: [now.textId] }) } });
+    else {
+      // Where it is now if it's playing, else where Up Next stopped it: the reader plays on from that line.
+      const at = host.position();
+      const line = at?.kind === 'text' && at.textId === now.textId ? at.line : now.resume;
+      const resume = line !== undefined && line > 0 ? { resume: line } : {};
+      const source: ReaderSource = now.past ? { kind: 'past', text: now.past, ...resume } : { kind: 'shelf', textId: now.textId, order: [now.textId], ...resume };
+      router.push({ pathname: '/reader', params: { source: JSON.stringify(source) } });
+    }
   };
 
   const chooseSleep = () => {
@@ -106,6 +113,13 @@ export function NowPlaying() {
           <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>{titleOf(now)}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`${LANGUAGES[language].name} · ${lesson ? 'Audio lesson' : 'Read & Listen'}`}</Text>
         </Tappable>
+
+        {queue.shown ? (
+          <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs }}>
+            <Text style={{ fontSize: LANGUAGES[language].fontSize, lineHeight: LANGUAGES[language].fontSize * LANGUAGES[language].lineHeight, color: c.text, textAlign: 'center' }}>{queue.shown.text}</Text>
+            {queue.shown.english ? <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{queue.shown.english}</Text> : null}
+          </View>
+        ) : null}
 
         {queue.problem ? <ErrorNote message={queue.problem} onRetry={queue.toggle} /> : null}
 

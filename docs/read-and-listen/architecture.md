@@ -1796,16 +1796,20 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
 - **Adding**: touch and hold a shelf text (beside its Remove), a Reread text or a ready lesson for
   Play Now, Play Next or Play Later. Play Now puts what was playing back at the top of Up Next with
   its place kept, as a podcast app does. Closing the reader on Play all, or leaving a lesson that's
-  playing, makes that the one playing. A lesson added is downloaded under the shelf's download
-  setting; shelf texts already are.
+  playing, makes that the one playing. What's added is downloaded under the shelf's download
+  setting (Download for offline): a lesson, and a Reread text, which is kept with no shelf card (so
+  the offline shelf doesn't show it) and spared by the shelf's cleanup while it's queued
+  (`planTexts`' `queued`); shelf texts are kept anyway.
 - **Places**: each item starts again where it stopped (a text's line, a lesson's seconds, kept each
-  line and every 15 seconds), and skipping or a screen taking the player over keeps it.
+  line and every 15 seconds), and skipping or a screen taking the player over keeps it. Opened from
+  Now Playing, a text plays on in the reader from that line (`ReaderSource.resume`) and a lesson's
+  screen plays from that second.
 - **A text played to its end from Up Next is logged** (the owner's choice): a shelf text as read by
   listening (`listen_only`, nothing looked up), a past text as heard again (`logListen`). One the
   reader already logged, or an episode that ends on a choice (which only the reader can make), isn't.
   Skipped items aren't logged. Never a rating.
 - **Controls**: the tab bar's player shows whenever something is playing or paused in the queue,
-  with Play and the next item; a tap opens Now Playing (previous and next item, previous and next
+  with Play and the next item; a tap opens Now Playing (the line playing, in the language and in English; previous and next item, previous and next
   line or 15 seconds, Normal or Slow for a text, a sleep timer of 15 to 60 minutes or the end of the
   item, Repeat off, all or one, and Up Next, where rows are dragged, swiped away or cleared with
   Undo). Previous past a lesson's first 3 seconds or a text's first line starts it again. Keep playing

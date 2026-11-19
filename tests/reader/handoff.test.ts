@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { afterLine, linePosition, skipTo, type Handoff } from '../../src/reader/handoff';
+import { afterLine, linePosition, lineShown, skipTo, type Handoff } from '../../src/reader/handoff';
+import type { Word } from '../../src/reader/api';
 
 const lines = [{ audio: true }, { audio: false }, { audio: true }, { audio: true }];
 const base: Handoff = { textId: 1, title: 'Na targu', language: 'pl', lines, current: 0, repeat: 1, played: 1, loop: false, rate: 1 };
@@ -36,5 +37,17 @@ describe('Play all carrying on', () => {
 
   it('counts lines among those with audio', () => {
     expect(linePosition({ lines, current: 2 })).toEqual({ n: 2, of: 3 });
+  });
+});
+
+describe('the line Now Playing shows', () => {
+  const word = (text: string) => ({ text, status: null, gloss: null }) as unknown as Word;
+  it('puts the playing line back together, with its English', () => {
+    const withWords = [{ audio: true, words: [word('Dzień'), word(' '), word('dobry'), word('!')], english: 'Good morning!' }, { audio: true }];
+    expect(lineShown({ lines: withWords, current: 0 })).toEqual({ text: 'Dzień dobry!', english: 'Good morning!' });
+  });
+
+  it('shows nothing for lines handed over without their words', () => {
+    expect(lineShown({ lines, current: 0 })).toBeNull();
   });
 });

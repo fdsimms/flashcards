@@ -2,7 +2,7 @@ import { IDLE_MODE, LISTENING_MODE } from './listeningAudio';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { Api, AudioLesson } from '../reader/api';
-import { afterLine, linePosition, skipTo, type Handoff } from '../reader/handoff';
+import { afterLine, linePosition, lineShown, skipTo, type Handoff } from '../reader/handoff';
 import { firstLine } from '../reader/playback';
 import { lineAudio } from '../reader/lineAudio';
 import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
@@ -41,6 +41,10 @@ export type MiniPlayer =
     playing: boolean;
     /** "Line n of m", among the lines that have audio. */
     line: { n: number; of: number };
+    /** The line playing, for Now Playing; null when the lines came without their words. */
+    shown: { text: string; english: string } | null;
+    /** The line's index, so a line with no audio between two (same "n") still updates `shown`. */
+    current: number;
   }
   | {
     kind: 'lesson';
@@ -149,7 +153,8 @@ function useReaderPlayer(): ReaderPlayerHost {
     }
     const { textId, title } = c.handoff;
     const line = linePosition(c.handoff);
-    setMini((prev) => (prev?.kind === 'text' && prev.textId === textId && prev.playing === playing && prev.line.n === line.n ? prev : { kind: 'text', textId, title, playing, line }));
+    const current = c.handoff.current;
+    setMini((prev) => (prev?.kind === 'text' && prev.textId === textId && prev.playing === playing && prev.line.n === line.n && prev.current === current ? prev : { kind: 'text', textId, title, playing, line, current, shown: lineShown(c.handoff) }));
   }, []);
 
   const position = useCallback((): Position | null => {

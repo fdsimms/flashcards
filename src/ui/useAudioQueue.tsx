@@ -66,6 +66,8 @@ export interface AudioQueueHost {
   playing: boolean;
   /** "Line 6 of 18" while a text plays; null otherwise. */
   line: { n: number; of: number } | null;
+  /** The line playing, in the language and in English, while a text plays; null otherwise. */
+  shown: { text: string; english: string } | null;
   /** The speed the text playing is at, and whether its language offers Slow; null for a lesson. */
   speed: { rate: number; slowOffered: boolean } | null;
   /** Why the last item couldn't start, written for a person; null when it did. */
@@ -289,13 +291,24 @@ function useAudioQueueHost(): AudioQueueHost {
     return () => clearTimeout(timer);
   }, [sleep, host]);
 
-  /** A lesson added to Up Next is downloaded, under the same setting as the shelf's texts, so the queue plays offline. */
+  /**
+   * What's added to Up Next is downloaded, under the same setting as the shelf's texts, so the queue
+   * plays offline: a lesson, and a text not kept already (a Reread text; the shelf's are kept anyway).
+   */
+  const serverApi = useApp().reader.serverApi;
+  const serverRef = useRef(serverApi);
+  serverRef.current = serverApi;
   const keep = useCallback((item: QueueItem) => {
-    const server = apiRef.current;
-    if (!server || item.kind !== 'lesson') return;
-    if (downloads.get().lessons.some((l) => l.lesson.id === item.lesson.id && l.complete)) return;
-    if (!mayDownload(prefs().offlineDownloads, connection.get().path)) return;
-    downloads.saveLesson(server, item.lesson).catch(() => undefined);
+    const server = serverRef.current;
+    if (!server || !mayDownload(prefs().offlineDownloads, connection.get().path)) return;
+    const kept = downloads.get();
+    if (item.kind === 'lesson') {
+      if (kept.lessons.some((l) => l.lesson.id === item.lesson.id && l.complete)) return;
+      downloads.saveLesson(server, item.lesson).catch(() => undefined);
+      return;
+    }
+    if (kept.texts.some((t) => t.id === item.textId && t.complete)) return;
+    downloads.saveQueued(server, item.textId, hasSlow(prefs(), item.language)).catch(() => undefined);
   }, []);
 
   const playNow = useCallback((item: QueueItem) => {
@@ -401,6 +414,7 @@ function useAudioQueueHost(): AudioQueueHost {
     live,
     playing: live && (host.mini?.playing ?? false),
     line: live && host.mini?.kind === 'text' ? host.mini.line : null,
+    shown: live && host.mini?.kind === 'text' ? host.mini.shown : null,
     speed,
     problem,
     playNow, playNext, playLater, remove, move, clear, toggle, next, previous, stopNow, setRepeat, setKeepPlaying, sleep, setSleep, setRate,

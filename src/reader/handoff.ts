@@ -1,4 +1,4 @@
-import type { Language } from './api';
+import type { Language, TextLine } from './api';
 import { firstLine, nextLine, previousLine } from './playback';
 
 /**
@@ -12,7 +12,8 @@ export type Handoff = {
   textId: number;
   title: string;
   language: Language;
-  lines: { audio: boolean }[];
+  /** The text's lines; their words and English, when given, are what Now Playing shows of the line playing. */
+  lines: ({ audio: boolean } & Partial<Pick<TextLine, 'words' | 'english'>>)[];
   /** The line sounding when the reader closed. */
   current: number;
   /** Plays per line (the repeat chip), and how many the current line has had in this round. */
@@ -48,4 +49,11 @@ export function skipTo(h: Pick<Handoff, 'lines' | 'current'>, step: -1 | 1): num
 export function linePosition(h: Pick<Handoff, 'lines' | 'current'>): { n: number; of: number } {
   const voiced = h.lines.map((l, i) => (l.audio ? i : -1)).filter((i) => i >= 0);
   return { n: Math.max(1, voiced.indexOf(h.current) + 1), of: voiced.length };
+}
+
+/** The line playing, as Now Playing shows it: its words put back together, and its English. Null when the lines came without words. */
+export function lineShown(h: Pick<Handoff, 'lines' | 'current'>): { text: string; english: string } | null {
+  const line = h.lines[h.current];
+  if (!line?.words?.length) return null;
+  return { text: line.words.map((w) => w.text).join('').trim(), english: line.english ?? '' };
 }

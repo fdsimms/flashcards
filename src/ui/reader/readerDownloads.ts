@@ -71,6 +71,35 @@ function removeFile(name: string) {
   }
 }
 
+async function saveText(api: Api, id: number, card: ShelfText | undefined, slow: boolean): Promise<void> {
+  if (saving.has(id)) return;
+  saving.add(id); savingVersion++; changed();
+  try {
+    const text = await api.text(id);
+    const before = index.texts.find((t) => t.id === id);
+    const entry: SavedText = before && JSON.stringify(before.text) === JSON.stringify(text)
+      ? { ...before, card: card ?? before.card }
+      : { id, language: text.language, text, card: card ?? before?.card, lines: [], slow: {}, complete: false, bytes: 0 };
+    const keep = () => write({ ...index, texts: [...index.texts.filter((t) => t.id !== id), { ...entry }] });
+    for (const line of linesWithAudio(text)) {
+      if (!entry.lines.includes(line)) {
+        entry.bytes += await download(api.audioSource(id, line, 1), lineFile(id, line, false));
+        entry.lines = [...entry.lines, line];
+      }
+      if (slow && entry.slow[line] === undefined) {
+        const { times } = await api.slowTimes(id, line);
+        entry.bytes += await download(api.audioSource(id, line, SLOW_RATE), lineFile(id, line, true));
+        entry.slow = { ...entry.slow, [line]: times };
+      }
+      keep();
+    }
+    entry.complete = wholeText(text, entry.lines, slow ? Object.keys(entry.slow).map(Number) : null);
+    keep();
+  } finally {
+    saving.delete(id); savingVersion++; changed();
+  }
+}
+
 export const downloads = {
   get: (): DownloadIndex => index,
   subscribe(listener: () => void) {
@@ -109,32 +138,16 @@ export const downloads = {
    * once all of it is kept; a download cut short is finished next time.
    */
   async saveText(api: Api, card: ShelfText, slow: boolean): Promise<void> {
-    if (saving.has(card.id)) return;
-    saving.add(card.id); savingVersion++; changed();
-    try {
-      const text = await api.text(card.id);
-      const before = index.texts.find((t) => t.id === card.id);
-      const entry: SavedText = before && JSON.stringify(before.text) === JSON.stringify(text)
-        ? { ...before, card }
-        : { id: card.id, language: text.language, text, card, lines: [], slow: {}, complete: false, bytes: 0 };
-      const keep = () => write({ ...index, texts: [...index.texts.filter((t) => t.id !== card.id), { ...entry }] });
-      for (const line of linesWithAudio(text)) {
-        if (!entry.lines.includes(line)) {
-          entry.bytes += await download(api.audioSource(card.id, line, 1), lineFile(card.id, line, false));
-          entry.lines = [...entry.lines, line];
-        }
-        if (slow && entry.slow[line] === undefined) {
-          const { times } = await api.slowTimes(card.id, line);
-          entry.bytes += await download(api.audioSource(card.id, line, SLOW_RATE), lineFile(card.id, line, true));
-          entry.slow = { ...entry.slow, [line]: times };
-        }
-        keep();
-      }
-      entry.complete = wholeText(text, entry.lines, slow ? Object.keys(entry.slow).map(Number) : null);
-      keep();
-    } finally {
-      saving.delete(card.id); savingVersion++; changed();
-    }
+    return saveText(api, card.id, card, slow);
+  },
+
+  /**
+   * Keeps a text added to Up Next that isn't on the shelf (a Reread text), as `saveText` keeps a
+   * shelf text but with no shelf card, so it isn't shown on the shelf offline. ShelfDownloads leaves
+   * it while it's queued (`planTexts`) and drops it with the shelf's other leftovers after that.
+   */
+  async saveQueued(api: Api, id: number, slow: boolean): Promise<void> {
+    return saveText(api, id, undefined, slow);
   },
 
   dropTexts(ids: readonly number[]) {
