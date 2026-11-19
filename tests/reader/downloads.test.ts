@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AudioLesson, Shelf, ShelfStory, ShelfText } from '../../src/reader/api';
 import { card, readerText, saved } from '../support/reader';
 import {
-  asksBeforeLesson, EMPTY_INDEX, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
+  asksBeforeLesson, EMPTY_INDEX, mayKeepWhilePlaying, shelfCardFor, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
   languagesToKeep, readOffline, savedState, usageText, type DownloadIndex,
 } from '../../src/reader/downloads';
 
@@ -30,6 +30,22 @@ describe('when texts download by themselves', () => {
     expect(asksBeforeLesson('off', 'cellular')).toBe(true);
     expect(asksBeforeLesson('any', 'cellular')).toBe(false);
     expect(asksBeforeLesson('wifi', 'wifi')).toBe(false);
+  });
+});
+
+describe('keeping a text as it plays', () => {
+  it('ignores Wi-Fi only, since the text is streaming anyway, but not Off or no connection', () => {
+    expect(mayKeepWhilePlaying('wifi', 'cellular')).toBe(true);
+    expect(mayKeepWhilePlaying('any', 'cellular')).toBe(true);
+    expect(mayKeepWhilePlaying('off', 'wifi')).toBe(false);
+    expect(mayKeepWhilePlaying('wifi', 'none')).toBe(false);
+  });
+
+  it("finds a text's card on any shelf read, the story's next episode included", () => {
+    const index = { shelves: { pl: shelf([card({ id: 1 })], card({ id: 2 })) } };
+    expect(shelfCardFor(index, 1)?.id).toBe(1);
+    expect(shelfCardFor(index, 2)?.id).toBe(2);
+    expect(shelfCardFor(index, 3)).toBeNull();
   });
 });
 

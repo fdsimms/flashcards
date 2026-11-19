@@ -59,6 +59,24 @@ export function mayDownload(setting: OfflineDownloads, path: NetworkPath): boole
   return setting === 'any' || path === 'wifi';
 }
 
+/**
+ * Whether a text being played may be kept on the phone as it plays, whatever the connection: it is
+ * already streaming over it, so keeping it costs about what listening does. Only Off, or no
+ * connection, stops it (the Wi-Fi only setting is for downloads nobody asked for).
+ */
+export function mayKeepWhilePlaying(setting: OfflineDownloads, path: NetworkPath): boolean {
+  return setting !== 'off' && path !== 'none';
+}
+
+/** A text's shelf card from the shelves last read, or null when it isn't on one (a past text). */
+export function shelfCardFor(index: Pick<DownloadIndex, 'shelves'>, id: number): ShelfText | null {
+  for (const shelf of Object.values(index.shelves)) {
+    const found = shelf && shelfCards(shelf).find((t) => t.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
 /** Whether a tapped lesson Download asks first: on cellular, unless the setting is Any connection. */
 export function asksBeforeLesson(setting: OfflineDownloads, path: NetworkPath): boolean {
   return path === 'cellular' && setting !== 'any';

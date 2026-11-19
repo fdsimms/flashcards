@@ -2024,6 +2024,12 @@ in seconds when nothing answers, while a slow answer (a Claude explanation) is l
   0.8x offline, as when slow can't be fetched. A text is kept whole or shown as not saved, and its
   copy is deleted once it leaves the shelf, or when the server gives the text differently (a voice
   change recorded it again).
+- **Playing a shelf text keeps it** (`useKeepPlaying`, called as a line starts), on any connection
+  unless the setting is Off: the text is already streaming over that connection, and the Wi-Fi only
+  setting is for downloads nobody asked for. It keeps the same things as the automatic download (the
+  text with its check questions, every line's recording, the slow ones where the language has Slow),
+  and the lines saved so far play from the phone (`withOffline`'s `audioSource`) before the text is
+  whole, so a tunnel mid-download doesn't stop it. What needs Claude (Explain, Retell) can't be kept.
 - **Every screen gets the server through `withOffline`** (`src/reader/offlineApi.ts`, in
   `useReader`): a kept text opens from the phone when the server can't be reached, its lines play
   from the files online too, and the shelf shown offline is the kept texts under the heading
