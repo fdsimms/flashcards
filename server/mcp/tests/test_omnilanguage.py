@@ -154,6 +154,39 @@ def test_several_examples_need_a_label_each():
     assert "context-labels" in rules({**two, "ContextLabels": "setting<br>attitude<br>extra"})
 
 
+def test_a_sense_that_says_which_gloss_it_means_is_two_senses_to_number():
+    verb = {"Entry": "ziehen", "Meaning": "to pull; to move", "Language": "german", "Register": "neutral", "PartOfSpeech": "verb",
+            "Context": "Er <b>zieht</b> die Tür zu.", "ContextTranslation": "He pulls the door shut."}  # fmt: skip
+    found = lambda fields: [(p.rule, p.field, p.level) for p in o.problems(fields) if p.field == "Sense"]  # noqa: E731
+    warned = [("sense-names-gloss", "Sense", "review")]
+    assert found({**verb, "Sense": "move as in relocate"}) == warned
+    assert found({**verb, "Sense": "to change where you live"}) == []
+    assert found({**verb, "Sense": "this means changing homes"}) == warned
+    # A bracket on the gloss doesn't hide it, and a gloss inside a longer word is not a quote of it.
+    assert found({**verb, "Meaning": "to pull; to move (house)", "Sense": "move: to another city"}) == warned
+    assert found({**verb, "Sense": "by removing a cover"}) == []
+    # One gloss narrowed is what Sense is for.
+    assert found({**verb, "Entry": "leke", "Language": "norwegian", "Meaning": "to play", "Sense": "to play for fun, as children do"}) == []
+    # A warning for a person to read: it never refuses a write.
+    assert o.prepare({**verb, "Sense": "move as in relocate"}).refused == []
+    assert o.prepare({"Sense": "move as in relocate"}, existing=verb).refused == []
+
+
+def test_a_sense_never_holds_the_word_the_reverse_card_asks_for():
+    noun = {"Entry": "ducha", "Meaning": "shower", "Language": "spanish", "Register": "neutral", "PartOfSpeech": "noun", "Gender": "f",
+            "Context": "La <b>ducha</b> está fría.", "ContextTranslation": "The shower is cold."}  # fmt: skip
+    found = lambda fields: [(p.rule, p.level) for p in o.problems(fields) if p.field == "Sense"]  # noqa: E731
+    assert found({**noun, "Sense": "a bathroom shower, not rain"}) == []
+    # An Entry that could be an English word is for a person to read; any other is refused on write.
+    assert found({**noun, "Sense": "a Ducha in the bathroom, not rain"}) == [("sense-has-entry", "review")]
+    assert found({**noun, "Entry": "red", "Meaning": "net", "Sense": "a net for fishing, not a red one"}) == [("sense-has-entry", "review")]
+    greek = {**noun, "Entry": "πίνακας", "Language": "greek", "Gender": "m", "Plural": "πίνακες", "Meaning": "painting",
+             "Context": "Ο <b>πίνακας</b> είναι ωραίος.", "ContextTranslation": "The painting is nice."}  # fmt: skip
+    assert found({**greek, "Sense": "a πίνακας on the wall"}) == [("sense-has-entry", "format")]
+    assert "without the word" in " ".join(o.prepare({"Sense": "a πίνακας on the wall"}, existing=greek).refused)
+    assert o.prepare({"Sense": "a framed picture, not a photo"}, existing=greek).refused == []
+
+
 def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
     verb = {"Entry": "werfen", "Meaning": "to throw", "Language": "german", "Register": "neutral", "PartOfSpeech": "verb",
             "Context": "Er <b>wirft</b> den Ball.", "ContextTranslation": "He throws the ball."}  # fmt: skip
@@ -225,6 +258,10 @@ def test_the_guide_gives_a_languages_rules_values_and_a_finished_note():
     # Sense flags a word that covers only some of its gloss's senses, and is not written beside numbered senses.
     assert "Sense: only when the word covers some, not all" in german["every_note"]
     assert "Sense is no longer written" not in german["every_note"]
+    # The guide says how to tell two senses from two glosses, and which brackets move to Sense.
+    for said in ("could translate the word in the same example sentence", "would have to say which gloss it is about",
+                 "Never the word itself or a form of it", "moves to Sense"):  # fmt: skip
+        assert said in german["every_note"], said
     assert "No rules beyond the common ones" in o.guide("italian")["this_language"]
 
 

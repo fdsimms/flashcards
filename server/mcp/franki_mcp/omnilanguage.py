@@ -131,6 +131,8 @@ RULES: dict[str, str] = {
     "meaning-many": f"More than {MAX_SENSES} senses, or more than {MAX_GLOSSES} glosses to a sense",
     "meaning-examples": "A numbered sense without an example of its own",
     "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
+    "sense-names-gloss": "Sense says which gloss it is about, so Meaning may hold two senses on one line",
+    "sense-has-entry": "Sense contains the Entry, which the reverse card shows on its front",
     "context-missing": "No example sentence",
     "context-markup": "Context has markup other than <b> and <br>",
     "context-no-bold": "The word is not in bold in Context",
@@ -504,6 +506,23 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             if pos == "verb" and any(gl and not gl[0].startswith("to ") for gl in gloss_lists):
                 add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
 
+    # -- Sense --
+    sense = txt("Sense").lower()
+    if sense and entry and re.search(r"(?<!\w)" + re.escape(entry.lower()) + r"(?!\w)", sense):
+        # An Entry in plain ASCII can be spelled like an English word (German "die", Spanish "red"),
+        # so only a person can say whether the Sense names it. Any other Entry can't be English.
+        add("sense-has-entry", "Sense", "review" if entry.isascii() else "format",
+            "Sense is English only, without the word or a form of it: the reverse card shows Sense on its front.")  # fmt: skip
+    if sense and meaning and not (lang and lang.definition):
+        # A gloss as the Sense would quote it: without its "to" or its bracket.
+        glosses = [re.sub(r"^to ", "", re.sub(r"\s*\([^)]*\)", "", g)).strip().lower()
+                   for item in senses(raw("Meaning")) for g in split_top(item, ";")]  # fmt: skip
+        quoted = any(g and re.search(r"(?<!\w)" + re.escape(g) + r"(?!\w)", sense) for g in glosses)
+        if len(glosses) > 1 and (quoted or re.search(r"\b(?:as in|means)\b", sense)):
+            add("sense-names-gloss", "Sense", "review",
+                "If Sense has to say which gloss it is about, the glosses are different senses: number them in "
+                "Meaning, one to a line with an example each, and leave Sense empty.")  # fmt: skip
+
     # -- Context --
     context = raw("Context")
     context_lines = _lines(context)
@@ -745,20 +764,26 @@ _COMMON = """\
 Entry: the citation form as plain text. No article (Gender supplies it), no markup, one word or one phrase.
   A verb's fixed preposition follows it bare (zweifeln an). An aspect partner goes in AspectPartner.
 Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" or "the". A word with one
-  sense is one line: one to three near-synonyms joined by "; " (fame; glory). A word with distinct senses
-  numbers them, one to a line (<br>), the most common first, three at most:
+  sense is one line: one to three near-synonyms joined by "; " (fame; glory). The test: every gloss on a line
+  could translate the word in the same example sentence. If one could not (ziehen: pull the door, move to
+  Berlin), they are different senses, and each gets a number. A word with distinct senses numbers them, one to a line (<br>), the most common first, three at most:
   "1. train<br>2. move (in a game)<br>3. draft (of air)". Number only senses worth being tested on: every one
   listed has to be recalled to pass the card. A rarer sense is left out, or gets a note of its own; two
-  different words spelled alike are two notes. A short bracket pins
-  down a numbered sense. No slashes, sub-senses or markup; grammar and usage go in Notes.
+  different words spelled alike are two notes. A short bracket pins down a numbered sense. On a Meaning with
+  one sense, a bracket that only narrows which English sense is meant moves to Sense: "to know" with the
+  Sense "a fact, not a person", not "to know (a fact)". A bracket that labels grammar ((prefix),
+  (classifier)) or register ((formal)), or explains the gloss (baht (Thai currency)), stays. No slashes, sub-senses or markup; grammar and usage go in Notes.
 Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
   line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
   ("train", "move", "draft").
-Sense: only when the word covers some, not all, of its English gloss's common senses, so the learner doesn't
-  assume it works wherever the gloss does (leke, "to play": only play for fun, not an instrument or a sport).
-  One short line, lowercase, no markup, shown under the meaning. Empty when the word spans the same senses as
-  the gloss, since a Sense would then imply the others don't apply, and never beside a numbered Meaning: the
-  numbers and ContextLabels already say which sense.
+Sense: only when the word covers some, not all, of its English gloss's most common senses, so the learner
+  doesn't assume it works wherever the gloss does (leke, "to play": to play for fun, as children do). Empty
+  when the word spans the same senses as the gloss, since a Sense would then imply the others don't apply; a
+  gloss that is merely ambiguous English is not a reason. One short line, about 8 words at most, lowercase,
+  no markup, American English, shown under the meaning. Never the word itself or a form of it: the reverse
+  card shows Sense on its front. If a Sense would have to say which gloss it is about ("move as in
+  relocate"), the Meaning holds two senses: number them and leave Sense empty. Never beside a numbered
+  Meaning: the numbers and ContextLabels already say which sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
