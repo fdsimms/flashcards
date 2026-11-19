@@ -7,6 +7,7 @@ import { elidesBefore } from './gender';
 import { htmlToText } from './html';
 import { foldUndecomposed, foldYo } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
+import { isNoForm } from './wordGrammar';
 
 /**
  * Forms practice: the forms a word's note lists (a verb's conjugations, a noun's plural, its
@@ -229,7 +230,8 @@ export function formsOf(note: Note): NoteForms {
   }
   for (const { field, label } of FIELD_FORMS) {
     const text = htmlToText(note.fields[field] ?? '').replace(/\s+/g, ' ').trim();
-    if (text) add({ key: `field:${field}`, group: label, label, answers: withBare(answersOf(text), langOf(note)) });
+    // "-" says the word has none (no plural, no aspect partner): nothing to ask.
+    if (text && !isNoForm(text)) add({ key: `field:${field}`, group: label, label, answers: withBare(answersOf(text), langOf(note)) });
   }
   return { forms, unreadable };
 }

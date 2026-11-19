@@ -59,6 +59,10 @@ describe('mining', () => {
         },
       });
     });
+    it('offers nothing for a verb marked as having no partner', () => {
+      const saved = note('s', { Entry: 'mieć', AspectPartner: '-' }, ['imperfective']);
+      expect(pairFollowUp(saved, [saved])).toBeNull();
+    });
     it('starts the partner with no meaning note when there is no meaning to check', () => {
       const offer = pairFollowUp(saved, [saved]);
       expect(offer?.kind === 'add' && offer.target.fields.Meaning).toBe('');

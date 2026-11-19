@@ -65,6 +65,10 @@ describe('formsOf', () => {
       { key: 'field:Plural', group: 'plural', label: 'plural', answers: ['die Tische', 'Tische'] },
     ]);
   });
+  it('asks for no form of a field marked "-": the word has none', () => {
+    const ruhm: Note = { id: 'r', deck: 'Deutsch', model: 'Omnilanguage', tags: [], fields: { Entry: 'Ruhm', Meaning: 'fame', Language: 'german', Plural: '-', Genitive: 'des Ruhmes', AspectPartner: ' - ' } };
+    expect(formsOf(ruhm).forms.map((f) => f.key)).toEqual(['field:Genitive']);
+  });
   it('asks the article for a bare Entry, and the gender as a word for a French noun that elides', () => {
     const answers = (over: Record<string, string>) => formsOf(omniNote(over)).forms[0].answers;
     expect(answers({ Entry: 'Tisch', Language: 'german', Gender: 'm' })).toEqual(['der']);
