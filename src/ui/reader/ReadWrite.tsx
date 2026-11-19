@@ -165,7 +165,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}
-        <Help>Takes about half a minute. It joins the shelf when it's ready.</Help>
+        <Help>Takes about half a minute. It shows up under Texts when it's ready.</Help>
       </ScrollView>
     </Screen>
   );
