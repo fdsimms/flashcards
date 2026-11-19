@@ -14,7 +14,7 @@ import { Button, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } f
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
-import { PracticeWordPill } from './PracticeWordPill';
+import { PracticeWordRow } from './PracticeWordPill';
 import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
 import { GlossPopover, type Tapped } from './Reader';
@@ -140,12 +140,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
               {story.about ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{story.about}</Text> : null}
               <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyPlace(story)}</Text>
               {next && next.stretch.length > 0 ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingTop: space.xs }}>
-                  {next.stretch.map((w) => {
-                    const word = next.practice?.find((p) => p.text === w);
-                    return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
-                  })}
-                </View>
+                <PracticeWordRow words={next.stretch} practice={next.practice} onTap={(word, x, y) => setTapped({ word, x, y })} />
               ) : null}
               {next ? <Button label={`Play episode ${next.episode}`} onPress={() => onOpen(next.id)} style={{ marginTop: space.s }} /> : null}
             </View>
