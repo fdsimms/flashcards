@@ -360,7 +360,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const note = current ? notes.get(current.noteId) : undefined;
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
   const drill = useMemo(() => (note ? drillOfTags(note.tags) : undefined), [note]);
-  const skill = useSkillDrill(showing, drill);
+  const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
   useSkillRelease(repo, cards, notes, H);
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -580,6 +580,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!cur || !nt) return;
     if (!redo && (busy.current || cur === lastAnswered.current)) return;
     if (!redo) busy.current = true;
+    if (!redo) skill.rated(rating);
     const timed = redo ? null : timing.pressed(`${cur.id}:${history.length}`);
     if (!redo) haptic.answer();
     if (!redo) cardMotion.current?.flash(rating);

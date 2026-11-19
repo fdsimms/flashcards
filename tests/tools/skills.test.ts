@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DATE_STEPS, DRILL_STEPS, drawQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   heardRight, languageOfDeck, missingWords, skillDrafts, skillOffer, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 
@@ -51,6 +51,18 @@ describe('skill drills', () => {
         previous = next;
       }
     }
+  });
+
+  it('asks missed questions again before drawing new ones', () => {
+    const step = DATE_STEPS[0];
+    const a = drawQuestion(step);
+    const b = drawQuestion(step, a);
+    const first = nextDrillQuestion(step, undefined, [a, b]);
+    expect(first.question).toBe(a);
+    const second = nextDrillQuestion(step, first.question, first.retry);
+    expect(second.question).toBe(b);
+    expect(second.retry).toEqual([]);
+    expect(questionKey(nextDrillQuestion(step, b, second.retry).question)).not.toBe(questionKey(b));
   });
 
   it('answers in the language, with the formal form for a time', () => {

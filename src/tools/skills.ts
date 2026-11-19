@@ -130,6 +130,17 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
   return { kind: 'number', question: { kind: 'number', n } };
 }
 
+/**
+ * The next question of a drill: the first of `retry` (questions missed when the card was last
+ * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
+ * Returns what's left of `retry` too.
+ */
+export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language): { question: DrillQuestion; retry: DrillQuestion[] } {
+  const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
+  if (at < 0) return { question: drawQuestion(step, previous, random, language), retry: [...retry] };
+  return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
+}
+
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
