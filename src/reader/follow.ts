@@ -15,3 +15,13 @@ export function scrollTarget(line: Box, scrollY: number, frame: Frame, margin = 
   const fits = line.y >= top && line.y + line.height <= scrollY + frame.height;
   return fits ? null : Math.max(line.y - margin, 0) - frame.insetTop;
 }
+
+/**
+ * Which way the line lies from what's on screen: 'above' when it starts above the visible top,
+ * 'below' otherwise when it runs past the bottom, null when it's fully in view. Drives the
+ * "Line 7" button that scrolls back to it, and agrees with `scrollTarget` on what "in view" means.
+ */
+export function lineSide(line: Box, scrollY: number, frame: Frame): 'above' | 'below' | null {
+  if (scrollTarget(line, scrollY, frame) === null) return null;
+  return line.y < scrollY + frame.insetTop ? 'above' : 'below';
+}
