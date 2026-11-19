@@ -108,6 +108,7 @@ import { leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
 import { useDeckTint } from './useDeckTint';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
+import { ReviewFooter } from './ReviewFooter';
 import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 export { CardSurface };
@@ -1312,7 +1313,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
         </Stack.Toolbar>
       }
-      footer={<>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
+      footer={<ReviewFooter>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
       floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
     >
       {queue ? (
