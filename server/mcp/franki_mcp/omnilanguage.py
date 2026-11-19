@@ -77,24 +77,25 @@ LANGUAGES: dict[str, Language] = {
     "spanish": Language("spanish", genders=_MF, articles={"el": "m", "la": "f"}),
     "french": Language("french", genders=_MF, articles={"le": "m", "la": "f"}, verb=("Auxiliary",),
                        auxiliaries=frozenset({"avoir", "être"}),
-                       key_forms="a verb's past participle, only when irregular (pris)"),
+                       key_forms="for a verb with an irregular one, participle: pris"),
     "german": Language("german", genders=_MFN, articles={"der": "m", "die": "f", "das": "n"}, noun=("Plural",),
                        verb=("KeyForms", "VerbClass", "Auxiliary"), verb_classes=frozenset({"strong", "weak", "mixed"}),
                        auxiliaries=frozenset({"haben", "sein"}),
-                       key_forms="a verb's preterite, then its perfect with the auxiliary (warf ab, hat abgeworfen)"),
+                       key_forms="for a verb, past: warf ab and perfect: hat abgeworfen, with he, she: wirft ab first when the vowel changes"),
     "greek": Language("greek", genders=_MFN, articles={"ο": "m", "η": "f", "το": "n"}, noun=("Plural",),
                       verb=("KeyForms", "VerbClass"), verb_classes=frozenset({"active", "deponent", "passive"}),
-                      key_forms="a verb's first person singular aorist (αντιπάθησα)"),
+                      key_forms="for a verb, past: αντιπάθησα (the aorist)"),
     "norwegian": Language("norwegian", genders=frozenset({"m", "f", "n"}), articles={"en": "m", "ei": "f", "et": "n"},
                           noun=("Plural",), verb=("KeyForms",),
-                          key_forms="a verb's present / preterite / perfect participle (tømmer / tømte / tømt)"),
-    "russian": Language("russian", genders=frozenset({"m", "f", "n", "pl"}), verb=("AspectPartner", "KeyForms"),
-                        aspect_pairs=True,
-                        key_forms="a verb's first and second person singular, present or perfective future (добиваюсь, добиваешься)"),
+                          key_forms="for a verb, present: tømmer, past: tømte, participle: tømt"),
+    "russian": Language("russian", genders=frozenset({"m", "f", "n", "pl"}), noun=("KeyForms",),
+                        verb=("AspectPartner", "KeyForms"), aspect_pairs=True,
+                        key_forms="for a noun, genitive: стола and plural: столы; for a verb, I: добиваюсь and you: добиваешься "
+                                  "(present, or the future of a perfective)"),
     "polish": Language("polish", genders=frozenset({"m", "f", "n", "pl", "mpl"}), noun=("KeyForms",),
                        verb=("AspectPartner", "KeyForms"), aspect_pairs=True,
-                       key_forms="a noun's genitive singular and nominative plural (mężczyzny, mężczyźni); a verb's first "
-                                 "and second person singular, present or perfective future (mam, masz)"),
+                       key_forms="for a noun, genitive: mężczyzny and plural: mężczyźni; for a verb, I: mam and you: masz "
+                                 "(present, or the future of a perfective)"),
     "japanese": Language("japanese", verb=("VerbClass",),
                          verb_classes=frozenset({"godan", "ichidan", "suru", "irregular"})),
     "english": Language("english", definition=True),
@@ -111,7 +112,7 @@ LANGUAGE_NAMES = {
 RULES: dict[str, str] = {
     "entry-markup": "Entry has markup or stray spaces",
     "entry-article": "Entry starts with the article that Gender already gives",
-    "entry-infinitive-marker": 'Entry starts with "å"',
+    "entry-infinitive-marker": 'A Norwegian verb\'s Entry starts with "å", which the card adds',
     "entry-aspect-pair": "Entry holds an aspect pair; the partner belongs in AspectPartner",
     "entry-brackets": "Entry has a bracketed preposition or note",
     "meaning-markup": "Meaning has markup or HTML entities",
@@ -149,6 +150,9 @@ RULES: dict[str, str] = {
     "kana-format": "KanaReading is not one reading in kana",
     "kanji-breakdown": "The kanji breakdown lists something that is not in the Entry",
     "grammar-gap": "A grammar field this kind of word carries is empty",
+    "keyforms-unlabeled": "KeyForms has a form with nothing saying which form it is",
+    "keyforms-label": "KeyForms uses a label that is not one of the list",
+    "pattern-missing": "No line saying what kind of word it is",
     "genitive-feminine": "A German feminine noun has a Genitive, which never differs from the nominative",
     "verbclass-unknown": "VerbClass is not a value this language uses",
     "auxiliary-unknown": "Auxiliary is not a value this language uses",
@@ -248,6 +252,93 @@ def part_of_speech(fields: Mapping[str, str], tags: Iterable[str]) -> str:
     return named.pop() if len(named) == 1 else ""
 
 
+# What a KeyForms line may be labeled. Plain words, not grammar terms, where both would do: "past", not "preterite".
+_CASES = ("genitive", "dative", "accusative", "instrumental", "locative", "vocative")
+FORM_LABELS = (
+    "pattern", "takes",
+    *_CASES, "plural", *(f"{case} plural" for case in _CASES),
+    "feminine", "neuter", "comparative", "superlative",
+    "i", "you", "he, she", "we", "they", "present", "past", "perfect", "participle", "future", "imperative",
+    "perfective", "imperfective", "perfective i",
+)  # fmt: skip
+_LABEL = re.compile(r"^([A-Za-z][A-Za-z ,/()-]{0,28}):\s+\S")
+
+
+# A noun table's cells, in the order an unlabeled form is looked for: the genitive and the plural before the rest.
+_CELL_ORDER = (("genitive", "singular"), ("nominative", "plural"), ("locative", "singular"), ("dative", "singular"),
+               ("accusative", "singular"), ("instrumental", "singular"), ("vocative", "singular"),
+               *((case, "plural") for case in _CASES))  # fmt: skip
+
+
+def _cell_label(case: str, number: str, only_plural: bool) -> str:
+    """What a table cell is called in KeyForms: "genitive", "plural", "genitive plural". A plural-only noun's cases need no "plural"."""
+    if number == "singular" or only_plural:
+        return "plural" if case == "nominative" else case
+    return "plural" if case == "nominative" else f"{case} plural"
+
+
+def label_key_forms(lang: Language, pos: str, gender: str, lines: Sequence[str], forms_table: str) -> str | None:
+    """An older note's unlabeled KeyForms, each form under its name, or None when which form is which
+    can't be told without reading the word. A Polish or Russian noun's come from its own Forms table
+    (Wiktionary's, so the label is certain); the rest go by the one order their language's notes were
+    written in: a German or Norwegian verb's past first, a Greek verb's aorist, a Polish or Russian verb's I and you."""
+    if len(lines) != 1 or _LABEL.match(lines[0]):
+        return None
+    text = lines[0]
+    if pos == "noun" and lang.name in ("polish", "russian"):
+        table = {}
+        for line in plain(forms_table).split("\n"):
+            head, _, form = line.partition(":")
+            if form.strip():
+                table[tuple(part.strip() for part in head.split("·"))] = form.strip()
+        # Each form the note chose keeps its place, under the first cell of the table that holds it.
+        only_plural = gender in ("pl", "mpl")
+        named: dict[str, str] = {}
+        for form in (part.strip() for part in text.split(",")):
+            label = next((_cell_label(case, number, only_plural) for case, number in _CELL_ORDER
+                          if table.get((case, number)) == form and _cell_label(case, number, only_plural) not in named), None)  # fmt: skip
+            if label is None:
+                return None
+            named[label] = form
+        # The two a noun's other forms are worked out from come first, added from the table when the note left one out.
+        first = {"genitive": table.get(("genitive", "plural" if only_plural else "singular"))}
+        if not only_plural:
+            first["plural"] = table.get(("nominative", "plural"))
+        ordered = {label: named.get(label) or form for label, form in first.items() if named.get(label) or form}
+        ordered.update({label: form for label, form in named.items() if label not in ordered})
+        return "<br>".join(f"{label}: {form}" for label, form in ordered.items()) or None
+    # A Norwegian verb phrase (å gå seg vill) lists its three forms as a verb does.
+    if "(" in text or not (pos == "verb" or (pos == "phrase" and lang.name == "norwegian" and text.count(" / ") == 2)):
+        return None
+    if lang.name == "greek" and "," not in text and "/" not in text:
+        return f"past: {text}"
+    if lang.name == "german":
+        if m := re.fullmatch(r"([^,/]+), ((?:hat|ist) [^,/]+)", text):
+            return f"past: {m.group(1).strip()}<br>perfect: {m.group(2).strip()}"
+        parts = [part.strip() for part in text.split(" / ")]
+        if len(parts) == 2 and "," not in text:
+            return f"past: {parts[0]}<br>participle: {parts[1]}"
+        return f"past: {text}" if "," not in text and "/" not in text else None
+    if lang.name == "norwegian":
+        parts = [part.strip() for part in text.split(" / ")]
+        if len(parts) == 3 and "," not in text:
+            return f"present: {parts[0]}<br>past: {parts[1]}<br>participle: {parts[2]}"
+        return f"past: {text}" if "," not in text and "/" not in text else None
+    if lang.name in ("polish", "russian") and "/" not in text:
+        parts = [part.strip() for part in text.split(",")]
+        if len(parts) == 2:
+            return f"I: {parts[0]}<br>you: {parts[1]}"
+        if len(parts) == 3 and lang.name == "polish":
+            return f"I: {parts[0]}<br>you: {parts[1]}<br>perfective I: {parts[2]}"
+    if lang.name == "russian" and "," not in text:
+        parts = [part.strip() for part in text.split(" / ")]
+        if len(parts) == 2:  # written for an aspect pair: each one's "I"
+            return f"I: {parts[0]}<br>perfective I: {parts[1]}"
+        if len(parts) == 1 and re.search(r"[юу](?:сь)?$", text):
+            return f"I: {text}"
+    return None
+
+
 # Words a Title Cased gloss keeps capitalized.
 _PROPER = frozenset(
     "i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august "
@@ -331,8 +422,10 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             add("entry-article", "Entry", "format",
                 f'Write the bare noun ("{elided.group(1)}"): the card puts the article in front from Gender.',
                 {"Entry": _escape(elided.group(1))})  # fmt: skip
-    if lang and lang.name == "norwegian" and entry.startswith("å "):
-        add("entry-infinitive-marker", "Entry", "format", 'Write the verb without "å".', {"Entry": _escape(entry[2:])})
+    # Only a verb's: the card puts å back before a verb, and nothing would put it back before a phrase.
+    if lang and lang.name == "norwegian" and pos == "verb" and entry.startswith("å "):
+        add("entry-infinitive-marker", "Entry", "format", 'Write the bare verb: the card puts "å" before a Norwegian verb.',
+            {"Entry": _escape(entry[2:])})  # fmt: skip
     if lang and lang.aspect_pairs and " / " in entry and pos == "verb":
         first, _, second = entry.partition(" / ")
         fix = {"Entry": _escape(first)}
@@ -497,7 +590,7 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
         wants = lang.noun if pos == "noun" else lang.verb if pos == "verb" else ()
         for name in wants:
             if not txt(name) and not (name == "AspectPartner" and " / " in entry):
-                detail = f" ({lang.key_forms})" if name == "KeyForms" and lang.key_forms else ""
+                detail = f" (a pattern: line saying what kind of word it is, then {lang.key_forms})" if name == "KeyForms" and lang.key_forms else ""
                 add("grammar-gap", name, "gap", f"A {lang.name.capitalize()} {pos} carries {name}{detail}.")
         if lang.name == "german" and pos == "noun":
             if gender in ("m", "n") and not txt("Genitive"):
@@ -510,6 +603,22 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             add("verbclass-unknown", "VerbClass", "format", f"VerbClass is one of: {', '.join(sorted(lang.verb_classes))}.")
         if auxiliary and lang.auxiliaries and not set(re.split(r"\s*[,/]\s*", auxiliary)) <= lang.auxiliaries:
             add("auxiliary-unknown", "Auxiliary", "format", f"Auxiliary is one of: {', '.join(sorted(lang.auxiliaries))}.")
+
+    # -- key forms: every form under the name of what it is --
+    key_lines = _lines(raw("KeyForms"))
+    labels = [m.group(1).strip().lower() if (m := _LABEL.match(line)) else None for line in key_lines]
+    if any(label is None for label in labels):
+        relabeled = label_key_forms(lang, pos, gender, key_lines, raw("Forms")) if lang else None
+        add("keyforms-unlabeled", "KeyForms", "format",
+            "Write each form on its own line under what it is (genitive: poniedziałku). note_guide lists the labels.",
+            {"KeyForms": relabeled} if relabeled else None)  # fmt: skip
+    elif any(label not in FORM_LABELS for label in labels):
+        unknown = ", ".join(sorted({label for label in labels if label not in FORM_LABELS}))  # type: ignore[type-var]
+        add("keyforms-label", "KeyForms", "format", f"KeyForms labels are: {', '.join(FORM_LABELS)}. Not: {unknown}.")
+    elif labels and lang and "KeyForms" in (lang.noun if pos == "noun" else lang.verb if pos == "verb" else ()) and "pattern" not in labels:
+        add("pattern-missing", "KeyForms", "gap",
+            'Start KeyForms with a "pattern:" line saying what kind of word it is, in a short sentence or two '
+            "(Masculine inanimate. Genitive in -u. The e drops out.).")  # fmt: skip
 
     # -- pronunciation and punctuation --
     ipa = txt("Pronunciation")
@@ -530,7 +639,7 @@ FIXABLE = frozenset(
     {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "entry-markup", "entry-article",
      "entry-infinitive-marker", "entry-aspect-pair", "meaning-markup", "meaning-numbered", "meaning-lines",
      "meaning-slashes", "meaning-commas", "meaning-article", "meaning-title-case", "context-markup",
-     "context-end-punctuation", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian"}
+     "context-end-punctuation", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian", "keyforms-unlabeled"}
 )  # fmt: skip
 
 
@@ -650,6 +759,14 @@ Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
   conjunction, particle, classifier, interjection, prefix, suffix, phrase. Always filled. Not repeated in tags.
 Language: the language's English name in lowercase. GenerateReverse, GenerateAudioCard, SuppressFrontCard: "y" or empty.
+KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>). First "pattern:", a short
+  sentence or two on what kind of word it is and what is unusual about it (pattern: Masculine inanimate.
+  Genitive in -u. The e drops out.). Then the forms the rest can be worked out from, each under what it is
+  (genitive: poniedziałku). Last, for a verb or preposition that takes a case or a preposition, "takes:"
+  (takes: do + genitive (dzwonić do kogoś)). A bracket at a line's end is shown smaller under the form. Labels
+  are plain words: genitive, dative, accusative, instrumental, locative, vocative, plural, genitive plural,
+  (or "genitive plural" and so on), feminine, neuter, comparative, superlative, I, you, "he, she", we, they,
+  present, past, perfect, participle, future, imperative, perfective, imperfective. Never a form with no label.
 Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
 Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
@@ -663,22 +780,23 @@ _PER_LANGUAGE = {
                "The target is Mexican Spanish: a word or sense not used in Mexico gets a Dialect (Iberian, Caribbean,\n"
                "Colombian); a Mexico-only word says Mexican. IPA is Latin American (s, not θ).\n"
                "fill_forms writes a verb's Forms table.",
-    "french": "Gender: m or f. Auxiliary: avoir or être, for every verb. KeyForms: a past participle only when irregular.",
+    "french": "Gender: m or f. Auxiliary: avoir or être, for every verb. KeyForms: participle: pris, when it is irregular.",
     "german": "Gender: m, f or n. Plural: every noun, without its article (\"no plural\" when it has none).\n"
               "Genitive: masculine and neuter nouns only, with the article (des Tisches).\n"
               "VerbClass: strong, weak or mixed. Auxiliary: haben or sein.\n"
-              "KeyForms: the preterite, then the perfect with its auxiliary (warf ab, hat abgeworfen).",
+              "KeyForms for a verb: he, she: wirft ab (when the vowel changes), past: warf ab, perfect: hat abgeworfen.",
     "greek": "Gender: m, f or n (m/f for a noun that takes either). Plural: every noun's nominative plural.\n"
              "VerbClass: active; deponent only for a verb with no active form; passive for the -μαι form of an active verb.\n"
-             "KeyForms: the first person singular aorist. No romanization.",
-    "norwegian": "Bokmål. Gender: m, f or n. Plural: every noun's indefinite plural. A verb is entered without å.\n"
-                 "KeyForms: present / preterite / perfect participle (tømmer / tømte / tømt).",
+             "KeyForms for a verb: past: αντιπάθησα (the aorist). No romanization.",
+    "norwegian": "Bokmål. Gender: m, f or n. Plural: every noun's indefinite plural. A verb is entered without å: the card shows and says it.\n"
+                 "KeyForms for a verb: present: tømmer, past: tømte, participle: tømt.",
     "russian": "Gender: m, f or n. AspectPartner: every verb's partner of the other aspect, as one word.\n"
-               "KeyForms: a verb's first and second person singular, present or perfective future. No romanization.\n"
+               "KeyForms for a noun: genitive: стола, plural: столы; for a verb: I: добиваюсь, you: добиваешься (present, or the "
+               "future of a perfective). No romanization.\n"
                "fill_forms writes the Forms tables.",
     "polish": "Gender: m, f or n; pl for a plural-only noun, mpl for a plural of men.\n"
               "AspectPartner: every verb's partner of the other aspect, as one word.\n"
-              "KeyForms: a noun's genitive singular and nominative plural; a verb's first and second person singular.\n"
+              "KeyForms for a noun: genitive: mężczyzny, plural: mężczyźni; for a verb: I: mam, you: masz.\n"
               "fill_forms writes the Forms tables.",
     "japanese": "KanaReading: a word with kanji gets its reading in kana, one reading only. Empty for a kana-only word.\n"
                 "Hanzi (the kanji breakdown): only kanji in the Entry, each with the reading this word uses (hiragana for\n"
@@ -691,7 +809,8 @@ _PER_LANGUAGE = {
 EXAMPLES: dict[str, dict[str, str]] = {
     "german": {"Entry": "abwerfen", "Meaning": "to throw off; to shed", "Context": "Er <b>warf</b> seinen Mantel <b>ab</b>.",
                "ContextTranslation": "He threw off his coat.", "Register": "neutral", "PartOfSpeech": "verb",
-               "Language": "german", "KeyForms": "warf ab, hat abgeworfen", "VerbClass": "strong", "Auxiliary": "haben",
+               "Language": "german", "VerbClass": "strong", "Auxiliary": "haben",
+               "KeyForms": "pattern: Strong verb. The prefix ab splits off.<br>he, she: wirft ab<br>past: warf ab<br>perfect: hat abgeworfen",
                "GenerateReverse": "y"},
     "thai": {"Entry": "กลับ", "Meaning": "to return; to go back", "Context": "เขา<b>กลับ</b>บ้านแล้ว",
              "ContextRomanized": "khǎo glàp bâan láaeo", "ContextTranslation": "He has already gone home.",
@@ -703,7 +822,8 @@ EXAMPLES: dict[str, dict[str, str]] = {
     "russian": {"Entry": "добавлять", "Meaning": "to add", "AspectPartner": "добавить",
                 "Context": "Он всегда <b>добавлял</b> что-то новое.<br>Она <b>добавила</b> соль в суп.",
                 "ContextTranslation": "He always added something new.<br>She added salt to the soup.",
-                "ContextLabels": "imperfective<br>perfective", "KeyForms": "добавляю, добавляешь", "Register": "neutral",
+                "ContextLabels": "imperfective<br>perfective", "Register": "neutral",
+                "KeyForms": "pattern: Imperfective. Endings -ю, -ешь.<br>I: добавляю<br>you: добавляешь",
                 "PartOfSpeech": "verb", "Language": "russian", "GenerateReverse": "y"},
     "japanese": {"Entry": "割り込む", "Meaning": "to cut in; to interrupt", "KanaReading": "わりこむ",
                  "Hanzi": "割(わ)divide; 込(こ)go into", "Context": "列に<b>割り込む</b>のはよくない。",
@@ -716,7 +836,8 @@ SEVERAL_SENSES = {
     "Entry": "erhalten", "Meaning": "1. to receive<br>2. to preserve; to maintain",
     "Context": "Hast du meine E-Mail <b>erhalten</b>?<br>Wir müssen die alten Gebäude <b>erhalten</b>.",
     "ContextTranslation": "Did you get my email?<br>We have to preserve the old buildings.", "ContextLabels": "receive<br>preserve",
-    "Register": "neutral", "PartOfSpeech": "verb", "Language": "german", "KeyForms": "erhielt, hat erhalten",
+    "Register": "neutral", "PartOfSpeech": "verb", "Language": "german",
+    "KeyForms": "pattern: Strong verb. The prefix er never splits off.<br>he, she: erhält<br>past: erhielt<br>perfect: hat erhalten",
     "VerbClass": "strong", "Auxiliary": "haben", "GenerateReverse": "y",
 }  # fmt: skip
 

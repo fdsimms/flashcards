@@ -45,6 +45,7 @@ from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     MODEL,
     STORY_EFFORT,
+    STORY_ENDING_LINES,
     Ask,
     Form,
     Generated,
@@ -1057,6 +1058,7 @@ class Engine:
             cast=story.cast,
             speakers=tuple(cast.Speaker(name, v.gender, v.age) for name, v in story.voices.items()),
             recaps=tuple(t.recap for t in told if t.recap),
+            ending=tuple(ln.english for ln in told[-1].lines[-STORY_ENDING_LINES:]) if told else (),
             chosen=chosen,
             plan=story.plan,
         )

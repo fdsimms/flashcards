@@ -30,7 +30,7 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from . import omnilanguage
-from .articles import article_for, with_article
+from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
@@ -1223,7 +1223,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         - An Omnilanguage noun is read with its article (die Einstellung, l'amertume), as Franki says
           it: when `Entry` is the first source field and the note's Gender and Language give one
           (Spanish, Norwegian, German, French, Greek). An Entry that already starts with its article
-          (el agua) is read as it is. `article=false` reads the Entry alone.
+          (el agua) is read as it is. A Norwegian verb is read with its å (å huske), from
+          PartOfSpeech. `article=false` reads the Entry alone.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).
         - `language` is the text's language and region ("th-TH", "ja-JP"). Pass it with a
           Multilingual voice (en-US-AvaMultilingualNeural), which otherwise guesses the language
@@ -1280,6 +1281,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             text = join.join(p for p in parts if p)
             if article and text and source_fields[0] == "Entry" and "Gender" in note and "Language" in note:
                 said = article_for(note["Language"], note["Gender"], parts[0])
+                if not said and "PartOfSpeech" in note:
+                    said = marker_for(note["Language"], note["PartOfSpeech"], parts[0])
                 if said:
                     text = with_article(said, text)
             for r in replacements or []:

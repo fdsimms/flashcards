@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
-import { scrollTarget, type Box } from '../../reader/follow';
+import { lineSide, scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
@@ -15,7 +15,7 @@ import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/
 import { wordFrequency } from '../../reader/frequency';
 import { firstLine, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
-import { minutesFor, nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
+import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
 import { phraseRange, phrasePart, phraseText, type PhrasePick } from '../../reader/phrase';
 import { choicesView, holdsPlayAll } from '../../reader/choices';
@@ -31,6 +31,7 @@ import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { ReadWordTitle } from './ReadWordTitle';
 import { ReadGlossLine } from './ReadWordTips';
+import { ReaderJumpToLine } from './ReaderJumpToLine';
 import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
@@ -195,17 +196,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [writing, setWriting] = useState(false);
   // Where the server has got to in writing the text asked for, for the making card.
   const [writeStage, setWriteStage] = useState<TextStage | undefined>(undefined);
-  // What Next opens from the end view: undefined while it's looked up, null when there's none or
-  // the lookup failed (`nextFailed`).
-  const [upNext, setUpNext] = useState<UpNext | null | undefined>(undefined);
-  const [nextFailed, setNextFailed] = useState(false);
   // Offline the text and its audio come from the phone, and the reading is held to send later
   // (reader/offlineApi.ts); what needs the server is left out of the end view.
   const problem = useConnectionProblem();
-  // Writing the story's next episode from the end view (Write episode N): none asked for yet, being
-  // written, or not written in time. Once it's written it becomes `upNext` and this is 'ready'.
-  const [nextEpisode, setNextEpisode] = useState<'idle' | 'writing' | 'ready' | 'failed'>('idle');
-  const [nextStage, setNextStage] = useState<TextStage | undefined>(undefined);
   const [lengthStep, setLengthStep] = useState<LengthStep>('same');
   const [steerError, setSteerError] = useState<string | null>(null);
   // A story episode's pick for what happens next (an index into text.choices), and why saving it failed.
@@ -262,15 +255,30 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const viewTop = useRef(0);
   const headerHeight = useHeaderHeight();
 
+  // Which way the current line lies from what's on screen, for the button that scrolls back to it.
+  const [lineOff, setLineOff] = useState<'above' | 'below' | null>(null);
+  const currentBox = () => {
+    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
+    return at < 0 ? undefined : lineBoxes.current[at];
+  };
+  const frame = () => ({ height: viewHeight.current, insetTop: Math.max(0, headerHeight - viewTop.current) });
+  const updateLineOff = () => {
+    const box = currentBox();
+    const side = listenOnly || !box || !viewHeight.current ? null : lineSide(box, scrollY.current ?? -frame().insetTop, frame());
+    setLineOff((prev) => (prev === side ? prev : side));
+  };
+  const followCurrent = () => {
+    const box = currentBox();
+    if (!box || !viewHeight.current) return;
+    const y = scrollTarget(box, scrollY.current ?? -frame().insetTop, frame());
+    if (y !== null) scroller.current?.scrollTo({ y, animated: true });
+  };
+
   useEffect(() => {
     // Listening without the text there's nothing to follow: the rows are only labels.
     if (listenOnly) return;
-    const at = current === null ? -1 : paras ? rangeOf(paras, current) : current;
-    const box = at < 0 ? undefined : lineBoxes.current[at];
-    if (!box || !viewHeight.current) return;
-    const insetTop = Math.max(0, headerHeight - viewTop.current);
-    const y = scrollTarget(box, scrollY.current ?? -insetTop, { height: viewHeight.current, insetTop });
-    if (y !== null) scroller.current?.scrollTo({ y, animated: true });
+    followCurrent();
+    updateLineOff();
   }, [current]);
 
   const load = async () => {
@@ -293,10 +301,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setTapped(null);
     setPhrase(null);
     setListenOnly(false);
-    setUpNext(undefined);
-    setNextFailed(false);
-    setNextEpisode('idle');
-    setNextStage(undefined);
     setLengthStep('same');
     setSteerError(null);
     setChosen(null);
@@ -417,16 +421,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
   };
 
-  useEffect(() => {
-    if (!ended || source.kind !== 'shelf') return;
-    let live = true;
-    findNext().then(
-      (n) => { if (live && mounted.current) { setUpNext(n); setNextFailed(false); } },
-      () => { if (live && mounted.current) { setUpNext(null); setNextFailed(true); } },
-    );
-    return () => { live = false; };
-  }, [ended]); // eslint-disable-line react-hooks/exhaustive-deps -- once per end view
-
   // Saves the pick as it's made, since the server writes the next episode from it once this one is read.
   const choose = (index: number) => {
     if (!text) return;
@@ -454,52 +448,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!mounted.current) return;
     if (next) onNext({ kind: 'shelf', textId: next.id, order: next.order, playAll: true });
     else setEnded(true);
-  };
-
-  // Writes the story's next episode from the end view. The server writes it only once this one is
-  // logged as read, so this logs it now, then waits for the episode.
-  const writeNextEpisode = async () => {
-    if (!text || !session || review || source.kind !== 'shelf' || logged.current || nextEpisode === 'writing') return;
-    logged.current = true;
-    // The route swaps texts in place: once another one loads, this wait is no longer its business.
-    const forLoad = loadId.current;
-    const stillHere = () => mounted.current && forLoad === loadId.current;
-    setNextEpisode('writing');
-    setNextStage(undefined);
-    try {
-      await api.logReading(text.id, toLog(session, Date.now(), true, checkPicks ? loggedScore(check, checkPicks) : null));
-      recordExtraRead(text.language ?? 'th');
-    } catch {
-      // The reading is lost, not your place: carry on either way.
-    }
-    const until = Date.now() + WRITE_WAIT_MS;
-    while (stillHere() && Date.now() < until) {
-      await wait(POLL_MS);
-      if (!stillHere()) return;
-      try {
-        const shelf = await api.shelf();
-        if (!stillHere()) return;
-        // This episode's own story: the card's, or another running one from the Stories list. A
-        // server older than several stories sends no story_id, and only the card's runs there.
-        const story = text.story_id == null || shelf.story?.id === text.story_id
-          ? shelf.story
-          : (await api.stories()).stories.find((s) => s.id === text.story_id) ?? null;
-        if (!stillHere()) return;
-        const episode = story?.next;
-        if (episode && episode.id !== text.id) {
-          const order = playOrder(shelf).filter((id) => id !== text.id);
-          setUpNext({ id: episode.id, title: episode.title, lines: episode.lines, order });
-          setNextFailed(false);
-          setNextEpisode('ready');
-          return;
-        }
-        setNextStage(story?.stage ?? undefined);
-        if (story?.failed) break;
-      } catch {
-        // Unreachable for now: ask again until the wait runs out.
-      }
-    }
-    if (stillHere()) setNextEpisode('failed');
   };
 
   const chooseLength = async (step: LengthStep) => {
@@ -545,10 +493,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     }
     if (!mounted.current) return;
     if (then === 'back') leave();
-    else if (source.kind === 'shelf') {
-      if (upNext) onNext({ kind: 'shelf', textId: upNext.id, order: upNext.order });
-      else leave();
-    } else load();
+    else load();
   };
 
   // A finished text is logged before the screen goes, however it goes: the Back button, the swipe,
@@ -756,7 +701,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             viewHeight.current = e.nativeEvent.layout.height;
             scroller.current?.measureInWindow((_x, y) => { viewTop.current = y; });
           }}
-          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+          onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; updateLineOff(); }}
           scrollEventThrottle={100}
           // Off while a phrase is dragged, or the scroll takes the finger back on its first move.
           scrollEnabled={!phraseDrag.dragging}
@@ -857,7 +802,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                               {...phraseLook(range.start + k, word, l.words)}
                               playing={shaded === range.start + k}
                               spoken={spoken.has(word)}
-                              slot={quiz.view(word, shaded === range.start + k)}
+                              slot={quiz.view(word)}
                               onPress={tap}
                               onLongPress={phraseDrag.begin}
                               viewRef={phraseDrag.wordRef(word)}
@@ -923,7 +868,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                             hidden={hiddenMarks}
                             {...phraseLook(i, word, line.words)}
                             spoken={spoken.has(word)}
-                            slot={quiz.view(word, shaded === i)}
+                            slot={quiz.view(word)}
                             onPress={tap}
                             onLongPress={phraseDrag.begin}
                             viewRef={phraseDrag.wordRef(word)}
@@ -997,6 +942,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             </View>
           )}
         </ScrollView>
+      ) : null}
+
+      {text && session && !ended && !listenOnly && lineOff && current !== null ? (
+        <ReaderJumpToLine line={current + 1} side={lineOff} onPress={followCurrent} />
       ) : null}
 
       {text && session && ended && checking && !drilling ? (
@@ -1073,46 +1022,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>
             ) : null}
-            {hasAudio ? (
-              <View style={{ gap: space.xs }}>
-                <Button label="Listen without the text" variant="secondary" onPress={listenWithoutText} />
-                <Help>Plays it again with the text hidden.</Help>
-              </View>
-            ) : null}
-            {/* While the next text is looked up its place is held, so Save doesn't move when it
-                comes. With none, Save fades in where Next would have been, as the main button. */}
-            {source.kind === 'shelf' && (text.episode ?? 0) > 0 && nextEpisode === 'idle' ? (
-              <View style={{ gap: space.xs }}>
-                <Button label={`Write episode ${(text.episode ?? 0) + 1}`} variant={upNext || problem ? 'secondary' : 'primary'} onPress={writeNextEpisode} disabled={!!problem} />
-                <Help>{problem === 'offline' ? "You can write the next episode once you're back online."
-                  : problem ? 'You can write the next episode once your server answers.'
-                  : 'Saves this one as read, then writes the next episode. This takes about half a minute.'}</Help>
-              </View>
-            ) : null}
-            {nextEpisode === 'writing' ? (
-              <MakingCard title={`Episode ${(text.episode ?? 0) + 1}`} steps={textSteps(nextStage)} />
-            ) : null}
-            {nextEpisode === 'failed' ? (
-              <Help>Couldn't write the next episode yet. The server tries again in half an hour, or go back to the shelf and pull down to check.</Help>
-            ) : null}
-            {nextEpisode === 'writing' ? null : source.kind !== 'shelf' ? (
+            {source.kind !== 'shelf' ? (
               <Button label="Next text" onPress={() => finish('next')} busy={leaving === 'next'} />
-            ) : upNext === undefined ? (
-              <View style={{ gap: space.xs }}>
-                <NextPlaceholder />
-                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Help> </Help></View>
-              </View>
-            ) : upNext ? (
-              <Reveal style={{ gap: space.xs }}>
-                <Button label={`Next: ${upNext.title}`} onPress={() => finish('next')} busy={leaving === 'next'} />
-                <Help>{`About ${minutesFor(upNext.lines)} min.`}</Help>
-              </Reveal>
-            ) : nextFailed ? (
-              <Reveal><Help>Couldn't reach the shelf to find the next text. Go back to the shelf to choose one.</Help></Reveal>
             ) : null}
-            <Reveal key={source.kind === 'shelf' && upNext === null ? 'alone' : 'under'}>
-              <Button label={review ? 'Back to the list' : 'Save and back to the shelf'} variant={source.kind === 'shelf' && upNext === null ? 'primary' : 'secondary'} onPress={() => finish('back')} busy={leaving === 'back'} />
-            </Reveal>
+            <Button label={review ? 'Back to the list' : 'Back to Read & Listen'} variant={source.kind === 'shelf' ? 'primary' : 'secondary'} onPress={() => finish('back')} busy={leaving === 'back'} />
           </Reveal>
         </ScrollView>
       ) : null}
@@ -1447,26 +1360,6 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
           <RecordYourself rec={rec} label={`Record line ${current + 1}`} size="player" />
         </View>
       ) : null}
-    </View>
-  );
-}
-
-/** Where "Next: …" goes while the next text is looked up: a dashed, empty button with a spinner. */
-function NextPlaceholder() {
-  const c = useTheme();
-  return (
-    <View
-      accessible
-      accessibilityLabel="Finding the next text"
-      accessibilityState={{ disabled: true, busy: true }}
-      style={{
-        minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s,
-        borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.border,
-      }}
-    >
-      <ActivityIndicator size="small" color={c.accent} />
-      <Text style={{ ...type.body, color: c.textSecondary }}>Finding the next text…</Text>
     </View>
   );
 }

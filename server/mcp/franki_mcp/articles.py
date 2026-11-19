@@ -1,5 +1,5 @@
 """
-A noun's article, from its Gender, for the audio the MCP records.
+A noun's article, from its Gender, and a Norwegian verb's å, for the audio the MCP records.
 
 Franki's cards show the article from the Gender field (the Entry is the bare noun), and say it with
 the word. A recording of the Entry alone would leave it out, so `add_tts_audio` puts it back in front
@@ -50,6 +50,20 @@ def article_for(language: str, gender: str, entry: str) -> str | None:
     if _ELISION.match(entry) or (" " in entry and first in _LEADING) or entry.lower().startswith(f"{word} "):
         return None
     return "l'" if code == "fr" and _VOWEL.match(entry) else word
+
+
+# The word a verb is named with (å huske): the Entry is the bare verb and the card puts this before it.
+# The same table as `VERB_MARKERS` in src/core/gender.ts.
+VERB_MARKERS: dict[str, str] = {"nb": "å"}
+
+
+def marker_for(language: str, part_of_speech: str, entry: str) -> str | None:
+    """The marker to say before a bare verb, or None: not a verb, a language with none, or an Entry that
+    already starts with it."""
+    word = VERB_MARKERS.get(LANGUAGE_CODES.get(language.strip().lower(), ""))
+    if not word or part_of_speech.strip().lower() != "verb" or entry.strip().lower().startswith(f"{word} "):
+        return None
+    return word
 
 
 def with_article(article: str, text: str) -> str:

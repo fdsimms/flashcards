@@ -106,6 +106,10 @@ describe('lookalikeIndex', () => {
     const idx = lookalikeIndex([tener, tengo, ser, fui]);
     expect(idx.get('t')).toEqual(new Set(['g']));
     expect(idx.get('s')).toEqual(new Set(['f']));
+    // A labeled line gives its form, not its label, and the pattern and what the word takes aren't forms.
+    const werfen = word('w', 'werfen', { KeyForms: 'pattern: Strong verb.<br>past: warf (irregular)<br>takes: nach + dative' });
+    const labeled = lookalikeIndex([werfen, word('p', 'warf'), word('n', 'nach'), word('s2', 'strong')]);
+    expect(labeled.get('w')).toEqual(new Set(['p']));
   });
   it('links German words by their umlauts as written', () => {
     const de = (id: string, entry: string) => word(id, entry, { Language: 'german' }, '👅 Languages::Deutsch');
