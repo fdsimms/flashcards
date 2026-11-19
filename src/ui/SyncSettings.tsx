@@ -102,7 +102,7 @@ export function SyncSettings(props: {
               Franki syncs with an Anki sync server you run yourself, the same one Anki on your computer and AnkiMobile sync
               with. It can't sync with AnkiWeb. The setup steps are in the server folder of Franki's repository, to follow from your computer.
             </Help>
-            <Field label="Server address" value={server} onChangeText={setServer} placeholder="For example anki.example.com"
+            <Field label="Server address" value={server} onChangeText={setServer} placeholder="e.g. anki.example.com"
               autoCapitalize="none" autoCorrect={false} keyboardType="url" textContentType="URL" error={!!error && !server.trim()}
               returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => userField.current?.focus()} />
             <Field ref={userField} label="User name" value={user} onChangeText={setUser} autoCapitalize="none" autoCorrect={false}
