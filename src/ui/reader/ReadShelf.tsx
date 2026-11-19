@@ -14,7 +14,7 @@ import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Group, HeaderAction, Help, Icon, NavRow, Screen, Tappable } from '../kit';
 import { Cover, CoverRow, useCoverTint } from './Cover';
-import { PracticeWordPill } from './PracticeWordPill';
+import { PracticeWordRow } from './PracticeWordPill';
 import { GlossPopover, type Tapped } from './Reader';
 import { MakingSteps } from '../MakingCard';
 import { currentStep, textSteps } from '../../reader/making';
@@ -464,13 +464,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       </View>
       {story.writing && !next ? <MakingSteps steps={textSteps(story.stage)} /> : null}
       {next && next.stretch.length > 0 ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingTop: space.xs }}>
-          {next.stretch.map((w) => {
-            // A server older than the practice words sends none, and the pill stays plain.
-            const word = next.practice?.find((p) => p.text === w);
-            return <PracticeWordPill key={w} word={w} onPress={word ? (x, y) => setTapped({ word, x, y }) : undefined} />;
-          })}
-        </View>
+        <PracticeWordRow words={next.stretch} practice={next.practice} onTap={(word, x, y) => setTapped({ word, x, y })} />
       ) : null}
       <View style={{ flexDirection: 'row', gap: space.s, paddingTop: space.s }}>
         {next ? <Button label={`Play episode ${next.episode}`} onPress={() => onOpen(next.id)} style={{ flex: 1 }} /> : null}

@@ -7,6 +7,7 @@ import type { Api, AudioLesson } from '../reader/api';
 import { loadTurnPrefs, saveTurnPref, type TurnPrefs } from '../reader/lessonStorage';
 import { markOf, scriptOf, slowAnswer, takeAfter, turnAt, type MarkReason, type ScriptEntry, type ScriptTurn } from '../reader/lessonScript';
 import { pauseAt, pausesOf, type Pause } from '../reader/lessonWaits';
+import { LISTENING_MODE } from './listeningAudio';
 import { startVoice, voiceTick, type VoiceState } from '../reader/voiceEnd';
 import type { LessonWaits } from './useLessonWaits';
 import { microphoneAllowed } from './useSelfRecording';
@@ -18,7 +19,7 @@ const AWAY_MS = 60_000;
 
 /** The audio session for a lesson: playing in the background, and recording too while a microphone setting is on. */
 export function lessonAudioMode(recording: boolean): Partial<AudioMode> {
-  return { playsInSilentMode: true, shouldPlayInBackground: true, allowsRecording: recording };
+  return { ...LISTENING_MODE, allowsRecording: recording };
 }
 
 export interface LessonTurns extends TurnPrefs {

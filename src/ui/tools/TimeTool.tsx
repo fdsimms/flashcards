@@ -146,16 +146,14 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
       fill
       lockGesture={swipe}
       footer={footer}
-      menu={(
-        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
-          <Stack.Toolbar.Menu inline title="Random times">
-            {MINUTE_STEPS.map((s) => <Stack.Toolbar.MenuAction key={s} isOn={s === step} onPress={() => chooseStep(s)}>{STEP_LABELS[s]}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Answer by">
-            {TIME_MODES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === mode} onPress={() => { if (m !== mode) { setMode(m); answer.hide(); listen.reset(); } }}>{MODE_LABELS[m]}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      )}
+      menu={[
+        <Stack.Toolbar.Menu key="1" inline title="Random times">
+          {MINUTE_STEPS.map((s) => <Stack.Toolbar.MenuAction key={s} isOn={s === step} onPress={() => chooseStep(s)}>{STEP_LABELS[s]}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+        <Stack.Toolbar.Menu key="2" inline title="Answer by">
+          {TIME_MODES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === mode} onPress={() => { if (m !== mode) { setMode(m); answer.hide(); listen.reset(); } }}>{MODE_LABELS[m]}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+      ]}
     >
       <PracticeCard
         questionKey={exploring ? 'explore' : `${mode}|${clockText(asked)}`}

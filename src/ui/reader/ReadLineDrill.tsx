@@ -1,4 +1,4 @@
-import { useAudioPlayer } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,11 +19,12 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 import { TranslationRow } from '../TranslationRow';
 import { TypedDiff } from '../TypedDiff';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording } from '../useSelfRecording';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 
-const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+const AUDIO_MODE = LISTENING_MODE;
 
 /**
  * Using the lines of a text just read (reader/lineDrill.ts), in place of the end view until it's
@@ -51,6 +52,8 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [rate, setRate] = useState(kind === 'hear' && hasSlow(prefs(), text.language) ? SLOW_RATE : speedFor(prefs(), text.language));
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
+  // Closing the drill lets other apps' audio mix with the app's again.
+  useEffect(() => () => { setAudioModeAsync(IDLE_MODE).catch(() => undefined); }, []);
   const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, {
     onBeforeAudio: () => player.pause(),
     original: line?.audio && at !== undefined ? () => ({ source: api.audioSource(text.id, at, rate) }) : null,

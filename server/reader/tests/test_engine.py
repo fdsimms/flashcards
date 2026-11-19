@@ -10,7 +10,7 @@ import pytest
 from franki_speech import WordMark
 from scripted import BAD, ENTRIES, IN_RANGE, WITHOUT_KIN, ScriptedModel
 
-from franki_reader import store
+from franki_reader import store, xray
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import (
     MISSED_FLOOR,
@@ -372,6 +372,47 @@ def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None
 
     run(e.top_up)  # episode 2 is waiting: no third
     assert [t.episode for t in store.episodes(e.conn, story_id)] == [1, 2]
+
+
+def test_a_story_keeps_what_each_episode_tells_of_its_characters() -> None:
+    first = {
+        **IN_RANGE,
+        "series": "Noi's stall",
+        "cast": "Noi sells noodles.",
+        "recap": "Noi opens.",
+        "xray": [{"name": "Noi", "fact": "Sells noodles at a stall."}],
+    }
+    second = {
+        **IN_RANGE,
+        "recap": "It rains.",
+        "xray": [
+            {"name": "Noi", "fact": "Saves the stall from the rain."},
+            {"name": "Dao", "fact": "A customer who always pays late."},
+        ],
+    }
+    model = ScriptedModel(first, second)
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None
+    e.record_reading(episode.id, reading(None))
+    calls = model.calls
+    run(e.top_up)
+    asked = model.messages_seen[calls][0]["content"]
+    assert "- Noi: Sells noodles at a stall." in asked
+    story = store.get_story(e.conn, story_id)
+    assert story is not None
+    # Episode 1's card never shows what episode 2 told.
+    assert [c["description"] for c in xray.visible(story.characters, 1)] == [
+        "Sells noodles at a stall."
+    ]
+    assert [c["name"] for c in xray.visible(story.characters, 2)] == ["Noi", "Dao"]
 
 
 def test_the_next_episode_is_written_from_the_choice_the_reader_made() -> None:

@@ -7,6 +7,7 @@ from franki_reader import (
     exposure,
     store,
     timing,
+    xray,
 )
 from franki_reader.engine import Engine, Job
 from franki_reader.generator import (
@@ -63,6 +64,12 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
     out["episode"] = text.episode
     # Which story an episode is from, so the reader can wait for that story's next one.
     out["story_id"] = text.story_id
+    if story:
+        # X-Ray: the characters as of this episode, with whether each turns up in it; a name in
+        # the lines is tagged with its character so a tap can open its card.
+        shown = xray.visible(story.characters, text.episode)
+        here = xray.tag_names(out["lines"], shown)
+        out["xray"] = [{**c, "here": c["name"] in here} for c in shown]
     if story and text.episode > 1:
         # What happened in the episode before, shown above the text so it isn't retold in it.
         before = [t for t in store.episodes(engine.conn, story.id) if t.episode == text.episode - 1]
@@ -151,6 +158,8 @@ def story_json(
         "season": place.season,
         "season_episode": place.season_episode,
         "season_length": SEASON_EPISODES,
+        # X-Ray, as of the last episode read, so the card shows nothing the reader hasn't reached.
+        "xray": xray.visible(story.characters, max(t.episode for t in read)) if read else [],
         "last_recap": read[-1].recap if read and card else "",
         # The same in the story's language, as the reader's words, with that line's English;
         # null for an episode written before it was asked for.

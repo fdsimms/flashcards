@@ -59,6 +59,23 @@ export const governorLabel = governorId;
 
 export const caseName = (c: GovernedCase): string => c[0].toUpperCase() + c.slice(1);
 
+/** A short plain reminder of what each case is for, shown under its name on the choices ("of" for the genitive). */
+export const CASE_CUES: Record<GovernedCase, string> = {
+  genitive: 'of',
+  dative: 'to, for',
+  accusative: 'direct object',
+  instrumental: 'with, by',
+  locative: 'in, about',
+  prepositional: 'in, about',
+};
+
+/** How many choices go on each row: all of three or fewer, two and two for four, three above for five, three and three for six. */
+export function caseRows(count: number): number[] {
+  if (count <= 3) return [count];
+  if (count === 4) return [2, 2];
+  return [3, count - 3];
+}
+
 /** One noun the second step can put in a case: its note and each case's form. */
 export interface CaseNoun {
   note: Note;

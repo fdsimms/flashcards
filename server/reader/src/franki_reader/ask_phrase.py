@@ -15,7 +15,7 @@ from anthropic.types.beta import BetaMessageParam
 
 from franki_reader.ask_card import MAX_TURNS, Turn
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.explain import CALIBRATION, ENGLISH, IN_LANGUAGE, whole_text
+from franki_reader.explain import CALIBRATION, ENGLISH, IN_LANGUAGE, line_label, whole_text
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
@@ -55,6 +55,8 @@ class PhraseQuestion:
     # The conversation, oldest first, ending with the learner's new question.
     turns: list[Turn]
     in_language: bool = False  # the answer in the phrase's language rather than English
+    # As for PhraseRequest: the phrase's last line when it runs on past `index`.
+    through: int | None = None
 
 
 # The answer, and what asking cost.
@@ -71,8 +73,8 @@ def system_for(question: PhraseQuestion) -> str:
 
 def phrase_context(question: PhraseQuestion) -> str:
     lines = [f"Language: {LANGUAGES[question.language].name}"]
-    lines.extend(whole_text(question.context, question.title, question.index))
-    lines.append(f"Line {question.index + 1}: {question.line}")
+    lines.extend(whole_text(question.context, question.title, question.index, question.through))
+    lines.append(f"{line_label(question.index, question.through)}: {question.line}")
     lines.append(f"English: {question.english}")
     lines.append(f"Selected phrase: {question.phrase}")
     return "\n".join(lines)

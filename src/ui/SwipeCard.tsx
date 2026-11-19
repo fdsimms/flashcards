@@ -23,11 +23,11 @@ export function CardSurface({ children, color, language }: {
     <View
       style={{
         flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
-        backgroundColor: color ?? c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
+        backgroundColor: color ? undefined : c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
       }}
     >
-      {/* Clipped inside the shadow's box: a view that clips can't also cast one. */}
-      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden' }}>
+      {/* Clipped inside the shadow's box: a view that clips can't also cast one. A subject color fills this clipped view, not the outer one: under it, the color showed as a thin outline around a band of another color at the card's foot. */}
+      <View style={{ flex: 1, borderRadius: radius.xl, ...smooth, overflow: 'hidden', backgroundColor: color }}>
         {language ? <View pointerEvents="none" style={[FILL, { backgroundColor: language.wash }]} /> : null}
         {children}
         {language ? <LanguagePill language={language} /> : null}

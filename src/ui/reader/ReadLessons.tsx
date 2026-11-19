@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useHeaderHeight } from 'expo-router/react-navigation';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Language, type LessonReview } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
@@ -47,6 +48,11 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const chosen = useLessonWords(language);
   const downloadButton = useLessonDownloads(api);
   const problem = useConnectionProblem();
+  const scroller = useRef<ScrollViewInstance>(null);
+  // Where the list of lessons starts in the scroll view, and which lessons were being made at the last load.
+  const listTop = useRef(0);
+  const wasMaking = useRef<Set<number>>(new Set());
+  const headerHeight = useHeaderHeight();
 
   const load = useCallback(async () => {
     try {
@@ -67,6 +73,15 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
     const timer = setInterval(load, POLL_MS);
     return () => clearInterval(timer);
   }, [making, load]);
+
+  // When a lesson being made turns ready, bring the list to the top of the screen so it's in view.
+  // (iOS insets the content by the header, so the offset is taken from below it.)
+  useEffect(() => {
+    if (lessons === null) return;
+    const finished = lessons.some((l) => l.state === 'ready' && wasMaking.current.has(l.id));
+    wasMaking.current = new Set(lessons.filter((l) => l.state === 'making').map((l) => l.id));
+    if (finished) requestAnimationFrame(() => scroller.current?.scrollTo({ y: listTop.current - headerHeight - space.m, animated: true }));
+  }, [lessons, headerHeight]);
 
   const make = async () => {
     const text = scene.trim();
@@ -120,6 +135,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   return (
     <Screen title="Audio lessons" toolbar={toolbar}>
       <ScrollView
+        ref={scroller}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
@@ -144,7 +160,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         <Help>
           {chosen.words.length
             ? `Claude writes the dialogue around your ${chosen.words.length === 1 ? 'word' : `${chosen.words.length} words`} and teaches every one of them, and a voice records the lesson with spaces for you to answer in.`
-            : `Claude writes about five ${LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
+            : `Claude writes about five ${LANGUAGES[language].name} words to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
           {' '}It takes about a minute, and the spoken parts cost a few cents.
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
@@ -152,6 +168,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         {problem ? <Help>{problem === 'offline' ? "Offline, only lessons on this iPhone are listed." : "Your server isn't answering, so only lessons on this iPhone are listed."}</Help> : null}
         {lessons !== null && lessons.length === 0 && !problem ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
         {lessons !== null && lessons.length > 0 ? (
+          <View onLayout={(e) => { listTop.current = e.nativeEvent.layout.y; }}>
           <Group>
             {lessons.map((l, i) => (
               <View key={l.id}>
@@ -177,6 +194,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
               </View>
             ))}
           </Group>
+          </View>
         ) : null}
       </ScrollView>
     </Screen>

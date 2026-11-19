@@ -36,6 +36,8 @@ import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './Wani
 
 /** The longest the card's resize after the keyboard may take (ms). */
 const KEYBOARD_SLIDE_MS = 150;
+/** How long a new typed question keeps the keyboard's last height reserved while waiting for it to show (ms). */
+const KEYBOARD_HOLD_MS = 600;
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -219,6 +221,27 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // (a missed question is asked again a few cards later), even if this item has already had it right.
   const showMeaning = lesson || (revealed && asksMeaning);
   const showReading = lesson || (revealed && asksReading);
+
+  // The keyboard is dismissed once an answer is judged and comes back with the next typed question. The new
+  // card is laid out before it does, so the card was tall, then shrank under the keyboard and its centered
+  // content jumped up. For the moment before the keyboard shows, hold the height it had last time.
+  const lastKeyboard = useRef(0);
+  if (keyboard > 0) lastKeyboard.current = keyboard;
+  const typedQuestion = !!question && !lesson && isTyped(study!.typed, question.kind);
+  const questionKey = question && session ? `${question.assignmentId}:${question.kind}:${session.finished.length}` : '';
+  const holdUntil = useRef(0);
+  const heldKey = useRef('');
+  if (questionKey !== heldKey.current) {
+    heldKey.current = questionKey;
+    holdUntil.current = typedQuestion ? Date.now() + KEYBOARD_HOLD_MS : 0;
+  }
+  const [, expireHold] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => expireHold((n) => n + 1), KEYBOARD_HOLD_MS + 20);
+    return () => clearTimeout(t);
+  }, [questionKey]);
+  const holding = keyboard === 0 && typedQuestion && !revealed && Date.now() < holdUntil.current;
+  const keyboardPad = Math.max(0, (keyboard > 0 ? keyboard : holding ? lastKeyboard.current : 0) - insets.bottom);
 
   const resetQuestion = () => {
     setRevealed(false);
@@ -574,7 +597,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const slots = stackSlots(popups.stack);
   return (
-    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
@@ -615,7 +638,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
           <View>
             {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
-            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={Math.max(0, keyboard - insets.bottom)} />)}
+            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
           </View>
           {answerFlash.overlay}
         </CardSurface>

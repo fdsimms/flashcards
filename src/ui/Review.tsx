@@ -99,7 +99,7 @@ import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
-import { LastAnswerLine, useLastAnswer } from './ChangeRating';
+import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -108,6 +108,7 @@ import { leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
 import { useDeckTint } from './useDeckTint';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
+import { ReviewFooter } from './ReviewFooter';
 import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 export { CardSurface };
@@ -722,7 +723,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!last || busy.current) return false;
     busy.current = true;
     writes.current++;
-    haptic.tap();
+    buttonHaptic(to);
     try {
       // The answer's own writes finish first: they give the review row and the Anki write to take back.
       await reviewWrites.idle();
@@ -760,8 +761,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const noteOf = n ?? notes.get(last.before.noteId);
       if (to && noteOf) {
         await answer(to, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
+        lastAnswer.announce(to === 3 ? 'good' : 'again');
         return true;
       }
+      lastAnswer.announce('undone');
       setPreferId(last.before.id);
       setRevealedAt(undefined);
       setNow(new Date());
@@ -1015,7 +1018,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
           {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
-              <SessionMissList rows={sessionMisses.rows} />
+              <SessionMissList
+                rows={sessionMisses.rows}
+                onOpen={(noteId) => onEditNote({ noteId }, (result) => {
+                  if (!result) return;
+                  // As the toolbar's edit button: a deleted note's cards are gone, so an answer to one can't be undone.
+                  if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
+                  setReloads((n) => n + 1);
+                })}
+              />
               <FormsCheck items={forms.toCheck} onPractice={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))} />
               {extraCard}
               <NextSteps steps={steps} />
@@ -1312,7 +1323,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
         </Stack.Toolbar>
       }
-      footer={<>{lastAnswer.last ? <LastAnswerLine last={lastAnswer.last} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</>}
+      footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
       floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
     >
       {queue ? (

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { PanResponder, type GestureResponderEvent, type ViewInstance } from 'react-native';
 import type { Word } from '../../reader/api';
-import { dragTo, locate, wordUnder, type PhrasePick, type WordBox } from '../../reader/phrase';
+import { dragTo, locate, reachableLines, wordUnder, type PhrasePick, type WordBox } from '../../reader/phrase';
 import { haptic } from '../haptics';
 
 /**
@@ -13,8 +13,9 @@ import { haptic } from '../haptics';
  * line's words, so the word's own press lets go; and the text's scrolling is off for the drag
  * (`dragging`), or the scroll view takes the touch back on the first move.
  *
- * The line's words are measured once, when the drag starts: nothing moves under the finger while
- * the scrolling is off. Held and let go without reaching another word, it's a tap (`onHeld`), so
+ * The words of the lines in reach (`reachableLines`: the line held and a few either side) are
+ * measured once, when the drag starts: nothing moves under the finger while the scrolling is off.
+ * The finger can go on into the next line, so a sentence the text split over two lines is one phrase. Held and let go without reaching another word, it's a tap (`onHeld`), so
  * the word's gloss opens as it would have.
  */
 
@@ -25,11 +26,11 @@ interface Drag {
   startY: number;
   x: number;
   y: number;
-  /** Filled in once the line's words are measured; until then the finger moves nothing. */
+  /** Filled in once the words in reach are measured; until then the finger moves nothing. */
   boxes?: WordBox[];
 }
 
-const measure = (view: ViewInstance | undefined) => new Promise<Omit<WordBox, 'index'> | null>((resolve) => {
+const measure = (view: ViewInstance | undefined) => new Promise<Omit<WordBox, 'line' | 'index'> | null>((resolve) => {
   if (!view) { resolve(null); return; }
   try {
     view.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }));
@@ -67,9 +68,9 @@ export function usePhraseDrag(opts: {
   const follow = () => {
     const d = drag.current;
     if (!d?.boxes) return;
-    const index = wordUnder(d.boxes, d.x, d.y);
-    if (index === null) return;
-    const next = dragTo(d.pick, index);
+    const at = wordUnder(d.boxes, d.x, d.y);
+    if (at === null) return;
+    const next = dragTo(d.pick, at);
     if (next === d.pick) return;
     d.pick = next;
     haptic.select();
@@ -82,7 +83,7 @@ export function usePhraseDrag(opts: {
     setDragging(false);
     if (!d) return;
     if (!drop) { latest.current.setPhrase(null); return; }
-    if (d.pick.end === d.pick.start) {
+    if (d.pick.end.line === d.pick.start.line && d.pick.end.index === d.pick.start.index) {
       latest.current.setPhrase(null);
       latest.current.onHeld(d.word, d.startX, d.startY);
     }
@@ -94,15 +95,16 @@ export function usePhraseDrag(opts: {
     const at = lines && !drag.current ? locate(lines, word) : null;
     if (!lines || !at) return;
     const { pageX, pageY } = e.nativeEvent;
-    const d: Drag = { pick: { line: at.line, start: at.index, end: at.index }, word, startX: pageX, startY: pageY, x: pageX, y: pageY };
+    const d: Drag = { pick: { start: at, end: at }, word, startX: pageX, startY: pageY, x: pageX, y: pageY };
     drag.current = d;
     haptic.lift();
     setDragging(true);
     latest.current.setPhrase(d.pick);
-    const words = lines[at.line].words;
+    const reach = reachableLines(at.line, lines.length);
+    const inReach = lines.slice(reach.first, reach.last + 1).flatMap((l, k) => l.words.map((w, index) => ({ w, line: reach.first + k, index })));
     // Spaces and punctuation aren't measured: a phrase starts and ends on a word.
-    const measured = await Promise.all(words.map((w, index) => (
-      w.status === null ? null : measure(views.current.get(w)).then((m) => (m ? { index, ...m } : null))
+    const measured = await Promise.all(inReach.map(({ w, line, index }) => (
+      w.status === null ? null : measure(views.current.get(w)).then((m) => (m ? { line, index, ...m } : null))
     )));
     if (drag.current !== d) return;
     d.boxes = measured.filter((m): m is WordBox => m !== null);

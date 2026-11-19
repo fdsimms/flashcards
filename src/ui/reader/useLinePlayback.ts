@@ -2,17 +2,21 @@ import { setAudioModeAsync, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Api, ReaderText, Word } from '../../reader/api';
 import { firstLine, nextLine, previousLine, nextRepeatCount, wrapsToStart } from '../../reader/playback';
+import { linePosition } from '../../reader/handoff';
 import { lineAudio } from '../../reader/lineAudio';
+import { lineDetail } from '../../reader/listeningActivity';
 import { NORMAL_RATE } from '../../reader/playbackRate';
 import { hasSlow } from '../../reader/prefs';
 import { withTimes } from '../../reader/spoken';
 import { prefs, savePrefs } from '../../reader/storage';
+import { beginListening, type ListeningControls } from '../listeningActivity';
+import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording } from '../useSelfRecording';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
 import { useSpokenWords } from './useSpokenWords';
 
 /** Listening goes on with the screen locked or in another app, while the reader is open. */
-const READER_AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true };
+const READER_AUDIO_MODE = LISTENING_MODE;
 
 /**
  * The reader's audio, line by line (Reader.tsx's header says how it behaves): the shared player,
@@ -85,7 +89,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
         return;
       }
       playerHost.release();
-      setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false }).catch(() => undefined);
+      setAudioModeAsync(IDLE_MODE).catch(() => undefined);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- reads the latest values from `carryOn` as it closes
 
@@ -114,6 +118,9 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   const spokenNow = useSpokenWords(player, timedWords, status.playing);
   const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
+  // What the activity's buttons do, through the ref so they act on the latest render's state.
+  const buttons = useRef<ListeningControls>({ previous: () => undefined, toggle: () => undefined, next: () => undefined });
+
   // Plays a line at `r`. A slow line is recorded by the server the first time (`api.slowTimes` waits for
   // that and brings its word times); if that fails, the normal recording plays stretched instead.
   const startLine = async (i: number, r: number) => {
@@ -138,6 +145,8 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     player.play();
     // Now Playing, on the lock screen and in Control Center: the text's title, with play and pause. The progress bar there is the line's.
     player.setActiveForLockScreen(true, { title: text.title, artist: 'Franki', albumTitle: 'Read & Listen' });
+    // The same on the lock screen and in the Dynamic Island, with buttons that work without opening the app.
+    beginListening({ kind: 'text', title: text.title, detail: lineDetail(linePosition({ lines: text.lines, current: i })) }, () => buttons.current);
   };
 
   // While a line plays in Play all, the next one is fetched (src/reader/preload.ts), so it can start as
@@ -187,6 +196,8 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
       if (start !== null) playLine(start, true);
     }
   };
+
+  buttons.current = { previous: () => skip(-1), toggle: togglePlay, next: () => skip(1) };
 
   // The speed is a different recording, so a line playing starts again at the new one.
   const changeRate = (next: number) => {

@@ -104,8 +104,12 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   onMark: (right: boolean) => void;
   /** Replaces the footer's Another one and Show answer. */
   actions?: ToolActions;
-  /** A `Stack.Toolbar.Menu` for the header, before the gear: the tool's own options (a card tool keeps them off the card). */
-  menu?: React.ReactNode;
+  /**
+   * The tool's own options, as `Stack.Toolbar.Menu inline` sections in an array (a Fragment isn't
+   * flattened by the toolbar): the gear then opens a menu of them and Practice settings, so the
+   * header keeps its two buttons and the title its room. A card tool keeps its options off the card.
+   */
+  menu?: React.ReactNode[];
   /** Replaces the whole footer, for a card tool whose buttons are its own (PracticeCard.tsx). */
   footer?: React.ReactNode;
   /** The tool is one card that fills the screen between the header and the footer, as Review's does, instead of a scrolling column. */
@@ -120,6 +124,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const name = LANGUAGES[language].name;
+  const openSettings = () => router.push({ pathname: '/settings-page', params: { page: 'practice' } });
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
     <Screen
@@ -132,7 +137,14 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu> : null}
-          <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'practice' } })} />
+          {menu?.length ? (
+            <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Options and settings">
+              {menu}
+              <Stack.Toolbar.Menu inline>
+                <Stack.Toolbar.MenuAction icon="gearshape" onPress={openSettings}>Practice settings</Stack.Toolbar.MenuAction>
+              </Stack.Toolbar.Menu>
+            </Stack.Toolbar.Menu>
+          ) : <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Practice settings" onPress={openSettings} />}
         </Stack.Toolbar>
       )}
       lockGesture={lockGesture}
