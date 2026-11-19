@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
-from franki_reader import grammar
+from franki_reader import grammar, xray
 from franki_reader.cast import CastVoice, clean_presets
 from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
@@ -569,6 +569,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The voice each of the story's speaking characters was given, by name (JSON, cast.py),
         # kept for good so a character sounds the same in every episode.
         conn.execute("ALTER TABLE stories ADD COLUMN voices TEXT NOT NULL DEFAULT '{}'")
+    if "characters" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
+        # The story's characters and what each episode told about them, as JSON (xray.py).
+        conn.execute("ALTER TABLE stories ADD COLUMN characters TEXT NOT NULL DEFAULT '[]'")
     if "pinned" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # The running story the shelf's card shows, one per language (pin_story). Before several
         # stories could run, the one running was the card's, so it starts pinned.
@@ -1197,6 +1200,8 @@ class Story:
     active: bool = True
     # The running story the shelf's card shows; at most one per language.
     pinned: bool = False
+    # Its characters, one entry each with the facts the episodes gave (xray.py).
+    characters: list[dict[str, Any]] = field(default_factory=list)
 
 
 def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
@@ -1223,16 +1228,26 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
 
 def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
     row = conn.execute(
-        "SELECT id, language, topic_id, about, title, cast_, plan, voices, active, pinned"
-        " FROM stories WHERE id = ?",
+        "SELECT id, language, topic_id, about, title, cast_, plan, voices, active, pinned,"
+        " characters FROM stories WHERE id = ?",
         (story_id,),
     ).fetchone()
     if not row:
         return None
     voices = {name: CastVoice(**v) for name, v in json.loads(row[7]).items()}
-    story_id, language, topic_id, about, title, cast_, plan, _, active, pinned = row
+    story_id, language, topic_id, about, title, cast_, plan, _, active, pinned, characters = row
     return Story(
-        story_id, language, topic_id, about, title, cast_, plan, voices, bool(active), bool(pinned)
+        story_id,
+        language,
+        topic_id,
+        about,
+        title,
+        cast_,
+        plan,
+        voices,
+        bool(active),
+        bool(pinned),
+        json.loads(characters),
     )
 
 
@@ -1248,6 +1263,24 @@ def add_story_voices(conn: sqlite3.Connection, story_id: int, new: dict[str, Cas
         conn.execute(
             "UPDATE stories SET voices = ? WHERE id = ?",
             (json.dumps(kept, ensure_ascii=False), story_id),
+        )
+
+
+def add_story_characters(
+    conn: sqlite3.Connection,
+    story_id: int,
+    new: tuple[tuple[str, str, int | None], ...],
+    episode: int,
+) -> None:
+    """Adds what an episode told about the story's characters (xray.merge)."""
+    if not new:
+        return
+    with conn:
+        (raw,) = conn.execute("SELECT characters FROM stories WHERE id = ?", (story_id,)).fetchone()
+        merged = xray.merge(json.loads(raw), new, episode)
+        conn.execute(
+            "UPDATE stories SET characters = ? WHERE id = ?",
+            (json.dumps(merged, ensure_ascii=False), story_id),
         )
 
 

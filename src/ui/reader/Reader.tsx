@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type TextGrammar, type TextStage, type Word } from '../../reader/api';
+import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type StoryCharacter, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
 import { lineSide, scrollTarget, type Box } from '../../reader/follow';
@@ -50,6 +50,8 @@ import { GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
+import { ReaderXray } from './ReaderXray';
+import { characterOfWord, firstSeen } from '../../reader/xray';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
 import { useLinePlayback } from './useLinePlayback';
@@ -163,6 +165,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [session, setSession] = useState<Session | null>(null);
   const [english, setEnglish] = useState(false);
   const [keyOpen, setKeyOpen] = useState(false);
+  const [xrayOpen, setXrayOpen] = useState(false);
   // Lines whose English was shown on their own, while Show English is off.
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
   // Lines whose explanation is open (each asks the server when it opens; the server keeps the answer).
@@ -631,6 +634,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       lockGesture={!!text && !!session && !ended && !listenOnly}
       toolbar={text && !ended && !listenOnly ? (
         <Stack.Toolbar placement="right">
+          {text.xray?.length ? <Stack.Toolbar.Button icon="person.2" accessibilityLabel="Characters" onPress={() => { haptic.tap(); setXrayOpen(true); }} /> : null}
           {keyMarks.length > 0 ? (
             <Stack.Toolbar.Button icon="questionmark.circle" accessibilityLabel="Key to the marks on words" onPress={() => { haptic.tap(); setKeyOpen(true); }} />
           ) : null}
@@ -687,6 +691,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           )}
         </ScrollView>
       ) : null}
+
+      {xrayOpen && text?.xray ? <ReaderXray characters={text.xray} episode={text.episode} onClose={() => setXrayOpen(false)} /> : null}
 
       {keyOpen && text ? (
         <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont, textSize)} shown={markShown} onChange={showMark} onClose={() => setKeyOpen(false)} />
@@ -1032,6 +1038,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
       <GlossPopover
         tapped={tapped}
+        characters={text?.xray}
+        onXray={text?.xray?.length ? () => { setTapped(null); setXrayOpen(true); } : undefined}
         language={text?.language}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
@@ -1153,8 +1161,12 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, language, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, characters, onXray, language, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
   tapped: Tapped | null;
+  /** The series' characters as of this episode (X-Ray): a name word that is one shows who they are in place of "A name". */
+  characters?: StoryCharacter[];
+  /** Opens the X-Ray sheet, offered on a character's name. */
+  onXray?: () => void;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
   grammar: TextGrammar | null;
@@ -1187,6 +1199,7 @@ export function GlossPopover({ tapped, language, grammar, api, grammarChosen, on
   const [picked, setPicked] = useState<number | null>(null);
   useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
   if (!tapped) return null;
+  const character = characterOfWord(tapped.word, characters);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
@@ -1206,6 +1219,7 @@ export function GlossPopover({ tapped, language, grammar, api, grammarChosen, on
     // Marking a word unknown says its meaning wasn't known, so it's shown too.
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: () => { reveal(); onToggleFlag(); }, chevron: false });
   } else {
+    if (character && onXray) actions.push({ icon: 'person.2', label: 'See all characters', onPress: onXray });
     if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   }
@@ -1251,7 +1265,7 @@ export function GlossPopover({ tapped, language, grammar, api, grammarChosen, on
                 <ReadGlossLine
                   word={tapped.word}
                   below={tipBelow}
-                  meaning={mode?.quiz && revealed ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} /> : undefined}
+                  meaning={mode?.quiz && revealed ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} /> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
                 />
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
@@ -1260,7 +1274,7 @@ export function GlossPopover({ tapped, language, grammar, api, grammarChosen, on
                 {tapped.word.translit ? <Text style={{ ...type.body, color: c.textSecondary }} selectable>{tapped.word.translit}</Text> : null}
                 {tapped.word.kanji?.length ? <ReadKanji kanji={tapped.word.kanji} /> : null}
                 <ReadFrequency word={tapped.word} />
-                {inDeck(tapped.word) || (wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word)) ? null : (
+                {character ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Character. {firstSeen(character)}</Text> : inDeck(tapped.word) || (wordStatus(tapped.word) === COMMON_WORD_STATUS && wordFrequency(tapped.word)) ? null : (
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{wordStatus(tapped.word)}</Text>
                 )}
               </>

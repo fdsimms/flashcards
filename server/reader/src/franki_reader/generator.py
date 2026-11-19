@@ -32,7 +32,7 @@ from anthropic.types.beta import (
     BetaTextBlockParam,
 )
 
-from franki_reader import grammar
+from franki_reader import grammar, xray
 from franki_reader.cast import (
     AGES,
     Speaker,
@@ -189,6 +189,8 @@ class StoryContext:
     # The characters who already have a voice in the story (cast.py): they're kept for good, so
     # an episode lists only the speakers it adds.
     speakers: tuple[Speaker, ...] = ()
+    # The characters recorded so far, as "Name: what's known", for X-Ray (xray.py).
+    known: tuple[str, ...] = ()
 
     @property
     def season(self) -> int:
@@ -310,6 +312,9 @@ class Generated:
     # The characters this story episode adds to the story's cast: those who speak in it and had no
     # voice yet (StoryContext.speakers).
     speakers: tuple[Speaker, ...] = ()
+    # What this story episode tells about its characters (xray.parse_characters): (name, fact, the
+    # episode a character first appeared in, asked only when the story has none recorded).
+    xray: tuple[tuple[str, str, int | None], ...] = ()
     # The title in English, shown under it on the shelf's cover. Empty when the model gave none.
     title_english: str = ""
 
@@ -379,6 +384,19 @@ DRAFT_SCHEMA: dict[str, Any] = {
         "series": {"type": "string"},
         "cast": {"type": "string"},
         "plan": {"type": "string"},
+        "xray": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "fact": {"type": "string"},
+                    "since": {"type": "integer"},
+                },
+                "required": ["name", "fact"],
+                "additionalProperties": False,
+            },
+        },
         "speakers": {
             "type": "array",
             "items": {
@@ -724,6 +742,29 @@ def _speakers_ask(story: StoryContext) -> str:
     )
 
 
+def _characters_ask(story: StoryContext) -> str:
+    """How an episode reports its characters for X-Ray (xray.py): a short English fact for each
+    one it introduces or changes, as of this episode and with nothing from later."""
+    base = (
+        'In "xray" list each named character this episode introduces, or tells something '
+        'new about, as "name" (as written in the lines) and "fact": who they are or what they '
+        "did, in English, under twelve words, true as of this episode."
+    )
+    if story.known:
+        return (
+            base
+            + " Characters so far:\n"
+            + "\n".join(f"- {k}" for k in story.known)
+            + "\nDon't repeat what is already said."
+        )
+    if story.episode == 1:
+        return base + " List every character in the cast."
+    return (
+        base + " No character has been recorded yet, so list every named character in the story so "
+        'far, each with "since": the episode number they first appeared in.'
+    )
+
+
 def _story_part(story: StoryContext) -> str:
     return (
         _story_intro(story)
@@ -733,6 +774,8 @@ def _story_part(story: StoryContext) -> str:
         + _CHOICES_ASK
         + "\n"
         + _speakers_ask(story)
+        + "\n"
+        + _characters_ask(story)
     )
 
 
@@ -1047,6 +1090,7 @@ def _assess(
         choices = _choices(draft, request)
         recap_line, recap_english = _recap_line(draft, request)
         speakers = parse_speakers(draft.get("speakers")) if request.story is not None else ()
+        xray_told = xray.parse_characters(draft.get("xray")) if request.story is not None else ()
     except (KeyError, TypeError) as e:
         raise GenerationFailed(f"The draft is missing a field: {e}") from e
     if not lines:
@@ -1115,6 +1159,7 @@ def _assess(
         title_english=title_english,
         choices=choices,
         speakers=speakers,
+        xray=xray_told,
     )
     return generated, problems
 
