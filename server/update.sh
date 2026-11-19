@@ -7,6 +7,13 @@ set -eu
 cd "$(dirname "$0")"
 repo=$(git rev-parse --show-toplevel)
 
+# One run at a time: a run by hand while the timer's is building would have two `compose up`s fight
+# over the same containers. The second leaves; the lock goes when this script ends.
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$(git -C "$repo" rev-parse --absolute-git-dir)/franki-update.lock"
+  flock -n 9 || { echo "Another update is running."; exit 0; }
+fi
+
 # Read & Listen's server, if it has stopped answering /health (its compose healthcheck): Docker
 # only marks it unhealthy, and nothing else would restart it.
 reader=$(docker compose ps -q reader 2>/dev/null || true)
@@ -15,7 +22,9 @@ if [ -n "$reader" ] && [ "$(docker inspect -f '{{.State.Health.Status}}' "$reade
   docker compose restart reader
 fi
 
-git -C "$repo" fetch --quiet origin main
+# With a time limit, here and on the build below: the timer's unit has none, and a fetch or build
+# that hangs would otherwise keep it running forever, with no later run and nothing in the journal.
+timeout 300 git -C "$repo" fetch --quiet origin main
 target=$(git -C "$repo" rev-parse origin/main)
 
 # The commit last deployed, written only once everything below has worked, so a failed build (which
@@ -43,7 +52,7 @@ fi
 # Fast-forward only: if the copy here was edited by hand, stop rather than merge over it. A no-op
 # when an earlier run already merged and then failed to build.
 git -C "$repo" merge --ff-only --quiet "$target"
-docker compose up -d --build --remove-orphans
+timeout 3600 docker compose up -d --build --remove-orphans
 if [ -n "$caddyfile_changed" ]; then
   # Recreated, not reloaded: git writes the file anew, and the container's mount still shows the old one.
   docker compose up -d --force-recreate caddy
