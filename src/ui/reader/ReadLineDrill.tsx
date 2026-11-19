@@ -16,6 +16,7 @@ import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from '../RecordYourself';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
 import { TranslationRow } from '../TranslationRow';
 import { TypedDiff } from '../TypedDiff';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -52,6 +53,9 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const [rate, setRate] = useState(kind === 'hear' && hasSlow(prefs(), text.language) ? SLOW_RATE : speedFor(prefs(), text.language));
   const [plays, setPlays] = useState(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
+  useTrackedPlayer(player);
+  const hearButton = useSoundingButton();
+  const lineButton = useSoundingButton();
   // Closing the drill lets other apps' audio mix with the app's again.
   useEffect(() => () => { setAudioModeAsync(IDLE_MODE).catch(() => undefined); }, []);
   const self = useSelfRecording(at === undefined ? null : `${text.id}:drill:${round.at}`, AUDIO_MODE, {
@@ -144,12 +148,12 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
           ) : (
             <Card style={{ alignItems: 'center', gap: space.m, paddingVertical: space.l }}>
               <Tappable
-                onPress={() => { haptic.tap(); play(); }}
+                onPress={() => hearButton.tap(() => play())}
                 accessibilityRole="button"
-                accessibilityLabel="Play the line again"
+                accessibilityLabel={hearButton.playing ? 'Pause' : 'Play the line again'}
                 style={{ width: 72, height: 72, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Icon name="play.fill" size={28} color={c.onAccent} />
+                <Icon name={hearButton.playing ? 'pause.fill' : 'play.fill'} size={28} color={c.onAccent} />
               </Tappable>
               {hasSlow(prefs(), text.language) ? <View style={{ flexDirection: 'row', gap: space.s }}>
                 <Chip label="Slow" selected={rate === SLOW_RATE} onPress={() => { setRate(SLOW_RATE); play(SLOW_RATE); }} />
@@ -172,12 +176,12 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                   </Text>
                   {line.audio ? (
                     <Tappable
-                      onPress={() => { haptic.tap(); play(); }}
+                      onPress={() => lineButton.tap(() => play())}
                       accessibilityRole="button"
-                      accessibilityLabel="Play the line"
+                      accessibilityLabel={lineButton.playing ? 'Pause' : 'Play the line'}
                       style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
                     >
-                      <Icon name="play.fill" size={16} color={c.accent} />
+                      <Icon name={lineButton.playing ? 'pause.fill' : 'play.fill'} size={16} color={c.accent} />
                     </Tappable>
                   ) : null}
                 </View>

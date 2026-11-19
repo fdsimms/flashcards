@@ -6,6 +6,7 @@ import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
 import { Button, Icon, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
 import { RoundRing } from './RoundRing';
 
@@ -25,6 +26,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
   onPlay?: () => void;
 }) {
   const c = useTheme();
+  const { playing, tap } = useSoundingButton();
   const [english, setEnglish] = useState(false);
   const [shown, setShown] = useState(!heardOnly);
   const [tapped, setTapped] = useState<number | null>(null);
@@ -54,13 +56,13 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
         )}
         {onPlay ? (
           <Tappable
-            onPress={() => { haptic.tap(); onPlay(); }}
+            onPress={() => tap(onPlay)}
             accessibilityRole="button"
-            accessibilityLabel={`Play ${name}'s line`}
+            accessibilityLabel={playing ? 'Pause' : `Play ${name}'s line`}
             hitSlop={space.xs}
             style={{ width: MIN_TAP - 8, height: MIN_TAP - 8, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Icon name="play.fill" size={13} color={c.accent} />
+            <Icon name={playing ? 'pause.fill' : 'play.fill'} size={13} color={c.accent} />
           </Tappable>
         ) : null}
       </View>

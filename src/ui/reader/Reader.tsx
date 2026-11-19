@@ -925,7 +925,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                 ) : null}
                 <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.s }}>
                   {line.audio ? (
-                    <RoundButton icon="play.fill" accessibilityLabel={`Play line ${i + 1}`} on onPress={() => playLine(i, false)} />
+                    <RoundButton
+                      icon={shaded === i ? 'pause.fill' : 'play.fill'}
+                      accessibilityLabel={shaded === i ? `Pause line ${i + 1}` : `Play line ${i + 1}`}
+                      on
+                      onPress={() => (shaded === i ? togglePlay() : playLine(i, false))}
+                    />
                   ) : null}
                   {!listenOnly ? (
                     <RoundButton

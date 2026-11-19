@@ -78,6 +78,7 @@ import { addPendingHint, removePendingHint, removePendingHintForCard, type Pendi
 import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
+import { trackPlayer } from './useSoundingButton';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
@@ -445,7 +446,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
   const phoneSpeech = usePhoneSpeech(repo);
-  useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
+  const untrackPlayer = useRef<(() => void) | null>(null);
+  useEffect(() => () => { untrackPlayer.current?.(); untrackPlayer.current = null; player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
   /**
    * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
@@ -473,7 +475,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
         // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
-        player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+        if (!player.current) {
+          player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
+          untrackPlayer.current = trackPlayer(player.current);
+        }
         player.current.replace({ uri });
         player.current.play();
         return;
