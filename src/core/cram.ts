@@ -41,6 +41,13 @@ export interface CramRound {
   missed: string[];
 }
 
+/** The theme a cram was made from (cramThemes.ts): its title, the questions to ask the tutor and a story to tell, kept to talk from at the lesson. */
+export interface CramTalk {
+  title: string;
+  questions: { text: string; english: string }[];
+  story?: { text: string; english: string };
+}
+
 export interface Cram {
   /** The tag's last part, from the name and date (`cramId`). */
   id: string;
@@ -61,6 +68,8 @@ export interface Cram {
   unused?: string[];
   /** The cram the unused notes were taken into, once they were. */
   carriedTo?: string;
+  /** The theme it was made from, when it was made from one. */
+  theme?: CramTalk;
   /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
   lesson?: { id: number; noteIds: string[] };
 }

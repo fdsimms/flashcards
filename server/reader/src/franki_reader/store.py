@@ -1785,6 +1785,7 @@ CallFeature = Literal[
     "situations",
     "lessons",
     "lesson_topics",
+    "cram_themes",
     "ipa",
     "aspect",
     "ask_card",
@@ -1869,6 +1870,12 @@ def lesson_topic_spending(
     """Each language with lesson topics suggested since `since` (lesson_topics.py): how many calls
     (failed ones included) and what they cost Claude."""
     return _feature_spending(conn, "lesson_topics", since)
+
+
+def cram_theme_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:
+    """Each language with cram themes suggested since `since` (cram_themes.py): how many calls
+    (failed ones included) and what they cost Claude."""
+    return _feature_spending(conn, "cram_themes", since)
 
 
 def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple[int, float]]:

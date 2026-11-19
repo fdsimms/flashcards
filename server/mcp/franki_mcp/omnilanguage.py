@@ -45,6 +45,10 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
 NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
+# An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
+# dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
+SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation"})
+NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, never counted, no aspect partner)
 
 MAX_SENSES = 3  # distinct senses a Meaning numbers
 MAX_GLOSSES = 3  # glosses to one sense
@@ -628,7 +632,7 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
         add("pronunciation-castilian", "Pronunciation", "format", "Spanish IPA is Latin American: s, not θ.",
             {"Pronunciation": raw("Pronunciation").replace("θ", "s")})  # fmt: skip
     for name, value in fields.items():
-        if name not in NOT_PROSE and "—" in (value or ""):
+        if name not in NOT_PROSE and name not in SENTENCES and "—" in (value or ""):
             add("em-dash", name, "format", "No em dashes: use a period, colon, comma or parentheses.")
     if "already known" in txt("Notes").lower():
         add("notes-already-known", "Notes", "format", 'Never write "already known": say what the part means, or leave it out.')
@@ -772,7 +776,11 @@ Notes: at most two short lines of what helps use the word: what it takes ("Takes
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".
 Etymology: the real origin, or a cognate or false friend in a language the learner knows. Mnemonic: a sound
-  or image hook only. Tags: topic, source and status. No em dashes anywhere."""
+  or image hook only. Tags: topic, source and status. No em dashes in what is written about a word (Meaning,
+  Notes, Etymology, Mnemonic); an example sentence keeps its language's own punctuation.
+A grammar field of a word that has no such form holds "-": Plural of a noun with no plural in normal
+  use, Classifier of a noun that is never counted, AspectPartner of a verb with no partner. The card
+  says "none", and forms practice does not ask for it."""
 
 _PER_LANGUAGE = {
     "thai": "Classifier: a countable noun's everyday counting word, in Thai script.\n" + THAI_SCHEME,
@@ -781,7 +789,7 @@ _PER_LANGUAGE = {
                "Colombian); a Mexico-only word says Mexican. IPA is Latin American (s, not θ).\n"
                "fill_forms writes a verb's Forms table.",
     "french": "Gender: m or f. Auxiliary: avoir or être, for every verb. KeyForms: participle: pris, when it is irregular.",
-    "german": "Gender: m, f or n. Plural: every noun, without its article (\"no plural\" when it has none).\n"
+    "german": "Gender: m, f or n. Plural: every noun, without its article.\n"
               "Genitive: masculine and neuter nouns only, with the article (des Tisches).\n"
               "VerbClass: strong, weak or mixed. Auxiliary: haben or sein.\n"
               "KeyForms for a verb: he, she: wirft ab (when the vowel changes), past: warf ab, perfect: hat abgeworfen.",

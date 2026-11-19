@@ -14,6 +14,7 @@ import { Button, Card as Box, Group, Help, Loading, NavRow, Screen, SectionTitle
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CramListen } from './CramListen';
+import { CramTalk } from './CramTalk';
 
 /**
  * A cram's page: its day and rounds, what else there is before the day (a text, an audio lesson,
@@ -107,6 +108,7 @@ export function CramPage(props: {
           )}
         </Box>
         {capProblem ? <Text style={{ ...type.subhead, color: c.danger }}>{capProblem}</Text> : null}
+        {cram.theme ? <CramTalk repo={repo} talk={cram.theme} language={language} /> : null}
         {!cram.finishedAt ? (
           <>
             <SectionTitle>Before the day</SectionTitle>

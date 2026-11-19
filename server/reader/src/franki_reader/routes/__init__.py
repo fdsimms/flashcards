@@ -11,6 +11,7 @@ the routes not converted yet, and a route changed is a good time to convert it.
 
 from franki_reader.routes import (
     cards,
+    cram_themes,
     explain,
     grammar,
     grammar_topics,
@@ -41,6 +42,7 @@ AREAS = (
     grammar_topics,
     situations,
     lessons,
+    cram_themes,
     cards,
     progress,
     grammar,

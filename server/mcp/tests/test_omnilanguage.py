@@ -180,7 +180,7 @@ def test_a_new_note_is_tidied_and_refused_for_what_only_its_writer_can_fix():
     assert "2 senses, 1 example" in " ".join(senses.refused)
 
     bad = o.prepare({"Entry": "ficha", "Meaning": "token", "Language": "spanish", "PartOfSpeech": "thing", "Register": "posh",
-                     "Context": "Dame la ficha — ahora.", "Pronunciation": "ˈfitʃa"})  # fmt: skip
+                     "Context": "Dame la ficha.", "Notes": "a token — not a file", "Pronunciation": "ˈfitʃa"})  # fmt: skip
     said = " ".join(bad.refused)
     for expected in ("PartOfSpeech is one value from", "Register is one of", "Put the word in <b></b>", "No em dashes",
                      "Translate the example", "A Spanish noun needs Gender" if False else "between slashes"):  # fmt: skip
@@ -289,3 +289,19 @@ def test_a_norwegian_verb_is_stored_bare_and_a_phrase_keeps_its_marker():
     # The card puts å back before a verb only, so a phrase's stays in its Entry.
     assert "entry-infinitive-marker" not in rules({**verb, "Entry": "å gå seg vill", "PartOfSpeech": "phrase"})
     assert "entry-infinitive-marker" not in rules({**verb, "PartOfSpeech": ""})
+
+
+def test_an_example_sentence_keeps_its_own_dashes_and_a_note_about_the_word_does_not():
+    note = {"Entry": "исход", "Meaning": "outcome", "Language": "russian", "Register": "neutral", "PartOfSpeech": "noun", "Gender": "m",
+            "Context": "Наиболее вероятный <b>исход</b> — это компромисс.", "ContextTranslation": "The most likely outcome — a compromise."}  # fmt: skip
+    assert "em-dash" not in rules(note)
+    assert "em-dash" in rules({**note, "Notes": "formal — mostly written"})
+    assert "em-dash" in rules({**note, "Meaning": "outcome — result"})
+
+
+def test_a_word_with_no_such_form_says_so_with_a_dash():
+    ruhm = {**GERMAN_NOUN, "Entry": "Ruhm", "Meaning": "fame", "Gender": "m", "Plural": o.NO_FORM, "Genitive": "des Ruhmes",
+            "Context": "Sein <b>Ruhm</b> ist groß.", "ContextTranslation": "His fame is great."}  # fmt: skip
+    assert o.problems(ruhm) == []
+    assert "grammar-gap" in rules({**ruhm, "Plural": ""})
+    assert 'holds "-"' in o.guide("german")["every_note"]
