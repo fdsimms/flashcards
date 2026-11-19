@@ -45,11 +45,11 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
           <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Practice words for a day coming up, like a lesson with a tutor." onPress={onCram} />
         </Group>
         <Group>
-          {TOOLS.map((tool, i) => {
+          {/* A tool that doesn't come in the chosen language isn't listed. */}
+          {TOOLS.filter((tool) => tool.languages.includes(language)).map((tool, i) => {
             // Grammar, Sentences and Situations need Read & Listen's server, so they're off while it can't be reached.
             const needsServer = tool.id === 'sentences' || tool.id === 'situations' || tool.id === 'grammar';
-            const notOffered = !tool.languages.includes(language);
-            const off = notOffered || (needsServer && (!readerApi || !!problem));
+            const off = needsServer && (!readerApi || !!problem);
             // The rows settle in one after another the first time the tab opens.
             return (
               <Reveal key={tool.id} delay={i * 30}>
@@ -57,7 +57,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={notOffered ? `Not in ${name}.` : !off ? (tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Off. Turn on Read & Listen in Settings to use it.' : problem === 'offline' ? "Needs a connection. Back when you're online." : "Can't reach your server right now. Back when it answers."}
+                detail={!off ?(tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Off. Turn on Read & Listen in Settings to use it.' : problem === 'offline' ? "Needs a connection. Back when you're online." : "Can't reach your server right now. Back when it answers."}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />
