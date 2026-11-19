@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useApp } from '../ui/AppContext';
 import { LessonWordAdd } from '../ui/reader/LessonWordAdd';
 
-/** Type a phrase for the next audio lesson, in the language Read & Listen reads. */
+/** Type a word for the next audio lesson, in the language Read & Listen reads. */
 export default function LessonWordAddRoute() {
   const router = useRouter();
   const { reader } = useApp();

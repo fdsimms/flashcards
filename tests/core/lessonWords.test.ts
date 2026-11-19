@@ -59,7 +59,7 @@ describe('addLessonWord', () => {
   });
   it('refuses a blank phrase or meaning, with the reason', () => {
     expect(() => addLessonWord([], word('กาแฟ', ' '))).toThrow(Refusal);
-    expect(() => addLessonWord([], word('', 'coffee'))).toThrow('Enter the phrase and its meaning.');
+    expect(() => addLessonWord([], word('', 'coffee'))).toThrow('Enter the word and its meaning.');
   });
   it('refuses one that is too long to send', () => {
     expect(() => addLessonWord([], word('x'.repeat(201), 'long'))).toThrow('up to 200 characters');

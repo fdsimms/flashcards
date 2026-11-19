@@ -99,11 +99,11 @@ export function pickerWords(
 export function addLessonWord(words: LessonWord[], word: LessonWord): LessonWord[] {
   const text = word.text.replace(/\s+/g, ' ').trim();
   const english = word.english.replace(/\s+/g, ' ').trim();
-  if (!text || !english) throw new Refusal('Enter the phrase and its meaning.');
+  if (!text || !english) throw new Refusal('Enter the word and its meaning.');
   if (text.length > LESSON_MAX_CHARS || english.length > LESSON_MAX_CHARS) {
-    throw new Refusal(`A phrase and its meaning can each be up to ${LESSON_MAX_CHARS} characters. Shorten it and try again.`);
+    throw new Refusal(`A word and its meaning can each be up to ${LESSON_MAX_CHARS} characters. Shorten it and try again.`);
   }
-  if (words.some((w) => wordKey(w.text) === wordKey(text))) throw new Refusal("That phrase is already in this lesson.");
+  if (words.some((w) => wordKey(w.text) === wordKey(text))) throw new Refusal("That word is already in this lesson.");
   if (words.length >= LESSON_MAX_WORDS) throw new Refusal(`A lesson teaches at most ${LESSON_MAX_WORDS} words. Remove one to add another.`);
   return [...words, { text, english, ...(word.noteId ? { noteId: word.noteId } : {}) }];
 }

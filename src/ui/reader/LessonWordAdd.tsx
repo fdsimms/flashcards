@@ -11,8 +11,8 @@ import { radius, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
 
 /**
- * Type a phrase for an audio lesson: for words from a tutor or a book that aren't in a deck. It joins
- * this lesson's draft only (useLessonWords) and is never saved as a note. A phrase that can't be added
+ * Type a word for an audio lesson: for words from a tutor or a book that aren't in a deck. It joins
+ * this lesson's draft only (useLessonWords) and is never saved as a note. A word that can't be added
  * says why under the field that needs changing.
  *
  * What's typed may be romanization, English or a spelling by ear, which the voice would read as if it were
@@ -76,13 +76,13 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
   };
 
   return (
-    <Screen title="Add a phrase" largeTitle={false}>
+    <Screen title="Add a word" largeTitle={false}>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Done adding phrases" onPress={() => router.back()}>Done</Stack.Toolbar.Button>
+        <Stack.Toolbar.Button accessibilityLabel="Done adding words" onPress={() => router.back()}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Card>
-          <Field label="Word or phrase" value={text} onChangeText={edit} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => { if (text.trim() && !finding) void find(); }} />
+          <Field label="Word" value={text} onChangeText={edit} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => { if (text.trim() && !finding) void find(); }} />
           <Help>{lessonWordHint(language, name)}</Help>
           {candidates?.length ? (
             <View style={{ gap: space.s }}>
