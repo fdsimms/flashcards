@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Animated, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -20,7 +20,7 @@ import { nextStage, outcomeText, stageChange, type StageChange } from '../wanika
 import { stackSlots } from '../wanikani/stagePopups';
 import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
-import { useKeyboardInset } from './useKeyboardInset';
+import { useKeyboardLift } from './useKeyboardLift';
 import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
 import { LessonsPausedNote } from './LessonsPausedNote';
@@ -34,10 +34,6 @@ import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
-/** The longest the card's resize after the keyboard may take (ms). */
-const KEYBOARD_SLIDE_MS = 150;
-/** How long a new typed question keeps the keyboard's last height reserved while waiting for it to show (ms). */
-const KEYBOARD_HOLD_MS = 600;
 
 /** What a session is built from: WaniKani itself, or the offline copy when it can't be reached. */
 interface Source {
@@ -186,11 +182,12 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     return () => { gone = true; };
   }, [api, loads, lessonsOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The typing box sits in the footer, so the screen is padded by the keyboard, as in Review.
+  // The typing box sits in the footer and rides up on the keyboard; the card stays the size it is, with its question
+  // anchored at the top and its question band lifted clear of the keyboard, so nothing on it re-centers.
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
-  // Capped: the keyboard comes up on every question, and its full slide made each new card feel slow.
-  const keyboard = useKeyboardInset(KEYBOARD_SLIDE_MS);
+  const keyboard = useKeyboardLift(insets.bottom);
+  const keyboardPad = keyboard.pad;
 
   // One player for WaniKani's recordings, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
@@ -222,26 +219,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const showMeaning = lesson || (revealed && asksMeaning);
   const showReading = lesson || (revealed && asksReading);
 
-  // The keyboard is dismissed once an answer is judged and comes back with the next typed question. The new
-  // card is laid out before it does, so the card was tall, then shrank under the keyboard and its centered
-  // content jumped up. For the moment before the keyboard shows, hold the height it had last time.
-  const lastKeyboard = useRef(0);
-  if (keyboard > 0) lastKeyboard.current = keyboard;
   const typedQuestion = !!question && !lesson && isTyped(study!.typed, question.kind);
-  const questionKey = question && session ? `${question.assignmentId}:${question.kind}:${session.finished.length}` : '';
-  const holdUntil = useRef(0);
-  const heldKey = useRef('');
-  if (questionKey !== heldKey.current) {
-    heldKey.current = questionKey;
-    holdUntil.current = typedQuestion ? Date.now() + KEYBOARD_HOLD_MS : 0;
-  }
-  const [, expireHold] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => expireHold((n) => n + 1), KEYBOARD_HOLD_MS + 20);
-    return () => clearTimeout(t);
-  }, [questionKey]);
-  const holding = keyboard === 0 && typedQuestion && !revealed && Date.now() < holdUntil.current;
-  const keyboardPad = Math.max(0, (keyboard > 0 ? keyboard : holding ? lastKeyboard.current : 0) - insets.bottom);
 
   const resetQuestion = () => {
     setRevealed(false);
@@ -597,8 +575,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const slots = stackSlots(popups.stack);
   return (
-    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
+      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={<Animated.View style={{ gap: space.s, transform: [{ translateY: keyboard.up }] }}>{footer}</Animated.View>}>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
         </View>
@@ -612,9 +590,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <CardSurface color={subjectColor(c, subject.type)}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+            contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, paddingBottom: space.xl + keyboardPad + (typedQuestion ? MIN_TAP : 0), gap: space.xl, flexGrow: 1, justifyContent: typedQuestion ? 'flex-start' : 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
           >
-            {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
+            {/* No fade or rise on a new question: a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
             <View style={{ gap: space.xl }}>
               <SubjectFront subject={subject} label={label} />
               {showMeaning || showReading ? (
@@ -636,10 +614,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </ScrollView>
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
-          <View>
+          <Animated.View style={{ transform: [{ translateY: keyboard.up }] }}>
             {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
             {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
-          </View>
+          </Animated.View>
           {answerFlash.overlay}
         </CardSurface>
       </Screen>
