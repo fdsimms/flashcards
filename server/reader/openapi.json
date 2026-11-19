@@ -7321,6 +7321,14 @@
               }
             ]
           },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 15,
+            "title": "Words"
+          },
           "roles": {
             "anyOf": [
               {

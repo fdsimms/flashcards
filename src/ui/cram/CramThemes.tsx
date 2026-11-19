@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind } from '../../core/cramThemes';
+import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Api, CramTheme, Language } from '../../reader/api';
 import { flaggedName, LANGUAGES } from '../../reader/languages';
+import { keptLines } from '../../reader/corrections';
+import { loadKept } from '../../reader/correctionsStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
@@ -83,7 +85,8 @@ export function CramThemes({ repo, api, languages, onOpen }: {
     setProblem(undefined);
     try {
       const marks = await loadToolMarks();
-      const weak = weakSpots(marks, forLanguage, Date.now(), (id) => toolById(id)?.title);
+      const kept = await loadKept();
+      const weak = combineWeakSpots(weakSpots(marks, forLanguage, Date.now(), (id) => toolById(id)?.title), keptLines(kept, forLanguage, Date.now()));
       const already = more && shown ? shown.shown : [];
       const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(crams, already), wantStretch));
       if (current.current !== forLanguage) return;
