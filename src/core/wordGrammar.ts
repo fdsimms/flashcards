@@ -81,6 +81,17 @@ export function formSegments(form: string, word: string): Segment[] | undefined 
   return [{ text: form.slice(0, i), marked: false }, { text: form.slice(i), marked: true }];
 }
 
+/**
+ * What a field holds when the word has no such form: a noun with no plural (Ruhm), one that is never
+ * counted, a verb with no aspect partner. It is a fact about the word, so the box says "none"; it is
+ * never a form to ask for (forms.ts) or a word to add (reader/mining.ts). The MCP's guide tells a
+ * writer to use it (omnilanguage.py).
+ */
+export const NO_FORM = '-';
+
+/** Whether a field's text is the mark for "the word has none" rather than a form. */
+export const isNoForm = (text: string): boolean => text.trim() === NO_FORM;
+
 /** The fields that hold one form each, with the name the form is shown under. */
 const FIELD_CELLS: [field: string, label: string][] = [
   ['Plural', 'plural'], ['Genitive', 'genitive'], ['Classifier', 'counting word'], ['Auxiliary', 'auxiliary'], ['AspectPartner', 'aspect pair'],
@@ -108,7 +119,7 @@ export function wordGrammar(note: Note, countedApart = false): WordGrammar | und
     if (field === 'Classifier' && countedApart) continue;
     // "perfect: hat abgeworfen" already says which auxiliary.
     if (field === 'Auxiliary' && cells.some((c) => c.label === 'perfect')) continue;
-    cells.push(cell(label, value));
+    cells.push(isNoForm(value) ? { label, value: 'none' } : cell(label, value));
   }
   if (parsed.takes) cells.push({ label: 'takes', value: parsed.takes.value, ...(parsed.takes.detail ? { detail: parsed.takes.detail } : {}), wide: true });
   const pattern = parsed.pattern ?? (text('VerbClass') || undefined);

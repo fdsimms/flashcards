@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formSegments, grammarText, keyFormValues, parseKeyForms, wordGrammar } from '../../src/core/wordGrammar';
+import { formSegments, grammarText, isNoForm, keyFormValues, parseKeyForms, wordGrammar } from '../../src/core/wordGrammar';
 import type { Note } from '../../src/core/types';
 
 const note = (fields: Record<string, string>): Note => ({ id: 'n', model: 'Omnilanguage', deck: 'Polski', tags: [], fields: { Entry: 'x', Meaning: 'y', ...fields } });
@@ -54,6 +54,12 @@ describe('wordGrammar', () => {
       ],
     });
     expect(grammarText(g!)).toBe('Imperfective. Endings -ę, -isz.\nI: dzwonię\nperfective: zadzwonić (zadzwonię)\ntakes: do + genitive (dzwonić do kogoś)');
+  });
+  it('says "none" for a field marked as having no form, and marks nothing in it', () => {
+    const g = wordGrammar(note({ Entry: 'Ruhm', Plural: '-', Genitive: 'des Ruhmes' }));
+    expect(g?.cells).toEqual([{ label: 'plural', value: 'none' }, { label: 'genitive', value: 'des Ruhmes' }]);
+    expect(isNoForm(' - ')).toBe(true);
+    expect(isNoForm('-er')).toBe(false);
   });
   it("adds the fields that hold one form each, unless a line already names that form", () => {
     const german = wordGrammar(note({ Entry: 'die Einstellung', Plural: 'Einstellungen', Genitive: 'der Einstellung', KeyForms: 'plural: Einstellungen (no singular use)' }));
