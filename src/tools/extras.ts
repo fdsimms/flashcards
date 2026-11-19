@@ -14,8 +14,12 @@ import { TOOLS, type ToolId } from './tools';
  * (the answers given, the texts read) lives on this phone only.
  */
 
-/** The Practice tools that record their answers (marks.ts), so an extra can see it was done. */
-export const EXTRA_TOOLS = ['time', 'dates', 'money', 'numbers', 'counting', 'script'] as const satisfies readonly ToolId[];
+/**
+ * The Practice tools an extra may suggest: the ones that record their answers (marks.ts), so an extra
+ * can see it was done, and that no deck covers. Time, dates, money and numbers are skill cards
+ * (skills.ts), which come up in their deck, so they aren't suggested here as well.
+ */
+export const EXTRA_TOOLS = ['counting', 'script'] as const satisfies readonly ToolId[];
 export type ExtraTool = (typeof EXTRA_TOOLS)[number];
 export type ExtraKind = ExtraTool | 'read';
 
@@ -222,7 +226,7 @@ function extrasFor(language: Language, count: number, why: Extra['why'], input: 
 }
 
 function signature({ prefs, languages, readerOn }: PlanInput): string {
-  return JSON.stringify([prefs.turnsPerDay, prefs.drills, prefs.read, readerOn, LANGUAGE_ORDER.filter((l) => languages.includes(l)).map((l) => `${l}:${modeOf(prefs, l)}`)]);
+  return JSON.stringify([EXTRA_TOOLS, prefs.turnsPerDay, prefs.drills, prefs.read, readerOn, LANGUAGE_ORDER.filter((l) => languages.includes(l)).map((l) => `${l}:${modeOf(prefs, l)}`)]);
 }
 
 /**

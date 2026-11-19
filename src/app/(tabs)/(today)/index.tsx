@@ -43,7 +43,8 @@ export default function TodayRoute() {
       loaded={loaded}
       ready={ready}
       studied={studied}
-      extrasStrip={<><CramCards repo={repo} /><ExtrasStrip extras={extras} grammarDue={grammarDue.due} /></>}
+      crams={<CramCards repo={repo} />}
+      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} />}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}
