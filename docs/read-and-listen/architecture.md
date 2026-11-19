@@ -535,7 +535,7 @@ aloud is never heard by the phone.
   a phrase again, Start over, Loop (19 November 2026, the owner's request: played to its end, the
   lesson starts again from 0:00; `useLessonLoop.ts`, kept on the shared player so it holds in the
   mini-player, off each time a lesson opens unless it's the one playing), the lock screen's controls, and the phrases and conversation behind a row, hidden
-  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, back and forward 15 seconds, stop), a tap on the pill reopens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all. The listening Live Activity (lock screen and Dynamic Island, `targets/listening-activity/`) has Start over and Loop on either side of its back, play and forward buttons, for a text or a lesson alike, with Loop filled while on.
+  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, the next item in Up Next, its seek line; back and forward 15 seconds and Stop are on Now Playing since Up Next, below), a tap on the pill opens Now Playing, which opens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all. The listening Live Activity (lock screen and Dynamic Island, `targets/listening-activity/`) has Start over and Loop on either side of its back, play and forward buttons, for a text or a lesson alike, with Loop filled while on.
 - **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
   dialogue was made of words never taught). It is played first and acted out last, so
   `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
@@ -1801,6 +1801,47 @@ in the current language, with when one was last read to the end. Nothing else le
   going), as the owner chose.
 - The app fetches audio itself, with the passphrase in the request's headers.
 - The microphone is used only by Record yourself (below, under Repeat line); a take stays on the phone.
+
+## Up Next
+
+Decided 19 November 2026, the owner's request ("an audio queue with what you'd expect from a podcast or
+music app"), from a mock: one queue of texts and audio lessons, played through on the shared player.
+
+- **What it holds: texts and audio lessons**, the two things the shared player already plays. A
+  deck's card audio was left for later (it would be a listening mode of its own). The rules are
+  `src/reader/audioQueue.ts` (pure, tested); `src/ui/useAudioQueue.tsx` keeps the queue in the
+  documents folder (`audio-queue.json`) and drives the player through `attachQueue`
+  (`useReaderPlayer.tsx`), which tells it when a screen hands something over, when an item plays to
+  its end, and where playing stopped short.
+- **Adding**: touch and hold a shelf text (beside its Remove), a Reread text or a ready lesson for
+  Play Now, Play Next or Play Later. Play Now puts what was playing back at the top of Up Next with
+  its place kept, as a podcast app does. Closing the reader on Play all, or leaving a lesson that's
+  playing, makes that the one playing. What's added is downloaded under the shelf's download
+  setting (Download for offline): a lesson, and a Reread text, kept as a past text (`SavedText.past`,
+  the latest `PAST_KEPT`), as playing one in the reader keeps it; shelf texts are kept anyway. A
+  queued text that starts playing is kept as the reader keeps one (`useKeepPlaying`).
+- **Places**: each item starts again where it stopped (a text's line, a lesson's seconds, kept each
+  line and every 15 seconds), and skipping or a screen taking the player over keeps it. Opened from
+  Now Playing, a text plays on in the reader from that line (`ReaderSource.resume`) and a lesson's
+  screen plays from that second.
+- **A text played to its end from Up Next is logged** (the owner's choice): a shelf text as read by
+  listening (`listen_only`, nothing looked up), a past text as heard again (`logListen`). One the
+  reader already logged, or an episode that ends on a choice (which only the reader can make), isn't.
+  Skipped items aren't logged. Never a rating.
+- **Controls**: the tab bar's player shows whenever something is playing or paused in the queue,
+  with Play and the next item; a tap opens Now Playing (the line playing, in the language and in English; previous and next item, previous and next
+  line or 15 seconds, Normal or Slow for a text, a sleep timer of 15 to 60 minutes or the end of the
+  item, Repeat off, all or one, and Up Next, where rows are dragged, swiped away or cleared with
+  Undo). Previous past a lesson's first 3 seconds or a text's first line starts it again. Keep playing
+  the shelf (off by default; Up Next and Settings, Read & Listen) goes on with the shelf's next
+  unread text in that language once the queue runs out after a shelf text; never the story's
+  episode, which can end on a choice. Recently played keeps the last 20.
+- **The lock screen's and headphones' next and previous** go to the next or previous item while the
+  queue plays (the owner's choice over the Live Activity's buttons alone). expo-audio offers them
+  only for its playlist player and turns them off each time a player is shown on the lock screen, so
+  the listening-activity module takes the two commands over after each of those
+  (`setTrackCommands`, `src/ui/trackCommands.ts`). Unchecked on a device when written: if they don't
+  show, look at the order of the main-queue work there first. It needs a new device build.
 
 ## Logging
 

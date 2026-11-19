@@ -3,6 +3,7 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../../reader/api';
 import { guardedFetch } from '../connection';
 import { endListening } from '../listeningActivity';
+import { useAudioQueue } from '../useAudioQueue';
 import { ReadOfflineSettings } from './ReadOfflineSettings';
 import { LANGUAGE_ORDER, flaggedName } from '../../reader/languages';
 import type { ListenAgain } from '../../reader/prefs';
@@ -40,6 +41,8 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
+  // Up Next's own setting, kept with the queue (useAudioQueue), shown here beside the other listening ones.
+  const queue = useAudioQueue();
   const [listeningActivity, setListeningActivity] = useState(prefs().listeningActivity);
   const [listenAgain, setListenAgain] = useState(prefs().listenAgain);
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
@@ -158,6 +161,12 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                   setListeningActivity(on);
                   if (!on) endListening();
                 }}
+              />
+              <SwitchRow
+                label="Keep playing the shelf"
+                hint="When Up Next runs out after a shelf text, play the next unread text in the same language."
+                value={queue.queue.keepPlaying}
+                onValueChange={queue.setKeepPlaying}
               />
               <SwitchRow
                 label="Listen before reading"

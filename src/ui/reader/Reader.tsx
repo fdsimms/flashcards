@@ -135,11 +135,12 @@ const within = <T,>(work: Promise<T>, ms: number): Promise<T> => new Promise((re
  * studied), or a past text to read again.
  */
 export type ReaderSource =
-  | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean }
+  // `resume`: opened from Now Playing on a text Up Next stopped partway: it plays from that line.
+  | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean; resume?: number }
   | { kind: 'topic'; topic: { id: number; name: string }; words?: string[] }
   // `listen`: heard through with the words hidden, starting now, and counted as a listen on the
   // server (relisten.py); it holds the texts to play after this one, none when this is the last.
-  | { kind: 'past'; text: PastText; listen?: PastText[] };
+  | { kind: 'past'; text: PastText; listen?: PastText[]; resume?: number };
 
 type UpNext = { id: number; title: string; lines: number; order: number[] };
 
@@ -232,6 +233,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     api,
     playerHost,
     text,
+    // Played to its end in Up Next after this closes: logged as listened to, unless it's logged here already or ends on a choice.
+    queueAs: () => (!text || logged.current || listenLogged.current || holdsPlayAll(text, review) ? null : review ? 'past' : 'shelf'),
     onPlay: (r) => {
       if (text && (source.kind === 'shelf' || source.kind === 'past')) keepPlaying(text.id, text.language ?? 'th', source.kind === 'past');
       setSession((s) => (s ? heard(s, r) : s));
@@ -403,9 +406,16 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (next && mounted.current) onNext({ kind: 'past', text: next, listen: rest });
   };
 
-  // Play all, and a listen-again run, start each text playing as soon as it's open.
+  // Play all, a listen-again run, and a text Up Next stopped partway start playing as soon as it's open
+  // (the last from the line it stopped at).
   useEffect(() => {
     if (!text || autoPlayed.current) return;
+    if ((source.kind === 'shelf' || source.kind === 'past') && source.resume !== undefined) {
+      autoPlayed.current = true;
+      const start = firstLine(text.lines, source.resume) ?? firstLine(text.lines);
+      if (start !== null) playLine(start, true);
+      return;
+    }
     if (source.kind === 'past' && source.listen !== undefined) {
       autoPlayed.current = true;
       listenWithoutText();

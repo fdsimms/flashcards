@@ -13,6 +13,8 @@ import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
 import { useConnectionProblem } from '../connection';
 import { useLessonDownloads } from './useLessonDownloads';
+import { lessonItem } from '../../reader/audioQueue';
+import { useQueueMenu } from '../useQueueMenu';
 import { space, useTheme, readable } from '../theme';
 
 /**
@@ -47,6 +49,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const [openLesson, setOpenLesson] = useState<number | null>(null);
   const chosen = useLessonWords(language);
   const downloadButton = useLessonDownloads(api);
+  const queueMenu = useQueueMenu();
   const problem = useConnectionProblem();
   const scroller = useRef<ScrollViewInstance>(null);
   // Where the list of lessons starts in the scroll view, and which lessons were being made at the last load.
@@ -187,6 +190,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
                       detail={lessonDetail(l)}
                       // Tapping a row that's slid open closes it, rather than opening the lesson.
                       onPress={() => (openLesson === l.id ? setOpenLesson(null) : l.state === 'ready' ? onOpen(l) : confirmDelete(l))}
+                      onLongPress={l.state === 'ready' ? () => queueMenu(lessonItem(l)) : undefined}
                       action={l.state === 'failed' ? { icon: 'trash', label: `Delete ${l.title}`, onPress: () => confirmDelete(l) } : l.state === 'ready' ? downloadButton(l) : undefined}
                     />
                   </SwipeToReveal>

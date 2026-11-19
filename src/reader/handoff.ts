@@ -1,9 +1,10 @@
-import type { Language } from './api';
+import type { Language, TextLine } from './api';
 import { firstLine, nextLine, previousLine, wrapsToStart } from './playback';
 
 /**
  * Play all carrying on after the reader is left: the mini-player on the tab bar takes over what
- * the reader was playing, one line after another, and stops at the end of the text (or goes round again, if Loop text was on). It is only
+ * the reader was playing, one line after another, and at the end of the text goes on with Up Next
+ * (audioQueue.ts), or stops (or goes round again, if Loop text was on). It is only
  * the playing; the reader's own session (the reading log, the listen-first gate, moving on to the
  * next shelf text) ended when it closed.
  */
@@ -11,7 +12,8 @@ export type Handoff = {
   textId: number;
   title: string;
   language: Language;
-  lines: { audio: boolean }[];
+  /** The text's lines; their words and English, when given, are what Now Playing shows of the line playing. */
+  lines: ({ audio: boolean } & Partial<Pick<TextLine, 'words' | 'english'>>)[];
   /** The line sounding when the reader closed. */
   current: number;
   /** Plays per line (the repeat chip), and how many the current line has had in this round. */
@@ -21,6 +23,12 @@ export type Handoff = {
   loop: boolean;
   /** The speed it was playing at. */
   rate: number;
+  /**
+   * How Up Next logs it once played to its end (audioQueue.ts, `QueuedText.from`): a shelf text as
+   * read by listening, a past text as heard again, or nothing (the reader logged it already, or it
+   * ends on a choice). Left out, it isn't logged.
+   */
+  from?: 'shelf' | 'past' | null;
 };
 
 export type Step = { kind: 'again' } | { kind: 'line'; line: number } | { kind: 'wrap'; line: number } | { kind: 'end' };
@@ -42,4 +50,11 @@ export function skipTo(h: Pick<Handoff, 'lines' | 'current'>, step: -1 | 1): num
 export function linePosition(h: Pick<Handoff, 'lines' | 'current'>): { n: number; of: number } {
   const voiced = h.lines.map((l, i) => (l.audio ? i : -1)).filter((i) => i >= 0);
   return { n: Math.max(1, voiced.indexOf(h.current) + 1), of: voiced.length };
+}
+
+/** The line playing, as Now Playing shows it: its words put back together, and its English. Null when the lines came without words. */
+export function lineShown(h: Pick<Handoff, 'lines' | 'current'>): { text: string; english: string } | null {
+  const line = h.lines[h.current];
+  if (!line?.words?.length) return null;
+  return { text: line.words.map((w) => w.text).join('').trim(), english: line.english ?? '' };
 }

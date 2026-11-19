@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../../reader/api';
+import { pastItem } from '../../reader/audioQueue';
+import { useApp } from '../AppContext';
 import { ErrorNote, Group, Help, NavRow, Screen } from '../kit';
+import { useQueueMenu } from '../useQueueMenu';
 import { space, useTheme, readable } from '../theme';
 
 /**
@@ -22,6 +25,9 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const queueMenu = useQueueMenu();
+  // Past texts are the reader's language's (the server lists that language's).
+  const language = useApp().reader.settings?.language;
 
   const load = useCallback(async () => {
     try {
@@ -55,11 +61,12 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
                   label={t.title}
                   detail={[t.topic, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
                   onPress={() => onOpen(t)}
+                  onLongPress={language ? () => queueMenu(pastItem(t, language)) : undefined}
                   action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
                 />
               ))}
             </Group>
-            <Help>Reading or listening to a text again isn't logged as a reading and doesn't change how hard new texts are. The headphones play it with the words hidden.</Help>
+            <Help>Reading or listening to a text again isn't logged as a reading and doesn't change how hard new texts are. The headphones play it with the words hidden. Touch and hold a text to add it to Up Next.</Help>
           </>
         ) : null}
       </ScrollView>
