@@ -16,7 +16,7 @@ interface Classifier {
 }
 
 const CLASSIFIERS: Record<string, Classifier> = {
-  tua: { word: ['ตัว', 'tua'], counts: THAI_COUNTING_WORDS['ตัว'].counts },
+  tua: { word: ['ตัว', 'dtua'], counts: THAI_COUNTING_WORDS['ตัว'].counts },
   khon: { word: ['คน', 'khon'], counts: THAI_COUNTING_WORDS['คน'].counts },
   lem: { word: ['เล่ม', 'lêm'], counts: THAI_COUNTING_WORDS['เล่ม'].counts },
   khan: { word: ['คัน', 'khan'], counts: THAI_COUNTING_WORDS['คัน'].counts },

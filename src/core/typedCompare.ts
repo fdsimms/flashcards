@@ -1,5 +1,5 @@
 import { toHiragana, toKana } from './kana';
-import { stripMarks } from './letters';
+import { foldUndecomposed, foldYo, stripMarks } from './letters';
 import { opcodes } from './typeAnswer';
 
 /**
@@ -49,7 +49,7 @@ function letters(s: string): string[] {
 }
 
 const isWordy = (cluster: string) => /[\p{L}\p{N}]/u.test(cluster);
-const bare = (s: string) => stripMarks(s.normalize('NFKD'));
+const bare = (s: string) => foldUndecomposed(stripMarks(s.normalize('NFKD')));
 /** The letters and digits only, lower case: for sameWords (with marks) and sameLetters (without). */
 const wordsOf = (s: string) => Array.from(folded(s)).filter((ch) => /[\p{L}\p{N}\p{M}]/u.test(ch)).join('');
 
@@ -62,10 +62,10 @@ function push(parts: DiffPart[], text: string, kind: DiffKind) {
 }
 
 /**
- * Spelling variants every other answer check accepts (tools/answer.ts, forms.ts): ß written ss, and
- * a final ς written σ. Folded only to ask whether that is the sole difference.
+ * Spelling variants every other answer check accepts (tools/answer.ts, forms.ts): ß written ss, ё
+ * written е, and a final ς written σ. Folded only to ask whether that is the sole difference.
  */
-const folded = (s: string) => s.normalize('NFC').toLocaleLowerCase().replace(/ς/g, 'σ').replace(/ß/g, 'ss');
+const folded = (s: string) => foldYo(s.normalize('NFC').toLocaleLowerCase()).replace(/ς/g, 'σ').replace(/ß/g, 'ss');
 
 export function compareTyped(expected: string, typedRaw: string): TypedComparison {
   const want = expected.trim();

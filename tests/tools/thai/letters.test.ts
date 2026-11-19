@@ -67,3 +67,17 @@ describe('the Thai vowels', () => {
     expect(vowelPatterns(aa)).toEqual(['vowel:กา', 'vowel-length:long']);
   });
 });
+
+describe('the Thai consonant table', () => {
+  it('gives no final sound to the letters that never close a syllable', () => {
+    const never = CONSONANTS.filter((c) => !c.final).map((c) => c.letter).sort();
+    expect(never).toEqual([...'ฃฅฉฌผฝหอฮ'].sort());
+    expect(consonantSteps(CONSONANTS.find((c) => c.letter === 'ผ')!)[0]).toBe("Sounds like ph at the start of a syllable. It doesn't close a syllable.");
+  });
+
+  it('romanizes ท and its like as th and ต as dt, never a bare t at the start of a syllable', () => {
+    const bareT = /(^|[\s-])t(?!h)/;
+    const romans = [...CONSONANTS.map((c) => c.name), ...VOWELS.map((v) => v.example.roman)];
+    expect(romans.filter((r) => bareT.test(r))).toEqual([]);
+  });
+});
