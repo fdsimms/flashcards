@@ -3,7 +3,8 @@ import { firstLine, nextLine, previousLine } from './playback';
 
 /**
  * Play all carrying on after the reader is left: the mini-player on the tab bar takes over what
- * the reader was playing, one line after another, and stops at the end of the text (or goes round again, if Loop text was on). It is only
+ * the reader was playing, one line after another, and at the end of the text goes on with Up Next
+ * (audioQueue.ts), or stops (or goes round again, if Loop text was on). It is only
  * the playing; the reader's own session (the reading log, the listen-first gate, moving on to the
  * next shelf text) ended when it closed.
  */
@@ -21,6 +22,12 @@ export type Handoff = {
   loop: boolean;
   /** The speed it was playing at. */
   rate: number;
+  /**
+   * How Up Next logs it once played to its end (audioQueue.ts, `QueuedText.from`): a shelf text as
+   * read by listening, a past text as heard again, or nothing (the reader logged it already, or it
+   * ends on a choice). Left out, it isn't logged.
+   */
+  from?: 'shelf' | 'past' | null;
 };
 
 export type Step = { kind: 'again' } | { kind: 'line'; line: number } | { kind: 'end' };

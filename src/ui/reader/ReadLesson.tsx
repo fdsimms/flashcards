@@ -13,6 +13,7 @@ import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { lessonAudioMode } from '../useLessonTurns';
 import { beginListening, type ListeningControls } from '../listeningActivity';
 import { useReaderPlayerHost } from '../useReaderPlayer';
+import { useAudioQueue } from '../useAudioQueue';
 import { LessonTranscript } from './LessonTranscript';
 import { LessonTurnPanel } from './LessonTurnPanel';
 import { LessonTurnSettings } from './LessonTurnSettings';
@@ -35,6 +36,9 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   const c = useTheme();
   const host = useReaderPlayerHost();
   const player = host.player;
+  // Where Up Next stopped this lesson, if it's the one there: Play starts from it.
+  const queued = useAudioQueue().queue.now;
+  const resumeAt = queued?.kind === 'lesson' && queued.lesson.id === lesson.id ? queued.resume ?? 0 : 0;
   const live = useAudioPlayerStatus(player);
   const [showPhrases, setShowPhrases] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -82,8 +86,10 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     return () => {
       if (!owned.current) return;
       owned.current = false;
-      // Playing carries on in the mini-player; a paused or finished lesson stops, as the reader's does.
-      if (player.playing || heldNow.current) host.handOffLesson(lesson); else host.stop();
+      // Playing carries on in the mini-player; a paused or finished lesson stops, as the reader's does,
+      // and Up Next keeps where it stopped if it's the lesson there.
+      if (player.playing || heldNow.current) host.handOffLesson(lesson);
+      else host.putDown({ kind: 'lesson', id: lesson.id, seconds: Math.max(0, player.currentTime) });
     };
   }, [lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the host and its player are stable; the lesson is what changes
 
@@ -105,6 +111,10 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     await setAudioModeAsync(lessonAudioMode(turns.wantsRecording())).catch(() => undefined);
     player.setActiveForLockScreen(true, { title: lesson.title, artist: 'Franki', albumTitle: 'Audio lessons' });
     showActivity();
+    if (resumeAt > 0) {
+      await player.seekTo(resumeAt).catch(() => undefined);
+      waits.moved();
+    }
   };
 
   const status = mine ? live : { playing: false, currentTime: 0, duration: 0 };

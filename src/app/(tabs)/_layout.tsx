@@ -2,7 +2,7 @@ import { NativeTabs } from 'expo-router/native-tabs';
 import React from 'react';
 import { useApp } from '../../ui/AppContext';
 import { ReaderMiniPlayer } from '../../ui/reader/ReaderMiniPlayer';
-import { useReaderPlayerHost } from '../../ui/useReaderPlayer';
+import { useAudioQueue } from '../../ui/useAudioQueue';
 
 /**
  * The bottom tab bar: Today (the first screen: only what's for today), Decks (every deck), Read &
@@ -12,11 +12,12 @@ import { useReaderPlayerHost } from '../../ui/useReaderPlayer';
  */
 export default function TabsLayout() {
   const { reader } = useApp();
-  const playing = useReaderPlayerHost().mini !== null;
+  // Up Next has something playing or waiting to (useAudioQueue).
+  const playing = useAudioQueue().queue.now !== null;
   return (
     // On iOS 26 the bar shrinks as a list scrolls down and comes back on scrolling up; on iPad it can become a sidebar.
     <NativeTabs minimizeBehavior="onScrollDown" sidebarAdaptable>
-      {/* While Play all carries on after the reader was closed: a pill above the tab bar, on every tab (iOS 26). */}
+      {/* While Up Next has something playing, or paused where it stopped: a pill above the tab bar, on every tab (iOS 26). */}
       {playing ? <NativeTabs.BottomAccessory><ReaderMiniPlayer /></NativeTabs.BottomAccessory> : null}
       <NativeTabs.Trigger name="(today)">
         <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>

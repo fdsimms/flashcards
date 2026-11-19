@@ -230,6 +230,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     api,
     playerHost,
     text,
+    // Played to its end in Up Next after this closes: logged as listened to, unless it's logged here already or ends on a choice.
+    queueAs: () => (!text || logged.current || listenLogged.current || holdsPlayAll(text, review) ? null : review ? 'past' : 'shelf'),
     onPlay: (r) => setSession((s) => (s ? heard(s, r) : s)),
     onLineHeard: (line) => markHeard(line),
     onPlayedThrough: (looping) => {

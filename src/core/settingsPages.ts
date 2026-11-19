@@ -62,6 +62,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
 
   { id: 'readerOn', page: 'read', label: 'Read & Listen', keywords: ['passphrase', 'sign in', 'texts', 'stories', 'server'], route: '/read-settings' },
+  { id: 'keepPlaying', page: 'read', label: 'Keep playing the shelf', keywords: ['up next', 'queue', 'autoplay', 'continuous', 'listening'], route: '/read-settings' },
   { id: 'readLanguage', page: 'read', label: 'Language settings', keywords: ['grammar', 'vocabulary', 'level', 'voices'], route: '/read-language' },
 
   { id: 'narrator', page: 'lessons', label: 'Narrator', keywords: ['voice', 'audio lessons'], route: '/read-narrator' },
