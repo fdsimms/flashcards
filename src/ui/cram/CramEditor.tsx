@@ -133,7 +133,7 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         <Card>
-          <Field label="Name" value={name} onChangeText={setName} placeholder="For example Thai lesson" autoFocus={!id} returnKeyType="done" />
+          <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Ordering spicy food" autoFocus={!id} returnKeyType="done" />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 44 }}>
             <Text style={{ ...type.body, color: c.text, flex: 1 }}>Day</Text>
             <Host matchContents colorScheme={dark ? 'dark' : 'light'} seedColor={c.accent}>
@@ -169,7 +169,7 @@ export function CramEditor({ repo, id }: { repo: NoteStore; id?: string }) {
             {source === 'pick' ? <Help>Once it's saved, you pick the words from your decks.</Help> : null}
             {source === 'tag' ? (
               <>
-                <TagTokenField label="Tags" tags={tags} onChange={(t) => setTag(t.join(' '))} counts={counts} placeholder="For example lesson-12" />
+                <TagTokenField label="Tags" tags={tags} onChange={(t) => setTag(t.join(' '))} counts={counts} placeholder="e.g. lesson-12" />
                 <Help>{tags.length ? `${tagged.length === 1 ? '1 note has' : `${tagged.length} notes have`} it.` : 'Notes with any of these tags join the cram.'}</Help>
               </>
             ) : null}

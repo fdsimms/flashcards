@@ -148,7 +148,7 @@ Screens build it with `failureText` (`src/core/failure.ts`): an error written fo
 `Refusal` and is shown as it is; any other error's text goes last, in parentheses.
 `tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.
 
-**American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
+**"e.g." and not "for example"** in anything a user sees, placeholders included (the owner's choice, 19 November 2026). **American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
 PR descriptions or issue bodies: use a period, colon, comma or parentheses. Code comments are
 exempt from both.
 

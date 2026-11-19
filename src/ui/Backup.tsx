@@ -180,7 +180,7 @@ export function Backup({ store, syncOn, onBackedUp }: {
         </Group>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
-          <Help>Replace everything on this iPhone with a backup, for example after reinstalling the app or on a new phone.</Help>
+          <Help>Replace everything on this iPhone with a backup, e.g. after reinstalling the app or on a new phone.</Help>
           <Button label="Restore from a backup" variant="secondary" onPress={restore} busy={busy === 'restore'} disabled={busy === 'backup'} />
         </Card>
         <MessageList lines={log} />
