@@ -28,6 +28,7 @@ import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary
 import { reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
+import { secondsPerCard } from '../core/todaySummary';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
@@ -128,6 +129,7 @@ const confusedSheetFor = (noteId: string): ReviewSheet => ({ key: `confused:${no
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
   const c = useTheme();
   const { answered, again, takenMs } = sessionSummary(history);
+  const pace = secondsPerCard(answered, takenMs);
   // The counts run up from 0 once the summary has appeared (the end of a session is a small payoff).
   const [counting, setCounting] = useState(false);
   useEffect(() => { const t = setTimeout(() => setCounting(true), delay + 80); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -142,11 +144,12 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
   return (
     <View
       accessible
-      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}, ${again} answered Again`}
+      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}${pace ? `, ${pace} seconds per card` : ''}, ${again} answered Again`}
       style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: space.xl, paddingVertical: space.l, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border }}
     >
       {tile(answered, answered === 1 ? 'card' : 'cards')}
       {tile(durationText(takenMs), 'studying')}
+      {pace ? tile(`${pace} s`, 'per card') : null}
       {tile(again, 'Again')}
     </View>
   );

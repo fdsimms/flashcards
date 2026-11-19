@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Answer } from '../../src/core/stats';
-import { answerPace, todayProgress, todaySummary } from '../../src/core/todaySummary';
+import { answerPace, secondsPerCard, todayProgress, todaySummary } from '../../src/core/todaySummary';
 
 const H = 4;
 const NOW = new Date(2026, 10, 11, 12);
@@ -30,6 +30,8 @@ describe('today\'s summary', () => {
     expect(answerPace(1000, 10000)).toBe('<0.1 s/card');
     expect(answerPace(5, 0)).toBeNull();
     expect(answerPace(0, 0)).toBeNull();
+    expect(secondsPerCard(513, 3720000)).toBe('7.3');
+    expect(secondsPerCard(0, 0)).toBeNull();
   });
 
   it('uses the singular for one answer', () => {
