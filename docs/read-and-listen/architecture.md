@@ -1636,7 +1636,7 @@ in the current language, with when one was last read to the end. Nothing else le
   which parts of the API were checked; the first real call is the check for the rest.
 - In Thai, each space between clauses becomes a 60 ms SSML `<break>` (`THAI_PAUSE` in
   `franki_speech`), since a voice may not pause at a bare space. It applies to the MCP's
-  `add_tts_audio` too. A space before a conjunction that opens a clause (แต่, และ, หรือ) gets no
+  `add_tts_audio` too. A space before a conjunction that opens a clause (แต่, และ, หรือ, เพราะ, ถ้า, แล้ว, เมื่อ) gets no
   break and is dropped, so the voice says it straight on from the clause before (a break there made
   the voice end the clause and sound halting); after `?` or `!` it keeps its break. Audio already
   cached keeps its old pauses until it's re-recorded.
