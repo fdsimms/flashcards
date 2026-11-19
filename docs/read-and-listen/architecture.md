@@ -1962,7 +1962,8 @@ suggest words to add, so the deck keeps going without the owner having to think 
 - **The words** (`GET /api/word-suggestions`, `word_suggestions.py`), neither source asking Claude:
   words in texts read to the end that count as unknown, by dictionary form, the most texts first; then
   the language's most common words from just past the `common` setting (Thai, which counts none, from
-  the top). Up to 50 of each. Left out: anything in the deck in any form, studied or not; WaniKani's
+  the top; English has none, 19 November 2026: its list is everyday words like kidnap, and its deck is
+  for words a well-read native speaker doesn't know). Up to 50 of each. Left out: anything in the deck in any form, studied or not; WaniKani's
   words for Japanese (the owner's choice); words in the note queue; and words dismissed with Not
   interested (`POST /api/word-suggestions/dismiss`, the `dismissed_words` table, never suggested again).
   The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
