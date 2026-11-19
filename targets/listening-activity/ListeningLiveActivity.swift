@@ -6,10 +6,12 @@ import WidgetKit
 // The lock screen banner and Dynamic Island for an audio lesson or a Read & Listen text that is playing.
 // Its buttons are ListeningControlIntent, which runs in the app without opening it. The progress bar
 // runs on its own clock while playing (ProgressView(timerInterval:)), so the app only sends an update
-// when playing starts or stops, a line changes, or the position jumps.
+// when playing starts or stops, a line changes, Loop is turned on or off, or the position jumps.
 
 // The gold of the app's dark theme (accentInk in src/ui/theme.ts), which this extension can't import.
 private let gold = Color(red: 212 / 255, green: 180 / 255, blue: 106 / 255)
+// Start over and Loop (while off) sit back from the three middle buttons.
+private let quiet = Color.white.opacity(0.6)
 
 @available(iOS 17.0, *)
 private struct Artwork: View {
@@ -61,7 +63,13 @@ private struct Progress: View {
 private struct Controls: View {
     let context: ActivityViewContext<ListeningActivityAttributes>
     var body: some View {
-        HStack(spacing: 34) {
+        HStack(spacing: 20) {
+            Button(intent: ListeningControlIntent(action: "startOver")) {
+                StartOverIcon(size: 22)
+                    .foregroundStyle(quiet)
+                    .frame(width: 36, height: 36)
+            }
+            .accessibilityLabel("Start over")
             Button(intent: ListeningControlIntent(action: "previous")) {
                 Image(systemName: context.attributes.skipsBySeconds ? "gobackward.15" : "backward.fill").font(.title2)
             }
@@ -75,6 +83,15 @@ private struct Controls: View {
             Button(intent: ListeningControlIntent(action: "next")) {
                 Image(systemName: context.attributes.skipsBySeconds ? "goforward.15" : "forward.fill").font(.title2)
             }
+            // Filled gold while on, as Loop text is in the reader's player bar.
+            Button(intent: ListeningControlIntent(action: "loop")) {
+                LoopIcon(size: 24)
+                    .foregroundStyle(context.state.looping ? gold : quiet)
+                    .frame(width: 36, height: 36)
+                    .background(context.state.looping ? gold.opacity(0.2) : Color.clear, in: Circle())
+            }
+            .accessibilityLabel("Loop")
+            .accessibilityValue(context.state.looping ? "On" : "Off")
         }
         .buttonStyle(.plain)
     }

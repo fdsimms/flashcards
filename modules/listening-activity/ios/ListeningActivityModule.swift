@@ -30,11 +30,11 @@ public class ListeningActivityModule: Module {
       return false
     }
 
-    Function("start") { (title: String, kind: String, skipsBySeconds: Bool, playing: Bool, detail: String, position: Double, duration: Double) -> Bool in
+    Function("start") { (title: String, kind: String, skipsBySeconds: Bool, playing: Bool, detail: String, looping: Bool, position: Double, duration: Double) -> Bool in
       guard #available(iOS 17.0, *), ActivityAuthorizationInfo().areActivitiesEnabled else { return false }
       self.endAll()
       let attributes = ListeningActivityAttributes(title: title, kind: kind, skipsBySeconds: skipsBySeconds)
-      let state = ListeningActivityAttributes.ContentState(playing: playing, detail: detail, position: position, duration: duration, updatedAt: Date())
+      let state = ListeningActivityAttributes.ContentState(playing: playing, detail: detail, looping: looping, position: position, duration: duration, updatedAt: Date())
       do {
         self.current = try Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil), pushType: nil)
         return true
@@ -43,9 +43,9 @@ public class ListeningActivityModule: Module {
       }
     }
 
-    Function("update") { (playing: Bool, detail: String, position: Double, duration: Double) in
+    Function("update") { (playing: Bool, detail: String, looping: Bool, position: Double, duration: Double) in
       guard #available(iOS 17.0, *), let activity = self.current as? Activity<ListeningActivityAttributes> else { return }
-      let state = ListeningActivityAttributes.ContentState(playing: playing, detail: detail, position: position, duration: duration, updatedAt: Date())
+      let state = ListeningActivityAttributes.ContentState(playing: playing, detail: detail, looping: looping, position: position, duration: duration, updatedAt: Date())
       Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
     }
 

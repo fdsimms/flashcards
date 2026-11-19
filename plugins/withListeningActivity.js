@@ -16,6 +16,7 @@ const MODULE_DIR = path.join(__dirname, '..', 'modules', 'listening-activity', '
 const SOURCE_FILES = [
   { dir: SOURCE_DIR, name: 'FrankiListeningBundle.swift' },
   { dir: SOURCE_DIR, name: 'ListeningLiveActivity.swift' },
+  { dir: SOURCE_DIR, name: 'ListeningIcons.swift' },
   { dir: MODULE_DIR, name: 'ListeningActivityAttributes.swift' },
   { dir: MODULE_DIR, name: 'ListeningControlIntent.swift' },
 ];

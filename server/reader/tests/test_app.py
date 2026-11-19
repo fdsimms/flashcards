@@ -3,6 +3,7 @@ import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -163,8 +164,8 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     from franki_reader.tts import AudioCache
 
     async def voice(text: str, name: str, language: str, rate: float = 1.0) -> Spoken:
-        # Timed: the whole line as one word, so every word in it is spoken from 0 to 1000 ms (a
-        # slow recording takes 1538: slower speech is longer).
+        # Timed: the whole line as one word from 0 to 1000 ms, which the server shares out over
+        # its words (a slow recording takes 1538: slower speech is longer).
         end = round(1000 / rate)
         tag = b"slow" if rate < 1 else b""
         return Spoken(b"ID3" + tag + text.encode(), [WordMark(text, 0, end)] if timed else None)
@@ -183,6 +184,18 @@ def speaking_client(tmp_path: Path, timed: bool = False) -> TestClient:
     return started(create_app(engine, "open sesame"))
 
 
+def shares_out(times: list[list[int] | None], end: int) -> bool:
+    """Whether a line's word times, spoken as one word from 0 to `end`, run from 0 to `end` a word
+    at a time in order."""
+    timed = [t for t in times if t is not None]
+    return (
+        len(timed) > 1
+        and timed[0][0] == 0
+        and timed[-1][1] == end
+        and all(a[1] == b[0] and a[0] < a[1] for a, b in pairwise(timed))
+    )
+
+
 def test_lines_say_whether_they_have_audio() -> None:
     c = client()  # no text to speech set up
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
@@ -196,9 +209,10 @@ def test_each_word_says_when_its_spoken_once_its_line_is_recorded_with_timings(
     c = speaking_client(tmp_path, timed=True)
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
     text = next_text(c, topic["id"]).json()
-    words = [w for line in text["lines"] for w in line["words"]]
-    assert all(w["time"] == [0, 1000] for w in words if w["status"] is not None)
-    assert all("time" not in w for w in words if w["status"] is None)
+    for line in text["lines"]:
+        words = line["words"]
+        assert shares_out([w.get("time") for w in words if w["status"] is not None], 1000)
+        assert all("time" not in w for w in words if w["status"] is None)
 
     untimed = speaking_client(tmp_path / "untimed")
     topic = untimed.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
@@ -224,14 +238,13 @@ def test_a_slow_recording_is_made_when_asked_for_and_its_words_have_their_own_ti
     words = text["lines"][1]["words"]
     assert len(answer["times"]) == len(words)
     for word, when in zip(words, answer["times"], strict=True):
-        assert when == ([0, round(1000 / SLOW_RATE)] if word["status"] is not None else None)
+        assert (when is None) == (word["status"] is None)
+    assert shares_out(answer["times"], round(1000 / SLOW_RATE))
     assert c.get(f"/api/texts/{text['id']}/lines/9/slow", headers=AUTH).status_code == 404
     assert c.get(f"{base}/slow").status_code == 401
     # The text's own words keep the normal recording's times.
     again = c.get(f"/api/texts/{text['id']}", headers=AUTH).json()
-    assert all(
-        w["time"] == [0, 1000] for w in again["lines"][1]["words"] if w["status"] is not None
-    )
+    assert shares_out([w.get("time") for w in again["lines"][1]["words"]], 1000)
 
 
 def test_a_lines_audio_is_served_as_mp3(tmp_path: Path) -> None:

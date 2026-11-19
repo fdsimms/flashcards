@@ -3,8 +3,8 @@ import { requireOptionalNativeModule } from 'expo';
 /** The native side of the listening Live Activity (ios/ListeningActivityModule.swift). */
 interface Native {
   isAvailable(): boolean;
-  start(title: string, kind: string, skipsBySeconds: boolean, playing: boolean, detail: string, position: number, duration: number): boolean;
-  update(playing: boolean, detail: string, position: number, duration: number): void;
+  start(title: string, kind: string, skipsBySeconds: boolean, playing: boolean, detail: string, looping: boolean, position: number, duration: number): boolean;
+  update(playing: boolean, detail: string, looping: boolean, position: number, duration: number): void;
   end(): void;
   addListener(event: 'onAction', listener: (e: { action: string }) => void): { remove: () => void };
 }

@@ -532,8 +532,10 @@ aloud is never heard by the phone.
   `stage`, which the server sets as `make_lesson` goes (`lesson_service.py`); a server from before
   stages sends none, and the row shows the first step. A ready
   lesson opens its player (`ReadLesson.tsx`): play or pause, skip back or forward 15 seconds to hear
-  a phrase again, the lock screen's controls, and the phrases and conversation behind a row, hidden
-  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, back and forward 15 seconds, stop), a tap on the pill reopens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all.
+  a phrase again, Start over, Loop (19 November 2026, the owner's request: played to its end, the
+  lesson starts again from 0:00; `useLessonLoop.ts`, kept on the shared player so it holds in the
+  mini-player, off each time a lesson opens unless it's the one playing), the lock screen's controls, and the phrases and conversation behind a row, hidden
+  until asked for so the lesson can be heard first. Background playback is on only once it plays; playing it stops Play all on the mini-player, and only opening it leaves Play all going. **A lesson plays on the reader's shared player** (`useReaderPlayer.tsx`, 18 November 2026, the owner's request): leaving the lesson while it plays hands it to the tab bar's mini-player (title, play or pause, back and forward 15 seconds, stop), a tap on the pill reopens the lesson where it is (`resumeLesson`), and the reader or another lesson playing takes the player back and stops it. A paused or finished lesson stops on leaving, as the reader does without Play all. The listening Live Activity (lock screen and Dynamic Island, `targets/listening-activity/`) has Start over and Loop on either side of its back, play and forward buttons, for a text or a lesson alike, with Loop filled while on.
 - **The dialogue is held to words the learner knows** (16 November 2026, the owner: the closing
   dialogue was made of words never taught). It is played first and acted out last, so
   `lesson.unfamiliar_words` checks each line against the deck's checker (`engine.snapshot`: studied
@@ -1759,9 +1761,13 @@ in the current language, with when one was last read to the end. Nothing else le
 - **The word being spoken is lit as a line plays** (since 13 November 2026). Each line is recorded
   through Azure's Speech SDK (`SpeechClient.speak`), which reports when each word starts and ends;
   the REST API it was recorded with before gives audio only. The timings are kept beside the MP3
-  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`): in Thai
-  Azure segments by itself, so a word here takes the time of every one of Azure's it overlaps, and
-  two words Azure spoke as one light up together. Each word goes to the app with its `time`; the
+  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`) each time a
+  line is served. In Thai Azure reports a whole run of text between spaces as one word, so until 19
+  November 2026 every word in a run lit up at once; now each of Azure's words has its time shared
+  out over its letters (not Thai's vowel and tone marks), and a word here takes the share its
+  letters account for, so a run lights up a word at a time. It's an estimate within the run, as
+  Azure gives no finer time, and since the raw timings are what's cached it applied to every text
+  already recorded. Each word goes to the app with its `time`; the
   app reads the player's position every 50 ms while a timed line plays (`useSpokenWords`) and fills
   the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
   karaoke-style "read so far". A word stays lit through the pause after it. It's on unless turned
@@ -2037,6 +2043,14 @@ in seconds when nothing answers, while a slow answer (a Claude explanation) is l
   0.8x offline, as when slow can't be fetched. A text is kept whole or shown as not saved, and its
   copy is deleted once it leaves the shelf, or when the server gives the text differently (a voice
   change recorded it again).
+- **Playing a shelf text keeps it** (`useKeepPlaying`, called as a line starts), on any connection
+  unless the setting is Off: the text is already streaming over that connection, and the Wi-Fi only
+  setting is for downloads nobody asked for. It keeps the same things as the automatic download (the
+  text with its check questions, every line's recording, the slow ones where the language has Slow),
+  and the lines saved so far play from the phone (`withOffline`'s `audioSource`) before the text is
+  whole, so a tunnel mid-download doesn't stop it. A text played from Past texts or Listen again is
+  kept the same way, marked `past`: the shelf plan leaves it alone and the shelf shown offline
+  leaves it out, and only the latest ten stay (`pastOverflow`). What needs Claude (Explain, Retell) can't be kept.
 - **Every screen gets the server through `withOffline`** (`src/reader/offlineApi.ts`, in
   `useReader`): a kept text opens from the phone when the server can't be reached, its lines play
   from the files online too, and the shelf shown offline is the kept texts under the heading
