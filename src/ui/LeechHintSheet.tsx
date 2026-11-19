@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
+import { AskingText } from './AskingText';
 import { failureText } from '../core/failure';
 
 /**
@@ -107,7 +108,9 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
         {suggest ? (
           <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
             <Icon name="sparkles" size={18} color={c.accent} />
-            <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{asking ? 'Asking Claude…' : ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>
+            {asking
+              ? <AskingText style={{ ...type.callout, fontWeight: '600', color: c.accent }} />
+              : <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>}
           </Tappable>
         ) : null}
         {ideas.map((idea) => (
