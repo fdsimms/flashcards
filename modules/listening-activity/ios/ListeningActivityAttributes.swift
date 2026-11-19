@@ -13,6 +13,8 @@ struct ListeningActivityAttributes: ActivityAttributes {
         var playing: Bool
         /// "Line 4 of 12", or "" for a lesson.
         var detail: String
+        /// Loop is on: the whole text or lesson starts again when it ends. Its button is drawn filled.
+        var looping: Bool
         /// Seconds into the track as of `updatedAt`.
         var position: Double
         /// Seconds; 0 when it isn't known, which draws no progress bar.

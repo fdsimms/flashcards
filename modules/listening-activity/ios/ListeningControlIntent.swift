@@ -10,7 +10,8 @@ extension Notification.Name {
 // background and without opening it, even when the button is drawn by the widget extension; that is why
 // this file is compiled into the app as well as copied into the extension (the extension's copy only
 // names the type for Button(intent:)). The app is kept running by its background audio, so the
-// notification reaches the JS that owns the player. `action` is "previous", "toggle" or "next".
+// notification reaches the JS that owns the player. `action` is "startOver", "previous", "toggle", "next"
+// or "loop" (parseAction in src/reader/listeningActivity.ts).
 @available(iOS 17.0, *)
 struct ListeningControlIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Control listening"

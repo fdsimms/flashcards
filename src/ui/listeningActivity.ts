@@ -20,10 +20,19 @@ import {
  */
 
 export interface ListeningControls {
+  /** From the first line, or the lesson's 0:00. */
+  startOver: () => void;
   previous: () => void;
   toggle: () => void;
   next: () => void;
+  /** Loop on or off: the whole text, or the whole lesson. Its owner tells the activity with `setListeningLoop`. */
+  loop: () => void;
 }
+
+/** Buttons that do nothing, for a screen's ref before its first render fills it in. */
+export const NO_CONTROLS: ListeningControls = {
+  startOver: () => undefined, previous: () => undefined, toggle: () => undefined, next: () => undefined, loop: () => undefined,
+};
 
 const native = listeningActivityNative;
 
@@ -63,9 +72,9 @@ function sync(snap: Snapshot = snapshot()) {
   if (step === null) return;
   try {
     if (step === 'start') {
-      native.start(listening.title, kindLabel(listening.kind), skipsBySeconds, snap.playing, listening.detail, snap.position, snap.duration);
+      native.start(listening.title, kindLabel(listening.kind), skipsBySeconds, snap.playing, listening.detail, listening.looping, snap.position, snap.duration);
     } else {
-      native.update(snap.playing, listening.detail, snap.position, snap.duration);
+      native.update(snap.playing, listening.detail, listening.looping, snap.position, snap.duration);
     }
     sent = { ...snap, listening: { ...listening }, at: now };
   } catch {
@@ -85,8 +94,8 @@ export function attachListeningPlayer(shared: AudioPlayer) {
   if (player === shared) return;
   player = shared;
   shared.addListener('playbackStatusUpdate', (status) => {
-    // A lesson that played to its end is over; a text's line ending is only the next line starting.
-    if (status.didJustFinish && listening?.kind === 'lesson') { end(); return; }
+    // A lesson that played to its end is over, unless Loop starts it again; a text's line ending is only the next line starting.
+    if (status.didJustFinish && listening?.kind === 'lesson' && !listening.looping) { end(); return; }
     sync({ playing: status.playing, position: Math.max(0, status.currentTime), duration: Math.max(0, status.duration) });
   });
 }
@@ -108,6 +117,13 @@ export function beginListening(what: Listening, buttons: () => ListeningControls
 export function setListeningDetail(detail: string) {
   if (!listening || listening.detail === detail) return;
   listening = { ...listening, detail };
+  sync();
+}
+
+/** Loop was turned on or off for what's playing; the title, the line and the buttons stay. */
+export function setListeningLoop(looping: boolean) {
+  if (!listening || listening.looping === looping) return;
+  listening = { ...listening, looping };
   sync();
 }
 
