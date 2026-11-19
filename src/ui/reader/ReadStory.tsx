@@ -98,7 +98,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
   ]);
 
   const next = story?.next ?? null;
-  const overline = !story ? '' : !story.running ? 'Series · Ended' : story.pinned ? `${bannerOverline(story)} · Pinned` : bannerOverline(story);
+  const overline = !story ? '' : !story.running ? 'Series · Ended' : bannerOverline(story);
 
   return (
     <Screen
