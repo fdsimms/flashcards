@@ -13,7 +13,7 @@ import { grammarText, wordGrammar } from './wordGrammar';
  * Language names, in English and as the language writes itself, with the BCP-47 tag a note in it
  * is spoken in. A Language field is matched whole; a deck name is searched for each, in this order.
  */
-const LANG_TAGS: Record<string, string> = {
+export const LANG_TAGS: Record<string, string> = {
   thai: 'th-TH', ภาษาไทย: 'th-TH',
   polish: 'pl-PL', polski: 'pl-PL',
   russian: 'ru-RU', русский: 'ru-RU',

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, frequency, lint, pronunciation, tiers, tools
+from . import forms, frequency, lint, pronunciation, skills, tiers, tools
 from . import reader as reader_tools
 from .collection import CollectionManager
 from .reader import ReaderClient, ReaderSettings
@@ -27,6 +27,8 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     pronunciation.register(server, cm, client)
     # Ordering new cards by how common the word is, with the ranks from the same server.
     frequency.register(server, cm, client)
+    # Skill cards: the app's drills and single cards, added by the hourly job where a deck's switch is on.
+    skills.register(server, cm)
     # Filing a language deck's notes into tier subdecks, each with its own desired retention.
     tiers.register(server, cm, client)
     return server

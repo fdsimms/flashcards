@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
 import type { NoteStore } from '../../src/anki/noteService';
-import { addSkillCards, SkillsRefused } from '../../src/anki/skillCards';
+import { addSkillCards, deleteSkillCards, missingDrafts, setSkillsPaused, SkillsRefused } from '../../src/anki/skillCards';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
@@ -69,5 +69,48 @@ describe('adding skill cards', () => {
   it('refuses a language with no skill cards', async () => {
     const { store } = await franki();
     await expect(addSkillCards(store, { ...add, language: 'en', languageName: 'English', groups: ['time'] })).rejects.toBeInstanceOf(SkillsRefused);
+  });
+});
+
+describe('what adding would still write', () => {
+  it('counts only the cards the deck lacks', async () => {
+    const { store } = await franki();
+    expect(missingDrafts(store.notes.values(), 'th', 'Thai', ['time', 'numbers'])).toHaveLength(8);
+    await addSkillCards(store, { ...add, groups: ['time'] });
+    expect(missingDrafts(store.notes.values(), 'th', 'Thai', ['time', 'numbers'])).toHaveLength(4);
+  });
+});
+
+describe('pausing and resuming a deck\'s skill cards', () => {
+  const skillCards = (store: MemoryRepo) => {
+    const ids = new Set([...store.notes.values()].filter((n) => n.tags.includes('skill')).map((n) => n.id));
+    return [...store.cards.values()].filter((c) => ids.has(c.noteId));
+  };
+
+  it('suspends every card that was live, and resuming frees all but a later step', async () => {
+    const { store } = await franki();
+    await addSkillCards(store, { ...add, groups: ['time', 'consonants'] });
+    const total = skillCards(store).length;
+    expect(await setSkillsPaused(store, 'Thai', true, NOW, 4)).toBe(total - 3);
+    expect(skillCards(store).every((c) => c.suspended)).toBe(true);
+    // Everything but the three later steps comes back: they wait on the step before.
+    expect(await setSkillsPaused(store, 'Thai', false, NOW, 4)).toBe(total - 3);
+    expect(skillCards(store).filter((c) => c.suspended)).toHaveLength(3);
+  });
+
+  it("leaves another deck's skill cards alone", async () => {
+    const { store } = await franki();
+    await addSkillCards(store, { ...add, groups: ['time'] });
+    expect(await setSkillsPaused(store, 'Polski', true, NOW, 4)).toBe(0);
+  });
+});
+
+describe('deleting a deck\'s skill cards', () => {
+  it('removes the skill notes and nothing else', async () => {
+    const { store } = await franki();
+    const before = store.notes.size;
+    await addSkillCards(store, { ...add, groups: ['time'] });
+    expect(await deleteSkillCards(store, 'Thai', NOW)).toBe(4);
+    expect(store.notes.size).toBe(before);
   });
 });
