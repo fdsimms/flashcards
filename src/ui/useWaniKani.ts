@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { studyDayStart } from '../core/day';
 import { hasMedia, readMedia, writeMedia } from '../media/mediaFiles';
-import { flushSynonyms, queueSynonym, withPending, type SynonymChange } from '../wanikani/synonyms';
+import { afterSynonymFlush, flushSynonyms, queueSynonym, withPending, type SynonymChange } from '../wanikani/synonyms';
 import { API_BASE, createWaniKaniApi, WaniKaniError, type WaniKaniApi, type WaniKaniProblem, type WaniKaniUser } from '../wanikani/api';
 import { logOutcomes, type LogEntry } from '../wanikani/log';
 import { offlineData, wantedAudio, type OfflineData, type Snapshot } from '../wanikani/offline';
@@ -159,7 +159,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       if (s.synonymChanges.length) {
         const batch = [...s.synonymChanges];
         const result = await flushSynonyms(batch, (c) => (c.remove ? api.removeSynonym(c.subjectId, c.synonym) : api.addSynonym(c.subjectId, c.synonym)));
-        s.synonymChanges = [...result.left, ...s.synonymChanges.slice(batch.length)];
+        s.synonymChanges = afterSynonymFlush(s.synonymChanges, batch, result.left);
         persist();
         if (result.problem) {
           setProblem(result.problem);
