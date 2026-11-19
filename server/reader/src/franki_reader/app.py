@@ -12,6 +12,9 @@ Each route's code is in routes/, one module per area; create_app builds them her
                                       read_and_listen: {language, name, waiting, last_read_at},
                                       read_and_listen_languages: [{language, name, waiting,
                                       last_read_at}] (every language the app shows),
+                                      read_and_listen_today: [{language, name, mode, waiting,
+                                      done}] (the languages that get a reading task today,
+                                      chosen by read_plan.py),
                                       study_days: [{starts_at, cards, answer_seconds,
                                       reading_seconds}] (the last 7 study days, today last),
                                       franki: {due, new, reported_at} or null (Franki's own deck

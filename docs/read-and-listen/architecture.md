@@ -1607,6 +1607,18 @@ in the current language, with when one was last read to the end. Nothing else le
   with `waiting` (often 0) and `last_read_at`, so dundundun can make one task per language and
   choose which get one today (its Settings, Franki). `read_and_listen` stays as the current
   language's entry, for a build of dundundun from before this.
+- **Today's languages** (`read_and_listen_today`, 19 November 2026): which languages get a reading
+  task today, chosen here and not by the other app (`read_plan.py`), since which language to read
+  next depends on what has been read. Each language is Every day, Rotate or Off (Settings, Daily
+  reading tasks: `daily_tasks`, `daily_rotate_count`; a language not set rotates). Every day
+  languages are listed while a text is waiting. Rotating languages take turns, the one read least
+  recently first; one never read goes before any that was, and of those the one with most texts
+  waiting (a name order sent German first for two days running, the day dundundun decided this
+  itself). A rotating language read to the end today counts as a turn. The picks are kept for the
+  study day (`meta.read_plan`), so the list doesn't change as texts are read and written. `done` is
+  whether a text in it was read to the end since the study day began. dundundun shows one task for
+  each entry and chooses nothing. The choices are in Settings, Read & Listen, Daily reading tasks
+  (`ReadDailyTasks`, `src/reader/dailyTasks.ts`): a menu per language and a stepper for the count.
 - **Its own key.** It opens with the passphrase or with `STATUS_TOKEN` (`READER_STATUS_TOKEN` in
   `server/.env`), a key that opens this route and nothing else, so the other app never holds the
   passphrase that writes texts and spends on Claude and Azure.

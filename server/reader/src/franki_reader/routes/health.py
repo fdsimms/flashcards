@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
-from franki_reader import store
+from franki_reader import read_plan, store
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES
 from franki_reader.routes.context import AppContext
@@ -62,10 +62,12 @@ def router(ctx: AppContext) -> APIRouter:
         # app can offer a choice per language and decide which get a task today.
         ready = store.ready_counts(engine.conn)
         languages = []
+        readings = []
         for code, lang in LANGUAGES.items():
             if code in HIDDEN_LANGUAGES:
                 continue
             read_at = store.last_finished_reading(engine.conn, code)
+            readings.append(read_plan.Reading(code, lang.name, ready.get(code, 0), read_at))
             languages.append(
                 {
                     "language": code,
@@ -74,6 +76,11 @@ def router(ctx: AppContext) -> APIRouter:
                     "last_read_at": instant(read_at) if read_at else None,
                 }
             )
+
+        # Which languages get a reading task today, decided here (read_plan.py) for the other app to show.
+        today = read_plan.today(
+            engine.conn, readings, store.load_settings(engine.conn), naive_utc(day_starts_at)
+        )
 
         return {
             "reviews": due.reviews,
@@ -90,6 +97,16 @@ def router(ctx: AppContext) -> APIRouter:
                 "last_read_at": instant(last_read) if last_read else None,
             },
             "read_and_listen_languages": languages,
+            "read_and_listen_today": [
+                {
+                    "language": e.language,
+                    "name": e.name,
+                    "mode": e.mode,
+                    "waiting": e.waiting,
+                    "done": e.done,
+                }
+                for e in today
+            ],
             "study_days": [
                 {
                     "starts_at": instant(d.starts_at),

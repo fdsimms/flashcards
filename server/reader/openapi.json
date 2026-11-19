@@ -7128,6 +7128,52 @@
             ],
             "title": "Common"
           },
+          "daily_tasks": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": [
+                    "daily",
+                    "rotate",
+                    "off"
+                  ]
+                },
+                "propertyNames": {
+                  "enum": [
+                    "th",
+                    "es",
+                    "de",
+                    "fr",
+                    "ru",
+                    "el",
+                    "pl",
+                    "nb",
+                    "ja",
+                    "en"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Tasks"
+          },
+          "daily_rotate_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Rotate Count"
+          },
           "voices": {
             "anyOf": [
               {
