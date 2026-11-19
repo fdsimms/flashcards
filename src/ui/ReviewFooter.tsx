@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { space } from './theme';
 
-/** The Last answer line (44) and a rating button (60): the tallest the footer is in an ordinary session. */
-const BASE_HEIGHT = 44 + space.s + 60;
+/** The height of a rating button, and of Show answer, Check and Type it, so flipping a card doesn't change the footer's height. */
+export const FOOTER_BUTTON_HEIGHT = 60;
+
+/** The Last answer line (44) and a footer button: the tallest the footer is in an ordinary session. */
+const BASE_HEIGHT = 44 + space.s + FOOTER_BUTTON_HEIGHT;
 
 /**
  * The review screen's footer, kept one height. Show answer, the rating buttons, a typed-answer box and

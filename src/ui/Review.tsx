@@ -115,7 +115,7 @@ import { leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
 import { useDeckTint } from './useDeckTint';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
-import { ReviewFooter } from './ReviewFooter';
+import { ReviewFooter, FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 export { CardSurface };
@@ -1156,7 +1156,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           // After a skill card's drill, the rating it suggests is outlined and the others quieter; the tap is still the learner's.
           restOpacity={skill.suggested && skill.suggested !== b.r ? 0.55 : 1}
           style={{
-            flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
+            flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
             ...(skill.suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
@@ -1196,18 +1196,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {typeItWord ? <ListeningNote spoken={spoken} language={rendered?.speechLang ? languageName(rendered.speechLang.split('-')[0]) : 'the word'} /> : null}
       {typeItWord && !typing ? (
-        <View style={{ flexDirection: 'row', gap: space.s }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <TypeItButton onPress={() => setTyping(true)} />
           <SpeakButton spoken={spoken} />
-          <Button label="Show answer" onPress={reveal} style={{ flex: 1 }} />
+          <Button label="Show answer" onPress={reveal} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : typeItWord ? (
-        <View style={{ flexDirection: 'row', gap: space.s }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <SpeakButton spoken={spoken} />
-          <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1 }} />
+          <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : (
-        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} />
+        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} style={{ minHeight: FOOTER_BUTTON_HEIGHT }} />
       )}
     </>
   );
