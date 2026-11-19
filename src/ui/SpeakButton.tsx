@@ -12,9 +12,10 @@ type Spoken = ReturnType<typeof useSpokenAnswer>;
  * it stops by itself on a pause; tapped while listening, it stops. Nothing when speaking is off or
  * the language can't be heard on this iPhone. `label` names it for VoiceOver ("Say it").
  */
-export function SpeakButton({ spoken, label = 'Say it', size = 'large' }: { spoken: Spoken; label?: string; size?: 'large' | 'small' }) {
+export function SpeakButton({ spoken, label = 'Say it', size = 'large' }: { spoken: Spoken; label?: string; size?: 'hero' | 'large' | 'small' }) {
   const c = useTheme();
   if (!spoken.available) return null;
+  if (size === 'hero') return <HeroSpeak spoken={spoken} label={label} />;
   const side = size === 'large' ? 52 : MIN_TAP;
   return (
     <Tappable
@@ -30,6 +31,28 @@ export function SpeakButton({ spoken, label = 'Say it', size = 'large' }: { spok
     >
       <Icon name={spoken.listening ? 'stop.fill' : 'mic.fill'} size={size === 'large' ? 20 : 17} color={spoken.listening ? c.danger : c.text} />
     </Tappable>
+  );
+}
+
+/** The microphone as the main control on a card: a large gold circle with two faint rings around it, red while it listens. */
+function HeroSpeak({ spoken, label }: { spoken: Spoken; label: string }) {
+  const c = useTheme();
+  const ring = spoken.listening ? c.danger : c.accent;
+  return (
+    <View style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
+      <View pointerEvents="none" style={{ position: 'absolute', top: -9, right: -9, bottom: -9, left: -9, borderRadius: 60, borderWidth: 1, borderColor: ring, opacity: 0.35 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: -18, right: -18, bottom: -18, left: -18, borderRadius: 70, borderWidth: 1, borderColor: ring, opacity: 0.15 }} />
+      <Tappable
+        onPress={() => (spoken.listening ? spoken.stop() : void spoken.start())}
+        accessibilityRole="button"
+        accessibilityLabel={spoken.listening ? 'Stop listening' : label}
+        accessibilityState={{ busy: spoken.listening }}
+        scaleTo={0.95}
+        style={{ width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: spoken.listening ? c.danger : c.accent }}
+      >
+        <Icon name={spoken.listening ? 'stop.fill' : 'mic.fill'} size={34} color={spoken.listening ? c.onRating : c.onAccent} />
+      </Tappable>
+    </View>
   );
 }
 
