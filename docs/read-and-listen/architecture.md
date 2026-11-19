@@ -1746,9 +1746,13 @@ in the current language, with when one was last read to the end. Nothing else le
 - **The word being spoken is lit as a line plays** (since 13 November 2026). Each line is recorded
   through Azure's Speech SDK (`SpeechClient.speak`), which reports when each word starts and ends;
   the REST API it was recorded with before gives audio only. The timings are kept beside the MP3
-  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`): in Thai
-  Azure segments by itself, so a word here takes the time of every one of Azure's it overlaps, and
-  two words Azure spoke as one light up together. Each word goes to the app with its `time`; the
+  (`<line>.json`), and the server matches Azure's words to the line's own (`timing.py`) each time a
+  line is served. In Thai Azure reports a whole run of text between spaces as one word, so until 19
+  November 2026 every word in a run lit up at once; now each of Azure's words has its time shared
+  out over its letters (not Thai's vowel and tone marks), and a word here takes the share its
+  letters account for, so a run lights up a word at a time. It's an estimate within the run, as
+  Azure gives no finer time, and since the raw timings are what's cached it applied to every text
+  already recorded. Each word goes to the app with its `time`; the
   app reads the player's position every 50 ms while a timed line plays (`useSpokenWords`) and fills
   the word's background (`spoken` in the theme), chosen over fading the rest of the line or a
   karaoke-style "read so far". A word stays lit through the pause after it. It's on unless turned
