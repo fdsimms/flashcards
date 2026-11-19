@@ -2,7 +2,8 @@ import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type StoryListItem } from '../../reader/api';
-import { storyNext, storyPlace } from '../../reader/stories';
+import { WorkingMark } from '../WorkingMark';
+import { storyNext, storyPlace, storyWriting } from '../../reader/stories';
 import { haptic } from '../haptics';
 import { Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle, Tag } from '../kit';
 import { SkeletonList } from '../Skeleton';
@@ -99,11 +100,12 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
   const name = story.title || 'Your series';
   const next = storyNext(story);
   const place = storyPlace(story);
+  const writing = storyWriting(story);
   return (
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
-      accessibilityLabel={[name, story.pinned ? 'Pinned' : null, place, next?.text].filter(Boolean).join('. ')}
+      accessibilityLabel={[name, story.pinned ? 'Pinned' : null, place, writing ?? next?.text].filter(Boolean).join('. ')}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
       {first ? null : <Divider inset={space.l} />}
@@ -113,7 +115,12 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
           {story.pinned ? <Tag text="Pinned" color={c.accentInk} fill={c.accentFill} /> : null}
         </View>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{place}</Text>
-        {next ? <Text style={{ ...type.footnote, color: next.ready ? c.countDue : c.textSecondary }}>{next.text}</Text> : null}
+        {writing ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+            <WorkingMark />
+            <Text style={{ ...type.footnote, color: c.textSecondary, flexShrink: 1 }}>{writing}</Text>
+          </View>
+        ) : next ? <Text style={{ ...type.footnote, color: next.ready ? c.countDue : c.textSecondary }}>{next.text}</Text> : null}
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
     </Pressable>

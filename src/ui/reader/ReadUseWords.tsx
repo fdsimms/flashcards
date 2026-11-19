@@ -87,7 +87,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
   ) : (
     <View style={{ flexDirection: 'row', gap: space.s }}>
       <Button variant="secondary" label="Skip" style={{ flex: 1 }} onPress={next} />
-      <Button label="Check" style={{ flex: 2 }} busy={checking} disabled={!attempt.trim()} onPress={ask} />
+      <Button label="Check" style={{ flex: 2 }} busy={checking} busyLabel="Checking your sentence" disabled={!attempt.trim()} onPress={ask} />
     </View>
   );
   return (

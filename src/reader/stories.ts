@@ -2,6 +2,7 @@
 // page. Several stories run at once, one pinned to the top of Read & Listen. Pure, so it's tested.
 import type { PastText, StoryListItem, TextStage } from './api';
 import type { EpisodeOrder } from './prefs';
+import { currentStep, textSteps } from './making';
 import { episodeLabel } from './shelf';
 
 /** The episode a story's row is about: the one waiting, else the next to be written. */
@@ -26,6 +27,13 @@ export function storyNext(story: StoryListItem): { text: string; ready: boolean 
   return { text: `Pull down to check for episode ${n}`, ready: false };
 }
 
+
+/** A running story's row while its next episode is written: "Writing episode 3: adding the translations". Null otherwise. */
+export function storyWriting(story: StoryListItem): string | null {
+  if (!story.running || story.next || !story.writing) return null;
+  const step = currentStep(textSteps(story.stage));
+  return `Writing episode ${nextEpisode(story)}: ${step.charAt(0).toLowerCase()}${step.slice(1)}`;
+}
 
 export type EpisodeSection = { season: number; rows: EpisodeRow[] };
 
