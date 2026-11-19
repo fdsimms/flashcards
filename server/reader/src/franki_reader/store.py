@@ -1632,12 +1632,15 @@ def save_phrase_explanation(
 
 def get_form_explanation(
     conn: sqlite3.Connection, text_id: int, line: int, word: str
-) -> list[str] | None:
+) -> dict[str, Any] | None:
     row = conn.execute(
         "SELECT answer FROM form_explanations WHERE text_id = ? AND line = ? AND word = ?",
         (text_id, line, word),
     ).fetchone()
-    return json.loads(row[0]) if row else None
+    kept = json.loads(row[0]) if row else None
+    # An answer kept before the explanation became short parts is a list of paragraphs: not
+    # shown, so it's asked again (and replaced) on the next tap.
+    return kept if isinstance(kept, dict) else None
 
 
 def save_form_explanation(
@@ -1645,7 +1648,7 @@ def save_form_explanation(
     text_id: int,
     line: int,
     word: str,
-    answer: list[str],
+    answer: dict[str, Any],
     now: datetime,
     cost_usd: float = 0.0,
 ) -> None:

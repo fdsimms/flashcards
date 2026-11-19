@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReaderText, Word } from '../../src/reader/api';
-import { aroundWord, checkForm, formReason, isSlotWord, slotView, slotWidth, slotWords } from '../../src/reader/formQuiz';
+import { aroundWord, checkForm, formReason, isSlotWord, markDecider, slotView, slotWidth, slotWords } from '../../src/reader/formQuiz';
 
 const word = (text: string, over: Partial<Word> = {}): Word => ({
   text, status: 'known', gloss: null, stretch: false, deck: true, grammar: null, ...over,
@@ -109,5 +109,44 @@ describe('formReason', () => {
 
   it('is empty for a word with no form', () => {
     expect(formReason({ form: null })).toBe('');
+  });
+});
+
+describe('markDecider', () => {
+  const marked = (pieces: { text: string; mark: boolean }[]) => pieces.filter((p) => p.mark).map((p) => p.text);
+
+  it('marks the deciding word before the blank and keeps every character', () => {
+    const { before, after } = markDecider('Jeder bringt ', ' Kuchen.', 'bringt');
+    expect(marked(before)).toEqual(['bringt']);
+    expect(before.map((p) => p.text).join('')).toBe('Jeder bringt ');
+    expect(marked(after)).toEqual([]);
+    expect(after.map((p) => p.text).join('')).toBe(' Kuchen.');
+  });
+
+  it('marks it after the blank when it is only there', () => {
+    const { before, after } = markDecider('Ich ', ' dem Mann.', 'dem');
+    expect(marked(before)).toEqual([]);
+    expect(marked(after)).toEqual(['dem']);
+  });
+
+  it('takes the nearest occurrence before the blank', () => {
+    const { before } = markDecider('Er sagt, er sagt ', '.', 'sagt');
+    expect(before.map((p) => p.text)).toEqual(['Er sagt, er ', 'sagt', ' ']);
+    expect(before.map((p) => p.mark)).toEqual([false, true, false]);
+  });
+
+  it('needs a whole word where the script has spaces', () => {
+    const { before, after } = markDecider('Wir sehen ', ' einen Hund.', 'ein');
+    expect([...before, ...after].some((p) => p.mark)).toBe(false);
+  });
+
+  it('finds a word inside text with no spaces', () => {
+    const { before } = markDecider('私は日本語を', 'ます', '日本語');
+    expect(marked(before)).toEqual(['日本語']);
+  });
+
+  it('marks nothing for an empty or missing deciding word', () => {
+    expect(markDecider('A ', ' b', '')).toEqual({ before: [{ text: 'A ', mark: false }], after: [{ text: ' b', mark: false }] });
+    expect(markDecider('', '', 'x')).toEqual({ before: [], after: [] });
   });
 });
