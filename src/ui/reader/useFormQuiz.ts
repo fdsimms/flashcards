@@ -30,15 +30,15 @@ export function useFormQuiz(text: ReaderText | null, enabled: boolean) {
     return found;
   }, [text]);
 
-  const view = useCallback((word: Word, linePlaying: boolean): SlotView => {
+  const view = useCallback((word: Word): SlotView => {
     const spot = spots.get(word);
-    return spot ? slotView(word, settled[keyOf(spot)], enabled, linePlaying) : null;
+    return spot ? slotView(word, settled[keyOf(spot)], enabled) : null;
   }, [spots, settled, enabled]);
 
   /** Opens the sheet for an open slot; false for any other word, which is a tap like any other. */
   const begin = useCallback((word: Word): boolean => {
     const spot = spots.get(word);
-    if (!spot || slotView(word, settled[keyOf(spot)], enabled, false) !== 'open') return false;
+    if (!spot || slotView(word, settled[keyOf(spot)], enabled) !== 'open') return false;
     setOpenKey(keyOf(spot));
     return true;
   }, [spots, settled, enabled]);

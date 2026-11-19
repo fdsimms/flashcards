@@ -5,8 +5,8 @@ Claude writes each word's Meaning (unless the owner gave one), a Context sentenc
 its English translation, the romanization of the sentence and word where the language needs one (a
 Japanese word's reading in kana instead, its KanaReading), the Register, PartOfSpeech, a Notes line
 (usage, compounds, a contrast with a near word), plus what each language's finished notes carry
-(`EXTRAS`: genders, German plurals and verb classes, Russian aspect partners, Polish and Greek key forms,
-Thai classifiers, Japanese kanji), and the Language and GenerateReverse every note carries. The Audio field isn't written here: the app records it when the owner
+(`EXTRAS`: genders, German plurals and verb classes, Russian aspect partners, the forms and the pattern
+line of an inflecting word's KeyForms, Thai classifiers, Japanese kanji), and the Language and GenerateReverse every note carries. The Audio field isn't written here: the app records it when the owner
 saves the note, as it does for any note (src/core/recording.ts). Nothing here creates an Anki note or
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
@@ -62,12 +62,18 @@ PARTS_OF_SPEECH = frozenset(
 )
 
 
+_NO = "an empty string"
+
+
 @dataclass(frozen=True)
 class Extra:
     """A field a language's finished notes carry beyond the common ones. `key` is the name in Claude's
     answer, `ask` what the prompt says to write, `allowed` the only values kept (None: any one line)
-    and `pos` the part of speech it applies to (None: every word). Kept only when it passes; a word is
-    never failed for one."""
+    and `pos` the part of speech it applies to, or several ("noun/verb"; None: every word). With a
+    `label` it is one line of the field, written "label: value": KeyForms is a line for each form under
+    the name of what it is, as the card's Grammar box reads it (src/core/wordGrammar.ts) and the MCP
+    holds notes to (server/mcp/franki_mcp/omnilanguage.py, FORM_LABELS). Kept only when it passes; a
+    word is never failed for one."""
 
     key: str
     field: str
@@ -75,9 +81,30 @@ class Extra:
     pos: str | None = None
     allowed: frozenset[str] | None = None
     limit: int = MAX_MEANING
+    label: str | None = None
 
 
-_NO = "an empty string"
+MAX_PATTERN = 120
+
+
+def _pattern(pos: str, example: str) -> Extra:
+    """KeyForms' first line: what kind of word it is and what to watch for, in a sentence or two."""
+    return Extra(
+        "pattern",
+        "KeyForms",
+        f"for a {' or '.join(pos.split('/'))}, what kind of word it is and what changes when it is "
+        f"inflected, in one or two short English sentences ({example}); else " + _NO,
+        pos,
+        limit=MAX_PATTERN,
+        label="pattern",
+    )
+
+
+def _form(key: str, label: str, ask: str, pos: str) -> Extra:
+    """One labeled form in KeyForms."""
+    return Extra(key, "KeyForms", ask + "; else " + _NO, pos, label=label)
+
+
 _LATIN_GENDER = frozenset({"m", "f", "n"})
 # What each language's owner-written notes fill in, read off the deck (16 November 2026). English has nothing
 # beyond the common fields, and Spanish Forms are filled in by fill_forms, not here. A noun's Gender (Spanish,
@@ -124,11 +151,17 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
             "verb",
             frozenset({"haben", "sein"}),
         ),
-        Extra(
-            "key_forms",
-            "KeyForms",
-            "for a verb, the first person singular preterite, with a separable prefix after it (warf ab); else "
-            + _NO,
+        _pattern("verb", "Strong verb. The prefix ab splits off."),
+        _form(
+            "form_past",
+            "past",
+            "for a verb, the first person singular preterite, with a separable prefix after it (warf ab)",
+            "verb",
+        ),
+        _form(
+            "form_perfect",
+            "perfect",
+            "for a verb, the third person singular perfect (hat abgeworfen, ist losgefahren)",
             "verb",
         ),
     ),
@@ -168,11 +201,20 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
             + _NO,
             "verb",
         ),
-        Extra(
-            "key_forms",
-            "KeyForms",
-            "for a verb, the first person singular of the present (imperfective) or future (perfective) "
-            "(добиваюсь); else " + _NO,
+        _pattern("noun/verb", "Masculine. The stress moves to the ending."),
+        _form("form_genitive", "genitive", "for a noun, its genitive singular (стола)", "noun"),
+        _form("form_plural", "plural", "for a noun, its nominative plural (столы)", "noun"),
+        _form(
+            "form_i",
+            "I",
+            "for a verb, the first person singular of the present (imperfective) or future "
+            "(perfective) (добиваюсь)",
+            "verb",
+        ),
+        _form(
+            "form_you",
+            "you",
+            "for a verb, the second person singular of the same tense (добиваешься)",
             "verb",
         ),
     ),
@@ -186,13 +228,21 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
             _LATIN_GENDER | {"pl", "mpl"},
             3,
         ),
-        Extra(
-            "key_forms",
-            "KeyForms",
-            "for a noun, its genitive singular and nominative plural, comma separated (mężczyzny, mężczyźni); "
-            "for a verb, its first and second person singular of the present, or of the future for a "
-            "perfective verb (mam, masz); else " + _NO,
-            limit=40,
+        _pattern("noun/verb", "Masculine inanimate. Genitive in -u. The e drops out."),
+        _form("form_genitive", "genitive", "for a noun, its genitive singular (mężczyzny)", "noun"),
+        _form("form_plural", "plural", "for a noun, its nominative plural (mężczyźni)", "noun"),
+        _form(
+            "form_i",
+            "I",
+            "for a verb, the first person singular of the present, or of the future for a perfective "
+            "verb (mam)",
+            "verb",
+        ),
+        _form(
+            "form_you",
+            "you",
+            "for a verb, the second person singular of the same tense (masz)",
+            "verb",
         ),
     ),
     "el": (
@@ -206,11 +256,9 @@ EXTRAS: dict[Code, tuple[Extra, ...]] = {
             "verb",
             frozenset({"active", "deponent"}),
         ),
-        Extra(
-            "key_forms",
-            "KeyForms",
-            "for a verb, the first person singular aorist (αντιπάθησα); else " + _NO,
-            "verb",
+        _pattern("verb", "Verb in -ώ, like αγαπώ. The aorist takes -ησα."),
+        _form(
+            "form_past", "past", "for a verb, the first person singular aorist (αντιπάθησα)", "verb"
         ),
     ),
     "ja": (
@@ -396,12 +444,19 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
         fields["PartOfSpeech"] = part.casefold()
     if note := _plain(raw.get("notes"), MAX_NOTES):
         fields["Notes"] = note
+    lines: dict[str, list[str]] = {}
     for extra in EXTRAS.get(language, ()):
-        if extra.pos is not None and fields.get("PartOfSpeech") != extra.pos:
+        if extra.pos is not None and fields.get("PartOfSpeech") not in extra.pos.split("/"):
             continue
         value = _plain(raw.get(extra.key), extra.limit)
-        if value and (extra.allowed is None or value.casefold() in extra.allowed):
+        if not value or (extra.allowed is not None and value.casefold() not in extra.allowed):
+            continue
+        if extra.label:
+            lines.setdefault(extra.field, []).append(f"{extra.label}: {value}")
+        else:
             fields[extra.field] = value.casefold() if extra.allowed else value
+    for name, labeled in lines.items():
+        fields[name] = "<br>".join(labeled)
     return entry, fields
 
 

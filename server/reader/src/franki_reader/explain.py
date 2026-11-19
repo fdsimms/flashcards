@@ -140,27 +140,50 @@ PHRASE_SCHEMA: dict[str, Any] = {
 }
 
 
-MAX_FORM_PARAGRAPHS = 3
+# The form explanation is a few short parts the sheet draws (the deciding word marked in the line,
+# the change as a before and after, one tip), not paragraphs: a wall of text wasn't read.
+MAX_FORM_CHANGES = 2
+MAX_FORM_SENTENCE = 140
+MAX_FORM_PHRASE = 60
 
 FORM_SYSTEM = (
     "The learner is practicing word forms: a word of a line was hidden, they were shown its "
     "dictionary form and asked to type the form that fits, and they want to know why the line "
-    "has the form it has. Explain for an adult learner of the language, in plain English. Give "
-    "`explanation`: one to three short paragraphs (each under "
-    f"{MAX_CHARS} characters). Say which word of the line decides the form (a verb that takes a "
-    "case, a preposition, an auxiliary, the subject it agrees with) and what that does to the "
-    "word. If the word's form is irregular (a stem change, a moved stress, an ending that is "
-    "not the usual one for its kind), say so and give the few forms that show the pattern. If a "
-    "learner would likely confuse it with a nearby form, say how to tell them apart in this line. "
-    "The form's name is given; trust it. Skip anything the learner would already know at this "
-    "level, and do not retell the line's translation. The whole text is there only so you can "
-    "see what the line refers to. Do not use em dashes." + CALIBRATION
+    "has the form it has. Explain for an adult learner of the language, in plain English, "
+    "as a few very short parts, not paragraphs. Give `deciding`: the one word of the line that "
+    "decides the form (a verb that takes a case, a preposition, an auxiliary, the subject it "
+    "agrees with), copied exactly as it is written in the line, or an empty string when no "
+    f"single word does. Give `rule`: one plain sentence (under {MAX_FORM_SENTENCE} characters) "
+    "saying what that word does to the hidden word, naming the case, tense or agreement. Give "
+    f"`changes`: one or two pairs (at most {MAX_FORM_CHANGES}) that show the pattern, each with "
+    f"`before` and `after` (under {MAX_FORM_PHRASE} characters each, in the language, with the "
+    "ending or stem that changes, such as an article with a noun: the first pair is the "
+    "dictionary form and the form in the line, the second is optional and shows the same change "
+    "on a common word the learner already knows, or an irregular pattern). Give `tip`: one short "
+    f"sentence (under {MAX_FORM_SENTENCE} characters) on how to tell this form from the one a "
+    "learner would likely confuse it with, or an empty string if there is nothing to add. The "
+    "form's name is given; trust it. Skip anything the learner would already know at this level, "
+    "and do not retell the line's translation. The whole text is there only so you can see what "
+    "the line refers to. Do not use em dashes." + CALIBRATION
 )
 
 FORM_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": {"explanation": {"type": "array", "items": {"type": "string"}}},
-    "required": ["explanation"],
+    "properties": {
+        "deciding": {"type": "string"},
+        "rule": {"type": "string"},
+        "changes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"before": {"type": "string"}, "after": {"type": "string"}},
+                "required": ["before", "after"],
+                "additionalProperties": False,
+            },
+        },
+        "tip": {"type": "string"},
+    },
+    "required": ["deciding", "rule", "changes", "tip"],
     "additionalProperties": False,
 }
 
@@ -254,8 +277,8 @@ class FormRequest:
     index: int = 0
 
 
-# The paragraphs of the explanation, and what asking for them cost.
-ExplainForm = Callable[[FormRequest], Awaitable[tuple[list[str], Usage]]]
+# The explanation (`deciding`, `rule`, `changes`, `tip`; see clean_form), and what asking for it cost.
+ExplainForm = Callable[[FormRequest], Awaitable[tuple[dict[str, Any], Usage]]]
 
 
 @dataclass(frozen=True)
@@ -332,13 +355,35 @@ def form_message(request: FormRequest) -> str:
     return "\n".join(lines)
 
 
-def clean_form(answer: dict[str, Any]) -> list[str]:
-    """The paragraphs the model gave, trimmed, without blanks, at most MAX_FORM_PARAGRAPHS."""
-    paragraphs = answer.get("explanation")
-    if not isinstance(paragraphs, list):
-        return []
-    out = [p.strip()[:MAX_CHARS] for p in paragraphs if isinstance(p, str) and p.strip()]
-    return out[:MAX_FORM_PARAGRAPHS]
+def _short(value: Any, limit: int) -> str:
+    return value.strip()[:limit] if isinstance(value, str) else ""
+
+
+def clean_form(answer: dict[str, Any], line: str) -> dict[str, Any] | None:
+    """The explanation the model gave, trimmed: the `rule`, which is required (None without one),
+    the deciding word only when it is really a word of `line`, at most MAX_FORM_CHANGES pairs
+    with both sides, and the `tip`."""
+    rule = _short(answer.get("rule"), MAX_FORM_SENTENCE)
+    if not rule:
+        return None
+    deciding = _short(answer.get("deciding"), MAX_FORM_PHRASE)
+    changes: list[dict[str, str]] = []
+    raw = answer.get("changes")
+    for pair in raw if isinstance(raw, list) else []:
+        if not isinstance(pair, dict):
+            continue
+        before, after = (
+            _short(pair.get("before"), MAX_FORM_PHRASE),
+            _short(pair.get("after"), MAX_FORM_PHRASE),
+        )
+        if before and after:
+            changes.append({"before": before, "after": after})
+    return {
+        "deciding": deciding if deciding in line else "",
+        "rule": rule,
+        "changes": changes[:MAX_FORM_CHANGES],
+        "tip": _short(answer.get("tip"), MAX_FORM_SENTENCE),
+    }
 
 
 def check_message(request: CheckRequest) -> str:
@@ -508,13 +553,13 @@ def claude_explain_phrase(client: anthropic.AsyncAnthropic) -> ExplainPhrase:
 
 
 def claude_explain_form(client: anthropic.AsyncAnthropic) -> ExplainForm:
-    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+    async def explain(request: FormRequest) -> tuple[dict[str, Any], Usage]:
         answer, used = await _ask(
             client, FORM_SYSTEM, form_message(request), FORM_SCHEMA, "this form"
         )
-        paragraphs = clean_form(answer)
-        if not paragraphs:
+        explanation = clean_form(answer, request.line)
+        if explanation is None:
             raise ExplainFailed("Claude didn't explain this form. Try again in a moment.", used)
-        return paragraphs, used
+        return explanation, used
 
     return explain

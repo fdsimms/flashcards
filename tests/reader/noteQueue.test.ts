@@ -68,6 +68,13 @@ describe('the queue', () => {
     expect(noun('el agua', 'es', 'f')).toBe('el agua');
   });
 
+  it("leaves å off a Norwegian verb's Entry, since the card puts it before a verb", () => {
+    const entry = (word: string, language: string, part: string) => reviewTarget(note({ entry: word, language: language as never, fields: { PartOfSpeech: part } })).fields.Entry;
+    expect(entry('å huske', 'nb', 'verb')).toBe('huske');
+    expect(entry('å gå seg vill', 'nb', 'phrase')).toBe('å gå seg vill');
+    expect(entry('huske', 'nb', 'verb')).toBe('huske');
+  });
+
   it('tags the note with its part of speech', () => {
     expect(reviewTarget(note({ fields: { PartOfSpeech: 'verb' } })).tags).toEqual(['verb']);
     expect(reviewTarget(note()).tags).toBeUndefined();

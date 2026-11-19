@@ -678,7 +678,12 @@ def test_in_language_prompts_drop_the_english_only_instructions() -> None:
 
 # ==== Forms ====
 
-PARAGRAPHS = ["Видеть takes the accusative.", "Глаз has an irregular plural."]
+EXPLANATION: dict[str, Any] = {
+    "deciding": "видит",
+    "rule": "Видеть takes a direct object, so the object is accusative.",
+    "changes": [{"before": "глаз", "after": "глаза"}],
+    "tip": "Ask who or what is seen.",
+}
 
 
 def form_url(text_id: int, line: int = 0) -> str:
@@ -693,15 +698,15 @@ def form_body(c: TestClient, text_id: int, line: int = 0) -> dict[str, str]:
 def test_explains_a_form_once_per_word_and_keeps_it() -> None:
     seen: list[FormRequest] = []
 
-    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+    async def explain(request: FormRequest) -> tuple[dict[str, Any], Usage]:
         seen.append(request)
-        return PARAGRAPHS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+        return EXPLANATION, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(None, None, explain)
     body = form_body(c, text_id, 1)
     for _ in range(2):
         response = c.post(form_url(text_id, 1), json=body, headers=AUTH)
-        assert response.status_code == 200 and response.json() == {"explanation": PARAGRAPHS}
+        assert response.status_code == 200 and response.json() == {"explanation": EXPLANATION}
     assert len(seen) == 1 and seen[0].word == body["word"] and seen[0].form == body["form"]
     shown_lines = c.get(f"/api/texts/{text_id}", headers=AUTH).json()["lines"]
     assert len(seen[0].context) == len(shown_lines) and seen[0].index == 1
@@ -710,7 +715,7 @@ def test_explains_a_form_once_per_word_and_keeps_it() -> None:
 
 
 def test_refuses_a_form_for_a_word_not_in_the_line() -> None:
-    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+    async def explain(request: FormRequest) -> tuple[dict[str, Any], Usage]:
         raise AssertionError("not asked")
 
     c, text_id = client(None, None, explain)
@@ -723,16 +728,16 @@ def test_refuses_a_form_for_a_word_not_in_the_line() -> None:
 def test_a_failed_form_is_not_kept_and_says_so_without_claude() -> None:
     results: list[Any] = [ExplainFailed("Claude didn't explain this form. Try again in a moment.")]
 
-    async def explain(request: FormRequest) -> tuple[list[str], Usage]:
+    async def explain(request: FormRequest) -> tuple[dict[str, Any], Usage]:
         if results:
             raise results.pop()
-        return PARAGRAPHS, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
+        return EXPLANATION, Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")
 
     c, text_id = client(None, None, explain)
     body = form_body(c, text_id)
     failed = c.post(form_url(text_id), json=body, headers=AUTH)
     assert failed.status_code == 503 and "Try again" in failed.json()["detail"]
-    assert c.post(form_url(text_id), json=body, headers=AUTH).json() == {"explanation": PARAGRAPHS}
+    assert c.post(form_url(text_id), json=body, headers=AUTH).json() == {"explanation": EXPLANATION}
     none, other = client()
     assert none.post(form_url(other), json=form_body(none, other), headers=AUTH).status_code == 503
 
@@ -747,7 +752,45 @@ def test_form_message_names_the_form_and_its_helper() -> None:
     )
 
 
-def test_clean_form_trims_and_limits_the_paragraphs() -> None:
-    assert clean_form({"explanation": [" a ", "", 3, "b"]}) == ["a", "b"]
-    assert clean_form({"explanation": "no"}) == []
-    assert len(clean_form({"explanation": ["x"] * 9})) == 3
+def test_clean_form_keeps_short_parts_and_drops_what_cannot_be_shown() -> None:
+    line = "Она видит глаза."
+    answer = {
+        "deciding": " видит ",
+        "rule": " Takes an object. ",
+        "changes": [
+            {"before": "a", "after": "b"},
+            {"before": "", "after": "x"},
+            "no",
+            {"before": "c", "after": "d"},
+            {"before": "e", "after": "f"},
+        ],
+        "tip": " Ask what. ",
+    }
+    assert clean_form(answer, line) == {
+        "deciding": "видит",
+        "rule": "Takes an object.",
+        "changes": [{"before": "a", "after": "b"}, {"before": "c", "after": "d"}],
+        "tip": "Ask what.",
+    }
+    # A deciding word that isn't in the line can't be marked there, so it's dropped.
+    assert clean_form({**answer, "deciding": "nowhere"}, line) == {
+        "deciding": "",
+        "rule": "Takes an object.",
+        "changes": [{"before": "a", "after": "b"}, {"before": "c", "after": "d"}],
+        "tip": "Ask what.",
+    }
+    # Without a rule there is nothing to explain.
+    assert clean_form({**answer, "rule": " "}, line) is None
+    assert clean_form({"changes": "no"}, line) is None
+
+
+def test_an_old_paragraph_answer_is_not_shown_and_is_replaced() -> None:
+    conn = store.connect(":memory:")
+    topic = store.add_topic(conn, "food", NOW).id
+    generated = run(ScriptedModel(GOOD, GOOD, GOOD), TextRequest("food", (MANGO,)))
+    text_id = store.save_text(conn, topic, generated, [], 0.95, NOW)
+    # Kept before the explanation became short parts: a list of paragraphs.
+    store.save_form_explanation(conn, text_id, 0, "w", ["old paragraph"], NOW)  # type: ignore[arg-type]
+    assert store.get_form_explanation(conn, text_id, 0, "w") is None
+    store.save_form_explanation(conn, text_id, 0, "w", EXPLANATION, NOW)
+    assert store.get_form_explanation(conn, text_id, 0, "w") == EXPLANATION
