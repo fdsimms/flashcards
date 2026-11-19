@@ -7,6 +7,7 @@ import { saveNote, type NoteStore } from '../anki/noteService';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
+import { FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -27,7 +28,7 @@ export function TypeItButton({ onPress }: { onPress: () => void }) {
       scaleTo={0.98}
       dimTo={0.85}
       style={{
-        minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l,
+        minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l,
         flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.fill,
       }}
     >

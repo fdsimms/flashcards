@@ -51,7 +51,7 @@ export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue
                 tileFill={item.done ? c.goodFill : c.surface}
                 title={extraWhat(item.extra.kind)}
                 done={item.done}
-                detail={item.done ? 'Done' : LANGUAGES[item.extra.language].name}
+                detail={item.done ? `${LANGUAGES[item.extra.language].name}, done` : LANGUAGES[item.extra.language].name}
                 accessibilityLabel={`${item.title}. ${item.detail}`}
                 onPress={() => tap(item)}
               />

@@ -51,6 +51,7 @@ import { MemoryStrength } from './MemoryStrength';
 import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
+import { leechRecovered, withoutLeechTag } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
@@ -74,9 +75,11 @@ import { LeechHintSheet } from './LeechHintSheet';
 import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
+import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
 import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
+import { trackPlayer } from './useSoundingButton';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
 import { useMissMarks } from './useMissMarks';
@@ -112,7 +115,7 @@ import { leadingEmoji, studiedSubdecks, subdeckOf } from '../core/deckBadge';
 import { useDeckTint } from './useDeckTint';
 import type { CardLanguage } from './LanguagePill';
 import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
-import { ReviewFooter } from './ReviewFooter';
+import { ReviewFooter, FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 export { CardSurface };
@@ -123,7 +126,7 @@ const AUDIO_MODE = { playsInSilentMode: true };
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
 /** A sheet Review can raise (src/ui/useSheetQueue.ts); the key makes asking twice for the same one a single sheet. */
 type ReviewSheet =
-  | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string }
+  | { key: string; kind: 'leech'; noteId: string; misses?: number; suspendedCardId?: string; step?: { n: number; of: number } }
   | { key: string; kind: 'confused'; noteId: string }
   | { key: string; kind: 'ask'; card: CardForClaude }
   | { key: string; kind: 'agentFlag'; noteId: string; cardId: string };
@@ -216,11 +219,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [cards, setCards] = useState<Card[] | null>(null);
   const [notes, setNotes] = useState<Map<string, Note>>(new Map());
   // The sheets Review raises, one at a time (src/core/sheetQueue.ts): iOS drops a sheet asked for
-  // while another is on screen. A leech's hint sheet is asked for by the answer that made the card a
-  // leech, and names the card when that answer suspended it, so saving a hint can bring it back; it
-  // also opens from Write a mnemonic in the ⋯ menu, with no misses to report. The link sheet is for
+  // while another is on screen. A leech's hint sheet is asked for from the summary, one per leech
+  // made in the session, and names the card when its answer suspended it, so saving a hint can bring
+  // it back; it also opens from Write a mnemonic in the ⋯ menu, with no misses to report. The link sheet is for
   // words mixed up, and Ask Claude's is for the card it was opened for, as text.
+  // A leech made in this session doesn't stop the review: it waits in `pendingHints` for the
+  // summary's row, which raises one hint sheet after another (src/core/pendingHints.ts).
   const sheets = useSheetQueue<ReviewSheet>();
+  const [pendingHints, setPendingHints] = useState<PendingHint[]>([]);
   const [studied, setStudied] = useState<Map<string, StudiedToday>>(new Map());
   const [allParams, setAllParams] = useState<Map<string, DeckParams>>(new Map());
   // While "Read a text with these words" waits for the sync that sends today's answers first.
@@ -338,6 +344,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return q;
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
   const queue = settle ? settle.queue : rebuilt;
+  // While settling, `queue` still holds the card just answered, so a bar worked out from it would move
+  // once on that count and again when the queue is rebuilt. It holds still until the rebuilt queue is in.
+  const progressRef = useRef(0);
+  if (queue && !settle) progressRef.current = sessionProgress(history.length, queue.due.length + queue.fresh.length);
   useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
@@ -441,7 +451,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
   const phoneSpeech = usePhoneSpeech(repo);
-  useEffect(() => () => { player.current?.remove(); player.current = null; Speech.stop(); }, []);
+  const untrackPlayer = useRef<(() => void) | null>(null);
+  useEffect(() => () => { untrackPlayer.current?.(); untrackPlayer.current = null; player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
   /**
    * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
@@ -469,7 +480,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
         // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
-        player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+        if (!player.current) {
+          player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
+          untrackPlayer.current = trackPlayer(player.current);
+        }
         player.current.replace({ uri });
         player.current.play();
         return;
@@ -697,8 +711,24 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               // The answer stands; the tag just isn't added.
             }
           }
+          // A leech that has recovered (every card of the note a mature review) loses its tag. Read
+          // from the saved cards, not `pool`, which may hold only part of the note's cards.
+          if (!preview && !isLeech && rating > 1 && isLeechNote(noteBefore) && updated.sched.state === 2) {
+            try {
+              const all = await repo.listCards();
+              if (leechRecovered(noteBefore, all.filter((c) => c.noteId === noteBefore.id))) {
+                // The note as it is now, so an edit made since the answer isn't written back over.
+                const latest = (await repo.getNote(noteBefore.id)) ?? noteBefore;
+                const cleared = await saveNote(repo as NoteStore, { id: latest.id, deck: latest.deck, model: latest.model, fields: latest.fields, tags: withoutLeechTag(latest.tags) }, when);
+                record.leechClearedNoteId = latest.id;
+                setNotes((prev) => new Map(prev).set(cleared.id, cleared));
+              }
+            } catch {
+              // The answer stands; the tag just stays.
+            }
+          }
           if (isLeech && canAddMnemonic(noteBefore)) {
-            sheets.request({ key: `leech:${noteBefore.id}`, kind: 'leech', noteId: noteBefore.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) });
+            setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
         } catch (e) {
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
@@ -759,8 +789,19 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           setNotes((prev) => new Map(prev).set(restored.id, restored));
         } catch { /* the tag stays */ }
       }
+      // An answer that let a recovered leech go: the tag comes back with the answer.
+      if (last.leechClearedNoteId) {
+        const c = await repo.getNote(last.leechClearedNoteId);
+        if (c && !isLeechNote(c)) {
+          try {
+            const back = await saveNote(repo as NoteStore, { id: c.id, deck: c.deck, model: c.model, fields: c.fields, tags: [...c.tags, 'leech'] });
+            setNotes((prev) => new Map(prev).set(back.id, back));
+          } catch { /* the tag stays off */ }
+        }
+      }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
+      setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
       setHistory((h) => h.slice(0, -1));
       forms.undone(last.before.id);
@@ -844,8 +885,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         gloss={htmlToText(sheetNote.fields.Meaning ?? '') || undefined}
         misses={sheet.misses}
         suspended={!!sheet.suspendedCardId}
+        step={sheet.step}
         suggest={suggestHints && question ? () => suggestHints(question) : undefined}
-        onSkip={() => sheets.close(sheet.key)}
+        onSkip={() => { setPendingHints((list) => removePendingHint(list, sheet.noteId)); sheets.close(sheet.key); }}
+        onSkipRest={() => {
+          // The ones still waiting are dropped from the queue, then this one is closed.
+          for (const p of pendingHints) sheets.close(`leech:${p.noteId}`);
+          setPendingHints([]);
+        }}
         onSave={async (hint) => {
           // The card as it is now, captured before the awaits: still suspended, or nothing to bring back.
           const suspended = cards?.find((c) => c.id === sheet.suspendedCardId && c.suspended);
@@ -863,6 +910,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             setCards((prev) => prev && prev.map((c) => (c.id === card.id ? card : c)));
             setNow(when);
           }
+          setPendingHints((list) => removePendingHint(list, sheet.noteId));
           sheets.close(sheet.key);
           if (cardError) {
             Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
@@ -970,6 +1018,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const mixing = sessionMisses.practice.length;
     // What can be done with the session just finished: rows in the list, so the footer stays two buttons.
     const steps: NextStep[] = [
+      ...(pendingHints.length ? [{
+        key: 'hints', label: 'Write hints for cards you keep missing', detail: pendingHints.length === 1 ? '1 card' : `${pendingHints.length} cards`, icon: { name: 'lightbulb' as const, color: c.accent },
+        onPress: () => pendingHints.forEach((p, i) => sheets.request({ key: `leech:${p.noteId}`, kind: 'leech', noteId: p.noteId, misses: p.misses, ...(p.suspendedCardId ? { suspendedCardId: p.suspendedCardId } : {}), step: { n: i + 1, of: pendingHints.length } })),
+      }] : []),
       ...sessionMisses.practice.map((p) => ({
         key: `${p.request.mode}|${p.request.language}`, label: p.label, icon: { name: 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMixups?.(p.request),
       })),
@@ -1108,7 +1160,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           // After a skill card's drill, the rating it suggests is outlined and the others quieter; the tap is still the learner's.
           restOpacity={skill.suggested && skill.suggested !== b.r ? 0.55 : 1}
           style={{
-            flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
+            flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
             ...(skill.suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
@@ -1148,18 +1200,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {typeItWord ? <ListeningNote spoken={spoken} language={rendered?.speechLang ? languageName(rendered.speechLang.split('-')[0]) : 'the word'} /> : null}
       {typeItWord && !typing ? (
-        <View style={{ flexDirection: 'row', gap: space.s }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <TypeItButton onPress={() => setTyping(true)} />
           <SpeakButton spoken={spoken} />
-          <Button label="Show answer" onPress={reveal} style={{ flex: 1 }} />
+          <Button label="Show answer" onPress={reveal} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : typeItWord ? (
-        <View style={{ flexDirection: 'row', gap: space.s }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <SpeakButton spoken={spoken} />
-          <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1 }} />
+          <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : (
-        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} />
+        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} style={{ minHeight: FOOTER_BUTTON_HEIGHT }} />
       )}
     </>
   );
@@ -1354,7 +1406,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
         </View>
       ) : null}
-      {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
+      {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
       {drill && skill.question ? (
         <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
@@ -1385,7 +1437,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
-            <Reveal key={showing} rise={6} duration={140} style={{ gap: space.xl }}>
+            <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}

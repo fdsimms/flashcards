@@ -58,6 +58,8 @@ export interface AnswerRecord {
   buried: Card[];
   /** The note the answer tagged as a leech: undo takes the tag back off, leaving anything edited since (a hint). */
   leechNoteId?: string;
+  /** The note whose leech tag the answer took off (`leechRecovered`): undo puts it back. */
+  leechClearedNoteId?: string;
   /** An answer in a filtered deck that only previews. */
   preview?: boolean;
   /** What the answer used of today's limits (`answerCounts`), worked out once, so undo takes back the same. */

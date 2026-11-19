@@ -104,7 +104,9 @@ export function Today(props: {
   ready?: boolean;
   /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
   studied?: StudiedToday;
-  /** Today's extras (DailyExtras.tsx), under the day's count. */
+  /** Crams due soon (CramCards), under the day's count: they have a date. */
+  crams?: React.ReactNode;
+  /** Today's extras (DailyExtras.tsx), under the decks. */
   extrasStrip?: React.ReactNode;
   /** When the last backup was made, and whether another is due (`backupStatus`); warned about only when overdue, and not while sync is on. */
   backup?: { text: string; overdue: boolean };
@@ -178,7 +180,7 @@ export function Today(props: {
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           <NewWordsCards />
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
-          {props.extrasStrip}
+          {props.crams}
           {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (
             groups.map((g) => (
               <Group key={g[0].deck}>
@@ -200,6 +202,7 @@ export function Today(props: {
             ))
           )}
           {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
+          {props.extrasStrip}
         </Reveal>
       </ScrollView>
       )}

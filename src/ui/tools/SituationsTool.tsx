@@ -18,6 +18,7 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { useTrackedPlayer } from '../useSoundingButton';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
@@ -275,6 +276,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const asking = useRef(0);
   const saying = useRef(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
+  useTrackedPlayer(player);
   const phone = usePhoneSpeech(repo);
   useEffect(() => () => { asking.current++; saying.current++; phone.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Their line, aloud: Azure's recording when one was made (the setting is on), else the phone's voice
