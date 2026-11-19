@@ -7,16 +7,15 @@ import type { CalendarDate, DateParts, DateSaying } from '../../tools/date';
 import { acceptedForms, dateOptions, quizCalendarStart, sameDate, type DateMode, type DateOption } from '../../tools/dateQuiz';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Card, Field, Icon, Tappable } from '../kit';
-import { Reveal } from '../motion';
+import { Field, Icon, Tappable } from '../kit';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
-import { dateLabel } from './CalendarMonth';
-import { ChipChoice, PlayButton, RuleLine, Status, Ways, type ToolActions } from './ToolScreen';
+import { CalendarMonth, dateLabel, dateWords } from './CalendarMonth';
+import { RuleLine, Status, Ways } from './ToolScreen';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
- * date. `useDateQuiz` holds what each one needs and gives the footer's buttons; the parts below
- * draw them. Nothing is scheduled: a new date or a new setting starts the question over, and the
+ * date. `useDateQuiz` holds what each one needs; the parts below draw them in the card (PracticeCard.tsx)
+ * and its footer. Nothing is scheduled: a new date or a new setting starts the question over, and the
  * first answer to each question (or asking for the answer) is passed to `onResult`, which only leans
  * what comes up next (useMarks). A miss shows the rule behind the answer (`rule`, rules.ts) where
  * there's one.
@@ -35,18 +34,20 @@ export function today(): CalendarDate {
 }
 
 export interface DateQuiz {
-  /** The footer's buttons, or none while the answer is said aloud. */
-  actions?: ToolActions;
   typed: string;
   setTyped: (text: string) => void;
   checked: Check | null;
   check: () => void;
+  /** Try again: unchecked, still marked. */
+  retry: () => void;
   options: DateOption[];
   correct: number;
   picked: number | null;
   choose: (index: number) => void;
   /** Whether the answer was asked for rather than given (Show answer). */
   revealed: boolean;
+  /** Show answer, in Pick and Tap date: counts as missed. */
+  reveal: () => void;
   /** Tap the date: the month in view, the day tapped. */
   view: CalendarDate;
   setView: (d: CalendarDate) => void;
@@ -119,39 +120,27 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
     speak(saying.everyday);
   };
 
-  const randomize = { label: 'Another one', onPress: next };
-  const showAnswer = { label: 'Show answer', onPress: reveal };
-  let actions: ToolActions | undefined;
-  if (mode === 'type') {
-    actions = checked
-      ? { secondary: { label: 'Try again', onPress: () => setChecked(null) }, primary: { label: 'Next', onPress: next } }
-      : { secondary: randomize, primary: { label: 'Check', onPress: check, disabled: !typed.trim() } };
-  } else if (mode === 'pick') {
-    actions = picked !== null || revealed ? { primary: { label: 'Next', onPress: next } } : { secondary: randomize, primary: showAnswer };
-  } else if (mode === 'tap') {
-    actions = tapped || revealed ? { primary: { label: 'Next', onPress: next } } : { secondary: randomize, primary: showAnswer };
-  }
-
-  return { actions, typed, setTyped, checked, check, options, correct, picked, choose, revealed, view, setView, tapped, tap };
+  return { typed, setTyped, checked, check, retry: () => setChecked(null), options, correct, picked, choose, revealed, reveal, view, setView, tapped, tap };
 }
 
-const MODES: { value: DateMode; label: string }[] = [
-  { value: 'say', label: 'Say it' },
-  { value: 'pick', label: 'Pick' },
-  { value: 'type', label: 'Type' },
-  { value: 'tap', label: 'Tap date' },
-];
-
-/** How the date is answered. */
-export function ModeChips({ mode, onChange }: { mode: DateMode; onChange: (m: DateMode) => void }) {
-  return <ChipChoice label="Answer by" options={MODES} value={mode} onChange={onChange} />;
+/** The date as the question when it's shown as text: the weekday (or "Date"), the day and month, and the year when it's said. */
+export function DateFront({ date, parts }: { date: CalendarDate; parts: DateParts }) {
+  const c = useTheme();
+  const words = dateWords(date);
+  return (
+    <View style={{ alignItems: 'center', gap: space.xs }}>
+      <Text style={{ ...type.overline, color: c.textSecondary }}>{parts.weekday ? words.weekday : 'Date'}</Text>
+      <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 44, color: c.text, textAlign: 'center' }}>{`${words.month} ${date.day}`}</Text>
+      {parts.year ? <Text style={{ ...type.title, fontWeight: '400', color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{date.year}</Text> : null}
+    </View>
+  );
 }
 
 /** Text with the marked stretches in color and underlined. */
 function Marked({ segments, color }: { segments: Segment[]; color: string }) {
   const c = useTheme();
   return (
-    <Text selectable style={{ ...type.body, lineHeight: 30, color: c.text }}>
+    <Text selectable style={{ ...type.body, lineHeight: 30, color: c.text, textAlign: 'center' }}>
       {segments.map((s, i) => (s.marked
         ? <Text key={i} style={{ color, fontWeight: '700', textDecorationLine: 'underline' }}>{s.text}</Text>
         : <Text key={i}>{s.text}</Text>))}
@@ -162,21 +151,15 @@ function Marked({ segments, color }: { segments: Segment[]; color: string }) {
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   const c = useTheme();
   return (
-    <View style={{ gap: space.xs }}>
+    <View style={{ gap: space.xs, alignItems: 'center' }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
       {children}
     </View>
   );
 }
 
-/** Type it: the field, then, once checked, what was right and what to fix. */
-export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
-  quiz: DateQuiz;
-  saying: DateSaying | undefined;
-  language: Language;
-  rule: string | undefined;
-  onPlay: (p: Phrase) => void;
-}) {
+/** Type it: the field, in the card under the date. */
+export function TypeField({ quiz, language }: { quiz: DateQuiz; language: Language }) {
   const c = useTheme();
   const input = useRef<TextInputInstance>(null);
   const { checked } = quiz;
@@ -185,7 +168,7 @@ export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
   // Focused when the question comes up and again after Try again, so the keyboard is already there.
   useEffect(() => { if (!checked) input.current?.focus(); }, [checked]);
   return (
-    <View style={{ gap: space.m }}>
+    <View style={{ gap: space.m, width: '100%' }}>
       <Field
         ref={input}
         keyboardLanguage={LANGUAGES[language].speech}
@@ -201,35 +184,7 @@ export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
         returnKeyType="done"
         error={!!checked && checked.verdict !== 'exact'}
       />
-      {checked && saying ? (
-        <Reveal>
-          <Card>
-            {checked.verdict === 'exact' ? (
-              <Status tone="good">Right.</Status>
-            ) : checked.verdict === 'close' ? (
-              <Status tone="warn">{`Close. ${checked.differing} ${checked.differing === 1 ? 'letter differs' : 'letters differ'}.`}</Status>
-            ) : (
-              <Status tone="bad">Not quite. The letters that differ are marked.</Status>
-            )}
-            {checked.verdict !== 'exact' && checked.typed.length ? (
-              <Block title="Your answer"><Marked segments={checked.typed} color={c.danger} /></Block>
-            ) : null}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-              <View style={{ flex: 1, gap: space.xs }}>
-                {checked.verdict === 'exact' ? <Marked segments={checked.correct} color={c.countDue} /> : (
-                  <Block title="Correct"><Marked segments={checked.correct} color={c.countDue} /></Block>
-                )}
-                {checked.expected.roman || checked.expected.note ? (
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{[checked.expected.roman, checked.expected.note].filter(Boolean).join(' · ')}</Text>
-                ) : null}
-              </View>
-              <PlayButton label="Play the answer" onPress={() => onPlay(checked.expected)} />
-            </View>
-            {checked.verdict !== 'exact' && rule ? <RuleLine rule={rule} /> : null}
-            <Ways title="Also accepted" phrases={acceptedForms(saying).filter((p) => p.text !== checked.expected.text)} onPlay={onPlay} />
-          </Card>
-        </Reveal>
-      ) : (
+      {checked ? null : (
         <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>
           {`Spaces and punctuation don't matter. ${kana ? 'Type it in kana.' : 'Write the numbers as words.'}`}
         </Text>
@@ -238,91 +193,140 @@ export function TypeAnswer({ quiz, saying, language, rule, onPlay }: {
   );
 }
 
-/** Pick the phrase: the right one among phrases for nearby dates. A wrong pick says which date it was. */
-export function PickAnswer({ quiz, rule }: { quiz: DateQuiz; rule: string | undefined }) {
+/** Type it, once checked: what was right and what to fix, under the card's divider. */
+export function TypeBack({ quiz, saying, rule, onPlay }: { quiz: DateQuiz; saying: DateSaying | undefined; rule: string | undefined; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
-  const answered = quiz.picked !== null || quiz.revealed;
-  const wrong = quiz.picked !== null && quiz.picked !== quiz.correct ? quiz.options[quiz.picked] : undefined;
+  const { checked } = quiz;
+  if (!checked || !saying) return null;
   return (
     <View style={{ gap: space.m }}>
-      <View style={{ gap: space.s }}>
-        {quiz.options.map((o, i) => {
-          const isRight = answered && i === quiz.correct;
-          const isWrong = quiz.picked === i && i !== quiz.correct;
-          const border = isRight ? c.countDue : isWrong ? c.danger : c.border;
-          return (
-            <Tappable
-              key={o.phrase.text}
-              onPress={() => quiz.choose(i)}
-              disabled={answered}
-              accessibilityRole="button"
-              accessibilityLabel={`${o.phrase.text}${isRight ? ', right' : isWrong ? ', wrong' : ''}`}
-              accessibilityState={{ selected: quiz.picked === i, disabled: answered }}
-              scaleTo={0.99}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, padding: space.m, backgroundColor: c.surface,
-                borderRadius: radius.m, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: border,
-              }}
-            >
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ ...type.body, lineHeight: 26, color: c.text }}>{o.phrase.text}</Text>
-                {answered && o.phrase.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{o.phrase.roman}</Text> : null}
-              </View>
-              {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
-              {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}
-            </Tappable>
-          );
-        })}
+      <View style={{ alignItems: 'center' }}>
+        {checked.verdict === 'exact' ? (
+          <Status tone="good">Right.</Status>
+        ) : checked.verdict === 'close' ? (
+          <Status tone="warn">{`Close. ${checked.differing} ${checked.differing === 1 ? 'letter differs' : 'letters differ'}.`}</Status>
+        ) : (
+          <Status tone="bad">Not quite. The letters that differ are marked.</Status>
+        )}
       </View>
-      {quiz.picked !== null ? (
-        <Reveal>
-          {wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
-        </Reveal>
+      {checked.verdict !== 'exact' && checked.typed.length ? (
+        <Block title="Your answer"><Marked segments={checked.typed} color={c.danger} /></Block>
       ) : null}
-      {(wrong || quiz.revealed) && rule ? <Reveal><RuleLine rule={rule} /></Reveal> : null}
+      <View style={{ gap: space.xs }}>
+        {checked.verdict === 'exact' ? <Marked segments={checked.correct} color={c.countDue} /> : (
+          <Block title="Correct"><Marked segments={checked.correct} color={c.countDue} /></Block>
+        )}
+        {checked.expected.roman || checked.expected.note ? (
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{[checked.expected.roman, checked.expected.note].filter(Boolean).join(' · ')}</Text>
+        ) : null}
+      </View>
+      {checked.verdict !== 'exact' && rule ? <RuleLine rule={rule} /> : null}
+      <Ways title="Also accepted" phrases={acceptedForms(saying).filter((p) => p.text !== checked.expected.text)} onPlay={onPlay} />
     </View>
   );
 }
 
-/** Tap the date: the phrase, to read and hear, which the calendar below is tapped to answer. */
-export function TapQuestion({ quiz, saying, onPlay }: { quiz: DateQuiz; saying: DateSaying | undefined; onPlay: (p: Phrase) => void }) {
+/** Pick the phrase: the right one among phrases for nearby dates, in the footer. The right one is marked once answered. */
+export function PickChoices({ quiz }: { quiz: DateQuiz }) {
+  const c = useTheme();
+  const answered = quiz.picked !== null || quiz.revealed;
+  return (
+    <View style={{ gap: space.s }}>
+      {quiz.options.map((o, i) => {
+        const isRight = answered && i === quiz.correct;
+        const isWrong = quiz.picked === i && i !== quiz.correct;
+        const border = isRight ? c.countDue : isWrong ? c.danger : c.border;
+        return (
+          <Tappable
+            key={o.phrase.text}
+            onPress={() => quiz.choose(i)}
+            disabled={answered}
+            accessibilityRole="button"
+            accessibilityLabel={`${o.phrase.text}${isRight ? ', right' : isWrong ? ', wrong' : ''}`}
+            accessibilityState={{ selected: quiz.picked === i, disabled: answered }}
+            scaleTo={0.98}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s, backgroundColor: isRight ? c.goodFill : isWrong ? c.dangerFill : c.surface,
+              borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: border,
+            }}
+          >
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={{ ...type.body, lineHeight: 26, color: c.text }}>{o.phrase.text}</Text>
+              {answered && o.phrase.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{o.phrase.roman}</Text> : null}
+            </View>
+            {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
+            {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}
+          </Tappable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Pick, once answered: whether it was right (a wrong pick says which date that phrase was), and the rule after a miss. */
+export function PickBack({ quiz, rule }: { quiz: DateQuiz; rule: string | undefined }) {
+  const wrong = quiz.picked !== null && quiz.picked !== quiz.correct ? quiz.options[quiz.picked] : undefined;
+  return (
+    <View style={{ gap: space.m }}>
+      {quiz.picked !== null ? (
+        <View style={{ alignItems: 'center' }}>
+          {wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
+        </View>
+      ) : null}
+      {(wrong || quiz.revealed) && rule ? <RuleLine rule={rule} /> : null}
+    </View>
+  );
+}
+
+/** Tap the date: the phrase, to read and hear, and the month calendar under it that is tapped to answer. */
+export function TapFront({ quiz, saying, date, weekStartsOn }: { quiz: DateQuiz; saying: DateSaying | undefined; date: CalendarDate; weekStartsOn: 0 | 1 }) {
   const c = useTheme();
   if (!saying) return null;
   const answered = !!quiz.tapped || quiz.revealed;
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-        <View style={{ flex: 1, gap: space.xs }}>
-          <Text selectable style={{ ...type.cardBack, color: c.text }}>{saying.everyday.text}</Text>
-          {answered && saying.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{saying.everyday.roman}</Text> : null}
-        </View>
-        <PlayButton label="Play the phrase" onPress={() => onPlay(saying.everyday)} />
+    <View style={{ gap: space.l, width: '100%' }}>
+      <View style={{ gap: space.xs, alignItems: 'center' }}>
+        <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{saying.everyday.text}</Text>
+        {answered && saying.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{saying.everyday.roman}</Text> : null}
       </View>
-    </Card>
+      <CalendarMonth
+        date={quiz.view}
+        weekStartsOn={weekStartsOn}
+        selected={quiz.tapped}
+        onChange={quiz.tap}
+        onNavigate={quiz.setView}
+        right={quiz.tapped || quiz.revealed ? date : undefined}
+        wrong={quiz.tapped && !sameDate(quiz.tapped, date) ? quiz.tapped : undefined}
+        locked={!!quiz.tapped || quiz.revealed}
+      />
+      {answered ? null : <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Move to the right month and tap the date.</Text>}
+    </View>
   );
 }
 
-/** What tapping the date came to. */
-export function TapResult({ quiz, date, rule }: { quiz: DateQuiz; date: CalendarDate; rule: string | undefined }) {
+/** What tapping the date came to, under the card's divider. */
+export function TapBack({ quiz, date, rule }: { quiz: DateQuiz; date: CalendarDate; rule: string | undefined }) {
   const c = useTheme();
   if (quiz.tapped) {
     const right = sameDate(quiz.tapped, date);
     return (
-      <Reveal style={{ gap: space.m }}>
-        {right
-          ? <Status tone="good">Right.</Status>
-          : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
+      <View style={{ gap: space.m }}>
+        <View style={{ alignItems: 'center' }}>
+          {right
+            ? <Status tone="good">Right.</Status>
+            : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
+        </View>
         {!right && rule ? <RuleLine rule={rule} /> : null}
-      </Reveal>
+      </View>
     );
   }
   if (quiz.revealed) {
     return (
       <View style={{ gap: space.m }}>
-        <Text style={{ ...type.subhead, color: c.textSecondary, paddingHorizontal: space.xs }}>{`That's ${dateLabel(date)}.`}</Text>
+        <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`That's ${dateLabel(date)}.`}</Text>
         {rule ? <RuleLine rule={rule} /> : null}
       </View>
     );
   }
-  return <Text style={{ ...type.footnote, color: c.textSecondary, paddingHorizontal: space.xs }}>Move to the right month and tap the date.</Text>;
+  return null;
 }
