@@ -1,5 +1,7 @@
 import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
+import { headword } from '../core/forms';
+import type { Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { Phrase } from './phrase';
@@ -9,7 +11,7 @@ import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
-import { CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
+import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
  * Skill cards' drills: a skill with endless questions (any time, any number) as a ladder of steps,
@@ -168,9 +170,95 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
  * right is Good, one miss Hard, more Again. Only a suggestion: the learner taps the rating, and
  * Easy is theirs to choose.
  */
-export function suggestedRating(results: readonly boolean[]): 1 | 2 | 3 {
+export function suggestedRating(results: readonly boolean[], thinkMs: readonly number[] = [], group?: DrillGroup): 1 | 2 | 3 {
   const missed = results.filter((r) => !r).length;
-  return missed === 0 ? 3 : missed === 1 ? 2 : 1;
+  if (missed) return missed === 1 ? 2 : 1;
+  return group && isSlow(thinkMs, group) ? 2 : 3;
+}
+
+/**
+ * How long answering may take, per question, before an all-right drill counts as slow: telling the
+ * time or a price is about speed as much as being right, so a right answer worked out slowly is Hard.
+ * The time is from the question coming up to Show answer, or to the end of speaking it.
+ */
+export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000 };
+
+/** The middle of the times taken: one long pause (a distraction) doesn't make a drill slow. */
+export function medianMs(times: readonly number[]): number | undefined {
+  if (!times.length) return undefined;
+  const sorted = [...times].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+export function isSlow(times: readonly number[], group: DrillGroup): boolean {
+  const m = medianMs(times);
+  return m !== undefined && m > SLOW_MS[group];
+}
+
+// ==== Answering aloud ====
+
+const squeezed = (s: string) => s.normalize('NFC').toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
+
+/** The digits a question can be said back as by the phone's recognizer, which often writes numbers as digits ("1350", "14 45"). None for a date. */
+function questionDigits(q: DrillQuestion): string[] {
+  switch (q.kind) {
+    case 'time': {
+      const h12 = q.time.hour % 12 || 12;
+      const mm = String(q.time.minute).padStart(2, '0');
+      return [`${q.time.hour}${mm}`, `${h12}${mm}`, ...(q.time.minute ? [] : [String(q.time.hour), String(h12)])];
+    }
+    case 'number': return q.question.kind === 'phone' ? [q.question.written.replace(/\D/g, '')] : [String(q.question.n)];
+    case 'money': {
+      const major = Math.floor(q.amount / 100);
+      const minor = q.amount % 100;
+      return minor ? [`${major}${String(minor).padStart(2, '0')}`] : [String(major), `${major}00`];
+    }
+    case 'date': return [];
+  }
+}
+
+/**
+ * Whether what the phone heard is the answer: any accepted way of saying it, with spaces and
+ * punctuation ignored, or the question's own digits when the recognizer wrote the number out as
+ * digits. Only a suggestion for the drill's own mark; the learner still taps Missed it or Got it.
+ */
+export function heardRight(q: DrillQuestion, heard: string, language: Language): boolean {
+  const said = squeezed(heard);
+  if (!said) return false;
+  const answer = drillAnswer(q, language);
+  const ways = answer ? [answer.everyday, ...answer.also, ...(answer.last ? [answer.last.phrase] : [])] : [];
+  if (ways.some((p) => squeezed(p.text) === said)) return true;
+  const digits = heard.replace(/\D/g, '');
+  return !!digits && digits === heard.replace(/[^\d\p{L}]/gu, '') && questionDigits(q).includes(digits);
+}
+
+// ==== Waiting for vocabulary ====
+
+/** The words for a hundred and a thousand, which the hundreds and thousands steps can't be said without. */
+const HUNDRED_THOUSAND: Partial<Record<Language, [string, string]>> = {
+  th: ['ร้อย', 'พัน'], pl: ['sto', 'tysiąc'], ru: ['сто', 'тысяча'], de: ['hundert', 'tausend'], es: ['cien', 'mil'],
+  fr: ['cent', 'mille'], el: ['εκατό', 'χίλια'], nb: ['hundre', 'tusen'], ja: ['百', '千'],
+};
+
+/** The words a drill step waits for in the deck, besides the step before it settling. */
+export function stepWords(stepId: string, language: Language): string[] {
+  const ht = HUNDRED_THOUSAND[language];
+  if (ht && (stepId === 'numbers-999' || stepId === 'money-1000')) return [ht[0]];
+  if (ht && (stepId === 'numbers-big' || stepId === 'money-10000')) return [ht[1]];
+  if (language === 'pl' && stepId === 'time-quarters') return ['kwadrans'];
+  return [];
+}
+
+/**
+ * The words of `words` the deck hasn't got, studied: a word counts when a studied note's headword
+ * is it, or has it as a word of its own ("sto" in "sto, setka"). Thai and Japanese aren't written with
+ * spaces, so there it has to be the whole headword.
+ */
+export function missingWords(words: readonly string[], studied: readonly string[]): string[] {
+  const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
+  const known = new Set(studied.flatMap((t) => [norm(t), ...norm(t).split(/[^\p{L}\p{N}]+/u)]).filter(Boolean));
+  return words.filter((w) => !known.has(norm(w)));
 }
 
 // ==== Skill cards in the collection ====
@@ -186,7 +274,10 @@ export const SKILL_TAG = 'skill';
 export const SKILL_NOTE_TYPE = 'Basic';
 export const SKILLS_SUBDECK = 'Skills';
 
-export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases';
+export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
+
+/** The languages that count with a classifier or counter, and what it's called. */
+const CLASSIFIER_NAMES: Partial<Record<Language, { one: string; title: string }>> = { th: { one: 'classifier', title: 'Classifiers' }, ja: { one: 'counter', title: 'Counters' } };
 
 export interface SkillGroupInfo {
   id: SkillGroup;
@@ -216,6 +307,9 @@ export function skillGroups(language: Language): SkillGroupInfo[] {
     out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
     out.push({ id: 'vowels', title: 'Vowel length', detail: `${VOWELS.length} cards, one per vowel`, count: VOWELS.length });
   }
+  const counting = COUNTING[language];
+  const cls = CLASSIFIER_NAMES[language];
+  if (counting && cls) out.push({ id: 'classifiers', title: cls.title, detail: `${counting.nouns.length} cards, one per noun, asking its ${cls.one}`, count: counting.nouns.length });
   const cases = CASE_LANGUAGES[language];
   if (cases) out.push({ id: 'cases', title: 'Which case', detail: `${cases.governors.length} cards, one per preposition or verb`, count: cases.governors.length });
   return out;
@@ -262,6 +356,24 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
           suspended: false,
         });
       }
+      continue;
+    }
+    if (group === 'classifiers') {
+      const counting = COUNTING[language];
+      const cls = CLASSIFIER_NAMES[language];
+      if (!counting || !cls) continue;
+      counting.nouns.forEach((noun, i) => {
+        const said = counting.say(i, 3).everyday;
+        const rule = counting.rule(i, 3);
+        drafts.push({
+          fields: {
+            Front: `<div style="font-size:40px">${esc(noun.cue.text)}</div>${noun.cue.roman ? `<div>${esc(noun.cue.roman)}</div>` : ''}<div>${esc(noun.meaning)}</div><div>Which ${cls.one}? Say three of them.</div>`,
+            Back: `<div><b>${esc(said.text)}</b></div>${said.roman ? `<div>${esc(said.roman)}</div>` : ''}${rule ? `<div>${esc(rule)}</div>` : ''}`,
+          },
+          tags: [SKILL_TAG, `${SKILL_TAG}::classifiers`, lang],
+          suspended: false,
+        });
+      });
       continue;
     }
     if (group === 'cases') {
@@ -312,13 +424,15 @@ export interface SkillCardState {
   suspended: boolean;
   /** Started and scheduled a week or more out (the progress gate's line, src/core/progress.ts). */
   settled: boolean;
+  /** The words its step waits for that the deck hasn't got yet (`stepWords`, `missingWords`). */
+  missing?: readonly string[];
 }
 
-/** The suspended cards to release: those whose step before, in the same language, has settled. */
+/** The suspended cards to release: those whose step before, in the same language, has settled, and whose words the deck has. */
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
   return cards.filter((c) => {
-    if (!c.suspended) return false;
+    if (!c.suspended || c.missing?.length) return false;
     const after = drillStep(c.stepId)?.after;
     return !!after && settled.has(`${c.language}|${after}`);
   }).map((c) => c.id);
@@ -338,6 +452,8 @@ export interface SkillCardInfo {
   dueInDays: number;
   /** FSRS's chance of recall now, in percent; undefined before its first review. */
   percent?: number;
+  /** The words its step still waits for in the deck. */
+  missing?: readonly string[];
 }
 
 export interface SkillRow { title: string; detail: string; meter?: number; locked: boolean }
@@ -353,6 +469,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
       const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
       if (!card) return [];
       const before = step.after ? drillStep(step.after)?.title : undefined;
+      if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Waiting for ${card.missing.join(', ')} in your deck`, locked: true }];
       if (card.suspended) return [{ title: step.title, detail: before ? `Comes in after ${before.charAt(0).toLowerCase() + before.slice(1)} settles` : 'Suspended', locked: true }];
       if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
       return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
@@ -362,6 +479,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sets: { section: string; tag: string; title: string }[] = [
     { section: 'Letters', tag: 'consonants', title: 'Consonant classes' },
     { section: 'Letters', tag: 'vowels', title: 'Vowel length' },
+    { section: 'Grammar', tag: 'classifiers', title: 'Classifiers and counters' },
     { section: 'Grammar', tag: 'cases', title: 'Which case' },
   ];
   for (const set of sets) {
@@ -374,4 +492,34 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
     if (into) into.rows.push(row); else sections.push({ title: set.section, rows: [row] });
   }
   return sections;
+}
+
+/** Whether to offer skill cards at the end of a session in `deck`: its language has some, and the deck has none yet. The language's name, or undefined. */
+export function skillOffer(deck: string, notes: Iterable<{ deck: string; tags: readonly string[] }>): string | undefined {
+  const found = languageOfDeck(deck);
+  if (!found || !skillGroups(found.language).length) return undefined;
+  for (const n of notes) if (n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))) return undefined;
+  return found.name;
+}
+
+/** The headwords of the notes studied (a card past new), skill cards left out: what `missingWords` checks a step's words against. */
+export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): string[] {
+  const started = new Set<string>();
+  for (const c of cards) if (c.sched.state !== 0 && !c.retired) started.add(c.noteId);
+  const out: string[] = [];
+  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG)) out.push(headword(n));
+  return out;
+}
+
+/** What each skill card's step still waits for, by card id, given the deck's studied headwords. */
+export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: readonly string[]): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const c of cards) {
+    const n = notes.get(c.noteId);
+    const drill = n && drillOfTags(n.tags);
+    if (!drill) continue;
+    const missing = missingWords(stepWords(drill.step.id, drill.language), studied);
+    if (missing.length) out.set(c.id, missing);
+  }
+  return out;
 }

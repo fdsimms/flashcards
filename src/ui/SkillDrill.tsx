@@ -3,14 +3,16 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drawQuestion, drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drawQuestion, drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
 import { haptic } from './haptics';
+import { ListeningNote, SpeakButton } from './SpeakButton';
+import { useSpokenAnswer } from './useSpokenAnswer';
 import { Button, Icon, Tappable } from './kit';
 import { Reveal } from './motion';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { ClockFace } from './tools/ClockFace';
-import { AnswerContent } from './tools/ToolScreen';
+import { AnswerContent, Status } from './tools/ToolScreen';
 
 /**
  * A skill card's drill in Review (src/tools/skills.ts): a few questions from its step, each shown,
@@ -25,29 +27,52 @@ export interface Drill { step: DrillStep; language: Language }
 /** The chip's symbol for each kind of drill. */
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
 
-interface DrillState { key: string; question: DrillQuestion; shown: boolean; results: boolean[] }
+interface DrillState {
+  key: string;
+  question: DrillQuestion;
+  shown: boolean;
+  results: boolean[];
+  /** When the question came up, and how long each answer took to give (to Show answer, or to the end of speaking it). */
+  askedAt: number;
+  times: number[];
+  /** What the phone heard, when the answer was said aloud, and whether it's the answer. */
+  heard?: { text: string; right: boolean };
+}
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
 export function useSkillDrill(showing: string | undefined, drill: Drill | undefined) {
-  const first = useMemo(() => (drill && showing ? drawQuestion(drill.step, undefined, Math.random, drill.language) : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const first = useMemo(() => (drill && showing ? { question: drawQuestion(drill.step, undefined, Math.random, drill.language), at: Date.now() } : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
-  const live = state && state.key === showing ? state : first && showing ? { key: showing, question: first, shown: false, results: [] } : null;
+  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, shown: false, results: [], askedAt: first.at, times: [] } : null;
   const done = !!live && live.results.length >= DRILL_QUESTIONS;
+  const reveal = (heard?: string) => {
+    if (!live || live.shown || !drill) return;
+    setState({
+      ...live, shown: true, times: [...live.times, Date.now() - live.askedAt],
+      heard: heard === undefined ? undefined : { text: heard, right: heardRight(live.question, heard, drill.language) },
+    });
+  };
   return {
     drill,
     question: live?.question,
     shown: !!live?.shown,
+    heard: live?.heard,
     results: live?.results ?? [],
     done,
+    /** Right throughout but slow (`SLOW_MS`): the reason Hard is outlined. */
+    slow: !!drill && done && isSlow(live!.times, drill.step.group),
+    seconds: live ? Math.round((medianMs(live.times) ?? 0) / 1000) : 0,
     /** The rating to outline once the drill is done. */
-    suggested: drill && done ? suggestedRating(live!.results) : undefined,
-    show: () => { if (live && !live.shown) setState({ ...live, shown: true }); },
+    suggested: drill && done ? suggestedRating(live!.results, live!.times, drill.step.group) : undefined,
+    show: () => reveal(),
+    /** The answer said aloud: it's shown, with what was heard and whether that's it. */
+    heardAnswer: (text: string) => reveal(text),
     /** Marks the question; true when it was the last. */
     mark: (right: boolean): boolean => {
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
-      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question, Math.random, drill.language), shown: false, results });
+      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question, Math.random, drill.language), shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
     },
   };
@@ -86,7 +111,9 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${DRILL_QUESTIONS}`}</Text>
           <Dots results={skill.results} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {skill.suggested === 3 ? 'All right. Good is outlined.' : skill.suggested === 2 ? 'One miss. Hard is outlined.' : 'More than one miss. Again is outlined.'}
+            {skill.suggested === 3 ? 'All right. Good is outlined.'
+              : skill.suggested === 2 && skill.slow ? `All right, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
+                : skill.suggested === 2 ? 'One miss. Hard is outlined.' : 'More than one miss. Again is outlined.'}
             {'\n'}Tap the rating that fits.
           </Text>
         </Reveal>
@@ -98,6 +125,12 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           {answer ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
               <View style={{ height: 1, backgroundColor: c.textTertiary, opacity: 0.6 }} />
+              {skill.heard ? (
+                <View style={{ alignItems: 'center', gap: space.xs }}>
+                  <Status tone={skill.heard.right ? 'good' : 'bad'}>{skill.heard.right ? 'Right.' : 'Not quite.'}</Status>
+                  <Text accessibilityLanguage={LANGUAGES[drill.language].speech} style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`Heard: ${skill.heard.text || 'nothing'}`}</Text>
+                </View>
+              ) : null}
               <AnswerContent centered answer={answer} onPlay={() => undefined} />
             </View>
           ) : null}
@@ -111,33 +144,49 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
 export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrillState; onFinished: () => void; say: (text: string, speech: string) => void }) {
   const c = useTheme();
   const { drill, question } = skill;
+  const speech = drill ? LANGUAGES[drill.language].speech : undefined;
+  const answer = drill && question ? drillAnswer(question, drill.language) : undefined;
+  // Answer by speaking (Settings, Speaking): what's heard is checked against every way of saying it, and the answer shown.
+  const spoken = useSpokenAnswer(speech, {
+    expected: answer ? [answer.everyday.text, ...answer.also.map((p) => p.text)] : undefined,
+    onHeard: (text, final) => { if (final) skill.heardAnswer(text); },
+  });
   if (!drill || !question) return null;
   if (!skill.shown) {
     return (
-      <Button
-        label="Show answer"
-        onPress={() => {
-          skill.show();
-          const answer = drillAnswer(question, drill.language);
-          if (answer) say(answer.everyday.text, LANGUAGES[drill.language].speech);
-        }}
-      />
+      <View style={{ gap: space.s }}>
+        <View style={{ flexDirection: 'row', gap: space.s }}>
+          <SpeakButton spoken={spoken} label="Say the answer" />
+          <Button
+            label="Show answer"
+            style={{ flex: 1 }}
+            onPress={() => {
+              spoken.cancel();
+              skill.show();
+              if (answer && speech) say(answer.everyday.text, speech);
+            }}
+          />
+        </View>
+        <ListeningNote spoken={spoken} language={LANGUAGES[drill.language].name} />
+      </View>
     );
   }
+  // After a spoken answer, the mark it suggests is filled in its color's quiet tint.
+  const hint = skill.heard ? skill.heard.right : undefined;
   const mark = (right: boolean) => {
     haptic.select();
     if (skill.mark(right)) onFinished();
   };
   return (
     <View style={{ flexDirection: 'row', gap: space.s }}>
-      {[{ right: false, label: 'Missed it', edge: c.again }, { right: true, label: 'Got it', edge: c.good }].map((b) => (
+      {[{ right: false, label: 'Missed it', edge: c.again, fill: c.dangerFill }, { right: true, label: 'Got it', edge: c.good, fill: c.goodFill }].map((b) => (
         <Tappable
           key={b.label}
           onPress={() => mark(b.right)}
           accessibilityRole="button"
           accessibilityLabel={b.label}
           scaleTo={0.96}
-          style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: b.edge, backgroundColor: c.surface }}
+          style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, alignItems: 'center', justifyContent: 'center', borderWidth: hint === b.right ? 3 : 1.5, borderColor: b.edge, backgroundColor: hint === b.right ? b.fill : c.surface }}
         >
           <Text style={{ ...type.headline, color: c.text }}>{b.label}</Text>
         </Tappable>

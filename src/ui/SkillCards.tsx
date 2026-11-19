@@ -7,7 +7,7 @@ import { failureText } from '../core/failure';
 import { retrievability } from '../core/order';
 import { isInProgress } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
-import { DRILL_STEPS, languageOfDeck, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillGroup, type SkillSection } from '../tools/skills';
+import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedHeadwords, SKILLS_SUBDECK, skillGroups, skillSections, type SkillGroup, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
@@ -37,6 +37,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       const now = new Date();
       const H = settings.dayStartsAtHour;
       const today = studyDayStart(now, H).getTime();
+      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedHeadwords(notes, cards));
       const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
       const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
         const n = skillNotes.get(cd.noteId)!;
@@ -45,6 +46,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
           tags: n.tags, suspended: !!cd.suspended, started: cd.sched.state !== 0, settled: cd.sched.state !== 0 && !isInProgress(cd),
           dueInDays: Math.round((studyDayStart(new Date(cd.sched.due), H).getTime() - today) / 86_400_000),
           percent: r === undefined ? undefined : Math.round(r * 100),
+          missing: missing.get(cd.id),
         };
       });
       if (live) setSections(skillSections(info));
