@@ -31,6 +31,7 @@ import { LineExplanation } from './ReaderExplain';
 import { RegisterChip } from './ReaderNatural';
 import { ReadWordTitle } from './ReadWordTitle';
 import { ReadGlossLine } from './ReadWordTips';
+import { LoopTextIcon, RepeatLineIcon, StartOverIcon } from './PlayerIcons';
 import { ReaderJumpToLine } from './ReaderJumpToLine';
 import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
 import { ReadChoices } from './ReadChoices';
@@ -95,7 +96,8 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  * story, kept in prefs) turns it off for a row per line, as for every other text.
  *
  * Audio (useLinePlayback.ts): one player is reused for every line. Play runs the text from the current line to the end
- * (`nextLine`); a line's replay button plays that line alone. Speed is Slow or Normal, and
+ * (`nextLine`), and round again from the first line with Loop text on (only its first pass counts as the
+ * text played through); Start over plays from the first line; a line's replay button plays that line alone. Speed is Slow or Normal, and
  * Slow is its own recording spoken slowly by Azure (`startLine`), not the player stretching the
  * normal one. The audio session stays active between
  * lines (`keepAudioSessionActive`), or iOS can suspend the app in the gap with the screen locked,
@@ -221,17 +223,18 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   useEffect(() => () => { mounted.current = false; }, []);
 
   // The audio, line by line (useLinePlayback.ts): this screen counts what's heard and moves on.
-  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, reset: resetPlayback } = useLinePlayback({
+  const { player, status, sounding, current, shaded, rate, slowOffered, repeat, played, loopText, silentLine, self, spoken, playLine, skip, togglePlay, changeRate, cycleRepeat, toggleLoop, startOver, reset: resetPlayback } = useLinePlayback({
     api,
     playerHost,
     text,
     onPlay: (r) => setSession((s) => (s ? heard(s, r) : s)),
     onLineHeard: (line) => markHeard(line),
-    onPlayedThrough: () => {
+    onPlayedThrough: (looping) => {
       if (!text) return;
-      // Play all: the whole text has played, so it counts as read; on to the next one.
+      // Play all: the whole text has played, so it counts as read; on to the next one, unless Loop text
+      // is on (it goes round this text again, and only that first pass reaches here).
       // An episode that ends on a choice holds Play all, so the choice isn't skipped past.
-      if (source.kind === 'shelf' && source.playAll && !listenOnly && !holdsPlayAll(text, review)) playNext();
+      if (!looping && source.kind === 'shelf' && source.playAll && !listenOnly && !holdsPlayAll(text, review)) playNext();
       // A past text played through with its words hidden counts as heard again.
       if (review && listenOnly) heardThrough();
     },
@@ -661,7 +664,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <>
           {hasAudio ? (
             <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
-              rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat}
+              rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} loopText={loopText} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat} onLoop={toggleLoop} onStartOver={startOver}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
         </>
@@ -1280,7 +1283,7 @@ export function GlossPopover({ tapped, language, grammar, api, grammarChosen, on
   );
 }
 
-function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, silentLine, onToggle, onRate, onRepeat, rec }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, loopText, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
@@ -1294,10 +1297,15 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   repeat: number;
   /** How many times the current line has played in this round. */
   played: number;
+  /** Loop text: Play all goes back to the first line after the last. */
+  loopText: boolean;
   silentLine: number | null;
   onToggle: () => void;
   onRate: (rate: number) => void;
   onRepeat: () => void;
+  onLoop: () => void;
+  /** Play from the first line. */
+  onStartOver: () => void;
   /** Record yourself, once a line has played. */
   rec: SelfRecording | null;
 }) {
@@ -1315,7 +1323,8 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
     </Tappable>
   );
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
-  const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
+  const loopNote = repeating ? `${repeatNote}. Looping the whole text.` : 'Looping the whole text';
+  const note = silentLine !== null ? `Line ${silentLine + 1} has no audio.` : loopText ? loopNote : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
   const label = current === null && !note ? null : (
     <View style={{ alignItems: 'center' }}>
       {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
@@ -1334,7 +1343,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       scaleTo={0.92}
       style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: repeating ? c.accent : c.fill }}
     >
-      <Icon name="repeat" size={18} color={repeating ? c.onAccent : c.textSecondary} weight="semibold" />
+      <RepeatLineIcon color={repeating ? c.onAccent : c.textSecondary} />
       {badge ? (
         <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, minHeight: 18, paddingHorizontal: 4, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.text, borderWidth: 2, borderColor: c.surface }}>
           <Text style={{ ...type.caption, fontWeight: '700', color: c.bg }}>{badge}</Text>
@@ -1342,17 +1351,45 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
       ) : null}
     </Tappable>
   );
+  // Loop text sits beside Repeat line: the same loop around a block of lines, filled while on.
+  const loop = (
+    <Tappable
+      onPress={() => { haptic.select(); onLoop(); }}
+      accessibilityRole="button"
+      accessibilityLabel="Loop text"
+      accessibilityValue={{ text: loopText ? 'On' : 'Off' }}
+      scaleTo={0.92}
+      style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: loopText ? c.accent : c.fill }}
+    >
+      <LoopTextIcon color={loopText ? c.onAccent : c.textSecondary} />
+    </Tappable>
+  );
+  const startOver = (
+    <Tappable
+      onPress={() => { haptic.tap(); onStartOver(); }}
+      accessibilityRole="button"
+      accessibilityLabel="Start over"
+      scaleTo={0.92}
+      style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fill }}
+    >
+      <StartOverIcon color={c.textSecondary} />
+    </Tappable>
+  );
   return (
     <View style={{ gap: space.m }}>
       {label}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.m }}>
+        {startOver}
         {skippable ? <SkipButton icon="backward.end.fill" label="Previous line" onPress={() => onSkip(-1)} /> : null}
         {play}
         {skippable ? <SkipButton icon="forward.end.fill" label="Next line" onPress={() => onSkip(1)} /> : null}
+        {/* Start over's width on the other side keeps Play in the middle. */}
+        <View style={{ width: MIN_TAP }} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}
+        {loop}
         {rec && current !== null && idleRecording(rec) ? <RecordIconButton rec={rec} label={`Record line ${current + 1}`} /> : null}
       </View>
       {rec && current !== null && !idleRecording(rec) ? (

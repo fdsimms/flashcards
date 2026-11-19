@@ -3,7 +3,7 @@ import { firstLine, nextLine, previousLine } from './playback';
 
 /**
  * Play all carrying on after the reader is left: the mini-player on the tab bar takes over what
- * the reader was playing, one line after another, and stops at the end of the text. It is only
+ * the reader was playing, one line after another, and stops at the end of the text (or goes round again, if Loop text was on). It is only
  * the playing; the reader's own session (the reading log, the listen-first gate, moving on to the
  * next shelf text) ended when it closed.
  */
@@ -17,16 +17,18 @@ export type Handoff = {
   /** Plays per line (the repeat chip), and how many the current line has had in this round. */
   repeat: number;
   played: number;
+  /** Loop text was on: after the last line it starts again from the first. */
+  loop: boolean;
   /** The speed it was playing at. */
   rate: number;
 };
 
 export type Step = { kind: 'again' } | { kind: 'line'; line: number } | { kind: 'end' };
 
-/** What to do when the line has played to its end: repeat it, play the next, or stop. */
+/** What to do when the line has played to its end: repeat it, play the next (the first again, when looping), or stop. */
 export function afterLine(h: Handoff): Step {
-  const next = nextLine(h.lines, h.current, true, h.repeat, h.played);
-  if (next === h.current) return { kind: 'again' };
+  if (h.played < h.repeat) return { kind: 'again' };
+  const next = nextLine(h.lines, h.current, true, h.repeat, h.played, h.loop);
   return next === null ? { kind: 'end' } : { kind: 'line', line: next };
 }
 
