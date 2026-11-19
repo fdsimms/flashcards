@@ -116,7 +116,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
         {on ? (
           <Card>
             <Field
-              label="In progress at most"
+              label="Maximum cards in progress"
               value={capText}
               onChangeText={(v) => { setCapText(v); setError(undefined); }}
               onEndEditing={commitCap}
