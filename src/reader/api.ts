@@ -739,7 +739,7 @@ export function createApi(
     fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
-    // from: asked only on Find Thai in Add a phrase; the server writes nothing (core/lessonWords.ts).
+    // from: asked only on Find Thai in Add a word; the server writes nothing (core/lessonWords.ts).
     lessonWords: async (language: Language, text: string) =>
       (await call<{ candidates: LessonWordCandidate[] }>('POST', '/api/lessons/words', { language, text })).candidates,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,

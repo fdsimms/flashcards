@@ -8,16 +8,16 @@ import { Button, Icon, Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 
 /**
- * The New lesson card's "Words and phrases to teach" part: the words chosen so far, each with a button to take
+ * The New lesson card's "Words to teach" part: the words chosen so far, each with a button to take
  * it out, and the two ways to add more (from the decks, or typed in). Nothing here is required:
- * with none chosen, Claude picks the lesson's phrases from the scene.
+ * with none chosen, Claude picks the lesson's words from the scene.
  */
 export function LessonWords({ words, onRemove, onClear }: { words: LessonWord[]; onRemove: (text: string) => void; onClear: () => void }) {
   const c = useTheme();
   const router = useRouter();
   return (
     <View style={{ gap: space.s }}>
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>Words and phrases to teach (optional)</Text>
+      <Text style={{ ...type.subhead, color: c.textSecondary }}>Words to teach (optional)</Text>
       {words.length ? (
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
@@ -46,7 +46,7 @@ export function LessonWords({ words, onRemove, onClear }: { words: LessonWord[];
       ) : null}
       <View style={{ flexDirection: 'row', gap: space.s }}>
         <Button variant="secondary" label="From my decks" onPress={() => router.push('/lesson-words')} style={{ flex: 1, paddingHorizontal: space.s }} />
-        <Button variant="secondary" label="Type a phrase" onPress={() => router.push('/lesson-word-add')} style={{ flex: 1, paddingHorizontal: space.s }} />
+        <Button variant="secondary" label="Type a word" onPress={() => router.push('/lesson-word-add')} style={{ flex: 1, paddingHorizontal: space.s }} />
       </View>
     </View>
   );

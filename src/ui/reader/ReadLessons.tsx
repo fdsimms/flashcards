@@ -144,7 +144,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         <Help>
           {chosen.words.length
             ? `Claude writes the dialogue around your ${chosen.words.length === 1 ? 'word' : `${chosen.words.length} words`} and teaches every one of them, and a voice records the lesson with spaces for you to answer in.`
-            : `Claude writes about five ${LANGUAGES[language].name} phrases to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
+            : `Claude writes about five ${LANGUAGES[language].name} words to teach in that scene, and a voice records the lesson with spaces for you to answer in.`}
           {' '}It takes about a minute, and the spoken parts cost a few cents.
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}

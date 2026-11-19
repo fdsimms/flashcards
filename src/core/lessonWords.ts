@@ -5,7 +5,7 @@ import { isDue } from './queue';
 import type { Card, Note } from './types';
 
 /**
- * The words an audio lesson is asked to teach (Lessons, Words and phrases to teach): chosen from the decks or
+ * The words an audio lesson is asked to teach (Lessons, Words to teach): chosen from the decks or
  * typed in, sent to the server as the lesson's `phrases` (docs/read-and-listen/architecture.md,
  * Audio lessons). They live only in the draft of the lesson being made. Typing one never makes a
  * note, and nothing here grades a card.
@@ -99,11 +99,11 @@ export function pickerWords(
 export function addLessonWord(words: LessonWord[], word: LessonWord): LessonWord[] {
   const text = word.text.replace(/\s+/g, ' ').trim();
   const english = word.english.replace(/\s+/g, ' ').trim();
-  if (!text || !english) throw new Refusal('Enter the phrase and its meaning.');
+  if (!text || !english) throw new Refusal('Enter the word and its meaning.');
   if (text.length > LESSON_MAX_CHARS || english.length > LESSON_MAX_CHARS) {
-    throw new Refusal(`A phrase and its meaning can each be up to ${LESSON_MAX_CHARS} characters. Shorten it and try again.`);
+    throw new Refusal(`A word and its meaning can each be up to ${LESSON_MAX_CHARS} characters. Shorten it and try again.`);
   }
-  if (words.some((w) => wordKey(w.text) === wordKey(text))) throw new Refusal("That phrase is already in this lesson.");
+  if (words.some((w) => wordKey(w.text) === wordKey(text))) throw new Refusal("That word is already in this lesson.");
   if (words.length >= LESSON_MAX_WORDS) throw new Refusal(`A lesson teaches at most ${LESSON_MAX_WORDS} words. Remove one to add another.`);
   return [...words, { text, english, ...(word.noteId ? { noteId: word.noteId } : {}) }];
 }
