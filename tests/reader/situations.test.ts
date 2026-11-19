@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { SituationTurn } from '../../src/reader/api';
-import { bracketed, canFinish, canSend, conversationOf, lineParts, MAX_LINE, MAX_LINES, startChat, withMine, withoutMine, withTheirs } from '../../src/reader/situations';
+import {
+  bracketed, canFinish, canSend, conversationOf, lineParts, MAX_LINE, MAX_LINES, rehearsalOf, rehearsalParams, REHEARSAL_WORD_MAX, REHEARSAL_WORDS_MAX, startChat, withMine, withoutMine, withTheirs,
+} from '../../src/reader/situations';
 
 const roles = { you: 'a customer', them: 'the vendor', name: 'Noi', gender: 'female' as const };
 const turn = (line: string, over: Partial<SituationTurn> = {}): SituationTurn =>
@@ -60,5 +62,38 @@ describe('brackets', () => {
       { text: ' นะ', asked: false },
     ]);
     expect(lineParts('ครับ')).toEqual([{ text: 'ครับ', asked: false }]);
+  });
+});
+
+describe('rehearsing a cram', () => {
+  it('sends the words with the conversation, and only when there are some', () => {
+    const chat = startChat('th', 'Ordering spicy food', undefined, ['สั่ง (to order)']);
+    expect(conversationOf(chat).words).toEqual(['สั่ง (to order)']);
+    expect(conversationOf(startChat('th', 'Ordering', undefined, [])).words).toBeUndefined();
+    expect(conversationOf(startChat('th', 'Ordering')).words).toBeUndefined();
+    // A rehearsal with no words is still a rehearsal, which is what offers to keep its corrections.
+    expect(startChat('th', 'Ordering', undefined, []).words).toEqual([]);
+    expect(startChat('th', 'Ordering').words).toBeUndefined();
+    // Played again, the scene keeps its words (the screen starts the new chat from the old one's).
+    expect(startChat(chat.language, chat.scene, chat.focus, chat.words).words).toEqual(['สั่ง (to order)']);
+  });
+  it('turns a cram into route parameters and back', () => {
+    const params = rehearsalParams('th', ' Ordering spicy food ', [{ text: 'สั่ง', english: 'to order' }, { text: ' ', english: 'blank' }, { text: 'เผ็ด', english: 'spicy' }]);
+    expect(params.id).toBe('situations');
+    expect(rehearsalOf(params)).toEqual({ language: 'th', scene: 'Ordering spicy food', words: ['สั่ง (to order)', 'เผ็ด (spicy)'] });
+  });
+  it('keeps to what the server takes', () => {
+    const many = Array.from({ length: REHEARSAL_WORDS_MAX + 4 }, (_, i) => ({ text: `w${i}`, english: `m${i}` }));
+    expect(rehearsalOf(rehearsalParams('th', 'x', many))?.words).toHaveLength(REHEARSAL_WORDS_MAX);
+    const long = rehearsalOf(rehearsalParams('th', 'y'.repeat(300), [{ text: 'a'.repeat(REHEARSAL_WORD_MAX), english: 'long' }, { text: 'ok', english: 'fine' }]));
+    expect(long?.scene).toHaveLength(200);
+    expect(long?.words).toEqual(['ok (fine)']);
+  });
+  it('is no rehearsal without a scene or a language Read & Listen plays, and ignores unreadable words', () => {
+    expect(rehearsalOf({ language: 'th', words: '[]' })).toBeUndefined();
+    expect(rehearsalOf({ scene: 'x', words: '[]' })).toBeUndefined();
+    expect(rehearsalOf({ language: 'xx', scene: 'x' })).toBeUndefined();
+    expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [] });
+    expect(rehearsalOf({ language: 'th', scene: 'x', words: '[1,"a (b)",""]' })?.words).toEqual(['a (b)']);
   });
 });

@@ -19,12 +19,12 @@ describe('Play all carrying on', () => {
   });
 
   it('goes back to the first line after the last when Loop text was on', () => {
-    expect(afterLine({ ...base, current: 3, loop: true })).toEqual({ kind: 'line', line: 0 });
+    expect(afterLine({ ...base, current: 3, loop: true })).toEqual({ kind: 'wrap', line: 0 });
     expect(afterLine({ ...base, current: 3, repeat: 2, played: 1, loop: true })).toEqual({ kind: 'again' });
   });
 
   it('plays a one-line text again as a new line, not as a repeat', () => {
-    expect(afterLine({ ...base, lines: [{ audio: true }], current: 0, loop: true })).toEqual({ kind: 'line', line: 0 });
+    expect(afterLine({ ...base, lines: [{ audio: true }], current: 0, loop: true })).toEqual({ kind: 'wrap', line: 0 });
   });
 
   it('skips to the nearest line with audio either way, and nowhere past the ends', () => {

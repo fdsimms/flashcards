@@ -28,6 +28,7 @@ import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary
 import { reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
+import { secondsPerCard } from '../core/todaySummary';
 import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
@@ -60,6 +61,9 @@ import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
+import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
+import { useSkillRelease } from './useSkillRelease';
+import { drillOfTags } from '../tools/skills';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
@@ -128,6 +132,7 @@ const confusedSheetFor = (noteId: string): ReviewSheet => ({ key: `confused:${no
 function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay?: number }) {
   const c = useTheme();
   const { answered, again, takenMs } = sessionSummary(history);
+  const pace = secondsPerCard(answered, takenMs);
   // The counts run up from 0 once the summary has appeared (the end of a session is a small payoff).
   const [counting, setCounting] = useState(false);
   useEffect(() => { const t = setTimeout(() => setCounting(true), delay + 80); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -142,11 +147,12 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
   return (
     <View
       accessible
-      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}, ${again} answered Again`}
+      accessibilityLabel={`This session: ${answered} ${answered === 1 ? 'card' : 'cards'}, ${durationText(takenMs)}${pace ? `, ${pace} seconds per card` : ''}, ${again} answered Again`}
       style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: space.xl, paddingVertical: space.l, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border }}
     >
       {tile(answered, answered === 1 ? 'card' : 'cards')}
       {tile(durationText(takenMs), 'studying')}
+      {pace ? tile(`${pace} s`, 'per card') : null}
       {tile(again, 'Again')}
     </View>
   );
@@ -340,6 +346,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const showing = current ? `${current.id}:${history.length}` : undefined;
   const revealed = !!showing && revealedAt === showing;
   const note = current ? notes.get(current.noteId) : undefined;
+  // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
+  const drill = useMemo(() => (note ? drillOfTags(note.tags) : undefined), [note]);
+  const skill = useSkillDrill(showing, drill);
+  useSkillRelease(repo, cards, notes, H);
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own. A frequency tier ("Thai::Tier 3") is part of its language, not a language of its own, so it's looked past.
@@ -1086,12 +1096,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           key={b.r}
           onPress={() => rate(b.r)}
           accessibilityRole="button"
-          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}`}
+          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}${skill.suggested === b.r ? ', suggested' : ''}`}
           scaleTo={0.95}
           dimTo={0.85}
+          // After a skill card's drill, the rating it suggests is outlined and the others quieter; the tap is still the learner's.
+          restOpacity={skill.suggested && skill.suggested !== b.r ? 0.55 : 1}
           style={{
             flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
+            ...(skill.suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
@@ -1100,6 +1113,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Tappable>
       ))}
     </Reveal>
+  ) : drill && skill.question ? (
+    <SkillDrillFooter skill={skill} onFinished={reveal} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />
   ) : (
     <>
       {page?.typeAnswer || (typing && typeItWord) ? (
@@ -1281,7 +1296,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       title={title}
       largeTitle={false}
       // The stack's swipe-back would take a rightward drag before the card's own swipe sees it.
-      lockGesture={swipeOn && revealed && !page && !!rendered}
+      lockGesture={swipeOn && revealed && ((!page && !!rendered) || !!drill)}
       toolbar={
         <Stack.Toolbar placement="right">
           {current.flag ? (
@@ -1335,8 +1350,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {queue ? <ProgressBar value={sessionProgress(history.length, queue.due.length + queue.fresh.length)} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
-      {page ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
-      {page ? (
+      {drill && skill.question ? (
+        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+          <SkillDrillCard skill={skill} revealed={revealed} />
+        </SwipeCard>
+      ) : null}
+      {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
+      {page && !drill ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
@@ -1349,10 +1369,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           ]}
         </SwipeCard>
       ) : null}
-      {page && extras ? (
+      {page && extras && !drill ? (
         <ScrollView style={{ flexGrow: 0, maxHeight: '45%' }} contentContainerStyle={{ paddingHorizontal: space.l, paddingVertical: space.s }}>{extras}</ScrollView>
       ) : null}
-      {page ? null : rendered ? (
+      {page || drill ? null : rendered ? (
         <View style={{ flex: 1 }}>
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}

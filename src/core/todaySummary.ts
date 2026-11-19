@@ -32,9 +32,15 @@ export function todaySummary(answers: Answer[], now: Date, dayStartsAtHour: numb
  * "<0.1 s/card" for anything faster.
  */
 export function answerPace(answered: number, takenMs: number): string | null {
+  const seconds = secondsPerCard(answered, takenMs);
+  return seconds === null ? null : `${seconds} s/card`;
+}
+
+/** Seconds per answer without the unit ("7.3", "<0.1"), or null when no time was recorded. */
+export function secondsPerCard(answered: number, takenMs: number): string | null {
   if (answered <= 0 || takenMs <= 0) return null;
   const seconds = takenMs / 1000 / answered;
-  return seconds < 0.1 ? '<0.1 s/card' : `${seconds.toFixed(1)} s/card`;
+  return seconds < 0.1 ? '<0.1' : seconds.toFixed(1);
 }
 
 /**

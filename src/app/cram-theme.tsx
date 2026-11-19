@@ -1,11 +1,12 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { quickAddDecks } from '../reader/noteQueue';
+import { rehearsalParams } from '../reader/situations';
 import { useApp } from '../ui/AppContext';
 import { CramThemeDetail } from '../ui/cram/CramThemeDetail';
 import { useNoteQueue } from '../ui/useNoteQueue';
 
-/** One of the theme ideas, by its place in the list (`index`), or its story (`view=story`). Using it opens the new cram's sheet. */
+/** One of the theme ideas, by its place in the list (`index`), or its story (`view=story`). Using it opens the new cram's sheet; Rehearse opens Situations on it. */
 export default function CramThemeRoute() {
   const router = useRouter();
   const { index, view } = useLocalSearchParams<{ index: string; view?: string }>();
@@ -21,6 +22,7 @@ export default function CramThemeRoute() {
       decks={options}
       add={queue.add}
       onStory={() => router.push({ pathname: '/cram-theme', params: { index, view: 'story' } })}
+      onRehearse={(language, scene, words) => router.push({ pathname: '/tool', params: rehearsalParams(language, scene, words) })}
       onUse={() => router.dismissTo('/cram-edit')}
     />
   );

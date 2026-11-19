@@ -3,12 +3,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import {
-  cramLanguage, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, meaningOf, roundStatus, textWords, wordState, type Cram, type WordState,
+  cramLanguage, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, roundStatus, textWords, wordState, type Cram, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { Card, Note } from '../../core/types';
 import type { Api, Language } from '../../reader/api';
+import { rehearsalParams } from '../../reader/situations';
 import { haptic } from '../haptics';
 import { Button, Card as Box, Group, Help, Loading, NavRow, Screen, SectionTitle } from '../kit';
 import { readable, space, type, useTheme, type Colors } from '../theme';
@@ -61,6 +62,8 @@ export function CramPage(props: {
   const status = roundStatus(cram, now, H);
   const language = cramLanguage(notes);
   const words = language ? textWords(notes, collection.cards, language) : [];
+  // What Rehearse works into Situations: the cram's words with their meanings, as an audio lesson takes them.
+  const rehearsalWords = language ? lessonPhrases(notes, language) : [];
   const days = daysUntil(cram, now, H);
 
   const wordMenu = (note: Note) => {
@@ -122,6 +125,13 @@ export function CramPage(props: {
                 onPress={() => { if (language) { haptic.tap(); props.onRead(language, words); } }}
               />
               <CramListen repo={repo} api={props.readerApi} cram={cram} notes={notes} language={language} />
+              <NavRow
+                icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}
+                label="Rehearse"
+                detail={!props.readerApi ? 'Off. Turn on Read & Listen in Settings to use it.' : !language ? 'Needs words in a language Read & Listen plays.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
+                disabled={!props.readerApi || !language}
+                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords) }); } }}
+              />
               <NavRow
                 icon={{ name: 'checklist', color: c.orange }}
                 label="On the day"

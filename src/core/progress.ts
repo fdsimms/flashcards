@@ -30,7 +30,7 @@ export function isInProgress(card: Card): boolean {
  */
 export function parseGateCap(text: string): { cap: number } | { error: string } {
   const t = text.trim();
-  if (!/^\d+$/.test(t)) return { error: 'Enter a whole number, for example 100.' };
+  if (!/^\d+$/.test(t)) return { error: 'Enter a whole number, e.g. 100.' };
   const cap = Number(t);
   if (cap < 1) return { error: 'The cap has to be at least 1, or no new cards would ever show.' };
   if (cap > MAX_GATE_CAP) return { error: `The cap can be at most ${MAX_GATE_CAP}.` };

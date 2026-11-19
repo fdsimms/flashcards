@@ -115,7 +115,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           {...scrollProps}
         >
           <Help>A story told in episodes. Each one picks up where the last ended, with the same people and places, and is written from the words in your deck. Its next episode is written once you've read the last. The series pinned to the top of the home stays there.</Help>
-          <Field label="What should it be about?" placeholder="For example, a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startSeries} />
+          <Field label="What should it be about?" placeholder="e.g. a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startSeries} />
           <Help>Leave it empty and the series is up to the writer.</Help>
           {error ? <ErrorNote message={error} /> : null}
         </ScrollView>
@@ -166,7 +166,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           <View style={{ flex: 1, height: hairline, backgroundColor: c.border }} />
         </View>
 
-        <Field label="Topic" placeholder="For example, haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
+        <Field label="Topic" placeholder="e.g. haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}

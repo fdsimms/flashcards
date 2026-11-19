@@ -123,7 +123,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
               label="Note for Claude (optional)"
               value={note}
               onChangeText={setNote}
-              placeholder="For example: the word shouldn't be in its own definition"
+              placeholder="e.g. the word shouldn't be in its own definition"
               multiline
               maxLength={FLAG_NOTE_MAX}
             />

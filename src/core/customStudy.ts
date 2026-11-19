@@ -112,7 +112,7 @@ export const CUSTOM_STUDY_OPTIONS: CustomStudyOption[] = [
   { kind: 'forgotten', title: "Review forgotten cards", detail: "Go over the cards you answered Again on recently. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
   { kind: 'ahead', title: "Review ahead", detail: "Study reviews that are due in the next few days. Answers reschedule them as usual.", field: { label: 'Days ahead', start: 1 } },
   { kind: 'previewNew', title: "Preview new cards", detail: "Look at new cards added recently without starting them. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
-  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, for example to cram before a test. New, due and review cards are rescheduled by your answers, as usual. All cards only previews them.", field: { label: 'Cards', start: 100 }, cram: true },
+  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, e.g. to cram before a test. New, due and review cards are rescheduled by your answers, as usual. All cards only previews them.", field: { label: 'Cards', start: 100 }, cram: true },
 ];
 
 export const CRAM_CHOICES: { select: CramSelect; label: string }[] = [
