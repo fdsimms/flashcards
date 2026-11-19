@@ -1,5 +1,6 @@
 import type { AudioPlayer } from 'expo-audio';
 import { listeningActivityNative } from '../../modules/listening-activity';
+import { prefs } from '../reader/storage';
 import {
   activityStep, idleExpired, IDLE_END_MS, kindLabel, parseAction, type Listening, type Sent, type Snapshot,
 } from '../reader/listeningActivity';
@@ -95,7 +96,7 @@ export function attachListeningPlayer(shared: AudioPlayer) {
  * again with the same title it keeps the activity and only changes who answers.
  */
 export function beginListening(what: Listening, buttons: () => ListeningControls) {
-  if (!native) return;
+  if (!native || !prefs().listeningActivity) return;
   listening = what;
   controls = buttons;
   skipsBySeconds = what.kind === 'lesson';

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress, type Language, type Speakers } from '../../reader/api';
 import { guardedFetch } from '../connection';
+import { endListening } from '../listeningActivity';
 import { ReadOfflineSettings } from './ReadOfflineSettings';
 import { LANGUAGE_ORDER, flaggedName } from '../../reader/languages';
 import type { ListenAgain } from '../../reader/prefs';
@@ -36,6 +37,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followWords, setFollowWords] = useState(prefs().followWords);
+  const [listeningActivity, setListeningActivity] = useState(prefs().listeningActivity);
   const [listenAgain, setListenAgain] = useState(prefs().listenAgain);
   const [listenFirst, setListenFirst] = useState(prefs().listenFirst);
   const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
@@ -143,6 +145,15 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
                 onValueChange={(on) => {
                   savePrefs({ followWords: on });
                   setFollowWords(on);
+                }}
+              />
+              <SwitchRow
+                label="Lock screen and Dynamic Island controls"
+                value={listeningActivity}
+                onValueChange={(on) => {
+                  savePrefs({ listeningActivity: on });
+                  setListeningActivity(on);
+                  if (!on) endListening();
                 }}
               />
               <SwitchRow
