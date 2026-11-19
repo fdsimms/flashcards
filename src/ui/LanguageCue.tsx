@@ -24,5 +24,6 @@ export function LanguageCue({ kind, speechLang, trailing }: { kind: CardKind; sp
     </View>
   );
   if (!trailing) return line;
-  return <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.m }}>{line}{trailing}</View>;
+  // The button keeps its full tap size but overhangs the gaps above and below, so the line isn't as tall as the button.
+  return <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.m, marginVertical: -space.s }}>{line}{trailing}</View>;
 }
