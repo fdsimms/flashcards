@@ -9,7 +9,7 @@ import { NORMAL_RATE } from '../../reader/playbackRate';
 import { hasSlow } from '../../reader/prefs';
 import { withTimes } from '../../reader/spoken';
 import { prefs, savePrefs } from '../../reader/storage';
-import { beginListening, type ListeningControls } from '../listeningActivity';
+import { beginListening, NO_CONTROLS, setListeningLoop, type ListeningControls } from '../listeningActivity';
 import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording } from '../useSelfRecording';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
@@ -99,6 +99,10 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   const [played, setPlayed] = useState(1);
   // Loop text: after the last line, Play all starts again from the first. Off each time a text opens, like the repeat count.
   const [loopText, setLoopText] = useState(false);
+  // As of the latest render, for a line started from an await; the activity shows it filled while on.
+  const loopNow = useRef(false);
+  loopNow.current = loopText;
+  useEffect(() => { setListeningLoop(loopText); }, [loopText]);
   // The first time a loop wraps counts as the text played through; later passes count nothing.
   const countedLoop = useRef(false);
   // What the mini-player needs to carry on, as of the latest render, for when this closes.
@@ -119,7 +123,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
   const spoken = new Set(playingWords ? spokenNow.map((i) => playingWords[i]) : []);
 
   // What the activity's buttons do, through the ref so they act on the latest render's state.
-  const buttons = useRef<ListeningControls>({ previous: () => undefined, toggle: () => undefined, next: () => undefined });
+  const buttons = useRef<ListeningControls>(NO_CONTROLS);
 
   // Plays a line at `r`. A slow line is recorded by the server the first time (`api.slowTimes` waits for
   // that and brings its word times); if that fails, the normal recording plays stretched instead.
@@ -146,7 +150,7 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     // Now Playing, on the lock screen and in Control Center: the text's title, with play and pause. The progress bar there is the line's.
     player.setActiveForLockScreen(true, { title: text.title, artist: 'Franki', albumTitle: 'Read & Listen' });
     // The same on the lock screen and in the Dynamic Island, with buttons that work without opening the app.
-    beginListening({ kind: 'text', title: text.title, detail: lineDetail(linePosition({ lines: text.lines, current: i })) }, () => buttons.current);
+    beginListening({ kind: 'text', title: text.title, detail: lineDetail(linePosition({ lines: text.lines, current: i })), looping: loopNow.current }, () => buttons.current);
   };
 
   // While a line plays in Play all, the next one is fetched (src/reader/preload.ts), so it can start as
@@ -197,7 +201,6 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     }
   };
 
-  buttons.current = { previous: () => skip(-1), toggle: togglePlay, next: () => skip(1) };
 
   // The speed is a different recording, so a line playing starts again at the new one.
   const changeRate = (next: number) => {
@@ -221,6 +224,8 @@ export function useLinePlayback({ api, playerHost, text, onPlay, onLineHeard, on
     const first = firstLine(text.lines);
     if (first !== null) playLine(first, true);
   };
+
+  buttons.current = { startOver, previous: () => skip(-1), toggle: togglePlay, next: () => skip(1), loop: toggleLoop };
 
   // A new text: nothing playing and no line chosen.
   const reset = () => {

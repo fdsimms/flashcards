@@ -4,8 +4,8 @@
  * modules/listening-activity and the wiring is src/ui/listeningActivity.ts.
  *
  * The activity draws its progress bar on its own clock while playing, so it is only updated when
- * something it can't work out itself changes: playing starting or stopping, the line, the length of
- * what's playing, or a jump in the position (a skip, a seek).
+ * something it can't work out itself changes: playing starting or stopping, the line, Loop being
+ * turned on or off, the length of what's playing, or a jump in the position (a skip, a seek).
  */
 
 export type ListeningKind = 'lesson' | 'text';
@@ -16,6 +16,8 @@ export interface Listening {
   title: string;
   /** "Line 4 of 12" for a text, "" for a lesson. */
   detail: string;
+  /** Loop is on: the whole text, or the whole lesson, starts again when it ends. */
+  looping: boolean;
 }
 
 /** The player's state now, in seconds. */
@@ -41,11 +43,14 @@ const LENGTH_SECONDS = 1;
 /** A paused activity is ended after this long, so it doesn't sit on the lock screen for hours. */
 export const IDLE_END_MS = 10 * 60 * 1000;
 
-export type ListeningAction = 'previous' | 'toggle' | 'next';
+const ACTIONS = ['startOver', 'previous', 'toggle', 'next', 'loop'] as const;
+
+/** The activity's buttons, left to right (ListeningControlIntent.swift sends these names). */
+export type ListeningAction = typeof ACTIONS[number];
 
 /** The button a tap on the activity names, or null for anything else. */
 export function parseAction(value: unknown): ListeningAction | null {
-  return value === 'previous' || value === 'toggle' || value === 'next' ? value : null;
+  return ACTIONS.find((a) => a === value) ?? null;
 }
 
 /** The activity's name for what kind of thing is playing. */
@@ -69,6 +74,7 @@ function sameListening(a: Listening, b: Listening): boolean {
 export function activityStep(last: Sent | null, listening: Listening, snapshot: Snapshot, now: number): ActivityStep {
   if (!last || !sameListening(last.listening, listening)) return 'start';
   if (last.listening.detail !== listening.detail) return 'update';
+  if (last.listening.looping !== listening.looping) return 'update';
   if (last.playing !== snapshot.playing) return 'update';
   if (Math.abs(last.duration - snapshot.duration) > LENGTH_SECONDS) return 'update';
   const expected = last.position + (last.playing ? (now - last.at) / 1000 : 0);

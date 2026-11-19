@@ -11,16 +11,19 @@ import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } fro
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { lessonAudioMode } from '../useLessonTurns';
-import { beginListening, type ListeningControls } from '../listeningActivity';
+import { beginListening, NO_CONTROLS, setListeningLoop, type ListeningControls } from '../listeningActivity';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonTranscript } from './LessonTranscript';
+import { LoopTextIcon, StartOverIcon } from './PlayerIcons';
 import { LessonTurnPanel } from './LessonTurnPanel';
 import { LessonTurnSettings } from './LessonTurnSettings';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
  * or forward 15 seconds to hear a phrase again, and the phrases behind a row, hidden until asked
- * for so the lesson can be heard first. The lock screen shows the lesson's controls. It plays on
+ * for so the lesson can be heard first. Start over, and Loop, which plays it again from the start
+ * each time it ends (useLessonLoop; off each time the lesson opens, unless it's the one playing).
+ * The lock screen shows the lesson's controls. It plays on
  * Read & Listen's shared player (useReaderPlayer): leaving while it plays carries it on in the tab
  * bar's mini-player, and opening it from there picks it up where it is. What you say
  * aloud isn't recorded or checked. With Wait for my answer on (the switch here, or Settings, Lessons),
@@ -78,7 +81,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     const resumed = host.resumeLesson(lesson.id);
     owned.current = resumed;
     setMine(resumed);
-    if (resumed) showActivity();
+    if (resumed) showActivity(); else host.lessonLoop.clear(lesson.id);
     return () => {
       if (!owned.current) return;
       owned.current = false;
@@ -88,8 +91,9 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   }, [lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- the host and its player are stable; the lesson is what changes
 
   // The lock screen's and Dynamic Island's activity, with this screen answering its buttons (through the ref, so they act on the latest render).
-  const buttons = useRef<ListeningControls>({ previous: () => undefined, toggle: () => undefined, next: () => undefined });
-  const showActivity = () => beginListening({ kind: 'lesson', title: lesson.title, detail: '' }, () => buttons.current);
+  const buttons = useRef<ListeningControls>(NO_CONTROLS);
+  const showActivity = () => beginListening({ kind: 'lesson', title: lesson.title, detail: '', looping: host.lessonLoop.isOn(lesson.id) }, () => buttons.current);
+  const looping = host.lessonLoop.isOn(lesson.id);
 
   const takeOver = async () => {
     if (owned.current) return;
@@ -132,7 +136,25 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     player.seekTo(skipTo(status.currentTime, by, status.duration)).catch(() => undefined);
   };
 
-  buttons.current = { previous: () => skip(-SKIP_SECONDS), toggle: () => { void toggle(); }, next: () => skip(SKIP_SECONDS) };
+  const startOver = async () => {
+    haptic.tap();
+    await takeOver();
+    host.lessonLoop.startOver();
+  };
+  const toggleLoop = () => {
+    haptic.select();
+    const on = host.lessonLoop.toggle(lesson.id);
+    // The activity is this lesson's only once it plays; before that, another one may be carrying on.
+    if (owned.current) setListeningLoop(on);
+  };
+
+  buttons.current = {
+    startOver: () => { void startOver(); },
+    previous: () => skip(-SKIP_SECONDS),
+    toggle: () => { void toggle(); },
+    next: () => skip(SKIP_SECONDS),
+    loop: toggleLoop,
+  };
 
   const confirmDelete = () => {
     Alert.alert('Delete this lesson?', `"${lesson.title}" and its recording are removed from the server.`, [
@@ -155,6 +177,8 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   };
 
   const round = { width: MIN_TAP + space.s, height: MIN_TAP + space.s, alignItems: 'center' as const, justifyContent: 'center' as const };
+  // Start over and Loop, on either side of the skip buttons, as in the reader's player bar.
+  const chip = { width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center' as const, justifyContent: 'center' as const };
   return (
     <Screen title={lesson.title}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
@@ -174,7 +198,13 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
           </Text>
         ) : null}
 
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space.xl }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: space.l }}>
+          {/* Held at a pause, Continue takes the room these two would need. */}
+          {held ? null : (
+            <Tappable onPress={startOver} accessibilityRole="button" accessibilityLabel="Start over" scaleTo={0.92} style={{ ...chip, backgroundColor: c.fill }}>
+              <StartOverIcon color={c.textSecondary} />
+            </Tappable>
+          )}
           <Tappable onPress={() => skip(-SKIP_SECONDS)} accessibilityRole="button" accessibilityLabel={`Back ${SKIP_SECONDS} seconds`} style={round}>
             <Icon name="gobackward.15" size={30} color={c.text} />
           </Tappable>
@@ -202,7 +232,22 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
           <Tappable onPress={() => skip(SKIP_SECONDS)} accessibilityRole="button" accessibilityLabel={`Forward ${SKIP_SECONDS} seconds`} style={round}>
             <Icon name="goforward.15" size={30} color={c.text} />
           </Tappable>
+          {held ? null : (
+            <Tappable
+              onPress={toggleLoop}
+              accessibilityRole="button"
+              accessibilityLabel="Loop lesson"
+              accessibilityValue={{ text: looping ? 'On' : 'Off' }}
+              scaleTo={0.92}
+              style={{ ...chip, backgroundColor: looping ? c.accent : c.fill }}
+            >
+              <LoopTextIcon color={looping ? c.onAccent : c.textSecondary} />
+            </Tappable>
+          )}
         </View>
+        {looping && !held ? (
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Looping the whole lesson</Text>
+        ) : null}
 
         {mine ? <LessonTurnPanel turns={turns} held={held} /> : null}
         {mine && onAddToDeck && atEnd(status.currentTime, status.duration) ? (
