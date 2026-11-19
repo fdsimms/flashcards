@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes } from '../../src/core/noteEditing';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -128,5 +128,18 @@ describe('notesStillThere', () => {
       ...makeCards(franki, NOW).map((c) => ({ ...c, retired: true })),
     ];
     expect(notesStillThere([gone, kept, franki], cards).map((n) => n.id)).toEqual(['2', '3']);
+  });
+});
+
+describe('a note being added', () => {
+  const start = { fields: { Entry: 'styre', Meaning: 'to govern' }, tags: 'cram::thai-2026-11-20' };
+  it("isn't changed when it opens filled in, blank fields or tag order aside", () => {
+    expect(addDraftChanged(start, { fields: { ...start.fields, Audio: '' }, tags: start.tags })).toBe(false);
+    expect(addDraftChanged({ fields: {}, tags: '' }, { fields: { Front: '  ' }, tags: '' })).toBe(false);
+  });
+  it('is changed once a field or the tags differ from how it opened', () => {
+    expect(addDraftChanged(start, { fields: { ...start.fields, Meaning: 'to rule' }, tags: start.tags })).toBe(true);
+    expect(addDraftChanged(start, { fields: start.fields, tags: '' })).toBe(true);
+    expect(addDraftChanged({ fields: {}, tags: '' }, { fields: { Front: 'a' }, tags: '' })).toBe(true);
   });
 });
