@@ -148,19 +148,17 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
       fill
       lockGesture={swipe}
       footer={footer}
-      menu={(
-        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
-          <Stack.Toolbar.Menu inline title="Practice">
-            {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); next(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Amounts up to">
-            {MONEY_MAXES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === max} onPress={() => { if (m !== max) { setMax(m); next(m); } }}>{m.toLocaleString('en-US')}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Answer by">
-            {ANSWERS.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === answerMode} onPress={() => { if (m.value !== answerMode) { setAnswerMode(m.value); answer.hide(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      )}
+      menu={[
+        <Stack.Toolbar.Menu key="1" inline title="Practice">
+          {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); next(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+        <Stack.Toolbar.Menu key="2" inline title="Amounts up to">
+          {MONEY_MAXES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === max} onPress={() => { if (m !== max) { setMax(m); next(m); } }}>{m.toLocaleString('en-US')}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+        <Stack.Toolbar.Menu key="3" inline title="Answer by">
+          {ANSWERS.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === answerMode} onPress={() => { if (m.value !== answerMode) { setAnswerMode(m.value); answer.hide(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+      ]}
     >
       <PracticeCard
         questionKey={`${key}|${answerMode}|${mode}`}

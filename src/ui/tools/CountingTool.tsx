@@ -150,16 +150,14 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
       fill
       lockGesture={swipeOn && mode === 'say' && answer.shown && !answer.missed}
       footer={footer}
-      menu={(
-        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
-          <Stack.Toolbar.Menu inline title="Answer by">
-            {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); answer.hide(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Numbers up to">
-            {COUNT_MAXES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === max} onPress={() => { if (m !== max) { setMax(m); next(m); } }}>{String(m)}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      )}
+      menu={[
+        <Stack.Toolbar.Menu key="1" inline title="Answer by">
+          {MODES.map((m) => <Stack.Toolbar.MenuAction key={m.value} isOn={m.value === mode} onPress={() => { if (m.value !== mode) { setMode(m.value); answer.hide(); } }}>{m.label}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+        <Stack.Toolbar.Menu key="2" inline title="Numbers up to">
+          {COUNT_MAXES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === max} onPress={() => { if (m !== max) { setMax(m); next(m); } }}>{String(m)}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+      ]}
     >
       <PracticeCard
         questionKey={key}

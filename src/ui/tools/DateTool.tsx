@@ -143,17 +143,15 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
       fill
       lockGesture={swipe}
       footer={footer}
-      menu={(
-        <Stack.Toolbar.Menu icon="slider.horizontal.3" accessibilityLabel="Options">
-          <Stack.Toolbar.Menu inline title="Say it with">
-            <Stack.Toolbar.MenuAction isOn={weekday} onPress={() => { answer.hide(); setWeekday(!weekday); }}>Weekday</Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction isOn={year} onPress={() => { answer.hide(); setYear(!year); }}>Year</Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline title="Answer by">
-            {DATE_MODES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === mode} onPress={() => { if (m !== mode) { answer.hide(); setMode(m); } }}>{MODE_LABELS[m]}</Stack.Toolbar.MenuAction>)}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      )}
+      menu={[
+        <Stack.Toolbar.Menu key="1" inline title="Say it with">
+          <Stack.Toolbar.MenuAction isOn={weekday} onPress={() => { answer.hide(); setWeekday(!weekday); }}>Weekday</Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction isOn={year} onPress={() => { answer.hide(); setYear(!year); }}>Year</Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>,
+        <Stack.Toolbar.Menu key="2" inline title="Answer by">
+          {DATE_MODES.map((m) => <Stack.Toolbar.MenuAction key={m} isOn={m === mode} onPress={() => { if (m !== mode) { answer.hide(); setMode(m); } }}>{MODE_LABELS[m]}</Stack.Toolbar.MenuAction>)}
+        </Stack.Toolbar.Menu>,
+      ]}
     >
       <PracticeCard
         questionKey={mode === 'explore' ? 'explore' : `${mode}|${date.year}-${date.month}-${date.day}|${weekday}|${year}`}
