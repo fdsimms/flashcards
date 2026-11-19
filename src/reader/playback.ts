@@ -1,7 +1,10 @@
 // Which line plays next. 'Play' runs the dialogue from a line to the end, skipping lines with no
 // audio; a line's own replay button plays that line alone. 'Repeat line' plays the line that just
 // finished again until it has played the chosen number of times (or until it's turned off, for ∞).
-// 'Loop text' starts the text again from its first line when the last one has played.
+// 'Loop text' starts the text again from its first line when the last one has played, after a break:
+// loop-break.wav (assets/make-loop-break.py), a soft chime and then silence, played where the text wraps.
+/** What the player bar says during the break before a looped text starts again. */
+export const LOOP_BREAK_NOTE = 'Starting again';
 type HasAudio = { audio: boolean };
 
 /** Plays per line the repeat chip steps through: 1 is off, Infinity is until turned off. */

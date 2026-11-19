@@ -148,7 +148,7 @@ Screens build it with `failureText` (`src/core/failure.ts`): an error written fo
 `Refusal` and is shown as it is; any other error's text goes last, in parentheses.
 `tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.
 
-**American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
+**"e.g." and not "for example"** in anything a user sees, placeholders included (the owner's choice, 19 November 2026). **American English** in anything a user sees. **No em dashes** in UI text, alerts, commit messages,
 PR descriptions or issue bodies: use a period, colon, comma or parentheses. Code comments are
 exempt from both.
 
@@ -174,7 +174,9 @@ src/wanikani WaniKani as a deck: its API, the study session (undo holds the late
 src/tools    the Practice tab's tools (similar words, sentences, situations, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts and extrasStorage.ts. Daily extras (extras.ts) plan the Today tab's strip of drills and texts from the miss tallies; screens are DailyExtras.tsx and DailyExtrasSettings.tsx. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
-             (tests/tools/noGrading.test.ts). It may check an answer, or take Missed it / Got it, and keep only a
+             (tests/tools/noGrading.test.ts). Skill cards (skills.ts) are the one way practice reaches the collection: Add
+             skill cards (Deck options) writes Basic notes through saveNote after a preview the learner approves
+             (src/anki/skillCards.ts), and a drill card in Review is rated by the learner's tap, its suggested rating only outlined. It may check an answer, or take Missed it / Got it, and keep only a
              fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
              question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
