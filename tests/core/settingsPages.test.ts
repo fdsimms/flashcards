@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { SETTINGS_ENTRIES, SETTINGS_PAGES, searchSettings, settingsPage } from '../../src/core/settingsPages';
+import { DECK_OPTIONS_LIST, SETTINGS_ENTRIES, SETTINGS_PAGES, searchSettings, settingsPage } from '../../src/core/settingsPages';
 
 describe('settings pages', () => {
   it('gives every entry a unique id and a page that exists', () => {
     const ids = SETTINGS_ENTRIES.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const e of SETTINGS_ENTRIES) {
-      expect(e.page === 'settings' || settingsPage(e.page)).toBeTruthy();
+      expect(e.page === 'settings' || e.page === 'deck' || settingsPage(e.page)).toBeTruthy();
     }
   });
 
@@ -22,11 +22,17 @@ describe('settings pages', () => {
     expect(searchSettings('narr').map((e) => e.id)).toEqual(['narrator']);
     expect(searchSettings('wait answer').map((e) => e.id)).toEqual(['lessonWait']);
     expect(searchSettings('autoplay').map((e) => e.id)).toEqual(['keepPlaying']);
+    expect(searchSettings('skill').map((e) => e.id)).toEqual(['deckSkills']);
+    expect(searchSettings('cards in progress').map((e) => e.id)).toEqual(['deckGate']);
   });
 
   it('needs every word, ignores case, and finds nothing for a blank query', () => {
     expect(searchSettings('ANSWER buttons').map((e) => e.id)).toEqual(['answerButtons']);
     expect(searchSettings('answer zebra')).toEqual([]);
     expect(searchSettings('   ')).toEqual([]);
+  });
+
+  it("sends a deck's options to the list of decks, since they need a deck", () => {
+    for (const e of SETTINGS_ENTRIES.filter((x) => x.page === 'deck')) expect(e.route, e.id).toBe(DECK_OPTIONS_LIST);
   });
 });
