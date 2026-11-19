@@ -63,7 +63,7 @@ import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
 import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
 import { useSkillRelease } from './useSkillRelease';
-import { drillOfTags } from '../tools/skills';
+import { drillOfTags, skillOffer } from '../tools/skills';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
@@ -163,7 +163,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onCardInfo, onSettings }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onCardInfo, onSettings }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -201,6 +201,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   earlierDeck?: string;
   /** Opens Custom Study for this deck (src/ui/CustomStudy.tsx), which can raise today's limits or pick more cards to study. */
   onCustomStudy: () => void;
+  /** Add skill cards to the deck (SkillCards.tsx), offered at the end of a session when its language has some and it has none. */
+  onSkillCards?: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
   onCardInfo: (cardId: string) => void;
   /** Opens the card settings (Settings, Decks and cards) from the header's menu. */
@@ -985,6 +987,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         icon: { name: 'square.and.pencil' as const, color: c.orange }, onPress: () => practice?.onUseWords?.(newWords),
       }] : []),
       ...(newWordsStep ? [newWordsStep] : []),
+      ...(onSkillCards && !paramsForDeck(deck, allParams)?.filtered ? (() => {
+        const language = skillOffer(deck, notes.values());
+        return language ? [{ key: 'skills', label: `Add skill cards for ${language}`, icon: { name: 'square.stack.3d.up' as const, color: c.teal }, onPress: onSkillCards }] : [];
+      })() : []),
       // An Anki filtered deck has no limits or cards of its own to add to.
       ...(paramsForDeck(deck, allParams)?.filtered ? [] : [{ key: 'custom', label: 'Custom study', icon: { name: 'slider.horizontal.3' as const, color: c.indigo }, onPress: onCustomStudy }]),
     ];

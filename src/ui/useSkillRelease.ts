@@ -4,11 +4,12 @@ import { isInProgress } from '../core/progress';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
-import { drillOfTags, releasable } from '../tools/skills';
+import { drillOfTags, missingByCard, releasable, studiedHeadwords } from '../tools/skills';
 
 /**
  * Releases a skill card's next drill step (src/tools/skills.ts) once the step before has settled:
- * started, and its next review a week or more out (the progress gate's line, `isInProgress`). Run
+ * started, and its next review a week or more out (the progress gate's line, `isInProgress`), and the
+ * deck has the words the step needs, studied (`stepWords`: a hundred for the hundreds). Run
  * once when a review session's cards are first loaded, behind any answer being written; a step
  * released now comes up from the next session. Unsuspending goes through `setCardStates`, as the
  * review menu's does, so Anki and sync carry it.
@@ -18,11 +19,12 @@ export function useSkillRelease(repo: NoteStore & Pick<AnkiLink, 'setAnkiCardSta
   useEffect(() => {
     if (done.current || !cards || !notes.size) return;
     done.current = true;
+    const missing = missingByCard(cards, notes, studiedHeadwords(notes.values(), cards));
     const skill = cards.flatMap((card) => {
       const drill = notes.get(card.noteId) && drillOfTags(notes.get(card.noteId)!.tags);
       if (!drill || card.retired) return [];
       const settled = card.sched.state !== 0 && !isInProgress(card);
-      return [{ card, state: { id: card.id, stepId: drill.step.id, language: drill.language, suspended: !!card.suspended, settled } }];
+      return [{ card, state: { id: card.id, stepId: drill.step.id, language: drill.language, suspended: !!card.suspended, settled, missing: missing.get(card.id) } }];
     });
     const ids = new Set(releasable(skill.map((s) => s.state)));
     if (!ids.size) return;
