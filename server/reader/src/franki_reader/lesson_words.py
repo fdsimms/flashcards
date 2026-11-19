@@ -47,6 +47,17 @@ READINGS = {
     "ja": "the reading in hiragana",
 }
 
+
+def is_written(text: str, language: Code) -> bool:
+    """Whether `text` is written the way `language` is: in its own script, and for Thai, Russian,
+    Greek and Japanese with no Latin letter (that is romanization handed back as the text); in a
+    Latin-script language, with a Latin letter."""
+    script = SCRIPTS.get(language)
+    if script:
+        return script.search(text) is not None and ASCII_LETTER.search(text) is None
+    return LATIN_LETTER.search(text) is not None
+
+
 SYSTEM = """\
 A learner of {language} typed a word or phrase to be taught in an audio lesson. It may be in \
 {language} spelled correctly or by ear, romanization (any scheme, tones and accents often missing), \
@@ -110,7 +121,6 @@ def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
     Thai, Russian, Greek or Japanese one means Claude handed the romanization back), each word once,
     each with a meaning, none too long to send as a lesson phrase. One that doesn't pass is dropped,
     not repaired."""
-    script = SCRIPTS.get(language)
     out: list[Candidate] = []
     seen: set[str] = set()
     raw = answer.get("candidates")
@@ -122,12 +132,7 @@ def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
         )
         if not text or not english or len(text) > MAX_CHARS or len(english) > MAX_CHARS:
             continue
-        written = (
-            script.search(text) is not None and ASCII_LETTER.search(text) is None
-            if script
-            else LATIN_LETTER.search(text) is not None
-        )
-        if not written or text in seen:
+        if not is_written(text, language) or text in seen:
             continue
         seen.add(text)
         out.append(Candidate(text, reading[:MAX_CHARS], english))

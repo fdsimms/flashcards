@@ -1125,6 +1125,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cram/themes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Themes Route
+         * @description Themes for a lesson, written by Claude from the learner's words. Reads the snapshot of
+         *     the deck for the common words it lacks; adds no note, writes no card and grades nothing.
+         */
+        post: operations["cram_themes_route_api_cram_themes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mnemonics": {
         parameters: {
             query?: never;
@@ -1876,6 +1897,13 @@ export interface components {
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
         };
+        /** LineOut */
+        LineOut: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+        };
         /** MarkIn */
         MarkIn: {
             /** Text */
@@ -1956,6 +1984,20 @@ export interface components {
             role: "user" | "assistant";
             /** Content */
             content: string;
+        };
+        /** PoolIn */
+        PoolIn: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "carried" | "missed" | "fresh" | "deck";
         };
         /** PronunciationIn */
         PronunciationIn: {
@@ -2171,6 +2213,44 @@ export interface components {
             /** Fit */
             fit: number;
         };
+        /** ThemeOut */
+        ThemeOut: {
+            /** Title */
+            title: string;
+            /** Why */
+            why: string;
+            /** Word Ids */
+            word_ids: string[];
+            /** New Words */
+            new_words: components["schemas"]["WordOut"][];
+            /** Questions */
+            questions: components["schemas"]["LineOut"][];
+            story: components["schemas"]["LineOut"] | null;
+        };
+        /** ThemesIn */
+        ThemesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Words */
+            words: components["schemas"]["PoolIn"][];
+            /** Weak Spots */
+            weak_spots?: string[];
+            /** Avoid */
+            avoid?: string[];
+            /**
+             * Stretch
+             * @default false
+             */
+            stretch: boolean;
+        };
+        /** ThemesOut */
+        ThemesOut: {
+            /** Themes */
+            themes: components["schemas"]["ThemeOut"][];
+        };
         /** TopicImageIn */
         TopicImageIn: {
             /**
@@ -2247,6 +2327,13 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+        };
+        /** WordOut */
+        WordOut: {
+            /** Word */
+            word: string;
+            /** English */
+            english: string;
         };
         /** WordSuggestionOut */
         WordSuggestionOut: {
@@ -4699,6 +4786,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_themes_route_api_cram_themes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemesOut"];
+                };
             };
             /** @description Validation Error */
             422: {

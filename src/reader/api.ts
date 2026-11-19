@@ -432,6 +432,10 @@ export type Suggestion = Schemas['SuggestionOut'];
 // from texts read, and the common words the deck lacks, each best first. Nothing here adds a note.
 export type WordSuggestion = Schemas['WordSuggestionOut'];
 export type WordSuggestions = Schemas['WordSuggestionsOut'];
+/** A cram's themes (server cram_themes.py), what's asked for them and one of them. */
+export type CramThemes = Schemas['ThemesOut'];
+export type CramThemesRequest = Schemas['ThemesIn'];
+export type CramTheme = Schemas['ThemeOut'];
 
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
 export type LessonState = 'making' | 'ready' | 'failed';
@@ -658,6 +662,8 @@ export function createApi(
       (await call<{ topics: string[] }>('POST', '/api/lessons/topics', {
         language, ...(phrases ? { phrases } : {}), ...(shown?.length ? { shown } : {}),
       })).topics,
+    // Themes to talk about at a lesson, written by Claude from the learner's words (server cram_themes.py). Adds no note and grades nothing.
+    cramThemes: (request: CramThemesRequest) => call<CramThemes>('POST', '/api/cram/themes', request),
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
