@@ -7,7 +7,7 @@ import {
   setResume, shelfItem, sleepDelay, type AudioQueue, type QueueItem, type RepeatMode, type SleepTimer,
 } from '../reader/audioQueue';
 import { holdsPlayAll } from '../reader/choices';
-import { mayDownload } from '../reader/downloads';
+import { mayDownload, shelfCardFor } from '../reader/downloads';
 import { atEnd } from '../reader/lessons';
 import { firstLine } from '../reader/playback';
 import { hasSlow, speedFor } from '../reader/prefs';
@@ -17,6 +17,7 @@ import { useApp } from './AppContext';
 import { connection } from './connection';
 import { downloads } from './reader/readerDownloads';
 import { useReaderPlayerHost, type Carried, type Position } from './useReaderPlayer';
+import { useKeepPlaying } from './reader/useKeepPlaying';
 
 /**
  * Up Next (src/reader/audioQueue.ts has the rules): Read & Listen texts and audio lessons played one
@@ -108,6 +109,7 @@ function useAudioQueueHost(): AudioQueueHost {
   const began = useRef<{ key: string; at: number; logged: boolean } | null>(null);
   // Counts starts: a text is fetched before it plays, and a newer start wins.
   const starting = useRef(0);
+  const keepWhilePlaying = useKeepPlaying();
 
   const update = useCallback((change: (q: AudioQueue) => AudioQueue) => {
     const next = change(queueRef.current);
@@ -164,12 +166,14 @@ function useAudioQueueHost(): AudioQueueHost {
       return;
     }
     playingText.current = text;
+    // Kept on the phone as it plays, as the reader keeps a text it plays (useKeepPlaying).
+    if (item.from !== null) keepWhilePlaying(text.id, text.language, item.from === 'past');
     host.playText(server, {
       textId: text.id, title: text.title, language: text.language, lines: text.lines,
       current: firstLine(text.lines, from ?? item.resume ?? first) ?? first,
       repeat: 1, played: 1, loop: false, rate: speedFor(prefs(), text.language), from: item.from,
     });
-  }, [host]);
+  }, [host, keepWhilePlaying]);
 
   /** Logs a text played through, once per time it's started: as read by listening, or heard again. */
   const logPlayed = useCallback((item: QueueItem, what: Carried) => {
@@ -293,7 +297,8 @@ function useAudioQueueHost(): AudioQueueHost {
 
   /**
    * What's added to Up Next is downloaded, under the same setting as the shelf's texts, so the queue
-   * plays offline: a lesson, and a text not kept already (a Reread text; the shelf's are kept anyway).
+   * plays offline: a lesson, and a text not kept already (readerDownloads' `saveText`, as the reader's
+   * useKeepPlaying keeps one).
    */
   const serverApi = useApp().reader.serverApi;
   const serverRef = useRef(serverApi);
@@ -308,7 +313,9 @@ function useAudioQueueHost(): AudioQueueHost {
       return;
     }
     if (kept.texts.some((t) => t.id === item.textId && t.complete)) return;
-    downloads.saveQueued(server, item.textId, hasSlow(prefs(), item.language)).catch(() => undefined);
+    // As the reader keeps a text: a Reread one as a past text, a shelf one with its card from the shelf.
+    const source = item.from === 'past' ? item.textId : shelfCardFor(kept, item.textId);
+    if (source !== null) downloads.saveText(server, source, hasSlow(prefs(), item.language)).catch(() => undefined);
   }, []);
 
   const playNow = useCallback((item: QueueItem) => {

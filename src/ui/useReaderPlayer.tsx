@@ -9,10 +9,11 @@ import { LOOP_BREAK_SOURCE } from './loopBreak';
 import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
 import { createPreloader, type Preloader } from '../reader/preload';
 import { preloadFiles } from './preloadFiles';
-import { attachListeningPlayer, beginListening, endListening, setListeningDetail, type ListeningControls } from './listeningActivity';
+import { attachListeningPlayer, beginListening, endListening, NO_CONTROLS, setListeningDetail, setListeningLoop, type ListeningControls } from './listeningActivity';
 import { lineDetail } from '../reader/listeningActivity';
 import { lessonAudioMode, useLessonTurns, type LessonTurns } from './useLessonTurns';
 import { onTrackCommand, setTrackCommands } from './trackCommands';
+import { useLessonLoop, type LessonLoop } from './useLessonLoop';
 import { useLessonWaits, type LessonWaits } from './useLessonWaits';
 
 /**
@@ -98,6 +99,8 @@ export interface ReaderPlayerHost {
   waits: LessonWaits;
   /** The learner's turns: listening for the end of an answer, playing it back, Again (useLessonTurns). */
   turns: LessonTurns;
+  /** Loop for a lesson: played to its end, it starts again (useLessonLoop). */
+  lessonLoop: LessonLoop;
   /** A lesson is now on the player (or none, null): its pauses are waited at and its turns followed. */
   watchLesson: (lesson: AudioLesson | null, api?: Api | null) => void;
   /** Up Next: plays a text from `handoff.current`, on here (no screen). */
@@ -138,12 +141,16 @@ function useReaderPlayer(): ReaderPlayerHost {
   const queue = useRef<QueueHooks | null>(null);
   const waits = useLessonWaits(player.current);
   const turns = useLessonTurns(player.current, waits);
+  const lessonLoop = useLessonLoop(player.current, waits);
+  const lessonLoopNow = useRef(lessonLoop);
+  lessonLoopNow.current = lessonLoop;
   const wantsRecording = useRef(turns.wantsRecording);
   wantsRecording.current = turns.wantsRecording;
   const watchLesson = useCallback((lesson: AudioLesson | null, api?: Api | null) => {
     waits.watch(lesson);
     turns.watch(lesson, api);
-  }, [waits.watch, turns.watch]); // eslint-disable-line react-hooks/exhaustive-deps -- both are stable
+    lessonLoop.watch(lesson);
+  }, [waits.watch, turns.watch, lessonLoop.watch]); // eslint-disable-line react-hooks/exhaustive-deps -- all three are stable
 
   const show = useCallback((playing: boolean) => {
     const c = carrying.current;
@@ -250,11 +257,14 @@ function useReaderPlayer(): ReaderPlayerHost {
     show(status.playing || status.isBuffering);
   }, [playLine, finished, show]);
 
-  // The lesson is one recording, so there is no next line: it carries on until it ends or is stopped.
+  // The lesson is one recording, so there is no next line: it carries on until it ends or is stopped,
+  // or with Loop on, starts again as it ends (useLessonLoop does that).
   const onLessonStatus = useCallback((status: { didJustFinish: boolean; playing: boolean; isBuffering: boolean; error?: unknown }) => {
-    if (!carryingLesson.current) return;
+    const lesson = carryingLesson.current;
+    if (!lesson) return;
     if (status.error) { end(false); return; }
-    if (status.didJustFinish) { finished(); return; }
+    // With Loop on, useLessonLoop starts it again; otherwise Up Next goes on to the next item.
+    if (status.didJustFinish && !lessonLoopNow.current.isOn(lesson.id)) { finished(); return; }
     show(status.playing || status.isBuffering);
   }, [end, finished, show]);
 
@@ -272,7 +282,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     setAudioModeAsync(lessonAudioMode(wantsRecording.current())).catch(() => undefined);
     // Playing, or stopped at a pause waiting for the learner, where Play goes on.
     show(player.current!.playing);
-    beginListening({ kind: 'lesson', title: lesson.title, detail: '' }, () => buttons.current);
+    beginListening({ kind: 'lesson', title: lesson.title, detail: '', looping: lessonLoopNow.current.isOn(lesson.id) }, () => buttons.current);
     setTrackCommands(true);
     queue.current?.carried({ kind: 'lesson', lesson });
   }, [onLessonStatus, show]);
@@ -295,7 +305,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     // The reader's own switch to background playing is undone as it closes; carrying on needs it kept.
     setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);
     show(true);
-    beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)) }, () => buttons.current);
+    beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)), looping: handoff.loop }, () => buttons.current);
     setTrackCommands(true);
     queue.current?.carried({ kind: 'text', handoff });
   }, [onStatus, show]);
@@ -308,7 +318,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     carrying.current = { api, handoff };
     listener.current = player.current!.addListener('playbackStatusUpdate', onStatus);
     setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);
-    beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)) }, () => buttons.current);
+    beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)), looping: handoff.loop }, () => buttons.current);
     void playLine(handoff.current);
   }, [onStatus, playLine, watchLesson]);
 
@@ -334,7 +344,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     if (carryingLesson.current !== lesson) return;
     p.play();
     show(true);
-    beginListening({ kind: 'lesson', title: lesson.title, detail: '' }, () => buttons.current);
+    beginListening({ kind: 'lesson', title: lesson.title, detail: '', looping: lessonLoopNow.current.isOn(lesson.id) }, () => buttons.current);
   }, [onLessonStatus, show, watchLesson, waits]);
 
   const setTextRate = useCallback((rate: number) => {
@@ -382,10 +392,28 @@ function useReaderPlayer(): ReaderPlayerHost {
     if (to !== null) void playLine(to);
   }, [playLine, waits]);
 
+  // The Live Activity's Start over and Loop, for what the mini-player carries on.
+  const startOver = useCallback(() => {
+    if (carryingLesson.current) { lessonLoopNow.current.startOver(); return; }
+    const c = carrying.current;
+    if (!c) return;
+    const first = firstLine(c.handoff.lines);
+    if (first !== null) void playLine(first);
+  }, [playLine]);
+
+  const toggleLoop = useCallback(() => {
+    const lesson = carryingLesson.current;
+    if (lesson) { setListeningLoop(lessonLoopNow.current.toggle(lesson.id)); return; }
+    const c = carrying.current;
+    if (!c) return;
+    c.handoff = { ...c.handoff, loop: !c.handoff.loop };
+    setListeningLoop(c.handoff.loop);
+  }, []);
+
   const stop = useCallback(() => end(true), [end]);
   // What the Live Activity's buttons do once the mini-player carries on (the reader's and a lesson's screens answer them while open).
-  const buttons = useRef<ListeningControls>({ previous: () => undefined, toggle: () => undefined, next: () => undefined });
-  buttons.current = { previous: () => skip(-1), toggle, next: () => skip(1) };
+  const buttons = useRef<ListeningControls>(NO_CONTROLS);
+  buttons.current = { startOver, previous: () => skip(-1), toggle, next: () => skip(1), loop: toggleLoop };
 
   // The lock screen's and headphones' next and previous buttons, while this player has them (setTrackCommands).
   useEffect(() => onTrackCommand((step) => queue.current?.track(step)), []);
@@ -393,7 +421,7 @@ function useReaderPlayer(): ReaderPlayerHost {
   useEffect(() => () => { listener.current?.remove(); player.current?.remove(); }, []);
 
   return {
-    player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop, waits, turns, watchLesson,
+    player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop, waits, turns, lessonLoop, watchLesson,
     playText, playLesson, setTextRate, pause, position, putDown, attachQueue,
   };
 }

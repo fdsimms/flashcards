@@ -3,7 +3,7 @@ import {
   activityStep, idleExpired, IDLE_END_MS, kindLabel, lineDetail, parseAction, type Listening, type Sent,
 } from '../../src/reader/listeningActivity';
 
-const lesson: Listening = { kind: 'lesson', title: 'Der erste Kuchen', detail: '' };
+const lesson: Listening = { kind: 'lesson', title: 'Der erste Kuchen', detail: '', looping: false };
 const sent = (over: Partial<Sent> = {}): Sent => ({ listening: lesson, playing: true, position: 10, duration: 200, at: 1_000_000, ...over });
 
 describe('activityStep', () => {
@@ -20,6 +20,12 @@ describe('activityStep', () => {
   it('updates when playing starts or stops, or the line changes', () => {
     expect(activityStep(sent(), lesson, { playing: false, position: 10, duration: 200 }, 1_000_000)).toBe('update');
     expect(activityStep(sent(), { ...lesson, detail: 'Line 2 of 12' }, { playing: true, position: 10, duration: 200 }, 1_000_000)).toBe('update');
+  });
+
+  it('updates when Loop is turned on or off', () => {
+    const snap = { playing: true, position: 10, duration: 200 };
+    expect(activityStep(sent(), { ...lesson, looping: true }, snap, 1_000_000)).toBe('update');
+    expect(activityStep(sent({ listening: { ...lesson, looping: true } }), lesson, snap, 1_000_000)).toBe('update');
   });
 
   it('leaves it alone while playing runs on as expected', () => {
@@ -64,6 +70,8 @@ describe('labels and actions', () => {
     expect(parseAction('toggle')).toBe('toggle');
     expect(parseAction('previous')).toBe('previous');
     expect(parseAction('next')).toBe('next');
+    expect(parseAction('startOver')).toBe('startOver');
+    expect(parseAction('loop')).toBe('loop');
     expect(parseAction('stop')).toBeNull();
     expect(parseAction(undefined)).toBeNull();
   });

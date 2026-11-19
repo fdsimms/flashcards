@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AudioLesson, Shelf, ShelfStory, ShelfText } from '../../src/reader/api';
 import { card, readerText, saved } from '../support/reader';
 import {
-  asksBeforeLesson, EMPTY_INDEX, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
+  asksBeforeLesson, EMPTY_INDEX, mayKeepWhilePlaying, shelfCardFor, cardOfText, pastOverflow, PAST_KEPT, lessonsGone, lessonsRefreshed, linesWithAudio, mayDownload, offlineShelf, parseHeldReader, parseIndex, planTexts,
   languagesToKeep, readOffline, savedState, usageText, type DownloadIndex,
 } from '../../src/reader/downloads';
 
@@ -33,6 +33,42 @@ describe('when texts download by themselves', () => {
   });
 });
 
+describe('keeping a text as it plays', () => {
+  it('ignores Wi-Fi only, since the text is streaming anyway, but not Off or no connection', () => {
+    expect(mayKeepWhilePlaying('wifi', 'cellular')).toBe(true);
+    expect(mayKeepWhilePlaying('any', 'cellular')).toBe(true);
+    expect(mayKeepWhilePlaying('off', 'wifi')).toBe(false);
+    expect(mayKeepWhilePlaying('wifi', 'none')).toBe(false);
+  });
+
+  it("finds a text's card on any shelf read, the story's next episode included", () => {
+    const index = { shelves: { pl: shelf([card({ id: 1 })], card({ id: 2 })) } };
+    expect(shelfCardFor(index, 1)?.id).toBe(1);
+    expect(shelfCardFor(index, 2)?.id).toBe(2);
+    expect(shelfCardFor(index, 3)).toBeNull();
+  });
+});
+
+describe('played past texts', () => {
+  const past = (id: number) => saved(id, { past: true });
+
+  it('are left alone by the shelf plan and left off the shelf shown offline', () => {
+    const index = { ...EMPTY_INDEX, texts: [past(7), saved(1)] };
+    expect(planTexts(shelf([card({ id: 1 })]), index).drop).toEqual([]);
+    expect(offlineShelf({ ...index, shelves: {} }, new Set(), 'pl')?.texts.map((t) => t.id)).toEqual([1]);
+  });
+
+  it('keep only the latest few, oldest dropped first', () => {
+    const texts = Array.from({ length: PAST_KEPT + 2 }, (_, i) => past(100 + i));
+    expect(pastOverflow({ texts: [saved(1), ...texts] })).toEqual([100, 101]);
+    expect(pastOverflow({ texts: [saved(1), past(5)] })).toEqual([]);
+  });
+
+  it('get a card made from the text', () => {
+    expect(cardOfText(readerText(4))).toMatchObject({ id: 4, lines: readerText(4).lines.length });
+  });
+});
+
 describe('planTexts', () => {
   it('fetches what is on the shelf and not kept whole, the story episode first', () => {
     const index = { texts: [saved(2), saved(3, { complete: false })] };
@@ -43,12 +79,6 @@ describe('planTexts', () => {
   it('drops kept texts of the shelf language that left it, and leaves other languages alone', () => {
     const index = { texts: [saved(2), saved(4), saved(5, { language: 'th' })] };
     expect(planTexts(shelf([card({ id: 2 })]), index).drop).toEqual([4]);
-  });
-
-  it('keeps a text in Up Next that is off the shelf, until it leaves the queue', () => {
-    const index = { texts: [saved(2), saved(4), saved(6, { card: undefined })] };
-    expect(planTexts(shelf([card({ id: 2 })]), index, new Set([4, 6])).drop).toEqual([]);
-    expect(planTexts(shelf([card({ id: 2 })]), index, new Set([6])).drop).toEqual([4]);
   });
 });
 
@@ -69,10 +99,6 @@ describe('the shelf offline', () => {
   it("makes do with a language's kept texts when its shelf wasn't read yet", () => {
     expect(offlineShelf({ ...EMPTY_INDEX, texts: [saved(2), saved(3, { language: 'th' })] }, new Set(), 'pl')?.texts.map((t) => t.id)).toEqual([2]);
     expect(offlineShelf(EMPTY_INDEX, new Set(), 'pl')).toBeNull();
-  });
-
-  it("doesn't put a text kept only for Up Next on the shelf", () => {
-    expect(offlineShelf({ ...EMPTY_INDEX, texts: [saved(2), saved(3, { card: undefined })] }, new Set(), 'pl')?.texts.map((t) => t.id)).toEqual([2]);
   });
 
   it("keeps each language's shelf apart", () => {
@@ -126,8 +152,6 @@ describe('lessons', () => {
 describe('reading back', () => {
   it('reads back only what it wrote', () => {
     expect(parseIndex({ version: 1, texts: [saved(1), { id: 'x' }], lessons: [], shelves: {} }).texts).toHaveLength(1);
-    // A text kept for Up Next has no shelf card, and is still read back.
-    expect(parseIndex({ version: 1, texts: [saved(1, { card: undefined })], lessons: [], shelves: {} }).texts).toHaveLength(1);
     expect(parseIndex(null)).toEqual(EMPTY_INDEX);
     expect(parseHeldReader([{ kind: 'choice', textId: 1, choice: 2 }, { kind: 'reading', textId: 1 }, { kind: 'listen', textId: 3 }, { kind: 'language', language: 'th' }])).toHaveLength(3);
   });

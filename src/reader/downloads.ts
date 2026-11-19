@@ -14,8 +14,8 @@ export interface SavedText {
   language: Language;
   /** The text as the server gave it, to open with no connection. */
   text: ReaderText;
-  /** Its shelf card, for the shelf shown offline; missing for a text kept because it's in Up Next (a Reread text). */
-  card?: ShelfText;
+  /** Its shelf card, for the shelf shown offline. */
+  card: ShelfText;
   /** Lines whose normal-speed recording is kept. */
   lines: number[];
   /** Lines whose slow recording is kept, with its word times (the slow recording's own). */
@@ -23,6 +23,8 @@ export interface SavedText {
   /** Every recording it needs is kept: only then is it shown as on this iPhone. */
   complete: boolean;
   bytes: number;
+  /** Kept because it was played from Past texts or Listen again, not from the shelf: no shelf plan touches it, and only the latest PAST_KEPT are kept. */
+  past?: boolean;
 }
 
 /** An audio lesson kept on the phone because Download was tapped. */
@@ -47,7 +49,7 @@ export function parseIndex(raw: unknown): DownloadIndex {
   if (!o || o.version !== 1 || !Array.isArray(o.texts) || !Array.isArray(o.lessons)) return EMPTY_INDEX;
   return {
     version: 1,
-    texts: o.texts.filter((t) => typeof t?.id === 'number' && Array.isArray(t.lines) && t.text),
+    texts: o.texts.filter((t) => typeof t?.id === 'number' && Array.isArray(t.lines) && t.text && t.card),
     lessons: o.lessons.filter((l) => typeof l?.lesson?.id === 'number'),
     shelves: o.shelves && typeof o.shelves === 'object' ? o.shelves : {},
   };
@@ -57,6 +59,41 @@ export function parseIndex(raw: unknown): DownloadIndex {
 export function mayDownload(setting: OfflineDownloads, path: NetworkPath): boolean {
   if (setting === 'off' || path === 'none') return false;
   return setting === 'any' || path === 'wifi';
+}
+
+/**
+ * Whether a text being played may be kept on the phone as it plays, whatever the connection: it is
+ * already streaming over it, so keeping it costs about what listening does. Only Off, or no
+ * connection, stops it (the Wi-Fi only setting is for downloads nobody asked for).
+ */
+export function mayKeepWhilePlaying(setting: OfflineDownloads, path: NetworkPath): boolean {
+  return setting !== 'off' && path !== 'none';
+}
+
+/** A text's shelf card from the shelves last read, or null when it isn't on one (a past text). */
+export function shelfCardFor(index: Pick<DownloadIndex, 'shelves'>, id: number): ShelfText | null {
+  for (const shelf of Object.values(index.shelves)) {
+    const found = shelf && shelfCards(shelf).find((t) => t.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** How many played past texts stay on the phone: the latest ones, so replaying a few doesn't pile up. */
+export const PAST_KEPT = 10;
+
+/** The shelf card for a text that isn't on a shelf (a past text), made from the text itself. */
+export function cardOfText(text: ReaderText): ShelfText {
+  return {
+    id: text.id, title: text.title, topic: text.topic ?? text.title, topic_id: text.topicId, form: text.form,
+    lines: text.lines.length, stretch: text.stretch, reason: text.reason ?? 'asked', coverage: text.coverage, episode: text.episode ?? 0,
+  };
+}
+
+/** The played past texts to delete, oldest first, beyond the latest PAST_KEPT (the index lists a text where it was last saved). */
+export function pastOverflow(index: Pick<DownloadIndex, 'texts'>): number[] {
+  const past = index.texts.filter((t) => t.past);
+  return past.slice(0, Math.max(0, past.length - PAST_KEPT)).map((t) => t.id);
 }
 
 /** Whether a tapped lesson Download asks first: on cellular, unless the setting is Any connection. */
@@ -77,15 +114,14 @@ export function shelfCards(shelf: Pick<Shelf, 'story' | 'texts'>): ShelfText[] {
 /**
  * What to do after reading the shelf: the texts on it not kept yet (or kept only in part) to
  * download, in shelf order, and the kept texts of that language that have left it (read, or
- * removed) to delete, unless they're in Up Next (`queued`), which keeps them until they leave it.
- * Texts of other languages are left alone: this shelf says nothing about them.
+ * removed) to delete. Texts of other languages are left alone: this shelf says nothing about them.
  */
-export function planTexts(shelf: Shelf, index: Pick<DownloadIndex, 'texts'>, queued: ReadonlySet<number> = new Set()): { fetch: ShelfText[]; drop: number[] } {
+export function planTexts(shelf: Shelf, index: Pick<DownloadIndex, 'texts'>): { fetch: ShelfText[]; drop: number[] } {
   const on = new Set(playOrder(shelf));
   const complete = new Set(index.texts.filter((t) => t.complete).map((t) => t.id));
   return {
     fetch: shelfCards(shelf).filter((t) => !complete.has(t.id)),
-    drop: index.texts.filter((t) => t.language === shelf.language && !on.has(t.id) && !queued.has(t.id)).map((t) => t.id),
+    drop: index.texts.filter((t) => !t.past && t.language === shelf.language && !on.has(t.id)).map((t) => t.id),
   };
 }
 
@@ -129,14 +165,13 @@ export const SAVED_LABEL: Record<SavedState, string> = { saved: 'On this iPhone'
  * at all is known for it.
  */
 export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, language: Language): Shelf | null {
-  const kept = new Map(index.texts.filter((t) => t.complete && !read.has(t.id)).map((t) => [t.id, t]));
+  const kept = new Map(index.texts.filter((t) => t.complete && !t.past && !read.has(t.id)).map((t) => [t.id, t]));
   const base = index.shelves[language];
   if (!base) {
-    // Only shelf texts: one kept for Up Next alone has no card, and wasn't on the shelf.
-    const texts = [...kept.values()].flatMap((t) => (t.language === language && t.card ? [t.card] : []));
+    const texts = [...kept.values()].filter((t) => t.language === language);
     if (!texts.length) return null;
     const languages = Object.values(index.shelves).find((s) => s?.languages.length)?.languages ?? [];
-    return { language, languages, texts, writing: [], story: null };
+    return { language, languages, texts: texts.map((t) => t.card), writing: [], story: null };
   }
   const next = base.story?.next && kept.has(base.story.next.id) ? base.story.next : null;
   return {
