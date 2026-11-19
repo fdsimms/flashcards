@@ -222,8 +222,8 @@ def test_the_guide_gives_a_languages_rules_values_and_a_finished_note():
     for name, example in {**o.EXAMPLES, "several senses": o.SEVERAL_SENSES}.items():
         assert [p for p in o.problems(example) if p.level != "gap"] == [], name
     assert german["example_with_several_senses"]["Meaning"].startswith("1. ")
-    # Sense disambiguates a single-sense gloss, and is not written beside numbered senses.
-    assert "Sense: only for a word with one sense" in german["every_note"]
+    # Sense flags a word that covers only some of its gloss's senses, and is not written beside numbered senses.
+    assert "Sense: only when the word covers some, not all" in german["every_note"]
     assert "Sense is no longer written" not in german["every_note"]
     assert "No rules beyond the common ones" in o.guide("italian")["this_language"]
 
