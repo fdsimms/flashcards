@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, TextInput, View, useColorScheme } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { failureText } from '../../core/failure';
 import { compareTyped } from '../../core/typedCompare';
 import type { Language, SentencePrompt, WritingCheck } from '../../reader/api';
@@ -18,6 +17,7 @@ import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import type { ToolScreenProps } from './index';
 import { MarkButtons, PracticeCard, useSwipeSetting } from './PracticeCard';
+import { RoundRing } from './RoundRing';
 import { ToolScreen, useAnswer, useToolLanguage } from './ToolScreen';
 
 /** Sentences asked for at once. */
@@ -284,25 +284,6 @@ function RoundSegments({ total, round }: { total: number; round: LineRound }) {
         const first = round.first[i];
         return <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: first === true ? c.good : first === false ? c.again : c.fill, borderWidth: i === at && first === undefined ? 1.5 : 0, borderColor: c.accent }} />;
       })}
-    </View>
-  );
-}
-
-/** The score as a ring filled in the accent, the number right in the middle. */
-function RoundRing({ right, asked }: { right: number; asked: number }) {
-  const c = useTheme();
-  const size = 150;
-  const r = 64;
-  const circumference = 2 * Math.PI * r;
-  const share = asked ? right / asked : 0;
-  return (
-    <View accessible accessibilityLabel={`${right} of ${asked} right the first time`} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} viewBox="0 0 150 150" style={{ position: 'absolute' }}>
-        <Circle cx={75} cy={75} r={r} stroke={c.fill} strokeWidth={10} fill="none" />
-        <Circle cx={75} cy={75} r={r} stroke={c.accent} strokeWidth={10} strokeLinecap="round" fill="none" strokeDasharray={`${circumference * share} ${circumference}`} transform="rotate(-90 75 75)" />
-      </Svg>
-      <Text maxFontSizeMultiplier={1.3} style={{ ...type.largeTitle, fontSize: 52, lineHeight: 58, color: c.text, fontVariant: ['tabular-nums'] }}>{right}</Text>
-      <Text maxFontSizeMultiplier={1.3} style={{ ...type.subhead, color: c.textSecondary }}>{`of ${asked}`}</Text>
     </View>
   );
 }
