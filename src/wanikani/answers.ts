@@ -109,9 +109,11 @@ export function checkReading(subject: Subject, typed: string): Verdict {
   // A kanji's reading WaniKani isn't asking for (its kun'yomi when it teaches the on'yomi) gets another try.
   const other = subject.readings.find((r) => !r.accepted && norm(r.reading) === answer);
   if (other && subject.type === 'kanji') {
-    const wanted = subject.readings.find((r) => r.accepted)?.type;
-    const name = wanted === 'onyomi' ? "on'yomi" : wanted === 'kunyomi' ? "kun'yomi" : 'other reading';
-    return { result: 'retry', message: `Not that one. WaniKani wants the ${name}.` };
+    const readingName = (t: string | undefined) => (t === 'onyomi' ? "on'yomi" : t === 'kunyomi' ? "kun'yomi" : null);
+    const wanted = readingName(subject.readings.find((r) => r.accepted)?.type);
+    const given = readingName(other.type);
+    if (wanted && given) return { result: 'retry', message: `That's the ${given} reading. Enter the ${wanted} reading.` };
+    return { result: 'retry', message: wanted ? `Enter the ${wanted} reading.` : 'That reading is not the one asked for. Try another.' };
   }
   return { result: 'wrong' };
 }
