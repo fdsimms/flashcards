@@ -51,6 +51,7 @@ import { MemoryStrength } from './MemoryStrength';
 import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
+import { leechRecovered, withoutLeechTag } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
@@ -706,6 +707,22 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               // The answer stands; the tag just isn't added.
             }
           }
+          // A leech that has recovered (every card of the note a mature review) loses its tag. Read
+          // from the saved cards, not `pool`, which may hold only part of the note's cards.
+          if (!preview && !isLeech && rating > 1 && isLeechNote(noteBefore) && updated.sched.state === 2) {
+            try {
+              const all = await repo.listCards();
+              if (leechRecovered(noteBefore, all.filter((c) => c.noteId === noteBefore.id))) {
+                // The note as it is now, so an edit made since the answer isn't written back over.
+                const latest = (await repo.getNote(noteBefore.id)) ?? noteBefore;
+                const cleared = await saveNote(repo as NoteStore, { id: latest.id, deck: latest.deck, model: latest.model, fields: latest.fields, tags: withoutLeechTag(latest.tags) }, when);
+                record.leechClearedNoteId = latest.id;
+                setNotes((prev) => new Map(prev).set(cleared.id, cleared));
+              }
+            } catch {
+              // The answer stands; the tag just stays.
+            }
+          }
           if (isLeech && canAddMnemonic(noteBefore)) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
@@ -767,6 +784,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags.filter((t) => t !== 'leech') });
           setNotes((prev) => new Map(prev).set(restored.id, restored));
         } catch { /* the tag stays */ }
+      }
+      // An answer that let a recovered leech go: the tag comes back with the answer.
+      if (last.leechClearedNoteId) {
+        const c = await repo.getNote(last.leechClearedNoteId);
+        if (c && !isLeechNote(c)) {
+          try {
+            const back = await saveNote(repo as NoteStore, { id: c.id, deck: c.deck, model: c.model, fields: c.fields, tags: [...c.tags, 'leech'] });
+            setNotes((prev) => new Map(prev).set(back.id, back));
+          } catch { /* the tag stays off */ }
+        }
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
