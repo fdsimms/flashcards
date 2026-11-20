@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentStep, stepsAt, textSteps } from '../../src/reader/making';
+import { currentStep, makingSpoken, stepsAt, textSteps } from '../../src/reader/making';
 
 describe('textSteps', () => {
   it('marks the steps before a stage done, the stage now and the rest to come', () => {
@@ -25,5 +25,12 @@ describe('currentStep', () => {
   it('names the step under way, the first when the server sends no stage', () => {
     expect(currentStep(textSteps('translating'))).toBe('Adding the translations');
     expect(currentStep(textSteps(undefined))).toBe('Writing the text');
+  });
+});
+
+describe('makingSpoken', () => {
+  it('says the step under way and how far along it is', () => {
+    const steps = stepsAt([{ stage: 'a', label: 'Writing' }, { stage: 'b', label: 'Recording' }, { stage: 'c', label: 'Joining' }], 'b');
+    expect(makingSpoken(steps)).toBe('Recording, step 2 of 3');
   });
 });
