@@ -25,7 +25,7 @@ import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
-import { reviewWrites } from '../core/writeQueue';
+import { ankiWrites, reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
 import { secondsPerCard } from '../core/todaySummary';
@@ -252,6 +252,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
+  const undone = useRef(new WeakSet<AnswerRecord>());
+  // How many answer writes have failed, and the count the "answers after it" alert was last shown for.
+  const failedWrites = useRef(0);
+  const toldDropped = useRef(0);
   const [preferId, setPreferId] = useState<string>();
   // Just after an answer: the card the queue expected next (`upNext`) is shown at once, from the queue
   // as it was, and the queue and the lookalike hold are rebuilt from the answer once that card is on
@@ -468,24 +472,26 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
    * file is here, as Anki plays it, else the phone's text-to-speech voice.
    */
-  const ttsRunning = useRef(false);
+  // Stopping speech that isn't running can pull the audio session out from under the recording that
+  // starts right after, so ask the voice whether it is speaking rather than keep a flag nothing clears.
+  const stopSpeechIfRunning = useCallback(async () => {
+    if (await Speech.isSpeakingAsync().catch(() => false)) Speech.stop();
+  }, []);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
   // Compare plays the card's recording before the take, so it's offered only with that file here.
   const recordingUri = useMemo(() => (rendered?.audioFile ? mediaFileUri(rendered.audioFile) : undefined), [rendered?.audioFile]);
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
     onBeforeAudio: () => {
-      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
+      void stopSpeechIfRunning();
       player.current?.pause();
     },
     original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
   const speak = useCallback(
-    (what: Playback | undefined) => {
+    async (what: Playback | undefined) => {
       if (!what || !rendered) return;
       self.stopTake();
-      // Stopping speech that isn't running can pull the audio session out from under the
-      // recording that starts right after, cutting it off.
-      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
+      await stopSpeechIfRunning();
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
@@ -499,7 +505,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         return;
       }
       if (!what.text) return;
-      ttsRunning.current = true;
       phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
     [rendered, phoneSpeech, self.stopTake],
@@ -512,7 +517,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!speechLang) return;
     self.stopTake();
     player.current?.pause();
-    ttsRunning.current = true;
     phoneSpeech.sayLine(text, speechLang, false);
   }, [speechLang, phoneSpeech, self.stopTake]);
 
@@ -667,15 +671,40 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setNow(when);
 
       writes.current++;
+      const failuresBefore = failedWrites.current;
       void reviewWrites.add(async () => {
+        // An answer queued behind one whose write failed was worked out from cards as that answer
+        // left them (the same card again, a sibling it buried), and that answer is being taken back.
+        // Writing this one would stack it on a state that was never saved, so it's taken back too.
+        if (failedWrites.current !== failuresBefore) {
+          setHistory((h) => h.filter((r) => r !== record));
+          setReloads((n) => n + 1);
+          if (toldDropped.current !== failedWrites.current) {
+            toldDropped.current = failedWrites.current;
+            Alert.alert("The answers after it weren't saved either", 'Those cards will come back too: answer them again.');
+          }
+          writes.current++;
+          return;
+        }
         // Started once the next card is on screen: its database round trips share the JS thread with drawing it.
         await painted();
         // A sync or an import that holds the kept collection while this is written reads it back over
         // the cards saved here: noted so they're saved again once the collection has the answer.
         const lockAtStart = repo.ankiLockState();
+        const ankiAnswer = {
+          before: record.before, after: updated, rating, now: when,
+          takenMs, desiredRetention, bury: siblings,
+          preview: preview ? { again: previewAgainAt } : undefined,
+          steps: stepCounts,
+          weights: params?.weights ?? [],
+        };
+        let owedId: number | undefined;
         try {
           await repo.saveCard(updated);
           for (const b of buried) await repo.saveCard(b);
+          // Kept as owed to the Anki collection before the review row is, so an app closed while the
+          // collection is busy (a sync stuck on the network) still has it to write at the next launch.
+          if (record.before.ankiId) owedId = await repo.oweAnkiAnswer({ answer: ankiAnswer, buried });
           // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
           // So does the deck it was answered in (a filtered deck sends a card home; a card can be
           // moved since): today's counts keep it there, as Anki's deck counter counts it.
@@ -684,16 +713,34 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             ...(rating === 1 && miss ? { miss } : {}),
             deck: record.deck,
           });
+        } catch (e) {
+          // The card may have been saved before its review row failed: put it and the siblings it
+          // buried back as they were, or it would stay rescheduled with no answer on record and
+          // "answer it again" would be false. Best effort, since the database just refused a write.
+          try {
+            await repo.saveCard(record.before);
+            for (const s of siblings) await repo.saveCard(s);
+            if (owedId !== undefined) await repo.forgetOwedAnkiAnswer(owedId);
+          } catch {
+            // Left as it is; the reload below shows what was saved.
+          }
+          // Taken off the screen, and the deck is read again so what's shown is what was saved.
+          failedWrites.current++;
+          setHistory((h) => h.filter((r) => r !== record));
+          lastAnswer.show(null);
+          setReloads((n) => n + 1);
+          Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
+          writes.current++;
+          return;
+        }
+        // The rest waits for the kept collection, in a queue of its own (`ankiWrites`): a sync holds
+        // the collection while it talks to the server, and the next answers' rows above mustn't
+        // wait behind that. Queued from inside this job, so the two halves keep the answers' order.
+        void ankiWrites.add(async () => {
           // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
           // fails, the answer still counts here, and you're told rather than it going missing.
           try {
-            record.anki = await repo.writeAnkiAnswer({
-              before: record.before, after: updated, rating, now: when,
-              takenMs, desiredRetention, bury: siblings,
-              preview: preview ? { again: previewAgainAt } : undefined,
-              steps: stepCounts,
-              weights: params?.weights ?? [],
-            });
+            record.anki = await repo.writeAnkiAnswer({ ...ankiAnswer, owedId });
             // The write waits on `lockAnki`. A sync that held it meanwhile read the kept collection,
             // which didn't have this answer yet, back over the rows saved above. Saved again now that
             // the collection has it, so both agree. Skipped when nothing else took the lock (the
@@ -704,6 +751,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               for (const b of buried) await repo.saveCard(b);
             }
           } catch (e: any) {
+            // Not tried again at the next launch: it was refused, not left waiting.
+            if (owedId !== undefined) await repo.forgetOwedAnkiAnswer(owedId).catch(() => undefined);
             if (!warnedAnki.current) {
               warnedAnki.current = true;
               Alert.alert(
@@ -741,24 +790,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           if (isLeech && canAddMnemonic(noteBefore)) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
-        } catch (e) {
-          // The card may have been saved before its review row failed: put it and the siblings it
-          // buried back as they were, or it would stay rescheduled with no answer on record and
-          // "answer it again" would be false. Best effort, since the database just refused a write.
-          try {
-            await repo.saveCard(record.before);
-            for (const s of siblings) await repo.saveCard(s);
-          } catch {
-            // Left as it is; the reload below shows what was saved.
-          }
-          // Taken off the screen, and the deck is read again so what's shown is what was saved.
-          setHistory((h) => h.filter((r) => r !== record));
-          lastAnswer.show(null);
-          setReloads((n) => n + 1);
-          Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
-        } finally {
-          writes.current++;
-        }
+        }).finally(() => { writes.current++; });
       });
     } finally {
       if (!redo) busy.current = false;
@@ -782,7 +814,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    */
   const undo = async (to?: RatingValue): Promise<boolean> => {
     const last = history[history.length - 1];
-    if (!last || busy.current) return false;
+    // `undone`: a second tap landing before the screen has drawn the first undo still sees its
+    // record as the last, and would take that card back again while the newer list lost another.
+    if (!last || busy.current || undone.current.has(last)) return false;
     busy.current = true;
     writes.current++;
     buttonHaptic(to);
@@ -823,7 +857,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       misses.undone(last.before.id);
       setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
-      setHistory((h) => h.slice(0, -1));
+      undone.current.add(last);
+      setHistory((h) => h.filter((r) => r !== last));
       forms.undone(last.before.id);
       setStudied((s) => bumpStudied(s, last.deck, last.counts, -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));

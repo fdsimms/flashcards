@@ -379,7 +379,8 @@ export interface paths {
         /**
          * Listened
          * @description A finished text heard again with its words hidden. Only counted: no reading, no
-         *     difficulty change. 404 for a text that wasn't read to the end.
+         *     difficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen
+         *     already counted under it isn't counted twice.
          */
         post: operations["listened_api_texts__text_id__listen_post"];
         delete?: never;
@@ -1912,6 +1913,11 @@ export interface components {
             /** English */
             english: string;
         };
+        /** ListenIn */
+        ListenIn: {
+            /** Key */
+            key?: string | null;
+        };
         /** MarkIn */
         MarkIn: {
             /** Text */
@@ -3195,7 +3201,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ListenIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

@@ -14,7 +14,7 @@ import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
-  dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
+  dropItem, missedItems, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { stackSlots } from '../wanikani/stagePopups';
@@ -32,6 +32,7 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
+import { WaniKaniMissList } from './WaniKaniMisses';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** The longest the card's resize after the keyboard may take (ms). */
@@ -309,6 +310,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const undo = () => {
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    // Not from the session an answer was just given from (a tap landing before the screen has
+    // drawn that answer): its held outcome has gone to WaniKani, and undoing from it would take
+    // back the answer before, which can't be taken back.
+    if (study && answeredFrom.current === study) return;
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     // Undoing the answer that saved a synonym takes the synonym back too.
@@ -519,6 +524,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? <LessonsPausedNote apprentice={next.apprentice} limit={prefs.maxApprentice} /> : null}
+          <WaniKaniMissList missed={missedItems(study.session)} subjects={subjects} />
           </ScrollView>
         </Reveal>
       </Screen>

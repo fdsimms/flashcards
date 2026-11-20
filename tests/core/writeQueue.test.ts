@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WriteQueue } from '../../src/core/writeQueue';
+import { ankiWrites, reviewWrites, WriteQueue } from '../../src/core/writeQueue';
 
 const gate = () => {
   let open!: () => void;
@@ -56,5 +56,26 @@ describe('WriteQueue', () => {
     g.open();
     await waiting;
     expect(done).toEqual(['idle']);
+  });
+});
+
+describe("Review's two queues", () => {
+  it('are both waited for by reviewWrites.idle(), the Anki half queued from inside the first', async () => {
+    const collection = gate();
+    const log: string[] = [];
+    void reviewWrites.add(async () => {
+      log.push('saved in Franki');
+      void ankiWrites.add(async () => { await collection.promise; log.push('written to Anki'); });
+    });
+    // A second answer's rows don't wait for the first one's Anki write.
+    await reviewWrites.add(async () => { log.push('second saved in Franki'); });
+    expect(log).toEqual(['saved in Franki', 'second saved in Franki']);
+    let idle = false;
+    const waiting = reviewWrites.idle().then(() => { idle = true; });
+    await Promise.resolve();
+    expect(idle).toBe(false);
+    collection.open();
+    await waiting;
+    expect(log).toEqual(['saved in Franki', 'second saved in Franki', 'written to Anki']);
   });
 });

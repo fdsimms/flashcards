@@ -6,6 +6,8 @@ import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
 import { ReadUseWords } from '../ui/reader/ReadUseWords';
 import { usePhoneSpeech } from '../ui/usePhoneSpeech';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /** Use today's words, opened from a review session's end with the words learned in it (`words`, JSON). */
 export default function ReadUseWordsRoute() {
@@ -24,7 +26,7 @@ export default function ReadUseWordsRoute() {
       language={language}
       words={words}
       onPlay={(text) => speech.sayWord(text, LANGUAGES[language].speech)}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, READ_PATH)}
     />
   );
 }

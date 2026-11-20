@@ -669,12 +669,16 @@ class Engine:
         self, sentences: list[tuple[str, str]], language: Code
     ) -> None:
         """`fill_meanings` for cards' example sentences, as (sentence, its English), so a word in
-        one that nothing glosses has a meaning the next time the card's words are asked for."""
+        one that the deck doesn't gloss has the meaning of that sentence the next time the card's
+        words are asked for."""
         if sentences:
             await self._fill_words(
                 language,
                 lambda lexicon: meanings.missing_in_sentences(
-                    sentences, lexicon, self.meanings(language)
+                    sentences,
+                    lexicon,
+                    self.deck_meanings(language),
+                    store.sentence_meanings(self.conn, language, [s for s, _ in sentences]),
                 ),
             )
 

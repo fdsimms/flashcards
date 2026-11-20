@@ -5,3 +5,9 @@
 export const TODAY_PATH = '/';
 /** The Decks tab. */
 export const DECKS_PATH = '/decks';
+/** The Read & Listen tab. */
+export const READ_PATH = '/read';
+/** The Lessons tab. */
+export const LESSONS_PATH = '/lessons';
+/** The Practice tab. */
+export const PRACTICE_PATH = '/practice';
