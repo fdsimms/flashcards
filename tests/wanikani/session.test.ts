@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerQuestion, askLater, buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
-  shuffled, startStudy, studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
+  answerQuestion, askLater, buildSession, canAskLater, canCredit, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
+  shuffled, startStudy, studyAnswer, studyAskLater, studyCredit, studyFlush, studyUndo, type SessionItem,
   sessionItems, windows, wrongSoFar, missedItems,
 } from '../../src/wanikani/session';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
@@ -340,5 +340,46 @@ describe('the missed list', () => {
       study = studyAnswer(study, right, at, first).study;
     }
     expect(missedItems(study.session)).toEqual([{ assignmentId: 1, subjectId: 101, wrongMeaning: 0, wrongReading: 1 }]);
+  });
+});
+
+describe('crediting the other question', () => {
+  const apart = () => startStudy(buildSession([vocab, radical], { mode: 'apart' }, first));
+  const onReading = () => {
+    let st = apart();
+    while (currentQuestion(st.session)?.kind !== 'reading') st = studyAnswer(st, true, at, first).study;
+    return st;
+  };
+
+  it('counts the waiting reading as answered, keeps the meaning up, and finishes the item with the meaning', () => {
+    const st = startStudy(buildSession([vocab], { mode: 'adjacent' }, first));
+    expect(canCredit(st.session, 'reading')).toBe(true);
+    expect(canCredit(st.session, 'meaning')).toBe(false);
+    const c = studyCredit(st, 'reading');
+    expect(c.session.queue).toEqual([{ assignmentId: 1, kind: 'meaning' }]);
+    const done = studyAnswer(c, true, at, first);
+    expect(done.study.held).toMatchObject({ kind: 'review', assignmentId: 1, wrongMeaning: 0, wrongReading: 0 });
+  });
+
+  it('credits the meaning when the reading is up and the meaning is still waiting', () => {
+    const st = startStudy({ ...buildSession([vocab], { mode: 'apart' }, first), queue: [{ assignmentId: 1, kind: 'reading' }, { assignmentId: 1, kind: 'meaning' }] });
+    expect(studyCredit(st, 'meaning').session.queue).toEqual([{ assignmentId: 1, kind: 'reading' }]);
+  });
+
+  it('does nothing when the other question is not waiting', () => {
+    const st = onReading();
+    expect(canCredit(st.session, 'meaning')).toBe(false);
+    expect(studyCredit(st, 'meaning')).toBe(st);
+    expect(canCredit(st.session, 'reading')).toBe(false);
+    const together = startStudy(buildSession([vocab], { mode: 'together' }, first));
+    expect(canCredit(together.session, 'reading')).toBe(false);
+  });
+
+  it('is undone with the answer after it, not before', () => {
+    const adjacent = startStudy(buildSession([vocab], { mode: 'adjacent' }, first));
+    const c = studyCredit(adjacent, 'reading');
+    expect(c.session.queue).toEqual([{ assignmentId: 1, kind: 'meaning' }]);
+    const a = studyAnswer(c, true, at, first).study;
+    expect(studyUndo(a)?.session.queue).toEqual([{ assignmentId: 1, kind: 'meaning' }]);
   });
 });
