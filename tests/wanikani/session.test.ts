@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   answerQuestion, askLater, buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, questionMode, remaining, REVIEW_WINDOW, sessionProgress,
   shuffled, startStudy, studyAnswer, studyAskLater, studyFlush, studyUndo, type SessionItem,
-  sessionItems, windows, wrongSoFar,
+  sessionItems, windows, wrongSoFar, missedItems,
 } from '../../src/wanikani/session';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
 import { assignmentResource, kanaVocabResource, kanjiResource, radicalResource, vocabResource } from './fixtures';
@@ -325,5 +325,20 @@ describe('asking later', () => {
     expect(later.history).toBe(study.history);
     expect(ids(later.session)).toEqual([3, 2]);
     expect(ids(studyUndo(later)!.session)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('the missed list', () => {
+  it('lists reviews answered wrong at least once, finished ones first, and leaves lessons out', () => {
+    let study = startStudy(buildSession([vocab, radical, lesson], { mode: 'apart' }, first));
+    const asked = [] as string[];
+    for (let guard = 0; guard < 40 && currentQuestion(study.session); guard++) {
+      const q = currentQuestion(study.session)!;
+      // Miss the vocab's reading once and the lesson's quiz once; everything else right.
+      const right = !(q.assignmentId === vocab.assignmentId && q.kind === 'reading' && !asked.includes('v')) && !(q.assignmentId === lesson.assignmentId && q.kind !== 'lesson' && !asked.includes('l'));
+      if (!right) asked.push(q.assignmentId === vocab.assignmentId ? 'v' : 'l');
+      study = studyAnswer(study, right, at, first).study;
+    }
+    expect(missedItems(study.session)).toEqual([{ assignmentId: 1, subjectId: 101, wrongMeaning: 0, wrongReading: 1 }]);
   });
 });
