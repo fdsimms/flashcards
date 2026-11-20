@@ -16,6 +16,8 @@ import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CramThemeCard } from './CramThemeCard';
 import { setThemeState, useThemeState } from './themeStore';
+import { leaveScreen } from '../leaveScreen';
+import { PRACTICE_PATH } from '../tabPaths';
 
 type Source = 'new' | 'pick' | 'tag';
 
@@ -82,7 +84,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
         await saveCram(repo, { ...editing, name: name.trim(), date: dateKey, addNew });
         // Saved either way; the cram's page runs the cap again and says if it can't.
         capCramCards(repo).catch(() => undefined);
-        router.back();
+        leaveScreen(router, PRACTICE_PATH);
         return;
       }
       // Kept for a second try: the cram is saved before its words are tagged, so a try that failed
@@ -119,7 +121,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
           setBusy(true);
           try {
             await deleteCram(repo, editing, cramNotes(editing, collection.notes));
-            router.back();
+            leaveScreen(router, PRACTICE_PATH);
           } catch (e) {
             setProblem(failureText(e, { what: "Couldn't delete the cram.", next: 'Try again.' }));
             setBusy(false);
@@ -137,7 +139,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => router.back()}>Cancel</Stack.Toolbar.Button>
+            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button accessibilityLabel="Save the cram" disabled={busy || !ready} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>

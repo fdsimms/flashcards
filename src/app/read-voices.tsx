@@ -4,6 +4,8 @@ import type { Language } from '../reader/api';
 import { castFor } from '../reader/storyCast';
 import { useApp } from '../ui/AppContext';
 import { ReadVoices } from '../ui/reader/ReadVoices';
+import { leaveScreen } from '../ui/leaveScreen';
+import { DECKS_PATH } from '../ui/tabPaths';
 
 /** One language's voices in Read & Listen (`language`: its code, th, es, de...). */
 export default function ReadVoicesRoute() {
@@ -11,7 +13,7 @@ export default function ReadVoicesRoute() {
   const { reader } = useApp();
   const { language } = useLocalSearchParams<{ language: Language }>();
   // Read & Listen was turned off (or its passphrase changed): back to its settings.
-  useEffect(() => { if (!reader.api) router.back(); }, [reader.api, router]);
+  useEffect(() => { if (!reader.api) leaveScreen(router, DECKS_PATH); }, [reader.api, router]);
   if (!reader.api) return null;
   return (
     <ReadVoices
