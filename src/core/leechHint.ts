@@ -24,6 +24,11 @@ export type MnemonicQuestion = { language: Language; entry: string; meaning: str
 
 const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
 
+/** Whether a stored value is one of Read & Listen's language codes. */
+export function isReaderLanguage(code: unknown): code is Language {
+  return typeof code === 'string' && READER_LANGUAGES.includes(code);
+}
+
 /** The note's language when Read & Listen writes in it. */
 export function readerLanguageOf(note: Note): Language | undefined {
   const code = speechLangFor(note)?.split('-')[0];
