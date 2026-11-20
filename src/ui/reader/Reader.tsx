@@ -114,7 +114,11 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  */
 
 /** A tapped word and where, with how its meaning is held back (`guess`, reader/guess.ts), none to show it at once. */
-export type Tapped = { word: Word; x: number; y: number; guess?: TapMode };
+export type Tapped = {
+  word: Word; x: number; y: number; guess?: TapMode;
+  /** The word's quiz was already answered on this reading (`Session.quizAnswers`): its record is shown in place of asking again. */
+  answered?: { picked: number | null };
+};
 
 const POLL_MS = 3_000;
 // Three attempts and the audio rarely take more than two minutes; past this, something is wrong.
@@ -534,6 +538,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const openWord = (word: Word, x: number, y: number) => {
     if (!session) return;
     const mode = tapMode(word, text, prefs().guessFirst, prefs().quizKnown);
+    // A quiz already answered on this reading isn't asked again: its choices and pick come back as
+    // the record (its lookup, if the answer was a miss, was logged then).
+    const before = mode?.quiz ? session.quizAnswers[word.text] : undefined;
+    if (mode && before) { setTapped({ word, x, y, guess: { kind: mode.kind, quiz: before.quiz }, answered: { picked: before.picked } }); return; }
     if (!mode) setSession(lookUp(session, word.text));
     setTapped({ word, x, y, guess: mode });
   };
@@ -1070,7 +1078,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped) setSession((s) => (s ? toggleFlag(s, tapped.word.text) : s)); }}
         onReveal={() => { if (tapped) setSession((s) => (s ? lookUp(s, tapped.word.text) : s)); }}
-        onQuizAnswer={(right) => { if (tapped) setSession((s) => (s ? answerQuiz(s, tapped.word.text, right) : s)); }}
+        onQuizAnswer={(right, picked) => { if (tapped?.guess?.quiz) { const answer = { quiz: tapped.guess.quiz, picked }; setSession((s) => (s ? answerQuiz(s, tapped.word.text, right, answer) : s)); } }}
         onPlay={() => {
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
@@ -1203,7 +1211,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   /** The meaning of a word that was held back (`tapped.guess`) has just been shown: a lookup. */
   onReveal?: () => void;
   /** The quiz on a known word was answered: right, or wrong (a wrong pick or "I don't know"). A record, not a lookup. */
-  onQuizAnswer?: (right: boolean) => void;
+  onQuizAnswer?: (right: boolean, picked: number | null) => void;
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
@@ -1234,7 +1242,9 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   const tipBelow = top < insets.top + 40;
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
-  const trying = !!mode && !revealed;
+  const answered = tapped.answered ?? null;
+  const trying = !!mode && !revealed && !answered;
+  const shownPick = answered ? answered.picked : picked;
   const reveal = () => { setRevealed(true); onReveal?.(); };
   const actions: Parameters<typeof WordActionRow>[0][] = [];
   if (trying) {
@@ -1274,13 +1284,13 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
                     // Stays open so the meaning is seen; not a lookup, since it was recalled.
                     rightAnswer();
                     setRevealed(true);
-                    onQuizAnswer?.(true);
+                    onQuizAnswer?.(true, i);
                     return;
                   }
-                  onQuizAnswer?.(false);
+                  onQuizAnswer?.(false, i);
                   reveal();
                 }}
-                onGiveUp={() => { onQuizAnswer?.(false); reveal(); }}
+                onGiveUp={() => { onQuizAnswer?.(false, null); reveal(); }}
               />
             ) : (
               <>
@@ -1288,7 +1298,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
                 <ReadGlossLine
                   word={tapped.word}
                   below={tipBelow}
-                  meaning={mode?.quiz && revealed ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} /> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
+                  meaning={mode?.quiz && (revealed || answered) ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={shownPick} settled={!!answered} /> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
                 />
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
