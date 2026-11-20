@@ -132,9 +132,13 @@ export function CramPage(props: {
                 disabled={!props.readerApi || !language}
                 onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords) }); } }}
               />
+            </Group>
+            <SectionTitle>On the day</SectionTitle>
+            <Group>
               <NavRow
+                first
                 icon={{ name: 'checklist', color: c.orange }}
-                label="On the day"
+                label="Check off words"
                 detail="Check off the words as you use them."
                 onPress={() => { haptic.tap(); router.push({ pathname: '/cram-used', params: { id: cram.id } }); }}
               />
