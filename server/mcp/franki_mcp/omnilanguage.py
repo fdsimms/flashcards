@@ -47,7 +47,7 @@ LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "A
 NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
-SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation"})
+SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral"})
 NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, never counted, no aspect partner)
 
 MAX_SENSES = 3  # distinct senses a Meaning numbers
@@ -532,13 +532,13 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 f"example{'' if len(context_lines) == 1 else 's'}. Give Context one line per sense, in the same order, with "
                 "ContextTranslation and ContextLabels to match.")  # fmt: skip
         labels = _lines(raw("ContextLabels"))
-        counts = {"ContextTranslation": len(_lines(raw("ContextTranslation"))), "ContextRomanized": len(_lines(raw("ContextRomanized")))}
+        counts = {name: len(_lines(raw(name))) for name in ("ContextTranslation", "ContextRomanized", "ContextLiteral")}
         if len(context_lines) > 1 and not labels:
             add("context-labels", "ContextLabels", "format",
                 "Several examples need ContextLabels: one short label per line, in the same order.")  # fmt: skip
         elif labels and (len(labels) != len(context_lines) or any(n and n != len(context_lines) for n in counts.values())):
             add("context-labels", "ContextLabels", "format",
-                "Context, ContextTranslation, ContextRomanized and ContextLabels need the same number of lines.")  # fmt: skip
+                "Context, ContextTranslation, ContextRomanized, ContextLiteral and ContextLabels need the same number of lines.")  # fmt: skip
         if lang and lang.name == "japanese" and any(not re.search(r"[。？！?!…]$", line.rstrip("」』）)")) for line in context_lines):
             fixed = "<br>".join(
                 piece if re.search(r"[。？！?!…]$", plain(piece).rstrip("」』）)")) else piece.rstrip() + "。"
@@ -762,7 +762,10 @@ Sense: only when the word covers some, not all, of its English gloss's common se
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
-ContextTranslation: the sentence in natural American English.
+ContextTranslation: the sentence in natural American English, as a person would say it.
+ContextLiteral: optional. The same sentence word for word, in the original's order, so the learner sees how it
+  is built ("Even though tired, still working." under "I keep working even though I'm tired."). Leave it empty
+  when the natural translation already follows the original closely. Numbered examples: one line each, as above.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,

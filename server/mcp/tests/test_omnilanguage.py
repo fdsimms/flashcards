@@ -146,6 +146,13 @@ def test_thai_romanization_is_held_to_one_scheme():
     assert "romanization-unneeded" in rules({"Entry": "дом", "Language": "russian", "Transliteration": "dom"})
 
 
+def test_a_literal_line_must_pair_with_each_example():
+    two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
+           "ContextTranslation": "The settings are in the menu.<br>His attitude is good.", "ContextLabels": "setting<br>attitude"}  # fmt: skip
+    assert "context-labels" not in rules({**two, "ContextLiteral": "The settings are in the menu.<br>His attitude is good."})
+    assert "context-labels" in rules({**two, "ContextLiteral": "The settings are in the menu."})
+
+
 def test_several_examples_need_a_label_each():
     two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
            "ContextTranslation": "The settings are in the menu.<br>His attitude is good."}  # fmt: skip
