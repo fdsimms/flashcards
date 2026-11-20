@@ -20,6 +20,7 @@ from franki_reader.languages import Code
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.meanings import (
     MeaningsFailed,
+    MeaningsUnavailable,
     Wanted,
     claude_meanings,
     fill,
@@ -348,8 +349,32 @@ def test_a_cards_sentence_asks_about_the_words_nothing_glosses_with_its_english(
         [("Varm mat!", "Warm food!"), ("Mat og vann.", "Food and water.")],
         lexicon,
         {"mat": "food", "vann": "water"},
+        {},
     )
-    assert asked == [Wanted("varm", "Warm food!"), Wanted("og", "Food and water.")]
+    assert asked == [
+        Wanted("varm", "Warm food!", None, "Varm mat!"),
+        Wanted("og", "Food and water.", None, "Mat og vann."),
+    ]
+
+
+def test_a_card_sentence_keeps_its_own_meaning_apart_from_the_languages() -> None:
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    # "varm" has a meaning kept for the language, but each sentence is asked for its own sense.
+    asked = missing_in_sentences([("Varm mat!", "Warm food!")], lexicon, {"mat": "food"}, {})
+    assert [w.word for w in asked] == ["varm"]
+    # Once a sentence has been asked, it isn't asked again, even for a word with no usable meaning.
+    own = {"Varm mat!": {"varm": ""}}
+    assert missing_in_sentences([("Varm mat!", "Warm food!")], lexicon, {"mat": "food"}, own) == []
+
+    conn = store.connect(":memory:")
+    store.save_meaning_batch(
+        conn, "nb", {"varm": "warm"}, NOW, 0, sentences={"Varm mat!": {"varm": "hot"}}
+    )
+    store.save_meaning_batch(
+        conn, "nb", {"varm": "warm"}, NOW, 0, sentences={"Varm suppe.": {"varm": "warm"}}
+    )
+    kept = store.sentence_meanings(conn, "nb", ["Varm mat!", "Varm suppe.", "Never asked."])
+    assert kept == {"Varm mat!": {"varm": "hot"}, "Varm suppe.": {"varm": "warm"}}
 
 
 def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() -> None:
@@ -366,6 +391,7 @@ def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() ->
     engine._meanings_failed.clear()
     asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
     assert engine.meanings("nb")["suppe"] == "meaning of suppe"
+    assert store.sentence_meanings(conn, "nb", ["Varm suppe."])["Varm suppe."]["suppe"]
 
 
 def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list() -> None:
@@ -392,3 +418,55 @@ def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list(
         w["text"].casefold(): w for ln in rendered["lines"] for w in ln["words"] if w["status"]
     }
     assert words["hei"]["register"] == "casual" and words["og"]["register"] == ""
+
+
+def word_meaning_engine(writer: Any | None) -> Engine:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, DECK, NOW, "nb")
+    return Engine(conn, None, None, lambda: NOW, random.Random(1), write_meanings=writer)
+
+
+def test_a_tapped_word_is_asked_about_once_and_kept_so_the_next_tap_is_free() -> None:
+    writer = Writer()
+    engine = word_meaning_engine(writer)
+    assert asyncio.run(engine.define_word("nb", "Suppe", "Warm soup.")) == "meaning of suppe"
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) == "meaning of suppe"
+    assert writer.asked == [[("suppe", "Warm soup.")]]
+
+
+def test_a_tapped_word_the_deck_knows_costs_no_call() -> None:
+    writer = Writer()
+    assert asyncio.run(word_meaning_engine(writer).define_word("nb", "mat", "")) == "food"
+    assert writer.asked == []
+
+
+def test_a_tap_asks_again_for_a_word_a_pass_kept_empty_and_ignores_the_cooldown() -> None:
+    writer = Writer(skip=("suppe",))
+    engine = word_meaning_engine(writer)
+    asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
+    assert engine.meanings("nb")["suppe"] == ""
+    engine._meanings_failed["nb"] = NOW  # cooling down
+    writer.skip = ()
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) == "meaning of suppe"
+    assert engine.meanings("nb")["suppe"] == "meaning of suppe"
+
+
+def test_a_tap_gets_none_when_claude_gives_nothing_usable_and_fails_when_it_cant_answer() -> None:
+    engine = word_meaning_engine(Writer(skip=("suppe",)))
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) is None
+    with pytest.raises(MeaningsFailed):
+        asyncio.run(word_meaning_engine(Writer(fail=True)).define_word("nb", "suppe", ""))
+    with pytest.raises(MeaningsUnavailable):
+        asyncio.run(word_meaning_engine(None).define_word("nb", "suppe", ""))
+
+
+def test_the_word_meaning_route_answers_503_with_no_key_and_when_claude_fails() -> None:
+    body = {"language": "nb", "word": "suppe", "english": "Warm soup."}
+    for writer, detail in ((None, "isn't set up"), (Writer(fail=True), "down")):
+        c = started(create_app(word_meaning_engine(writer), "open sesame"))
+        out = c.post("/api/word-meaning", json=body, headers=AUTH)
+        assert out.status_code == 503 and detail in out.json()["detail"]
+    c = started(create_app(word_meaning_engine(Writer()), "open sesame"))
+    assert c.post("/api/word-meaning", json=body, headers=AUTH).json() == {
+        "meaning": "meaning of suppe"
+    }

@@ -24,3 +24,9 @@ export const TEXT_STAGES: readonly { stage: TextStage; label: string }[] = [
 export function textSteps(stage: TextStage | null | undefined): StageStep[] {
   return stepsAt(TEXT_STAGES, stage);
 }
+
+/** What VoiceOver says for something being made: the step under way and how far along it is ("Writing the phrases, step 1 of 3"). */
+export function makingSpoken(steps: StageStep[]): string {
+  const at = Math.max(0, steps.findIndex((s) => s.status === 'now'));
+  return `${steps[at].label}, step ${at + 1} of ${steps.length}`;
+}

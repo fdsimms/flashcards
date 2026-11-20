@@ -235,7 +235,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     for (const ex of examplesOf(note)) {
       pushIf(b, htmlToText(ex.context), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(ex.context, entry), ...(ex.tag ? { tag: ex.tag } : {}) });
       pushIf(b, htmlToText(ex.romanized), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(ex.romanized, translit), tones: isThai });
-      pushIf(b, htmlToText(ex.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+      pushIf(b, htmlToText(ex.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation', ...(htmlToText(ex.literal) ? { literal: htmlToText(ex.literal) } : {}) });
     }
     pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
     pushIf(b, t(note, 'Etymology'), 'Etymology');

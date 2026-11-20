@@ -283,6 +283,15 @@ CREATE TABLE IF NOT EXISTS word_meanings (
     batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
     PRIMARY KEY (language, word)
 );
+-- The meaning each word of a card's example sentence has in that sentence (meanings.py), by the
+-- sentence as the card shows it. An empty meaning is a word Claude gave nothing usable for.
+CREATE TABLE IF NOT EXISTS sentence_meanings (
+    language TEXT NOT NULL,
+    sentence TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    PRIMARY KEY (language, sentence, word)
+);
 -- IPA written by Claude for words with none in Wiktionary's tables (ai_ipa.py), kept for the language
 -- by lower-case word. An empty ipa is a word Claude gave nothing usable for, so it isn't asked again.
 CREATE TABLE IF NOT EXISTS word_ipa (
@@ -521,6 +530,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
+    if "key" not in {r[1] for r in conn.execute("PRAGMA table_info(listens)")}:
+        # The app's own id for a listen, so one sent twice is counted once; none before it sent one.
+        conn.execute("ALTER TABLE listens ADD COLUMN key TEXT")
     if "roles" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Texts written before speakers had roles have none, and show only A and B.
         conn.execute("ALTER TABLE texts ADD COLUMN roles TEXT NOT NULL DEFAULT '{}'")
@@ -2020,9 +2032,13 @@ def previous_check(
     return (row[0], row[1]) if row else None
 
 
-def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
+def log_listen(
+    conn: sqlite3.Connection, text_id: int, now: datetime, key: str | None = None
+) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
-    end (there's nothing to hear again), and nothing is kept."""
+    end (there's nothing to hear again), and nothing is kept. `key` is the app's id for this listen:
+    one already counted under it isn't counted again (the app sends a listen it held while offline
+    until it hears it arrived, so the same one can come twice)."""
     if (
         conn.execute(
             "SELECT 1 FROM readings WHERE text_id = ? AND finished = 1", (text_id,)
@@ -2030,9 +2046,12 @@ def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
         is None
     ):
         return False
+    if key and conn.execute("SELECT 1 FROM listens WHERE key = ?", (key,)).fetchone() is not None:
+        return True
     with conn:
         conn.execute(
-            "INSERT INTO listens (text_id, listened_at) VALUES (?, ?)", (text_id, now.isoformat())
+            "INSERT INTO listens (text_id, listened_at, key) VALUES (?, ?, ?)",
+            (text_id, now.isoformat(), key or None),
         )
     return True
 
@@ -2515,14 +2534,17 @@ def save_meaning_batch(
     texts: dict[int, dict[str, str]] | None = None,
     counts: tuple[int, int] | None = None,
     registers: dict[int, dict[str, str]] | None = None,
+    sentences: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
     A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
     language keeps the first meaning a word was given, as the fallback for a text or a card's
-    sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
+    sentence with none of its own; an empty one is replaced when a later ask (a tap on the word)
+    gets a usable meaning. `texts` is the meanings each text was asked for, by text id,
     added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
     and how many it gave a meaning for, when one word was asked for in more than one text.
-    `registers` is the registers Claude gave, by text id and word, added to that text's own."""
+    `registers` is the registers Claude gave, by text id and word, added to that text's own.
+    `sentences` is the meanings each card sentence was asked for, by sentence and word."""
     texts = texts or {}
     registers = registers or {}
     with conn:
@@ -2554,9 +2576,20 @@ def save_meaning_batch(
             ),
         ).lastrowid
         conn.executemany(
-            "INSERT OR IGNORE INTO word_meanings (language, word, meaning, batch_id)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO word_meanings (language, word, meaning, batch_id) VALUES (?, ?, ?, ?)"
+            " ON CONFLICT (language, word) DO UPDATE SET meaning = excluded.meaning,"
+            " batch_id = excluded.batch_id"
+            " WHERE word_meanings.meaning = '' AND excluded.meaning != ''",
             [(language, word, meaning, batch) for word, meaning in meanings.items()],
+        )
+        conn.executemany(
+            "INSERT OR REPLACE INTO sentence_meanings (language, sentence, word, meaning)"
+            " VALUES (?, ?, ?, ?)",
+            [
+                (language, sentence, word, meaning)
+                for sentence, own in (sentences or {}).items()
+                for word, meaning in own.items()
+            ],
         )
 
 
@@ -2567,6 +2600,24 @@ def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
             "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
         ).fetchall()
     )
+
+
+def sentence_meanings(
+    conn: sqlite3.Connection, language: Code, sentences: list[str]
+) -> dict[str, dict[str, str]]:
+    """What each of `sentences` (as a card shows it) has been asked, as {sentence: {lower-case word:
+    meaning}}; a sentence never asked about is left out."""
+    found: dict[str, dict[str, str]] = {}
+    for i in range(0, len(sentences), 500):
+        chunk = sentences[i : i + 500]
+        rows = conn.execute(
+            "SELECT sentence, word, meaning FROM sentence_meanings WHERE language = ?"
+            f" AND sentence IN ({','.join('?' * len(chunk))})",
+            (language, *chunk),
+        )
+        for sentence, word, meaning in rows:
+            found.setdefault(sentence, {})[word] = meaning
+    return found
 
 
 def save_word_ipa(
@@ -2682,10 +2733,23 @@ def add_queued(
     entries: list[tuple[str, str]],
     now: datetime,
 ) -> list[int]:
-    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given."""
+    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given.
+
+    A word already in the queue for that deck with the same meaning isn't added again, and its
+    row's id is returned: the app sends words it held while offline until it hears they arrived, so
+    the same ones can come twice (an answer lost on the way back) and would each be a note to
+    review. The same word with another meaning is a row of its own."""
     ids: list[int] = []
     with conn:
         for entry, meaning in entries:
+            there = conn.execute(
+                "SELECT id FROM note_queue WHERE language = ? AND deck = ? AND entry = ?"
+                " AND meaning = ? ORDER BY id LIMIT 1",
+                (language, deck, entry, meaning),
+            ).fetchone()
+            if there is not None:
+                ids.append(there[0])
+                continue
             cursor = conn.execute(
                 "INSERT INTO note_queue (language, deck, entry, meaning, created_at)"
                 " VALUES (?, ?, ?, ?, ?)",

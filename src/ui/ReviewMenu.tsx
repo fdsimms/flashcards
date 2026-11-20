@@ -8,8 +8,12 @@ import { FLAG_NAMES } from '../core/cardState';
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
  * Show answer timing, last, times each answer on this phone (useAnswerTiming.ts).
+ *
+ * A plain function called inside `<Stack.Toolbar>`, not a component to render there: the toolbar keeps only
+ * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
+ * left the whole menu off the header.
  */
-export function ReviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
   /** The card's flag, 0 for none. */
   flag: number;
   /** Opens Ask Claude for the card on screen. */

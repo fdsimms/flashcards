@@ -121,6 +121,37 @@ export function currentCard(queue: Queue, preferId?: string): Card | undefined {
 }
 
 /**
+ * `next`, a queue rebuilt after an answer or an edit, with its mixed stretch (`Queue.main`) in the
+ * order `prev`, the queue before it, had it in. Review rebuilds the queue after every answer, and
+ * the mix (`intersperse`, order.ts) spaces new cards by how many cards are left: rebuilt each time,
+ * the card on top is a new one only once fewer reviews are left than new cards, so 150 reviews
+ * came before the first new card. Anki builds the queue once and takes cards off it; this gives
+ * the same: a card still queued keeps its place, one that left (answered, buried, held) is dropped,
+ * and one that wasn't queued before (an undone answer, a card come due, extra new cards from Custom
+ * Study) goes after the card before it in the rebuilt order, or first when it has none. The learning
+ * steps around the mixed stretch are timed, so they come from `next` as they are.
+ */
+export function keepSessionOrder(prev: Queue | undefined, next: Queue): Queue {
+  if (!prev || !prev.main.length || !next.main.length) return next;
+  const nextById = new Map(next.main.map((c) => [c.id, c]));
+  // The cards as `next` has them (an answer or an edit changed some), in `prev`'s places.
+  const kept = prev.main.filter((c) => nextById.has(c.id)).map((c) => nextById.get(c.id)!);
+  if (!kept.length) return next;
+  let main = kept;
+  if (kept.length < next.main.length) {
+    const placed = new Set(kept.map((c) => c.id));
+    main = [...kept];
+    next.main.forEach((c, i) => {
+      if (placed.has(c.id)) return;
+      const before = i > 0 ? main.findIndex((m) => m.id === next.main[i - 1].id) : -1;
+      main.splice(before + 1, 0, c);
+    });
+  }
+  const start = next.order.indexOf(next.main[0]);
+  return { ...next, main, order: [...next.order.slice(0, start), ...main, ...next.order.slice(start + next.main.length)] };
+}
+
+/**
  * The card most likely shown after `current` is answered: the queue's next card besides it and
  * those the answer will leave out of the rebuilt queue (`leavesOut`: siblings it buries, lookalikes
  * it holds back). Review loads its page ahead, and once the answer is given shows it before the

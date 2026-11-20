@@ -63,6 +63,15 @@ export function meaningOf(word: Pick<Word, 'gloss' | 'parts'>): string {
   return 'No meaning available';
 }
 
+/**
+ * Whether a tapped word has no meaning to show and is worth looking up: a real word (not a name, a
+ * space or punctuation) with no gloss and no parts. The popover asks the server for one then, when
+ * its screen knows the line the word is in (`meaningLookup`).
+ */
+export function needsMeaning(word: Pick<Word, 'status' | 'gloss' | 'parts'>): boolean {
+  return word.status !== null && word.status !== 'name' && !word.gloss && !word.parts;
+}
+
 // The popover leaves this line out when the frequency meter already says the word is common.
 export const COMMON_WORD_STATUS = 'A common word';
 

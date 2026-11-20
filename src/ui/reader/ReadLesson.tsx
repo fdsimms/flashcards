@@ -77,7 +77,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   }, [api, lesson, showPhrases]);
   const glossFor = (text: string): SentenceGloss | null => {
     const words = glossed.get(glossKey(lesson.language, text));
-    return words ? { api, onPlayWord, onAddWord, language: lesson.language, words } : null;
+    return words ? { api, onPlayWord, onAddWord, language: lesson.language, words, english: [...lesson.phrases, ...lesson.dialogue].find((l) => l.text === text)?.english } : null;
   };
 
   useEffect(() => {

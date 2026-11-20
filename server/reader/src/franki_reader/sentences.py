@@ -49,7 +49,9 @@ MAX_TOKENS = 6000
 _REQUEST = """\
 Write one short, natural {language} sentence for each word below, for a learner to practice saying:
 something a person would really say, of {low} to {high} words, using the word (in whatever form fits)
-and otherwise only words from the list. Give:
+and otherwise only words from the list. The sentence must be complete and grammatical, however \
+simple: never leave out a preposition, article, particle, auxiliary or ending to stay on the list. \
+One word off the list is fine when grammar needs it. Give:
 - word: the word exactly as listed below
 - sentence: the sentence in {language}, plain text{spacing}
 - english: the sentence in natural English

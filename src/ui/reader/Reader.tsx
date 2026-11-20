@@ -11,9 +11,10 @@ import { lineSide, scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, inDeck, needsMeaning, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
-import { firstLine, LOOP_BREAK_NOTE, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
+import { LineScrubber } from './LineScrubber';
+import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
@@ -113,7 +114,11 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readabl
  */
 
 /** A tapped word and where, with how its meaning is held back (`guess`, reader/guess.ts), none to show it at once. */
-export type Tapped = { word: Word; x: number; y: number; guess?: TapMode };
+export type Tapped = {
+  word: Word; x: number; y: number; guess?: TapMode;
+  /** The word's quiz was already answered on this reading (`Session.quizAnswers`): its record is shown in place of asking again. */
+  answered?: { picked: number | null };
+};
 
 const POLL_MS = 3_000;
 // Three attempts and the audio rarely take more than two minutes; past this, something is wrong.
@@ -533,6 +538,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const openWord = (word: Word, x: number, y: number) => {
     if (!session) return;
     const mode = tapMode(word, text, prefs().guessFirst, prefs().quizKnown);
+    // A quiz already answered on this reading isn't asked again: its choices and pick come back as
+    // the record (its lookup, if the answer was a miss, was logged then).
+    const before = mode?.quiz ? session.quizAnswers[word.text] : undefined;
+    if (mode && before) { setTapped({ word, x, y, guess: { kind: mode.kind, quiz: before.quiz }, answered: { picked: before.picked } }); return; }
     if (!mode) setSession(lookUp(session, word.text));
     setTapped({ word, x, y, guess: mode });
   };
@@ -682,7 +691,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       footer={text && !ended ? (
         <>
           {hasAudio ? (
-            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
+            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip} onSeekLine={(i) => { const to = playableNear(text.lines, i); if (to !== null) playLine(to, true); }}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} loopText={loopText} breaking={breaking} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat} onLoop={toggleLoop} onStartOver={startOver}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
@@ -1062,6 +1071,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         characters={text?.xray}
         onXray={text?.xray?.length ? () => { setTapped(null); setXrayOpen(true); } : undefined}
         language={text?.language}
+        // The line the word is in tells Claude which sense is meant; a recap's word is in "Last time"'s line.
+        meaningLookup={text ? (word) => api.wordMeaning(text.language, word.text, text.lines.find((l) => l.words.includes(word))?.english ?? (text.last_time?.line?.words.includes(word) ? text.last_time.line.english : undefined)) : undefined}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
         grammarChosen={grammarChosen}
@@ -1069,7 +1080,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         flagged={tapped && session ? isFlagged(session, tapped.word.text) : false}
         onToggleFlag={review ? null : () => { if (tapped) setSession((s) => (s ? toggleFlag(s, tapped.word.text) : s)); }}
         onReveal={() => { if (tapped) setSession((s) => (s ? lookUp(s, tapped.word.text) : s)); }}
-        onQuizAnswer={(right) => { if (tapped) setSession((s) => (s ? answerQuiz(s, tapped.word.text, right) : s)); }}
+        onQuizAnswer={(right, picked) => { if (tapped?.guess?.quiz) { const answer = { quiz: tapped.guess.quiz, picked }; setSession((s) => (s ? answerQuiz(s, tapped.word.text, right, answer) : s)); } }}
         onPlay={() => {
           if (!tapped || !text) return;
           // The word and the line would talk over each other.
@@ -1183,7 +1194,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, characters, onXray, language, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, characters, onXray, language, meaningLookup, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   /** The series' characters as of this episode (X-Ray): a name word that is one shows who they are in place of "A name". */
   characters?: StoryCharacter[];
@@ -1191,6 +1202,11 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   onXray?: () => void;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
+  /**
+   * Looks up the meaning of a word that has none (`needsMeaning`), asked when the popover opens on one and shown in
+   * its place ("Looking up the meaning" until it answers). Left out where the screen doesn't know the line's English.
+   */
+  meaningLookup?: (word: Word) => Promise<string | null>;
   grammar: TextGrammar | null;
   api: Api;
   grammarChosen: Record<string, GrammarChoice>;
@@ -1202,7 +1218,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   /** The meaning of a word that was held back (`tapped.guess`) has just been shown: a lookup. */
   onReveal?: () => void;
   /** The quiz on a known word was answered: right, or wrong (a wrong pick or "I don't know"). A record, not a lookup. */
-  onQuizAnswer?: (right: boolean) => void;
+  onQuizAnswer?: (right: boolean, picked: number | null) => void;
   /** Opens the note editor on this word; null when the word is in the deck or isn't in the language being read. */
   onAddToDeck: (() => void) | null;
   /** How many more words can be added to the deck today. */
@@ -1219,7 +1235,18 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   // choice picked (null for "I don't know").
   const [revealed, setRevealed] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
+  // The meaning looked up for the tapped word: null while it's being asked for, '' when there is none to show.
+  const [looked, setLooked] = useState<string | null>('');
   useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
+  useEffect(() => {
+    setLooked('');
+    if (!tapped || !meaningLookup || tapped.guess || !needsMeaning(tapped.word)) return;
+    // The tap that opened another word, or closed this one, drops the answer.
+    let current = true;
+    setLooked(null);
+    meaningLookup(tapped.word).then((meaning) => { if (current) setLooked(meaning ?? ''); }, () => { if (current) setLooked(''); });
+    return () => { current = false; };
+  }, [tapped]); // eslint-disable-line react-hooks/exhaustive-deps -- a new lookup function each render is the same lookup; the tap is what changes it
   if (!tapped) return null;
   const character = characterOfWord(tapped.word, characters);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
@@ -1233,7 +1260,9 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   const tipBelow = top < insets.top + 40;
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
-  const trying = !!mode && !revealed;
+  const answered = tapped.answered ?? null;
+  const trying = !!mode && !revealed && !answered;
+  const shownPick = answered ? answered.picked : picked;
   const reveal = () => { setRevealed(true); onReveal?.(); };
   const actions: Parameters<typeof WordActionRow>[0][] = [];
   if (trying) {
@@ -1273,13 +1302,13 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
                     // Stays open so the meaning is seen; not a lookup, since it was recalled.
                     rightAnswer();
                     setRevealed(true);
-                    onQuizAnswer?.(true);
+                    onQuizAnswer?.(true, i);
                     return;
                   }
-                  onQuizAnswer?.(false);
+                  onQuizAnswer?.(false, i);
                   reveal();
                 }}
-                onGiveUp={() => { onQuizAnswer?.(false); reveal(); }}
+                onGiveUp={() => { onQuizAnswer?.(false, null); reveal(); }}
               />
             ) : (
               <>
@@ -1287,7 +1316,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
                 <ReadGlossLine
                   word={tapped.word}
                   below={tipBelow}
-                  meaning={mode?.quiz && revealed ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={picked} /> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
+                  meaning={mode?.quiz && (revealed || answered) ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={shownPick} settled={!!answered} /> : looked === null ? <Text style={{ ...type.body, color: c.textSecondary, flexShrink: 1 }}>Looking up the meaning</Text> : looked ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{looked}</Text> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
                 />
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>
@@ -1316,13 +1345,15 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   );
 }
 
-function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, loopText, breaking, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, onSeekLine, rate, slowOffered, repeat, played, loopText, breaking, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
   /** Previous and next line buttons, for a story with no play button on each line. */
   skippable: boolean;
   onSkip: (step: -1 | 1) => void;
+  /** The scrubber lifted on this line (0-based): play from the nearest line with audio. */
+  onSeekLine: (line: number) => void;
   rate: number;
   /** Whether the language offers Slow: the speed control is left out when it doesn't. */
   slowOffered: boolean;
@@ -1345,6 +1376,8 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   rec: SelfRecording | null;
 }) {
   const c = useTheme();
+  // The line under a finger on the scrubber, shown in the label until it lifts.
+  const [scrubbing, setScrubbing] = useState<number | null>(null);
   const repeating = repeat > 1;
   const play = (
     <Tappable
@@ -1360,9 +1393,10 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const loopNote = repeating ? `${repeatNote}. Looping the whole text.` : 'Looping the whole text';
   const note = breaking ? LOOP_BREAK_NOTE : silentLine !== null ? `Line ${silentLine + 1} has no audio.` : loopText ? loopNote : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
-  const label = current === null && !note ? null : (
+  const shown = scrubbing ?? current;
+  const label = shown === null && !note ? null : (
     <View style={{ alignItems: 'center' }}>
-      {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
+      {shown === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, fontVariant: ['tabular-nums'] }}>{`Line ${shown + 1} of ${total}`}</Text>}
       {note ? <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{note}</Text> : null}
     </View>
   );
@@ -1421,6 +1455,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
         {/* Start over's width on the other side keeps Play in the middle. */}
         <View style={{ width: MIN_TAP }} />
       </View>
+      {total > 1 ? <LineScrubber current={current} total={total} onDrag={setScrubbing} onSeek={onSeekLine} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}

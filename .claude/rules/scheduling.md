@@ -68,6 +68,14 @@ position for new cards). A card is always scheduled with **its own home** deck's
 (`cardHomeDeck`), never the parent being studied, and is studied in the deck it's in
 (`cardDeck`): an Anki filtered deck takes its cards out of their home decks.
 
+**A session keeps the order its queue started in** (`keepSessionOrder`, `src/core/session.ts`, used by
+`Review`). The screen rebuilds the queue after every answer, and the mix spaces new cards by how many
+cards are left, so rebuilt from scratch the card on top is a new one only once fewer reviews remain than
+new cards (150 reviews came before the first). Anki builds the queue once and pops from it; the rebuild
+keeps each queued card's place, drops what left, and puts a card that wasn't queued before after the
+card ahead of it in the rebuilt order. Learning steps around the mixed stretch (`Queue.main`) are timed
+and always come from the rebuild.
+
 **Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
 Anki's cards are counted from the kept collection's review log, which holds answers synced from
 AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.

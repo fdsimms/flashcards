@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { GENDER_WORDS } from '../core/cards';
+import { NOT_PREFIX } from '../core/synonyms';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
 import { DEFAULT_THAI_TEXT_SIZE, hasCyrillic, hasThai,japaneseFont, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
@@ -181,7 +182,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
   const translationRow = (it: Item) => (
     <View key={it.i} style={{ paddingHorizontal: space.m, paddingBottom: space.m }}>
-      <TranslationRow>{line(it)}</TranslationRow>
+      <TranslationRow literal={it.b.literal}>{line(it)}</TranslationRow>
     </View>
   );
 
@@ -263,9 +264,6 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                     {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
                   </Text>
                 ))}
-                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
-                  Say the noun, the number, then the counting word.
-                </Text>
               </View>
             </View>
           );
@@ -307,10 +305,14 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           );
         }
         if (b.role === 'wanted') {
+          // A hint, not a headline: a small pill under the meaning, "Not" set apart from the words it names.
+          const names = b.text.startsWith(NOT_PREFIX);
+          const words = names ? b.text.slice(NOT_PREFIX.length) : b.text;
           return (
-            <Text key={i} style={{ ...(hasThai(b.text) ? thai : { ...type.subhead, lineHeight: 21 }), ...ja(b.text), color: c.textSecondary, textAlign: 'center' }}>
-              {b.text}
-            </Text>
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.s - 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
+              {names ? <Text style={{ ...type.overline, fontSize: 11, color: c.textDim }}>Not</Text> : null}
+              <Text style={{ ...(hasThai(words) ? { ...thai, fontSize: 16, lineHeight: 24 } : { ...type.footnote, lineHeight: 18 }), ...ja(words), color: c.textBody }}>{words}</Text>
+            </View>
           );
         }
         if (b.role === 'sense') {

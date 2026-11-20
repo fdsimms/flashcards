@@ -53,6 +53,11 @@ class ChoiceIn(BaseModel):
     choice: int = Field(ge=0)
 
 
+class ListenIn(BaseModel):
+    # The app's own id for this listen, sent again with it if the listen is sent again.
+    key: str | None = Field(default=None, min_length=1, max_length=64)
+
+
 class ReadingIn(BaseModel):
     rating: Literal["too_easy", "about_right", "too_hard"] | None = None
     finished: bool = False
@@ -133,10 +138,11 @@ def router(ctx: AppContext) -> APIRouter:
         return [past_json(t) for t in engine.relisten(listens=listens)]
 
     @routes.post("/api/texts/{text_id}/listen", status_code=204, dependencies=authed)
-    async def listened(text_id: int) -> Response:
+    async def listened(text_id: int, body: ListenIn | None = None) -> Response:
         """A finished text heard again with its words hidden. Only counted: no reading, no
-        difficulty change. 404 for a text that wasn't read to the end."""
-        if not store.log_listen(engine.conn, text_id, engine.clock()):
+        difficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen
+        already counted under it isn't counted twice."""
+        if not store.log_listen(engine.conn, text_id, engine.clock(), body.key if body else None):
             raise HTTPException(404, "No such text.")
         return Response(status_code=204)
 

@@ -669,14 +669,36 @@ class Engine:
         self, sentences: list[tuple[str, str]], language: Code
     ) -> None:
         """`fill_meanings` for cards' example sentences, as (sentence, its English), so a word in
-        one that nothing glosses has a meaning the next time the card's words are asked for."""
+        one that the deck doesn't gloss has the meaning of that sentence the next time the card's
+        words are asked for."""
         if sentences:
             await self._fill_words(
                 language,
                 lambda lexicon: meanings.missing_in_sentences(
-                    sentences, lexicon, self.meanings(language)
+                    sentences,
+                    lexicon,
+                    self.deck_meanings(language),
+                    store.sentence_meanings(self.conn, language, [s for s, _ in sentences]),
                 ),
             )
+
+    async def define_word(self, language: Code, word: str, english: str) -> str | None:
+        """The meaning of one word the owner tapped that nothing glosses: the one kept for the
+        language or the deck's when there is one, else Claude's, asked now (meanings.py) and kept
+        so the next tap is free. None when Claude gives nothing usable; raises `MeaningsFailed`
+        when the call fails, and `MeaningsUnavailable` with no key. Unlike a background pass it
+        ignores the failure cooldown and an empty kept answer, since the owner asked."""
+        key = meanings.key(word)
+        found = self.meanings(language).get(key) or self.meanings(language).get(word)
+        if found:
+            return found
+        if self.write_meanings is None:
+            raise meanings.MeaningsUnavailable
+        async with self._meanings_lock:
+            await meanings.fill_words(
+                self.conn, self.write_meanings, language, [Wanted(key, english)], self.clock
+            )
+        return self.meanings(language).get(key) or None
 
     async def _fill_words(self, language: Code, find: Callable[[Checker], list[Wanted]]) -> None:
         if self.write_meanings is None:

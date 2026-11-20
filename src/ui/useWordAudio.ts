@@ -22,7 +22,6 @@ export function useWordAudio(repo: Repo) {
   const indexes = useRef(new Map<Language, Map<string, string>>());
   const player = useRef<AudioPlayer | null>(null);
   const untrack = useRef<(() => void) | null>(null);
-  const speaking = useRef(false);
 
   useEffect(() => {
     notes.current = repo.listNotes();
@@ -40,8 +39,9 @@ export function useWordAudio(repo: Repo) {
       indexes.current.set(language, index);
     }
     const what = wordPlayback(index, word);
-    // Stopping speech that isn't running can cut off the recording that starts right after.
-    if (speaking.current) { Speech.stop(); speaking.current = false; }
+    // Stopping speech that isn't running can cut off the recording that starts right after, and the
+    // voice's own end isn't visible here, so ask it rather than keep a flag that nothing clears.
+    if (await Speech.isSpeakingAsync().catch(() => false)) Speech.stop();
     player.current?.pause();
     const uri = what.file ? mediaFileUri(what.file) : undefined;
     if (uri) {
@@ -53,7 +53,6 @@ export function useWordAudio(repo: Repo) {
       player.current.play();
       return;
     }
-    speaking.current = true;
     phone.sayWord(say ?? what.text, LANGUAGES[language].speech);
   }, [phone]);
 }

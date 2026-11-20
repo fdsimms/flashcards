@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
+  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
   lastMissed, nextRoundAt, parseCram, roundStatus, runningCramTags, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -185,6 +185,8 @@ describe('parseCram', () => {
   it('reads a saved cram and refuses anything else', () => {
     expect(parseCram(JSON.stringify(cram()))).toEqual(cram());
     expect(parseCram(JSON.stringify({ id: 'x', name: 'X', date: '2026-11-20', createdAt: WED.toISOString() }))).toMatchObject({ addNew: true, rounds: [] });
+    expect(parseCram(JSON.stringify({ ...cram(), language: 'fr' }))?.language).toBe('fr');
+    expect(parseCram(JSON.stringify({ ...cram(), language: 'xx' }))?.language).toBeUndefined();
     expect(parseCram('{')).toBeUndefined();
     expect(parseCram('{"id":1}')).toBeUndefined();
   });
@@ -196,6 +198,14 @@ describe('Read & Listen', () => {
   it('takes the language most words are in', () => {
     expect(cramLanguage([thai('a', 'เกือบ', 'almost'), thai('b', 'ค่อยๆ', 'gradually'), polish('c')])).toBe('th');
     expect(cramLanguage([])).toBeUndefined();
+  });
+  it('offers only notes in the cram\'s language, keeping any already in it', () => {
+    const all = [thai('a', 'เกือบ', 'almost'), thai('b', 'ค่อยๆ', 'gradually'), polish('c')];
+    expect(addableNotes(all, [all[0]]).map((n) => n.id)).toEqual(['a', 'b']);
+    expect(addableNotes(all, [all[0], all[2]]).map((n) => n.id)).toEqual(['a', 'b', 'c']);
+    expect(addableNotes(all, [])).toEqual(all);
+    expect(addableNotes(all, [], 'pl').map((n) => n.id)).toEqual(['c']);
+    expect(addableNotes(all, [all[0]], 'pl').map((n) => n.id)).toEqual(['a', 'c']);
   });
   it('practices only studied words in a text', () => {
     const [studied] = makeCards(omniNote(), WED);

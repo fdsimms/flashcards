@@ -155,7 +155,7 @@ def _card_dict(col: Collection, card: Card) -> dict[str, Any]:
     }
 
 
-def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]:
+def _note_dict(col: Collection, note: Note, full: bool = True, fields: list[str] | None = None) -> dict[str, Any]:
     nt = note.note_type()
     cards = note.cards()
     out: dict[str, Any] = {
@@ -164,7 +164,13 @@ def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]
         "deck": _deck_name(col, cards[0].odid or cards[0].did) if cards else None,
         "tags": note.tags,
     }
-    if full:
+    if full and fields is not None:
+        have = dict(note.items())
+        unknown = [f for f in fields if f not in have]
+        if unknown:
+            raise ToolError(f"This note has no field {', '.join(unknown)}. Its fields are: {', '.join(have)}.")
+        out["fields"] = {f: have[f] for f in fields}
+    elif full:
         out["fields"] = dict(note.items())
         out["cards"] = [_card_dict(col, c) for c in cards]
     else:
@@ -378,14 +384,16 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.read(run)
 
     @server.tool(annotations=READ)
-    async def get_notes(note_ids: list[int]) -> dict[str, Any]:
+    async def get_notes(note_ids: list[int], fields: list[str] | None = None) -> dict[str, Any]:
         """Notes in full: every field (as HTML), tags, and each card with its deck, stage
-        (new, learning, review, relearning, suspended, buried), due date, interval and flag."""
+        (new, learning, review, relearning, suspended, buried), due date, interval and flag.
+        `fields` names the only fields to return, and leaves the cards out: much shorter, for
+        reading one or two fields across many notes."""
         if len(note_ids) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
         def run(col: Collection) -> dict[str, Any]:
-            return {"notes": [_note_dict(col, _get_note(col, i)) for i in note_ids]}
+            return {"notes": [_note_dict(col, _get_note(col, i), fields=fields) for i in note_ids]}
 
         return await cm.read(run)
 
@@ -400,7 +408,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         An Omnilanguage note is written in the house style: read note_guide for its language
         first. What needs no judgment is tidied for you (`tidied` says what), grammar a finished
         note carries and this one lacks is listed in `still_to_fill`, and a note that breaks a rule
-        is refused with what to change. allow_nonstandard skips that check, for a deliberate
+        is refused with what to change. A Sense that only repeats the Meaning is saved, with the reason
+        in `to_review`. allow_nonstandard skips that check, for a deliberate
         exception the user asked for.
 
         An Omnilanguage note with an empty Audio is recorded as it's added, as Franki does for a note
@@ -425,7 +434,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                         if ready.refused:
                             raise ToolError(_house_style(ready.refused))
                         fields, tags = ready.fields, ready.tags
-                        said = {k: v for k, v in (("tidied", ready.tidied), ("still_to_fill", ready.gaps)) if v}
+                        said = {k: v for k, v in (("tidied", ready.tidied), ("still_to_fill", ready.gaps), ("to_review", ready.review)) if v}
                     note = col.new_note(nt)
                     for k, v in fields.items():
                         note[k] = v
@@ -526,7 +535,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                             if ready.refused:
                                 raise ToolError(_house_style(ready.refused))
                             fields = ready.fields
-                            said = {"tidied": ready.tidied} if ready.tidied else {}
+                            said = {k: v for k, v in (("tidied", ready.tidied), ("to_review", ready.review)) if v}
                         for k, v in fields.items():
                             note[k] = v
                     if u.tags is not None:

@@ -14,7 +14,8 @@ A problem's level says who acts on it:
 - "format": the value breaks the field's format. Refused on write, unless a fix settles it.
 - "required": a field every note of its kind carries is empty. Refused on a new note.
 - "gap": grammar a finished note carries (a plural, an auxiliary) that is still to fill. Reported, never refused.
-- "review": a person or Claude has to read it (commas that may be inside one gloss). Lint only.
+- "review": a person or Claude has to read it (commas that may be inside one gloss). Lint reports it; a write
+  says so too for the rules in WARN_ON_WRITE, and saves the note anyway.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "A
 NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
-SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation"})
+SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral"})
 NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, never counted, no aspect partner)
 
 MAX_SENSES = 3  # distinct senses a Meaning numbers
@@ -131,6 +132,7 @@ RULES: dict[str, str] = {
     "meaning-many": f"More than {MAX_SENSES} senses, or more than {MAX_GLOSSES} glosses to a sense",
     "meaning-examples": "A numbered sense without an example of its own",
     "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
+    "sense-restates-meaning": "Sense restates the Meaning's glosses instead of saying what the word does not cover",
     "context-missing": "No example sentence",
     "context-markup": "Context has markup other than <b> and <br>",
     "context-no-bold": "The word is not in bold in Context",
@@ -138,6 +140,7 @@ RULES: dict[str, str] = {
     "context-labels": "Several examples without a matching ContextLabels line for each",
     "context-end-punctuation": "A Japanese example with no 。",
     "translation-missing": "No translation of the example",
+    "literal-redundant": "ContextLiteral says the same as ContextTranslation",
     "switch-value": "A card switch holds something other than y",
     "register-missing": "Register is empty",
     "register-unknown": "Register is not one of the list",
@@ -232,6 +235,34 @@ def senses(meaning: str) -> list[str]:
     if _NUMBER.match(text):
         text = re.sub(r"\s+(?=\d+[.)]\s)", "\n", text)
     return [item for item in (_NUMBER.sub("", line.strip(), count=1).strip() for line in text.split("\n")) if item]
+
+
+_STOP = frozenset("or and to a an the of in for as be on at by with from is are e g".split())
+_EXCLUDES = re.compile(r"\b(?:not|never|without|rather than|instead of)\b|n't\b", re.IGNORECASE)
+
+
+def _gloss_words(text: str) -> set[str]:
+    """The content words of an English line, lightly stemmed, for comparing a Sense with a Meaning."""
+    words = set()
+    for word in re.findall(r"[a-z]+", text.lower()):
+        if word in _STOP:
+            continue
+        words.add(re.sub(r"(?:ing|ed|es|s)$", "", word) if len(word) > 4 else word)
+    return words
+
+
+def sense_restates_meaning(meaning: str, sense: str) -> bool:
+    """Whether a Sense only repeats the Meaning. A Sense earns its place by saying what the word does not
+    cover ("hot in temperature, not spicy"), so one with no exclusion in it (not, never, without) is
+    suspect when at least half its content words are the Meaning's, when it is two glosses joined by
+    "or", or when it is a gloss with a colon and a usage note. A fake exclusion ("intelligent, not well
+    dressed") still passes: that one needs a person, which is why this is a review rule."""
+    sense = plain(sense).replace("\n", " ")
+    if not sense or _EXCLUDES.search(sense):
+        return False
+    mine, theirs = _gloss_words(sense), _gloss_words(plain(meaning))
+    overlap = len(mine & theirs) / len(mine) if mine else 0.0
+    return overlap >= 0.5 or bool(re.search(r",? or ", sense)) or ":" in sense
 
 
 def write_senses(items: Sequence[str]) -> str:
@@ -504,6 +535,11 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             if pos == "verb" and any(gl and not gl[0].startswith("to ") for gl in gloss_lists):
                 add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
 
+    # -- Sense --
+    if txt("Sense") and meaning and not (lang and lang.definition) and sense_restates_meaning(raw("Meaning"), raw("Sense")):
+        add("sense-restates-meaning", "Sense", "review",
+            "Sense repeats the Meaning. Say what the word does not cover (\"hot in temperature, not spicy\"), or leave Sense empty.")  # fmt: skip
+
     # -- Context --
     context = raw("Context")
     context_lines = _lines(context)
@@ -532,19 +568,23 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 f"example{'' if len(context_lines) == 1 else 's'}. Give Context one line per sense, in the same order, with "
                 "ContextTranslation and ContextLabels to match.")  # fmt: skip
         labels = _lines(raw("ContextLabels"))
-        counts = {"ContextTranslation": len(_lines(raw("ContextTranslation"))), "ContextRomanized": len(_lines(raw("ContextRomanized")))}
+        counts = {name: len(_lines(raw(name))) for name in ("ContextTranslation", "ContextRomanized", "ContextLiteral")}
         if len(context_lines) > 1 and not labels:
             add("context-labels", "ContextLabels", "format",
                 "Several examples need ContextLabels: one short label per line, in the same order.")  # fmt: skip
         elif labels and (len(labels) != len(context_lines) or any(n and n != len(context_lines) for n in counts.values())):
             add("context-labels", "ContextLabels", "format",
-                "Context, ContextTranslation, ContextRomanized and ContextLabels need the same number of lines.")  # fmt: skip
+                "Context, ContextTranslation, ContextRomanized, ContextLiteral and ContextLabels need the same number of lines.")  # fmt: skip
         if lang and lang.name == "japanese" and any(not re.search(r"[。？！?!…]$", line.rstrip("」』）)")) for line in context_lines):
             fixed = "<br>".join(
                 piece if re.search(r"[。？！?!…]$", plain(piece).rstrip("」』）)")) else piece.rstrip() + "。"
                 for piece in re.split(r"<\s*br\s*/?>", context) if plain(piece)
             )  # fmt: skip
             add("context-end-punctuation", "Context", "format", "A Japanese sentence ends with 。", {"Context": fixed})
+        words = lambda name: re.sub(r"[^\w\s]", "", txt(name).lower()).split()  # noqa: E731
+        if txt("ContextLiteral") and words("ContextLiteral") == words("ContextTranslation"):
+            add("literal-redundant", "ContextLiteral", "format",
+                "ContextLiteral is only for a literal reading that differs from the translation: clear it.", {"ContextLiteral": ""})  # fmt: skip
         if not (lang and lang.definition) and not txt("ContextTranslation"):
             add("translation-missing", "ContextTranslation", "required", "Translate the example into natural American English.")
 
@@ -639,6 +679,9 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
     return out
 
 
+# The review rules a write reports back (the note is saved either way); the rest are for lint_notes.
+WARN_ON_WRITE = frozenset({"sense-restates-meaning"})
+
 FIXABLE = frozenset(
     {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "entry-markup", "entry-article",
      "entry-infinitive-marker", "entry-aspect-pair", "meaning-markup", "meaning-numbered", "meaning-lines",
@@ -687,6 +730,7 @@ class Prepared:
     tidied: list[str]  # what the fixes changed, a line each
     refused: list[str]  # what the caller has to change before it's written
     gaps: list[str]  # grammar still to fill, reported with the note written
+    review: list[str]  # review-level problems a person should read, reported with the note written
 
 
 def _tidy_values(fields: Mapping[str, str]) -> dict[str, str]:
@@ -725,6 +769,7 @@ def prepare(new: Mapping[str, str], tags: Sequence[str] = (), existing: Mapping[
         tidied=[f"{p.field}: {RULES[p.rule]}, fixed" for p in fixed.applied],
         refused=[f"{p.field}: {p.message}" for p in refuse],
         gaps=[f"{p.field}: {p.message}" for p in left if p.level == "gap"] if existing is None else [],
+        review=[f"{p.field}: {p.message}" for p in left if p.rule in WARN_ON_WRITE and (existing is None or "Sense" in written or "Meaning" in written)],
     )
 
 
@@ -756,13 +801,19 @@ Examples for a numbered Meaning: Context holds one example per sense, in the sam
   ("train", "move", "draft").
 Sense: only when the word covers some, not all, of its English gloss's common senses, so the learner doesn't
   assume it works wherever the gloss does (leke, "to play": only play for fun, not an instrument or a sport).
-  One short line, lowercase, no markup, shown under the meaning. Empty when the word spans the same senses as
+  One short line, lowercase, no markup, shown under the meaning. Say what the word does not cover ("hot in
+  temperature, not spicy"), never the Meaning again in other words ("itchy, or counter for vehicles" repeats
+  "itchy; to itch; classifier for vehicles"). Empty when the word spans the same senses as
   the gloss, since a Sense would then imply the others don't apply, and never beside a numbered Meaning: the
   numbers and ContextLabels already say which sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
-ContextTranslation: the sentence in natural American English.
+ContextTranslation: the sentence in natural American English, as a person would say it.
+ContextLiteral: only when the word-for-word reading differs from ContextTranslation in a way that teaches
+  something about the sentence's structure ("Even though tired, still working." under "I keep working even
+  though I'm tired."). Empty when the two say about the same thing (quiero comida: "I want food" needs no
+  "want food"). Numbered examples: one line each, as above.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,

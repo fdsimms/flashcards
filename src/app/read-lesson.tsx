@@ -5,6 +5,8 @@ import { useApp } from '../ui/AppContext';
 import { ReadLesson } from '../ui/reader/ReadLesson';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useWordAudio } from '../ui/useWordAudio';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /** One audio lesson, playing. `lesson` is the lesson as the list showed it. */
 export default function ReadLessonRoute() {
@@ -19,7 +21,7 @@ export default function ReadLessonRoute() {
   }, [raw]);
   if (!reader.api || !lesson) return <Redirect href="/lessons" />;
   return (
-    <ReadLesson api={reader.api} lesson={lesson} onDeleted={() => router.back()}
+    <ReadLesson api={reader.api} lesson={lesson} onDeleted={() => leaveScreen(router, READ_PATH)}
       onAddToDeck={reader.settings?.decks?.[lesson.language] ? () => router.push({ pathname: '/lesson-add', params: { lesson: raw! } }) : undefined}
       onPlayWord={playWord}
       onAddWord={async (word, meaning, lang, pronunciation) => {

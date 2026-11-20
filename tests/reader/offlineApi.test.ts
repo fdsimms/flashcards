@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApi, type ReadingLog, type Settings, type Shelf } from '../../src/reader/api';
 import { EMPTY_INDEX, type DownloadIndex, type HeldReaderAction } from '../../src/reader/downloads';
-import { wholeText, withOffline } from '../../src/reader/offlineApi';
+import { wholeText, listenKey, withOffline } from '../../src/reader/offlineApi';
 import { card, readerText, saved } from '../support/reader';
 
 const LOG = { finished: true, words_glossed: [], words_flagged: [], audio_speed: null, listen_only: false, seconds: 60 } as ReadingLog;
@@ -121,6 +121,21 @@ describe('withOffline: what is sent', () => {
     await api.chooseNext(2, 1);
     expect(held).toEqual([]);
     expect(calls).toEqual(['POST /api/texts/2/choice']);
+  });
+});
+
+describe('withOffline: a listen', () => {
+  it('is held with an id of its own, and sent with that id', async () => {
+    const off = setup({ unreachable: true });
+    await off.api.logListen(4);
+    const [action] = off.held;
+    expect(action).toMatchObject({ kind: 'listen', textId: 4 });
+    expect((action as { key?: string }).key).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+
+    const on = setup();
+    await on.api.logListen(4, 'm1x-abc');
+    expect(on.calls).toEqual(['POST /api/texts/4/listen']);
+    expect(listenKey(1_700_000_000_000, () => 0.5)).not.toBe(listenKey(1_700_000_000_001, () => 0.5));
   });
 });
 

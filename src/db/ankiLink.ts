@@ -17,6 +17,7 @@ import type { CardState } from '../core/cardState';
 import type { Card, CollectionSettings } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
+import { decodeOwed, encodeOwed, type AnkiAnswer, type OwedAnswer } from '../anki/owedAnswers';
 import { transact } from './transact';
 
 /**
@@ -64,20 +65,16 @@ export interface AnkiLink {
   /** Makes `collection` the one Franki keeps (it's moved, not copied), replacing any before it. */
   keepAnkiCollection(collection: File): Promise<void>;
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
-  writeAnkiAnswer(a: {
-    before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
-    /** The card's deck's step counts, for Anki's `left`. */
-    steps?: { learn: number; relearn: number };
-    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay`. */
-    weights?: number[];
-    /**
-     * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
-     * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
-     */
-    preview?: { again?: Date };
-    /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
-    bury?: Card[];
-  }): Promise<AnkiUndo | undefined>;
+  /**
+   * `owedId`: the answer's row in `anki_owed` (`oweAnkiAnswer`), deleted in the write's own
+   * transaction. If the row is already gone the answer was written before, and nothing is written.
+   */
+  writeAnkiAnswer(a: AnkiAnswer & { owedId?: number }): Promise<AnkiUndo | undefined>;
+  /** Keeps an answer as owed to the kept collection (src/anki/owedAnswers.ts), and returns its id. */
+  oweAnkiAnswer(owed: OwedAnswer): Promise<number>;
+  /** The answers still owed, oldest first. One that can't be read back is dropped. */
+  owedAnkiAnswers(): Promise<{ id: number; owed: OwedAnswer }[]>;
+  forgetOwedAnkiAnswer(id: number): Promise<void>;
   /**
    * Takes an answer back out of the kept collection. False, changing nothing, when it was already
    * synced (or the collection was replaced since): it's in the server's history, so as in Anki,
@@ -261,12 +258,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [], owedId }) => lockAnki(async () => {
+      // Checked under the lock: an owed answer whose row is gone is already in the collection
+      // (written by this session's own job, or by the catch-up at launch, whichever came first).
+      if (owedId !== undefined && !(await db.getFirstAsync('SELECT 1 FROM anki_owed WHERE id = ?', owedId))) return undefined;
+      const nothingOwed = async () => { if (owedId !== undefined) await db.runAsync('DELETE FROM anki_owed WHERE id = ?', owedId); };
       await attach();
-      if (!attached || !before.ankiId) return undefined;
+      if (!attached || !before.ankiId) { await nothingOwed(); return undefined; }
       const cid = Number(before.ankiId);
       const row = await db.getFirstAsync<AnkiCardRow & { mod: number; usn: number }>(SQL.cardRow, cid);
-      if (!row) return undefined; // the card isn't in this collection (it came from an older one)
+      if (!row) { await nothingOwed(); return undefined; } // the card isn't in this collection (it came from an older one)
       const crt = (await db.getFirstAsync<{ crt: number }>(SQL.crt))!.crt;
       const cs = await collectionSettings();
       const clock = { crt, dayStartsAtHour: cs.dayStartsAtHour, creationOffset: cs.creationOffset };
@@ -293,9 +294,27 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
         // Stamped with the clock, as Anki's set_modified does: sync keeps the deck row stamped later.
         for (const d of decks) await db.runAsync(SQL.deckStatsUpdate, withStudied(d.common, today, delta), Math.floor(Date.now() / 1000), -1, d.id);
         await db.runAsync(SQL.colModified, now.getTime());
+        if (owedId !== undefined) await db.runAsync('DELETE FROM anki_owed WHERE id = ?', owedId);
       });
       return { cid, row, revlogId, buried, decks };
     }),
+
+    async oweAnkiAnswer(owed) {
+      return (await db.runAsync('INSERT INTO anki_owed (data) VALUES (?)', encodeOwed(owed))).lastInsertRowId;
+    },
+    async owedAnkiAnswers() {
+      const rows = await db.getAllAsync<{ id: number; data: string }>('SELECT id, data FROM anki_owed ORDER BY id');
+      const out: { id: number; owed: OwedAnswer }[] = [];
+      for (const r of rows) {
+        const owed = decodeOwed(r.data);
+        if (owed) out.push({ id: r.id, owed });
+        else await db.runAsync('DELETE FROM anki_owed WHERE id = ?', r.id);
+      }
+      return out;
+    },
+    async forgetOwedAnkiAnswer(id) {
+      await db.runAsync('DELETE FROM anki_owed WHERE id = ?', id);
+    },
 
     undoAnkiAnswer: (u) => lockAnki(async () => {
       await attach();
