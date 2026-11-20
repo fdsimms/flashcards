@@ -1,6 +1,10 @@
 // One reading of one text: what was looked up, what was marked unknown, and how long it took.
 // Pure, so it's tested; the reader screen holds one of these in state.
 import type { ReaderText, ReadingLog } from './api';
+import type { Quiz } from './guess';
+
+/** A quiz as it was answered: its four choices and the one picked (null for "I don't know"), so a second tap on the word shows the same record instead of asking again. */
+export type QuizAnswer = { quiz: Quiz; picked: number | null };
 
 export type Session = {
   textId: number;
@@ -9,12 +13,13 @@ export type Session = {
   flagged: string[];
   quizRight: string[]; // words answered right in the meaning quiz
   quizWrong: string[]; // words answered wrong, or given up on
+  quizAnswers: Record<string, QuizAnswer>; // each answered word's quiz and pick, the latest answer
   audioSpeed: number | null; // the speed audio last played at, if it played at all
   listenOnly: boolean; // listened to with the text hidden
 };
 
 export function startSession(text: ReaderText, now: number): Session {
-  return { textId: text.id, startedAt: now, glossed: [], flagged: [], quizRight: [], quizWrong: [], audioSpeed: null, listenOnly: false };
+  return { textId: text.id, startedAt: now, glossed: [], flagged: [], quizRight: [], quizWrong: [], quizAnswers: {}, audioSpeed: null, listenOnly: false };
 }
 
 export function lookUp(session: Session, word: string): Session {
@@ -22,11 +27,12 @@ export function lookUp(session: Session, word: string): Session {
 }
 
 /** A quiz answer on a word: the latest answer for a word is the one kept. A record only, never a lookup or a grade. */
-export function answerQuiz(session: Session, word: string, right: boolean): Session {
+export function answerQuiz(session: Session, word: string, right: boolean, answer: QuizAnswer): Session {
   const without = (list: string[]) => list.filter((w) => w !== word);
+  const quizAnswers = { ...session.quizAnswers, [word]: answer };
   return right
-    ? { ...session, quizRight: [...without(session.quizRight), word], quizWrong: without(session.quizWrong) }
-    : { ...session, quizWrong: [...without(session.quizWrong), word], quizRight: without(session.quizRight) };
+    ? { ...session, quizAnswers, quizRight: [...without(session.quizRight), word], quizWrong: without(session.quizWrong) }
+    : { ...session, quizAnswers, quizWrong: [...without(session.quizWrong), word], quizRight: without(session.quizRight) };
 }
 
 export function toggleFlag(session: Session, word: string): Session {

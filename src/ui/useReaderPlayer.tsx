@@ -2,7 +2,7 @@ import { IDLE_MODE, LISTENING_MODE } from './listeningAudio';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { Api, AudioLesson } from '../reader/api';
-import { afterLine, linePosition, lineShown, skipTo, type Handoff } from '../reader/handoff';
+import { afterLine, linePosition, lineShown, skipTo, voicedLineAt, type Handoff } from '../reader/handoff';
 import { firstLine } from '../reader/playback';
 import { lineAudio } from '../reader/lineAudio';
 import { LOOP_BREAK_SOURCE } from './loopBreak';
@@ -94,6 +94,8 @@ export interface ReaderPlayerHost {
   toggle: () => void;
   /** The previous or next line, or 15 seconds back or forward in a lesson. */
   skip: (step: -1 | 1) => void;
+  /** Plays the text's `n`th line with audio (0-based), from Now Playing's scrubber. */
+  seekLine: (n: number) => void;
   stop: () => void;
   /** Wait for my answer: a lesson on this player stops at each place the learner speaks (useLessonWaits). */
   waits: LessonWaits;
@@ -392,6 +394,13 @@ function useReaderPlayer(): ReaderPlayerHost {
     if (to !== null) void playLine(to);
   }, [playLine, waits]);
 
+  const seekLine = useCallback((n: number) => {
+    const c = carrying.current;
+    if (!c) return;
+    const to = voicedLineAt(c.handoff, n);
+    if (to !== null) void playLine(to);
+  }, [playLine]);
+
   // The Live Activity's Start over and Loop, for what the mini-player carries on.
   const startOver = useCallback(() => {
     if (carryingLesson.current) { lessonLoopNow.current.startOver(); return; }
@@ -421,7 +430,7 @@ function useReaderPlayer(): ReaderPlayerHost {
   useEffect(() => () => { listener.current?.remove(); player.current?.remove(); }, []);
 
   return {
-    player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, stop, waits, turns, lessonLoop, watchLesson,
+    player: player.current, preloader: preloader.current, mini, claim, handOff, handOffLesson, resumeLesson, release, toggle, skip, seekLine, stop, waits, turns, lessonLoop, watchLesson,
     playText, playLesson, setTextRate, pause, position, putDown, attachQueue,
   };
 }

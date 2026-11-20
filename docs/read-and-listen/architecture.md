@@ -263,6 +263,7 @@ Franki's (Client, below).
   A right quiz answer is no lookup, but every answer is kept on the reading, by word, as
   `quiz_right` and `quiz_wrong` (`Session.quizRight`, `readings.quiz_right`; the latest answer to a
   word wins), a record only: nothing reads it yet, and a wrong one or I don't know is also a lookup.
+  **Tapping a word again on the same reading doesn't ask again** (20 November 2026): the quiz's choices and the pick are kept per word (`Session.quizAnswers`) and the popover opens on that record, with only the right and the picked choice drawn (`QuizChoices` `settled`).
   Nothing is graded or added to the deck, and a card's example
   sentence and the shelf's practice-word popovers are unchanged.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
