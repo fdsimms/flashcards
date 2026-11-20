@@ -9,6 +9,7 @@ import { missedCardText, type MissedCardText } from '../core/missedCard';
 import type { Card, Note, NoteType } from '../core/types';
 import type { Language } from '../reader/api';
 import { missedPracticeLabel, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
+import { drillOfTags } from '../tools/skills';
 import { haptic } from './haptics';
 import { Icon, Tag } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
@@ -23,6 +24,12 @@ function firstText(note: Note): string {
     if (text) return text;
   }
   return '';
+}
+
+/** A skill drill's row: the language and step (the Front's first line) over what to do. */
+function drillRow(note: Note, selfCheck: string): { word: string; meaning: string } {
+  const title = htmlToText((note.fields.Front ?? '').split('</div>')[0]).replace(/\s+/g, ' ').trim();
+  return { word: title || firstText(note), meaning: selfCheck };
 }
 
 export interface MixupRequest {
@@ -47,6 +54,7 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
     const latest = new Map<string, (typeof missed)[number] & { card?: MissedCardText }>();
     for (const m of missed) {
       const note = notes.get(m.noteId);
+      // A skill drill has no card text (missedCardText), so it's listed like a word (see `drillRow`).
       const card = note ? missedCardText(note, noteTypes.get(note.model), m.kind) : undefined;
       const key = card ? m.cardId : m.noteId;
       latest.delete(key);
@@ -56,7 +64,9 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
       const note = notes.get(m.noteId);
       if (!note) return [];
       const reason = m.miss ? missReasonsFor(note).find((r) => r.key === m.miss)?.label : undefined;
-      return [{ key, noteId: m.noteId, word: headword(note) || firstText(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim(), card: m.card, reason }];
+      const drill = drillOfTags(note.tags);
+      const { word, meaning } = drill ? drillRow(note, drill.step.selfCheck) : { word: headword(note) || firstText(note), meaning: htmlToText(note.fields.Meaning ?? '').replace(/\s+/g, ' ').trim() };
+      return [{ key, noteId: m.noteId, word, meaning, card: m.card, reason }];
     });
   }, [missed, notes, noteTypes]);
   const practice = useMemo(() => {

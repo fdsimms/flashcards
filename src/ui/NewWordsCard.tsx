@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { runwayText, type LowDeck } from '../reader/newWords';
 import { deckShortName } from './deckShortName';
 import { Icon, Tappable } from './kit';
-import { Reveal } from './motion';
+import { Reveal, useLeaveAnimation } from './motion';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 import { useNewWords } from './useNewWords';
 
@@ -13,6 +13,7 @@ import { useNewWords } from './useNewWords';
  */
 export function NewWordsCards() {
   const { low, dismiss, open } = useNewWords();
+  useLeaveAnimation(low.length);
   return <>{low.map((d) => <NewWordsCard key={d.deck} deck={d} onOpen={() => open(d)} onDismiss={() => dismiss(d.deck)} />)}</>;
 }
 

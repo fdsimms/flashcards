@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
 import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
+import { skillCardIds } from '../core/skillTag';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings, Note } from '../core/types';
@@ -53,7 +54,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
       setAll(all);
       setSettings(s);
       setCapText(String(s.gateCap ?? DEFAULT_GATE_CAP));
-      setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
+      setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck]))), skillCardIds(notes, cards)));
     })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck's options.", next: 'Try again.' })));
   }, [repo, deck, attempt]);
 
