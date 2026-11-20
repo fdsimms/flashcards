@@ -26,6 +26,17 @@ export function queueSynonym(queue: readonly SynonymChange[], change: SynonymCha
   return [...queue, change];
 }
 
+/**
+ * The queue after `batch` was sent and `left` of it wasn't, given the queue as it is now. A change
+ * taken back while it was being sent was cancelled off the queue (`queueSynonym`) but reached
+ * WaniKani all the same, so its opposite is queued; one taken back that wasn't sent stays cancelled.
+ * Changes queued meanwhile follow, in order.
+ */
+export function afterSynonymFlush(queueNow: readonly SynonymChange[], batch: readonly SynonymChange[], left: readonly SynonymChange[]): SynonymChange[] {
+  const takenBack = batch.filter((c) => !left.includes(c) && !queueNow.includes(c)).map((c): SynonymChange => (c.remove ? { subjectId: c.subjectId, synonym: c.synonym } : { ...c, remove: true }));
+  return [...left.filter((c) => queueNow.includes(c)), ...takenBack, ...queueNow.filter((c) => !batch.includes(c))];
+}
+
 /** A word's synonyms as WaniKani lists them, with the changes still waiting applied. */
 export function withPending(subjectId: number, synonyms: readonly string[], queue: readonly SynonymChange[]): string[] {
   let out = [...synonyms];

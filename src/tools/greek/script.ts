@@ -28,7 +28,7 @@ const FEATURES: [test: RegExp, pattern: string, says: string][] = [
   [/ο[υύ]/, 'ou', 'ου sounds like the u in "too".'],
   [/α[ιί]/, 'ai', 'αι sounds like e.'],
   [/[εο][ιί]/, 'ei', 'ει and οι sound like i.'],
-  [/[αεάέ][υύ]/, 'au', 'αυ and ευ are av and ev, or af and ef before θ, κ, ξ, π, σ, τ, φ, χ and ψ.'],
+  [/[αε][υύ]/, 'au', 'αυ and ευ are av and ev, or af and ef before θ, κ, ξ, π, σ, τ, φ, χ and ψ.'],
   [/β/, 'v', 'β sounds like v.'],
   [/δ/, 'd', 'δ sounds like the th in "this".'],
   [/θ/, 'th', 'θ sounds like the th in "think".'],

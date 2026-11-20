@@ -746,7 +746,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฑ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw mon-too · มณโฑ, Montho, a queen in the Ramakien</div>",
+       "back": "<div><b>Low class</b></div><div>thaaw mon-thoo · มณโฑ, Montho, a queen in the Ramakien</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -776,7 +776,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ท</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw tá-hǎan · ทหาร, soldier</div>",
+       "back": "<div><b>Low class</b></div><div>thaaw thá-hǎan · ทหาร, soldier</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1052,7 +1052,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">โก</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>goo · O, as in \"go\", held steady. Example: โทร (too), phone, call.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>goo · O, as in \"go\", held steady. Example: โทร (thoo), phone, call.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -1118,7 +1118,7 @@
      "notes": [
       {
        "front": "<div style=\"font-size:40px\">แมว</div><div>maew</div><div>cat</div><div>Which classifier? Say three of them.</div>",
-       "back": "<div><b>แมวสามตัว</b></div><div>maew sǎam tua</div><div>ตัว (tua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
+       "back": "<div><b>แมวสามตัว</b></div><div>maew sǎam dtua</div><div>ตัว (dtua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
        "tags": [
         "skill",
         "skill::classifiers",
@@ -1128,7 +1128,7 @@
       },
       {
        "front": "<div style=\"font-size:40px\">หมา</div><div>mǎa</div><div>dog</div><div>Which classifier? Say three of them.</div>",
-       "back": "<div><b>หมาสามตัว</b></div><div>mǎa sǎam tua</div><div>ตัว (tua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
+       "back": "<div><b>หมาสามตัว</b></div><div>mǎa sǎam dtua</div><div>ตัว (dtua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
        "tags": [
         "skill",
         "skill::classifiers",
@@ -1138,7 +1138,7 @@
       },
       {
        "front": "<div style=\"font-size:40px\">โต๊ะ</div><div>dtó</div><div>table</div><div>Which classifier? Say three of them.</div>",
-       "back": "<div><b>โต๊ะสามตัว</b></div><div>dtó sǎam tua</div><div>ตัว (tua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
+       "back": "<div><b>โต๊ะสามตัว</b></div><div>dtó sǎam dtua</div><div>ตัว (dtua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
        "tags": [
         "skill",
         "skill::classifiers",
@@ -1148,7 +1148,7 @@
       },
       {
        "front": "<div style=\"font-size:40px\">เสื้อ</div><div>sûea</div><div>shirt</div><div>Which classifier? Say three of them.</div>",
-       "back": "<div><b>เสื้อสามตัว</b></div><div>sûea sǎam tua</div><div>ตัว (tua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
+       "back": "<div><b>เสื้อสามตัว</b></div><div>sûea sǎam dtua</div><div>ตัว (dtua) counts animals, and tables, chairs and clothes. The noun comes first, then the number, then the classifier.</div>",
        "tags": [
         "skill",
         "skill::classifiers",

@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { checkTyped } from '../../src/tools/answer';
+import type { DateSaying } from '../../src/tools/date';
+import { sayFrenchDate } from '../../src/tools/french/date';
+import { sayGermanDate } from '../../src/tools/german/date';
+import { sayGreekDate } from '../../src/tools/greek/date';
 import { sayJapaneseDate } from '../../src/tools/japanese/date';
+import { sayNorwegianDate } from '../../src/tools/norwegian/date';
 import { sayPolishDate } from '../../src/tools/polish/date';
 import { sayThaiDate } from '../../src/tools/thai/date';
-import { acceptedForms, addDays, dateOptions, DATE_MODES, nextQuizDraw, quizCalendarStart, quizDate, sameDate } from '../../src/tools/dateQuiz';
+import { acceptedForms, addDays, dateOptions, DATE_MODES, nextQuizDraw, quizCalendarStart, quizDate, sameDate, usualSpelling } from '../../src/tools/dateQuiz';
 
 /** A repeatable stand-in for Math.random. */
 function seeded(seed: number) {
@@ -167,5 +172,48 @@ describe('the next date drawn', () => {
     const drawn = { year: 1987, month: 3, day: 12 };
     const next = nextQuizDraw(drawn, 'say', { weekday: true, year: true }, today, sequence([0.5]));
     expect(sameDate(next, drawn)).toBe(false);
+  });
+});
+
+describe('a typed date in another standard spelling', () => {
+  const verdict = (saying: DateSaying, typed: string) => checkTyped(usualSpelling(typed, saying), acceptedForms(saying)).verdict;
+  const all = { weekday: false, year: true };
+  const noYear = { weekday: false, year: false };
+
+  it('takes the formal Greek 7, 8 and 9, and leaves the months alone', () => {
+    expect(verdict(sayGreekDate({ year: 2026, month: 11, day: 7 }, noYear), 'επτά Νοεμβρίου')).toBe('exact');
+    expect(verdict(sayGreekDate({ year: 2026, month: 10, day: 18 }, noYear), 'δεκαοκτώ Οκτωβρίου')).toBe('exact');
+    expect(verdict(sayGreekDate({ year: 2026, month: 9, day: 9 }, noYear), 'εννέα Σεπτεμβρίου')).toBe('exact');
+    expect(verdict(sayGreekDate({ year: 2026, month: 11, day: 7 }, noYear), 'έξι Νοεμβρίου')).not.toBe('exact');
+  });
+
+  it('takes the older Norwegian counting words', () => {
+    expect(verdict(sayNorwegianDate({ year: 2026, month: 11, day: 7 }, noYear), 'syvende november')).toBe('exact');
+    expect(verdict(sayNorwegianDate({ year: 2026, month: 11, day: 20 }, noYear), 'tyvende november')).toBe('exact');
+    expect(verdict(sayNorwegianDate({ year: 2026, month: 11, day: 30 }, noYear), 'tredevte november')).toBe('exact');
+  });
+
+  it('takes siebente for siebte', () => {
+    expect(verdict(sayGermanDate({ year: 2026, month: 7, day: 7 }, noYear), 'der siebente Juli')).toBe('exact');
+    expect(verdict(sayGermanDate({ year: 2026, month: 7, day: 27 }, noYear), 'der siebenundzwanzigste Juli')).toBe('exact');
+  });
+
+  it('takes a French year ending in quatre-vingt with or without its s', () => {
+    const d = sayFrenchDate({ year: 1980, month: 5, day: 3 }, all);
+    expect(verdict(d, 'trois mai mille neuf cent quatre-vingt')).toBe('exact');
+    expect(verdict(d, 'trois mai mille neuf cent quatre-vingts')).toBe('exact');
+    expect(verdict(sayFrenchDate({ year: 1981, month: 5, day: 3 }, all), 'trois mai mille neuf cent quatre-vingt-un')).toBe('exact');
+  });
+
+  it('takes the other Japanese readings of 7 and 9, and still tells 6 from 9', () => {
+    expect(verdict(sayJapaneseDate({ year: 2027, month: 7, day: 17 }, all), 'にせんにじゅうしちねんなながつじゅうななにち')).toBe('exact');
+    expect(verdict(sayJapaneseDate({ year: 2029, month: 3, day: 19 }, all), 'にせんにじゅうくねんさんがつじゅうきゅうにち')).toBe('exact');
+    const y2026 = sayJapaneseDate({ year: 2026, month: 3, day: 2 }, all);
+    expect(verdict(y2026, 'にせんにじゅうろくねんさんがつふつか')).toBe('exact');
+    expect(usualSpelling('にせんにじゅうろくねん', y2026)).toBe('にせんにじゅうろくねん');
+  });
+
+  it('changes nothing for a language with one spelling', () => {
+    expect(usualSpelling('dwunastego listopada', sayPolishDate({ year: 2026, month: 11, day: 12 }, noYear))).toBe('dwunastego listopada');
   });
 });

@@ -10,7 +10,7 @@ export interface ThaiCountingWord {
 }
 
 export const THAI_COUNTING_WORDS: Record<string, ThaiCountingWord> = {
-  ตัว: { roman: 'tua', counts: 'animals, and tables, chairs and clothes' },
+  ตัว: { roman: 'dtua', counts: 'animals, and tables, chairs and clothes' },
   คน: { roman: 'khon', counts: 'people' },
   เล่ม: { roman: 'lêm', counts: 'books and knives' },
   คัน: { roman: 'khan', counts: 'vehicles, umbrellas and spoons' },

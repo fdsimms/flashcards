@@ -98,6 +98,25 @@ def test_refuses_a_wrong_password_and_other_redirects(served):
         assert r.status_code == 400 and "only signs in Claude" in r.text
 
 
+def test_clients_that_never_signed_in_are_kept_only_up_to_a_limit(served, monkeypatch):
+    monkeypatch.setattr(auth, "MAX_UNUSED_CLIENTS", 3)
+    with httpx.Client(base_url=served) as http:
+        signed_in = sign_in(http, served)
+        body = {"client_name": "x", "redirect_uris": [CALLBACK], "token_endpoint_auth_method": "none"}
+        unused = [http.post("/register", json=body).json()["client_id"] for _ in range(5)]
+
+        def known(client_id: str) -> bool:
+            r = http.get("/authorize", params={"response_type": "code", "client_id": client_id, "redirect_uri": CALLBACK,
+                                               "code_challenge": pkce()[1], "code_challenge_method": "S256"})
+            return r.status_code == 302
+
+        assert [known(c) for c in unused] == [False, False, True, True, True]
+        # The one that signed in is older than all of them and stays: its refresh token still works.
+        assert known(signed_in["client_id"])
+        r = http.post("/token", data={"grant_type": "refresh_token", "refresh_token": signed_in["refresh_token"], "client_id": signed_in["client_id"]})
+        assert r.status_code == 200
+
+
 def test_codes_work_once_and_refresh_tokens_rotate(served):
     with httpx.Client(base_url=served) as http:
         t = sign_in(http, served)

@@ -48,7 +48,8 @@ describe('a time in Thai', () => {
     expect(also(12)).toEqual(['เที่ยงวัน']);
     expect(also(12, 30)).toEqual([]);
     expect(also(19)).toEqual(['ทุ่มหนึ่ง']);
-    expect(also(19, 30)).toEqual([]);
+    // ทุ่มหนึ่ง stays off it; the bare ทุ่ม is the form said only with minutes.
+    expect(also(19, 30)).toEqual(['ทุ่มครึ่ง']);
   });
 
   it('gives the formal 24-hour form', () => {
@@ -65,5 +66,13 @@ describe('a time in Thai', () => {
   it('refuses what is not a time of day', () => {
     expect(() => sayThaiTime({ hour: 24, minute: 0 })).toThrow(RangeError);
     expect(() => sayThaiTime({ hour: 3, minute: 60 })).toThrow(RangeError);
+  });
+});
+
+describe('seven in the evening with minutes', () => {
+  it('can leave the one out, and never on the hour', () => {
+    expect(everyday(19, 30)).toBe('หนึ่งทุ่มครึ่ง');
+    expect(also(19, 30)).toContain('ทุ่มครึ่ง');
+    expect(also(19)).not.toContain('ทุ่ม');
   });
 });

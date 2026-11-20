@@ -75,7 +75,8 @@ export const JAPANESE_COUNTING: CountingLanguage = {
     // The right counter read as if it changed nothing, and other counters.
     const unchanged: Word = [plainText, plainReading];
     const others = Object.entries(COUNTERS).filter(([k]) => k !== NOUNS[noun].counter).map(([, c]) => countWord(n, c));
-    return [unchanged, ...others].map((w) => word(withNoun(noun, w)));
+    // Not after 8, where both are said (はっぽん and はちほん), so the plain one isn't wrong.
+    return [...(n % 10 === 8 ? [] : [unchanged]), ...others].map((w) => word(withNoun(noun, w)));
   },
   rule: (noun) => {
     const c = COUNTERS[NOUNS[noun].counter];

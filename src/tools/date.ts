@@ -33,7 +33,15 @@ export interface DateSaying {
   also: Phrase[];
   /** As it's written in the language, with digits: "jeudi 12 novembre 2026". Shown with the answer, never accepted as a typed one. */
   written: Phrase;
+  /**
+   * Other standard spellings or readings of a word in it, each with the one used here (επτά for
+   * εφτά, syv for sju, しちねん for ななねん): a typed answer may use either (`usualSpelling`,
+   * dateQuiz.ts). A pattern, where the plain word would also match inside another.
+   */
+  spellings?: readonly Spelling[];
 }
+
+export type Spelling = readonly [other: string | RegExp, usual: string];
 
 /** The years a random date comes from. */
 export const FIRST_YEAR = 1950;

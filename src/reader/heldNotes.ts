@@ -35,6 +35,31 @@ export function dropWord(list: readonly HeldWords[], deck: string, entry: string
     .filter((g) => g.entries.length);
 }
 
+/**
+ * The list after the groups in `tried` were sent: `left` weren't (no connection) and stay, `refused`
+ * stay with the server's reason, and the rest reached the queue and come off. A group changed while
+ * they were being sent (a word added to it, or removed on the queue screen) is a new object the send
+ * never saw, so it loses just the words that reached the queue; matching whole groups by identity
+ * alone would keep them, and send them again.
+ */
+export function afterWordsSent(
+  list: readonly HeldWords[],
+  tried: readonly HeldWords[],
+  left: readonly HeldWords[],
+  refused: readonly { item: HeldWords; problem: string }[],
+): HeldWords[] {
+  const sent = tried.filter((g) => !left.includes(g) && !refused.some((r) => r.item === g));
+  const reached = new Set(sent.flatMap((g) => g.entries.map((e) => JSON.stringify([g.language, g.deck, e.entry]))));
+  return list.flatMap((g): HeldWords[] => {
+    if (sent.includes(g)) return [];
+    const problem = refused.find((r) => r.item === g)?.problem;
+    if (problem !== undefined) return [{ ...g, problem }];
+    if (tried.includes(g)) return [g];
+    const entries = g.entries.filter((e) => !reached.has(JSON.stringify([g.language, g.deck, e.entry])));
+    return entries.length === g.entries.length ? [g] : entries.length ? [{ ...g, entries }] : [];
+  });
+}
+
 /** How many words are held, and how many of those the server refused last time. */
 export function heldCounts(list: readonly HeldWords[]): { waiting: number; refused: number } {
   let waiting = 0;

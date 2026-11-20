@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { recordNote } from '../anki/recordService';
 import { failureText } from '../core/failure';
-import { sendHeld } from '../core/held';
-import type { HeldWords } from '../reader/heldNotes';
+import { afterSend, sendHeld } from '../core/held';
+import { afterWordsSent, type HeldWords } from '../reader/heldNotes';
 import { useApp } from './AppContext';
 import { connection, useBackOnline } from './connection';
 import type { HeldReaderAction } from '../reader/downloads';
@@ -27,9 +27,17 @@ export function HeldWork() {
   const server = reader.serverApi;
   const recorder = useRecorder();
   const sending = useRef(false);
+  // Asked for while a send was running (the connection dropped and came back during it, or the
+  // servers' APIs became ready): run once more when it ends, or what it left waits for the next launch.
+  const again = useRef(false);
+  const latest = useRef<() => Promise<void>>(async () => {});
 
   const send = useCallback(async () => {
-    if (sending.current || connection.cantReachHome()) return;
+    if (sending.current) {
+      again.current = true;
+      return;
+    }
+    if (connection.cantReachHome()) return;
     sending.current = true;
     try {
       await Promise.all([heldWords.load(), heldRecordings.load(), heldReader.load()]);
@@ -43,21 +51,21 @@ export function HeldWork() {
         ));
         // One the server refuses has nothing left to do: the text was deleted (404), or its episode
         // was read before the choice arrived (409). Held while this ran are kept as they are.
-        await heldReader.update((list) => [...list.filter((a) => !actions.includes(a)), ...result.left]);
+        await heldReader.update((list) => afterSend(list, actions, result.left));
       }
 
       const words = heldWords.get();
       if (api && words.length) {
         const result = await sendHeld(words, (g: HeldWords) => queueWords(api, g.language, g.deck, g.entries));
-        const refused = result.refused.map(({ item, error }) => ({ ...item, problem: failureText(error, { next: 'Try again later, or remove them.' }) }));
+        const refused = result.refused.map(({ item, error }) => ({ item, problem: failureText(error, { next: 'Try again later, or remove them.' }) }));
         // Words held while this ran are kept as they are.
-        await heldWords.update((list) => [...list.filter((g) => !words.includes(g)), ...result.left, ...refused]);
+        await heldWords.update((list) => afterWordsSent(list, words, result.left, refused));
       }
 
       const recordings = heldRecordings.get();
       if (recorder && recordings.length) {
         const result = await sendHeld(recordings, async (r) => { await recordNote(recorder, r.noteId, r.voice); });
-        await heldRecordings.update((list) => [...list.filter((r) => !recordings.includes(r)), ...result.left]);
+        await heldRecordings.update((list) => afterSend(list, recordings, result.left));
         if (result.refused.length) {
           const n = result.refused.length;
           Alert.alert(
@@ -68,8 +76,13 @@ export function HeldWork() {
       }
     } finally {
       sending.current = false;
+      if (again.current) {
+        again.current = false;
+        void latest.current();
+      }
     }
   }, [api, server, recorder]);
+  latest.current = send;
 
   useEffect(() => { void send(); }, [send]);
   useBackOnline(() => { void send(); });

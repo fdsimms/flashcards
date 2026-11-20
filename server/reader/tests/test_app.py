@@ -69,6 +69,11 @@ def test_health_needs_no_passphrase() -> None:
     assert client().get("/health").json() == {"status": "ok"}
 
 
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_the_schema_pages_are_not_served(path: str) -> None:
+    assert client().get(path).status_code == 404
+
+
 @pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer nope"}, {"Authorization": "x"}])
 def test_api_routes_refuse_a_missing_or_wrong_passphrase(headers: dict[str, str]) -> None:
     c = client()
