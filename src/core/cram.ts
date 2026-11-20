@@ -3,7 +3,8 @@ import { isOmnilanguage } from './cards';
 import { addCalendarDays, nextStudyDayStart, studyDayKey, studyDayStart } from './day';
 import { headword } from './forms';
 import { htmlToText } from './html';
-import { readerLanguageOf } from './leechHint';
+import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
+import { isReaderLanguage, readerLanguageOf } from './leechHint';
 import { noteHasTag } from './priority';
 import type { Card, Note } from './types';
 
@@ -68,11 +69,16 @@ export interface Cram {
   unused?: string[];
   /** The cram the unused notes were taken into, once they were. */
   carriedTo?: string;
+  /** The language picked for it. Unset, it is the one most of its words are in (`cramLanguage`). */
+  language?: Language;
   /** The theme it was made from, when it was made from one. */
   theme?: CramTalk;
   /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
   lesson?: { id: number; noteIds: string[] };
 }
+
+/** The languages a cram can be set to, each with its flag, as the editor's Language list shows them. */
+export const CRAM_LANGUAGE_CHOICES: { code: Language; label: string }[] = LANGUAGE_ORDER.map((code) => ({ code, label: flaggedName(code) }));
 
 /** The tag a cram's notes carry. */
 export const cramTag = (cram: Pick<Cram, 'id'>) => `${CRAM_TAG_PREFIX}${cram.id}`;
@@ -243,11 +249,11 @@ export function cramLanguage(notes: Note[]): Language | undefined {
 
 /**
  * The notes Add words offers for a cram: only those in the language its words are in, plus any
- * already in it (so a stray one can still be taken out). A cram with no words yet has no language
- * to go by, so every note is offered until the first is added.
+ * already in it (so a stray one can still be taken out). With no language picked and no words yet
+ * there is nothing to go by, so every note is offered until the first is added.
  */
-export function addableNotes(notes: Note[], inCram: Note[]): Note[] {
-  const language = cramLanguage(inCram);
+export function addableNotes(notes: Note[], inCram: Note[], picked?: Language): Note[] {
+  const language = picked ?? cramLanguage(inCram);
   if (!language) return notes;
   const have = new Set(inCram.map((n) => n.id));
   return notes.filter((n) => have.has(n.id) || readerLanguageOf(n) === language);
@@ -318,7 +324,7 @@ export function parseCram(json: string): Cram | undefined {
   try {
     const c = JSON.parse(json) as Partial<Cram>;
     if (typeof c.id !== 'string' || typeof c.name !== 'string' || typeof c.date !== 'string' || typeof c.createdAt !== 'string') return undefined;
-    return { ...c, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
+    return { ...c, language: isReaderLanguage(c.language) ? c.language : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
   } catch {
     return undefined;
   }

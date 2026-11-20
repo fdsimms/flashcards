@@ -62,7 +62,7 @@ export function CramPage(props: {
   const running = isRunning(cram, now, H);
   const over = isAwaitingFinish(cram, now, H);
   const status = roundStatus(cram, now, H);
-  const language = cramLanguage(notes);
+  const language = cram.language ?? cramLanguage(notes);
   const words = language ? textWords(notes, collection.cards, language) : [];
   // What Rehearse works into Situations: the cram's words with their meanings, as an audio lesson takes them.
   const rehearsalWords = language ? lessonPhrases(notes, language) : [];

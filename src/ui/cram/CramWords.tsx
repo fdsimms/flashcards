@@ -15,7 +15,7 @@ import { capCramCards, setCramTag, useCollection, useCrams } from '../useCrams';
 const SHOWN = 80;
 
 /**
- * Add words: every note in the cram's language (every note, until it has a word), searched by its word or meaning, the most recently added
+ * Add words: every note in the cram's language (every note while it has none), searched by its word or meaning, the most recently added
  * first. A tap adds the cram's tag to the note or takes it off; the check shows at once and is put
  * back, with the reason, if the note can't be saved.
  */
@@ -34,7 +34,7 @@ export function CramWords({ repo, id }: { repo: NoteStore; id: string }) {
   const inCram = useMemo(() => new Set(cram ? cramNotes(cram, collection.notes).map((n) => n.id) : []), [cram, collection.notes]);
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const offered = addableNotes(collection.notes, cram ? cramNotes(cram, collection.notes) : []);
+    const offered = addableNotes(collection.notes, cram ? cramNotes(cram, collection.notes) : [], cram?.language);
     const all = offered.map((n) => ({ note: n, word: headword(n), meaning: meaningOf(n) }));
     const hits = q ? all.filter((r) => r.word.toLowerCase().includes(q) || r.meaning.toLowerCase().includes(q)) : all;
     return hits.sort((a, b) => noteAddedAt(b.note) - noteAddedAt(a.note)).slice(0, SHOWN);
