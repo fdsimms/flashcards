@@ -301,10 +301,22 @@ export function remaining(s: Session): { reviews: number; lessons: number } {
   return { reviews, lessons };
 }
 
-/** How far through: items finished over all items. */
+/**
+ * How far through: questions answered right over questions needed. An item needs a meaning and,
+ * unless it has no reading (a radical, a kana-only word), a reading, so the bar moves on each
+ * right answer instead of only when an item's second half lands. A miss moves nothing. The "N
+ * remaining" label stays in items, as WaniKani counts them.
+ */
 export function sessionProgress(s: Session): number {
-  const total = Object.keys(s.items).length;
-  return total ? s.finished.length / total : 0;
+  let needed = 0;
+  let done = 0;
+  for (const id of Object.keys(s.items)) {
+    const item = s.items[Number(id)];
+    const p = s.progress[item.assignmentId];
+    needed += item.asksReading ? 2 : 1;
+    done += (p.meaning ? 1 : 0) + (item.asksReading && p.reading ? 1 : 0);
+  }
+  return needed ? done / needed : 0;
 }
 
 /** A session with what's held back for undo (see the top of this file). */

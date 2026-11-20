@@ -124,6 +124,20 @@ describe('answering', () => {
     expect(sessionProgress(r.session)).toBe(1);
   });
 
+  it('moves the bar on each right answer, counting only the questions an item asks', () => {
+    // A vocab word asks two questions and a radical one: three in all.
+    let s = buildSession([vocab, radical], { mode: 'apart' }, first);
+    expect(sessionProgress(s)).toBe(0);
+    ({ session: s } = answerQuestion(s, false, at, first));
+    expect(sessionProgress(s)).toBe(0); // a miss moves nothing
+    const seen: number[] = [];
+    while (currentQuestion(s)) {
+      ({ session: s } = answerQuestion(s, true, at, first));
+      seen.push(sessionProgress(s));
+    }
+    expect(seen).toEqual([1 / 3, 2 / 3, 1]);
+  });
+
   it('counts Again on a question asked together as one wrong meaning', () => {
     let s = buildSession([vocab], { mode: 'together' }, first);
     ({ session: s } = answerQuestion(s, false, at, first));
