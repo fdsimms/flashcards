@@ -24,7 +24,7 @@ import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/
 import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
-import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
+import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
 import { ankiWrites, reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
@@ -341,12 +341,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Running crams: a review of one of their words isn't put off past the cram's day (src/core/cram.ts).
   const { crams } = useCrams(repo as NoteStore);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
+  // The queue as last built, for this deck and study day: each rebuild keeps its order (`keepSessionOrder`).
+  const sessionQueue = useRef<{ key: string; queue: Queue } | undefined>(undefined);
   const rebuilt = useMemo(() => {
     if (!cards || settle) return null;
     const started = performance.now();
-    const q = treeQueue(deck, queueInput({
+    const key = `${deck}:${studyDayKey(now, H)}`;
+    const q = keepSessionOrder(sessionQueue.current?.key === key ? sessionQueue.current.queue : undefined, treeQueue(deck, queueInput({
       notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
-    }));
+    })));
+    sessionQueue.current = { key, queue: q };
     timing.queueTook(performance.now() - started);
     return q;
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
