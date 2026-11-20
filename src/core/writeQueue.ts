@@ -31,5 +31,21 @@ export class WriteQueue {
   }
 }
 
+/**
+ * The second half of each answer: its write into the kept Anki collection, and what follows from it
+ * (a leech tag). That write waits for the collection, which a sync holds while it talks to the
+ * server, so it has a queue of its own: an answer's rows in Franki's tables (`reviewWrites`) are
+ * saved at once whatever a sync is doing, and the answer is kept as owed until this half runs
+ * (src/anki/owedAnswers.ts).
+ */
+export const ankiWrites = new WriteQueue();
+
+class ReviewWrites extends WriteQueue {
+  /** Both halves: whoever waits for the answers to be written means the collection too. */
+  idle(): Promise<void> {
+    return super.idle().then(() => ankiWrites.idle());
+  }
+}
+
 /** The answers Review has shown but not finished writing. One for the app: a deck opened right after another reads after it. */
-export const reviewWrites = new WriteQueue();
+export const reviewWrites: WriteQueue = new ReviewWrites();
