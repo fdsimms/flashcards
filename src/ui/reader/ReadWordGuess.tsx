@@ -68,10 +68,15 @@ const FOLD_STAGGER_MS = 90;
 /**
  * The quiz's choices once answered: the right one marked (with a check alone when it was picked)
  * and a wrong pick marked, each with a word or icon as well as a color. The wrong choices that
- * weren't picked are dimmed and fold away top to bottom, giving the popover its space back. Nothing
+ * weren't picked are dimmed and fold away top to bottom, giving the popover its space back (`settled`:
+ * shown again on a later tap, they are simply not drawn). Nothing
  * bounces: the marks appear as they are.
  */
-export function QuizChoices({ choices, answer, picked }: { choices: string[]; answer: number; picked: number | null }) {
+export function QuizChoices({ choices, answer, picked, settled = false }: {
+  choices: string[]; answer: number; picked: number | null;
+  /** The answer was given on an earlier tap: the unpicked choices are left out rather than folded away again. */
+  settled?: boolean;
+}) {
   const c = useTheme();
   const gotIt = picked === answer;
   let folded = 0;
@@ -109,6 +114,7 @@ export function QuizChoices({ choices, answer, picked }: { choices: string[]; an
         const key = `${i}:${choice}`;
         const padded = (inner: React.ReactNode) => <View key={key} style={{ paddingBottom: space.s }}>{inner}</View>;
         if (right || wrongPick) return padded(row);
+        if (settled) return null;
         return <Collapse key={key} delay={FOLD_STAGGER_MS * folded++}>{padded(row)}</Collapse>;
       })}
     </View>
