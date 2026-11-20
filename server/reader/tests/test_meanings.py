@@ -20,6 +20,7 @@ from franki_reader.languages import Code
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.meanings import (
     MeaningsFailed,
+    MeaningsUnavailable,
     Wanted,
     claude_meanings,
     fill,
@@ -392,3 +393,55 @@ def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list(
         w["text"].casefold(): w for ln in rendered["lines"] for w in ln["words"] if w["status"]
     }
     assert words["hei"]["register"] == "casual" and words["og"]["register"] == ""
+
+
+def word_meaning_engine(writer: Any | None) -> Engine:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, DECK, NOW, "nb")
+    return Engine(conn, None, None, lambda: NOW, random.Random(1), write_meanings=writer)
+
+
+def test_a_tapped_word_is_asked_about_once_and_kept_so_the_next_tap_is_free() -> None:
+    writer = Writer()
+    engine = word_meaning_engine(writer)
+    assert asyncio.run(engine.define_word("nb", "Suppe", "Warm soup.")) == "meaning of suppe"
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) == "meaning of suppe"
+    assert writer.asked == [[("suppe", "Warm soup.")]]
+
+
+def test_a_tapped_word_the_deck_knows_costs_no_call() -> None:
+    writer = Writer()
+    assert asyncio.run(word_meaning_engine(writer).define_word("nb", "mat", "")) == "food"
+    assert writer.asked == []
+
+
+def test_a_tap_asks_again_for_a_word_a_pass_kept_empty_and_ignores_the_cooldown() -> None:
+    writer = Writer(skip=("suppe",))
+    engine = word_meaning_engine(writer)
+    asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
+    assert engine.meanings("nb")["suppe"] == ""
+    engine._meanings_failed["nb"] = NOW  # cooling down
+    writer.skip = ()
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) == "meaning of suppe"
+    assert engine.meanings("nb")["suppe"] == "meaning of suppe"
+
+
+def test_a_tap_gets_none_when_claude_gives_nothing_usable_and_fails_when_it_cant_answer() -> None:
+    engine = word_meaning_engine(Writer(skip=("suppe",)))
+    assert asyncio.run(engine.define_word("nb", "suppe", "Warm soup.")) is None
+    with pytest.raises(MeaningsFailed):
+        asyncio.run(word_meaning_engine(Writer(fail=True)).define_word("nb", "suppe", ""))
+    with pytest.raises(MeaningsUnavailable):
+        asyncio.run(word_meaning_engine(None).define_word("nb", "suppe", ""))
+
+
+def test_the_word_meaning_route_answers_503_with_no_key_and_when_claude_fails() -> None:
+    body = {"language": "nb", "word": "suppe", "english": "Warm soup."}
+    for writer, detail in ((None, "isn't set up"), (Writer(fail=True), "down")):
+        c = started(create_app(word_meaning_engine(writer), "open sesame"))
+        out = c.post("/api/word-meaning", json=body, headers=AUTH)
+        assert out.status_code == 503 and detail in out.json()["detail"]
+    c = started(create_app(word_meaning_engine(Writer()), "open sesame"))
+    assert c.post("/api/word-meaning", json=body, headers=AUTH).json() == {
+        "meaning": "meaning of suppe"
+    }

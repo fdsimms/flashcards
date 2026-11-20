@@ -678,6 +678,24 @@ class Engine:
                 ),
             )
 
+    async def define_word(self, language: Code, word: str, english: str) -> str | None:
+        """The meaning of one word the owner tapped that nothing glosses: the one kept for the
+        language or the deck's when there is one, else Claude's, asked now (meanings.py) and kept
+        so the next tap is free. None when Claude gives nothing usable; raises `MeaningsFailed`
+        when the call fails, and `MeaningsUnavailable` with no key. Unlike a background pass it
+        ignores the failure cooldown and an empty kept answer, since the owner asked."""
+        key = meanings.key(word)
+        found = self.meanings(language).get(key) or self.meanings(language).get(word)
+        if found:
+            return found
+        if self.write_meanings is None:
+            raise meanings.MeaningsUnavailable
+        async with self._meanings_lock:
+            await meanings.fill_words(
+                self.conn, self.write_meanings, language, [Wanted(key, english)], self.clock
+            )
+        return self.meanings(language).get(key) or None
+
     async def _fill_words(self, language: Code, find: Callable[[Checker], list[Wanted]]) -> None:
         if self.write_meanings is None:
             return

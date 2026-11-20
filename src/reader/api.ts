@@ -777,6 +777,10 @@ export function createApi(
     // language's deck has been read on the server. A card's headword is asked with `parts`, and comes back split into the words it is made of.
     glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
+    // The meaning of a tapped word nothing glosses, from Claude on the server (kept there, so a second tap is free): asked
+    // only when the popover opens on a word with none. `english` is the line it was tapped in, which tells Claude the sense. Null when there is none to give.
+    wordMeaning: async (language: Language, word: string, english?: string) =>
+      (await call<{ meaning: string | null }>('POST', '/api/word-meaning', { language, word, ...(english ? { english } : {}) })).meaning,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {

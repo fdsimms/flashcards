@@ -4162,6 +4162,74 @@
         }
       }
     },
+    "/api/word-meaning": {
+      "post": {
+        "summary": "Word Meaning",
+        "description": "The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else\nClaude's, asked now. Never writes to Anki or grades a card.",
+        "operationId": "word_meaning_api_word_meaning_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordMeaningIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response Word Meaning Api Word Meaning Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ask-card": {
       "post": {
         "summary": "Ask Card Route",
@@ -7931,6 +7999,44 @@
           "text"
         ],
         "title": "WordIn"
+      },
+      "WordMeaningIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "word": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Word"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "English",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "word"
+        ],
+        "title": "WordMeaningIn"
       },
       "WordOut": {
         "properties": {

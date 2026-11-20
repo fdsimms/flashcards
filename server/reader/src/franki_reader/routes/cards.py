@@ -11,6 +11,7 @@ from franki_reader import (
     aspect,
     conjugation,
     fix_card,
+    meanings,
     store,
 )
 from franki_reader.ipa import ipa_of_entry
@@ -69,6 +70,13 @@ class GlossSentence(BaseModel):
 class GlossesIn(BaseModel):
     language: Code
     sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
+
+
+class WordMeaningIn(BaseModel):
+    language: Code
+    word: str = Field(min_length=1, max_length=80)
+    # The English of the line the word was tapped in, which tells Claude which sense is meant.
+    english: str = Field(default="", max_length=1000)
 
 
 class CardTurnIn(BaseModel):
@@ -139,6 +147,26 @@ def router(ctx: AppContext) -> APIRouter:
             engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
         )
         return {"hints": hints}
+
+    @routes.post("/api/word-meaning", dependencies=authed)
+    async def word_meaning(body: WordMeaningIn) -> dict[str, str | None]:
+        """The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else
+        Claude's, asked now. Never writes to Anki or grades a card."""
+        try:
+            meaning = await engine.define_word(
+                body.language, body.word.strip(), body.english.strip()
+            )
+        except meanings.MeaningsUnavailable as e:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't look up a meaning"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            ) from e
+        except meanings.MeaningsFailed as e:
+            # What a paid failure cost is already kept by `fill_words`. Not 502, which the app
+            # reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        return {"meaning": meaning}
 
     @routes.post("/api/ask-card", dependencies=authed)
     async def ask_card_route(body: AskCardIn) -> dict[str, str]:
