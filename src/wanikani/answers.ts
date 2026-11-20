@@ -5,7 +5,7 @@ import type { Subject } from './subjects';
  * Checking a typed answer the way WaniKani's own review page does, as far as it publishes its
  * rules: a meaning may have a small typo (more for a longer word), a reading must be exact, a
  * blacklisted meaning is wrong however close, and the user's own synonyms count. Typing the wrong
- * kind of answer (kana for a meaning, or a kanji's other reading) asks again rather than marking
+ * kind of answer (kana or romaji reading for a meaning, or a kanji's other reading) asks again rather than marking
  * it wrong, as WaniKani's shake does.
  */
 
@@ -63,6 +63,11 @@ export function checkMeaning(subject: Subject, synonyms: string[], typed: string
     ...synonyms,
   ].map(normalizeMeaning).filter(Boolean);
   if (accepted.includes(answer)) return { result: 'correct' };
+  // The reading typed in romaji ("fuyu" for 冬) is the wrong kind of answer, not a wrong meaning: ask again.
+  const asKana = toHiragana(toKana(typed.trim(), true)).replace(/\s/g, '');
+  if (isKana(asKana) && subject.readings.some((r) => toHiragana(r.reading).replace(/\s/g, '') === asKana)) {
+    return { result: 'retry', message: 'That looks like the reading. Type the meaning in English.' };
+  }
   const close = accepted.some((m) => closeEnough(answer, m));
   return close ? { result: 'correct', close: true } : { result: 'wrong' };
 }

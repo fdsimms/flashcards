@@ -75,6 +75,13 @@ describe('meanings', () => {
     expect(checkMeaning(vocab, [], '  ').result).toBe('retry');
   });
 
+  it('asks again for the reading typed in romaji as a meaning, but not for an English word', () => {
+    expect(checkMeaning(vocab, [], 'otona').result).toBe('retry');
+    expect(checkMeaning(vocab, [], ' Otona ').result).toBe('retry');
+    expect(checkMeaning(vocab, [], 'adult')).toEqual({ result: 'correct' });
+    expect(checkMeaning(vocab, [], 'child')).toEqual({ result: 'wrong' });
+  });
+
   it('measures typos', () => {
     expect(levenshtein('kitten', 'sitting')).toBe(3);
     expect(levenshtein('', 'abc')).toBe(3);
