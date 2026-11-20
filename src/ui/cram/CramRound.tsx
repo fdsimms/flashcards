@@ -118,7 +118,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   if (empty) {
     return (
       <Screen title="Round" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentContainerStyle={{ ...readable, padding: space.l }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
           <Help>{`${cram.name} has no words yet. Add some from its page, then start a round.`}</Help>
         </ScrollView>
       </Screen>
@@ -131,7 +131,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     const missed = round.missed.map((id) => byId.get(id)).filter((x): x is Note => !!x);
     return (
       <Screen title={`Round ${n}`} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
-        <ScrollView contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <Text style={{ ...type.title, color: c.text }}>Round done</Text>
           <Help>
             {missed.length
@@ -167,7 +167,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
         </View>
       )}
     >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words got this round" />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {!note ? (
