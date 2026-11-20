@@ -732,6 +732,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
         } catch (e) {
+          // The card may have been saved before its review row failed: put it and the siblings it
+          // buried back as they were, or it would stay rescheduled with no answer on record and
+          // "answer it again" would be false. Best effort, since the database just refused a write.
+          try {
+            await repo.saveCard(record.before);
+            for (const s of siblings) await repo.saveCard(s);
+          } catch {
+            // Left as it is; the reload below shows what was saved.
+          }
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
           setHistory((h) => h.filter((r) => r !== record));
           lastAnswer.show(null);

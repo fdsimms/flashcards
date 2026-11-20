@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -144,6 +144,20 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     seenDropped(shownDropped.current);
     if (studyRef.current) send(studyFlush(studyRef.current).send);
     wanikani.refresh(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // And when the app is left: the held answer is only in this screen's memory, so one closed from
+  // the app switcher (or dropped by iOS in the background) lost it, and the item came back as a
+  // review. Once it's sent it can't be undone, so leaving the app ends Undo for that answer.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'background' || !studyRef.current?.held) return;
+      const closed = studyFlush(studyRef.current);
+      sendRef.current(closed.send);
+      setStudy(closed.study);
+    });
+    return () => sub.remove();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
