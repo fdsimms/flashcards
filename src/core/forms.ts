@@ -760,8 +760,7 @@ export function formsSuggestion(input: {
 }
 
 /**
- * Prompts for practicing several words' forms (a card's own word, or the words gathered at the end
- * of a session): up to `perWord` each, taken in turn so one word's forms aren't all together.
+ * Prompts for practicing some words' forms: up to `perWord` each, taken in turn so one word's forms aren't all together.
  */
 export function wordPrompts(
   notes: Note[],
@@ -911,8 +910,8 @@ export function patternPrompts(
 // What a drill asks
 
 /**
- * What a drill is for, small enough to pass to its screen: some words' forms (a card's own word,
- * or the words gathered at the end of a session), or a pattern across a deck.
+ * What a drill is for, small enough to pass to its screen: some words' forms (a card's own word),
+ * or a pattern across a deck.
  */
 export type DrillRequest =
   | { kind: 'words'; noteIds: string[]; perWord: number }
