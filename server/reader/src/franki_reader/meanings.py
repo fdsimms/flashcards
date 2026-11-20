@@ -6,9 +6,10 @@ entries (เข้าใจ, from เข้า and ใจ), whose parts' meaning
 written, the words in it with no gloss from the text or the deck are glossed in one Claude call, each
 with the English of the line it's in, and the answers are kept with that text (`texts.meanings`), so
 a word shows the sense it has there: Spanish vino is "came" in one text and "wine" in the next. A tap
-never makes a call. The language also keeps the first meaning each word was given
-(`word_meanings`), only as the fallback for a text with none of its own and for cards' example
-sentences, which are asked about once per word. The same pass runs over the texts waiting to be read
+never makes a call. A card's example sentence is kept the same way (`sentence_meanings`), so a word
+shows the sense it has in that sentence: เรื่อง is "matter" in one card and "movie" in the next. The
+language also keeps the first meaning each word was given (`word_meanings`), only as the fallback for
+a text or sentence with none of its own. The same pass runs over the texts waiting to be read
 and read lately. Reading and listening still never grade or write cards: this only fills in text for
 the reader to show.
 """
@@ -104,11 +105,12 @@ def key(word: str) -> str:
 @dataclass(frozen=True)
 class Wanted:
     """A word to ask the meaning of: as kept (`key`), with the English of the line it's in, and the
-    text it's asked for (None for a card's sentence, whose answer is kept for the language only)."""
+    text it's asked for, or the card sentence it's asked for (`sentence`, as the card shows it)."""
 
     word: str
     english: str
     text_id: int | None = None
+    sentence: str | None = None
 
 
 def missing(texts: Iterable[StoredText], lexicon: Checker, deck: dict[str, str]) -> list[Wanted]:
@@ -133,19 +135,27 @@ def missing(texts: Iterable[StoredText], lexicon: Checker, deck: dict[str, str])
 
 
 def missing_in_sentences(
-    sentences: Iterable[tuple[str, str]], lexicon: Checker, meanings: dict[str, str]
+    sentences: Iterable[tuple[str, str]],
+    lexicon: Checker,
+    deck: dict[str, str],
+    own: dict[str, dict[str, str]],
 ) -> list[Wanted]:
     """As `missing`, for cards' example sentences, given as (sentence, its English): plain text,
-    split as `reader.render_sentence` splits it, with no glosses of their own, so a word with a kept
-    meaning (`meanings`: the language's and the deck's) isn't asked about again."""
-    found: dict[str, str] = {}
+    split as `reader.render_sentence` splits it. `own` is what each sentence has been asked already
+    (`store.sentence_meanings`, by sentence). Each sentence is asked about for itself, so a word has
+    the sense of its own line: the language's kept meaning doesn't count, only the deck's."""
+    found: list[Wanted] = []
     for sentence, english in sentences:
+        asked = own.get(sentence, {})
+        seen: set[str] = set()
         for piece in lexicon.segment(sentence):
-            if not is_word(piece) or key(piece) in found or key(piece) in meanings:
+            word = key(piece)
+            if not is_word(piece) or word in seen or word in asked:
                 continue
-            if gloss_for(piece, {}, lexicon, meanings) is None:
-                found[key(piece)] = english
-    return [Wanted(word, english) for word, english in found.items()]
+            seen.add(word)
+            if gloss_for(piece, {}, lexicon, deck) is None:
+                found.append(Wanted(word, english, None, sentence))
+    return found
 
 
 def _clean(value: object) -> str:
@@ -189,8 +199,8 @@ async def fill_words(
 ) -> int:
     """`fill` for words already found (`missing`, `missing_in_sentences`): the first `MAX_WORDS` are
     asked about in one call. Each answer is matched to its word by number, so a word asked for in two
-    texts gets the meaning of each one's line. A meaning is kept with its text, and for the language
-    when the language has none for the word yet."""
+    texts gets the meaning of each one's line. A meaning is kept with its text or card sentence, and
+    for the language when the language has none for the word yet."""
     asked = words[:MAX_WORDS]
     if not asked:
         return 0
@@ -212,6 +222,7 @@ async def fill_words(
             if item.get("register") in REGISTERS:
                 registered.setdefault(n - 1, item["register"])
     texts: dict[int, dict[str, str]] = {}
+    in_sentences: dict[str, dict[str, str]] = {}
     text_registers: dict[int, dict[str, str]] = {}
     for_language: dict[str, str] = {}
     for i, wanted in enumerate(asked):
@@ -220,6 +231,8 @@ async def fill_words(
             texts.setdefault(wanted.text_id, {})[wanted.word] = meaning
             if i in registered:
                 text_registers.setdefault(wanted.text_id, {})[wanted.word] = registered[i]
+        if wanted.sentence is not None:
+            in_sentences.setdefault(wanted.sentence, {})[wanted.word] = meaning
         if not for_language.get(wanted.word):
             for_language[wanted.word] = meaning
     store.save_meaning_batch(
@@ -231,6 +244,7 @@ async def fill_words(
         texts,
         (len(asked), sum(1 for m in answered.values() if m)),
         text_registers,
+        in_sentences,
     )
     return len(asked)
 

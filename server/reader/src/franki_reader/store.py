@@ -283,6 +283,15 @@ CREATE TABLE IF NOT EXISTS word_meanings (
     batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
     PRIMARY KEY (language, word)
 );
+-- The meaning each word of a card's example sentence has in that sentence (meanings.py), by the
+-- sentence as the card shows it. An empty meaning is a word Claude gave nothing usable for.
+CREATE TABLE IF NOT EXISTS sentence_meanings (
+    language TEXT NOT NULL,
+    sentence TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    PRIMARY KEY (language, sentence, word)
+);
 -- IPA written by Claude for words with none in Wiktionary's tables (ai_ipa.py), kept for the language
 -- by lower-case word. An empty ipa is a word Claude gave nothing usable for, so it isn't asked again.
 CREATE TABLE IF NOT EXISTS word_ipa (
@@ -2515,6 +2524,7 @@ def save_meaning_batch(
     texts: dict[int, dict[str, str]] | None = None,
     counts: tuple[int, int] | None = None,
     registers: dict[int, dict[str, str]] | None = None,
+    sentences: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
     A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
@@ -2522,7 +2532,8 @@ def save_meaning_batch(
     sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
     added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
     and how many it gave a meaning for, when one word was asked for in more than one text.
-    `registers` is the registers Claude gave, by text id and word, added to that text's own."""
+    `registers` is the registers Claude gave, by text id and word, added to that text's own.
+    `sentences` is the meanings each card sentence was asked for, by sentence and word."""
     texts = texts or {}
     registers = registers or {}
     with conn:
@@ -2558,6 +2569,15 @@ def save_meaning_batch(
             " VALUES (?, ?, ?, ?)",
             [(language, word, meaning, batch) for word, meaning in meanings.items()],
         )
+        conn.executemany(
+            "INSERT OR REPLACE INTO sentence_meanings (language, sentence, word, meaning)"
+            " VALUES (?, ?, ?, ?)",
+            [
+                (language, sentence, word, meaning)
+                for sentence, own in (sentences or {}).items()
+                for word, meaning in own.items()
+            ],
+        )
 
 
 def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
@@ -2567,6 +2587,24 @@ def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
             "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
         ).fetchall()
     )
+
+
+def sentence_meanings(
+    conn: sqlite3.Connection, language: Code, sentences: list[str]
+) -> dict[str, dict[str, str]]:
+    """What each of `sentences` (as a card shows it) has been asked, as {sentence: {lower-case word:
+    meaning}}; a sentence never asked about is left out."""
+    found: dict[str, dict[str, str]] = {}
+    for i in range(0, len(sentences), 500):
+        chunk = sentences[i : i + 500]
+        rows = conn.execute(
+            "SELECT sentence, word, meaning FROM sentence_meanings WHERE language = ?"
+            f" AND sentence IN ({','.join('?' * len(chunk))})",
+            (language, *chunk),
+        )
+        for sentence, word, meaning in rows:
+            found.setdefault(sentence, {})[word] = meaning
+    return found
 
 
 def save_word_ipa(
