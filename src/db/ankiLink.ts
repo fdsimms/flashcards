@@ -16,6 +16,7 @@ import type { CardState } from '../core/cardState';
 import type { Card, CollectionSettings } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
+import { transact } from './transact';
 
 /**
  * The Anki collection Franki keeps (Documents/anki/collection.anki2), attached to the app's one
@@ -271,7 +272,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       }
       const deckRows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
       const decks = deckAndParents(deckRows, row.did).map(({ id, common, mtime_secs, usn }) => ({ id, common, mtime_secs, usn }));
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps, rating, weights })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
           : previewReturn(row, now);
@@ -295,7 +296,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       // Checked under the lock, so a sync can't send the answer between this check and the undo.
       const r = await db.getFirstAsync<{ usn: number }>(SQL.revlogUsn, u.revlogId);
       if (!r || r.usn !== -1) return false;
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(u.row, u.cid));
         for (const b of u.buried) await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(b.row, b.cid));
         for (const d of u.decks ?? []) await db.runAsync(SQL.deckStatsUpdate, d.common, d.mtime_secs, d.usn, d.id);
@@ -308,7 +309,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     setAnkiCardStates: (changes, now) => lockAnki(async () => {
       await attach();
       if (!attached || !changes.length) return;
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const { ankiId, state } of changes) {
           const row = await db.getFirstAsync<{ type: number; queue: number; due: number; flags: number }>(SQL.cardState, Number(ankiId));
           if (row) await db.runAsync(SQL.cardStateUpdate, ...cardStateParams(row, state, now, Number(ankiId)));

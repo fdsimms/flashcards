@@ -11,6 +11,7 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
 import type { Note, NoteType } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
@@ -89,6 +90,9 @@ export function NoteEditor(props: {
   useEffect(() => {
     setLoadError(null);
     (async () => {
+      // An answer still being written can tag the note a leech; read before it lands, a save here
+      // would write the tags as they were and drop the tag.
+      await reviewWrites.idle();
       const [all, types, params, cards] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams(), props.repo.listCards()]);
       // Not a note deleted in Anki: it isn't a duplicate of anything anymore.
       setNotes(notesStillThere(all, cards));
