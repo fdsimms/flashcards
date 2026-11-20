@@ -22,6 +22,9 @@ import type { SentenceGloss } from './useCardGlosses';
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
 
+/** Chao tone letters (˥˩), which the bundled app fonts lack: a line with them is drawn in the system font, whose face has them, instead of whatever iOS substitutes. */
+const TONE_LETTERS = /[˥-˩]/;
+
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
 /** A hint button's name and icon: an example's two lines are named by their role, the word's own by its tap label without "Show" (Transliteration). */
@@ -100,7 +103,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
 
   // Consecutive lines of one example sentence are laid out together; every other block is its own group.
   // The hidden lines that follow one another outside an example (transliteration, pronunciation, reading) share
-  // one bar of buttons, which comes ahead of the run; `bars` holds those groups. Each line keeps its own group
+  // one row of icon buttons, which comes ahead of the run; `bars` holds those groups. Each line keeps its own group
   // after it, drawn only while it is open.
   const { groups, bars } = useMemo(() => {
     const out: Item[][] = [];
@@ -132,12 +135,12 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // A hint button opens its line and closes it again.
   const toggle = (i: number) => { haptic.select(); setShownHints((prev) => { const next = new Set(prev); if (!next.delete(i)) next.add(i); return next; }); };
 
-  // A row of buttons for hidden lines: under an Example's sentence (so several examples stay short), or on its own
-  // for the word's transliteration, pronunciation and reading. A button highlights while its line is open, and a
-  // second tap closes the line.
-  const hintButtons = (items: Item[], topEdge: boolean) => (
-    <View key="buttons" style={{ flexDirection: 'row', borderTopWidth: topEdge ? hairline : 0, borderTopColor: c.border }}>
-      {items.map((it, k) => {
+  // Hidden lines are round icon buttons: under the word (transliteration, pronunciation, reading), or at the left of an
+  // example's box under its sentence (romanization, translation). A button highlights while its line is open, a second
+  // tap closes it, and its name stays as the accessibility label.
+  const hintIcons = (items: Item[], inExample = false) => (
+    <View key="icons" style={inExample ? { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m, paddingBottom: space.s } : { flexDirection: 'row', justifyContent: 'center', gap: space.m }}>
+      {items.map((it) => {
         const on = shownHints.has(it.i);
         const { label, icon } = hintButton(it.b);
         return (
@@ -147,13 +150,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             accessibilityState={{ selected: on }}
             accessibilityLabel={label}
             onPress={() => toggle(it.i)}
-            style={{
-              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 2, minHeight: MIN_TAP,
-              backgroundColor: on ? c.accentFill : undefined, borderLeftWidth: k ? hairline : 0, borderLeftColor: c.border,
-            }}
+            style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.accentFill : inExample ? c.surface : c.fill }}
           >
-            <Icon name={icon} size={16} color={c.accentInk} />
-            <Text style={{ ...type.callout, color: c.accentInk }}>{label}</Text>
+            <Icon name={icon} size={20} color={c.accentInk} />
           </Tappable>
         );
       })}
@@ -217,7 +216,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.filter((it) => it.b.role === 'example').map((it) => (
                   <View key={it.i} style={{ padding: space.m, paddingBottom: space.s }}>{line(it)}</View>))}
-                {buttons.length ? hintButtons(buttons, true) : null}
+                {buttons.length ? hintIcons(buttons, true) : null}
                 {opened.map((it) => (it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: buttons.length ? space.s : 0, paddingBottom: space.s }}>{line(it)}</View>))}
               </View>
@@ -225,9 +224,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           );
         }
         if (bars.has(group)) {
-          return <View key={`bar-${first.i}`} style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>{hintButtons(group, false)}</View>;
+          return hintIcons(group);
         }
-        // A closed line shows through its button in the bar above.
+        // A closed line shows through its button in the row above.
         if (hidden(first)) return null;
 
         const { b, i } = first;
@@ -353,7 +352,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
                     ? <Text key={k} style={{ ...thai, color: boxed ? c.textBody : c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
                     // The word's transliteration is set larger and in the text color, apart from an example's small italic romanization.
-                    : <Text key={k} style={{ ...(boxed ? { ...type.subhead, lineHeight: 21 } : b.role === 'transliteration' ? { ...type.title, fontWeight: '500', lineHeight: 28 } : { ...type.body, lineHeight: 24 }), ...ja(ln), color: boxed ? c.textBody : b.role === 'transliteration' ? c.text : c.textSecondary, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
+                    : <Text key={k} style={{ ...(boxed ? { ...type.subhead, lineHeight: 21 } : b.role === 'transliteration' ? { ...type.title, fontWeight: '500', lineHeight: 28 } : { ...type.body, lineHeight: 24 }), ...ja(ln), ...(TONE_LETTERS.test(ln) ? { fontFamily: undefined } : null), color: boxed ? c.textBody : b.role === 'transliteration' ? c.text : c.textSecondary, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>
