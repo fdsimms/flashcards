@@ -423,7 +423,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <Screen
-        title={chat.scene}
+        title="Conversation"
         largeTitle={false}
         lockGesture={chat.lines.some((l) => l.speaker === 'you')}
         toolbar={(
@@ -507,6 +507,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
               onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
               onContentSizeChange={(_w, h) => { sizes.current.content = h; }}
             >
+              <Text selectable style={{ ...type.headline, color: c.text, textAlign: 'center' }}>{chat.scene}</Text>
               {chat.roles ? (
                 <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
               ) : null}

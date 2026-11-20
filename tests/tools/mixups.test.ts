@@ -209,6 +209,15 @@ describe('searchWords', () => {
     expect(searchWords(set, 'th', 'near', 'klai', new Set()).map((w) => w.noteId)).toEqual(['klâi']);
     expect(searchWords(set, 'th', 'nǎng', 'klai', new Set()).map((w) => w.noteId)).toEqual(['nangsue']);
     expect(searchWords(set, 'es', 'espera', 'espera', new Set()).map((w) => w.noteId)).toEqual(['esperar', 'esperanza']);
+    expect(searchWords(set, 'th', 'nang', 'klai', new Set()).map((w) => w.noteId)).toEqual(['nangsue']);
+  });
+
+  it('puts the closest first, before cutting the list at its limit', () => {
+    // 'wait' is aguardar's whole meaning, a listed meaning of esperar's, and only part of espera's.
+    expect(searchWords(set, 'es', 'wait', 'esta', new Set()).map((w) => w.noteId)).toEqual(['aguardar', 'esperar', 'espera']);
+    expect(searchWords(set, 'es', 'wait', 'esta', new Set(), 1).map((w) => w.noteId)).toEqual(['aguardar']);
+    // The spelling before the meaning: 'esta' is está with its accent aside, then estar in a meaning.
+    expect(searchWords(set, 'es', 'esta', 'esperar', new Set()).map((w) => w.noteId)).toEqual(['esta', 'está']);
   });
 
   it('leaves out the word itself, linked ones and other languages, and an empty search finds nothing', () => {

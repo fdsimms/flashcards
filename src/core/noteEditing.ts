@@ -2,6 +2,7 @@ import { nextStudyDayStart } from './day';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
+import { searchPlace, searchQuery, searchRank, type SearchPlace } from './searchRank';
 import type { Card, Note } from './types';
 
 /**
@@ -48,32 +49,64 @@ export function addDraftChanged(start: { fields: Record<string, string>; tags: s
   return filled(start.fields) !== filled(now.fields) || parseTags(start.tags).join(' ') !== parseTags(now.tags).join(' ');
 }
 
+/** The names of the fields a note shows first: Omnilanguage's Entry and Meaning, else the first two. */
+function previewFieldNames(note: Note): [string | undefined, string | undefined] {
+  if ('Entry' in note.fields && 'Meaning' in note.fields) return ['Entry', 'Meaning'];
+  const names = Object.keys(note.fields);
+  return [names[0], names[1]];
+}
+
 /** The fields a note shows first, as plain text: Omnilanguage's Entry and Meaning, else the first two. */
 export function notePreview(note: Note): { front: string; back: string } {
   const line = (html: string | undefined) => htmlToText(html ?? '').replace(/\s+/g, ' ').trim();
-  if ('Entry' in note.fields && 'Meaning' in note.fields) return { front: line(note.fields.Entry), back: line(note.fields.Meaning) };
-  const values = Object.values(note.fields);
-  return { front: line(values[0]), back: line(values[1]) };
+  const [front, back] = previewFieldNames(note);
+  return { front: line(front && note.fields[front]), back: line(back && note.fields[back]) };
 }
 
 const fold = (s: string) => s.toLocaleLowerCase();
 
 /**
- * Notes matching every word of a search, case aside, in any field (as text), a tag or the deck's
- * name; within a deck and its subdecks when one is given. Sorted by what they show first, as
- * Anki's browser sorts by the sort field.
+ * A note as search reads it: what shows first, what shows second, every other field, then its
+ * tags and deck. Worked out once per note object and kept while it lives, so typing doesn't redo
+ * it for every note at each letter; a note is never changed in place (an edit loads new ones).
+ */
+const searchPlaces = new WeakMap<Note, SearchPlace[]>();
+
+function searchPlacesOf(note: Note): SearchPlace[] {
+  let places = searchPlaces.get(note);
+  if (!places) {
+    const [front, back] = previewFieldNames(note);
+    const field = (name: string | undefined) => htmlToText((name && note.fields[name]) ?? '');
+    const others = Object.keys(note.fields).filter((k) => k !== front && k !== back).map(field).join('\n');
+    places = [field(front), field(back), others, [...note.tags, note.deck].join('\n')].map(searchPlace);
+    searchPlaces.set(note, places);
+  }
+  return places;
+}
+
+/**
+ * Notes matching every word of a search, case and accents aside, in any field (as text), a tag or
+ * the deck's name; within a deck and its subdecks when one is given. With a search, the closest
+ * matches come first (`searchRank`): the search on the front before it in the meaning, before it
+ * in another field, before a tag or the deck; and within each, the search as a whole entry
+ * ("performance" in "performance; show") before a whole word, the start of a word, then anywhere.
+ * Ties, and every note when nothing is typed, are sorted by what they show first, as Anki's
+ * browser sorts by the sort field.
  */
 export function searchNotes(notes: Note[], query: string, deck?: string | null): Note[] {
-  const words = query.trim().split(/\s+/).filter(Boolean).map(fold);
+  const search = searchQuery(query);
   const inDeck = (d: string) => !deck || d === deck || d.startsWith(`${deck}::`);
+  const rank = new Map<string, number>();
   const out = notes.filter((n) => {
     if (!inDeck(n.deck)) return false;
-    if (!words.length) return true;
-    const hay = fold([...Object.values(n.fields).map(htmlToText), ...n.tags, n.deck].join('\n'));
-    return words.every((w) => hay.includes(w));
+    if (!search.words.length) return true;
+    const r = searchRank(searchPlacesOf(n), search);
+    if (r === undefined) return false;
+    rank.set(n.id, r);
+    return true;
   });
   const key = new Map(out.map((n) => [n.id, notePreview(n).front]));
-  return out.sort((a, b) => key.get(a.id)!.localeCompare(key.get(b.id)!));
+  return out.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0) || key.get(a.id)!.localeCompare(key.get(b.id)!));
 }
 
 /** What Browse can narrow its notes to, beside a deck and a search. */
