@@ -205,7 +205,7 @@ export type HeldReaderAction =
   | { kind: 'language'; language: Language }
   | { kind: 'choice'; textId: number; choice: number }
   | { kind: 'reading'; textId: number; log: ReadingLog }
-  | { kind: 'listen'; textId: number };
+  | { kind: 'listen'; textId: number; key?: string };
 
 export function parseHeldReader(raw: unknown): HeldReaderAction[] {
   if (!Array.isArray(raw)) return [];

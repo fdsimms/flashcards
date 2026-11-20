@@ -1,4 +1,5 @@
-import { File, Paths } from 'expo-file-system';
+import { Paths } from 'expo-file-system';
+import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import { parseKept, type KeptCorrection } from './corrections';
 
 /**
@@ -6,19 +7,16 @@ import { parseKept, type KeptCorrection } from './corrections';
  * the work held offline (src/ui/held.ts). Kept on this phone only. An unreadable file holds nothing;
  * a failed write throws, so Keep these can say so instead of looking kept.
  */
-const file = () => new File(Paths.document, 'kept-corrections.json');
+const FILE = 'kept-corrections.json';
 
 export async function loadKept(): Promise<KeptCorrection[]> {
   try {
-    const f = file();
-    return parseKept(f.exists ? JSON.parse(await f.text()) : null);
+    return parseKept(await readJsonSafely(Paths.document, FILE));
   } catch {
     return [];
   }
 }
 
 export function saveKept(list: readonly KeptCorrection[]): void {
-  const f = file();
-  if (!f.exists) f.create();
-  f.writeSync(JSON.stringify(list));
+  writeJsonSafely(Paths.document, FILE, list);
 }
