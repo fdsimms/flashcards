@@ -446,9 +446,14 @@ two in a row. Each one needs known words around it for the learner to work out i
 means, using words the learner knows: say what it goes with or what it does (a fire before its \
 sparks, a coat before its hood). A short clue is enough; never explain the word. Use a stretch word \
 a second time in a different situation.
+- Every line must be a complete, grammatical Thai sentence, however simple. Never leave out a \
+classifier, particle, auxiliary or connective to fit a listed word in, and never string listed \
+words together as a list or a fragment. A word that grammar needs is worth more than coverage: add \
+it even when it is not on the list, and gloss it. The learner can look it up, but they can't learn \
+from a sentence that isn't Thai.
 - Before you answer, go through your draft word by word and check each one is on the list. Replace \
-any that isn't with a listed word or a simpler way of saying it. Getting this right first time \
-matters more than a clever text.
+any that isn't with a listed word or a simpler way of saying it, unless the line needs that word to \
+be grammatical. Getting this right first time matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
@@ -527,10 +532,15 @@ word. Use a stretch word a second time in a different situation.
 following from the line before it. Sense comes before coverage. With few words to work with, choose \
 a simple, ordinary situation (greeting, asking, buying, saying what you have or want) rather than \
 joining unrelated words into a scene. Never write a line only because its words are allowed.
+- Every line must be a complete, grammatical {name} sentence, however simple. Never leave out a \
+preposition, article, auxiliary, conjunction or ending to fit a listed word in, and never string \
+listed words together as a list or a fragment. A word that grammar needs is worth more than \
+coverage: add it even when it is neither an allowed common word nor on the list, and gloss it. \
+The learner can look it up, but they can't learn from a sentence that isn't {name}.
 - Before you answer, go through your draft word by word and check each one is either an allowed \
 common word or on the list, then read each line as a native speaker would and rewrite any that \
-doesn't make sense. Replace a word that isn't allowed with an allowed word or a simpler way of \
-saying it.
+doesn't make sense or isn't grammatical. Replace a word that isn't allowed with an allowed word or \
+a simpler way of saying it, unless the line needs that word to be grammatical.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", give \

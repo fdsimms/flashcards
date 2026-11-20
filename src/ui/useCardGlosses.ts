@@ -19,7 +19,11 @@ export type CardGlossing = {
 };
 
 /** One card's example sentence as words to tap, with what the popover's buttons do. With `parts`, the card's headword split into the words it is made of. */
-export type SentenceGloss = Omit<CardGlossing, 'decks'> & { language: Language; words: Word[]; parts?: true };
+export type SentenceGloss = Omit<CardGlossing, 'decks'> & {
+  language: Language; words: Word[]; parts?: true;
+  /** The sentence's English (the headword's Meaning, for its parts): what a looked-up word's meaning is asked in the sense of. */
+  english?: string;
+};
 
 // Kept on the phone (the newest KEPT_SENTENCES, in the documents folder), so a sentence studied
 // again needs no call, and a session that can't reach the server (the subway) still shows what an
@@ -86,11 +90,11 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
     const { api, onPlayWord, onAddWord } = glossing;
     const sentences = examplesOf(note).flatMap((example) => {
       const words = kept.get(glossKey(language, htmlToText(example.context)));
-      return words ? [{ api, onPlayWord, onAddWord, language, words }] : [];
+      return words ? [{ api, onPlayWord, onAddWord, language, words, english: htmlToText(example.translation) }] : [];
     });
     // The headword, once the server has split it into two or more words.
     const headword = partsHeadword(language, note);
     const parts = headword ? kept.get(partsKey(language, headword)) : undefined;
-    return parts && parts.length > 1 ? [...sentences, { api, onPlayWord, onAddWord, language, words: parts, parts: true as const }] : sentences;
+    return parts && parts.length > 1 ? [...sentences, { api, onPlayWord, onAddWord, language, words: parts, parts: true as const, english: htmlToText(note.fields.Meaning ?? '') }] : sentences;
   }, [glossing]);
 }

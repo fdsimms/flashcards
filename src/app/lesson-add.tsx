@@ -8,6 +8,8 @@ import { useApp, type NoteEditorResult } from '../ui/AppContext';
 import { LessonAddToDeck } from '../ui/reader/LessonAddToDeck';
 import { useRecorder } from '../ui/useRecorder';
 import type { MinedNote } from '../reader/mining';
+import { leaveScreen } from '../ui/leaveScreen';
+import { DECKS_PATH, LESSONS_PATH } from '../ui/tabPaths';
 
 /** A lesson's phrases to add to the deck of the language it's in (`lesson`, as the player was given it). */
 export default function LessonAddRoute() {
@@ -21,7 +23,7 @@ export default function LessonAddRoute() {
   const deck = lesson ? reader.settings?.decks?.[lesson.language] : undefined;
   // Read & Listen was turned off, or the language has no deck: nothing to add to.
   const ready = !!reader.api && !!lesson && !!deck && !!recorder;
-  useEffect(() => { if (!ready) router.back(); }, [ready, router]);
+  useEffect(() => { if (!ready) leaveScreen(router, DECKS_PATH); }, [ready, router]);
   // Only reads: the note editor is the one place a note is saved.
   const loadEntries = useCallback(async () => {
     const notes = await repo.listNotes();
@@ -38,7 +40,7 @@ export default function LessonAddRoute() {
       recorder={recorder!}
       loadEntries={loadEntries}
       edit={edit}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, LESSONS_PATH)}
     />
   );
 }

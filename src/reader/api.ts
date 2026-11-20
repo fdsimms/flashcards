@@ -707,7 +707,8 @@ export function createApi(
     // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
     relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
-    logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
+    // `key` is this listen's own id (`listenKey`), sent again with it if it's held and resent, so the server counts it once.
+    logListen: (textId: number, key?: string) => call<void>('POST', `/api/texts/${textId}/listen`, key ? { key } : undefined),
     // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
@@ -776,6 +777,10 @@ export function createApi(
     // language's deck has been read on the server. A card's headword is asked with `parts`, and comes back split into the words it is made of.
     glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
+    // The meaning of a tapped word nothing glosses, from Claude on the server (kept there, so a second tap is free): asked
+    // only when the popover opens on a word with none. `english` is the line it was tapped in, which tells Claude the sense. Null when there is none to give.
+    wordMeaning: async (language: Language, word: string, english?: string) =>
+      (await call<{ meaning: string | null }>('POST', '/api/word-meaning', { language, word, ...(english ? { english } : {}) })).meaning,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {

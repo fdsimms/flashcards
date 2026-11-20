@@ -9,6 +9,8 @@ import { haptic } from '../haptics';
 import { Button, Card, Field, Help, Icon, Screen, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
+import { leaveScreen } from '../leaveScreen';
+import { LESSONS_PATH } from '../tabPaths';
 
 /**
  * Type a word for an audio lesson: for words from a tutor or a book that aren't in a deck. It joins
@@ -78,7 +80,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
   return (
     <Screen title="Add a word" largeTitle={false}>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Done adding words" onPress={() => router.back()}>Done</Stack.Toolbar.Button>
+        <Stack.Toolbar.Button accessibilityLabel="Done adding words" onPress={() => leaveScreen(router, LESSONS_PATH)}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Card>

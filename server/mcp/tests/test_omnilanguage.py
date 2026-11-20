@@ -146,6 +146,19 @@ def test_thai_romanization_is_held_to_one_scheme():
     assert "romanization-unneeded" in rules({"Entry": "дом", "Language": "russian", "Transliteration": "dom"})
 
 
+def test_a_literal_line_must_pair_with_each_example():
+    two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
+           "ContextTranslation": "The settings are in the menu.<br>His attitude is good.", "ContextLabels": "setting<br>attitude"}  # fmt: skip
+    assert "context-labels" not in rules({**two, "ContextLiteral": "The settings are in the menu.<br>His attitude is good."})
+    assert "context-labels" in rules({**two, "ContextLiteral": "The settings are in the menu."})
+
+
+def test_a_literal_that_repeats_the_translation_is_cleared():
+    same = {**GERMAN_NOUN, "ContextLiteral": "the settings are in the menu"}
+    assert "literal-redundant" in rules(same)
+    assert "literal-redundant" not in rules({**GERMAN_NOUN, "ContextLiteral": "The settings are in the menu there."})
+
+
 def test_several_examples_need_a_label_each():
     two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
            "ContextTranslation": "The settings are in the menu.<br>His attitude is good."}  # fmt: skip
@@ -308,3 +321,36 @@ def test_a_word_with_no_such_form_says_so_with_a_dash():
     assert o.problems(ruhm) == []
     assert "grammar-gap" in rules({**ruhm, "Plural": ""})
     assert 'holds "-"' in o.guide("german")["every_note"]
+
+
+def test_a_sense_that_restates_the_meaning_is_flagged_and_one_that_excludes_is_not():
+    # Real Senses from the collection: each restates its Meaning in other words.
+    restating = {
+        "itchy; to itch; classifier for vehicles": "itchy, or counter for vehicles",
+        "lost; disappeared; to recover (from illness)": "lost or gone, or recover from illness",
+        'part; portion; as for': 'part or portion, or "as for"',
+        "cheap; correct; passive marker (for something bad done to you)": "cheap, correct, or marks something bad done to you",
+        "to hold; carry (in the hand); to regard as": "hold or carry, or regard as",
+        "furthermore; in addition": "furthermore: formal, adds a further point",
+        "when": "when, as a question",
+    }
+    for meaning, sense in restating.items():
+        assert o.sense_restates_meaning(meaning, sense), (meaning, sense)
+        assert "sense-restates-meaning" in rules({**GERMAN_NOUN, "Meaning": meaning, "Sense": sense}), sense
+    # A Sense that says what the word does not cover, or is empty, is left alone.
+    for meaning, sense in {"hot": "hot in temperature, not spicy", "hair": "hair on the head, not body hair",
+                           "to play": "to play for fun, not an instrument or a sport", "long": "long in time, not in length"}.items():
+        assert not o.sense_restates_meaning(meaning, sense), sense
+    assert not o.sense_restates_meaning("hot", "")
+    assert "sense-restates-meaning" not in rules(GERMAN_NOUN)
+    # It is a review rule: lint reports it, and a write saves the note and says why.
+    flagged = {**GERMAN_NOUN, "Meaning": "part; portion", "Sense": "part or portion, or as for"}
+    assert [(p.rule, p.level) for p in o.problems(flagged) if p.rule == "sense-restates-meaning"] == [("sense-restates-meaning", "review")]
+    ready = o.prepare(flagged)
+    assert not ready.refused and len(ready.review) == 1 and ready.review[0].startswith("Sense:")
+
+
+def test_an_update_that_leaves_sense_and_meaning_alone_does_not_repeat_the_warning():
+    stored = {**GERMAN_NOUN, "Meaning": "part; portion", "Sense": "part or portion, or as for"}
+    assert o.prepare({"Notes": "takes the genitive"}, existing=stored).review == []
+    assert len(o.prepare({"Sense": "part or portion, or as for"}, existing=stored).review) == 1

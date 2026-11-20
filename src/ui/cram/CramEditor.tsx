@@ -3,21 +3,26 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { carryOver, cramDay, cramId, cramNotes, cramProblem, type Cram } from '../../core/cram';
+import { CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, type Cram } from '../../core/cram';
 import { talkOf, themeDeckWords } from '../../core/cramThemes';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
 import { noteHasTag, tagCounts } from '../../core/priority';
 import { parseTags } from '../../core/noteEditing';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Group, Help, Screen, Segments, SwitchRow } from '../kit';
+import { Button, Card, Field, Group, Help, Screen, Segments, Select, SwitchRow } from '../kit';
 import { TagTokenField } from '../TagTokenField';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CramThemeCard } from './CramThemeCard';
 import { setThemeState, useThemeState } from './themeStore';
+import { leaveScreen } from '../leaveScreen';
+import { PRACTICE_PATH } from '../tabPaths';
 
 type Source = 'new' | 'pick' | 'tag';
+
+const ANY_LANGUAGE = 'Any language';
+
 
 /**
  * A cram's sheet: its name, its day, and whether new cards join it; for a new one, also which words
@@ -37,6 +42,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
   const [name, setName] = useState('');
   const [date, setDate] = useState(() => new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 12));
   const [addNew, setAddNew] = useState(true);
+  const [language, setLanguage] = useState<Cram['language']>();
   const [source, setSource] = useState<Source>('new');
   const [tag, setTag] = useState('');
   const [carry, setCarry] = useState(true);
@@ -56,6 +62,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
     setName(editing.name);
     setDate(cramDay(editing));
     setAddNew(editing.addNew);
+    setLanguage(editing.language);
   }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const noteIds = useMemo(() => new Set(collection.notes.map((n) => n.id)), [collection.notes]);
@@ -79,10 +86,10 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
     setProblem(undefined);
     try {
       if (editing) {
-        await saveCram(repo, { ...editing, name: name.trim(), date: dateKey, addNew });
+        await saveCram(repo, { ...editing, name: name.trim(), date: dateKey, addNew, language });
         // Saved either way; the cram's page runs the cap again and says if it can't.
         capCramCards(repo).catch(() => undefined);
-        router.back();
+        leaveScreen(router, PRACTICE_PATH);
         return;
       }
       // Kept for a second try: the cram is saved before its words are tagged, so a try that failed
@@ -94,6 +101,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
         date: dateKey,
         createdAt: new Date().toISOString(),
         addNew,
+        ...(language ? { language } : {}),
         rounds: [],
         ...(carried && carry ? { carriedIn: carried.noteIds } : {}),
         ...(theme ? { theme: talkOf(theme.theme) } : {}),
@@ -119,7 +127,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
           setBusy(true);
           try {
             await deleteCram(repo, editing, cramNotes(editing, collection.notes));
-            router.back();
+            leaveScreen(router, PRACTICE_PATH);
           } catch (e) {
             setProblem(failureText(e, { what: "Couldn't delete the cram.", next: 'Try again.' }));
             setBusy(false);
@@ -137,7 +145,7 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
       toolbar={(
         <>
           <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => router.back()}>Cancel</Stack.Toolbar.Button>
+            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button accessibilityLabel="Save the cram" disabled={busy || !ready} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
@@ -159,6 +167,13 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
               />
             </Host>
           </View>
+          <Select
+            label="Language"
+            options={[ANY_LANGUAGE, ...CRAM_LANGUAGE_CHOICES.map((x) => x.label)]}
+            value={CRAM_LANGUAGE_CHOICES.find((x) => x.code === language)?.label ?? ANY_LANGUAGE}
+            onChange={(v) => setLanguage(CRAM_LANGUAGE_CHOICES.find((x) => x.label === v)?.code)}
+          />
+          <Help>{language ? 'Add words offers only words in this language.' : 'Add words offers every word until one is added, then only words in its language.'}</Help>
         </Card>
         {!editing && (onSuggest || theme) ? (
           <CramThemeCard

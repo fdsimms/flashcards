@@ -211,7 +211,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const h = input.dayStartsAtHour;
   const cap = !input.newCardsIgnoreReviewLimit;
   const paramsFor = input.paramsFor ?? (() => undefined);
-  if (input.vacation?.paused) return { due: [], fresh: [], order: [] };
+  if (input.vacation?.paused) return { due: [], fresh: [], order: [], main: [] };
 
   // ---- the limit tree ----
   const top = input.applyAllParentLimits ? deckLineage(root)[0] : root;
@@ -331,6 +331,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     due: [...learnNow, ...interday, ...reviews, ...learnAhead],
     fresh,
     order: [...learnNow, ...main, ...learnAhead],
+    main,
   };
 }
 
