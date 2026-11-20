@@ -76,6 +76,14 @@ describe('wantedLine', () => {
     expect(wantedLine(huajai, [jai])).toBeUndefined();
     expect(wantedLine(jai, [huajai, es('e', 'ความรู้สึก', 'heart; mind', { Language: 'Thai' })])).toBe('Not: ความรู้สึก');
   });
+  it('has no line for a note with a Sense, which the card already shows', () => {
+    const free = es('a', 'ฟรี', 'free', { Language: 'Thai', PartOfSpeech: 'adjective', Sense: 'free of charge, not unoccupied' });
+    const vacant = es('b', 'ว่าง', 'free', { Language: 'Thai', PartOfSpeech: 'adjective' });
+    expect(wantedLine(free, [vacant])).toBeUndefined();
+    expect(wantedLine({ ...free, fields: { ...free.fields, Sense: '' } }, [vacant])).toBe('Not: ว่าง');
+    expect(wantedLines([free, vacant]).get('a')).toBeUndefined();
+    expect(wantedLines([free, vacant]).get('b')).toBe('Not: ฟรี');
+  });
   it('is undefined with no synonyms', () => {
     expect(wantedLine(es('a', 'esperar', 'to wait'), [])).toBeUndefined();
     expect(wantedLine(es('a', 'esperar', 'to wait'), undefined)).toBeUndefined();

@@ -12,6 +12,9 @@ import type { Note } from './types';
  * when they set it apart, else the other words it isn't ("Not: aguardar").
  */
 
+/** What a line that names words starts with; the card sets it apart from the words (`CardSide`). */
+export const NOT_PREFIX = 'Not: ';
+
 /** How many of the other words "Not:" names before counting the rest. */
 const MAX_NAMED = 3;
 
@@ -82,10 +85,13 @@ function tagsOf(note: Note): string[] {
  * its own part of speech and register ("verb · formal") when no synonym has all of them too, so
  * they rule every other one out; otherwise the synonyms' words ("Not: aguardar"), which names
  * words that aren't the answer and so gives nothing away (a synonym that contains the answer, or
- * is contained in it, is left out, as it would). Undefined with no synonyms to name.
+ * is contained in it, is left out, as it would). Undefined with no synonyms to name, and when the
+ * note has a Sense: the card already shows it under the meaning, so a second line that says which
+ * word is wanted only repeats it, and naming the other word hands the learner a candidate to rule out.
  */
 export function wantedLine(note: Note, synonyms: readonly Note[] | undefined): string | undefined {
   if (!synonyms?.length) return undefined;
+  if (htmlToText(note.fields.Sense ?? '').trim()) return undefined;
   const own = tagsOf(note);
   const lower = (tags: string[]) => new Set(tags.map((t) => t.toLocaleLowerCase()));
   const ownSet = lower(own);
@@ -105,7 +111,7 @@ export function wantedLine(note: Note, synonyms: readonly Note[] | undefined): s
   words.sort((a, b) => a.localeCompare(b));
   const named = words.slice(0, MAX_NAMED).join(', ');
   const rest = words.length - MAX_NAMED;
-  return rest > 0 ? `Not: ${named}, and ${rest} more` : `Not: ${named}`;
+  return rest > 0 ? `${NOT_PREFIX}${named}, and ${rest} more` : `${NOT_PREFIX}${named}`;
 }
 
 /** Each note's `wantedLine`, by note id, for the notes that have one. Built once per session. */
