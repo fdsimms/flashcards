@@ -63,7 +63,7 @@ import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
-import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
+import { AnswerExtras, useReviewForms } from './ReviewForms';
 import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
 import { useSkillRelease } from './useSkillRelease';
 import { drillOfTags, skillOffer } from '../tools/skills';
@@ -1098,7 +1098,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             </Text>
           </Reveal>
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
-          {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
+          {sessionMisses.rows.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
               <SessionMissList
                 rows={sessionMisses.rows}
@@ -1109,7 +1109,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
                   setReloads((n) => n + 1);
                 })}
               />
-              <FormsCheck items={forms.toCheck} onPractice={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))} />
               {extraCard}
               <NextSteps steps={steps} />
             </Reveal>
@@ -1142,7 +1141,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         offer={forms.offerView(goodFrom)}
         onSooner={forms.setSooner}
         suggestion={forms.suggestion}
-        onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
+        onPractice={() => onPracticeForms(forms.drillFor(note.id, note.deck))}
         onLater={() => forms.putOff(note.id)}
       />
       <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => sheets.request(confusedSheetFor(note.id))} />
