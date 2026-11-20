@@ -16,6 +16,7 @@ import { ANKI_SETTING_KEYS, makeAnkiLink, type AnkiLink } from './ankiLink';
 import { withCollectionGates } from '../anki/progressGates';
 import { restorePlan, sqliteFileKind, type BackupInfo, type BackupProgress } from './backup';
 import type { Repo } from './repo';
+import { transact } from './transact';
 import { ankiCollectionPlan, CARD_COLUMNS, CARD_RETIRE_SQL, CARD_ROWS_SQL, CARD_UPSERT_SQL, NOTE_COLUMNS, NOTE_ROWS_SQL, NOTE_UPSERT_SQL, rowValues, type SqlValue } from './ankiApply';
 
 const SCHEMA = `
@@ -171,7 +172,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
 
   return {
     async upsertNotesAndCards(notes, cards) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const n of notes) {
           await db.runAsync(
             'INSERT OR REPLACE INTO notes (id, deck, model, fields, tags) VALUES (?, ?, ?, ?, ?)',
@@ -210,7 +211,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async applyAnkiCollection(notes, cards) {
       // Only the rows that change (ankiApply.ts), each through one prepared statement: rewriting
       // every row, one async call each, was most of a refresh after a sync.
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         const [noteRows, cardRows] = await Promise.all([
           db.getAllAsync<Record<string, unknown>>(NOTE_ROWS_SQL), db.getAllAsync<Record<string, unknown>>(CARD_ROWS_SQL),
         ]);
@@ -238,7 +239,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       return (await db.getAllAsync('SELECT * FROM notes')).map(rowToNote);
     },
     async deleteNote(id) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
         await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
         await db.runAsync('DELETE FROM confused_pairs WHERE note_a = ? OR note_b = ?', id, id);
@@ -251,7 +252,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       return r ? rowToNote(r) : undefined;
     },
     async deleteNotesAndCards(noteIds, cardIds) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const id of noteIds) {
           await db.runAsync('DELETE FROM reviews WHERE card_id IN (SELECT id FROM cards WHERE note_id = ?)', id);
           await db.runAsync('DELETE FROM form_practice WHERE note_id = ?', id);
@@ -270,7 +271,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       const under = (col: string) => `(${col} = ? OR substr(${col}, 1, length(?)) = ?)`;
       const args = [from, `${from}::`, `${from}::`];
       const renamed = (col: string) => `? || substr(${col}, length(?) + 1)`;
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         await db.runAsync(`UPDATE notes SET deck = ${renamed('deck')} WHERE ${under('deck')}`, to, from, ...args);
         await db.runAsync(`UPDATE cards SET deck = ${renamed('deck')} WHERE ${under('deck')}`, to, from, ...args);
         await db.runAsync(`UPDATE cards SET filtered_deck = ${renamed('filtered_deck')} WHERE ${under('filtered_deck')}`, to, from, ...args);
@@ -281,7 +282,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       });
     },
     async forgetDeck(deck) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const table of ['deck_params', 'deck_settings']) {
           await db.runAsync(`DELETE FROM ${table} WHERE deck = ? OR substr(deck, 1, length(?)) = ?`, deck, `${deck}::`, `${deck}::`);
         }
@@ -476,14 +477,14 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
       return rows.map((r) => ({ cardId: r.card_id, ...(r.miss != null ? { miss: r.miss } : {}) }));
     },
     async saveDeckParams(params) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const [deck, p] of params) {
           await db.runAsync('INSERT OR REPLACE INTO deck_params (deck, params) VALUES (?, ?)', deck, JSON.stringify(p));
         }
       });
     },
     async saveNoteTypes(types) {
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const t of types) {
           await db.runAsync('INSERT OR REPLACE INTO note_types (name, data) VALUES (?, ?)', t.name, JSON.stringify(t));
         }
@@ -615,7 +616,7 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
           }
           await sink.close();
         }
-        await db.withTransactionAsync(async () => {
+        await transact(db, async () => {
           for (const { table, columns } of plan) {
             await db.execAsync(`DELETE FROM main.${table}`);
             if (columns.length === 0) continue;
