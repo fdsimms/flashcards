@@ -1,5 +1,5 @@
 import { htmlToText } from './html';
-import { SKILL_TAG } from '../tools/skills';
+import { isSkillNote } from './skillTag';
 import { renderTemplateCard } from './template';
 import { withoutTts } from './tts';
 import type { CardKind, Note, NoteType } from './types';
@@ -29,7 +29,7 @@ function sideText(html: string): string {
  * it would read as the answer (the drill's own title and instruction are the front).
  */
 export function missedCardText(note: Note, noteType: NoteType | undefined, kind: CardKind): MissedCardText | undefined {
-  if (!noteType || !kind.startsWith('t') || note.tags.includes(SKILL_TAG)) return undefined;
+  if (!noteType || !kind.startsWith('t') || isSkillNote(note)) return undefined;
   const ord = Number(kind.slice(1));
   const { front, back } = renderTemplateCard(note, noteType, ord);
   const question = sideText(front);
