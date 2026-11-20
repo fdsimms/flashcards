@@ -9,6 +9,8 @@ import { deckShortName } from '../ui/deckShortName';
 import { useHeldWords } from '../ui/held';
 import { SuggestedWords } from '../ui/reader/SuggestedWords';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /** Suggested words for a language deck running low on new cards, from Today's card or a finished session. */
 export default function ReadNewWordsRoute() {
@@ -36,7 +38,7 @@ export default function ReadNewWordsRoute() {
       loadDeck={loadDeck}
       held={heldForDeck}
       onAdd={queue.add}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, READ_PATH)}
     />
   );
 }
