@@ -5,6 +5,7 @@ import { htmlToText } from '../core/html';
 import { toHiragana } from '../core/kana';
 import { stripMarks } from '../core/letters';
 import { kanjiNeighbors, lookalikeIndex } from '../core/lookalikes';
+import { searchPlace, searchQuery, searchRank, type SearchPlace } from '../core/searchRank';
 import { meaningSet, sameMeaning } from '../core/synonyms';
 import type { Note } from '../core/types';
 import type { Language } from '../reader/api';
@@ -212,20 +213,30 @@ export function linkCandidates(set: MixupSet, noteId: string, linked: ReadonlySe
   return out.slice(0, limit);
 }
 
+// Each word as search reads it (spelling, romanization, meaning), worked out once per word object.
+const searchPlaces = new WeakMap<MixupWord, SearchPlace[]>();
+function searchPlacesOf(w: MixupWord): SearchPlace[] {
+  let places = searchPlaces.get(w);
+  if (!places) searchPlaces.set(w, places = [w.word, w.roman ?? '', w.meaning].map(searchPlace));
+  return places;
+}
+
 /**
- * The words in `language` whose spelling, romanization or meaning contain `query`, for the link
- * sheet's search; the note itself and `linked` ones are left out.
+ * The words in `language` whose spelling, romanization or meaning contain every word of `query`,
+ * case and accents aside, for the link sheet's search, closest first (`searchRank`: the spelling
+ * before the romanization before the meaning, a whole match before part of one) and then by
+ * spelling, up to `limit`; the note itself and `linked` ones are left out.
  */
 export function searchWords(set: MixupSet, language: Language, query: string, noteId: string, linked: ReadonlySet<string>, limit = 8): MixupWord[] {
-  const q = query.trim().toLocaleLowerCase();
-  if (!q) return [];
-  const out: MixupWord[] = [];
+  const search = searchQuery(query);
+  if (!search.words.length) return [];
+  const found: { w: MixupWord; rank: number }[] = [];
   for (const w of set.words.values()) {
     if (w.language !== language || w.noteId === noteId || linked.has(w.noteId)) continue;
-    if ([w.word, w.roman ?? '', w.meaning].some((t) => t.toLocaleLowerCase().includes(q))) out.push(w);
-    if (out.length === limit) break;
+    const rank = searchRank(searchPlacesOf(w), search);
+    if (rank !== undefined) found.push({ w, rank });
   }
-  return out;
+  return found.sort((a, b) => a.rank - b.rank || a.w.word.localeCompare(b.w.word)).slice(0, limit).map((f) => f.w);
 }
 
 export interface MixupQuestion {

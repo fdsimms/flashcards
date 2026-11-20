@@ -263,9 +263,6 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                     {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
                   </Text>
                 ))}
-                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
-                  Say the noun, the number, then the counting word.
-                </Text>
               </View>
             </View>
           );
