@@ -6,14 +6,16 @@ import type { Subject } from './subjects';
  * rules: a meaning may have a small typo (more for a longer word), a reading must be exact, a
  * blacklisted meaning is wrong however close, and the user's own synonyms count. Typing the wrong
  * kind of answer (kana or romaji reading for a meaning, or a kanji's other reading) asks again rather than marking
- * it wrong, as WaniKani's shake does.
+ * it wrong, as WaniKani's shake does. When that other kind is the right answer to the item's other
+ * question (its reading typed for the meaning, or its meaning typed for the reading), the retry says
+ * which (`credit`), so the screen can count that question as answered if it is still waiting.
  */
 
 export type Verdict =
   | { result: 'correct'; close?: boolean }
   | { result: 'wrong' }
   /** Not graded: shown as a message, and the same question stays up. */
-  | { result: 'retry'; message: string };
+  | { result: 'retry'; message: string; credit?: 'meaning' | 'reading' };
 
 /** Lowercase, punctuation out, single spaces: "Grown-up" and "grown up" are the same answer. */
 export function normalizeMeaning(s: string): string {
@@ -47,27 +49,39 @@ export function typoAllowance(length: number): number {
   return 2 + Math.floor(length / 7);
 }
 
-export function checkMeaning(subject: Subject, synonyms: string[], typed: string): Verdict {
-  const answer = normalizeMeaning(typed);
-  if (!answer) return { result: 'retry', message: 'Type the meaning.' };
-  if (hasJapanese(typed)) return { result: 'retry', message: 'That looks like the reading. Type the meaning in English.' };
-  // Blacklisted extras, and meanings WaniKani lists but won't take, are wrong even when close to a right one.
-  const blacklist = [
+/** Lowercased meanings WaniKani lists but won't take, and extras it blacklists: wrong however close. */
+function isBlacklisted(subject: Subject, answer: string): boolean {
+  return [
     ...subject.auxiliaryMeanings.filter((m) => m.type === 'blacklist').map((m) => m.meaning),
     ...subject.meanings.filter((m) => !m.accepted).map((m) => m.meaning),
-  ].map(normalizeMeaning);
-  if (blacklist.includes(answer)) return { result: 'wrong' };
-  const accepted = [
+  ].map(normalizeMeaning).includes(answer);
+}
+
+function acceptedMeanings(subject: Subject, synonyms: string[]): string[] {
+  return [
     ...subject.meanings.filter((m) => m.accepted).map((m) => m.meaning),
     ...subject.auxiliaryMeanings.filter((m) => m.type === 'whitelist').map((m) => m.meaning),
     ...synonyms,
   ].map(normalizeMeaning).filter(Boolean);
+}
+
+/** Whether the text, in kana or romaji, is one of the subject's readings (accepted or not). */
+function readingIs(subject: Subject, typed: string): boolean {
+  const answer = toHiragana(toKana(typed.trim(), true)).replace(/\s/g, '');
+  return isKana(answer) && subject.readings.some((r) => toHiragana(r.reading).replace(/\s/g, '') === answer);
+}
+
+export function checkMeaning(subject: Subject, synonyms: string[], typed: string): Verdict {
+  const answer = normalizeMeaning(typed);
+  if (!answer) return { result: 'retry', message: 'Type the meaning.' };
+  const sameReading = readingIs(subject, typed);
+  if (hasJapanese(typed)) return { result: 'retry', message: 'That looks like the reading. Type the meaning in English.', ...(sameReading && { credit: 'reading' as const }) };
+  // Blacklisted extras, and meanings WaniKani lists but won't take, are wrong even when close to a right one.
+  if (isBlacklisted(subject, answer)) return { result: 'wrong' };
+  const accepted = acceptedMeanings(subject, synonyms);
   if (accepted.includes(answer)) return { result: 'correct' };
   // The reading typed in romaji ("fuyu" for 冬) is the wrong kind of answer, not a wrong meaning: ask again.
-  const asKana = toHiragana(toKana(typed.trim(), true)).replace(/\s/g, '');
-  if (isKana(asKana) && subject.readings.some((r) => toHiragana(r.reading).replace(/\s/g, '') === asKana)) {
-    return { result: 'retry', message: 'That looks like the reading. Type the meaning in English.' };
-  }
+  if (sameReading) return { result: 'retry', message: 'That looks like the reading. Type the meaning in English.', credit: 'reading' };
   const close = accepted.some((m) => closeEnough(answer, m));
   return close ? { result: 'correct', close: true } : { result: 'wrong' };
 }
@@ -105,10 +119,14 @@ const EXACT_WORDS = new Set([
   'hour', 'for', 'fire', 'right', 'weight', 'month', 'mouth', 'line', 'tin', 'man', 'men', 'woman', 'women',
 ]);
 
-export function checkReading(subject: Subject, typed: string): Verdict {
+export function checkReading(subject: Subject, typed: string, synonyms: string[] = []): Verdict {
   const answer = toHiragana(toKana(typed.trim(), true)).replace(/\s/g, '');
   if (!answer) return { result: 'retry', message: 'Type the reading.' };
-  if (!isKana(answer)) return { result: 'retry', message: 'Type the reading in kana. Romaji turns into kana as you type.' };
+  if (!isKana(answer)) {
+    const meaning = normalizeMeaning(typed);
+    const isMeaning = !!meaning && !isBlacklisted(subject, meaning) && acceptedMeanings(subject, synonyms).includes(meaning);
+    return { result: 'retry', message: 'Type the reading in kana. Romaji turns into kana as you type.', ...(isMeaning && { credit: 'meaning' as const }) };
+  }
   const norm = (r: string) => toHiragana(r).replace(/\s/g, '');
   if (subject.readings.some((r) => r.accepted && norm(r.reading) === answer)) return { result: 'correct' };
   // A kanji's reading WaniKani isn't asking for (its kun'yomi when it teaches the on'yomi) gets another try.
