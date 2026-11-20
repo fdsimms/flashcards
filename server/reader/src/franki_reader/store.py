@@ -521,6 +521,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
+    if "key" not in {r[1] for r in conn.execute("PRAGMA table_info(listens)")}:
+        # The app's own id for a listen, so one sent twice is counted once; none before it sent one.
+        conn.execute("ALTER TABLE listens ADD COLUMN key TEXT")
     if "roles" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Texts written before speakers had roles have none, and show only A and B.
         conn.execute("ALTER TABLE texts ADD COLUMN roles TEXT NOT NULL DEFAULT '{}'")
@@ -2020,9 +2023,13 @@ def previous_check(
     return (row[0], row[1]) if row else None
 
 
-def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
+def log_listen(
+    conn: sqlite3.Connection, text_id: int, now: datetime, key: str | None = None
+) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
-    end (there's nothing to hear again), and nothing is kept."""
+    end (there's nothing to hear again), and nothing is kept. `key` is the app's id for this listen:
+    one already counted under it isn't counted again (the app sends a listen it held while offline
+    until it hears it arrived, so the same one can come twice)."""
     if (
         conn.execute(
             "SELECT 1 FROM readings WHERE text_id = ? AND finished = 1", (text_id,)
@@ -2030,9 +2037,12 @@ def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
         is None
     ):
         return False
+    if key and conn.execute("SELECT 1 FROM listens WHERE key = ?", (key,)).fetchone() is not None:
+        return True
     with conn:
         conn.execute(
-            "INSERT INTO listens (text_id, listened_at) VALUES (?, ?)", (text_id, now.isoformat())
+            "INSERT INTO listens (text_id, listened_at, key) VALUES (?, ?, ?)",
+            (text_id, now.isoformat(), key or None),
         )
     return True
 

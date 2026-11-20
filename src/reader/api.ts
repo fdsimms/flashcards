@@ -707,7 +707,8 @@ export function createApi(
     // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
     relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
-    logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
+    // `key` is this listen's own id (`listenKey`), sent again with it if it's held and resent, so the server counts it once.
+    logListen: (textId: number, key?: string) => call<void>('POST', `/api/texts/${textId}/listen`, key ? { key } : undefined),
     // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
