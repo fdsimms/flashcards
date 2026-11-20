@@ -220,6 +220,8 @@ export interface RenderedSide {
      * article (or the Russian prefix) with it, and the dot on the gender chip. Display only.
      */
     gender?: 'm' | 'f' | 'n';
+    /** An `exampleTranslation` block's word-for-word reading (ContextLiteral), shown under the natural translation. */
+    literal?: string;
     /** An `example` block's tag, what that sentence shows ("skill", "event"), from ContextLabels. */
     tag?: string;
     /** A Thai romanization: the screen colors each syllable by its tone (src/core/toneColors.ts). Display only. */

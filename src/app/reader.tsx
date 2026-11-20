@@ -5,6 +5,8 @@ import { Reader, type ReaderSource } from '../ui/reader/Reader';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useReaderPlayerHost } from '../ui/useReaderPlayer';
 import { useWordAudio } from '../ui/useWordAudio';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /**
  * The reader. Its `source` parameter is a shelf text, a topic to write a text for, or a past text,
@@ -35,7 +37,7 @@ export default function ReaderRoute() {
       onSettings={reader.setSettings}
       onPlayWord={playWord}
       onNext={(next) => router.setParams({ source: JSON.stringify(next) })}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, READ_PATH)}
       onOpenGrammar={(id) => router.push({ pathname: '/read-grammar-point', params: { id } })}
       mining={language && deck ? {
         language,

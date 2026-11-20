@@ -38,6 +38,7 @@ import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { cardFontsBase } from '../media/cardFonts';
 import { useKeyboardInset } from './useKeyboardInset';
+import { useKeyboardScroll } from './useKeyboardScroll';
 import { downloadedFontsBase } from './fontDownloads';
 import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
@@ -63,7 +64,7 @@ import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
-import { AnswerExtras, FormsCheck, useReviewForms } from './ReviewForms';
+import { AnswerExtras, useReviewForms } from './ReviewForms';
 import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
 import { useSkillRelease } from './useSkillRelease';
 import { drillOfTags, skillOffer } from '../tools/skills';
@@ -395,6 +396,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const insets = useSafeAreaInsets();
   const header = useHeaderInset();
   const keyboard = useKeyboardInset();
+  // Editing a card's Notes or Mnemonic in place is the other way the keyboard comes up: the footer stays put under
+  // it (padding the screen would lift the buttons and squeeze the card to a sliver), and the card scrolls the box clear.
+  const cardScroll = useKeyboardScroll();
+  // The own-hook box on the back is a Mnemonic box too, so it takes the same layout (`typingInCard` below).
+  const [hookFocused, setHookFocused] = useState(false);
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
@@ -1133,7 +1139,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             </Text>
           </Reveal>
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
-          {sessionMisses.rows.length || forms.toCheck.length || steps.length || extraCard ? (
+          {sessionMisses.rows.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
               <SessionMissList
                 rows={sessionMisses.rows}
@@ -1144,7 +1150,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
                   setReloads((n) => n + 1);
                 })}
               />
-              <FormsCheck items={forms.toCheck} onPractice={() => onPracticeForms(forms.drillFor(forms.toCheck.map((x) => x.note.id), deck))} />
               {extraCard}
               <NextSteps steps={steps} />
             </Reveal>
@@ -1177,11 +1182,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         offer={forms.offerView(goodFrom)}
         onSooner={forms.setSooner}
         suggestion={forms.suggestion}
-        onPractice={() => onPracticeForms(forms.drillFor([note.id], note.deck))}
+        onPractice={() => onPracticeForms(forms.drillFor(note.id, note.deck))}
         onLater={() => forms.putOff(note.id)}
       />
       <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => sheets.request(confusedSheetFor(note.id))} />
-      {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} /> : null}
+      {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} onFocusChange={setHookFocused} /> : null}
     </>
   ) : null;
   const shown = ratingsShown(answerButtons);
@@ -1399,7 +1404,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   return (
     <>
     {sheetHost}
-    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: fieldEdit.editing || hookFocused ? 0 : Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={title}
       largeTitle={false}
@@ -1487,7 +1492,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />

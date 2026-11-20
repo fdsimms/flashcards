@@ -63,7 +63,7 @@ export function CramUsed({ repo, id, onDone }: { repo: NoteStore; id: string; on
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        <Help>{`Check off each word as you use it. Finish ends ${cram.name}; the words you didn't use go into your next cram.`}</Help>
+        <Help>Check off each word as you use it. When you tap Finish, the words you didn't use go into your next cram.</Help>
         <Group>
           {notes.map((note, i) => {
             const on = used.has(note.id);

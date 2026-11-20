@@ -68,7 +68,7 @@ export function useOwnHook(repo: Repo, showing: string | undefined, onSaved: (no
 }
 
 /** On the answer side of a new word seen for the first time: an optional line for one's own mnemonic. */
-export function OwnHookField({ value, onChange }: { value: string; onChange: (text: string) => void }) {
+export function OwnHookField({ value, onChange, onFocusChange }: { value: string; onChange: (text: string) => void; onFocusChange?: (focused: boolean) => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   return (
@@ -79,6 +79,8 @@ export function OwnHookField({ value, onChange }: { value: string; onChange: (te
       <TextInput
         value={value}
         onChangeText={onChange}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => onFocusChange?.(false)}
         multiline
         placeholder="A picture, a sound-alike, a word it reminds you of"
         accessibilityLabel="Your own hook for this word"

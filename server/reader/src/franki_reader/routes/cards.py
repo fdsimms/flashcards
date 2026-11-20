@@ -14,6 +14,7 @@ from franki_reader import (
     meanings,
     store,
 )
+from franki_reader.coverage import Checker
 from franki_reader.ipa import ipa_of_entry
 from franki_reader.languages import Code
 from franki_reader.mnemonics import (
@@ -109,6 +110,21 @@ class AspectIn(BaseModel):
     word: str = Field(min_length=1, max_length=80)
     # The sentence it was read in, so a homograph can be told apart; optional.
     line: str = Field(default="", max_length=400)
+
+
+def with_own(
+    known: dict[str, str],
+    item: Any,
+    own: dict[str, dict[str, str]],
+    lexicon: Checker,
+) -> dict[str, str]:
+    """`known` with the meanings the sentence (or, for a headword's parts, each part) was asked for
+    on top, empty ones left out so they fall back to `known`'s."""
+    pieces = (compound_parts(item.text, lexicon) or []) if item.parts else [item.text]
+    return {
+        **known,
+        **{w: m for piece in pieces for w, m in own.get(piece, {}).items() if m},
+    }
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -280,14 +296,18 @@ def router(ctx: AppContext) -> APIRouter:
         if not entries:
             return {"ready": False, "sentences": []}
         known = engine.meanings(language)
+        # What each sentence was asked about for itself wins over the language's first-kept meaning.
+        own = store.sentence_meanings(engine.conn, language, [piece for piece, _ in sentences])
         translits = {e.text: e.translit for e in entries if e.translit}
         ai_ipa = engine.ai_ipa(language)
         return {
             "ready": True,
             "sentences": [
-                render_parts(s.text, lexicon, known, translits, ai_ipa)
+                render_parts(s.text, lexicon, with_own(known, s, own, lexicon), translits, ai_ipa)
                 if s.parts
-                else render_sentence(s.text, lexicon, known, translits, ai_ipa)
+                else render_sentence(
+                    s.text, lexicon, with_own(known, s, own, lexicon), translits, ai_ipa
+                )
                 for s in body.sentences
             ],
         }

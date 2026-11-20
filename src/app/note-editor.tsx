@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useApp, type NoteEditorResult } from '../ui/AppContext';
 import { NoteEditor } from '../ui/NoteEditor';
 import { useRecorder } from '../ui/useRecorder';
+import { leaveScreen } from '../ui/leaveScreen';
+import { DECKS_PATH } from '../ui/tabPaths';
 
 /**
  * Adding a note (`deck` parameter, optional; `model`, `fields`, `fieldNotes` and `tags`, as JSON, to fill it in) or
@@ -33,7 +35,7 @@ export default function NoteEditorRoute() {
       decks={decks.map((d) => d.deck)}
       recorder={recorder}
       onCardsChanged={() => { result.current ??= { cardsChanged: true }; }}
-      onClose={(r) => { if (r) result.current = r; router.back(); }}
+      onClose={(r) => { if (r) result.current = r; leaveScreen(router, DECKS_PATH); }}
     />
   );
 }
