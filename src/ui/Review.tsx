@@ -395,6 +395,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Editing a card's Notes or Mnemonic in place is the other way the keyboard comes up: the footer stays put under
   // it (padding the screen would lift the buttons and squeeze the card to a sliver), and the card scrolls the box clear.
   const cardScroll = useKeyboardScroll();
+  // The own-hook box on the back is a Mnemonic box too, so it takes the same layout (`typingInCard` below).
+  const [hookFocused, setHookFocused] = useState(false);
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
@@ -1150,7 +1152,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         onLater={() => forms.putOff(note.id)}
       />
       <ConfusedRow note={note} partners={confused.partners} notes={notes} onPress={() => sheets.request(confusedSheetFor(note.id))} />
-      {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} /> : null}
+      {asksHook ? <OwnHookField value={ownHook.text} onChange={ownHook.setText} onFocusChange={setHookFocused} /> : null}
     </>
   ) : null;
   const shown = ratingsShown(answerButtons);
@@ -1368,7 +1370,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   return (
     <>
     {sheetHost}
-    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: fieldEdit.editing ? 0 : Math.max(0, keyboard - insets.bottom) }}>
+    <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: fieldEdit.editing || hookFocused ? 0 : Math.max(0, keyboard - insets.bottom) }}>
     <Screen
       title={title}
       largeTitle={false}
@@ -1456,7 +1458,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+          <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
