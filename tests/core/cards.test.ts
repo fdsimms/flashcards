@@ -25,6 +25,14 @@ describe('cards', () => {
     const r = renderCard(omniNote({ Meaning: 'a <b>book</b><br>(noun) [sound:x.mp3]' }), 'forward');
     expect(r.back.blocks.find((b) => b.text.startsWith('a book'))?.text).toBe('a book\n(noun)');
   });
+  it('puts the literal reading on the translation block, so it opens with the translation', () => {
+    const back = renderCard(omniNote({ Context: 'Ctx', ContextTranslation: 'I keep working even though I am tired.', ContextLiteral: 'Even though tired, still working.' }), 'forward').back.blocks;
+    const translation = back.find((b) => b.role === 'exampleTranslation');
+    expect(translation?.text).toBe('I keep working even though I am tired.');
+    expect(translation?.literal).toBe('Even though tired, still working.');
+    expect(back.some((b) => b.text === 'Even though tired, still working.')).toBe(false);
+    expect(renderCard(omniNote({ Context: 'Ctx', ContextTranslation: 'He reads.' }), 'forward').back.blocks.find((b) => b.role === 'exampleTranslation')?.literal).toBeUndefined();
+  });
   it("hides what Anki's template wraps in {{hint:}} behind a tap-to-show label", () => {
     const note = omniNote({ Transliteration: 'nang-suu', Context: 'Ctx', ContextRomanized: 'rom', ContextTranslation: 'He reads.' });
     const back = renderCard(note, 'forward').back.blocks;

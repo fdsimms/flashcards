@@ -181,7 +181,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
   const translationRow = (it: Item) => (
     <View key={it.i} style={{ paddingHorizontal: space.m, paddingBottom: space.m }}>
-      <TranslationRow>{line(it)}</TranslationRow>
+      <TranslationRow literal={it.b.literal}>{line(it)}</TranslationRow>
     </View>
   );
 
