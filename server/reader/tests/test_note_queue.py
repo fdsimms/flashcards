@@ -571,3 +571,14 @@ def test_the_costs_report_a_failed_call_on_the_queue() -> None:
     assert items(c)[0]["state"] == "failed"
     block = c.get("/api/costs", headers=AUTH).json()["note_queue"]
     assert block["notes"] == 1 and block["cost_usd"] == 2.0
+
+
+def test_a_word_sent_twice_is_queued_once() -> None:
+    conn = store.connect(":memory:")
+    first = store.add_queued(conn, "fr", DECK, [("ricaner", ""), ("le hibou", "owl")], NOW)
+    again = store.add_queued(conn, "fr", DECK, [("le hibou", "owl"), ("la chouette", "")], NOW)
+    assert again[0] == first[1]
+    assert [q.entry for q in store.queued_notes(conn)] == ["ricaner", "le hibou", "la chouette"]
+    # The same word for another deck is another word.
+    store.add_queued(conn, "fr", "Languages::Other", [("ricaner", "")], NOW)
+    assert len(store.queued_notes(conn)) == 4

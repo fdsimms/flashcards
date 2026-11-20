@@ -5,6 +5,8 @@ import { useApp } from '../ui/AppContext';
 import { Loading, Screen } from '../ui/kit';
 import { ReadQuickAdd } from '../ui/reader/ReadQuickAdd';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /** Quick add, from the deck list: words for Claude to fill in on Read & Listen's server. */
 export default function ReadQuickAddRoute() {
@@ -23,7 +25,7 @@ export default function ReadQuickAddRoute() {
       decks={options}
       initial={initial}
       onAdd={queue.add}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, READ_PATH)}
     />
   );
 }

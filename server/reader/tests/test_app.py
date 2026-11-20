@@ -1630,6 +1630,24 @@ def test_a_finished_text_is_offered_to_hear_again_the_next_day_and_counted_once_
     assert c.get("/api/progress", headers=AUTH).json()["finished"] == 1
 
 
+def test_a_listen_sent_twice_under_one_key_is_counted_once() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    now[0] = NOW + timedelta(days=1)
+    text_id = c.get("/api/relisten", headers=AUTH).json()[0]["id"]
+    url = f"/api/texts/{text_id}/listen"
+    for _ in range(2):
+        assert c.post(url, json={"key": "m1x-abc"}, headers=AUTH).status_code == 204
+    # Its next listen is 3 days on: counted twice, the one after (10 days) would be asked for instead.
+    now[0] = NOW + timedelta(days=5)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1
+    # Another key, or none, is another listen.
+    assert c.post(url, json={"key": "m1x-def"}, headers=AUTH).status_code == 204
+    assert c.post(url, headers=AUTH).status_code == 204
+    assert c.post(url, json={"key": ""}, headers=AUTH).status_code == 422
+
+
 def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:
     c = relisten_client([NOW])
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()

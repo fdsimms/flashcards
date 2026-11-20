@@ -29,6 +29,7 @@ import { useDeckSnapshot } from './useDeckSnapshot';
 import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
+import { useOwedAnswers } from './useOwedAnswers';
 import { useSync } from './useSync';
 import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
@@ -136,6 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // being studied isn't changed under it), after studying a deck (Review's screen asks), and on
   // leaving the app. With sync off, coming back counts the decks again, as a sync would: a new study
   // day may have started.
+  useOwedAnswers(repo);
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
   const onDecks = pathname === TODAY_PATH || pathname === DECKS_PATH;
   const onDecksRef = useRef(onDecks);

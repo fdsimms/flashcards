@@ -5,7 +5,7 @@ import { examplesOf } from './examples';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { elidesBefore } from './gender';
 import { htmlToText } from './html';
-import { foldUndecomposed, foldYo } from './letters';
+import { foldYo, unaccented } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 import { isNoForm } from './wordGrammar';
 
@@ -272,7 +272,6 @@ const clean = (s: string) =>
   foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
     .replace(/ς/g, 'σ').replace(/ß/g, 'ss').replace(/[’‘ʼ]/g, "'");
 /** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
-const unmarked = (s: string) => foldUndecomposed(s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC'));
 
 /**
  * A typed answer against a form's accepted answers. Case and surrounding spaces don't matter.
@@ -286,7 +285,7 @@ export function checkAnswer(typed: string, answers: string[], others: string[] =
   const all = answers.map(clean);
   if (all.includes(t)) return 'right';
   if (others.some((o) => clean(o) === t)) return 'wrong';
-  return all.some((a) => unmarked(a) === unmarked(t)) ? 'almost' : 'wrong';
+  return all.some((a) => unaccented(a) === unaccented(t)) ? 'almost' : 'wrong';
 }
 
 /** A form as a drill names it: "present · yo", or only its label when it has no group of its own ("plural", "infinitive"). */

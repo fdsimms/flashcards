@@ -16,6 +16,8 @@ import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CramListen } from './CramListen';
 import { CramTalk } from './CramTalk';
+import { leaveScreen } from '../leaveScreen';
+import { DECKS_PATH } from '../tabPaths';
 
 /**
  * A cram's page: its day and rounds, what else there is before the day (a text, an audio lesson,
@@ -47,7 +49,7 @@ export function CramPage(props: {
   const [problem, setProblem] = useState<string>();
 
   // A cram deleted from its sheet: nothing left to show.
-  useEffect(() => { if (loaded && !cram) router.back(); }, [loaded, cram]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (loaded && !cram) leaveScreen(router, DECKS_PATH); }, [loaded, cram]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     capCramCards(repo).then(
       () => setCapProblem(undefined),
@@ -132,9 +134,13 @@ export function CramPage(props: {
                 disabled={!props.readerApi || !language}
                 onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords) }); } }}
               />
+            </Group>
+            <SectionTitle>On the day</SectionTitle>
+            <Group>
               <NavRow
+                first
                 icon={{ name: 'checklist', color: c.orange }}
-                label="On the day"
+                label="Check off words"
                 detail="Check off the words as you use them."
                 onPress={() => { haptic.tap(); router.push({ pathname: '/cram-used', params: { id: cram.id } }); }}
               />
