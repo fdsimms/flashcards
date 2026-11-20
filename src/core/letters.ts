@@ -23,3 +23,10 @@ export const foldUndecomposed = (s: string): string => s.replace(/[øæœł]/g, 
  * か for が is a different sound, not a missing accent. Takes decomposed text (NFD or NFKD).
  */
 export const stripMarks = (s: string): string => s.replace(/(?![゙゚])\p{M}/gu, '');
+
+/**
+ * Text without the accents Latin, Greek and Cyrillic letters carry (é as e, й as и, ł as l), other
+ * scripts' marks kept: a Thai vowel or tone mark is part of the word, not an accent, and so are
+ * kana's voicing marks. For a match that forgives a missing accent (forms practice, search).
+ */
+export const unaccented = (s: string): string => foldUndecomposed(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC'));

@@ -14,7 +14,8 @@ import { useKeyboardScroll } from './useKeyboardScroll';
 /**
  * Every note, searchable and narrowed to a deck or any of its subdecks, and to a state its cards
  * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one.
- * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
+ * Search matches every word in any field, a tag or the deck name, closest matches first (a word
+ * on the front, then in the meaning, then elsewhere; src/core/noteEditing.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
   const { bottomPadding } = useKeyboardScroll();

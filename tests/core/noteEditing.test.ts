@@ -45,6 +45,36 @@ describe('finding notes', () => {
     expect(searchNotes(notes, 'book').map((n) => n.id)).toEqual(['n1']);
   });
 
+  it('puts the closest matches first: the meaning itself before a mention in another field', () => {
+    const omni = (id: string, entry: string, meaning: string, deck: string, more: Record<string, string> = {}): Note =>
+      ({ id, deck, model: 'Omnilanguage', fields: { Entry: entry, Meaning: meaning, Notes: '', ContextTranslation: '', ...more }, tags: [] });
+    const found = [
+      omni('desultory', 'desultory', 'Lacking any definite plan. Also used of effort or performance that is halfhearted.', 'English'),
+      { id: 'henry', deck: 'Trivia', model: 'Shakespeare', fields: { Title: '<i>Henry VIII</i>', Year: '1613', Other: 'Globe Theater burned down during early performance' }, tags: [] },
+      omni('hervorragend', 'hervorragend', 'outstanding; excellent', 'Deutsch', { ContextTranslation: 'That was an outstanding performance.' }),
+      omni('enso', '演奏', 'musical performance; playing an instrument', '日本語'),
+      omni('sadaeng', 'แสดง', '1. to perform; to act<br>2. to show; to display', 'ไทย', { Notes: 'การแสดง = performance' }),
+      omni('leistung', 'Leistung', 'performance; achievement', 'Deutsch'),
+      omni('gaansadaeng', 'การแสดง', 'performance; show', 'ไทย'),
+    ];
+    const ids = (q: string) => searchNotes(found, q).map((n) => n.id);
+    // As a listed meaning, then a word in a meaning, then in another field (ties by what shows first).
+    expect(ids('performance')).toEqual(['leistung', 'gaansadaeng', 'desultory', 'enso', 'henry', 'hervorragend', 'sadaeng']);
+    // "to perform" lists as "perform"; the start of "performance" comes after it.
+    expect(ids('perform')[0]).toBe('sadaeng');
+    // The front comes before the meaning, and the whole front before a front that only holds it.
+    expect(ids('แสดง')).toEqual(['sadaeng', 'gaansadaeng']);
+    // Words found apart rank behind them found together.
+    expect(ids('musical performance')).toEqual(['enso']);
+    expect(ids('performance show')).toEqual(['gaansadaeng', 'sadaeng']);
+  });
+
+  it('finds a word typed without its accents', () => {
+    const polish = [basic('z', 'żółw', 'turtle', 'Polski'), basic('w', 'zołza', 'shrew', 'Polski')];
+    expect(searchNotes(polish, 'zolw').map((n) => n.id)).toEqual(['z']);
+    expect(searchNotes(polish, 'zo').map((n) => n.id)).toEqual(['w', 'z']);
+  });
+
   it('keeps to a deck and its subdecks when one is picked', () => {
     expect(searchNotes(notes, '', 'Trivia').map((n) => n.id)).toEqual(['2', '1']);
     expect(searchNotes(notes, 'capital', 'Trivia::South America').map((n) => n.id)).toEqual(['2']);
