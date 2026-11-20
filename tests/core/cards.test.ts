@@ -302,6 +302,20 @@ describe('cards', () => {
     expect(reverse.front.blocks.map((b) => b.role)).toEqual([undefined, 'sense']);
     expect(reverse.back.blocks.some((b) => b.role === 'sense')).toBe(false);
   });
+  it('shows the words a Sense rules out on every answer and never on a front', () => {
+    const note = omniNote({ Entry: 'ducha', Language: 'spanish', Meaning: 'shower', Sense: 'a bathroom shower, not rain', SenseContrast: 'rain shower = aguacero; chubasco', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+    for (const kind of ['forward', 'reverse', 'audio'] as const) {
+      const card = renderCard(note, kind);
+      expect(card.front.blocks.some((b) => b.role === 'contrast' || b.text.includes('aguacero'))).toBe(false);
+      const box = card.back.blocks.find((b) => b.role === 'contrast');
+      expect(box?.rows).toEqual([{ label: 'rain shower', value: 'aguacero' }, { label: 'rain shower', value: 'chubasco' }]);
+      expect(box?.text).toBe('rain shower: aguacero\nrain shower: chubasco');
+    }
+    // Right under the Sense where the answer shows one.
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back[back.findIndex((b) => b.role === 'sense') + 1]?.role).toBe('contrast');
+    expect(renderCard(omniNote({ Sense: 'a bathroom shower, not rain' }), 'forward').back.blocks.some((b) => b.role === 'contrast')).toBe(false);
+  });
   it('renders one example box per line of Context when ContextLabels is set, each with its own romanization, translation and tag', () => {
     const note = omniNote({
       Entry: 'ประสบการณ์', Transliteration: 'bprà-sòp-gaan', Meaning: 'experience',
