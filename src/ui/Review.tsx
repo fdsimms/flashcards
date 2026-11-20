@@ -462,24 +462,26 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    * Plays what `playbackFor` / `autoplayFor` chose: the note's recording when it's allowed and the
    * file is here, as Anki plays it, else the phone's text-to-speech voice.
    */
-  const ttsRunning = useRef(false);
+  // Stopping speech that isn't running can pull the audio session out from under the recording that
+  // starts right after, so ask the voice whether it is speaking rather than keep a flag nothing clears.
+  const stopSpeechIfRunning = useCallback(async () => {
+    if (await Speech.isSpeakingAsync().catch(() => false)) Speech.stop();
+  }, []);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
   // Compare plays the card's recording before the take, so it's offered only with that file here.
   const recordingUri = useMemo(() => (rendered?.audioFile ? mediaFileUri(rendered.audioFile) : undefined), [rendered?.audioFile]);
   const self = useSelfRecording(current?.id ?? null, AUDIO_MODE, {
     onBeforeAudio: () => {
-      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
+      void stopSpeechIfRunning();
       player.current?.pause();
     },
     original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
   const speak = useCallback(
-    (what: Playback | undefined) => {
+    async (what: Playback | undefined) => {
       if (!what || !rendered) return;
       self.stopTake();
-      // Stopping speech that isn't running can pull the audio session out from under the
-      // recording that starts right after, cutting it off.
-      if (ttsRunning.current) { Speech.stop(); ttsRunning.current = false; }
+      await stopSpeechIfRunning();
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
@@ -493,7 +495,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         return;
       }
       if (!what.text) return;
-      ttsRunning.current = true;
       phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
     [rendered, phoneSpeech, self.stopTake],
@@ -506,7 +507,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!speechLang) return;
     self.stopTake();
     player.current?.pause();
-    ttsRunning.current = true;
     phoneSpeech.sayLine(text, speechLang, false);
   }, [speechLang, phoneSpeech, self.stopTake]);
 
