@@ -2682,10 +2682,23 @@ def add_queued(
     entries: list[tuple[str, str]],
     now: datetime,
 ) -> list[int]:
-    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given."""
+    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given.
+
+    A word already in the queue for that deck with the same meaning isn't added again, and its
+    row's id is returned: the app sends words it held while offline until it hears they arrived, so
+    the same ones can come twice (an answer lost on the way back) and would each be a note to
+    review. The same word with another meaning is a row of its own."""
     ids: list[int] = []
     with conn:
         for entry, meaning in entries:
+            there = conn.execute(
+                "SELECT id FROM note_queue WHERE language = ? AND deck = ? AND entry = ?"
+                " AND meaning = ? ORDER BY id LIMIT 1",
+                (language, deck, entry, meaning),
+            ).fetchone()
+            if there is not None:
+                ids.append(there[0])
+                continue
             cursor = conn.execute(
                 "INSERT INTO note_queue (language, deck, entry, meaning, created_at)"
                 " VALUES (?, ?, ?, ?, ?)",

@@ -251,6 +251,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
+  const undone = useRef(new WeakSet<AnswerRecord>());
+  // How many answer writes have failed, and the count the "answers after it" alert was last shown for.
+  const failedWrites = useRef(0);
+  const toldDropped = useRef(0);
   const [preferId, setPreferId] = useState<string>();
   // Just after an answer: the card the queue expected next (`upNext`) is shown at once, from the queue
   // as it was, and the queue and the lookalike hold are rebuilt from the answer once that card is on
@@ -661,7 +665,21 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setNow(when);
 
       writes.current++;
+      const failuresBefore = failedWrites.current;
       void reviewWrites.add(async () => {
+        // An answer queued behind one whose write failed was worked out from cards as that answer
+        // left them (the same card again, a sibling it buried), and that answer is being taken back.
+        // Writing this one would stack it on a state that was never saved, so it's taken back too.
+        if (failedWrites.current !== failuresBefore) {
+          setHistory((h) => h.filter((r) => r !== record));
+          setReloads((n) => n + 1);
+          if (toldDropped.current !== failedWrites.current) {
+            toldDropped.current = failedWrites.current;
+            Alert.alert("The answers after it weren't saved either", 'Those cards will come back too: answer them again.');
+          }
+          writes.current++;
+          return;
+        }
         // Started once the next card is on screen: its database round trips share the JS thread with drawing it.
         await painted();
         // A sync or an import that holds the kept collection while this is written reads it back over
@@ -701,6 +719,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             // Left as it is; the reload below shows what was saved.
           }
           // Taken off the screen, and the deck is read again so what's shown is what was saved.
+          failedWrites.current++;
           setHistory((h) => h.filter((r) => r !== record));
           lastAnswer.show(null);
           setReloads((n) => n + 1);
@@ -789,7 +808,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    */
   const undo = async (to?: RatingValue): Promise<boolean> => {
     const last = history[history.length - 1];
-    if (!last || busy.current) return false;
+    // `undone`: a second tap landing before the screen has drawn the first undo still sees its
+    // record as the last, and would take that card back again while the newer list lost another.
+    if (!last || busy.current || undone.current.has(last)) return false;
     busy.current = true;
     writes.current++;
     buttonHaptic(to);
@@ -830,7 +851,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       misses.undone(last.before.id);
       setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
-      setHistory((h) => h.slice(0, -1));
+      undone.current.add(last);
+      setHistory((h) => h.filter((r) => r !== last));
       forms.undone(last.before.id);
       setStudied((s) => bumpStudied(s, last.deck, last.counts, -1));
       const restored = new Map([last.before, ...last.buried].map((c) => [c.id, c]));

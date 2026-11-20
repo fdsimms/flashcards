@@ -309,6 +309,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const undo = () => {
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    // Not from the session an answer was just given from (a tap landing before the screen has
+    // drawn that answer): its held outcome has gone to WaniKani, and undoing from it would take
+    // back the answer before, which can't be taken back.
+    if (study && answeredFrom.current === study) return;
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     // Undoing the answer that saved a synonym takes the synonym back too.

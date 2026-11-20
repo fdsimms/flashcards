@@ -1,4 +1,5 @@
-import { File, Paths } from 'expo-file-system';
+import { Paths } from 'expo-file-system';
+import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import { useEffect, useSyncExternalStore } from 'react';
 import { parseRecordings, type HeldRecording } from '../core/held';
 import { parseHeldReader, type HeldReaderAction } from '../reader/downloads';
@@ -13,7 +14,6 @@ function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
   let value: T[] = [];
   let loaded: Promise<void> | null = null;
   const listeners = new Set<() => void>();
-  const file = () => new File(Paths.document, fileName);
   return {
     get: (): T[] => value,
     subscribe(listener: () => void) {
@@ -23,8 +23,7 @@ function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
     load(): Promise<void> {
       loaded ??= (async () => {
         try {
-          const f = file();
-          value = parse(f.exists ? JSON.parse(await f.text()) : null);
+          value = parse(await readJsonSafely(Paths.document, fileName));
           listeners.forEach((l) => l());
         } catch {
           // An unreadable file holds nothing to send.
@@ -39,9 +38,8 @@ function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
       value = next;
       listeners.forEach((l) => l());
       try {
-        const f = file();
-        if (!f.exists) f.create();
-        f.writeSync(JSON.stringify(next));
+        // Written so a kill mid-write can't empty it (safeJson.ts): this is work waiting to be sent.
+        writeJsonSafely(Paths.document, fileName, next);
       } catch {
         // Still held in memory, and sent while the app is open.
       }
