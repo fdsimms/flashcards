@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, LayoutAnimation, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 /**
  * Motion, kept short and kept off for anyone who asked the system for less of it (Settings,
@@ -15,6 +15,21 @@ export function useReduceMotion(): boolean {
     return () => { alive = false; sub.remove(); };
   }, []);
   return reduce;
+}
+
+/**
+ * Call with how many items a list shows. When the count drops, the next layout fades the
+ * removed item out and slides what's below up into its place, instead of the list jumping. It
+ * runs during render so it is queued before the commit that removes the item; a count that grows
+ * is left to the item's own Reveal.
+ */
+export function useLeaveAnimation(count: number): void {
+  const reduce = useReduceMotion();
+  const last = useRef(count);
+  if (count < last.current && !reduce) {
+    LayoutAnimation.configureNext(LayoutAnimation.create(240, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+  }
+  last.current = count;
 }
 
 /**
