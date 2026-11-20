@@ -1,16 +1,28 @@
 # HTTPS for $DOMAIN, with a certificate from Let's Encrypt: Anki's sync requests go to the sync
 # server, /reader/... to Read & Listen with /reader taken off, everything else to the MCP (each
 # only when it's turned on; without it those paths answer 502).
+#
+# Read & Listen and the MCP read a whole request into memory before they check who sent it, so a
+# request's size is limited here, above the largest either takes (a topic's photo, about 6 MB, and
+# the MCP's own 4 MiB). Sync has Anki's own limit (MAX_SYNC_PAYLOAD_MEGS). CI checks this file
+# (.github/workflows/test.yml, `deploy`): a mistake here would take all three down at the next update.
 {$DOMAIN} {
+	header Strict-Transport-Security "max-age=31536000"
 	@anki path /sync/* /msync/* /health
 	handle @anki {
 		reverse_proxy anki:8080
 	}
 	handle /reader/* {
+		request_body {
+			max_size 8MB
+		}
 		uri strip_prefix /reader
 		reverse_proxy reader:8080
 	}
 	handle {
+		request_body {
+			max_size 5MB
+		}
 		reverse_proxy mcp:8000
 	}
 }
