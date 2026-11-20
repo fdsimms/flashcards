@@ -1,6 +1,7 @@
 import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
 import { headword } from '../core/forms';
+import { SKILL_TAG } from '../core/skillTag';
 import type { Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import type { NumberQuestion, NumberSaying } from './number';
@@ -281,7 +282,7 @@ export function missingWords(words: readonly string[], studied: readonly string[
  * phone never sends note types; Basic is in every Anki collection, and Anki on the computer shows the
  * card as it is written here.
  */
-export const SKILL_TAG = 'skill';
+export { SKILL_TAG };
 export const SKILL_NOTE_TYPE = 'Basic';
 export const SKILLS_SUBDECK = 'Skills';
 

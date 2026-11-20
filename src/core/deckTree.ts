@@ -3,6 +3,7 @@ import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
+import { skillCardIds } from './skillTag';
 import { dueMs, isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
 import { scaleLimits, vacationPlan, type VacationPlan, type VacationPrefs } from './vacation';
@@ -128,6 +129,8 @@ export interface TreeQueueInput {
   homeDeckOf?: (card: Card) => string;
   /** What each deck studied today, by its own cards only (not its subdecks'). */
   studiedByDeck: Map<string, StudiedToday>;
+  /** Cards of skill notes (`skillCardIds`): outside every limit and the progress gate, and not counted by either. */
+  skillCards: Set<string>;
   /** A deck's progress gate: the most cards in progress it and its subdecks may hold. Undefined: no gate. */
   gateFor?: (deck: string) => number | undefined;
   dayStartsAtHour: number;
@@ -161,11 +164,11 @@ function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedTo
 }
 
 /** Cards still in progress in the deck and its subdecks: what a progress gate counts. */
-export function inProgressCount(root: string, cardsByDeck: Map<string, Card[]>): number {
+export function inProgressCount(root: string, cardsByDeck: Map<string, Card[]>, skillCards: Set<string>): number {
   let n = 0;
   for (const [deck, cards] of cardsByDeck) {
     if (!isInDeck(deck, root)) continue;
-    for (const c of studiable(cards)) if (isInProgress(c)) n++;
+    for (const c of studiable(cards)) if (isInProgress(c) && !skillCards.has(c.id)) n++;
   }
   return n;
 }
@@ -179,7 +182,7 @@ function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
   const cap = input.gateFor?.(deck);
   if (cap === undefined) return undefined;
   const daily = input.limitsFor(deck).newPerDay - sumStudied(deck, input.studiedByDeck).introduced;
-  return Math.max(0, Math.min(cap - inProgressCount(deck, input.cardsByDeck), daily));
+  return Math.max(0, Math.min(cap - inProgressCount(deck, input.cardsByDeck, input.skillCards), daily));
 }
 
 interface LimitNode { review: number; new: number; capNewToReview: boolean }
@@ -298,9 +301,11 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const intraday = [...previewing, ...(previewDeck ? [] : rest.filter((c) => isLearning(c) && !isInterdayLearning(c, h)))]
     .filter((c) => shownAt(c) < nextDay);
   for (const c of intraday) heldBack(c, null);
+  // A skill card is taken whatever room is left, and uses none (`isSkillNote`); it still buries its siblings as any card does.
+  const skill = (c: Card) => input.skillCards.has(c.id);
   const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
     // Room first, as Anki checks the limit before a card is gathered: one the limits leave out buries nothing.
-    sortReviews(cards, order.reviewOrder, ctx).filter((c) => hasRoom(c, 'review') && !heldBack(c, kind) && admit(c, 'review'));
+    sortReviews(cards, order.reviewOrder, ctx).filter((c) => skill(c) ? !heldBack(c, kind) : hasRoom(c, 'review') && !heldBack(c, kind) && admit(c, 'review'));
   // A review in a filtered deck is due whatever its own due date: its due there is its place in the deck.
   const reviewDue = (c: Card) => c.sched.state === 2 && (inFilteredOrder(c) || isDue(c, now, h, nextDay));
   const interday = previewDeck ? [] : gatherDue(rest.filter((c) => isInterdayLearning(c, h) && dueMs(c) < nextDay), 'interdayLearning');
@@ -309,7 +314,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
     let n = 0;
     return sortNew(
-      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => skill(c) ? !heldBack(c, 'new') : n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
       order.newSortOrder, ctx,
     );
   };
@@ -361,6 +366,7 @@ export function queueInput(a: {
   const vacation = vacationPlan(a.vacation, a.cards, a.now, a.collection.dayStartsAtHour);
   return {
     cardsByDeck: groupByDeck(a.cards, deckOfNote),
+    skillCards: skillCardIds(a.notes, a.cards),
     limitsFor: (d) => {
       const p = paramsForDeck(d, a.params);
       const limits = deckLimits(p, { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }, todayKey);
@@ -480,10 +486,10 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
       if (!isInDeck(deck, node.deck)) continue;
       const open = studiable(cards);
       total += open.length;
-      unstudied += open.filter((c) => c.sched.state === 0).length;
+      unstudied += open.filter((c) => c.sched.state === 0 && !input.skillCards.has(c.id)).length;
     }
     const cap = input.gateFor?.(node.deck);
-    const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck), cap };
+    const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck, input.skillCards), cap };
     const newPerDay = input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
     return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, newPerDay, ...(gate ? { gate } : {}) };
   });

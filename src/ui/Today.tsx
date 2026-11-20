@@ -5,7 +5,7 @@ import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
 import { todayProgress } from '../core/todaySummary';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Screen } from './kit';
-import { CountingText, Reveal, useReduceMotion } from './motion';
+import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
@@ -131,6 +131,8 @@ export function Today(props: {
   const { banner: vocabReady } = useVocabReady();
   const noteQueue = useNoteQueueBanner();
   const vacation = useVacationBanner();
+  // A card that goes away (notes reviewed, a cram finished) fades out and the ones below slide up.
+  useLeaveAnimation([vocabReady, noteQueue, vacation, props.crams].filter(Boolean).length);
   const groups = useMemo(() => groupByTopLevel(todayDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);

@@ -13,6 +13,7 @@ import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
+import { isSkillNote } from '../core/skillTag';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
 import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
@@ -646,7 +647,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const takenMs = redo ? redo.takenMs : answerTimeMs(when.getTime() - shownAt.current, params);
       const record: AnswerRecord = {
         before: cur, deck: cardDeck(cur, nt.deck), buried: siblings,
-        rating, takenMs, preview, counts: answerCounts(cur, when, H, !!preview), ...(rating === 1 && miss ? { miss } : {}),
+        rating, takenMs, preview, counts: answerCounts(cur, when, H, !!preview, isSkillNote(nt)), ...(rating === 1 && miss ? { miss } : {}),
       };
       const stepCounts = { learn: (params?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (params?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
       const desiredRetention = params?.desiredRetention;
