@@ -54,9 +54,8 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
     const latest = new Map<string, (typeof missed)[number] & { card?: MissedCardText }>();
     for (const m of missed) {
       const note = notes.get(m.noteId);
-      // A skill drill's back is the same boilerplate on every drill, so it's listed like a word:
-      // its title, then what to do (see `drillRow`).
-      const card = note && !drillOfTags(note.tags) ? missedCardText(note, noteTypes.get(note.model), m.kind) : undefined;
+      // A skill drill has no card text (missedCardText), so it's listed like a word (see `drillRow`).
+      const card = note ? missedCardText(note, noteTypes.get(note.model), m.kind) : undefined;
       const key = card ? m.cardId : m.noteId;
       latest.delete(key);
       latest.set(key, { ...m, card });
