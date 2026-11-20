@@ -302,7 +302,7 @@ export function NoteEditor(props: {
           </Card>
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
-              Another {model} note in {untiered(duplicate.deck)} already has this {fieldNames[0]}, so this note can't be saved.
+              {untiered(duplicate.deck)} already has a note with this {fieldNames[0]}, so this note can't be saved.
             </Text>
           ) : null}
           <Help>

@@ -12,7 +12,7 @@ import { cramsNow, loadCrams } from './useCrams';
 import { useRecorder } from './useRecorder';
 
 /** How an approval went: the notes saved, the ones the deck refused (still queued, with why), and the ones saved but not taken off the queue. */
-export type Approval = { saved: number; refused: { entry: string; reason: string }[]; stuck: string[] };
+export type Approval = { saved: number; refused: { id: number; entry: string; reason: string }[]; stuck: string[] };
 
 /**
  * "Approve all" on the queued notes: saves each ready note as the note editor would save it untouched
@@ -40,7 +40,7 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
         savedNotes.push(await saveNote(repo, approvalDraft(note, names, crams)));
         result.saved++;
       } catch (e) {
-        result.refused.push({ entry: note.entry, reason: failureText(e, { next: 'Open it from the list to try again.' }) });
+        result.refused.push({ id: note.id, entry: note.entry, reason: failureText(e, { next: 'Open it from the list to try again.' }) });
         continue;
       }
       try {
