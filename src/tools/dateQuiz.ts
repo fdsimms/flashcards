@@ -32,6 +32,17 @@ export function acceptedForms(saying: DateSaying): Phrase[] {
   return distinct(readings.length ? readings : forms);
 }
 
+/**
+ * What was typed with each other spelling the language allows (`DateSaying.spellings`) put as the
+ * forms here spell it, so επτά Νοεμβρίου is checked as εφτά Νοεμβρίου and isn't a wrong answer.
+ */
+export function usualSpelling(typed: string, saying: Pick<DateSaying, 'spellings'>): string {
+  return (saying.spellings ?? []).reduce(
+    (text, [other, usual]) => text.replace(typeof other === 'string' ? new RegExp(other.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu') : other, usual),
+    typed.normalize('NFC'),
+  );
+}
+
 export function sameDate(a: CalendarDate, b: CalendarDate): boolean {
   return a.year === b.year && a.month === b.month && a.day === b.day;
 }

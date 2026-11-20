@@ -27,7 +27,8 @@ const CLASSIFIERS: Record<string, Classifier> = {
   gaew: { word: ['แก้ว', 'gâew'], counts: THAI_COUNTING_WORDS['แก้ว'].counts },
 };
 
-const NOUNS: { word: Word; meaning: string; classifier: keyof typeof CLASSIFIERS }[] = [
+/** `alsoRight`: another classifier that's also correct for it (a drink by the glass or the bottle), so never offered as a wrong one. */
+const NOUNS: { word: Word; meaning: string; classifier: keyof typeof CLASSIFIERS; alsoRight?: keyof typeof CLASSIFIERS }[] = [
   { word: ['แมว', 'maew'], meaning: 'cat', classifier: 'tua' },
   { word: ['หมา', 'mǎa'], meaning: 'dog', classifier: 'tua' },
   { word: ['โต๊ะ', 'dtó'], meaning: 'table', classifier: 'tua' },
@@ -40,8 +41,8 @@ const NOUNS: { word: Word; meaning: string; classifier: keyof typeof CLASSIFIERS
   { word: ['กระเป๋า', 'grà-bpǎo'], meaning: 'bag', classifier: 'bai' },
   { word: ['ส้ม', 'sôm'], meaning: 'orange', classifier: 'luuk' },
   { word: ['บ้าน', 'bâan'], meaning: 'house', classifier: 'lang' },
-  { word: ['เบียร์', 'bia'], meaning: 'beer', classifier: 'khuat' },
-  { word: ['กาแฟ', 'gaa-fae'], meaning: 'coffee', classifier: 'gaew' },
+  { word: ['เบียร์', 'bia'], meaning: 'beer', classifier: 'khuat', alsoRight: 'gaew' },
+  { word: ['กาแฟ', 'gaa-fae'], meaning: 'coffee', classifier: 'gaew', alsoRight: 'khuat' },
 ];
 
 const counted = (noun: number, n: number, classifier: Classifier) => phrase([NOUNS[noun].word, ...thaiNumber(n), classifier.word], '');
@@ -52,7 +53,7 @@ export const THAI_COUNTING: CountingLanguage = {
     const c = CLASSIFIERS[NOUNS[noun].classifier];
     return { everyday: counted(noun, n, c), also: [phrase([...thaiNumber(n), c.word], '', "Once it's clear what's counted")] };
   },
-  wrong: (noun, n) => Object.entries(CLASSIFIERS).filter(([k]) => k !== NOUNS[noun].classifier).map(([, c]) => counted(noun, n, c)),
+  wrong: (noun, n) => Object.entries(CLASSIFIERS).filter(([k]) => k !== NOUNS[noun].classifier && k !== NOUNS[noun].alsoRight).map(([, c]) => counted(noun, n, c)),
   rule: (noun) => {
     const c = CLASSIFIERS[NOUNS[noun].classifier];
     return `${c.word[0]} (${c.word[1]}) counts ${c.counts}. The noun comes first, then the number, then the classifier.`;

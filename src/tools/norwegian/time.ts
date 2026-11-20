@@ -43,6 +43,9 @@ function forms(t: ClockTime): Phrase[] {
   if (m === 45) return [{ text: `kvart på ${next}` }];
   if (m === 30) return [{ text: `halv ${next}` }];
   if (m < 20) return [{ text: `${minutes(m)} over ${now}` }];
+  // Twenty past and twenty to are said from the hour as often as from the half.
+  if (m === 20) return [{ text: `ti på halv ${next}` }, { text: `tjue over ${now}` }];
+  if (m === 40) return [{ text: `ti over halv ${next}` }, { text: `tjue på ${next}` }];
   if (m < 30) return [{ text: `${minutes(30 - m)} på halv ${next}` }];
   if (m <= 40) return [{ text: `${minutes(m - 30)} over halv ${next}` }];
   return [{ text: `${minutes(60 - m)} på ${next}` }];

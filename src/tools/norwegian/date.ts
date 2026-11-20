@@ -1,4 +1,4 @@
-import { type CalendarDate, type DateParts, type DateSaying, isValidDate, weekdayOf } from '../date';
+import { type CalendarDate, type DateParts, type DateSaying, isValidDate, type Spelling, weekdayOf } from '../date';
 import { distinct, type Phrase } from '../phrase';
 import { norwegianNumber, norwegianOrdinal } from './numbers';
 
@@ -9,6 +9,9 @@ import { norwegianNumber, norwegianOrdinal } from './numbers';
  * (nittenhundreogfemti), shortened in speech to nittenfemti; from 2000 in thousands
  * (totusenogtjueseks), with tjuetjueseks heard from some for 2010 on. Written: "torsdag 12. november 2026".
  */
+
+/** The older counting words, still official Bokmål beside sju, tjue and tretti (numbers.ts). */
+const OLDER_SPELLINGS: Spelling[] = [['syv', 'sju'], ['tyve', 'tjue'], ['tredevte', 'trettiende'], ['tredve', 'tretti']];
 
 const MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
 const WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
@@ -45,5 +48,5 @@ export function sayNorwegianDate(d: CalendarDate, parts: DateParts): DateSaying 
   const short = parts.year ? shortYear(d.year) : undefined;
   if (short) also.push(say(`${weekday}${dayMonth} ${short}`, d.year < 2000 ? 'The year shortened, as it often is in speech' : 'The year shortened, as some say it'));
   const written = say(`${weekday}${d.day}. ${MONTHS[d.month - 1]}${parts.year ? ` ${d.year}` : ''}`);
-  return { everyday, also: distinct([everyday, ...also]).slice(1), written };
+  return { everyday, also: distinct([everyday, ...also]).slice(1), written, spellings: OLDER_SPELLINGS };
 }

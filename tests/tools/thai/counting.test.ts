@@ -23,3 +23,12 @@ describe('Thai classifiers in Latin letters', () => {
     expect(th.rule(th.nouns.findIndex((n) => n.meaning === 'cat'), 3)).toContain('ตัว (dtua)');
   });
 });
+
+describe('the wrong picks for a drink', () => {
+  it('never offer the glass for beer or the bottle for coffee, which are right too', () => {
+    const picks = (meaning: string) => th.wrong(th.nouns.findIndex((n) => n.meaning === meaning), 2).map((p) => p.text);
+    expect(picks('beer')).not.toContain('เบียร์สองแก้ว');
+    expect(picks('coffee')).not.toContain('กาแฟสองขวด');
+    expect(picks('cat')).toContain('แมวสองแก้ว');
+  });
+});

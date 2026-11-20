@@ -30,5 +30,6 @@ export function sayGermanDate(d: CalendarDate, parts: DateParts): DateSaying {
     say(asNumbers, 'The month as a number too, as 12.11. is read out'),
   ];
   const written = `${parts.weekday ? `${weekday}, ` : ''}${d.day}. ${month}${parts.year ? ` ${d.year}` : ''}`;
-  return { everyday: say(everyday), also: distinct([say(everyday), ...also]).slice(1), written: say(written) };
+  // siebente is as standard as siebte (and the usual one in Austria).
+  return { everyday: say(everyday), also: distinct([say(everyday), ...also]).slice(1), written: say(written), spellings: [['siebente', 'siebte']] };
 }

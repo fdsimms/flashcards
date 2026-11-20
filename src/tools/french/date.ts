@@ -30,5 +30,7 @@ export function sayFrenchDate(d: CalendarDate, parts: DateParts): DateSaying {
   const also = [say(`le ${everyday}`, 'As it is said inside a sentence')];
   if (parts.year && d.year >= 1100 && d.year < 2000) also.push(say(said(day, hundredsYear(d.year)), 'Also heard for years before 2000'));
   const written = said(d.day === 1 ? '1er' : String(d.day), String(d.year));
-  return { everyday: say(everyday), also: distinct([say(everyday), ...also]).slice(1), written: say(written) };
+  // A year is a rank (the 1980th), where vingt takes no s by the rule (l'an mille neuf cent quatre-vingt);
+  // most people write the s, so both are taken. Only a year can end the date in quatre-vingt.
+  return { everyday: say(everyday), also: distinct([say(everyday), ...also]).slice(1), written: say(written), spellings: [[/quatre[- ]vingt$/iu, 'quatre-vingts']] };
 }
