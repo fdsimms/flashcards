@@ -35,5 +35,7 @@ export const THAI_COUNTING_WORDS: Record<string, ThaiCountingWord> = {
   แผ่น: { roman: 'phàen', counts: 'flat things, such as sheets, discs and slices' },
   เม็ด: { roman: 'mét', counts: 'pills, seeds and beads' },
   ฉบับ: { roman: 'chà-bàp', counts: 'letters, documents and newspapers' },
+  ข้อ: { roman: 'khâaw', counts: 'points and items on a list, such as questions, rules and goals' },
+  อย่าง: { roman: 'yàang', counts: 'kinds and types' },
   องค์: { roman: 'ong', counts: 'monks, royalty and sacred images' },
 };
