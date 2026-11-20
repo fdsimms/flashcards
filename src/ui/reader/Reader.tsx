@@ -13,7 +13,8 @@ import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
 import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
-import { firstLine, LOOP_BREAK_NOTE, paragraphs, rangeOf, repeatBadge } from '../../reader/playback';
+import { LineScrubber } from './LineScrubber';
+import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
@@ -682,7 +683,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       footer={text && !ended ? (
         <>
           {hasAudio ? (
-            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip}
+            <PlayerBar playing={sounding} current={current} total={text.lines.length} skippable={paras !== null} onSkip={skip} onSeekLine={(i) => { const to = playableNear(text.lines, i); if (to !== null) playLine(to, true); }}
               rate={rate} slowOffered={slowOffered} repeat={repeat} played={played} loopText={loopText} breaking={breaking} silentLine={silentLine} onToggle={togglePlay} onRate={changeRate} onRepeat={cycleRepeat} onLoop={toggleLoop} onStartOver={startOver}
               rec={current !== null ? self : null} />
           ) : <Help>No audio for this text.</Help>}
@@ -1316,13 +1317,15 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   );
 }
 
-function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffered, repeat, played, loopText, breaking, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
+function PlayerBar({ playing, current, total, skippable, onSkip, onSeekLine, rate, slowOffered, repeat, played, loopText, breaking, silentLine, onToggle, onRate, onRepeat, onLoop, onStartOver, rec }: {
   playing: boolean;
   current: number | null;
   total: number;
   /** Previous and next line buttons, for a story with no play button on each line. */
   skippable: boolean;
   onSkip: (step: -1 | 1) => void;
+  /** The scrubber lifted on this line (0-based): play from the nearest line with audio. */
+  onSeekLine: (line: number) => void;
   rate: number;
   /** Whether the language offers Slow: the speed control is left out when it doesn't. */
   slowOffered: boolean;
@@ -1345,6 +1348,8 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   rec: SelfRecording | null;
 }) {
   const c = useTheme();
+  // The line under a finger on the scrubber, shown in the label until it lifts.
+  const [scrubbing, setScrubbing] = useState<number | null>(null);
   const repeating = repeat > 1;
   const play = (
     <Tappable
@@ -1360,9 +1365,10 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const loopNote = repeating ? `${repeatNote}. Looping the whole text.` : 'Looping the whole text';
   const note = breaking ? LOOP_BREAK_NOTE : silentLine !== null ? `Line ${silentLine + 1} has no audio.` : loopText ? loopNote : repeating ? repeatNote : skippable ? null : "Tap a line's play button to replay it";
-  const label = current === null && !note ? null : (
+  const shown = scrubbing ?? current;
+  const label = shown === null && !note ? null : (
     <View style={{ alignItems: 'center' }}>
-      {current === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{`Line ${current + 1} of ${total}`}</Text>}
+      {shown === null ? null : <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, fontVariant: ['tabular-nums'] }}>{`Line ${shown + 1} of ${total}`}</Text>}
       {note ? <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{note}</Text> : null}
     </View>
   );
@@ -1421,6 +1427,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, rate, slowOffer
         {/* Start over's width on the other side keeps Play in the middle. */}
         <View style={{ width: MIN_TAP }} />
       </View>
+      {total > 1 ? <LineScrubber current={current} total={total} onDrag={setScrubbing} onSeek={onSeekLine} /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         {slowOffered ? <Segments style={{ flex: 1 }} options={RATES.map((r) => ({ value: r, label: isSlow(r) ? 'Slow' : 'Normal', accessibilityLabel: isSlow(r) ? 'Slow speed' : 'Normal speed' }))} value={rate} onChange={onRate} /> : <View style={{ flex: 1 }} />}
         {chip}
