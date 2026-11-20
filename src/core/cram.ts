@@ -241,6 +241,18 @@ export function cramLanguage(notes: Note[]): Language | undefined {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 }
 
+/**
+ * The notes Add words offers for a cram: only those in the language its words are in, plus any
+ * already in it (so a stray one can still be taken out). A cram with no words yet has no language
+ * to go by, so every note is offered until the first is added.
+ */
+export function addableNotes(notes: Note[], inCram: Note[]): Note[] {
+  const language = cramLanguage(inCram);
+  if (!language) return notes;
+  const have = new Set(inCram.map((n) => n.id));
+  return notes.filter((n) => have.has(n.id) || readerLanguageOf(n) === language);
+}
+
 /** A note's meaning as plain text: an Omnilanguage note's Meaning, else its second field. */
 export function meaningOf(note: Note): string {
   const raw = isOmnilanguage(note) ? note.fields.Meaning : Object.values(note.fields)[1];
