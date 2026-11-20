@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
+from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
 from .speech import (
@@ -58,9 +59,11 @@ MATURE_DAYS = 21
 # value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
 PROGRESS_GATES_KEY = "frankiProgressGates"
 MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
-# The voice each language's new notes are recorded with (`set_audio_voice`): a collection config value
-# mapping a lowercased Language field ("thai") to {voice, rate, locale}. Kept in the collection, not
-# the phone's Settings > Voices, because the phone's choice is stored on the phone and the MCP can't read it.
+# The Azure voice each language's new notes are recorded with: a collection config value mapping a
+# language code ("th") to {voice, rate, locale}. The app writes it when an Azure voice is chosen in
+# Settings > Voices (`AUDIO_VOICES_KEY` in src/anki/audioVoices.ts), and `set_audio_voice` writes it too,
+# so a new note is recorded the same wherever it's added. Kept in the collection because the phone's own
+# Voices choice is stored on the phone, where the MCP can't read it.
 AUDIO_VOICES_KEY = "frankiAudioVoices"
 # Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, a flag::<reason> tag on its
 # note and, when the user typed one, a flagnote::<hex> tag with their note (its UTF-8 bytes in lowercase hex,
@@ -462,7 +465,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     continue
                 if SOUND.search(note["Audio"]):
                     continue
-                languages[r["note_id"]] = _text(col, note["Language"]).strip().lower()
+                languages[r["note_id"]] = LANGUAGE_CODES.get(_text(col, note["Language"]).strip().lower(), "")
             return voices, languages
 
         voices, languages = await cm.read(survey)
@@ -1429,14 +1432,15 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=WRITE)
     async def set_audio_voice(language: str, voice: str | None = None, rate: float = 1.0, locale: str | None = None) -> dict[str, Any]:
         """Saves the Azure voice that add_notes records a language's new notes with (`language` is the
-        notes' Language field, lowercase: "thai"). Pass no voice to remove it, so that language's new
+        notes' Language field, e.g. "thai", or its code, "th"). Pass no voice to remove it, so that language's new
         notes get no recording. `rate` is the speed (0.5 to 2.0, 1 is normal); `locale` ("th-TH") only
         for a Multilingual voice, as in add_tts_audio. Choose the voice with list_voices, and use the
         one Franki's Settings, Voices has for the language so its cards sound alike. It applies to
         notes added from now on; record the older ones with add_tts_audio."""
-        key = language.strip().lower()
+        named = language.strip().lower()
+        key = LANGUAGE_CODES.get(named) or (named if named in LANGUAGE_CODES.values() else "")
         if not key:
-            raise ToolError("Say which language: the notes' Language field, e.g. thai.")
+            raise ToolError("Say which language: the notes' Language field (thai) or its code (th).")
         setting: dict[str, Any] | None = None
         if voice is not None:
             if not 0.5 <= rate <= 2.0:

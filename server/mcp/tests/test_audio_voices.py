@@ -44,7 +44,7 @@ async def test_without_a_saved_voice_a_new_note_gets_no_recording(client, azure,
 
 async def test_a_saved_voice_records_new_notes_as_they_are_added(client, azure, thai_deck):
     saved = await call(client, "set_audio_voice", language=" Thai ", voice=VOICE, rate=0.9)
-    assert saved["audio_voices"] == {"thai": {"voice": VOICE, "rate": 0.9}}
+    assert saved["audio_voices"] == {"th": {"voice": VOICE, "rate": 0.9}}
     assert (await call(client, "audio_voices"))["audio_voices"] == saved["audio_voices"]
     first, second = await add(client, note("คนดู"), note("เต็ม"))
     assert first["audio"].startswith("franki-tts-") and second["audio"] != first["audio"]
@@ -74,5 +74,6 @@ async def test_a_voice_can_be_checked_and_removed(client, thai_deck):
     assert "isn't an Azure voice" in await call_error(client, "set_audio_voice", language="thai", voice="Premwadee")
     assert "between 0.5 and 2.0" in await call_error(client, "set_audio_voice", language="thai", voice=VOICE, rate=3)
     assert "Say which language" in await call_error(client, "set_audio_voice", language=" ")
-    await call(client, "set_audio_voice", language="thai", voice=VOICE)
+    assert "Say which language" in await call_error(client, "set_audio_voice", language="klingon", voice=VOICE)
+    await call(client, "set_audio_voice", language="th", voice=VOICE)  # the code works as well as the name
     assert (await call(client, "set_audio_voice", language="thai"))["audio_voices"] == {}

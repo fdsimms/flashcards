@@ -50,9 +50,11 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   a card's text. A deck's settings are one config value shared with the app (`frankiSkillCards`,
   `src/anki/skillSettings.ts`); the hourly job only adds where `on` and `auto` are both set.
 - **A new Omnilanguage note is recorded when `add_notes` adds it**, as the app records one saved on the
-  phone, with the voice `set_audio_voice` saved for its Language (`frankiAudioVoices`, a collection
-  config value). The phone's own Settings > Voices choice is stored on the phone, so the MCP keeps a
-  copy and the two can differ. A failed recording never fails the add: it's the result's `audio_error`.
+  phone, with the Azure voice saved for its language (`frankiAudioVoices`, a collection config value from
+  a language code to `{voice, rate}`). The app writes a language's entry when its Azure voice is chosen
+  in Settings > Voices (`src/anki/audioVoices.ts`, the same key), because that choice is stored on the
+  phone where the MCP can't read it; `set_audio_voice` writes it too. Each side changes only the
+  language it was given. A failed recording never fails the add: it's the result's `audio_error`.
 - **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
   did): what applies to every tool goes there, and a tool's own rules go in its description.
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
