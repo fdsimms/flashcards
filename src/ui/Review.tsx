@@ -25,7 +25,7 @@ import { forgetCards, setDueDates } from '../anki/rescheduleService';
 import { parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
 import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
-import { reviewWrites } from '../core/writeQueue';
+import { ankiWrites, reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
 import { secondsPerCard } from '../core/todaySummary';
@@ -667,9 +667,20 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         // A sync or an import that holds the kept collection while this is written reads it back over
         // the cards saved here: noted so they're saved again once the collection has the answer.
         const lockAtStart = repo.ankiLockState();
+        const ankiAnswer = {
+          before: record.before, after: updated, rating, now: when,
+          takenMs, desiredRetention, bury: siblings,
+          preview: preview ? { again: previewAgainAt } : undefined,
+          steps: stepCounts,
+          weights: params?.weights ?? [],
+        };
+        let owedId: number | undefined;
         try {
           await repo.saveCard(updated);
           for (const b of buried) await repo.saveCard(b);
+          // Kept as owed to the Anki collection before the review row is, so an app closed while the
+          // collection is busy (a sync stuck on the network) still has it to write at the next launch.
+          if (record.before.ankiId) owedId = await repo.oweAnkiAnswer({ answer: ankiAnswer, buried });
           // Whether it was a day-long step goes in the row, so today's counts read it back after a reload.
           // So does the deck it was answered in (a filtered deck sends a card home; a card can be
           // moved since): today's counts keep it there, as Anki's deck counter counts it.
@@ -678,16 +689,33 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             ...(rating === 1 && miss ? { miss } : {}),
             deck: record.deck,
           });
+        } catch (e) {
+          // The card may have been saved before its review row failed: put it and the siblings it
+          // buried back as they were, or it would stay rescheduled with no answer on record and
+          // "answer it again" would be false. Best effort, since the database just refused a write.
+          try {
+            await repo.saveCard(record.before);
+            for (const s of siblings) await repo.saveCard(s);
+            if (owedId !== undefined) await repo.forgetOwedAnkiAnswer(owedId);
+          } catch {
+            // Left as it is; the reload below shows what was saved.
+          }
+          // Taken off the screen, and the deck is read again so what's shown is what was saved.
+          setHistory((h) => h.filter((r) => r !== record));
+          lastAnswer.show(null);
+          setReloads((n) => n + 1);
+          Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
+          writes.current++;
+          return;
+        }
+        // The rest waits for the kept collection, in a queue of its own (`ankiWrites`): a sync holds
+        // the collection while it talks to the server, and the next answers' rows above mustn't
+        // wait behind that. Queued from inside this job, so the two halves keep the answers' order.
+        void ankiWrites.add(async () => {
           // Into the kept Anki collection too, so "Send to Anki" carries this answer. If that write
           // fails, the answer still counts here, and you're told rather than it going missing.
           try {
-            record.anki = await repo.writeAnkiAnswer({
-              before: record.before, after: updated, rating, now: when,
-              takenMs, desiredRetention, bury: siblings,
-              preview: preview ? { again: previewAgainAt } : undefined,
-              steps: stepCounts,
-              weights: params?.weights ?? [],
-            });
+            record.anki = await repo.writeAnkiAnswer({ ...ankiAnswer, owedId });
             // The write waits on `lockAnki`. A sync that held it meanwhile read the kept collection,
             // which didn't have this answer yet, back over the rows saved above. Saved again now that
             // the collection has it, so both agree. Skipped when nothing else took the lock (the
@@ -698,6 +726,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               for (const b of buried) await repo.saveCard(b);
             }
           } catch (e: any) {
+            // Not tried again at the next launch: it was refused, not left waiting.
+            if (owedId !== undefined) await repo.forgetOwedAnkiAnswer(owedId).catch(() => undefined);
             if (!warnedAnki.current) {
               warnedAnki.current = true;
               Alert.alert(
@@ -735,24 +765,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           if (isLeech && canAddMnemonic(noteBefore)) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
-        } catch (e) {
-          // The card may have been saved before its review row failed: put it and the siblings it
-          // buried back as they were, or it would stay rescheduled with no answer on record and
-          // "answer it again" would be false. Best effort, since the database just refused a write.
-          try {
-            await repo.saveCard(record.before);
-            for (const s of siblings) await repo.saveCard(s);
-          } catch {
-            // Left as it is; the reload below shows what was saved.
-          }
-          // Taken off the screen, and the deck is read again so what's shown is what was saved.
-          setHistory((h) => h.filter((r) => r !== record));
-          lastAnswer.show(null);
-          setReloads((n) => n + 1);
-          Alert.alert("Couldn't save this answer", failureText(e, { next: 'The card will come back: answer it again.' }));
-        } finally {
-          writes.current++;
-        }
+        }).finally(() => { writes.current++; });
       });
     } finally {
       if (!redo) busy.current = false;
