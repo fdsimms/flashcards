@@ -1,4 +1,5 @@
-import { File, Paths } from 'expo-file-system';
+import { Paths } from 'expo-file-system';
+import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Api, ReaderText } from '../reader/api';
 import {
@@ -39,8 +40,7 @@ let loading: Promise<AudioQueue> | null = null;
 function loadQueue(): Promise<AudioQueue> {
   loading ??= (async () => {
     try {
-      const f = new File(Paths.document, FILE);
-      stored = parseQueue(f.exists ? JSON.parse(await f.text()) : null);
+      stored = parseQueue(await readJsonSafely(Paths.document, FILE));
     } catch {
       // An unreadable file is an empty queue.
     }
@@ -52,9 +52,7 @@ function loadQueue(): Promise<AudioQueue> {
 function saveQueue(q: AudioQueue) {
   stored = q;
   try {
-    const f = new File(Paths.document, FILE);
-    if (!f.exists) f.create();
-    f.writeSync(JSON.stringify(q));
+    writeJsonSafely(Paths.document, FILE, q);
   } catch {
     // Still played from memory; only its places are lost if the app is closed.
   }

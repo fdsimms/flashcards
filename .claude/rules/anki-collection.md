@@ -38,6 +38,13 @@ Anki with "Send to Anki", one app holding the collection at a time.
   Every answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`, which wait on
   `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
   sync writes (notes, graves, config, decks in place).
+- **An answer is owed to the collection until it's written there** (`src/anki/owedAnswers.ts`, the
+  `anki_owed` table). Review saves Franki's rows and the owed row first (`reviewWrites`), then
+  writes the collection in a second queue (`ankiWrites`), because that write can wait a long time
+  behind a sync stuck on the network and the next answers' rows mustn't wait with it.
+  `writeAnkiAnswer` deletes the owed row in its own transaction and writes nothing when the row is
+  already gone, so an answer can't be written twice. Whatever is still owed at launch is written
+  then, before the first sync (`useOwedAnswers`). `reviewWrites.idle()` waits for both queues.
 - **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
   with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), which works on any build. Never
   strip it from the kept collection: its indexes are ordered by it.

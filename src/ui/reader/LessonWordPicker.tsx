@@ -12,6 +12,8 @@ import { Divider, Field, Icon, Loading, Screen, Segments } from '../kit';
 import { MIN_TAP, readable, space, type, useTheme } from '../theme';
 import { useCollection, useCramClock } from '../useCrams';
 import { useLessonWords } from './useLessonWords';
+import { leaveScreen } from '../leaveScreen';
+import { LESSONS_PATH } from '../tabPaths';
 
 /**
  * Choose words for an audio lesson from the decks: the language's notes, most recently added first
@@ -49,7 +51,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
   return (
     <Screen title="Choose words" largeTitle={false}>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Done choosing words" onPress={() => router.back()}>Done</Stack.Toolbar.Button>
+        <Stack.Toolbar.Button accessibilityLabel="Done choosing words" onPress={() => leaveScreen(router, LESSONS_PATH)}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
       <FlatList
         contentInsetAdjustmentBehavior="automatic"

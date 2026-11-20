@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL
 -- Media files made here (a recording) and not yet sent to the sync server, with their SHA-1 when
 -- made (src/anki/sync/mediaSync.ts, pushMedia). Not in a backup either.
 CREATE TABLE IF NOT EXISTS anki_media_pending (name TEXT PRIMARY KEY, sha1 TEXT NOT NULL);
+-- Answers given in Review and not yet written into the kept Anki collection (src/anki/owedAnswers.ts).
+CREATE TABLE IF NOT EXISTS anki_owed (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL);
 `;
 
 /**

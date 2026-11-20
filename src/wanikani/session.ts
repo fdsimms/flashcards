@@ -273,6 +273,21 @@ export function wrongSoFar(s: Session, assignmentId: number): number {
   return p ? p.wrongMeaning + p.wrongReading : 0;
 }
 
+/**
+ * The reviews answered wrong at least once this session, for the end screen: items finished first
+ * (in the order they were), then any left unfinished. A lesson quiz's miss only asks again, so
+ * lessons are left out. An Again on a question asking both counts as a wrong meaning.
+ */
+export function missedItems(s: Session): { assignmentId: number; subjectId: number; wrongMeaning: number; wrongReading: number }[] {
+  const ids = [...s.finished, ...Object.keys(s.items).map(Number).filter((id) => !s.finished.includes(id))];
+  return ids.flatMap((id) => {
+    const item = s.items[id];
+    const p = s.progress[id];
+    if (!item || item.lesson || !p || p.wrongMeaning + p.wrongReading === 0) return [];
+    return [{ assignmentId: id, subjectId: item.subjectId, wrongMeaning: p.wrongMeaning, wrongReading: p.wrongReading }];
+  });
+}
+
 /** Reviews and lessons not finished yet: the session's own due and new counts. */
 export function remaining(s: Session): { reviews: number; lessons: number } {
   let reviews = 0;

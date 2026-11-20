@@ -1231,7 +1231,7 @@
     "/api/texts/{text_id}/listen": {
       "post": {
         "summary": "Listened",
-        "description": "A finished text heard again with its words hidden. Only counted: no reading, no\ndifficulty change. 404 for a text that wasn't read to the end.",
+        "description": "A finished text heard again with its words hidden. Only counted: no reading, no\ndifficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen\nalready counted under it isn't counted twice.",
         "operationId": "listened_api_texts__text_id__listen_post",
         "parameters": [
           {
@@ -1260,6 +1260,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ListenIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -6482,6 +6499,25 @@
           "english"
         ],
         "title": "LineOut"
+      },
+      "ListenIn": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          }
+        },
+        "type": "object",
+        "title": "ListenIn"
       },
       "MarkIn": {
         "properties": {

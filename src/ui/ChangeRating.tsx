@@ -7,7 +7,7 @@ import { Tappable } from './kit';
 import { radius, smooth, type, useTheme } from './theme';
 
 /**
- * The last answer, as one line above the answer buttons: what it was and for which word ("Good · 24d · kot") and three
+ * The last answer, as one line above the answer buttons: what it was and for which word ("kot · Good · 24d") and three
  * icon buttons, Undo, Undo with a check (change it to Good) and Undo with an X (change it to
  * Again). It stays until the next answer replaces it. A tap on one of the buttons is confirmed in the
  * line's place for a moment ("Changed to Good") with its own haptic, since the line otherwise looks
@@ -86,7 +86,7 @@ export function LastAnswerLine({ last, notice, onUndo, onChange }: { last: LastA
         </View>
       ) : last ? (
         <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, ...type.footnote, color: c.textSecondary }}>
-          Last answer: <Text style={{ fontWeight: '600', color: c.text }}>{[name, last.interval, last.word].filter(Boolean).join(' · ')}</Text>
+          Last answer: <Text style={{ fontWeight: '600', color: c.text }}>{[last.word, name, last.interval].filter(Boolean).join(' · ')}</Text>
         </Text>
       ) : null}
       {last ? (
