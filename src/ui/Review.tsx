@@ -44,6 +44,8 @@ import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardFontScope, useFontSettings } from './AppFont';
 import { CardWebView } from './CardWebView';
+import { FaceWarmup } from './FaceWarmup';
+import { warmupText } from '../core/faceWarmup';
 import { Side } from './CardSide';
 import { CardStateChips } from './CardStateChips';
 import { LanguageCue } from './LanguageCue';
@@ -357,6 +359,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
   const showing = current ? `${current.id}:${history.length}` : undefined;
   const revealed = !!showing && revealedAt === showing;
+  // The back is committed: time the flip to the frames after it (a no-op unless timing is on).
+  useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
   const note = current ? notes.get(current.noteId) : undefined;
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
   const drill = useMemo(() => (note ? drillOfTags(note.tags) : undefined), [note]);
@@ -1118,6 +1122,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }
 
   const reveal = () => {
+    timing.revealPressed();
     Keyboard.dismiss();
     // A take made from memory ends here, quietly, so the answer's own recording plays.
     self.stop(false);
@@ -1442,6 +1447,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ) : null}
       {page || drill ? null : rendered ? (
         <View style={{ flex: 1 }}>
+        {/* Lays the back's faces out while the front shows, so the flip doesn't pay for loading them (src/core/faceWarmup.ts). */}
+        {revealed ? null : <FaceWarmup font={cardFont} text={warmupText(rendered.back.blocks)} />}
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
