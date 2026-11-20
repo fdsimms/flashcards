@@ -23,5 +23,8 @@ describe('answer timing', () => {
     expect(timingLine({ shown: 50, queue: 61, saved: 140.4 }, [50, 52, 54, 56])).toBe('Card shown: 50 ms (usually 53). Queue: 61 ms. Saved: 140 ms.');
     // The queue can be rebuilt before the card is shown (nothing else was queued to show first).
     expect(timingLine({ queue: 61 }, [])).toBe('Queue: 61 ms.');
+    // A flip is known before the answer is pressed, so it can stand alone or lead the answer's.
+    expect(timingLine({ flip: 312.4 }, [])).toBe('Flip: 312 ms.');
+    expect(timingLine({ flip: 90, shown: 48 }, [48])).toBe('Flip: 90 ms. Card shown: 48 ms.');
   });
 });
