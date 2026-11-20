@@ -2,6 +2,13 @@
 # Settings come from .env (copy .env.example). Start with: docker compose up -d --build
 # The MCP (mcp/, for Claude) runs too when .env's COMPOSE_PROFILES has mcp, and Read & Listen
 # (reader/) when it has reader.
+# Docker's default log driver never rotates, and each server logs a line per request, so without a
+# limit the logs slowly fill the disk the collection is on.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 services:
   anki:
     build:
@@ -9,6 +16,7 @@ services:
       args:
         ANKI_VERSION: ${ANKI_VERSION:-26.09.4}
     restart: unless-stopped
+    logging: *logging
     environment:
       SYNC_USER1: "${ANKI_USER}:${ANKI_PASSWORD}"
       # Anki's default is 100 MB, below what a collection with years of reviews can reach.
@@ -22,6 +30,7 @@ services:
       dockerfile: mcp/Dockerfile
     profiles: [mcp]
     restart: unless-stopped
+    logging: *logging
     environment:
       # Anki decides which study day it is from the time zone (see .env.example).
       TZ: ${TZ:-UTC}
@@ -46,6 +55,7 @@ services:
       dockerfile: reader/Dockerfile
     profiles: [reader]
     restart: unless-stopped
+    logging: *logging
     environment:
       # Anki decides which study day it is from the time zone (see .env.example).
       TZ: ${TZ:-UTC}
@@ -87,6 +97,7 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"

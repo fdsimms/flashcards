@@ -55,3 +55,9 @@ describe('an amount of euros in German', () => {
     expect(() => say(1.5)).toThrow(RangeError);
   });
 });
+
+describe('an amount said with ein', () => {
+  it('puts ein before the hundert after tausend too, as the Numbers tool does', () => {
+    expect(say(110000).also.map((p) => p.text)).toContain('eintausendeinhundert Euro');
+  });
+});

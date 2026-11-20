@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
+import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import { parseFuriganaData, type FuriganaData } from './furigana';
 import { parseKanjiLevels, type KanjiLevels } from './kanjiLevels';
 import { parseSnapshot, type Snapshot } from './offline';
@@ -32,14 +33,12 @@ export function savePrefs(prefs: WaniKaniPrefs): void {
   SecureStore.setItemAsync(PREFS_KEY, JSON.stringify(prefs)).catch(() => undefined);
 }
 
-function stateFile(): File {
-  return new File(Paths.document, STATE_FILE);
-}
-
+// The answers waiting to be sent are in this file, so it's saved and read through safeJson.ts: a
+// kill in the middle of a write would otherwise leave it cut short, read as nothing waiting.
 export async function loadState(): Promise<WaniKaniState> {
   try {
-    const f = stateFile();
-    return parseState(f.exists ? await f.text() : null);
+    const saved = await readJsonSafely(Paths.document, STATE_FILE);
+    return parseState(saved === null ? null : JSON.stringify(saved));
   } catch {
     return parseState(null);
   }
@@ -47,9 +46,7 @@ export async function loadState(): Promise<WaniKaniState> {
 
 export function saveState(state: WaniKaniState): void {
   try {
-    const f = stateFile();
-    if (!f.exists) f.create();
-    f.writeSync(JSON.stringify(state));
+    writeJsonSafely(Paths.document, STATE_FILE, state);
   } catch {
     // Nothing to do: answers still in memory are tried again while the app is open.
   }

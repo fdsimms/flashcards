@@ -76,6 +76,7 @@ def test_candidates_are_reviewed_today_or_young_never_waiting() -> None:
 def test_the_request_names_each_word() -> None:
     assert f"- {MANGO.text} ({MANGO.meaning})" in request_message("th", [MANGO])
     assert "no spaces between words" in request_message("th", [MANGO])
+    assert "complete and grammatical" in request_message("th", [MANGO])
 
 
 # ==== Topping up and serving ====

@@ -74,7 +74,8 @@ export function sayRussianTime(t: ClockTime): TimeSaying {
     if (t.hour === 0) alts.push(ru('полночь'));
   } else if (m === 30) {
     everyday = `половина ${ORDINAL_GENITIVE[next]}`;
-    alts.push(ru(`пол${ORDINAL_GENITIVE[next]}`, COLLOQUIAL));
+    // пол- takes a hyphen before a vowel: пол-одиннадцатого, but полвторого.
+    alts.push(ru(`пол${/^[аеёиоуыэюя]/.test(ORDINAL_GENITIVE[next]) ? '-' : ''}${ORDINAL_GENITIVE[next]}`, COLLOQUIAL));
   } else if (m === 15) {
     everyday = `четверть ${ORDINAL_GENITIVE[next]}`;
     alts.push(ru(`${minutesPast(15)} ${ORDINAL_GENITIVE[next]}`));

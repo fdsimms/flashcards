@@ -379,7 +379,8 @@ export interface paths {
         /**
          * Listened
          * @description A finished text heard again with its words hidden. Only counted: no reading, no
-         *     difficulty change. 404 for a text that wasn't read to the end.
+         *     difficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen
+         *     already counted under it isn't counted twice.
          */
         post: operations["listened_api_texts__text_id__listen_post"];
         delete?: never;
@@ -1163,6 +1164,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/word-meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Word Meaning
+         * @description The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else
+         *     Claude's, asked now. Never writes to Anki or grades a card.
+         */
+        post: operations["word_meaning_api_word_meaning_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ask-card": {
         parameters: {
             query?: never;
@@ -1912,6 +1934,11 @@ export interface components {
             /** English */
             english: string;
         };
+        /** ListenIn */
+        ListenIn: {
+            /** Key */
+            key?: string | null;
+        };
         /** MarkIn */
         MarkIn: {
             /** Text */
@@ -2345,6 +2372,21 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+        };
+        /** WordMeaningIn */
+        WordMeaningIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Word */
+            word: string;
+            /**
+             * English
+             * @default
+             */
+            english: string;
         };
         /** WordOut */
         WordOut: {
@@ -3195,7 +3237,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ListenIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -4879,6 +4925,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    word_meaning_api_word_meaning_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordMeaningIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | null;
                     };
                 };
             };

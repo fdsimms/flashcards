@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -14,7 +14,7 @@ import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
-  dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
+  dropItem, missedItems, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { stackSlots } from '../wanikani/stagePopups';
@@ -32,6 +32,7 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 import { useHeaderInset } from './useHeaderInset';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
+import { WaniKaniMissList } from './WaniKaniMisses';
 import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** The longest the card's resize after the keyboard may take (ms). */
@@ -144,6 +145,20 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     seenDropped(shownDropped.current);
     if (studyRef.current) send(studyFlush(studyRef.current).send);
     wanikani.refresh(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // And when the app is left: the held answer is only in this screen's memory, so one closed from
+  // the app switcher (or dropped by iOS in the background) lost it, and the item came back as a
+  // review. Once it's sent it can't be undone, so leaving the app ends Undo for that answer.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'background' || !studyRef.current?.held) return;
+      const closed = studyFlush(studyRef.current);
+      sendRef.current(closed.send);
+      setStudy(closed.study);
+    });
+    return () => sub.remove();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -295,6 +310,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   const undo = () => {
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    // Not from the session an answer was just given from (a tap landing before the screen has
+    // drawn that answer): its held outcome has gone to WaniKani, and undoing from it would take
+    // back the answer before, which can't be taken back.
+    if (study && answeredFrom.current === study) return;
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     // Undoing the answer that saved a synonym takes the synonym back too.
@@ -505,6 +524,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? <LessonsPausedNote apprentice={next.apprentice} limit={prefs.maxApprentice} /> : null}
+          <WaniKaniMissList missed={missedItems(study.session)} subjects={subjects} />
           </ScrollView>
         </Reveal>
       </Screen>

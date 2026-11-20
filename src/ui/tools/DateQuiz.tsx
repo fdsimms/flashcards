@@ -4,7 +4,7 @@ import { LANGUAGES } from '../../reader/languages';
 import type { Language } from '../../reader/api';
 import { checkTyped, type Check, type Segment } from '../../tools/answer';
 import type { CalendarDate, DateParts, DateSaying } from '../../tools/date';
-import { acceptedForms, dateOptions, quizCalendarStart, sameDate, type DateMode, type DateOption } from '../../tools/dateQuiz';
+import { acceptedForms, dateOptions, quizCalendarStart, sameDate, usualSpelling, type DateMode, type DateOption } from '../../tools/dateQuiz';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
 import { Field, Icon, Tappable } from '../kit';
@@ -91,7 +91,7 @@ export function useDateQuiz({ mode, language, date, parts, saying, sayer, speak,
   const check = () => {
     if (!saying || checked || !typed.trim()) return;
     Keyboard.dismiss();
-    const verdict = checkTyped(typed, acceptedForms(saying));
+    const verdict = checkTyped(usualSpelling(typed, saying), acceptedForms(saying));
     setChecked(verdict);
     // Close counts as missed: the letters off are often an ending, which is the hard part.
     result(verdict.verdict === 'exact');

@@ -462,7 +462,9 @@ def create_app(
     write_cram_themes: WriteThemes | None = None,
     write_rare_words: rare_words.WriteRareWords | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="franki-reader")
+    # No /docs, /redoc or /openapi.json: FastAPI serves those without the passphrase. The schema the
+    # app's types are generated from comes from app.openapi() (openapi.py), which needs no route.
+    app = FastAPI(title="franki-reader", docs_url=None, redoc_url=None, openapi_url=None)
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent

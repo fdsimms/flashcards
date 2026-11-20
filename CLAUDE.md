@@ -308,6 +308,10 @@ functional `setCards(prev => ...)` because the render's own `cards` is stale onc
 return. A screen can also be left mid-await; capture what the request was about before the await
 and compare after.
 
+**A queue sent across an `await` is put back together by a pure function given the queue as it is
+now**, never by position or by which objects it held: it can gain, lose or replace items while the
+send runs (`afterSend`, `afterWordsSent`, `afterSynonymFlush`).
+
 ## Working style
 
 **Recommend the best option.** When there's a choice between several ways to do something,

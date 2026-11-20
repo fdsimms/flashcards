@@ -9,11 +9,12 @@ import { clock, SKIP_SECONDS } from '../../reader/lessons';
 import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { FLAG_IMAGES } from '../flagImages';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Help, Icon, ProgressBar, Screen, Tappable } from '../kit';
+import { Button, ErrorNote, Help, Icon, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useAudioQueue } from '../useAudioQueue';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonScrubber } from './LessonScrubber';
+import { LineScrubber } from './LineScrubber';
 import type { ReaderSource } from './Reader';
 
 /**
@@ -30,6 +31,8 @@ export function NowPlaying() {
   const queue = useAudioQueue();
   const host = useReaderPlayerHost();
   const now = queue.queue.now;
+  // The line under a finger on the text's scrubber, shown in the label until it lifts.
+  const [scrubbing, setScrubbing] = useState<number | null>(null);
   // The sleep timer's minutes count down on screen.
   const [clockNow, setClockNow] = useState(Date.now());
   useEffect(() => {
@@ -133,9 +136,9 @@ export function NowPlaying() {
             </>
           ) : queue.line ? (
             <>
-              <ProgressBar value={queue.line.n / Math.max(1, queue.line.of)} label="Lines played" />
+              <LineScrubber current={queue.line.n - 1} total={queue.line.of} onDrag={setScrubbing} onSeek={host.seekLine} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ ...type.caption, color: c.textSecondary }}>{`Line ${queue.line.n}`}</Text>
+                <Text style={{ ...type.caption, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Line ${(scrubbing ?? queue.line.n - 1) + 1}`}</Text>
                 <Text style={{ ...type.caption, color: c.textSecondary }}>{`of ${queue.line.of}`}</Text>
               </View>
             </>

@@ -1,5 +1,6 @@
 import type { MoneySaying } from '../money';
 import { distinct, type Phrase } from '../phrase';
+import { withEin as addEin } from './number';
 import { germanCardinal, germanCardinalBeforeNoun } from './numbers';
 
 /**
@@ -24,7 +25,7 @@ export function sayGermanMoney(amount: number): MoneySaying {
   const euroWords = (withEin: boolean) => {
     const w = germanCardinalBeforeNoun(euros);
     if (!withEin) return w;
-    return w.replace(/^tausend/, 'eintausend').replace(/^hundert/, 'einhundert');
+    return addEin(w);
   };
   const forms = (withEin: boolean): Phrase[] => {
     const e = euroWords(withEin);

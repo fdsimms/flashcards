@@ -69,6 +69,11 @@ def test_health_needs_no_passphrase() -> None:
     assert client().get("/health").json() == {"status": "ok"}
 
 
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_the_schema_pages_are_not_served(path: str) -> None:
+    assert client().get(path).status_code == 404
+
+
 @pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer nope"}, {"Authorization": "x"}])
 def test_api_routes_refuse_a_missing_or_wrong_passphrase(headers: dict[str, str]) -> None:
     c = client()
@@ -1623,6 +1628,24 @@ def test_a_finished_text_is_offered_to_hear_again_the_next_day_and_counted_once_
     assert len(c.get("/api/relisten", headers=AUTH).json()) == 1
     # Hearing it again isn't a reading: nothing about difficulty or the log changed.
     assert c.get("/api/progress", headers=AUTH).json()["finished"] == 1
+
+
+def test_a_listen_sent_twice_under_one_key_is_counted_once() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    now[0] = NOW + timedelta(days=1)
+    text_id = c.get("/api/relisten", headers=AUTH).json()[0]["id"]
+    url = f"/api/texts/{text_id}/listen"
+    for _ in range(2):
+        assert c.post(url, json={"key": "m1x-abc"}, headers=AUTH).status_code == 204
+    # Its next listen is 3 days on: counted twice, the one after (10 days) would be asked for instead.
+    now[0] = NOW + timedelta(days=5)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1
+    # Another key, or none, is another listen.
+    assert c.post(url, json={"key": "m1x-def"}, headers=AUTH).status_code == 204
+    assert c.post(url, headers=AUTH).status_code == 204
+    assert c.post(url, json={"key": ""}, headers=AUTH).status_code == 422
 
 
 def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:

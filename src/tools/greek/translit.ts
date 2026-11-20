@@ -35,8 +35,9 @@ export function greekRoman(text: string): string {
     const pair = ch + (base(nx) ?? '');
     const wordStart = !isLetter(s[i - 1]);
     // αυ, ευ: v or f, the accent (on υ) moving onto the vowel before it.
-    if ((ch === 'α' || ch === 'ε' || ch === 'ά' || ch === 'έ') && (nx === 'υ' || nx === 'ύ')) {
-      const stressed = ACCENTED.has(ch) || nx === 'ύ';
+    // An accent on the first vowel keeps the two apart (άυλος is á-i-los), as with άι below.
+    if ((ch === 'α' || ch === 'ε') && (nx === 'υ' || nx === 'ύ')) {
+      const stressed = nx === 'ύ';
       const vowel = base(ch) === 'α' ? (stressed ? 'á' : 'a') : stressed ? 'é' : 'e';
       const after = s[i + 2];
       out += vowel + (after === undefined || !isLetter(after) || VOICELESS.has(after) ? 'f' : 'v');
@@ -48,6 +49,8 @@ export function greekRoman(text: string): string {
       i++;
       continue;
     }
+    // In μπτ the π belongs to πτ, so there is no b: Πέμπτη is pémpti.
+    if (ch === 'μ' && nx === 'π' && s[i + 2] === 'τ') { out += 'mp'; i++; continue; }
     if (ch === 'μ' && nx === 'π') { out += wordStart ? 'b' : 'mb'; i++; continue; }
     if (ch === 'ν' && nx === 'τ') { out += wordStart ? 'd' : 'nd'; i++; continue; }
     if (ch === 'γ' && nx === 'κ') { out += wordStart ? 'g' : 'ng'; i++; continue; }

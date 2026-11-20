@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GREEK_SCRIPT as el } from '../../../src/tools/greek/script';
+import { greekRoman } from '../../../src/tools/greek/translit';
 
 const find = (shown: string) => el.words.findIndex((w) => w.shown === shown);
 
@@ -15,5 +16,19 @@ describe('reading Greek aloud', () => {
     expect(el.rule(find('ευχαριστώ'))).toContain('αυ and ευ');
     expect(el.patterns(find('ντομάτα'))).toEqual(['letters:nt']);
     expect(el.rule(find('νερό'))).toBeUndefined();
+  });
+});
+
+describe('Greek in Latin letters', () => {
+  it('keeps the p of πτ after μ, and b for μπ elsewhere', () => {
+    expect(greekRoman('Πέμπτη')).toBe('pémpti');
+    expect(greekRoman('λάμπα')).toBe('lámba');
+    expect(greekRoman('μπίρα')).toBe('bíra');
+  });
+
+  it('reads αυ and ευ as a pair only when the accent is not on the first vowel', () => {
+    expect(greekRoman('αύριο')).toBe('ávrio');
+    expect(greekRoman('ευχαριστώ')).toBe('efharistó');
+    expect(greekRoman('άυπνος')).toBe('áipnos');
   });
 });

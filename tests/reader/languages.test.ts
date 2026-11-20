@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, inDeck, ipaNote, languageNamed, meaningOf, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, inDeck, ipaNote, languageNamed, meaningOf, needsMeaning, wordStatus } from '../../src/reader/languages';
 
 test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
   expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
@@ -48,4 +48,13 @@ test('every language has its own flag, shown before its name', () => {
   const flags = LANGUAGE_ORDER.map((code) => LANGUAGES[code].flag);
   expect(new Set(flags).size).toBe(LANGUAGE_ORDER.length);
   expect(flaggedName('th')).toBe('🇹🇭 Thai');
+});
+
+test('only a real word with no gloss and no parts is looked up', () => {
+  expect(needsMeaning({ status: 'unknown', gloss: null, parts: null })).toBe(true);
+  expect(needsMeaning({ status: 'known', gloss: '', parts: undefined })).toBe(true);
+  expect(needsMeaning({ status: 'unknown', gloss: 'matter', parts: null })).toBe(false);
+  expect(needsMeaning({ status: 'known', gloss: null, parts: 'to enter + heart' })).toBe(false);
+  expect(needsMeaning({ status: 'name', gloss: null, parts: null })).toBe(false);
+  expect(needsMeaning({ status: null, gloss: null, parts: null })).toBe(false);
 });

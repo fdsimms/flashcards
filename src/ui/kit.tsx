@@ -15,6 +15,8 @@ import { useConnectionProblem } from './connection';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
+import { makingSpoken, type StageStep } from '../reader/making';
+import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -192,7 +194,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPress, first, icon, disabled, action }: {
+export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -201,6 +203,8 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
   facts?: { label: string; value: string }[];
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
   loading?: boolean;
+  /** Something is being made in the background: the step under way and a bar of its steps stand in for `detail`, and a turning mark for the chevron. The row should be `disabled`. */
+  making?: StageStep[];
   onPress: () => void;
   /** A menu of more things to do with it (Up Next's Play Next and Play Later). */
   onLongPress?: () => void;
@@ -220,7 +224,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : detail ? [detail] : [])].join('. ')}
+      accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : making ? [makingSpoken(making)] : detail ? [detail] : [])].join('. ')}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
@@ -245,7 +249,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
             <Tag {...badge} />
             {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
           </View>
-        ) : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
+        ) : making ? <MakingProgress steps={making} /> : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
       {action ? (
         <Tappable
@@ -258,7 +262,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
           <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
-      <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
+      {making ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
     </Pressable>
   );
 }

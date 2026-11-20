@@ -1,10 +1,12 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { collectionChanged } from '../core/collectionChanged';
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
 import { ExtraCard } from '../ui/DailyExtras';
+import { backToDecks } from '../ui/leaveScreen';
 import { Review } from '../ui/Review';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useDailyExtras } from '../ui/useDailyExtras';
@@ -59,13 +61,16 @@ export default function ReviewRoute() {
     if (firstFocus.current) { firstFocus.current = false; return; }
     setReloadKey((k) => k + 1);
   }, []));
+  // And when a sync changed the cards under it: another device's answers, or the sync at launch
+  // finishing after the deck was opened. Answering from the copy loaded before would write over them.
+  const changed = useSyncExternalStore(collectionChanged.subscribe, collectionChanged.get);
   // The deck list's counts are from when it was last shown, which is current for every other deck.
   const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
   // With nothing further down the list, offer the first earlier deck that still has cards.
   const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey} onDone={() => router.back()} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey + changed} onDone={() => backToDecks(router)} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       earlierDeck={earlierDeck?.split('::').pop()}

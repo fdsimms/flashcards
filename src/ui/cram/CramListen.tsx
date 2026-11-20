@@ -7,7 +7,7 @@ import type { Note } from '../../core/types';
 import type { Api, AudioLesson, Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { loadNarrator, loadParticle } from '../../reader/lessonStorage';
-import { lessonDetail, lessonsOffered, POLL_MS } from '../../reader/lessons';
+import { lessonDetail, lessonsOffered, POLL_MS, stageSteps } from '../../reader/lessons';
 import { haptic } from '../haptics';
 import { NavRow } from '../kit';
 import { useTheme } from '../theme';
@@ -82,7 +82,7 @@ export function CramListen({ repo, api, cram, notes, language }: { repo: NoteSto
     const why = lesson?.state === 'failed' ? `${lessonDetail(lesson)} Tap to try again.` : `Make an audio lesson from these words: asked in English, a pause to answer, then the ${LANGUAGES[language].name}. Plays with the screen locked.${more}`;
     return <NavRow icon={icon} label="Listen" detail={why} onPress={make} />;
   }
-  if (lesson.state === 'making') return <NavRow icon={icon} label="Listen" detail={`Being made. ${lessonDetail(lesson)}`} disabled onPress={() => undefined} />;
+  if (lesson.state === 'making') return <NavRow icon={icon} label="Listen" making={stageSteps(lesson.stage)} disabled onPress={() => undefined} />;
   return (
     <NavRow
       icon={icon}

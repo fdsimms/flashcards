@@ -79,3 +79,14 @@ export function previousLine(lines: HasAudio[], from: number): number | null {
   for (let i = Math.min(from, lines.length) - 1; i >= 0; i--) if (lines[i].audio) return i;
   return null;
 }
+
+/** The line a finger at `x` points to on a line scrubber `width` wide, 0-based and kept inside the text. */
+export function lineAtX(x: number, width: number, total: number): number {
+  if (width <= 0 || total <= 1) return 0;
+  return Math.min(total - 1, Math.max(0, Math.floor((x / width) * total)));
+}
+
+/** The line a scrub to `to` plays: that line if it has audio, else the next one that does, else the one before. */
+export function playableNear(lines: HasAudio[], to: number): number | null {
+  return firstLine(lines, to) ?? previousLine(lines, to);
+}

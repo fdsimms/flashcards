@@ -5,7 +5,7 @@ const find = (meaning: string) => th.nouns.findIndex((n) => n.meaning === meanin
 
 describe('counting things in Thai', () => {
   it('puts the noun first, then the number, then its classifier', () => {
-    expect(th.say(find('cat'), 3).everyday).toEqual({ text: 'แมวสามตัว', roman: 'maew sǎam tua' });
+    expect(th.say(find('cat'), 3).everyday).toEqual({ text: 'แมวสามตัว', roman: 'maew sǎam dtua' });
     expect(th.say(find('student'), 5).everyday.text).toBe('นักเรียนห้าคน');
     expect(th.say(find('book'), 21).everyday.text).toBe('หนังสือยี่สิบเอ็ดเล่ม');
     expect(th.say(find('cat'), 3).also[0].text).toBe('สามตัว');
@@ -15,5 +15,20 @@ describe('counting things in Thai', () => {
     expect(th.wrong(find('cat'), 3).map((p) => p.text)).toContain('แมวสามคน');
     expect(th.wrong(find('cat'), 3).map((p) => p.text)).not.toContain('แมวสามตัว');
     expect(th.rule(find('car'), 2)).toContain('คัน (khan) counts vehicles');
+  });
+});
+
+describe('Thai classifiers in Latin letters', () => {
+  it('writes ตัว with dt, as the rest of the app writes ต', () => {
+    expect(th.rule(th.nouns.findIndex((n) => n.meaning === 'cat'), 3)).toContain('ตัว (dtua)');
+  });
+});
+
+describe('the wrong picks for a drink', () => {
+  it('never offer the glass for beer or the bottle for coffee, which are right too', () => {
+    const picks = (meaning: string) => th.wrong(th.nouns.findIndex((n) => n.meaning === meaning), 2).map((p) => p.text);
+    expect(picks('beer')).not.toContain('เบียร์สองแก้ว');
+    expect(picks('coffee')).not.toContain('กาแฟสองขวด');
+    expect(picks('cat')).toContain('แมวสองแก้ว');
   });
 });

@@ -6,6 +6,8 @@
 
 /** One answer's timings, in milliseconds. */
 export interface AnswerTiming {
+  /** From Show answer to the frames after the back is drawn (the last flip, not the answer's). */
+  flip?: number;
   /** From the press to the next card on screen (a template card's page loaded). */
   shown?: number;
   /** How long rebuilding the queue took, whenever it ran. */
@@ -31,7 +33,7 @@ export function withSample(recent: readonly number[], shown: number): number[] {
 }
 
 /**
- * The line Review shows: "Card shown: 48 ms (usually 52). Queue: 61 ms. Saved: 140 ms." Each part
+ * The line Review shows: "Flip: 90 ms. Card shown: 48 ms (usually 52). Queue: 61 ms. Saved: 140 ms." Each part
  * appears once it's known; "usually" once three answers have been timed. Null before the first.
  */
 export function timingLine(latest: AnswerTiming | undefined, recentShown: readonly number[]): string | null {
@@ -39,6 +41,7 @@ export function timingLine(latest: AnswerTiming | undefined, recentShown: readon
   const ms = (v: number) => `${Math.round(v)} ms`;
   const usual = recentShown.length >= 3 ? median(recentShown) : undefined;
   const parts = [
+    latest.flip !== undefined ? `Flip: ${ms(latest.flip)}.` : null,
     latest.shown !== undefined ? `Card shown: ${ms(latest.shown)}${usual !== undefined ? ` (usually ${Math.round(usual)})` : ''}.` : null,
     latest.queue !== undefined ? `Queue: ${ms(latest.queue)}.` : null,
     latest.saved !== undefined ? `Saved: ${ms(latest.saved)}.` : null,

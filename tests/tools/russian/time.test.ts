@@ -106,3 +106,12 @@ describe('a time in Russian', () => {
     expect(() => say(3.5, 0)).toThrow(RangeError);
   });
 });
+
+describe('half past in one word', () => {
+  it('takes a hyphen only before a vowel', () => {
+    expect(also(10, 30)).toContain('пол-одиннадцатого');
+    expect(also(22, 30)).toContain('пол-одиннадцатого');
+    expect(also(1, 30)).toContain('полвторого');
+    expect(also(11, 30)).toContain('полдвенадцатого');
+  });
+});

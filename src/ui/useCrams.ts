@@ -162,11 +162,18 @@ async function capOnce(repo: NoteStore): Promise<number> {
   const now = new Date();
   const { dayStartsAtHour } = await repo.collectionSettings();
   if (!all.some((c) => isRunning(c, now, dayStartsAtHour))) return 0;
-  await reviewWrites.idle();
-  const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+  // The cards are read again for each group, after any answer still being written: an answer given
+  // while an earlier group was being moved (each waits its turn for the collection) may have lapsed
+  // a card, and Set Due Date from the copy read before would make it a review due on the cram's day.
+  const plan = async () => {
+    await reviewWrites.idle();
+    const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+    return cardsToCap(all, notes, cards, now, dayStartsAtHour);
+  };
   let moved = 0;
-  for (const [days, group] of cardsToCap(all, notes, cards, now, dayStartsAtHour)) {
-    moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).length;
+  for (const [days] of await plan()) {
+    const group = (await plan()).get(days);
+    if (group?.length) moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).length;
   }
   return moved;
 }

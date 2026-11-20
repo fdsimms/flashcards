@@ -95,3 +95,17 @@ describe('Japanese answers', () => {
     expect(compareTypedAnswer(['esperar'], 'espera')).toEqual(compareTyped('esperar', 'espera'));
   });
 });
+
+describe('spellings the other answer checks take as the same', () => {
+  it('takes е typed for ё as exact', () => {
+    expect(compareTyped('ёлка', 'елка').exact).toBe(true);
+    expect(compareTypedAnswer(['ёлка'], 'елка').exact).toBe(true);
+  });
+
+  it('takes l for ł and o for ø as a missing mark, not other letters', () => {
+    const c = compareTyped('łódź', 'lodz');
+    expect(c.exact).toBe(false);
+    expect(c.sameLetters).toBe(true);
+    expect(compareTyped('øl', 'ol').sameLetters).toBe(true);
+  });
+});

@@ -4,6 +4,8 @@ import { useApp } from '../ui/AppContext';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { ReadVocabCheck } from '../ui/reader/ReadVocabCheck';
 import { useWordAudio } from '../ui/useWordAudio';
+import { leaveScreen } from '../ui/leaveScreen';
+import { READ_PATH } from '../ui/tabPaths';
 
 /** The current Read & Listen language's vocabulary check, from its settings page. */
 export default function ReadVocabCheckRoute() {
@@ -28,7 +30,7 @@ export default function ReadVocabCheckRoute() {
         deck,
         onAdd: (word, meaning) => addWord({ word, meaning, deck, language }),
       } : undefined}
-      onDone={() => router.back()}
+      onDone={() => leaveScreen(router, READ_PATH)}
     />
   );
 }

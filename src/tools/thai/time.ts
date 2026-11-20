@@ -32,11 +32,13 @@ interface HourForm {
   note?: string;
   /** Said only on the hour, never with minutes after it. */
   onTheHour?: boolean;
+  /** Said only with minutes after it. */
+  withMinutes?: boolean;
 }
 
 /** The ways to say the hour `h`, the usual one first; with minutes after it, `minutes` is true. */
 function hourForms(h: number, minutes: boolean): HourForm[] {
-  const forms = hourFormsOnTheHour(h).filter((f) => !minutes || !f.onTheHour);
+  const forms = hourFormsOnTheHour(h).filter((f) => (minutes ? !f.onTheHour : !f.withMinutes));
   // The first two are [with เช้า/เย็น, without]: swap them.
   return minutes && DROPS_PERIOD(h) ? [forms[1], forms[0], ...forms.slice(2)] : forms;
 }
@@ -60,7 +62,8 @@ function hourFormsOnTheHour(h: number): HourForm[] {
     if (h === 17) forms.push({ words: [BAAI, ...n(5), MOHNG] });
     return forms;
   }
-  if (h === 19) return [{ words: [...n(1), THUM] }, { words: [THUM, ...n(1)], onTheHour: true }];
+  // With minutes the 1 is usually left out: ทุ่มครึ่ง.
+  if (h === 19) return [{ words: [...n(1), THUM] }, { words: [THUM, ...n(1)], onTheHour: true }, { words: [THUM], withMinutes: true }];
   return [{ words: [...n(h - 18), THUM] }];
 }
 

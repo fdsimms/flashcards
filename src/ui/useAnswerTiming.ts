@@ -5,14 +5,17 @@ import { timingLine, withSample, type AnswerTiming } from '../core/answerTiming'
 let timingOn = false;
 
 /**
- * Review's answer timing (src/core/answerTiming.ts): `pressed` when an answer button is, then
- * `shown`, `queueTook` and `saved` as each step happens. Every call is a no-op while it's off, and
+ * Review's answer timing (src/core/answerTiming.ts): `revealPressed` and `revealShown` around Show
+ * answer, `pressed` when an answer button is, then `shown`, `queueTook` and `saved` as each step happens. Every call is a no-op while it's off, and
  * nothing here sets state until a step is known, so the answer itself isn't slowed by it.
  */
 export function useAnswerTiming() {
   const [on, setOn] = useState(timingOn);
   const [latest, setLatest] = useState<AnswerTiming>();
   const [recent, setRecent] = useState<number[]>([]);
+  // The last flip, kept until the next one: it happens before the answer, so it isn't part of a sample.
+  const [flip, setFlip] = useState<number>();
+  const flipAt = useRef<number | null>(null);
   // The answer being timed: when its button was pressed, the showing it was pressed on, and what's known so far.
   const sample = useRef<{ at: number; from: string; timing: AnswerTiming } | null>(null);
 
@@ -22,6 +25,24 @@ export function useAnswerTiming() {
     sample.current = null;
     setLatest(undefined);
     setRecent([]);
+    setFlip(undefined);
+    flipAt.current = null;
+  }, []);
+
+  /** Show answer was pressed (or the card tapped). */
+  const revealPressed = useCallback(() => {
+    if (timingOn) flipAt.current = performance.now();
+  }, []);
+
+  /**
+   * The back has been committed. Measured to the second frame after it: the first is drawn with the
+   * mount's layout, and a fade-in that stalls shows up in the one after.
+   */
+  const revealShown = useCallback(() => {
+    const at = flipAt.current;
+    if (at === null) return;
+    flipAt.current = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => setFlip(performance.now() - at)));
   }, []);
 
   /** An answer button was pressed on `from` (the showing). Returns the sample, for `saved`. */
@@ -60,5 +81,6 @@ export function useAnswerTiming() {
     setLatest(of.timing);
   }, []);
 
-  return { on, toggle, pressed, shown, queueTook, flush, saved, line: on ? timingLine(latest, recent) : null };
+  const withFlip = flip === undefined ? latest : { ...latest, flip };
+  return { on, toggle, revealPressed, revealShown, pressed, shown, queueTook, flush, saved, line: on ? timingLine(withFlip, recent) : null };
 }

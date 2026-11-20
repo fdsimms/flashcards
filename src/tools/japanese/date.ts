@@ -1,6 +1,12 @@
-import { type CalendarDate, type DateParts, type DateSaying, isValidDate, weekdayOf } from '../date';
+import { type CalendarDate, type DateParts, type DateSaying, isValidDate, type Spelling, weekdayOf } from '../date';
 import { distinct, phrase, type Phrase, type Word } from '../phrase';
 import { gatsuWord, nenWord, nichiWord } from './numbers';
+
+/**
+ * The other readings of 7 and 9 that are also said: しちねん and くねん for a year, なながつ for July,
+ * じゅうななにち and じゅうきゅうにち for a day. くねん not after ろ or ゃ, where it's the end of ろくねん or ひゃくねん.
+ */
+const OTHER_READINGS: Spelling[] = [['しちねん', 'ななねん'], [/(?<![ろゃ])くねん/gu, 'きゅうねん'], ['なながつ', 'しちがつ'], ['じゅうななにち', 'じゅうしちにち'], ['じゅうきゅうにち', 'じゅうくにち']];
 
 /*
  * A date in Japanese, largest first: the year, the month, the day, then the weekday (2026年11月13日
@@ -59,5 +65,5 @@ export function sayJapaneseDate(d: CalendarDate, parts: DateParts): DateSaying {
     also.push(said([era.name, eraYear(era.year), ...dayAndMonth, ...(parts.weekday ? [weekday] : [])], `The year of the era (${era.name[0]})`));
   }
   const written = { text: `${parts.year ? `${d.year}年` : ''}${d.month}月${d.day}日${parts.weekday ? `（${weekdayKanji}）` : ''}` };
-  return { everyday, also: distinct([everyday, ...also]).slice(1), written };
+  return { everyday, also: distinct([everyday, ...also]).slice(1), written, spellings: OTHER_READINGS };
 }

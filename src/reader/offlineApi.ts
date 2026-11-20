@@ -25,6 +25,9 @@ export interface OfflineDeps {
   settings: () => Settings | null;
 }
 
+/** An id for one listen, made on the phone: the server counts a listen it has seen under it once. */
+export const listenKey = (now = Date.now(), random: () => number = Math.random): string => `${now.toString(36)}-${random().toString(36).slice(2, 12)}`;
+
 const notKept = () => new ApiError("This text isn't on this iPhone, and the server can't be reached. Try again when you're back online.", 0);
 
 export function withOffline(api: Api, deps: OfflineDeps): Api {
@@ -118,7 +121,8 @@ export function withOffline(api: Api, deps: OfflineDeps): Api {
       }
     },
     logReading: (id, log) => sendOrHold({ kind: 'reading', textId: id, log }, () => api.logReading(id, log)),
-    logListen: (id) => sendOrHold({ kind: 'listen', textId: id }, () => api.logListen(id)),
+    // One id for the listen, whether it's sent now or held and sent later (and then maybe twice).
+    logListen: (id, key = listenKey()) => sendOrHold({ kind: 'listen', textId: id, key }, () => api.logListen(id, key)),
     chooseNext: (id, choice) => sendOrHold({ kind: 'choice', textId: id, choice }, () => api.chooseNext(id, choice)),
     audioSource: (id: number, line: number, rate = 1) => {
       const copy = saved(id);

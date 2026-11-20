@@ -36,7 +36,9 @@ function reduced(stressed: string): { o: boolean; eYa: boolean } {
   const word = plain(stressed);
   const at = stressAt(stressed);
   const others = [...word].filter((_, i) => i !== at);
-  return { o: others.includes('о'), eYa: others.includes('е') || others.includes('я') };
+  // After ж, ш and ц, which are always hard, an unstressed е is closer to ы (жена́), so it isn't counted here.
+  const softE = [...word].some((ch, i) => ch === 'е' && i !== at && !'жшц'.includes(word[i - 1] ?? ''));
+  return { o: others.includes('о'), eYa: softE || others.includes('я') };
 }
 
 export const RUSSIAN_SCRIPT: ScriptLanguage = {

@@ -25,3 +25,12 @@ describe('reading Russian aloud', () => {
     expect(ru.patterns(find('молоко'))).toEqual(['reduced:o']);
   });
 });
+
+describe('an unstressed е after ж, ш or ц', () => {
+  it('is not said to sound like и', () => {
+    expect(ru.rule(find('жена'))).toBe('The stress is on а: жена́.');
+    expect(ru.patterns(find('жена'))).toEqual([]);
+    // After any other consonant it still is.
+    expect(ru.rule(find('телефон'))).toContain('An unstressed е or я sounds close to и.');
+  });
+});

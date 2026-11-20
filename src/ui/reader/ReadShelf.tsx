@@ -479,6 +479,8 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       <GlossPopover
         tapped={tapped}
         language={shelf.language}
+        // A word of "Last time" is looked up in the sense of its line.
+        meaningLookup={(word) => api.wordMeaning(shelf.language, word.text, story.last_recap_line?.words.includes(word) ? story.last_recap_line.english : undefined)}
         grammar={null}
         api={api}
         grammarChosen={{}}
