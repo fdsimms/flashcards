@@ -348,8 +348,32 @@ def test_a_cards_sentence_asks_about_the_words_nothing_glosses_with_its_english(
         [("Varm mat!", "Warm food!"), ("Mat og vann.", "Food and water.")],
         lexicon,
         {"mat": "food", "vann": "water"},
+        {},
     )
-    assert asked == [Wanted("varm", "Warm food!"), Wanted("og", "Food and water.")]
+    assert asked == [
+        Wanted("varm", "Warm food!", None, "Varm mat!"),
+        Wanted("og", "Food and water.", None, "Mat og vann."),
+    ]
+
+
+def test_a_card_sentence_keeps_its_own_meaning_apart_from_the_languages() -> None:
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    # "varm" has a meaning kept for the language, but each sentence is asked for its own sense.
+    asked = missing_in_sentences([("Varm mat!", "Warm food!")], lexicon, {"mat": "food"}, {})
+    assert [w.word for w in asked] == ["varm"]
+    # Once a sentence has been asked, it isn't asked again, even for a word with no usable meaning.
+    own = {"Varm mat!": {"varm": ""}}
+    assert missing_in_sentences([("Varm mat!", "Warm food!")], lexicon, {"mat": "food"}, own) == []
+
+    conn = store.connect(":memory:")
+    store.save_meaning_batch(
+        conn, "nb", {"varm": "warm"}, NOW, 0, sentences={"Varm mat!": {"varm": "hot"}}
+    )
+    store.save_meaning_batch(
+        conn, "nb", {"varm": "warm"}, NOW, 0, sentences={"Varm suppe.": {"varm": "warm"}}
+    )
+    kept = store.sentence_meanings(conn, "nb", ["Varm mat!", "Varm suppe.", "Never asked."])
+    assert kept == {"Varm mat!": {"varm": "hot"}, "Varm suppe.": {"varm": "warm"}}
 
 
 def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() -> None:
@@ -366,6 +390,7 @@ def test_the_engine_fills_card_sentences_and_shares_the_cooldown_with_texts() ->
     engine._meanings_failed.clear()
     asyncio.run(engine.fill_sentence_meanings([("Varm suppe.", "Warm soup.")], "nb"))
     assert engine.meanings("nb")["suppe"] == "meaning of suppe"
+    assert store.sentence_meanings(conn, "nb", ["Varm suppe."])["Varm suppe."]["suppe"]
 
 
 def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list() -> None:

@@ -71,7 +71,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   if (firstField && (!existing || duplicateOf([existing], { model: note.model, fields: draft.fields }, firstField) === undefined)) {
     const [all, cards] = await Promise.all([store.listNotes(), store.listCards()]);
     const other = duplicateOf(notesStillThere(all, cards), { id: existing?.id, model: note.model, fields: draft.fields }, firstField);
-    if (other) throw new NoteRefused(`Another ${note.model} note in ${untiered(other.deck)} already has this ${firstField}, so this one wasn't saved.`);
+    if (other) throw new NoteRefused(`${untiered(other.deck)} already has a note with this ${firstField}, so this one wasn't saved.`);
   }
   const generated = cardsFor(note, noteTypes, now);
   if (!generated.length) {
