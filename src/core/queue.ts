@@ -15,6 +15,12 @@ export interface Queue {
   fresh: Card[];
   /** All of them, in the order they come up (`treeQueue`). */
   order: Card[];
+  /**
+   * The stretch of `order` where reviews, day-long learning and new cards are mixed (the preset's
+   * mix options): `order` less the learning steps due now before it and those within the learn-ahead
+   * limit after it. `keepSessionOrder` (session.ts) holds it steady across rebuilds.
+   */
+  main: Card[];
 }
 
 const dueCache = new WeakMap<Card['sched'], { due: string; ms: number }>();
