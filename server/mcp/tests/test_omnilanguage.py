@@ -153,6 +153,12 @@ def test_a_literal_line_must_pair_with_each_example():
     assert "context-labels" in rules({**two, "ContextLiteral": "The settings are in the menu."})
 
 
+def test_a_literal_that_repeats_the_translation_is_cleared():
+    same = {**GERMAN_NOUN, "ContextLiteral": "the settings are in the menu"}
+    assert "literal-redundant" in rules(same)
+    assert "literal-redundant" not in rules({**GERMAN_NOUN, "ContextLiteral": "The settings are in the menu there."})
+
+
 def test_several_examples_need_a_label_each():
     two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
            "ContextTranslation": "The settings are in the menu.<br>His attitude is good."}  # fmt: skip

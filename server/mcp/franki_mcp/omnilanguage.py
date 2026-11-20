@@ -138,6 +138,7 @@ RULES: dict[str, str] = {
     "context-labels": "Several examples without a matching ContextLabels line for each",
     "context-end-punctuation": "A Japanese example with no 。",
     "translation-missing": "No translation of the example",
+    "literal-redundant": "ContextLiteral says the same as ContextTranslation",
     "switch-value": "A card switch holds something other than y",
     "register-missing": "Register is empty",
     "register-unknown": "Register is not one of the list",
@@ -545,6 +546,10 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 for piece in re.split(r"<\s*br\s*/?>", context) if plain(piece)
             )  # fmt: skip
             add("context-end-punctuation", "Context", "format", "A Japanese sentence ends with 。", {"Context": fixed})
+        words = lambda name: re.sub(r"[^\w\s]", "", txt(name).lower()).split()  # noqa: E731
+        if txt("ContextLiteral") and words("ContextLiteral") == words("ContextTranslation"):
+            add("literal-redundant", "ContextLiteral", "format",
+                "ContextLiteral is only for a literal reading that differs from the translation: clear it.", {"ContextLiteral": ""})  # fmt: skip
         if not (lang and lang.definition) and not txt("ContextTranslation"):
             add("translation-missing", "ContextTranslation", "required", "Translate the example into natural American English.")
 
@@ -763,9 +768,10 @@ Context: one full sentence of 5 to 12 words in an everyday setting, at or below 
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
 ContextTranslation: the sentence in natural American English, as a person would say it.
-ContextLiteral: optional. The same sentence word for word, in the original's order, so the learner sees how it
-  is built ("Even though tired, still working." under "I keep working even though I'm tired."). Leave it empty
-  when the natural translation already follows the original closely. Numbered examples: one line each, as above.
+ContextLiteral: only when the word-for-word reading differs from ContextTranslation in a way that teaches
+  something about the sentence's structure ("Even though tired, still working." under "I keep working even
+  though I'm tired."). Empty when the two say about the same thing (quiero comida: "I want food" needs no
+  "want food"). Numbered examples: one line each, as above.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
