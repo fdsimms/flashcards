@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import type { ReaderText } from '../../src/reader/api';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog } from '../../src/reader/session';
 
+const QUIZ = { choices: ['a', 'b', 'c', 'd'], answer: 0 };
 const TEXT: ReaderText = { id: 7, topicId: 1, title: 't', coverage: 0.97, stretch: [], roles: {}, form: 'dialogue', language: 'th', grammar: [], lines: [] };
 
 test('looking a word up records it once', () => {
@@ -32,8 +33,8 @@ test('the log carries the words and whole seconds', () => {
 });
 
 test('quiz answers are logged by word, the latest answer kept, and never count as a lookup', () => {
-  let s = answerQuiz(startSession(TEXT, 0), 'ทอน', false);
-  s = answerQuiz(answerQuiz(s, 'ทอน', true), 'ดี', false);
+  let s = answerQuiz(startSession(TEXT, 0), 'ทอน', false, { quiz: QUIZ, picked: 1 });
+  s = answerQuiz(answerQuiz(s, 'ทอน', true, { quiz: QUIZ, picked: 0 }), 'ดี', false, { quiz: QUIZ, picked: null });
   expect(s.quizRight).toEqual(['ทอน']);
   expect(s.quizWrong).toEqual(['ดี']);
   expect(s.glossed).toEqual([]);
@@ -70,4 +71,12 @@ test('the log carries the check after reading only when it was taken', () => {
   expect(toLog(s, 0, true, { right: 3, asked: 5 })).toMatchObject({ check_right: 3, check_asked: 5 });
   expect(toLog(s, 0, true, { right: 0, asked: 0 })).not.toHaveProperty('check_asked');
   expect(toLog(s, 0, true)).not.toHaveProperty('check_asked');
+});
+
+test('an answered quiz is kept by word with its choices and pick, the latest answer replacing the one before', () => {
+  let s = answerQuiz(startSession(TEXT, 0), 'ทอน', false, { quiz: QUIZ, picked: null });
+  expect(s.quizAnswers['ทอน']).toEqual({ quiz: QUIZ, picked: null });
+  s = answerQuiz(s, 'ทอน', true, { quiz: QUIZ, picked: 0 });
+  expect(s.quizAnswers).toEqual({ 'ทอน': { quiz: QUIZ, picked: 0 } });
+  expect(toLog(s, 0, true)).not.toHaveProperty('quizAnswers');
 });

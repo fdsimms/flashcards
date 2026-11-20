@@ -100,7 +100,7 @@ import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { useNewWordsStep } from './useNewWords';
-import { ReviewMenu } from './ReviewMenu';
+import { reviewMenu } from './ReviewMenu';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
 import { compareTypedAnswer } from '../core/typedCompare';
@@ -1391,28 +1391,28 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               setReloads((n) => n + 1);
             })}
           />
-          <ReviewMenu
-            flag={current.flag ?? 0}
-            onMnemonic={canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined}
-            onLinkConfused={canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined}
-            onAskClaude={() => {
+          {reviewMenu({
+            flag: current.flag ?? 0,
+            onMnemonic: canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined,
+            onLinkConfused: canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined,
+            onAskClaude: () => {
               const card = cardForClaude(note, noteTypes.get(note.model), current.kind);
               if (card) sheets.request({ key: 'ask', kind: 'ask', card });
               else Alert.alert("Can't ask about this card", 'This card has no text to ask about. Open its note to see the fields.');
-            }}
-            onFlag={(flag) => setStates([current], (s) => ({ ...s, flag }))}
-            onAgentFlag={chooseAgentFlag}
-            onBuryCard={() => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow')}
-            onBuryNote={() => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow')}
-            onSuspend={() => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card')}
-            onDueDate={chooseDueDate}
-            onForget={chooseForget}
+            },
+            onFlag: (flag) => setStates([current], (s) => ({ ...s, flag })),
+            onAgentFlag: chooseAgentFlag,
+            onBuryCard: () => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow'),
+            onBuryNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow'),
+            onSuspend: () => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card'),
+            onDueDate: chooseDueDate,
+            onForget: chooseForget,
             // The deck is loaded again when Card Info closes: the same card stays on screen.
-            onCardInfo={() => { setPreferId(current.id); onCardInfo(current.id); }}
-            timingOn={timing.on}
-            onTiming={timing.toggle}
-            onSettings={onSettings}
-          />
+            onCardInfo: () => { setPreferId(current.id); onCardInfo(current.id); },
+            timingOn: timing.on,
+            onTiming: timing.toggle,
+            onSettings,
+          })}
         </Stack.Toolbar>
       }
       footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}

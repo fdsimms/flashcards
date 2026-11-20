@@ -46,6 +46,12 @@ export function skipTo(h: Pick<Handoff, 'lines' | 'current'>, step: -1 | 1): num
   return step < 0 ? previousLine(h.lines, h.current) : firstLine(h.lines, h.current + 1);
 }
 
+/** The line at `n` (0-based) among the lines that have audio, the way Now Playing's scrubber counts; null past the end. */
+export function voicedLineAt(h: Pick<Handoff, 'lines'>, n: number): number | null {
+  const voiced = h.lines.map((l, i) => (l.audio ? i : -1)).filter((i) => i >= 0);
+  return voiced[n] ?? null;
+}
+
 /** The line to show as "Line n of m": counted among the lines that have audio. */
 export function linePosition(h: Pick<Handoff, 'lines' | 'current'>): { n: number; of: number } {
   const voiced = h.lines.map((l, i) => (l.audio ? i : -1)).filter((i) => i >= 0);
