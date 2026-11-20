@@ -2539,7 +2539,8 @@ def save_meaning_batch(
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
     A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
     language keeps the first meaning a word was given, as the fallback for a text or a card's
-    sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
+    sentence with none of its own; an empty one is replaced when a later ask (a tap on the word)
+    gets a usable meaning. `texts` is the meanings each text was asked for, by text id,
     added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
     and how many it gave a meaning for, when one word was asked for in more than one text.
     `registers` is the registers Claude gave, by text id and word, added to that text's own.
@@ -2575,8 +2576,10 @@ def save_meaning_batch(
             ),
         ).lastrowid
         conn.executemany(
-            "INSERT OR IGNORE INTO word_meanings (language, word, meaning, batch_id)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO word_meanings (language, word, meaning, batch_id) VALUES (?, ?, ?, ?)"
+            " ON CONFLICT (language, word) DO UPDATE SET meaning = excluded.meaning,"
+            " batch_id = excluded.batch_id"
+            " WHERE word_meanings.meaning = '' AND excluded.meaning != ''",
             [(language, word, meaning, batch) for word, meaning in meanings.items()],
         )
         conn.executemany(

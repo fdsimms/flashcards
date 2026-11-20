@@ -11,7 +11,7 @@ import { lineSide, scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
-import { COMMON_WORD_STATUS, LANGUAGES, inDeck, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, LANGUAGES, inDeck, needsMeaning, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
 import { LineScrubber } from './LineScrubber';
 import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
@@ -1071,6 +1071,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         characters={text?.xray}
         onXray={text?.xray?.length ? () => { setTapped(null); setXrayOpen(true); } : undefined}
         language={text?.language}
+        // The line the word is in tells Claude which sense is meant; a recap's word is in "Last time"'s line.
+        meaningLookup={text ? (word) => api.wordMeaning(text.language, word.text, text.lines.find((l) => l.words.includes(word))?.english ?? (text.last_time?.line?.words.includes(word) ? text.last_time.line.english : undefined)) : undefined}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
         api={api}
         grammarChosen={grammarChosen}
@@ -1192,7 +1194,7 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, characters, onXray, language, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, characters, onXray, language, meaningLookup, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
   tapped: Tapped | null;
   /** The series' characters as of this episode (X-Ray): a name word that is one shows who they are in place of "A name". */
   characters?: StoryCharacter[];
@@ -1200,6 +1202,11 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   onXray?: () => void;
   /** The language the word is in, for its form's explanation; none, and no form chip is shown (a card's sentence has no forms). */
   language?: Language;
+  /**
+   * Looks up the meaning of a word that has none (`needsMeaning`), asked when the popover opens on one and shown in
+   * its place ("Looking up the meaning" until it answers). Left out where the screen doesn't know the line's English.
+   */
+  meaningLookup?: (word: Word) => Promise<string | null>;
   grammar: TextGrammar | null;
   api: Api;
   grammarChosen: Record<string, GrammarChoice>;
@@ -1228,7 +1235,18 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
   // choice picked (null for "I don't know").
   const [revealed, setRevealed] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
+  // The meaning looked up for the tapped word: null while it's being asked for, '' when there is none to show.
+  const [looked, setLooked] = useState<string | null>('');
   useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
+  useEffect(() => {
+    setLooked('');
+    if (!tapped || !meaningLookup || tapped.guess || !needsMeaning(tapped.word)) return;
+    // The tap that opened another word, or closed this one, drops the answer.
+    let current = true;
+    setLooked(null);
+    meaningLookup(tapped.word).then((meaning) => { if (current) setLooked(meaning ?? ''); }, () => { if (current) setLooked(''); });
+    return () => { current = false; };
+  }, [tapped]); // eslint-disable-line react-hooks/exhaustive-deps -- a new lookup function each render is the same lookup; the tap is what changes it
   if (!tapped) return null;
   const character = characterOfWord(tapped.word, characters);
   if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
@@ -1298,7 +1316,7 @@ export function GlossPopover({ tapped, characters, onXray, language, grammar, ap
                 <ReadGlossLine
                   word={tapped.word}
                   below={tipBelow}
-                  meaning={mode?.quiz && (revealed || answered) ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={shownPick} settled={!!answered} /> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
+                  meaning={mode?.quiz && (revealed || answered) ? <QuizChoices choices={mode.quiz.choices} answer={mode.quiz.answer} picked={shownPick} settled={!!answered} /> : looked === null ? <Text style={{ ...type.body, color: c.textSecondary, flexShrink: 1 }}>Looking up the meaning</Text> : looked ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{looked}</Text> : character ? <Text style={{ ...type.body, color: c.text, flexShrink: 1 }}>{character.description}</Text> : undefined}
                 />
                 {(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{(tapped.word.form && helperNote(tapped.word.form)) || tapped.word.contraction}</Text>

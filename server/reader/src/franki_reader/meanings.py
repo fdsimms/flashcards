@@ -6,7 +6,9 @@ entries (เข้าใจ, from เข้า and ใจ), whose parts' meaning
 written, the words in it with no gloss from the text or the deck are glossed in one Claude call, each
 with the English of the line it's in, and the answers are kept with that text (`texts.meanings`), so
 a word shows the sense it has there: Spanish vino is "came" in one text and "wine" in the next. A tap
-never makes a call. A card's example sentence is kept the same way (`sentence_meanings`), so a word
+never makes a call, except a tap on a word with no meaning at all, which asks for that one word
+(`Engine.define_word`, `/api/word-meaning`) and keeps the answer, replacing an empty one. A card's
+example sentence is kept the same way (`sentence_meanings`), so a word
 shows the sense it has in that sentence: เรื่อง is "matter" in one card and "movie" in the next. The
 language also keeps the first meaning each word was given (`word_meanings`), only as the fallback for
 a text or sentence with none of its own. The same pass runs over the texts waiting to be read
@@ -90,6 +92,10 @@ class MeaningsFailed(Exception):
     def __init__(self, message: str, usage: Usage | None = None) -> None:
         super().__init__(message)
         self.usage = usage or Usage()
+
+
+class MeaningsUnavailable(Exception):
+    """No Claude key is set on the server, so nothing can write a meaning."""
 
 
 # Writes the meanings for (word, line in English) pairs, numbered from 1 in the request, and what

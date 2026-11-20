@@ -1245,6 +1245,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
+- **A tap on a word with no meaning asks for one** (20 November 2026, by the owner's decision, which
+  overrides "a tap never makes a call" for meanings). A card's example sentence is glossed once, and a
+  word nothing glossed stayed "No meaning available" (the background pass keeps a word it got nothing
+  for as empty, and the app keeps the first answer). Now the popover on a card's sentence, a lesson's phrases, a text, and the shelf's and a story's
+  "Last time" line calls `/api/word-meaning` for a word with no meaning (`needsMeaning`), passing the
+  line's English: `Engine.define_word` returns the kept one when there is one, else asks Claude for
+  that one word, ignoring the failure cooldown and replacing an empty kept row (`save_meaning_batch`
+  upgrades an empty meaning, never a real one). The answer is kept, so the next tap is free. Grammar
+  explanations pass no lookup (they have no English line), so their taps never make a call.
 - **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), young words first (most fragile, below), then ones reviewed today. No random assignment.
 - **Stretch order: fragile young words first** (15 November 2026, the owner's decision from a review of
   the learning science). The order is words returning from an earlier day (`RETURN_DAYS`), then young
