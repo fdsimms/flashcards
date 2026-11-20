@@ -81,7 +81,7 @@ function MadeOf({ parts }: { parts: Part[] }) {
   const c = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: space.s }}>
-      <FieldLabel>Made of</FieldLabel>
+      <FieldLabel>Made up of</FieldLabel>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
         {parts.map((p) => (
           <View
