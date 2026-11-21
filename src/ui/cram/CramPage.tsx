@@ -208,12 +208,12 @@ export function CramPage(props: {
         {!cram.finishedAt ? (
           <>
             <SectionTitle>Talking points</SectionTitle>
-            {cram.theme ? <CramTalk repo={repo} talk={cram.theme} language={language} /> : null}
+            {cram.themes?.map((talk) => <CramTalk key={talk.title} repo={repo} talk={talk} language={language} />)}
             <Group>
               <NavRow
                 first
                 icon={{ name: 'sparkles', color: c.accent }}
-                label={cram.theme ? 'More ideas' : 'Suggest talking points'}
+                label={cram.themes?.length ? 'More ideas' : 'Suggest talking points'}
                 detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Angles on "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
                 disabled={!props.readerApi || !language}
                 onPress={() => go('/cram-themes')}
@@ -235,7 +235,7 @@ export function CramPage(props: {
                 label="Rehearse"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen plays.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
                 disabled={!props.readerApi || !language}
-                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords, cram.register) }); } }}
+                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.themes?.length === 1 ? cram.themes[0].title : cram.name, rehearsalWords, cram.register) }); } }}
               />
             </Group>
             {props.readerApi ? (

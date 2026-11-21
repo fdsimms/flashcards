@@ -82,8 +82,8 @@ export interface Cram {
   carriedTo?: string;
   /** The language picked for it. Unset, it is the one most of its words are in (`cramLanguage`). */
   language?: Language;
-  /** The theme it was made from, when it was made from one. */
-  theme?: CramTalk;
+  /** The themes used for it (Talking points), in the order they were added. */
+  themes?: CramTalk[];
   /** How casual or formal its talking points, lesson and rehearsals are written. Unset, it follows Settings (`registerLevel.ts`). */
   register?: RegisterLevel;
   /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
@@ -94,7 +94,7 @@ export interface Cram {
   captured?: string[];
   /** Cards asked of Claude for it, shown as being written until a note with the word is in the cram (`pendingRequests`). */
   requested?: CramRequest[];
-  /** Started with "Not sure yet? Get ideas": its name is a stand-in until a theme names it (`withTheme`), and its talking points aren't angles on that name (`themeTopic`). */
+  /** Started with "Not sure yet? Get ideas": its name is a stand-in until a theme names it (`withThemes`), and its talking points aren't angles on that name (`themeTopic`). */
   untitled?: boolean;
 }
 
@@ -334,9 +334,12 @@ export function noteAddedAt(note: Pick<Note, 'id'>): number {
 /** Turns a saved row back into a cram, or undefined when it can't be read. */
 export function parseCram(json: string): Cram | undefined {
   try {
-    const c = JSON.parse(json) as Partial<Cram>;
+    const c = JSON.parse(json) as Partial<Cram> & { theme?: CramTalk };
     if (typeof c.id !== 'string' || typeof c.name !== 'string' || typeof c.date !== 'string' || typeof c.createdAt !== 'string') return undefined;
-    return { ...c, language: isReaderLanguage(c.language) ? c.language : undefined, register: isRegisterLevel(c.register) ? c.register : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
+    // A cram saved before it could keep several themes has one `theme`.
+    const { theme, ...rest } = c;
+    const themes = Array.isArray(c.themes) ? c.themes : theme ? [theme] : undefined;
+    return { ...rest, themes, language: isReaderLanguage(c.language) ? c.language : undefined, register: isRegisterLevel(c.register) ? c.register : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
   } catch {
     return undefined;
   }
@@ -414,11 +417,17 @@ export function pendingRequests(cram: Cram, inCram: Note[]): CramRequest[] {
 /** What the cram's talking points are angles on: its name, or nothing for an untitled cram, whose stand-in name says nothing about the lesson. */
 export const themeTopic = (cram: Pick<Cram, 'name' | 'untitled'>): string => (cram.untitled ? '' : cram.name);
 
-/** The cram with a theme's talking points kept, named after the theme when it had only a stand-in name. */
-export function withTheme(cram: Cram, talk: CramTalk): Cram {
-  if (!cram.untitled) return { ...cram, theme: talk };
+/**
+ * The cram with talking points kept after the ones it has (a theme with the same title replaces
+ * its earlier copy), named after the first of them when it had only a stand-in name.
+ */
+export function withThemes(cram: Cram, talks: CramTalk[]): Cram {
+  if (!talks.length) return cram;
+  const titles = new Set(talks.map((t) => t.title));
+  const themes = [...(cram.themes ?? []).filter((t) => !titles.has(t.title)), ...talks];
+  if (!cram.untitled) return { ...cram, themes };
   const { untitled: _, ...rest } = cram;
-  return { ...rest, name: talk.title, theme: talk };
+  return { ...rest, name: talks[0].title, themes };
 }
 
 /** The name a cram started with "Not sure yet? Get ideas" has until a theme names it: "Thai lesson", or "Lesson" in no language. */
