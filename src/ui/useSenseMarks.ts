@@ -30,6 +30,8 @@ export function useSenseMarks(turn: string | undefined, rendered: RenderedCard |
   const reminder = senseReminder(senses.length, last);
   return {
     marking,
+    /** How many senses the answer has (0 with no numbered Meaning). */
+    count: senses.length,
     /** The reason an answer given now keeps, or undefined with no sense tapped. */
     miss: senses.length ? senseMissKey(marked) : undefined,
     /** The front's line and what its tap shows, or null with nothing missed last time. */

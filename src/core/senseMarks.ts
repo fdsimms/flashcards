@@ -61,6 +61,14 @@ export function senseReminder(count: number, missed: readonly number[]): string 
   return `${count} senses. You missed ${said} last time.`;
 }
 
+/**
+ * The line under the card's front saying how many meanings the answer has, so the learner knows when
+ * they've recalled them all. Null with fewer than two senses, where there is nothing to count. Display only.
+ */
+export function senseCountLabel(count: number): string | null {
+  return count >= 2 ? `${count} meanings` : null;
+}
+
 /** The senses not missed last time, for the front's "Show the ones you got". */
 export function sensesGot(senses: readonly string[], missed: readonly number[]): string[] {
   return senses.filter((_, i) => !missed.includes(i + 1));
