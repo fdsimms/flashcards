@@ -1,6 +1,6 @@
 import type { Language } from '../reader/api';
 import { isOmnilanguage } from './cards';
-import { addCalendarDays, nextStudyDayStart, studyDayKey, studyDayStart } from './day';
+import { addCalendarDays, dayKeyOf, nextStudyDayStart, studyDayKey, studyDayStart } from './day';
 import { headword } from './forms';
 import { htmlToText } from './html';
 import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
@@ -9,14 +9,15 @@ import { noteHasTag } from './priority';
 import type { Card, Note } from './types';
 
 /**
- * A cram (Practice, Cram): a set of words to know by a date, a lesson with a tutor say, or a trip.
- * The words are the notes carrying the cram's tag (`cram::<id>`), so Anki and Claude see them too
- * and can add to them. Until the date:
+ * A cram (Practice, Cram): the plan for a day coming up, a lesson with a tutor say, or a trip: the
+ * words to know by then, the questions to ask the tutor, and what to talk about. The words are the
+ * notes carrying the cram's tag (`cram::<id>`), so Anki and Claude see them too and can add to them.
+ * Until the date:
  *
- * - **Rounds**, short passes through every word, meaning asked and word answered, are offered a few
- *   hours apart (`nextRoundAt`). They are practice, never a rating: a round's Missed it and Got it
- *   are kept in the cram, on the phone, and nothing reaches FSRS (`cramRound.ts`,
- *   tests/core/cramRound.test.ts).
+ * - **Practice**, a pass through the words not yet solid (`practiceProgress`), meaning asked and
+ *   word answered, can be started any time, as often as wanted. It's practice, never a rating: a
+ *   pass's Missed it and Got it are kept in the cram, on the phone, and nothing reaches FSRS
+ *   (`cramRound.ts`, tests/core/cramRound.test.ts).
  * - **The review cap**: a card in a cram whose next review would land after the date is due on the
  *   date instead (`capDays`, passed to the scheduler's `review`, and `cardsToCap` for cards already
  *   scheduled past it). Only ever earlier, so FSRS still sees the real time between reviews.
@@ -27,10 +28,6 @@ import type { Card, Note } from './types';
  */
 
 export const CRAM_TAG_PREFIX = 'cram::';
-/** The least time between the end of one round and the start of the next. */
-export const ROUND_GAP_HOURS = 4;
-/** The most rounds offered in one study day. */
-export const ROUNDS_PER_DAY = 2;
 const HOUR_MS = 3600000;
 
 export interface CramRound {
@@ -47,6 +44,19 @@ export interface CramTalk {
   title: string;
   questions: { text: string; english: string }[];
   story?: { text: string; english: string };
+}
+
+/** A question to ask the tutor, typed on the cram's page and checked off in lesson mode once asked. */
+export interface CramQuestion {
+  id: string;
+  text: string;
+  asked?: boolean;
+}
+
+/** A card asked of Claude for the cram (Add, Make a card): the word in the language and its meaning. */
+export interface CramRequest {
+  text: string;
+  english: string;
 }
 
 export interface Cram {
@@ -75,6 +85,14 @@ export interface Cram {
   theme?: CramTalk;
   /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
   lesson?: { id: number; noteIds: string[] };
+  /** Questions to ask the tutor. */
+  questions?: CramQuestion[];
+  /** Words and phrases typed in during the lesson (lesson mode), to make cards from afterwards. */
+  captured?: string[];
+  /** Cards asked of Claude for it, shown as being written until a note with the word is in the cram (`pendingRequests`). */
+  requested?: CramRequest[];
+  /** Started with "Not sure yet? Get ideas": its name is a stand-in until a theme names it (`withTheme`), and its talking points aren't angles on that name (`themeTopic`). */
+  untitled?: boolean;
 }
 
 /** The languages a cram can be set to, each with its flag, as the editor's Language list shows them. */
@@ -136,23 +154,6 @@ export function daysUntil(cram: Pick<Cram, 'date'>, now: Date, dayStartsAtHour: 
 /** The notes in a cram: those carrying its tag. */
 export const cramNotes = (cram: Pick<Cram, 'id'>, notes: Iterable<Note>): Note[] => [...notes].filter((n) => noteHasTag(n, cramTag(cram)));
 
-/**
- * When the next round opens: `ROUND_GAP_HOURS` after the last one ended, and never a third in one
- * study day (the next day's start instead). At or before `now` means one is open now. Undefined
- * when no round is left before the cram's day ends, or it's finished.
- */
-export function nextRoundAt(cram: Cram, now: Date, dayStartsAtHour: number): Date | undefined {
-  if (cram.finishedAt) return undefined;
-  const end = cramEnd(cram, dayStartsAtHour);
-  if (now >= end) return undefined;
-  const last = cram.rounds.at(-1);
-  let at = last ? new Date(new Date(last.finishedAt).getTime() + ROUND_GAP_HOURS * HOUR_MS) : now;
-  const day = studyDayKey(at > now ? at : now, dayStartsAtHour);
-  const doneThatDay = cram.rounds.filter((r) => studyDayKey(new Date(r.finishedAt), dayStartsAtHour) === day).length;
-  if (doneThatDay >= ROUNDS_PER_DAY) at = nextStudyDayStart(at > now ? at : now, dayStartsAtHour);
-  return at < end ? at : undefined;
-}
-
 export type WordState = 'missed' | 'got' | 'carried' | 'new' | 'none';
 
 /**
@@ -195,9 +196,17 @@ export function carryOver(crams: Cram[], noteIds: Set<string>): { from: Cram; no
   return from && ids.length ? { from, noteIds: ids } : undefined;
 }
 
-/** The tags new notes get in the note editor: every running cram that adds new cards. */
-export function runningCramTags(crams: Cram[], now: Date, dayStartsAtHour: number): string[] {
-  return crams.filter((c) => c.addNew && isRunning(c, now, dayStartsAtHour)).map(cramTag);
+/** The cram's language: the one picked for it, else the one most of its words are in. */
+export const cramLanguageOf = (cram: Cram, notes: Iterable<Note>): Language | undefined => cram.language ?? cramLanguage(cramNotes(cram, notes));
+
+/**
+ * The tags a new note gets (the note editor, the note queue's Approve all): every running cram that
+ * adds new cards and is in the note's language (`readerLanguageOf`), so a batch of Norwegian notes
+ * never lands in a Thai cram. A note in no language Read & Listen knows joins only crams in none.
+ */
+export function runningCramTags(crams: Cram[], notes: Iterable<Note>, language: Language | undefined, now: Date, dayStartsAtHour: number): string[] {
+  const all = [...notes];
+  return crams.filter((c) => c.addNew && isRunning(c, now, dayStartsAtHour) && cramLanguageOf(c, all) === language).map(cramTag);
 }
 
 /**
@@ -349,31 +358,162 @@ export function fullDate(cram: Pick<Cram, 'date'>): string {
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** "6:15 PM" */
-function clock(d: Date): string {
-  const h = d.getHours() % 12 || 12;
-  const m = d.getMinutes();
-  return `${h}:${m < 10 ? '0' : ''}${m} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+/** How many passes in a row a word has to be got the first time to count as solid: one lucky pass isn't enough. */
+export const SOLID_PASSES = 2;
+
+/** Whether the word was got the first time in each of the last `SOLID_PASSES` passes it was in. */
+function isSolid(cram: Cram, noteId: string): boolean {
+  const passes = cram.rounds.filter((r) => r.noteIds.includes(noteId)).slice(-SOLID_PASSES);
+  return passes.length === SOLID_PASSES && passes.every((r) => !r.missed.includes(noteId));
 }
 
-export interface RoundStatus {
-  /** A round can start now. */
-  ready: boolean;
-  /** One line: "Round 2 is ready.", "Next round at 6:15 PM.", "Next round tomorrow.", "No rounds left before Thursday." */
-  text: string;
-  /** "Start round 2" when ready. */
-  action?: string;
+/** Which words are solid (`isSolid`) and which are still to go, in the cram's order. */
+export function practiceProgress(cram: Cram, noteIds: string[]): { solid: string[]; toGo: string[] } {
+  const solid: string[] = [];
+  const toGo: string[] = [];
+  for (const id of noteIds) (isSolid(cram, id) ? solid : toGo).push(id);
+  return { solid, toGo };
 }
 
-/** What the cram's card and page say about rounds. */
-export function roundStatus(cram: Cram, now: Date, dayStartsAtHour: number): RoundStatus {
-  const n = cram.rounds.length + 1;
-  const at = nextRoundAt(cram, now, dayStartsAtHour);
-  const done = cram.rounds.length === 1 ? '1 round done.' : `${cram.rounds.length} rounds done.`;
-  if (!at) return { ready: false, text: cram.rounds.length ? `${done} No rounds left.` : 'No rounds left.' };
-  if (at <= now) return { ready: true, text: cram.rounds.length ? `${done} Round ${n} is ready.` : 'Round 1 is ready.', action: `Start round ${n}` };
-  const sameDay = studyDayKey(at, dayStartsAtHour) === studyDayKey(now, dayStartsAtHour);
-  const nextDay = studyDayKey(at, dayStartsAtHour) === studyDayKey(nextStudyDayStart(now, dayStartsAtHour), dayStartsAtHour);
-  const when = sameDay ? `at ${clock(at)}` : nextDay ? 'tomorrow' : `on ${WEEKDAYS[studyDayStart(at, dayStartsAtHour).getDay()]}`;
-  return { ready: false, text: `${done} Next round ${when}.` };
+/** The words a practice pass goes through: those still to go, or every word once all are solid. */
+export function practiceWords(cram: Cram, noteIds: string[]): string[] {
+  const { toGo } = practiceProgress(cram, noteIds);
+  return toGo.length ? toGo : noteIds;
+}
+
+const wordsText = (n: number) => (n === 1 ? '1 word' : `${n} words`);
+
+/** What the Practice button says: "Practice 14 words", "Practice the 5 to go", "Practice all 14 again". */
+export function practiceLabel(cram: Cram, noteIds: string[]): string {
+  const { solid, toGo } = practiceProgress(cram, noteIds);
+  if (!solid.length) return `Practice ${wordsText(noteIds.length)}`;
+  if (toGo.length) return `Practice the ${toGo.length} to go`;
+  return noteIds.length === 1 ? 'Practice it again' : `Practice all ${noteIds.length} again`;
+}
+
+/** One line on how practice is going: "9 of 14 words solid.", or "Not practiced yet." */
+export function practiceSummary(cram: Cram, noteIds: string[]): string {
+  if (!noteIds.length) return 'No words yet.';
+  if (!cram.rounds.length) return 'Not practiced yet.';
+  const { solid } = practiceProgress(cram, noteIds);
+  return `${solid.length} of ${wordsText(noteIds.length)} solid.`;
+}
+
+/** A word's text as compared: one form of Unicode, spaces collapsed, ignoring case. */
+const textKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** The cards asked of Claude for the cram that aren't in it yet: no note of the cram has the word. */
+export function pendingRequests(cram: Cram, inCram: Note[]): CramRequest[] {
+  const have = new Set(inCram.map((n) => textKey(headword(n))));
+  return (cram.requested ?? []).filter((r) => !have.has(textKey(r.text)));
+}
+
+/** What the cram's talking points are angles on: its name, or nothing for an untitled cram, whose stand-in name says nothing about the lesson. */
+export const themeTopic = (cram: Pick<Cram, 'name' | 'untitled'>): string => (cram.untitled ? '' : cram.name);
+
+/** The cram with a theme's talking points kept, named after the theme when it had only a stand-in name. */
+export function withTheme(cram: Cram, talk: CramTalk): Cram {
+  if (!cram.untitled) return { ...cram, theme: talk };
+  const { untitled: _, ...rest } = cram;
+  return { ...rest, name: talk.title, theme: talk };
+}
+
+/** The name a cram started with "Not sure yet? Get ideas" has until a theme names it: "Thai lesson", or "Lesson" in no language. */
+export const standInName = (languageName: string | undefined): string => (languageName ? `${languageName} lesson` : 'Lesson');
+
+/** The cram with a card asked for (a second ask for the same word is kept once). */
+export function withRequest(cram: Cram, request: CramRequest): Cram {
+  const rest = (cram.requested ?? []).filter((r) => textKey(r.text) !== textKey(request.text));
+  return { ...cram, requested: [...rest, request] };
+}
+
+/** The cram without a card asked for (given up on, or deleted in the queue). */
+export const withoutRequest = (cram: Cram, text: string): Cram => ({ ...cram, requested: (cram.requested ?? []).filter((r) => textKey(r.text) !== textKey(text)) });
+
+/** The cram with a question for the tutor added at the end, or undefined when it's empty or already there. */
+export function withQuestion(cram: Cram, text: string, id: string): Cram | undefined {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const have = cram.questions ?? [];
+  if (!clean || have.some((q) => textKey(q.text) === textKey(clean))) return undefined;
+  return { ...cram, questions: [...have, { id, text: clean }] };
+}
+
+/** The cram with a question checked off as asked, or back. */
+export const withQuestionAsked = (cram: Cram, id: string, asked: boolean): Cram => ({
+  ...cram,
+  questions: (cram.questions ?? []).map((q) => (q.id === id ? { ...q, asked } : q)),
+});
+
+export const withoutQuestion = (cram: Cram, id: string): Cram => ({ ...cram, questions: (cram.questions ?? []).filter((q) => q.id !== id) });
+
+/** The cram with something typed during the lesson kept (a repeat is kept once), or undefined when it's empty or already there. */
+export function withCapture(cram: Cram, text: string): Cram | undefined {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const have = cram.captured ?? [];
+  if (!clean || have.some((c) => textKey(c) === textKey(clean))) return undefined;
+  return { ...cram, captured: [...have, clean] };
+}
+
+export const withoutCapture = (cram: Cram, text: string): Cram => ({ ...cram, captured: (cram.captured ?? []).filter((c) => textKey(c) !== textKey(text)) });
+
+/**
+ * The notes that match what's typed in Add, best first: the word itself, then a word starting with
+ * it, then a meaning with it as a whole word ("again" finds "Could you say that again?"), then
+ * either containing it. Ignores case; at most `limit`.
+ */
+export function searchNotes(notes: Note[], query: string, limit: number): Note[] {
+  const q = textKey(query);
+  if (!q) return [];
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const wholeWord = new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u');
+  const scored: { note: Note; score: number; added: number }[] = [];
+  for (const note of notes) {
+    const word = textKey(headword(note));
+    const meaning = textKey(meaningOf(note));
+    const score = word === q ? 0 : word.startsWith(q) ? 1 : wholeWord.test(meaning) ? 2 : word.includes(q) || meaning.includes(q) ? 3 : -1;
+    if (score >= 0) scored.push({ note, score, added: noteAddedAt(note) });
+  }
+  return scored.sort((a, b) => a.score - b.score || b.added - a.added).slice(0, limit).map((s) => s.note);
+}
+
+/** The days a new cram offers as chips: Today, Tomorrow, then the next three by weekday ("Mon"), as `YYYY-MM-DD` study days. */
+export function dayChoices(now: Date, dayStartsAtHour: number): { label: string; date: string }[] {
+  const today = studyDayStart(now, dayStartsAtHour);
+  return [0, 1, 2, 3, 4].map((n) => {
+    const day = addCalendarDays(today, n);
+    return { label: n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : WEEKDAYS[day.getDay()].slice(0, 3), date: dayKeyOf(day) };
+  });
+}
+
+/** The language a new cram starts in: the one picked for the cram made last, else the one most of its words are in. */
+export function lastCramLanguage(crams: Cram[], notes: Iterable<Note>): Language | undefined {
+  const all = [...notes];
+  for (const c of [...crams].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const l = cramLanguageOf(c, all);
+    if (l) return l;
+  }
+  return undefined;
+}
+
+/** The words missed lately (Trouble's "Missed lately", most missed first) in `language`, as note ids, leaving out `except`. */
+export function missedLately(rows: { note: Note; misses: number }[], language: Language, except: Iterable<string> = []): string[] {
+  const skip = new Set(except);
+  const misses = new Map<string, number>();
+  for (const { note, misses: n } of rows) {
+    if (skip.has(note.id) || readerLanguageOf(note) !== language) continue;
+    misses.set(note.id, (misses.get(note.id) ?? 0) + n);
+  }
+  return [...misses.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
+
+/**
+ * The cram once cards were asked of Claude for words jotted down in the lesson (Make cards for all):
+ * each word asked for is shown as being written (`withRequest`) and its jotting is taken off the
+ * list. Given the cram as it is now, after the request came back, so a word jotted or a question
+ * checked meanwhile is kept, and a jotting already taken off stays off.
+ */
+export function afterCardsAsked(cram: Cram, asked: { capture: string; word: CramRequest }[]): Cram {
+  let next = cram;
+  for (const { capture, word } of asked) next = withoutCapture(withRequest(next, word), capture);
+  return next;
 }

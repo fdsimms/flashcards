@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { markWords, themeDeckWords } from '../../core/cramThemes';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { markWords, themeDeckWords, type ThemeWord } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Repo } from '../../db/repo';
 import type { CramTheme, Language } from '../../reader/api';
@@ -18,7 +18,8 @@ type AddWords = (language: Language, deck: string, entries: { entry: string; mea
  * One theme from the ideas (CramThemes): the words of yours it uses, common words you lack with a +
  * to send each to Claude through the note queue (saving the note in the editor is the approval),
  * and questions to steer the lesson with, each read aloud when tapped. "Things to say" is the
- * story, the same screen with `view="story"`. Use theme hands the theme to the new cram's sheet.
+ * story, the same screen with `view="story"`. Use theme adds the theme to the cram it was asked for
+ * (its questions and story, and its words), and says so if it can't.
  */
 export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehearse, onUse }: {
   repo: Repo;
@@ -30,13 +31,18 @@ export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehe
   onStory: () => void;
   /** Opens Situations on the theme: its title is the scene and its deck words are worked in. */
   onRehearse: (language: Language, scene: string, words: { text: string; english: string }[]) => void;
-  onUse: () => void;
+  /** Keeps the theme on its cram and adds its deck words; the screen says so if this throws. */
+  onUse: (theme: CramTheme, words: ThemeWord[]) => Promise<void>;
 }) {
   const { suggested } = useThemeState();
   const theme = suggested?.themes[index];
   const toolbar = (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button accessibilityLabel="Use this theme" disabled={!theme} onPress={() => { if (suggested && theme) { haptic.tap(); setThemeState({ chosen: { language: suggested.language, theme, words: suggested.words } }); onUse(); } }}>Use theme</Stack.Toolbar.Button>
+      <Stack.Toolbar.Button accessibilityLabel="Use this theme" disabled={!theme} onPress={() => {
+        if (!suggested || !theme) return;
+        haptic.tap();
+        onUse(theme, suggested.words).catch((e) => Alert.alert("Couldn't use the theme", failureText(e, { next: 'Try again.' })));
+      }}>Use theme</Stack.Toolbar.Button>
     </Stack.Toolbar>
   );
   if (!suggested || !theme) {

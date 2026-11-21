@@ -138,8 +138,11 @@ passes `capDays` to `review`, which shortens the interval after fuzz and balanci
 the stored interval and the revlog agree), and `capCramCards` moves reviews already scheduled later
 with Set Due Date (memory state kept, a Manual revlog entry, as Anki writes; one at a time, and
 never a review with no last answer, whose memory state Set Due Date would make up). FSRS still sees the
-real time between reviews; it just gets one sooner. A cram's rounds are practice: their Missed it /
-Got it stay in the cram (`cramRound.ts` imports nothing that schedules, `tests/core/cramRound.test.ts`).
+real time between reviews; it just gets one sooner. A cram's practice (any time, as often as wanted)
+is never a rating: its Missed it / Got it stay in the cram (`cramRound.ts` imports nothing that
+schedules, `tests/core/cramRound.test.ts`). **A new note joins only running crams in its own
+language** (`runningCramTags`, the note editor and Approve all), or a batch approved in one
+language lands in every running cram.
 
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up

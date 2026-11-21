@@ -2290,6 +2290,11 @@ export interface components {
              * @default false
              */
             stretch: boolean;
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
         };
         /** ThemesOut */
         ThemesOut: {

@@ -112,10 +112,10 @@ describe('the request, a theme and its story', () => {
     questions: [{ text: 'q', english: 'e' }], story: { text: 'ฉันสั่งอาหาร', english: 'I order food' },
   };
   it('sends every word with its id and why it is there', () => {
-    expect(themesRequest('th', words, ['Money: x'], ['Taxis'], true)).toEqual({
+    expect(themesRequest('th', words, ['Money: x'], ['Taxis'], true, '  My violin\n recital ')).toEqual({
       language: 'th',
       words: [{ id: 'a', text: 'สั่ง', english: 'order', kind: 'carried' }, { id: 'b', text: 'เผ็ด', english: 'spicy', kind: 'missed' }, { id: 'c', text: 'จาน', english: 'plate', kind: 'deck' }],
-      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true,
+      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true, topic: 'My violin recital',
     });
   });
   it("counts a theme's words by kind and finds the ones still here", () => {

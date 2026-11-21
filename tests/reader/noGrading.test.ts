@@ -37,14 +37,16 @@ const EXEMPT: Record<string, string[]> = {
     'src/ui/Voices.tsx', 'src/ui/tools/GrammarDrill.tsx', 'src/ui/tools/ToolScreen.tsx', 'src/ui/tools/index.tsx',
     'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts',
   ],
-  // A cram's page and its Listen row (src/core/cram.ts) use Read & Listen for a text and an audio
-  // lesson from the cram's words, and import only the NoteStore type; the cram's tag is written by
-  // useCrams.ts, which nothing in src/reader imports. The theme ideas (CramThemes, CramThemeDetail)
-  // ask Read & Listen for themes to talk about and import only the NoteStore and Repo types, the
-  // second for the phone's voice; CramTalk reads a theme's questions aloud the same way. A word to
-  // learn goes to the note queue, where saving the note in the editor is the approval.
+  // A cram's Listen row and its Add (src/core/cram.ts) use Read & Listen for an audio lesson from the
+  // cram's words and to find a word to make a card for (CramMakeCards for every word jotted down in
+  // the lesson at once), and import only the NoteStore type; the
+  // cram's tag is written by useCrams.ts, which nothing in src/reader imports. The talking points
+  // (CramThemes, CramThemeDetail) ask Read & Listen for themes to talk about and import only the
+  // NoteStore and Repo types, the second for the phone's voice; CramTalk reads a theme's questions
+  // aloud the same way. A word to learn goes to the note queue, where saving the note in the editor
+  // (or Approve all, after its alert) is the approval.
   'a cram, which imports only the NoteStore and Repo types': [
-    'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramPage.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx',
+    'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramMakeCards.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx', 'src/ui/cram/CramWords.tsx',
   ],
   // The lesson word picker lists the decks' notes to choose a lesson's words from, and imports only the NoteStore type; it reads, and writes nothing.
   'the audio lesson word picker, which imports only the NoteStore type': ['src/ui/reader/LessonWordPicker.tsx'],

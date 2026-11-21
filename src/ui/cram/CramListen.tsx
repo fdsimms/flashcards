@@ -20,7 +20,7 @@ import { saveCram } from '../useCrams';
  * tap once the words have changed. Off, with the reason, when Read & Listen is off or doesn't make
  * lessons in the cram's language.
  */
-export function CramListen({ repo, api, cram, notes, language }: { repo: NoteStore; api: Api | null; cram: Cram; notes: Note[]; language?: Language }) {
+export function CramListen({ repo, api, cram, notes, language, first }: { repo: NoteStore; api: Api | null; cram: Cram; notes: Note[]; language?: Language; first?: boolean }) {
   const c = useTheme();
   const router = useRouter();
   const [lesson, setLesson] = useState<AudioLesson | null>(null);
@@ -70,21 +70,22 @@ export function CramListen({ repo, api, cram, notes, language }: { repo: NoteSto
   };
 
   const icon = { name: 'headphones' as const, color: c.violet };
-  if (!api) return <NavRow icon={icon} label="Listen" detail="Off. Turn on Read & Listen in Settings to use it." disabled onPress={() => undefined} />;
+  if (!api) return <NavRow first={first} icon={icon} label="Listen" detail="Off. Turn on Read & Listen in Settings to use it." disabled onPress={() => undefined} />;
   if (!language || !lessonsOffered(language)) {
-    return <NavRow icon={icon} label="Listen" detail={language ? `Audio lessons aren't made in ${LANGUAGES[language].name} yet.` : 'Needs words in a language Read & Listen teaches.'} disabled onPress={() => undefined} />;
+    return <NavRow first={first} icon={icon} label="Listen" detail={language ? `Audio lessons aren't made in ${LANGUAGES[language].name} yet.` : 'Needs words in a language Read & Listen teaches.'} disabled onPress={() => undefined} />;
   }
-  if (!phrases.length) return <NavRow icon={icon} label="Listen" detail="Add words with their meanings first." disabled onPress={() => undefined} />;
+  if (!phrases.length) return <NavRow first={first} icon={icon} label="Listen" detail="Add words with their meanings first." disabled onPress={() => undefined} />;
   const more = notes.length > LESSON_MAX_WORDS ? ` The first ${LESSON_MAX_WORDS} words.` : '';
-  if (problem) return <NavRow icon={icon} label="Listen" detail={problem} onPress={make} />;
-  if (busy) return <NavRow icon={icon} label="Listen" detail="Asking for the lesson." loading disabled onPress={() => undefined} />;
+  if (problem) return <NavRow first={first} icon={icon} label="Listen" detail={problem} onPress={make} />;
+  if (busy) return <NavRow first={first} icon={icon} label="Listen" detail="Asking for the lesson." loading disabled onPress={() => undefined} />;
   if (!lesson || lesson.state === 'failed') {
     const why = lesson?.state === 'failed' ? `${lessonDetail(lesson)} Tap to try again.` : `Make an audio lesson from these words: asked in English, a pause to answer, then the ${LANGUAGES[language].name}. Plays with the screen locked.${more}`;
-    return <NavRow icon={icon} label="Listen" detail={why} onPress={make} />;
+    return <NavRow first={first} icon={icon} label="Listen" detail={why} onPress={make} />;
   }
-  if (lesson.state === 'making') return <NavRow icon={icon} label="Listen" making={stageSteps(lesson.stage)} disabled onPress={() => undefined} />;
+  if (lesson.state === 'making') return <NavRow first={first} icon={icon} label="Listen" making={stageSteps(lesson.stage)} disabled onPress={() => undefined} />;
   return (
     <NavRow
+      first={first}
       icon={icon}
       label="Listen"
       detail={current ? lessonDetail(lesson) : `${lessonDetail(lesson)} Made before the words changed.`}

@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { saveNote } from '../anki/noteService';
 import { runningCramTags } from '../core/cram';
 import { failureText } from '../core/failure';
+import { readerLanguageOf } from '../core/leechHint';
 import type { Note } from '../core/types';
 import type { QueuedNote } from '../reader/api';
 import { approvalDraft, reviewTarget } from '../reader/noteQueue';
@@ -30,7 +31,9 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
   return useCallback(async (notes, onProgress) => {
     const noteTypes = await repo.listNoteTypes();
     const { dayStartsAtHour } = await repo.collectionSettings();
-    const crams = runningCramTags(await loadCrams(repo).catch(() => cramsNow()), new Date(), dayStartsAtHour);
+    const allCrams = await loadCrams(repo).catch(() => cramsNow());
+    // Only crams in each note's own language take it (runningCramTags): a batch is often several languages.
+    const allNotes = allCrams.length ? await repo.listNotes() : [];
     const result: Approval = { saved: 0, refused: [], stuck: [] };
     const savedNotes: Note[] = [];
     let done = 0;
@@ -39,6 +42,8 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
       const fromType = noteTypes.get(target.model)?.fields;
       const names = fromType?.length ? fromType : Object.keys(target.fields);
       try {
+        const draft = approvalDraft(note, names, []);
+        const crams = runningCramTags(allCrams, allNotes, readerLanguageOf({ id: '', ...draft }), new Date(), dayStartsAtHour);
         savedNotes.push(await saveNote(repo, approvalDraft(note, names, crams)));
         result.saved++;
       } catch (e) {
