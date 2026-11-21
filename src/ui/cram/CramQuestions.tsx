@@ -4,7 +4,7 @@ import { withQuestion, withoutQuestion, type Cram } from '../../core/cram';
 import { failureText } from '../../core/failure';
 import type { NoteStore } from '../../anki/noteService';
 import { haptic } from '../haptics';
-import { Divider, Field, Group, Icon, SectionTitle, Tappable } from '../kit';
+import { Card, Divider, Field, Group, Icon, SectionTitle, Tappable } from '../kit';
 import { MIN_TAP, space, type, useTheme } from '../theme';
 import { saveCram } from '../useCrams';
 
@@ -61,16 +61,18 @@ export function CramQuestions({ repo, cram }: { repo: NoteStore; cram: Cram }) {
           ))}
         </Group>
       ) : null}
-      <Field
-        label={questions.length ? 'Another question' : 'A question to bring'}
-        value={draft}
-        onChangeText={setDraft}
-        onSubmitEditing={add}
-        submitBehavior="submit"
-        returnKeyType="done"
-        placeholder={'e.g. How do I say "it went well"?'}
-      />
-      {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+      <Card>
+        <Field
+          label={questions.length ? 'Another question' : 'A question to bring'}
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={add}
+          submitBehavior="submit"
+          returnKeyType="done"
+          placeholder={'e.g. How do I say "it went well"?'}
+        />
+        {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+      </Card>
     </View>
   );
 }
