@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 
 import pytest
 
@@ -407,3 +408,19 @@ async def test_text_overrides_need_note_ids(client):
         target_field="Back", voice="en-US-JennyNeural", text_overrides={"not-an-id": "x"},
     )
     assert "note ids" in err
+
+
+async def test_one_word_in_two_languages_is_not_a_duplicate(client, desktop):
+    # One Omnilanguage note type holds every language: German "in" and Norwegian "in" are two notes.
+    desktop.run(
+        "add-notetype", "Omnilanguage", "Entry,Meaning,Language",
+        "+", "add-fields-note", "Omnilanguage", "Deutsch", json.dumps({"Entry": "in", "Meaning": "in", "Language": "german"}),
+        "+", "sync",
+    )
+
+    def note(language: str) -> dict:
+        return {"deck": "Deutsch", "note_type": "Omnilanguage", "fields": {"Entry": "in", "Meaning": "in (trendy)", "Language": language}}
+
+    out = await call(client, "add_notes", notes=[note("norwegian"), note("german")], allow_nonstandard=True, record_audio=False)
+    assert "note_id" in out["results"][0]
+    assert "same first field" in out["results"][1]["error"]
