@@ -133,7 +133,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
           <Text style={{ ...type.title, color: c.text }}>Done</Text>
           <Help>
             {missed.length
-              ? `You missed ${missed.length === 1 ? '1 word' : `${missed.length} words`} at first. Practice again any time: ${missed.length === 1 ? "it's" : "they're"} asked first.`
+              ? `You missed ${missed.length === 1 ? '1 word' : `${missed.length} words`} the first time. Practice again any time and ${missed.length === 1 ? "it'll" : "they'll"} come first.`
               : `You got all ${total === 1 ? 'of it' : `${total} words`} the first time.`}
           </Help>
           {missed.length ? <Help>{missed.map(headword).join(', ')}</Help> : null}
@@ -166,7 +166,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words got so far" />
+        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words you've gotten so far" />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {!note ? (
           <Help>This word isn't in your decks anymore.</Help>

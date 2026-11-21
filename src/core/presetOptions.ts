@@ -67,20 +67,19 @@ export function presetForm(o: PresetOptions): PresetForm {
   };
 }
 
-function wholeNumber(text: string, min: number, max: number, what: string): number | string {
+function wholeNumber(text: string, min: number, max: number): number | string {
   const t = text.trim();
-  if (!/^\d+$/.test(t)) return `Enter ${what} as a whole number.`;
   const n = Number(t);
-  if (n < min || n > max) return `Enter a number from ${min} to ${max}.`;
+  if (!/^\d+$/.test(t) || n < min || n > max) return `Enter a whole number from ${min} to ${max}.`;
   return n;
 }
 
 /** The options a form holds, or what's wrong with each field that can't be used. */
 export function parsePresetForm(f: PresetForm): { options: PresetOptions } | { errors: Partial<PresetForm> } {
   const errors: Partial<PresetForm> = {};
-  const newPerDay = wholeNumber(f.newPerDay, 0, LIMIT_MAX, 'the limit');
-  const reviewsPerDay = wholeNumber(f.reviewsPerDay, 0, LIMIT_MAX, 'the limit');
-  const maxInterval = wholeNumber(f.maxInterval, 1, MAX_INTERVAL_MAX, 'the interval');
+  const newPerDay = wholeNumber(f.newPerDay, 0, LIMIT_MAX);
+  const reviewsPerDay = wholeNumber(f.reviewsPerDay, 0, LIMIT_MAX);
+  const maxInterval = wholeNumber(f.maxInterval, 1, MAX_INTERVAL_MAX);
   if (typeof newPerDay === 'string') errors.newPerDay = newPerDay;
   if (typeof reviewsPerDay === 'string') errors.reviewsPerDay = reviewsPerDay;
   if (typeof maxInterval === 'string') errors.maxInterval = maxInterval;
@@ -136,7 +135,7 @@ export function ownValuesNote(own: DeckOwnValues): string | undefined {
   const lines: string[] = [];
   if (kept.length) {
     const list = kept.length === 1 ? kept[0] : `${kept.slice(0, -1).join(', ')} and ${kept.at(-1)}`;
-    lines.push(`Has its own ${list}, set in Anki, so ${kept.length === 1 ? 'the one' : 'the ones'} here ${kept.length === 1 ? "doesn't" : "don't"} change ${kept.length === 1 ? 'it' : 'them'}.`);
+    lines.push(`Uses its own ${list} from Anki, so changing ${kept.length === 1 ? 'it' : 'them'} here doesn't affect this deck.`);
   }
   if (today.length) lines.push(`Has a ${today.join(' and ')} limit for today only, so a new limit here starts tomorrow.`);
   return lines.length ? lines.join(' ') : undefined;

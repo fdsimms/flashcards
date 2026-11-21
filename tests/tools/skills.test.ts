@@ -165,14 +165,14 @@ describe('skill progress', () => {
     expect(sections.map((s) => s.title)).toEqual(['Telling the time', 'Numbers']);
     expect(sections[0].rows).toEqual([
       { title: "O'clock and half past", detail: 'Next in 12 days', meter: 94, locked: false },
-      { title: 'Quarter past and to', detail: "Comes in after o'clock and half past settles", locked: true },
+      { title: 'Quarter past and to', detail: "Starts once you know o'clock and half past well", locked: true },
     ]);
     expect(sections[1].rows.map((r) => r.detail)).toEqual(['Not started yet', 'Due tomorrow']);
   });
 
   it('counts a set of letters by how many have settled', () => {
     const sections = skillSections([info('skill::consonants', { settled: true }), info('skill::consonants'), info('skill::consonants', { started: false })]);
-    expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 settled · 1 not started', meter: 33, locked: false }] }]);
+    expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 learned · 1 not started', meter: 33, locked: false }] }]);
   });
 
   it('is empty with no skill cards', () => {

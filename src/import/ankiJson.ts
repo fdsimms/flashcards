@@ -315,8 +315,8 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   }
   if (notGenerated) {
     warnings.push(notGenerated === 1
-      ? "1 Omnilanguage card was skipped: Anki still has it, but its note's Generate field for that card type is turned off, so Franki doesn't make it. It stays in Anki as it is."
-      : `${notGenerated} Omnilanguage cards were skipped: Anki still has them, but their notes' Generate fields for those card types are turned off, so Franki doesn't make them. They stay in Anki as they are.`);
+      ? "Skipped 1 Omnilanguage card: its note's Generate field for that card type is off. It stays in Anki."
+      : `Skipped ${notGenerated} Omnilanguage cards: their notes' Generate fields for those card types are off. They stay in Anki.`);
   }
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');

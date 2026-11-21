@@ -136,7 +136,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
           if (pending.current) commit({ voice, pitch }); else hear({ voice, pitch });
         }} busy={audio.busy} />
         <Help>
-          {`Choosing a voice or changing the pitch plays a line. A higher pitch suits a child and a lower one an older person; an adult is usually at 0 (a man is a little higher, as the narrator has the man's voice). Only ${gender === 'male' ? "men's" : "women's"} voices are listed.`}
+          {`Choosing a voice or changing the pitch plays a line. Use a higher pitch for a child and a lower one for an older person. Only ${gender === 'male' ? "men's" : "women's"} voices are listed.`}
         </Help>
       </ScrollView>
     </Screen>

@@ -164,7 +164,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         {scroll(
           bank.state === 'failed'
             ? <ErrorNote message={`Couldn't write the ${name} questions. Try again in a few minutes.`} onRetry={() => setAttempt((n) => n + 1)} />
-            : <Help>The server can't write the questions because it has no Claude key. Add one to the server's settings, then open this again.</Help>,
+            : <Help>Your Read & Listen server has no Claude key, so it can't write the questions. Add the key to the server's settings, then open this again.</Help>,
         )}
       </Screen>
     );

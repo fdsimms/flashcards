@@ -30,7 +30,7 @@ export function WordChoiceCard({ choice, onChoose, onRemove }: {
           <CheckRow key={w.entry} label={w.entry} hint={w.meaning} selected={false} onPress={() => onChoose(w)} />
         ))}
       </Group>
-      <Help>Choosing another word closes this note and fills one in for that word instead. It comes back to the queue ready to check.</Help>
+      <Help>Choosing another word starts a new note for it. It'll be in the list again, ready to review.</Help>
       <Button label={`Neither. Remove ${choice.typed} from the queue`} variant="destructive" onPress={onRemove} />
     </View>
   );

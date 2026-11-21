@@ -56,7 +56,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
       'plain-text', current !== null ? String(current) : '', 'number-pad',
     );
   };
-  const customLimit = () => askLimit('Apprentice limit', "Lessons are offered only up to this many items at Apprentice.", prefs.maxApprentice, (maxApprentice) => setPrefs({ maxApprentice }));
+  const customLimit = () => askLimit('Apprentice limit', 'Stop offering lessons once this many items are at Apprentice.', prefs.maxApprentice, (maxApprentice) => setPrefs({ maxApprentice }));
   const customLessons = () => askLimit('Lessons per day', 'The most lessons to offer in a study day.', prefs.newPerDay, (newPerDay) => setPrefs({ newPerDay }));
   const customLessonsOn = !NEW_PER_DAY_CHOICES.includes(prefs.newPerDay);
 
@@ -104,10 +104,9 @@ export function WaniKaniSettings({ wanikani, decks }: {
             {wanikani.user ? <Help>{`Signed in as ${wanikani.user.username}, level ${wanikani.user.level}.`}</Help> : null}
             {wanikani.problem ? <ErrorNote message={problemText(wanikani.problem)} onRetry={() => wanikani.refresh(true)} /> : null}
             {wanikani.unsent ? (
-              <Help>{`${wanikani.unsent} ${wanikani.unsent === 1 ? "answer hasn't" : "answers haven't"} reached WaniKani yet. Franki sends them when it can reach it.`}</Help>
+              <Help>{`${wanikani.unsent} ${wanikani.unsent === 1 ? "answer hasn't" : "answers haven't"} reached WaniKani yet. Franki sends them once WaniKani answers.`}</Help>
             ) : null}
             <Button label="Turn off" variant="destructive" onPress={turnOff} />
-            <Help>Turning it off forgets the token on this iPhone. Production cards already made stay in your deck.</Help>
           </Card>
         ) : (
           <Card>
@@ -134,13 +133,13 @@ export function WaniKaniSettings({ wanikani, decks }: {
           <SwitchRow
             first
             label="Type the meaning"
-            hint="As on WaniKani. Off, the answer is shown and you rate it Again or Good, like your other decks. Again counts as one wrong answer."
+            hint="As on WaniKani. When off, you see the answer and rate it Again or Good. Again sends WaniKani one wrong answer."
             value={prefs.typeMeaning}
             onValueChange={(typeMeaning) => setPrefs({ typeMeaning })}
           />
           <SwitchRow
             label="Type the reading"
-            hint="Romaji turns into kana as you type. Off, the answer is shown and you rate it."
+            hint="Romaji turns into kana as you type. When off, you see the answer and rate it."
             value={prefs.typeReading}
             onValueChange={(typeReading) => setPrefs({ typeReading })}
           />
@@ -149,7 +148,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           <SwitchRow
             first
             label="Ask meaning and reading separately"
-            hint="Two questions for each kanji and word, in any order, as on WaniKani. Off, one card asks both."
+            hint="Ask for the meaning and the reading as two questions, as on WaniKani."
             value={prefs.separate}
             onValueChange={(separate) => setPrefs({ separate })}
           />
@@ -161,7 +160,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           />
           <SwitchRow
             label="Animate level ups"
-            hint="The popup that shows when an answer moves a word to a new stage fades in and moves up into place. Off, it just appears. Reduce Motion in iOS Settings turns it off too."
+            hint="Fade in the popup when a word moves to a new stage. Reduce Motion in iOS Settings turns this off too."
             value={prefs.stageAnimation}
             onValueChange={(stageAnimation) => setPrefs({ stageAnimation })}
           />
@@ -191,7 +190,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           />
         </Group>
         <Help>
-          {`Lessons are offered only up to this many items at Apprentice. Reviews are never held back.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
+          {`Stop offering lessons once this many items are at Apprentice. Reviews always show.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
         </Help>
 
         {wanikani.skipped.length ? (
@@ -217,7 +216,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           <SwitchRow
             first
             label="Make production cards"
-            hint="When a word reaches Guru, it gets an English to Japanese card in your Anki deck, with WaniKani's recording. These are your own cards, scheduled like the rest of the deck; WaniKani never sees them."
+            hint="When a word reaches Guru, it gets an English to Japanese card in your Anki deck, with WaniKani's recording. They're scheduled like your other cards, not by WaniKani."
             value={prefs.production}
             onValueChange={(production) => setPrefs({ production })}
           />

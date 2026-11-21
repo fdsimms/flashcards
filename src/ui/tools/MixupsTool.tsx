@@ -172,7 +172,7 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
               {mode === 'ear'
                 ? `None of the ${LANGUAGES[language].name} words you're studying sound like another one in your deck.`
                 : mode === 'pairs'
-                  ? `You haven't linked any ${LANGUAGES[language].name} words you're studying yet. When you mix two up in Review, choose Mixed up with another word on Again's menu, or Link a confusing word in the ⋯ menu.`
+                  ? `You haven't linked any ${LANGUAGES[language].name} words you're studying yet. When you mix two up in Review, touch and hold Again and choose Mixed up with another word, or Link a confusing word in the ⋯ menu.`
                   : `None of the ${LANGUAGES[language].name} words you're studying look like another one with a different meaning.`}
             </Help>
           </Card>

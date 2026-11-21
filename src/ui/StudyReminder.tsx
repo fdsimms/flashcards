@@ -74,7 +74,7 @@ export function StudyReminder() {
               <SwitchRow
                 first
                 label="Show reviews due on the icon"
-                hint="A number on Franki's icon with the reviews due, as of the last time Franki was open."
+                hint="Shows how many reviews are due on Franki's icon."
                 value={prefs.badge}
                 onValueChange={turnBadge}
               />
@@ -97,9 +97,8 @@ export function StudyReminder() {
               </Card>
             ) : null}
             <Help>
-              The counts are the deck list's as of the last time Franki was open, since iOS shows a reminder as it was written.
-              Answers given in Anki or AnkiMobile after that aren't in them. If Franki hasn't been opened that day, the reminder
-              doesn't give a number. Nothing is sent anywhere: the reminder is made on this iPhone.
+              The numbers are from the last time Franki was open, so answers given in Anki since then aren't counted. If you
+              haven't opened Franki that day, the reminder has no number.
             </Help>
           </>
         )}

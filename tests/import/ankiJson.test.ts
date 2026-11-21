@@ -108,7 +108,7 @@ describe('Anki JSON import', () => {
       cards: [0, 1].map((ord) => ({ cardId: 70 + ord, note: 7, deckName: 'D', ord, type: 0 })),
     }, { now: NOW });
     expect(res.warnings).toEqual([
-      "1 Omnilanguage card was skipped: Anki still has it, but its note's Generate field for that card type is turned off, so Franki doesn't make it. It stays in Anki as it is.",
+      "Skipped 1 Omnilanguage card: its note's Generate field for that card type is off. It stays in Anki.",
     ]);
   });
   it("keeps a card in another deck than its note's first card in its own deck", () => {

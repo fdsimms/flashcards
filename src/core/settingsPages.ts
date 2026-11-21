@@ -57,7 +57,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'answerButtons', page: 'decks', label: 'Answer buttons', keywords: ['again', 'hard', 'good', 'easy', 'rating'], route: '/answer-buttons' },
   { id: 'swipe', page: 'decks', label: 'Swipe to answer', keywords: ['gesture', 'drag', 'good', 'again'] },
   { id: 'hints', page: 'decks', label: 'Show romanization and translation', keywords: ['romaji', 'hint', 'answer'] },
-  { id: 'hook', page: 'decks', label: 'Ask for your own hook', keywords: ['mnemonic'] },
+  { id: 'hook', page: 'decks', label: 'Ask for your own mnemonic', keywords: ['hook', 'memory hint'] },
   { id: 'thaiSize', page: 'decks', label: 'Thai text size', keywords: ['script', 'larger', 'bigger'], route: '/thai-text-size' },
   { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
   { id: 'noteTypes', page: 'decks', label: 'Note types', keywords: ['card types', 'templates', 'styling', 'css', 'front', 'back', 'models', 'layout'], route: '/note-types' },

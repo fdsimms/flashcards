@@ -239,7 +239,7 @@ export const TOOLS: ToolInfo[] = [
     // The case after a preposition or verb, then a studied noun in it (cases.ts). Only languages with cases.
     id: 'cases',
     title: 'Which case',
-    summary: 'The case after a preposition or verb, then a noun in it.',
+    summary: 'Name the case after a preposition or verb, then put a noun in it.',
     languages: withSayer(CASE_LANGUAGES),
   },
 ];

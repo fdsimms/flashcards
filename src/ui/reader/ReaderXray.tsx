@@ -54,7 +54,7 @@ export function ReaderXray({ characters, episode, onClose }: {
           <HeaderAction label="Close" onPress={onClose} />
         </View>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {episode ? `Up to episode ${episode}. Nothing later is shown.` : 'Only what the episodes you have reached tell.'}
+          {episode ? `Up to episode ${episode}. Nothing later is shown.` : "Only what you've read so far."}
         </Text>
         {characters.length === 0 ? <Text style={{ ...type.body, color: c.textSecondary }}>No characters are listed yet.</Text> : null}
         {here.length > 0 ? <SectionTitle>In this episode</SectionTitle> : null}

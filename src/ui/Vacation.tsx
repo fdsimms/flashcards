@@ -47,9 +47,9 @@ export function Vacation() {
             />
             <Help>
               {mode === 'off'
-                ? "For when you're away. Light offers a few new cards and fewer reviews, the ones closest to being forgotten first. Paused offers nothing. Neither changes any card's schedule, and nothing is sent to Anki."
+                ? "For when you're away. Light shows fewer cards, weakest first. Paused shows none. Card schedules don't change, and it only applies in Franki."
                 : mode === 'light'
-                  ? 'Each deck offers a few new cards and part of its review limit, weakest cards first. Learning steps within the day are not limited, and a limit you set for today in Custom Study stands.'
+                  ? "Each deck shows a few new cards and part of its review limit, weakest first. Cards you're still learning today aren't held back."
                   : 'No cards are offered, new or review.'}
             </Help>
             {mode === 'light' ? <LightOptions prefs={prefs} onSave={save} /> : null}

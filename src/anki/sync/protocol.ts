@@ -94,6 +94,12 @@ export type MediaChange = [string, number, string];
 export type SyncErrorKind =
   /** The server refused the user name or password, or the saved sign-in. */
   | 'auth'
+  /**
+   * Sync is on but this iPhone has no sign-in key: the key is in the Keychain and the setting in
+   * SQLite, so a phone restored from a backup can have the setting without the key. Not the
+   * server's refusal, so it isn't `auth`, whose text says the server turned the sign-in down.
+   */
+  | 'signedOut'
   /** Couldn't reach the server, or it answered with something other than Anki's protocol. */
   | 'network'
   /** The server said something went wrong; `message` is its text. */

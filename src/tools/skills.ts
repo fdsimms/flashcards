@@ -547,7 +547,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
       if (!card) return [];
       const before = step.after ? drillStep(step.after)?.title : undefined;
       if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Waiting for ${card.missing.join(', ')} in your deck`, locked: true }];
-      if (card.suspended) return [{ title: step.title, detail: before ? `Comes in after ${before.charAt(0).toLowerCase() + before.slice(1)} settles` : 'Suspended', locked: true }];
+      if (card.suspended) return [{ title: step.title, detail: before ? `Starts once you know ${before.charAt(0).toLowerCase() + before.slice(1)} well` : 'Suspended', locked: true }];
       if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
       return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
     });
@@ -564,7 +564,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
     if (!of.length) continue;
     const settled = of.filter((c) => c.settled).length;
     const fresh = of.filter((c) => !c.started).length;
-    const row: SkillRow = { title: set.title, detail: `${settled} of ${of.length} settled${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / of.length) * 100), locked: false };
+    const row: SkillRow = { title: set.title, detail: `${settled} of ${of.length} learned${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / of.length) * 100), locked: false };
     const into = sections.find((x) => x.title === set.section);
     if (into) into.rows.push(row); else sections.push({ title: set.section, rows: [row] });
   }

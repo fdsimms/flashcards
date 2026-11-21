@@ -66,7 +66,7 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
                 />
               ))}
             </Group>
-            <Help>Reading or listening to a text again isn't logged as a reading and doesn't change how hard new texts are. The headphones play it with the words hidden. Touch and hold a text to add it to Up Next.</Help>
+            <Help>Rereading a text doesn't count as reading it again or change how hard new texts are. The headphones button plays it with the words hidden. Touch and hold a text to add it to Up Next.</Help>
           </>
         ) : null}
       </ScrollView>

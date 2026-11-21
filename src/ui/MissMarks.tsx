@@ -37,7 +37,7 @@ export function AgainSplit({ interval, reasons, onAnswer }: {
         onLongPress={choose}
         accessibilityRole="button"
         accessibilityLabel={`Again, next in ${interval ?? ''}`}
-        accessibilityHint="Press and hold to say what went wrong"
+        accessibilityHint="Touch and hold to say what went wrong"
         scaleTo={0.95}
         dimTo={0.85}
         // Left padding the width of the divider and chevron, so the words sit in the middle of the whole button, as on Good.

@@ -153,7 +153,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
         onDeckChosen?.(deck);
         stopAsking();
         if (queued === 'held') {
-          Alert.alert(toAdd.length === 1 ? 'Added 1 word' : `Added ${toAdd.length} words`, "You're offline or your server isn't answering, so they go to Claude once it does. Then they'll be ready to check on Today.");
+          Alert.alert(toAdd.length === 1 ? 'Added 1 word' : `Added ${toAdd.length} words`, "Claude fills them in once your server answers. Then they'll be ready to review on Today.");
         }
         haptic.success();
         onDone();
@@ -235,7 +235,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
                   <Field
                     ref={wordInput}
                     label={filled ? (language ? `Word in ${language}` : 'Word') : (language && labels?.word === 'Entry' ? language : labels?.word ?? 'Front')}
-                    placeholder={filled ? 'Add your own meaning after a dash, or leave it' : undefined}
+                    placeholder={filled ? 'Optional: add a meaning after a dash' : undefined}
                     value={text}
                     onChangeText={(t) => setText(filled ? t : asTyped(t, speechTag))}
                     autoCorrect={false}
@@ -327,7 +327,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
         <Help>
           {filled
             ? mode === 'one'
-              ? "Return adds the word. To use your own meaning, add it after a dash, e.g. kot - cat. A word you only know by sound can be typed the way it sounds, and Claude finds how it's spelled. Claude fills in the rest, and you check each note before it's added to the deck."
+              ? "Return adds the word. Add your own meaning after a dash, e.g. kot - cat. Not sure of the spelling? Type it how it sounds. Claude fills in the rest, and you check each note before it's added."
               : "One word or phrase per line. To use your own meaning, add it after a dash. Claude fills in everything else, and you check each note before it's added to the deck."
             : mode === 'one'
               ? `Return moves to the meaning, then adds the word. The notes are added to ${deckShortName(deck)} when you tap Add.`
@@ -344,7 +344,7 @@ function stateLine(word: QuickWord, state: WordState, filled: boolean, language:
     case 'inDeck': return `Already in ${deckShortName(inDeck ?? '')}.`;
     case 'spell': return `In Latin letters. Claude finds how it's spelled in ${language ?? "the deck's language"}.`;
     case 'needsMeaning': return 'Needs a meaning.';
-    case 'needsScript': return `Needs ${language ?? 'its own'} letters. Without Read & Listen, nothing can spell it for you.`;
+    case 'needsScript': return `Type it in ${language ? `${language} letters` : 'its own script'}, or turn on Read & Listen to have Claude spell it.`;
     case 'add': return filled ? (word.meaning ? `${word.meaning} (your meaning)` : 'Claude writes the meaning') : word.meaning;
   }
 }
@@ -403,7 +403,7 @@ function ListNotes({ words, states, repeated, language, inDeck }: {
   const lines = [
     ...there.map((e) => `${e} is already in ${deckShortName(inDeck(e) ?? '')}, so it won't be added.`),
     ...(meaningless.length ? [`${meaningless.join(', ')} ${meaningless.length === 1 ? 'needs a meaning' : 'need meanings'}. Add one after a dash, e.g. ${meaningless[0]} - meaning.`] : []),
-    ...(latin.length ? [`${latin.join(', ')} ${latin.length === 1 ? 'is' : 'are'} in Latin letters. Without Read & Listen, nothing can spell ${latin.length === 1 ? 'it' : 'them'} in ${language ?? "the deck's language"}, so ${latin.length === 1 ? "it isn't" : "they aren't"} added.`] : []),
+    ...(latin.length ? [`${latin.join(', ')} ${latin.length === 1 ? 'is' : 'are'} in Latin letters, so ${latin.length === 1 ? "it isn't" : "they aren't"} added. Type ${latin.length === 1 ? 'it' : 'them'} in ${language ? `${language} letters` : "the deck's own script"}, or turn on Read & Listen to have Claude spell ${latin.length === 1 ? 'it' : 'them'}.`] : []),
     ...(repeated ? [`${repeated === 1 ? '1 repeated line was' : `${repeated} repeated lines were`} left out.`] : []),
   ];
   return (

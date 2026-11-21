@@ -2,7 +2,7 @@ import { DEFAULT_ORDER } from '../core/order';
 import { Refusal } from '../core/failure';
 import { newCardOrderOf } from '../core/newCardOrder';
 import type { DeckParams } from '../core/types';
-import type { NoteStore } from './noteService';
+import { NO_COLLECTION, type NoteStore } from './noteService';
 import { setAnkiNewMix } from './presetWrites';
 
 /** Why the order can't be changed, with what to do, to show as it is. */
@@ -17,7 +17,7 @@ export async function setNewCardOrder(store: NoteStore, deck: string, mix: numbe
   const params = await store.listDeckParams();
   const use = newCardOrderOf(deck, params);
   if (!use) throw new DeckOrderRefused("This deck has no Anki options to change. Its cards are studied with the options of the decks they came from.");
-  if (!(await store.keptCollection())) throw new DeckOrderRefused('This needs your Anki collection in Franki. Set up Anki first, from the Decks screen.');
+  if (!(await store.keptCollection())) throw new DeckOrderRefused(NO_COLLECTION);
   const found = await store.lockAnki(() => store.withSyncConnection((db) => setAnkiNewMix(db, use.presetId, mix, now)));
   if (!found) throw new DeckOrderRefused("Anki doesn't have this deck's options anymore. Sync, then try again.");
   const changed = new Map<string, DeckParams>();

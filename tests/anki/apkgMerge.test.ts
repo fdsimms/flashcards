@@ -162,7 +162,7 @@ describe('what the screen says about a deck package', () => {
   it('previews what it adds, and with sync on, that a new note type needs a full upload', () => {
     expect(deckPackagePreviewText(plan, 1, true)).toBe(
       'Adds 3 new notes (3 cards, 3 past reviews) to 🧠 Trivia and 🧠 Trivia::Geography. 4 notes are already here and stay as they are.\n\n'
-      + 'New deck: 🧠 Trivia::Geography. New note type: Vocab. 1 image or sound.\n\n'
+      + 'New deck: 🧠 Trivia::Geography. New note type: Vocab. Also adds 1 image or sound.\n\n'
       + "Because it adds a note type, the next sync asks whether to upload Franki's whole collection. Sync now first, so nothing on the server is lost.",
     );
     expect(deckPackagePreviewText({ ...plan, newNoteTypes: [], newDecks: [] }, 0, true)).toBe(

@@ -28,7 +28,7 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showE
       <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>What should happen next?</Text>
       <Help>
         {onChoose
-          ? "Pick what you'd like to see in the next episode. There's no right answer. If you skip this, the series continues on its own."
+          ? "Pick what you'd like to see in the next episode. If you skip this, the series continues on its own."
           : 'You chose this for the next episode.'}
       </Help>
       <View accessibilityRole="radiogroup" style={{ gap: space.s }}>

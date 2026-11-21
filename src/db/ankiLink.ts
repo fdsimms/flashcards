@@ -19,6 +19,8 @@ import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
 import { decodeOwed, encodeOwed, type AnkiAnswer, type OwedAnswer } from '../anki/owedAnswers';
 import { transact } from './transact';
+import { Refusal } from '../core/failure';
+import { NO_COLLECTION } from '../anki/noteService';
 
 /**
  * The Anki collection Franki keeps (Documents/anki/collection.anki2), attached to the app's one
@@ -421,7 +423,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     ankiLockState: () => ({ runs: lockRuns, held: lockHeld }),
 
     async withSyncConnection(fn) {
-      if (!keptCollectionFile().exists) throw new Error('There is no Anki collection in Franki yet.');
+      if (!keptCollectionFile().exists) throw new Refusal(NO_COLLECTION);
       const conn = await SQLite.openDatabaseAsync(keptCollectionFile().name, {}, fileUriToPath(ankiFolder().uri));
       try {
         // Waits out the main connection's brief reads rather than failing; and a rollback journal,

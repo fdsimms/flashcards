@@ -63,7 +63,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
     return (
       <Screen title={tool.title} largeTitle={false}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-          <Card><Help>{"Situations are played by Claude on Read & Listen's server. Turn on Read & Listen in Settings to use them."}</Help></Card>
+          <Card><Help>Situations uses Read & Listen. Turn it on in Settings, Read & Listen.</Help></Card>
         </ScrollView>
       </Screen>
     );
@@ -172,7 +172,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
         onChangeText={setOwn}
         onSubmitEditing={() => own.trim() && onStart(own)}
         returnKeyType="go"
-        placeholder="A situation, in English: returning a shirt that's too small"
+        placeholder="In English, e.g. returning a shirt that's too small"
         accessibilityLabel="A situation of your own, in English"
         placeholderTextColor={c.textTertiary}
         selectionColor={c.accent}

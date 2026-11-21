@@ -149,7 +149,7 @@ export function AnswerExtras(props: {
             <Text style={{ ...type.headline, color: c.text }}>
               {offer.how === 'practice' ? `You practiced ${offer.word}'s forms ${offer.when}` : `You saw ${offer.word} ${offer.when}`}
             </Text>
-            <Help>{`It looks a lot like ${props.word}, so it may have reminded you of this answer. If so, you may not know this word as well as it seemed.`}</Help>
+            <Help>{`It looks a lot like ${props.word}, which may have given the answer away.`}</Help>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <View style={{ flex: 1, gap: 2 }}>

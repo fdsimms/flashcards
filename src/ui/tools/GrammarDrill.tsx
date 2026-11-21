@@ -117,7 +117,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
               </Text>
             ))}
           </Card>
-          <Help>A grammar point with 8 in 10 right, or all but one of 3 or 4 questions, comes back later than last time; one with fewer comes back tomorrow. Answers stay on this phone and never change a card.</Help>
+          <Help>Grammar points you got mostly right come back later than last time. The rest come back tomorrow. These answers don't change your cards.</Help>
           {note ? <Help>{note}</Help> : null}
         </ScrollView>
       </Screen>
@@ -238,7 +238,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
             {current.right
               ? <Status tone="good">Right.</Status>
               : <Status tone="bad">{`${current.almost ? 'Almost' : 'Not quite'}. It's ${prompt.answer}.`}</Status>}
-            {current.almost ? <Help>Only an accent or a mark differs, and here that makes it another form, so it counts as wrong.</Help> : null}
+            {current.almost ? <Help>Only an accent or a mark differs, but here that changes the form, so it's marked wrong.</Help> : null}
             {point ? (
               <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.s, marginTop: space.xs }}>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>

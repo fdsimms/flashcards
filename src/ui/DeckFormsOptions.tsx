@@ -31,9 +31,8 @@ export function DeckFormsOptions({ deck, all, onChange }: {
         <NavRow label="Practice history" detail="Forms you miss, and answers you mix up" onPress={() => router.push({ pathname: '/forms-history', params: { deck } })} />
       </Group>
       <Help>
-        Suggested on a card's answer side only when there's a reason: a word new this week, one whose forms you missed last
-        time, or one you haven't practiced in a month. Words whose notes don't list their forms are never suggested. Practice
-        never changes when a card is due.
+        Suggested on a card's answer side for a word new this week, one whose forms you missed last time, or one you
+        haven't practiced in a month.
       </Help>
       <View style={{ gap: space.s }}>
         <SectionTitle>Prompts each time</SectionTitle>
@@ -49,9 +48,8 @@ export function DeckFormsOptions({ deck, all, onChange }: {
         <SwitchRow first label="Ask imperfective or perfective" value={aspectCheckOn(deck, all)} onValueChange={(v) => onChange({ aspectCheck: v })} />
       </Group>
       <Help>
-        On the front of a Russian or Polish verb tagged imperfective or perfective, two buttons ask which it is. Answering is
-        optional: Show answer works as usual. A wrong pick only outlines Hard when you rate the card, and never changes when it
-        is due.
+        On the front of a Russian or Polish verb tagged imperfective or perfective, two buttons ask which it is. You can skip
+        them and tap Show answer. A wrong pick only outlines Hard when you rate the card.
       </Help>
 
       <SectionTitle>Lookalike words</SectionTitle>
@@ -61,7 +59,7 @@ export function DeckFormsOptions({ deck, all, onChange }: {
       </Group>
       <Help>
         After you see a word, cards for words that look like it (esperar, espero, esperanza) wait, so one doesn't give away the
-        answer to the next. New cards and reviews wait; cards you're still learning don't. When a lookalike got through anyway,
+        answer to the next. Cards you're still learning don't wait. When a lookalike got through anyway,
         the answer side offers to bring the card back sooner. Anki may change that date later, when it recalculates its own
         schedule.
       </Help>

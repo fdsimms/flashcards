@@ -251,7 +251,7 @@ export function LineDrillCard({ text, onStart, onRetell }: { text: ReaderText; o
   return (
     <Card style={{ gap: space.s }}>
       <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Use the lines yourself</Text>
-      <Help>Make this text's lines yourself, then compare with the original, or tell the whole of it again. Nothing here is graded.</Help>
+      <Help>Say or write this text's lines yourself and compare them with the original, or retell the whole text. Nothing here is graded.</Help>
       <View style={{ borderRadius: radius.m, ...smooth, borderWidth: hairline, borderColor: c.border, overflow: 'hidden' }}>
         {say ? (
           <NavRow first icon={{ name: 'mic.fill', color: c.teal }} label="Say it back" detail={`See a line in English, say or type it in ${name}. ${say} ${say === 1 ? 'line' : 'lines'}.`} onPress={() => onStart('say')} />

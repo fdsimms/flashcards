@@ -154,7 +154,7 @@ function useAudioQueueHost(): AudioQueueHost {
     try {
       text = await server.text(item.textId);
     } catch (e) {
-      if (starting.current === mine) setProblem(failureText(e, { next: 'Check your connection and try again.' }));
+      if (starting.current === mine) setProblem(failureText(e, { next: 'Check your connection, then try again.' }));
       return;
     }
     if (starting.current !== mine) return;

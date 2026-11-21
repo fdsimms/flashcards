@@ -41,7 +41,7 @@ export function VacationCard({ notice, due }: { notice: VacationNotice; due: num
     ? `Vacation ended after ${notice.days === 1 ? '1 day' : `${notice.days} days`}`
     : `Vacation: ${notice.mode === 'light' ? 'Light' : 'Paused'}${notice.until ? ` until ${vacationDate(notice.until)}` : ''}`;
   const detail = !away
-    ? `${due.toLocaleString()} ${due === 1 ? 'card is' : 'cards are'} due. Reviews that came due while you were away come first, weakest first.`
+    ? `${due.toLocaleString()} ${due === 1 ? 'card is' : 'cards are'} due. The ones from while you were away come first, starting with the weakest.`
     : notice.mode === 'light' ? 'Fewer new cards and reviews, weakest first.' : 'No cards are offered.';
   return (
     <Reveal

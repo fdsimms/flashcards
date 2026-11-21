@@ -167,7 +167,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
           <View style={{ gap: space.s }}>
             <RuleLine rule={caseRule(cases, g)} />
             {!noun ? (
-              <Help>{`None of the ${LANGUAGES[language].name} nouns you're studying list their ${g.case} yet, so there's no noun to put in it. A noun's cases come from its Forms field.`}</Help>
+              <Help>{`None of your ${LANGUAGES[language].name} nouns have their ${g.case} filled in yet. Add it to a noun's Forms field to practice it here.`}</Help>
             ) : null}
           </View>
         ) : null}

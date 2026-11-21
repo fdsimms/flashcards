@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { settleOwedAnkiAnswers } from '../anki/owedService';
+import { NOT_IN_ANKI } from '../core/failure';
 import { ankiWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
@@ -19,7 +20,7 @@ export function useOwedAnswers(repo: (Repo & AnkiLink) | null) {
       if (refused) {
         Alert.alert(
           refused === 1 ? "Couldn't save an answer for Anki" : `Couldn't save ${refused} answers for Anki`,
-          `${refused === 1 ? 'It was' : 'They were'} given before Franki was last closed. ${refused === 1 ? 'It counts' : 'They count'} in Franki, but won't be in what's synced or sent to Anki.`,
+          `${refused === 1 ? 'It was' : 'They were'} given before Franki was last closed. ${refused === 1 ? NOT_IN_ANKI : "They're saved in Franki but won't reach Anki."}`,
         );
       }
     });

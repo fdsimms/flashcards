@@ -76,7 +76,7 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
           </Group>
         ) : null}
         {options ? <AzureVoiceTerms voices={options} /> : null}
-        <Help>Choosing a voice plays a line in it. American, British and Australian voices are listed. The narrator speaks the English in a lesson. It applies to lessons you make from now on.</Help>
+        <Help>The narrator speaks a lesson's English. Tap a voice to hear it. Applies to lessons you make from now on.</Help>
       </ScrollView>
     </Screen>
   );

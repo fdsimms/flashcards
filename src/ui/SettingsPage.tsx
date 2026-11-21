@@ -108,20 +108,20 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
         />
         <SwitchRow
           label="Show romanization and translation"
-          hint="On the answer, without a tap. Off, each waits for a tap on every card."
+          hint="Show them on the answer without a tap."
           value={!!hints}
           onValueChange={(on) => save(() => repo.saveShowCardHints(on), () => setHints(on))}
         />
         <SwitchRow
-          label="Ask for your own hook"
-          hint="On a new word's first answer, offer a line for a mnemonic of your own, saved to the note's Mnemonic."
+          label="Ask for your own mnemonic"
+          hint="The first time you see a new word, ask for a mnemonic of your own. It's shown on the back after that."
           value={!!hook}
           onValueChange={(on) => save(() => repo.saveAskOwnHook(on), () => setHook(on))}
         />
         <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={() => onOpen('/thai-text-size')} />
         <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
       </Group>
-      <Help>The last five apply to Omnilanguage cards. Other note types use the buttons and their own templates.</Help>
+      <Help>These apply to Omnilanguage cards. Other note types use the answer buttons and their own templates.</Help>
       <Group>
         <NavRow first label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
       </Group>

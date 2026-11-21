@@ -89,7 +89,7 @@ function DeckChip({ row }: { row: ShownRow }) {
 /** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
 export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
-export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options, export, suspend or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room at the right edge for the show/hide button, so every row's counts line up whether or not it has subdecks. */

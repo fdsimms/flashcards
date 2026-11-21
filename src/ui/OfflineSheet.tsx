@@ -14,9 +14,9 @@ export function OfflineSheet({ problem, lines }: { problem: 'offline' | 'server'
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         <Help>
           {problem === 'offline'
-            ? "There's no connection right now. Studying works as usual. When you're back online, Franki sends what's waiting by itself."
+            ? "You can keep studying, and Franki sends what's waiting when you're back online."
             : problem === 'server'
-              ? "The internet works, but your server isn't answering: it may be down, or its address may have changed (Settings, Sync). Studying works as usual. When it answers again, Franki sends what's waiting by itself."
+              ? "Your server may be down, or its address may have changed (Settings, Anki). You can keep studying, and Franki sends what's waiting when your server answers again."
               : "You're back online. Franki is sending what was waiting."}
         </Help>
         {lines.length ? (

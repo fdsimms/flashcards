@@ -114,7 +114,7 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, o
           <Text style={{ ...type.headline, color: c.text }}>{`Which word did you mix up with ${word}?`}</Text>
           {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
         </View>
-        <Help>Similar words will ask you to tell them apart. The link doesn't change when either card comes back, and it isn't sent to Anki.</Help>
+        <Help>Similar words (Practice) will ask you to tell them apart. The link stays in Franki and doesn't change when either card is due.</Help>
 
         {candidates.length ? (
           <Group>

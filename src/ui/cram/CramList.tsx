@@ -38,7 +38,7 @@ export function CramList({ repo }: { repo: NoteStore }) {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {loaded && !crams.length ? (
           <Help>
-            Get ready for something coming up, like a tutor lesson or a trip. Collect the words you need, plus questions to ask and things to talk about, and practice just those words before the day. Their reviews are due by then. Tap + to start one.
+            Get ready for a tutor lesson or a trip: collect the words, questions and things to talk about, and practice them before the day. The words come up for review by then too. Tap + to start one.
           </Help>
         ) : null}
         {current.length ? (

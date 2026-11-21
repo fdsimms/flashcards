@@ -100,7 +100,7 @@ export function SyncSettings(props: {
             <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
             <Help>
               Franki syncs with an Anki sync server you run yourself, the same one Anki on your computer and AnkiMobile sync
-              with. It can't sync with AnkiWeb. The setup steps are in the server folder of Franki's repository, to follow from your computer.
+              with. It can't sync with AnkiWeb. Set one up from your computer with the steps in the server folder of Franki's repository.
             </Help>
             <Field label="Server address" value={server} onChangeText={setServer} placeholder="e.g. anki.example.com"
               autoCapitalize="none" autoCorrect={false} keyboardType="url" textContentType="URL" error={!!error && !server.trim()}
@@ -111,7 +111,7 @@ export function SyncSettings(props: {
             <Field ref={passwordField} label="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password"
               onSubmitEditing={submit} returnKeyType="go" error={!!error && !password} />
             {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
-            <Help>Franki keeps the key the server gives it in the iPhone's Keychain, not the password.</Help>
+            <Help>Franki doesn't store your password. It keeps a sign-in key in the iPhone's Keychain.</Help>
             <Button label="Sign in and sync" onPress={submit} busy={busy || props.syncing} />
           </Card>
         )}

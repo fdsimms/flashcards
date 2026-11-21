@@ -18,8 +18,7 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSSupportsLiveActivities": true,
-        "NSPhotoLibraryUsageDescription": "Franki only reads a photo when you pick one to use as a file, such as an image for a card. It never looks through your photo library on its own."
+        "NSSupportsLiveActivities": true
       }
     },
     "android": {
@@ -92,7 +91,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on.",
+          "microphonePermission": "Franki uses the microphone when you record yourself, answer by speaking, or answer in an audio lesson. Recordings stay on this iPhone and are deleted when you move on.",
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": true
         }
@@ -100,9 +99,9 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Franki uses the camera to photograph a page of a grammar book, to start a topic from it. The photo is sent to Claude only when you ask and isn't saved.",
-          "photosPermission": "Franki reads a photo or screenshot of a grammar book's page that you choose, to start a topic from it. It is sent to Claude only when you ask and isn't saved.",
-          "microphonePermission": false
+          "cameraPermission": "Franki uses the camera when you photograph a page of a grammar book to start a grammar topic from it. The photo is sent to Claude only when you ask and isn't saved.",
+          "photosPermission": "Franki reads a photo or screenshot of a grammar book's page that you choose, to start a grammar topic from it. It's sent to Claude only when you ask and isn't saved.",
+          "microphonePermission": "Franki uses the microphone when you record yourself, answer by speaking, or answer in an audio lesson. Recordings stay on this iPhone and are deleted when you move on."
         }
       ],
       [
@@ -132,7 +131,7 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Franki uses the microphone when you record yourself to compare with a recording, or answer by speaking. Recordings stay on this iPhone and are deleted when you move on.",
+          "microphonePermission": "Franki uses the microphone when you record yourself, answer by speaking, or answer in an audio lesson. Recordings stay on this iPhone and are deleted when you move on.",
           "speechRecognitionPermission": "Franki turns what you say into text to compare with the answer, when you answer by speaking. Where iOS can, this happens on the iPhone; otherwise Apple's servers do it."
         }
       ]

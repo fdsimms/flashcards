@@ -79,7 +79,7 @@ export function ReadStories({ api, onStory, onNew }: {
                 {running.map((s, i) => <StoryRow key={s.id} story={s} first={i === 0} onPress={() => onStory(s.id)} />)}
               </Group>
             ) : <Help>No series is running. Tap + to start one.</Help>}
-            <Help>Each series writes its next episode once you've read the last, so a series you leave alone costs nothing.</Help>
+            <Help>Each new episode is written after you read the last one, so a series you leave alone costs nothing.</Help>
             {ended.length > 0 ? (
               <View style={{ gap: space.s, paddingTop: space.m }}>
                 <SectionTitle>Ended</SectionTitle>

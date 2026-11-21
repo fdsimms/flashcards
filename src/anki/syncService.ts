@@ -166,7 +166,7 @@ async function syncOnce(
   await reviewWrites.idle();
   const settings = await repo.syncSettings();
   const key = await SecureStore.getItemAsync(HOST_KEY);
-  if (!settings.enabled || !key) throw new SyncError('auth', 'Sync is not set up.');
+  if (!settings.enabled || !key) throw new SyncError('signedOut', 'Sync is not set up.');
   const client = new SyncClient(settings.server, key, expoPost);
   try {
     const report = await runSync({

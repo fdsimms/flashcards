@@ -40,10 +40,10 @@ describe('the form', () => {
   it("says what's wrong with every field that can't be used, at Anki's bounds", () => {
     const r = parsePresetForm({ newPerDay: '-1', reviewsPerDay: '10000', learnSteps: 'soon', relearnSteps: '10m', maxInterval: '0', desiredRetention: '0.995' });
     expect(r).toEqual({ errors: {
-      newPerDay: 'Enter the limit as a whole number.',
-      reviewsPerDay: 'Enter a number from 0 to 9999.',
+      newPerDay: 'Enter a whole number from 0 to 9999.',
+      reviewsPerDay: 'Enter a whole number from 0 to 9999.',
       learnSteps: expect.stringContaining('e.g. 10m 1d'),
-      maxInterval: 'Enter a number from 1 to 36500.',
+      maxInterval: 'Enter a whole number from 1 to 36500.',
       desiredRetention: 'Enter a number from 0.70 to 0.99.',
     } });
     expect(parsePresetForm({ ...presetForm(OPTIONS), desiredRetention: '0.70', newPerDay: '0' })).toHaveProperty('options');
@@ -59,8 +59,8 @@ describe('the form', () => {
 describe("a deck's own values", () => {
   it('says which values the preset does not reach', () => {
     expect(ownValuesNote({})).toBeUndefined();
-    expect(ownValuesNote({ newPerDay: 3 })).toBe("Has its own new card limit, set in Anki, so the one here doesn't change it.");
-    expect(ownValuesNote({ newPerDay: 3, reviewsPerDay: 50, desiredRetention: 0.8 })).toBe("Has its own new card limit, review limit and desired retention, set in Anki, so the ones here don't change them.");
+    expect(ownValuesNote({ newPerDay: 3 })).toBe("Uses its own new card limit from Anki, so changing it here doesn't affect this deck.");
+    expect(ownValuesNote({ newPerDay: 3, reviewsPerDay: 50, desiredRetention: 0.8 })).toBe("Uses its own new card limit, review limit and desired retention from Anki, so changing them here doesn't affect this deck.");
     expect(ownValuesNote({ newToday: true })).toBe('Has a new card limit for today only, so a new limit here starts tomorrow.');
   });
 });

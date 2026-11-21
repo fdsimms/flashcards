@@ -63,7 +63,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
         <Card>
           <Help>
             Short dialogues and stories written from the words in your language decks, mostly words you already know,
-            with audio and the meaning of every word a tap away. Reading never answers or adds cards.
+            with audio, and you can tap any word to see its meaning. Reading doesn't change your cards' schedule or add cards.
           </Help>
           <Help>
             Texts are written on your Anki sync server, which sends the words in those decks to Claude and the lines to
@@ -83,7 +83,6 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
             <Text style={{ ...type.headline, color: c.text }}>On</Text>
             <Help>{`Texts come from ${address}.`}</Help>
             <Button label="Turn off" variant="destructive" onPress={turnOff} />
-            <Help>Turning it off forgets the passphrase on this iPhone. Your topics and past texts stay on the server.</Help>
           </Card>
         ) : (
           <Card>

@@ -166,7 +166,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     const current = await repo.ankiStatus();
     if (current.unsent > 0) {
       Alert.alert(
-        'Import over answers not in Anki?',
+        "Replace answers that aren't in Anki?",
         `Franki has ${plural(current.unsent, 'answer', 'answers')} that ${current.unsent === 1 ? "isn't" : "aren't"} in Anki yet. Importing replaces Franki's collection with this one, and ${current.unsent === 1 ? "it'll be lost. Send to Anki first to keep it." : "they'll be lost. Send to Anki first to keep them."}`,
         [
           { text: 'Cancel', style: 'cancel' },
@@ -192,7 +192,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       // Franki can't see whether AnkiMobile took the file in, so it asks rather than guess.
       Alert.alert(
         'Did it open in Anki?',
-        'Once AnkiMobile has imported it, Anki has every answer given here, and Franki counts them as sent.',
+        'Tap Yes once AnkiMobile has imported the file. Franki then marks these answers as sent.',
         [
           { text: 'Not yet', style: 'cancel' },
           {
@@ -203,7 +203,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
                 await refresh();
                 say('Sent to Anki.');
               } catch (e) {
-                say(failureText(e, { what: "Couldn't count the answers as sent.", next: 'Send to Anki again, then tap Yes.' }));
+                say(failureText(e, { what: "Couldn't mark the answers as sent.", next: 'Send to Anki again, then tap Yes.' }));
               }
             },
           },
@@ -222,7 +222,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
           <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
           <Help>
             {syncOn
-              ? 'Sync is on. Answers given here go to your Anki server, and changes made in Anki come back, with no files to move.'
+              ? 'Sync is on. Answers given here go to your Anki server, and changes made in Anki come back.'
               : 'Instead of moving files, Franki can sync with an Anki sync server you run, the way Anki on your other devices does.'}
           </Help>
           <Button label={syncOn ? 'Sync settings' : 'Set up sync'} variant="secondary" onPress={onSyncSettings} />
@@ -247,7 +247,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
             </Text>
             <Help>
               Makes a collection file with every answer given here. Open it in AnkiMobile, which replaces its collection with
-              this one, then sync Anki as usual. Don't study in AnkiMobile in between, or what you do there is replaced.
+              this one, then sync Anki. Don't study in AnkiMobile in between, or what you do there is replaced.
             </Help>
             <Button label="Send to Anki" variant="secondary" onPress={send} busy={busy === 'send'} disabled={busy === 'import'} />
           </Card>

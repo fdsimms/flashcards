@@ -98,9 +98,9 @@ export function ReadListening({ voices, onVoices }: {
           ) : null}
         </Group>
         <Help>
-          While a line plays, the word being read aloud is shaded. With Listen before reading on, a new text opens
-          with its words hidden and shows them once every line has played, so you hear it first and read it second.
-          Listen twice first waits for every line to play twice. Show the text now skips the wait. Play all and texts you read again open as usual. Lines recorded before this was added play without it.
+          While a line plays, the word being read aloud is shaded (not in lines recorded before this was added).
+          Listen before reading hides a new text's words until every line has played (twice, with Listen twice
+          first). Tap Show the text now to see them sooner. Texts you reread, and Play all, aren't hidden.
         </Help>
         <ReadOfflineSettings />
         <SectionTitle>Slow speed</SectionTitle>
@@ -120,9 +120,8 @@ export function ReadListening({ voices, onVoices }: {
           ))}
         </Group>
         <Help>
-          A language with Slow on offers a Slow and a Normal speed when you play its lines. Slow is a second
-          recording of each line, made by Azure the first time you play it slowly. Leave it off for a language you
-          follow at normal speed, and its lines play at normal speed with no speed choice.
+          Adds a Slow speed to that language's lines. Each slow line is recorded by Azure the first time you play
+          it.
         </Help>
         <SectionTitle>Situations</SectionTitle>
         <Group>
@@ -137,10 +136,9 @@ export function ReadListening({ voices, onVoices }: {
           />
         </Group>
         <Help>
-          Situations reads the other person's lines with this phone's voices (Settings, Voices), so each reply
-          arrives as soon as it's written. If a language's phone voice sounds too poor, turn this on and the lines
-          are recorded with Azure's voices instead. They sound more natural, but each reply waits for the recording,
-          and the recording costs a little. The Slow speed is recorded the first time you play a line slowly.
+          Situations normally reads replies with this iPhone's voices (Settings, Voices), so they're instant. Turn
+          this on to use Azure's voices instead: they sound more natural, but each reply waits a moment and costs a
+          little.
         </Help>
         <SectionTitle>Topics</SectionTitle>
         <Group>
@@ -155,9 +153,9 @@ export function ReadListening({ voices, onVoices }: {
           />
         </Group>
         <Help>
-          New topic gets a From an image button. Take a photo of a grammar book's page, or choose a screenshot, and
-          Claude names the grammar point on it for you to edit before the page is written. The image is sent to
-          Claude through your server when you pick it. It isn't saved on the server or on this phone.
+          Adds From an image to New topic: photograph a grammar book page or pick a screenshot, and Claude names
+          the grammar point for you to edit. The image goes to Claude through your server and isn't saved there or
+          on this iPhone.
         </Help>
         <SectionTitle>Hear texts again</SectionTitle>
         <Card style={{ gap: space.s }}>
@@ -202,10 +200,9 @@ export function ReadListening({ voices, onVoices }: {
           ) : null}
         </Group>
         <Help>
-          Tapping a word in your deck shows its meaning only when you ask for it, so you can try to remember it
-          first. A word's meaning counts as looked up once it's shown. A word that isn't in your deck shows its
-          meaning right away. With the quiz on, a word in your deck asks you to pick its meaning from four choices,
-          with I don't know to skip. Nothing is graded or added to your deck.
+          With Recall before the meaning on, a word from your deck keeps its meaning hidden until you tap Show
+          meaning, so you can try to remember it first. With the quiz on, you pick its meaning from four choices
+          instead. Words not in your deck show their meaning at once.
         </Help>
         <SectionTitle>Word forms</SectionTitle>
         <Group>
@@ -222,7 +219,7 @@ export function ReadListening({ voices, onVoices }: {
         <Help>
           In a longer text, a few words you know are hidden behind a question mark. Tap one, type the form that
           fits the sentence from its dictionary form, and the word comes back. It's for languages that change
-          their words (cases, endings), so there are none in Thai. Nothing is graded or added to your deck.
+          their words (cases, endings), so there are none in Thai.
         </Help>
         <SectionTitle>Explain</SectionTitle>
         <Group>
@@ -237,9 +234,8 @@ export function ReadListening({ voices, onVoices }: {
           />
         </Group>
         <Help>
-          Explain on a line or a phrase writes its notes in English. With this on, the notes are in the language
-          you're reading, in simple words, for practice. The English meaning of a phrase stays in English. Notes
-          already asked for stay as they were, and each version is kept separately. Explain more simply works the same way.
+          Writes Explain's notes in the language you're reading, in simple words, instead of English. A phrase's
+          English meaning stays in English. Applies to Explain more simply too.
         </Help>
         <SectionTitle>Thai pronunciation</SectionTitle>
         <Group>

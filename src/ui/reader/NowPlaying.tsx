@@ -190,7 +190,7 @@ export function NowPlaying() {
         </View>
 
         <Button label={lesson ? 'Open the lesson' : 'Open in Read & Listen'} variant="secondary" onPress={open} />
-        {now.kind === 'text' && now.from === 'shelf' ? <Help>Played to its end here, a shelf text is logged as read by listening.</Help> : null}
+        {now.kind === 'text' && now.from === 'shelf' ? <Help>Play a shelf text to the end and it counts as read.</Help> : null}
       </ScrollView>
     </Screen>
   );

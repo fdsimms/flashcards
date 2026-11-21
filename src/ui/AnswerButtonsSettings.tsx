@@ -38,12 +38,12 @@ export function AnswerButtonsSettings({ repo }: { repo: Repo }) {
           ))}
         </Group>
         <Help>
-          The buttons shown after the answer, for every deck. Whether you remembered a card matters most to the
-          schedule. Hard and Easy only move the next review a little closer or further out.
+          Applies to every deck. The schedule mostly cares whether you pressed Again. Hard and Easy only move the next
+          review a little closer or further out.
         </Help>
         <Help>
           Always press Again for a card you didn't remember, even one you nearly had. If you change how you use the
-          buttons, run Optimize in each deck's options in Anki after a few weeks, so its schedule learns your new habit.
+          buttons, run Optimize in each deck's options in Anki once you've used them the new way for a few weeks.
         </Help>
       </ScrollView>
     </Screen>

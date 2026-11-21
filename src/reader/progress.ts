@@ -10,7 +10,7 @@ export function describeProgress(p: Progress): { headline: string; detail: strin
   if (p.finished === 0 || p.median_coverage === null) {
     detail = "Finish a text to see how it's going.";
   } else {
-    const parts = [`Median ${percent(p.median_coverage)} known words.`];
+    const parts = [`Usually ${percent(p.median_coverage)} known words.`];
     if (p.check && p.check.asked > 0) {
       parts.push(`Checks after ${plural(p.check.texts, 'text')}: ${percent(p.check.right / p.check.asked)} right.`);
     }

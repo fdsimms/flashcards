@@ -36,7 +36,7 @@ export function CardStateChips({ chip, leech, mnemonic = false, style }: { chip?
         </View>
       ) : null}
       {leech ? (
-        <View accessible accessibilityLabel="Leech: this card keeps being forgotten" style={{ ...pill, backgroundColor: c.warningFill }}>
+        <View accessible accessibilityLabel="Leech: you keep forgetting this card" style={{ ...pill, backgroundColor: c.warningFill }}>
           <Icon name="exclamationmark.triangle.fill" size={12} color={c.warning} />
           <Text style={{ ...type.overline, color: c.warningInk }}>Leech</Text>
         </View>

@@ -109,9 +109,9 @@ describe('planPriorityStamps', () => {
 
 describe('parsePriorityNumber', () => {
   it('accepts whole numbers in range and says what to fix otherwise', () => {
-    expect(parsePriorityNumber(' 14 ', 1, 365, 'Days')).toEqual({ value: 14 });
-    expect(parsePriorityNumber('0', 1, 365, 'Days')).toEqual({ error: 'Days must be from 1 to 365.' });
-    expect(parsePriorityNumber('1.5', 1, 365, 'Days')).toHaveProperty('error');
+    expect(parsePriorityNumber(' 14 ', 1, 365)).toEqual({ value: 14 });
+    expect(parsePriorityNumber('0', 1, 365)).toEqual({ error: 'Enter a whole number from 1 to 365.' });
+    expect(parsePriorityNumber('1.5', 1, 365)).toHaveProperty('error');
   });
 });
 

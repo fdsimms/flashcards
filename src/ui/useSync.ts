@@ -67,10 +67,10 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
     try {
       const address = normalizeEndpoint((await repo.syncSettings()).server);
       origin = originOf(address);
-      if (connection.get().path === 'none') return "Offline. Franki syncs by itself when you're back online.";
+      if (connection.get().path === 'none') return "Offline. Franki will sync when you're back online.";
       if (!(await probe(address))) {
         connection.report(origin, false);
-        return "Couldn't reach your server. Franki syncs by itself once it can.";
+        return "Couldn't reach your server. Franki will sync once it answers.";
       }
       connection.report(origin, true);
       return reportText(await syncNow(repo, choose));

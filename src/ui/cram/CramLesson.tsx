@@ -58,12 +58,12 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
     const next = new Set(used);
     if (next.has(noteId)) next.delete(noteId); else next.add(noteId);
     setUsed(next);
-    keep((now) => ({ ...now, used: [...next] }), "Couldn't keep that check.");
+    keep((now) => ({ ...now, used: [...next] }), "Couldn't save that check mark.");
   };
   const jot = () => {
     if (!draft.trim()) return;
     haptic.tap();
-    keep((now) => withCapture(now, draft), "Couldn't keep that word.");
+    keep((now) => withCapture(now, draft), "Couldn't save that word.");
     setDraft('');
   };
   const finish = async () => {
@@ -106,7 +106,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             <SectionTitle>{`Ask · ${asked} of ${questions.length} asked`}</SectionTitle>
             <Group>
               {questions.map((q, i) => (
-                <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't keep that check."); }} />
+                <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't save that check mark."); }} />
               ))}
             </Group>
           </>
@@ -178,7 +178,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             placeholder="Type it, or use the keyboard's microphone"
           />
         </Card>
-        <Help>Kept on the cram. Make cards from them on its page afterwards.</Help>
+        <Help>These stay with the cram. Make cards from them on its page after the lesson.</Help>
       </ScrollView>
     </Screen>
   );

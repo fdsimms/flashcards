@@ -11,7 +11,7 @@ import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
-import { failureText, Refusal } from '../core/failure';
+import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { isSkillNote } from '../core/skillTag';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
@@ -825,7 +825,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               warnedAnki.current = true;
               Alert.alert(
                 "Couldn't save this answer for Anki",
-                failureText(e, { next: "It counts in Franki, but it won't be in the file sent to Anki." }),
+                failureText(e, { next: NOT_IN_ANKI }),
               );
             }
           }
@@ -1038,9 +1038,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           setPendingHints((list) => removePendingHint(list, sheet.noteId));
           sheets.close(sheet.key);
           if (cardError) {
-            Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your hint is saved. To study the card again, unsuspend it when you edit its note.' }));
+            Alert.alert("Couldn't unsuspend this card", failureText(cardError, { next: 'Your mnemonic is saved. To study the card again, unsuspend it when you edit its note.' }));
           } else if (ankiError) {
-            Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+            Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: NOT_IN_ANKI }));
           }
         }}
       />
@@ -1146,7 +1146,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     // What can be done with the session just finished: rows in the list, so the footer stays two buttons.
     const steps: NextStep[] = [
       ...(pendingHints.length ? [{
-        key: 'hints', label: 'Write hints for cards you keep missing', detail: pendingHints.length === 1 ? '1 card' : `${pendingHints.length} cards`, icon: { name: 'lightbulb' as const, color: c.accent },
+        key: 'hints', label: 'Write mnemonics for cards you keep missing', detail: pendingHints.length === 1 ? '1 card' : `${pendingHints.length} cards`, icon: { name: 'lightbulb' as const, color: c.accent },
         onPress: () => pendingHints.forEach((p, i) => sheets.request({ key: `leech:${p.noteId}`, kind: 'leech', noteId: p.noteId, misses: p.misses, ...(p.suspendedCardId ? { suspendedCardId: p.suspendedCardId } : {}), step: { n: i + 1, of: pendingHints.length } })),
       }] : []),
       ...sessionMisses.practice.map((p) => ({
@@ -1379,7 +1379,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const when = new Date();
       const { cards: updated, anki, ankiError } = await setCardStatesUndoable(repo as NoteStore, targets, change, when, H);
       if (ankiError) {
-        Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+        Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: NOT_IN_ANKI }));
       }
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
@@ -1473,7 +1473,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const options = ['Forget', 'Forget and reset counts', 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({
       title: 'Forget this card?',
-      message: "It becomes a new card again, back in its place among the new cards, and its memory is cleared. Reset counts also sets its review and lapse counts to zero.",
+      message: 'It goes back to being a new card, in its old place. Forget and reset counts also sets its review and lapse counts to zero.',
       options, cancelButtonIndex: 2, destructiveButtonIndex: 0,
     }, (i) => {
       if (i === 2) return;

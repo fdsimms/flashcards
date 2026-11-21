@@ -314,7 +314,7 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
               </CoverRow>
             ) : problem ? (
               <View style={{ paddingHorizontal: space.l }}>
-                <Help>{`No ${LANGUAGES[shelf.language].name} texts are on this iPhone. They download once you're online, as Settings, Read & Listen says.`}</Help>
+                <Help>{`No ${LANGUAGES[shelf.language].name} texts are on this iPhone yet. They download when you're back online (Settings, Read & Listen).`}</Help>
               </View>
             ) : (
               <CoverRow title="Texts">
@@ -388,11 +388,11 @@ function NewCover({ onPress }: { onPress: () => void }) {
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
-      accessibilityLabel="New series, dialogue or story. Nothing is written until you ask."
+      accessibilityLabel="New series, dialogue or story"
       style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, alignItems: 'center', justifyContent: 'center', gap: space.s }}
     >
       <Icon name="plus" size={24} color={c.textSecondary} />
-      <Text style={{ ...type.subhead, fontWeight: '600', color: c.textSecondary, textAlign: 'center' }}>{"Nothing is written until you ask. Tap to have one written."}</Text>
+      <Text style={{ ...type.subhead, fontWeight: '600', color: c.textSecondary, textAlign: 'center' }}>{"Tap to write a new text."}</Text>
     </Tappable>
   );
 }

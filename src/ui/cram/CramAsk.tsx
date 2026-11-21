@@ -14,8 +14,8 @@ function sentText(words: string[], held: boolean, approved: string[], ready: num
   const one = words.length === 1;
   const added = words.filter((w) => approved.includes(w)).length;
   if (added === words.length) return one ? `The card for ${words[0]} is added to the cram.` : `All ${words.length} cards are added to the cram.`;
-  if (ready) return one ? `Claude wrote a card for ${words[0]}. Review it and it joins the cram.` : `Claude wrote ${ready === 1 ? 'a card' : `${ready} cards`}. Review ${ready === 1 ? 'it' : 'them'} and ${ready === 1 ? 'it joins' : 'they join'} the cram.`;
-  if (held) return one ? `${words[0]} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.` : `${words.length} words will go to Claude once you're back online. Approve the cards when they're ready and they join the cram.`;
+  if (ready) return one ? `Claude wrote a card for ${words[0]}. Approve it here and it joins the cram.` : `Claude wrote ${ready === 1 ? 'a card' : `${ready} cards`}. Approve ${ready === 1 ? 'it' : 'them'} here and ${ready === 1 ? 'it joins' : 'they join'} the cram.`;
+  if (held) return one ? `Couldn't reach your server. ${words[0]} goes to Claude once it answers. Approve the card when it's ready and it joins the cram.` : `Couldn't reach your server. ${words.length} words go to Claude once it answers. Approve the cards when they're ready and they join the cram.`;
   return one ? `Claude is writing a card for ${words[0]}. Approve it here when it's ready and it joins the cram.` : `Claude is writing ${words.length} cards. Approve them here when they're ready and they join the cram.`;
 }
 
@@ -114,7 +114,7 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
           <Icon name="plus.circle.fill" size={26} color={c.accent} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={{ ...type.headline, color: c.text }}>{`Make a card for "${typed}"`}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : `Claude finds the ${name} and writes the card. It joins this cram once you approve it.`}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : `Claude finds the ${name} and writes a card. Approve it and it joins the cram.`}</Text>
           </View>
         </Tappable>
       ) : (

@@ -110,8 +110,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         {!readerApi ? (
           <Card>
-            <Text style={{ ...type.headline, color: c.text }}>Grammar needs Read & Listen</Text>
-            <Help>Which grammar you're practicing, and the questions, come from Read & Listen's server. Turn it on in Settings, Read & Listen.</Help>
+            <Text style={{ ...type.headline, color: c.text }}>Grammar uses Read & Listen</Text>
+            <Help>Turn it on in Settings, Read & Listen.</Help>
           </Card>
         ) : error ? (
           <ErrorNote message={error} onRetry={load} />
@@ -126,7 +126,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
                   <Tag text={String(groups.due.length)} color={c.violetInk} fill={c.violetFill} />
                 </View>
                 {rows(groups.due)}
-                {groups.due.length > DRILL_POINTS ? <Help>{`Practice now mixes ${DRILL_POINTS} grammar points, Practice ones first. Start again for the rest.`}</Help> : null}
+                {groups.due.length > DRILL_POINTS ? <Help>{`Practice now picks ${DRILL_POINTS} grammar points, the ones set to Practice first. Start again for the rest.`}</Help> : null}
               </Reveal>
             ) : (
               <Help>{groups.later.length
@@ -159,7 +159,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
                 <Help>Topics are pages Claude writes for you. They aren't checked against a grammar book.</Help>
               </View>
             ) : null}
-            <Help>Tap a grammar point to read about it and practice it. Practice here never changes your flashcards.</Help>
+            <Help>Tap a grammar point to read about it and practice it. This doesn't change your cards.</Help>
           </>
         )}
       </ScrollView>

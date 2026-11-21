@@ -787,7 +787,7 @@ export function unreadableNotice(notes: Note[]): string | undefined {
     .filter((p) => p.count > 0)
     .map((p) => `${p.count} in ${p.word}`);
   if (!parts.length) return undefined;
-  return `Some lines of the Forms field couldn't be read, so they weren't asked (${parts.join(', ')}). Each line needs what the form is and the form, like "present · yo: espero". Edit the note to fix them.`;
+  return `Some lines of the Forms field couldn't be read, so they weren't asked (${parts.join(', ')}). Each line needs the form's name, then the form, e.g. "present · yo: espero". Edit the note to fix them.`;
 }
 
 /** Every word with forms, for the drill's wrong choices. */

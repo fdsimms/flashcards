@@ -46,7 +46,7 @@ export function FuriganaSettings({ repo, wanikaniOn }: { repo: Repo; wanikaniOn:
           sentence. The front of a card never shows it, since the reading is often the answer.
           {mode === 'unlearned'
             ? wanikaniOn
-              ? ' A kanji counts as learned once it reaches Guru in WaniKani, and a word you learned there as vocabulary shows no reading at all. Here 団 is taken as learned.'
+              ? " Hides the reading over kanji you've taken to Guru in WaniKani, and over words you learned there. In this example, you know 団."
               : " Enter your WaniKani token in Settings, WaniKani to use this. Until then it shows a reading over every kanji."
             : ''}
         </Help>

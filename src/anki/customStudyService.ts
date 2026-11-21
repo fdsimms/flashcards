@@ -5,7 +5,7 @@ import { deckLimits, deckLineage } from '../core/deckTree';
 import { ankiToday } from '../core/order';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckParams } from '../core/types';
-import type { NoteStore } from './noteService';
+import { NO_COLLECTION, type NoteStore } from './noteService';
 import { buildCustomStudyDeck, CustomStudyRefused, setAnkiDayLimits } from './customStudyWrites';
 
 /**
@@ -57,7 +57,7 @@ export async function runCustomStudy(store: NoteStore, deck: string, study: Cust
     return { kind: 'limits' };
   }
 
-  if (!keptCollection) throw new CustomStudyRefused('This needs your Anki collection in Franki. Set up Anki first, from the Decks screen.');
+  if (!keptCollection) throw new CustomStudyRefused(NO_COLLECTION);
   const day = ankiToday(now, H, cs.collectionCreated, cs.creationOffset);
   if (day === undefined) throw new CustomStudyRefused("Franki doesn't know when your Anki collection was created. Sync once, then try again.");
   const built = await store.lockAnki(() => store.withSyncConnection((db) => buildCustomStudyDeck(db, {

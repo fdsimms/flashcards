@@ -10,9 +10,8 @@ test('the target the server sends is read as harder, standard or easier', () => 
 
 test('the three choices are labeled and described, harder with its caveat', () => {
   expect(LEVEL_OPTIONS.map((o) => o.value)).toEqual(['harder', 'standard', 'easier']);
-  expect(LEVEL_HELP).toContain('93%');
-  expect(LEVEL_HELP).toContain('below the 95%');
-  expect(LEVEL_HELP).toContain('95%');
-  expect(LEVEL_HELP).toContain('97%');
+  expect(LEVEL_HELP).toContain('about 5 new words in 100');
+  expect(LEVEL_HELP).toContain('about 3');
+  expect(LEVEL_HELP).toContain('about 7, more than research finds you can comfortably follow');
   expect(LEVEL_HELP).not.toContain('—');
 });
