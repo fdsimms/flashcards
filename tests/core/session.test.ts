@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { mix } from '../../src/core/order';
 import { studiedKind, type Queue } from '../../src/core/queue';
-import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, nextUndo, restoreCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, upNext, type AnswerRecord, type CardAction } from '../../src/core/session';
+import { answerTimeMs, answerTimer, bumpStudied, clockText, currentCard, keepSessionOrder, nextUndo, restoreCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, timeboxMessage, timeboxReached, upNext, type AnswerRecord, type CardAction } from '../../src/core/session';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -218,5 +218,38 @@ describe('restoreCard', () => {
     expect(r.sched).toBe(before.sched);
     expect(r.position).toBe(7);
     expect(r.suspended).toBe(true);
+  });
+});
+
+describe('the session time limit', () => {
+  it('is reached once the limit has passed since the stretch began, and never without one', () => {
+    expect(timeboxReached(0, 899_999, 900)).toBe(false);
+    expect(timeboxReached(0, 900_000, 900)).toBe(true);
+    expect(timeboxReached(0, 9_000_000, 0)).toBe(false);
+    expect(timeboxReached(0, 9_000_000, undefined)).toBe(false);
+  });
+
+  it('says how many cards were studied in how many minutes', () => {
+    expect(timeboxMessage(34, 15 * 60_000 + 20_000)).toBe('You studied 34 cards in 15 minutes.');
+    expect(timeboxMessage(1, 10_000)).toBe('You studied 1 card in 1 minute.');
+  });
+});
+
+describe('answerTimer', () => {
+  it("counts the card's seconds up to the preset's maximum, where it stops", () => {
+    expect(answerTimer(0, 12_400, undefined, { maxAnswerSecs: 60 })).toEqual({ secs: 12, capped: false });
+    expect(answerTimer(0, 75_000, undefined, { maxAnswerSecs: 60 })).toEqual({ secs: 60, capped: true });
+    expect(answerTimer(0, 75_000, undefined, undefined)).toEqual({ secs: 60, capped: true });
+  });
+
+  it('stops at Show answer only when the preset says so', () => {
+    expect(answerTimer(0, 20_000, 8_000, { stopTimerOnAnswer: true })).toEqual({ secs: 8, capped: false });
+    expect(answerTimer(0, 20_000, 8_000, { stopTimerOnAnswer: false })).toEqual({ secs: 20, capped: false });
+  });
+
+  it('reads as minutes and seconds', () => {
+    expect(clockText(7)).toBe('0:07');
+    expect(clockText(60)).toBe('1:00');
+    expect(clockText(125)).toBe('2:05');
   });
 });

@@ -111,6 +111,41 @@ export function restoreCard(live: Card, before: Card, kind: CardAction['kind']):
   };
 }
 
+/**
+ * Anki's session time limit (its timebox, Preferences, Review): reached once `limitSecs` have
+ * passed since the stretch started at `startMs`. Anki checks it after each answer. Never reached
+ * with no limit (0, Anki's default).
+ */
+export function timeboxReached(startMs: number, nowMs: number, limitSecs: number | undefined): boolean {
+  return !!limitSecs && limitSecs > 0 && nowMs - startMs >= limitSecs * 1000;
+}
+
+/** What the time limit alert says: "You studied 34 cards in 15 minutes." */
+export function timeboxMessage(cards: number, ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60000));
+  return `You studied ${cards} ${cards === 1 ? 'card' : 'cards'} in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`;
+}
+
+/**
+ * The answer timer's reading, as Anki's reviewer shows it: the seconds the card has been up,
+ * stopped at the preset's maximum answer seconds (`capped` then, which Anki shows in red), and
+ * held at the moment the answer was shown when the preset says to stop it then.
+ */
+export function answerTimer(
+  shownAtMs: number, nowMs: number, revealedAtMs: number | undefined,
+  params: Pick<DeckParams, 'maxAnswerSecs' | 'stopTimerOnAnswer'> | undefined,
+): { secs: number; capped: boolean } {
+  const until = params?.stopTimerOnAnswer && revealedAtMs !== undefined ? Math.min(nowMs, revealedAtMs) : nowMs;
+  const max = params?.maxAnswerSecs ?? DEFAULT_MAX_ANSWER_SECS;
+  const secs = Math.max(0, Math.floor((until - shownAtMs) / 1000));
+  return secs >= max ? { secs: max, capped: true } : { secs, capped: false };
+}
+
+/** "0:07", "1:00": minutes and seconds. */
+export function clockText(secs: number): string {
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+}
+
 /** How far through the session is: answers given over those plus the cards still queued. */
 export function sessionProgress(answered: number, remaining: number): number {
   const total = answered + remaining;

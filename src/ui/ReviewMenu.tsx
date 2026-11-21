@@ -14,7 +14,7 @@ import { FLAG_NAMES } from '../core/cardState';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
   /** The card's flag, 0 for none. */
   flag: number;
   /** Whether the card is marked to come back a few more times this session (src/core/miniCram.ts). */
@@ -32,6 +32,8 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
   onBuryCard: () => void;
   onBuryNote: () => void;
   onSuspend: () => void;
+  /** Suspends every card of the note still studied (Anki's Suspend note). */
+  onSuspendNote: () => void;
   onDueDate: () => void;
   onForget: () => void;
   onCardInfo: () => void;
@@ -43,11 +45,12 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
 }) {
   return (
     <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, reschedule, card info or card settings">
-      {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended. First, since they're the most used. */}
+      {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended, and Suspend note every card of the note. First, since they're the most used. */}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryCard}>Bury card</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryNote}>Bury note</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="pause.circle" onPress={onSuspend}>Suspend card</Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.MenuAction icon="pause.circle" onPress={onSuspendNote}>Suspend note</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAskClaude}>Ask Claude</Stack.Toolbar.MenuAction>

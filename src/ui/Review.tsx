@@ -122,6 +122,8 @@ import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './k
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
+import { AnswerTimer } from './AnswerTimer';
+import { useTimebox } from './useTimebox';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
@@ -286,6 +288,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
   const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
+  // Anki's session time limit, from the collection's settings (useTimebox.ts).
+  useTimebox(collection.timeLimitSecs, history.length, onDone);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
@@ -1541,6 +1545,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onBuryCard: () => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow', true),
             onBuryNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow', true),
             onSuspend: () => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card', true),
+            onSuspendNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, suspended: true }), 'Suspended this note', true),
             onDueDate: chooseDueDate,
             onForget: chooseForget,
             // The deck is loaded again when Card Info closes: the same card stays on screen.
@@ -1559,6 +1564,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} current={shownCount === 'due'} />
           <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} current={shownCount === 'again'} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
+          {cardParams?.showTimer ? <AnswerTimer key={showing} revealed={revealed} params={cardParams} /> : null}
         </View>
       ) : null}
       {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
