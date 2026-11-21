@@ -32,10 +32,20 @@ export function loadToolPrefs(): Promise<ToolPrefs> {
 
 export const toolPrefs = (): ToolPrefs => current;
 
+const languageListeners = new Set<(language: ToolPrefs['language']) => void>();
+
+/** Calls `listener` whenever the saved language changes, from any screen (useAppLanguage). Returns the way to stop. */
+export function onToolLanguage(listener: (language: ToolPrefs['language']) => void): () => void {
+  languageListeners.add(listener);
+  return () => { languageListeners.delete(listener); };
+}
+
 export function saveToolPrefs(change: Partial<ToolPrefs>): void {
+  const before = current.language;
   if (early) early = { ...early, ...change };
   current = { ...current, ...change };
   SecureStore.setItemAsync(KEY, JSON.stringify(current)).catch(() => undefined);
+  if (current.language !== before) languageListeners.forEach((l) => l(current.language));
 }
 
 /**
