@@ -1,7 +1,7 @@
 import { useAudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
+import { Keyboard, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
@@ -275,6 +275,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   });
   const holding = spoken.available && !typingMode;
   const [waiting, setWaiting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   // What went wrong, and what Try again does: none when the owner's line went back in the box to send again.
   const [problem, setProblem] = useState<{ message: string; retry?: () => void } | null>(null);
   const [added, setAdded] = useState<Record<string, 'adding' | 'added' | 'failed'>>({});
@@ -365,7 +366,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     const mine = ++asking.current;
     player.pause();
     phone.stop();
+    Keyboard.dismiss();
     setWaiting(true);
+    setFinishing(true);
     setProblem(null);
     try {
       const [got, settings] = await Promise.all([api.situationFeedback(conversationOf(chat)), api.settings().catch(() => null)]);
@@ -375,9 +378,13 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     } catch (e) {
       if (asking.current === mine) setProblem({ message: failureText(e, { what: "Couldn't get feedback on your lines.", next: 'Try again.' }), retry: () => void finish() });
     } finally {
-      if (asking.current === mine) setWaiting(false);
+      if (asking.current === mine) { setWaiting(false); setFinishing(false); }
     }
   };
+  // The status line and any error sit below the lines: bring them into view so a tap on Finish visibly does something.
+  useEffect(() => {
+    if (waiting || problem) setTimeout(() => scrollProps.ref.current?.scrollToEnd({ animated: true }), 50);
+  }, [waiting, problem]); // eslint-disable-line react-hooks/exhaustive-deps
   const add = async (w: { word: string; english: string }) => {
     if (!deck) return;
     setAdded((a) => ({ ...a, [w.word]: 'adding' }));
@@ -522,7 +529,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
               {chat.lines.map((l, i) => (l.speaker === 'them'
                 ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
                 : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
-              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
+              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{finishing ? 'Getting feedback on your lines...' : chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
               {problem ? <ErrorNote message={problem.message} onRetry={problem.retry} /> : null}
               {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}
