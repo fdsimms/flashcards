@@ -38,7 +38,7 @@ export function CramList({ repo }: { repo: NoteStore }) {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {loaded && !crams.length ? (
           <Help>
-            A cram is your plan for a day coming up, like a lesson with a tutor or a trip: the words to know, the questions to ask and what to talk about. Practice just those words any time before the day, and their reviews are due no later than that day. Tap + to start one.
+            Get ready for something coming up, like a tutor lesson or a trip. Collect the words you need, plus questions to ask and things to talk about, and practice just those words before the day. Their reviews are due by then. Tap + to start one.
           </Help>
         ) : null}
         {current.length ? (
