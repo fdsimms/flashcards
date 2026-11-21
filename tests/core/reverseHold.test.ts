@@ -32,6 +32,12 @@ describe('heldReverseCards', () => {
     expect(held(cardsOf(reverseOnly), [reverseOnly])).toEqual([]);
     expect(held(cardsOf(note, { forward: { suspended: true } }))).toEqual([]);
   });
+  it('holds a new listening card the same way', () => {
+    const heard: Note = { ...omniNote({ GenerateReverse: 'y', GenerateAudioCard: 'y' }), id: 'w' };
+    expect(held(cardsOf(heard), [heard])).toEqual(['w:reverse', 'w:audio']);
+    expect(held(cardsOf(heard, { forward: { state: 2, scheduledDays: GURU_INTERVAL_DAYS }, audio: { state: 0 } }), [heard])).toEqual([]);
+    expect(held(cardsOf(heard, { audio: { state: 1 } }), [heard])).toEqual(['w:reverse']);
+  });
   it('leaves other note types alone', () => {
     const basic: Note = { id: 'b', deck: 'Trivia', model: 'Basic', fields: { Front: 'a', Back: 'b' }, tags: [] };
     const cards: Card[] = cardsOf(note).map((c) => ({ ...c, id: `b:${c.kind}`, noteId: 'b' }));

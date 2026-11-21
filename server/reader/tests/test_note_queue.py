@@ -95,6 +95,19 @@ def test_a_good_answer_gives_the_fields_by_their_anki_names() -> None:
     )
 
 
+def test_production_and_listening_cards_follow_whether_the_word_is_said_or_heard() -> None:
+    def switches(**over: str) -> tuple[bool, bool]:
+        got = check(filled("ricane", **over), {"ricane": ""}, "fr")
+        assert got is not None
+        return "GenerateReverse" in got[1], "GenerateAudioCard" in got[1]
+
+    assert switches(say="yes", hear="yes") == (True, True)
+    assert switches(say="no", hear="yes") == (False, True)
+    assert switches(say="no", hear="no") == (False, False)
+    # With no answer, as before: a reverse card and no audio card.
+    assert switches() == (True, False)
+
+
 def test_the_owners_meaning_is_kept() -> None:
     got = check(filled("ricane"), {"ricane": "sniggers"}, "fr")
     assert got is not None and got[1]["Meaning"] == "sniggers"

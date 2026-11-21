@@ -136,7 +136,7 @@ shifts a due date or adds a review: FSRS must see the real time since each revie
 of its own applies. **While a review from an earlier study day waits, reviews come likeliest-remembered first**
 (`isBehind`, `src/core/order.ts`; the owner's choice, 21 November 2026), after a vacation or any days away, so what a
 session doesn't reach is what was already slipping; the preset's review order returns once nothing older than today waits.
-**A new reverse card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
+**A new reverse or audio card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
 the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it.
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,

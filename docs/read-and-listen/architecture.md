@@ -2007,7 +2007,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
   `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
-  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  (also the new note's tag), a Notes line, the `Language` every note carries, `GenerateReverse` when the word is one the learner would say and `GenerateAudioCard` when it's one they'd hear (the owner's rule, 21 November 2026: production and listening practice only for a word they'd actually say or hear; Claude answers `say` and `hear` for each word, and the switches can be changed in the editor before saving), and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
   KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and
