@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
 import type { NoteStore } from '../../src/anki/noteService';
-import { addSkillCards, deleteSkillCards, missingDrafts, setSkillsPaused, SkillsRefused } from '../../src/anki/skillCards';
+import { addSkillCards, deleteSkillCards, missingDrafts, missingWordDrafts, setSkillsPaused, SkillsRefused } from '../../src/anki/skillCards';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
 import { readCollectionRows } from '../support/ankiRows';
@@ -40,7 +40,7 @@ describe('adding skill cards', () => {
   it('adds Basic notes in the deck\'s Skills subdeck, in Anki too, the later steps suspended', async () => {
     const { store, anki } = await franki();
     const got = await addSkillCards(store, { ...add, groups: ['time'] });
-    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, skipped: 0 });
+    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, skipped: 0 });
     const notes = [...store.notes.values()].filter((n) => n.tags.includes('skill'));
     expect(notes).toHaveLength(4);
     expect(notes.every((n) => n.deck === 'Thai::Skills' && n.model === 'Basic' && /^\d+$/.test(n.id))).toBe(true);
@@ -56,7 +56,7 @@ describe('adding skill cards', () => {
     const { store } = await franki();
     await addSkillCards(store, { ...add, groups: ['time'] });
     const again = await addSkillCards(store, { ...add, groups: ['time', 'numbers'] });
-    expect(again).toEqual({ deck: 'Thai::Skills', added: 4, skipped: 4 });
+    expect(again).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, skipped: 4 });
   });
 
   it('refuses without a Basic note type, adding nothing', async () => {
@@ -66,9 +66,47 @@ describe('adding skill cards', () => {
     expect(store.notes.size).toBe(before);
   });
 
+  it('refuses Saying dates without the note type its words are written in, adding nothing', async () => {
+    const { store } = await franki();
+    const before = store.notes.size;
+    const refused = addSkillCards(store, { ...add, groups: ['dates'] });
+    await expect(refused).rejects.toBeInstanceOf(SkillsRefused);
+    await expect(refused).rejects.toThrow(/Omnilanguage/);
+    expect(store.notes.size).toBe(before);
+  });
+
   it('refuses a language with no skill cards', async () => {
     const { store } = await franki();
     await expect(addSkillCards(store, { ...add, language: 'en', languageName: 'English', groups: ['time'] })).rejects.toBeInstanceOf(SkillsRefused);
+  });
+});
+
+describe('the words a skill needs', () => {
+  const note = (id: string, deck: string, Entry: string, tags: string[] = []) => ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'x' }, tags });
+
+  it('are every month and weekday the deck lacks', () => {
+    const all = missingWordDrafts([], 'Thai', 'th', ['dates']);
+    expect(all).toHaveLength(19);
+    expect(all.every((d) => d.tags.join() === 'skill::words' && d.fields.Language === 'thai' && d.fields.PartOfSpeech === 'noun' && d.fields.GenerateReverse === 'y')).toBe(true);
+    expect(all[0].fields).toMatchObject({ Entry: 'มกราคม', Meaning: 'January' });
+  });
+
+  it('leave out one the deck has in any subdeck, studied or not, or inside a longer headword', () => {
+    const notes = [note('1', 'Thai::Tier 1', 'มกราคม'), note('2', 'Norsk', 'januar'), note('3', 'Thai', 'วันจันทร์')];
+    const left = missingWordDrafts(notes, 'Thai', 'th', ['dates']).map((d) => d.fields.Entry);
+    expect(left).toHaveLength(17);
+    expect(left).not.toContain('มกราคม');
+    expect(left).not.toContain('วันจันทร์');
+    expect(missingWordDrafts([note('4', 'Polski::Tier 1', 'luty, miesiąc')], 'Polski', 'pl', ['dates']).map((d) => d.fields.Entry)).not.toContain('luty');
+  });
+
+  it('are none for a skill that needs no words', () => {
+    expect(missingWordDrafts([], 'Thai', 'th', ['time', 'numbers', 'money'])).toEqual([]);
+  });
+
+  it('are not counted as skill cards', () => {
+    const skillWord = note('5', 'Thai::Skills', 'มกราคม', ['skill::words']);
+    expect(missingDrafts([skillWord], 'th', 'Thai', ['dates'])).toHaveLength(3);
   });
 });
 

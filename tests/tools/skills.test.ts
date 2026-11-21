@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  heardRight, languageOfDeck, missingWords, skillDrafts, skillOffer, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  heardRight, languageOfDeck, missingByCard, missingWords, skillDrafts, skillOffer, skillWordDrafts, stepNeeds, stepWaits, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
@@ -278,5 +278,70 @@ describe('the five additions', () => {
     expect(skillOffer('Thai', [])).toBe('Thai');
     expect(skillOffer('Thai', [{ deck: 'Thai::Skills', tags: ['skill'] }])).toBeUndefined();
     expect(skillOffer('🧠 Trivia', [])).toBeUndefined();
+  });
+});
+
+describe('skill steps that wait for words', () => {
+  const note = (id: string, deck: string, Entry: string, tags: string[] = []) => ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'x' }, tags });
+
+  it('hold the first dates step back too, where every other first step starts at once', () => {
+    const suspended = (lang: 'th' | 'nb') => skillDrafts(lang, 'x', ['dates', 'time']).map((d) => [d.tags.find((t) => t.startsWith('skill::drill::')), d.suspended]);
+    expect(suspended('nb')).toEqual([
+      ['skill::drill::dates-day', true], ['skill::drill::dates-weekday', true], ['skill::drill::dates-year', true],
+      ['skill::drill::time-hours', false], ['skill::drill::time-quarters', true], ['skill::drill::time-five', true], ['skill::drill::time-any', true],
+    ]);
+    expect(stepWaits(drillStep('dates-day')!, 'nb')).toBe(true);
+    expect(stepWaits(drillStep('time-hours')!, 'nb')).toBe(false);
+    expect(stepWaits(drillStep('time-hours')!, 'pl')).toBe(false);
+    expect(stepWaits(drillStep('time-quarters')!, 'pl')).toBe(true);
+  });
+
+  it('need the single words they always did, and the months and weekdays for dates', () => {
+    expect(stepNeeds('numbers-999', 'th').map((n) => n.words)).toEqual([['ร้อย']]);
+    expect(stepNeeds('dates-day', 'nb').map((n) => n.label)).toEqual(['month names']);
+    expect(stepNeeds('dates-year', 'nb').map((n) => n.label)).toEqual(['month names', 'weekday names']);
+    expect(stepNeeds('time-hours', 'nb')).toEqual([]);
+  });
+
+  it('write the words only for the groups that need them', () => {
+    expect(skillWordDrafts('nb', ['dates', 'time'])).toHaveLength(19);
+    expect(skillWordDrafts('nb', ['time', 'numbers', 'money'])).toEqual([]);
+    expect(skillWordDrafts('en', ['dates'])).toEqual([]);
+  });
+
+  it('say what a card still waits for, from the headwords studied', () => {
+    const notes = new Map([
+      ['n1', note('n1', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb'])],
+      ['n2', note('n2', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-year', 'skill::lang::nb'])],
+    ]);
+    const cards = [{ id: 'c1', noteId: 'n1' }, { id: 'c2', noteId: 'n2' }];
+    expect(missingByCard(cards, notes, ['januar'])).toEqual(new Map([['c1', ['2 more month names']], ['c2', ['2 more month names', 'weekday names']]]));
+    expect(missingByCard(cards, notes, ['januar', 'februar', 'mars'])).toEqual(new Map([['c2', ['weekday names']]]));
+    expect(missingByCard(cards, notes, ['januar', 'februar', 'mars', 'søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'])).toEqual(new Map());
+  });
+
+  it('release a first step once its words are studied, but never one already started', () => {
+    const first = { id: 'a', stepId: 'dates-day', language: 'nb' as const, suspended: true, settled: false, started: false };
+    expect(releasable([{ ...first, missing: ['2 more month names'] }])).toEqual([]);
+    expect(releasable([{ ...first, missing: [] }])).toEqual(['a']);
+    expect(releasable([first])).toEqual(['a']);
+    expect(releasable([{ ...first, started: true }])).toEqual([]);
+    expect(releasable([{ ...first, suspended: false }])).toEqual([]);
+    // A first step with nothing to wait for, such as the hours, is never released this way: it was never held.
+    expect(releasable([{ ...first, stepId: 'time-hours' }])).toEqual([]);
+  });
+
+  it('ask only about the months known', () => {
+    const step = drillStep('dates-day')!;
+    let state = 3;
+    const random = () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
+    let previous: ReturnType<typeof drawQuestion> | undefined;
+    for (let i = 0; i < 100; i++) {
+      const q = drawQuestion(step, previous, random, 'nb', [2, 11]);
+      expect(q.kind === 'date' && [2, 11].includes(q.date.month)).toBe(true);
+      previous = q;
+    }
+    const next = nextDrillQuestion(step, undefined, [], random, 'nb', [7]);
+    expect(next.question.kind === 'date' && next.question.date.month).toBe(7);
   });
 });

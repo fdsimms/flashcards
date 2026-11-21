@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from anki.collection import Collection  # noqa: F401 - first, for the anki package's imports
@@ -13,6 +15,9 @@ pytestmark = pytest.mark.anyio
 THAI = skills.CATALOG["languages"]["th"]
 ALL = sum(len(g["notes"]) for g in THAI["groups"])
 LATER = sum(1 for g in THAI["groups"] for n in g["notes"] if n["suspended"])
+WORDS = sum(len(g["words"]) for g in THAI["groups"])
+# Anki's `tag:skill` also matches `skill::words`, so a count of the skill cards leaves the words out.
+CARDS = "tag:skill -tag:skill::words"
 
 
 def test_a_deck_name_means_the_language_the_app_reads_from_it():
@@ -31,7 +36,7 @@ async def count(cm, query: str) -> int:
 
 @pytest.fixture
 def thai(desktop):
-    desktop.run("add-deck", "Thai", "+", "sync")
+    desktop.run("add-deck", "Thai", "+", "add-notetype", "Omnilanguage", "Entry,Meaning,Language,PartOfSpeech,GenerateReverse", "+", "sync")
 
 
 async def test_lists_the_decks_with_skills_and_what_each_lacks(client, thai):
@@ -48,23 +53,26 @@ async def test_adding_previews_then_writes_with_later_steps_suspended(client, cm
     preview = await call(client, "add_skill_cards", deck="Thai")
     assert preview["written"] == 0 and await count(cm, "tag:skill") == 0
     done = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
-    assert done == {"deck": "Thai::Skills", "added": ALL, "skipped": 0}
-    assert await count(cm, '"deck:Thai::Skills" tag:skill') == ALL
-    assert await count(cm, "tag:skill is:suspended") == LATER
+    assert done == {"deck": "Thai::Skills", "added": ALL, "words": WORDS, "skipped": 0}
+    assert await count(cm, f'"deck:Thai::Skills" {CARDS}') == ALL
+    assert await count(cm, CARDS + " is:suspended") == LATER
     again = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
-    assert again["added"] == 0
-    assert (await call(client, "skill_cards", deck="Thai"))["decks"][0]["missing"] == 0
+    assert again["added"] == 0 and again["words"] == 0
+    state = (await call(client, "skill_cards", deck="Thai"))["decks"][0]
+    assert (state["missing"], state["words_missing"]) == (0, 0)
 
 
 async def test_pausing_suspends_every_card_and_resuming_leaves_a_later_step_waiting(client, cm, thai, desktop):
     await call(client, "add_skill_cards", deck="Thai", dry_run=False)
     paused = await call(client, "set_skill_cards", deck="Thai", on=False)
     assert paused["on"] is False and paused["cards_changed"] == ALL - LATER
-    assert await count(cm, "tag:skill is:suspended") == ALL
+    assert await count(cm, CARDS + " is:suspended") == ALL
+    # The words are the deck's own, not skill cards: pausing leaves them to be studied.
+    assert await count(cm, "tag:skill::words is:suspended") == 0
     assert "paused" in await call_error(client, "add_skill_cards", deck="Thai")
     resumed = await call(client, "set_skill_cards", deck="Thai", on=True)
     assert resumed["cards_changed"] == ALL - LATER
-    assert await count(cm, "tag:skill is:suspended") == LATER
+    assert await count(cm, CARDS + " is:suspended") == LATER
     # The setting reaches Anki on the other device, under the key Franki reads.
     desktop.run("sync")
     col = Collection(str(desktop.path))
@@ -90,7 +98,7 @@ async def test_the_hourly_job_adds_only_for_decks_that_are_on_and_automatic(clie
     assert await skills.auto_add(cm) == 0  # automatic is off by default
     await call(client, "set_skill_cards", deck="Thai", auto=True, skills_off=["money"])
     money = len(next(g for g in THAI["groups"] if g["id"] == "money")["notes"])
-    assert await skills.auto_add(cm) == ALL - money
+    assert await skills.auto_add(cm) == ALL - money + WORDS
     assert await skills.auto_add(cm) == 0
     # Switching the skill on is all it takes for its cards to come.
     await call(client, "set_skill_cards", deck="Thai", skills_off=[])
@@ -101,3 +109,27 @@ async def test_the_hourly_job_adds_only_for_decks_that_are_on_and_automatic(clie
     assert await skills.auto_add(cm) == 0
     await call(client, "set_skill_cards", deck="Thai", on=True)
     assert await skills.auto_add(cm) > 0
+
+
+async def test_the_words_a_skill_needs_are_added_as_notes_in_the_skills_subdeck(client, cm, thai):
+    await call(client, "add_skill_cards", deck="Thai", dry_run=False)
+    month = await cm.read(lambda col: col.get_note(col.find_notes('"note:Omnilanguage" Entry:มกราคม')[0]))
+    assert (month["Meaning"], month["Language"], month["PartOfSpeech"], month["GenerateReverse"]) == ("January", "thai", "noun", "y")
+    assert month.tags == ["skill::words"]
+    assert await count(cm, '"deck:Thai::Skills" tag:skill::words') == WORDS
+    # The first dates step waits for the words to be studied, as the later ones wait for the step before.
+    waiting = await cm.read(lambda col: [col.get_note(n).tags for n in col.find_notes(CARDS + " is:suspended")])
+    assert any("skill::drill::dates-day" in tags for tags in waiting)
+
+
+async def test_a_word_the_deck_already_has_is_not_added_again(client, cm, desktop):
+    fields = json.dumps({"Entry": "มกราคม", "Meaning": "January", "Language": "thai"})
+    desktop.run(
+        "add-notetype", "Omnilanguage", "Entry,Meaning,Language,PartOfSpeech,GenerateReverse", "+",
+        "add-fields-note", "Omnilanguage", "Thai::Tier 1", fields, "+", "sync",
+    )
+    # In another subdeck of the language's deck, studied or not, it counts as the deck having it.
+    assert (await call(client, "skill_cards", deck="Thai"))["decks"][0]["words_missing"] == WORDS - 1
+    done = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
+    assert done["words"] == WORDS - 1
+    assert await count(cm, "Entry:มกราคม") == 1

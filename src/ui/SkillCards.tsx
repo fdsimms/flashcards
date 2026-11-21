@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { addSkillCards, deleteSkillCards, missingDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
+import { addSkillCards, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
 import { DEFAULT_SKILL_SETTINGS, type SkillSettings } from '../anki/skillSettings';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { studyDayStart } from '../core/day';
@@ -61,6 +61,8 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
   }, [repo, deck, loads]);
   const onGroups = groups.filter((g) => !settings.off.includes(g.id)).map((g) => g.id);
   const missing = useMemo(() => (found ? missingDrafts(notes, found.language, found.name, onGroups).length : 0), [notes, found, settings.off]);
+  // The words the skills that are on need (the months and weekdays for dates) that the deck doesn't have: added with the cards.
+  const missingWords = useMemo(() => (found ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off]);
   const skillCount = useMemo(() => notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).length, [notes, deck]);
   const sample = DRILL_STEPS.find((s) => !settings.off.includes(s.group));
   const subdeck = `${deck.split('::').pop()}::${SKILLS_SUBDECK}`;
@@ -97,7 +99,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
 
   const confirmDelete = () => Alert.alert(
     `Delete ${skillCount} skill ${skillCount === 1 ? 'card' : 'cards'}?`,
-    'They are removed from Anki too, with their review history. Adding automatically turns off so they do not come back. Add now brings them back as new cards.',
+    'They are removed from Anki too, with their review history. Adding automatically turns off so they do not come back. Add now brings them back as new cards. The words added for them stay in your deck.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -122,9 +124,9 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
   );
 
   const add = async () => {
-    if (!found || busy.current || !missing) return;
+    if (!found || busy.current || !(missing || missingWords)) return;
     busy.current = true;
-    setProgress({ done: 0, total: missing });
+    setProgress({ done: 0, total: missing + missingWords });
     try {
       const { dayStartsAtHour } = await repo.collectionSettings();
       const got = await addSkillCards(repo, {
@@ -134,6 +136,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       await refresh();
       haptic.success();
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
+      if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you've studied them.`);
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
       parts.push('Later drill steps wait, suspended, until the step before has a review a week or more out.');
       setLoads((n) => n + 1);
@@ -150,11 +153,11 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
     <Screen
       title="Skill cards"
       largeTitle={false}
-      footer={found && groups.length && settings.on && (missing || progress) ? (
+      footer={found && groups.length && settings.on && (missing || missingWords || progress) ? (
         <Button
-          label={progress ? `Adding ${progress.done} of ${progress.total}` : `Add ${missing} ${missing === 1 ? 'card' : 'cards'} now`}
+          label={progress ? `Adding ${progress.done} of ${progress.total}` : addLabel(missing, missingWords)}
           busy={false}
-          disabled={!missing || !!progress}
+          disabled={!(missing || missingWords) || !!progress}
           onPress={() => void add()}
         />
       ) : undefined}
@@ -192,13 +195,16 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
               <SwitchRow
                 first
                 label="Skill cards"
-                hint={`Off suspends every skill card in ${subdeck} and stops adding more. On resumes them, with later drill steps still waiting on the step before.`}
+                hint={`Off suspends every skill card in ${subdeck} and stops adding more. On resumes them, with later drill steps still waiting on the step before, and Saying dates on its words.`}
                 value={settings.on}
                 onValueChange={(on) => void setOn(on)}
               />
             </Group>
             <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: space.m }}>Skills in this deck</Text>
             <Help>{`Skills that are on go into ${subdeck}, made if it isn't there. They come up in your reviews like any card, and FSRS spaces them. A drill card asks a few questions, then you rate it. Later steps are added suspended and come in as the step before settles. Turning a skill off stops adding its cards. Cards already added stay.`}</Help>
+            {groups.some((g) => g.id === 'dates' && !settings.off.includes('dates')) ? (
+              <Help>{`Saying dates is only useful once you know the words, so it also adds the month and weekday words this deck doesn't have to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}. Some of them come up in your new cards every day until you've studied them, and date drills ask only about months you've studied.`}</Help>
+            ) : null}
             <Group>
               {groups.map((g, i) => (
                 <SwitchRow
@@ -215,15 +221,15 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
               <SwitchRow
                 first
                 label="Add new skill cards automatically"
-                hint="Your server adds the cards of the skills that are on, including ones from later app updates, after your next sync. Off: only Add now adds them."
+                hint="Your server adds the cards of the skills that are on, and the words they need, including ones from later app updates, after your next sync. Off: only Add now adds them."
                 value={settings.auto}
                 onValueChange={(auto) => void save({ ...settings, auto })}
               />
             </Group>
             {!settings.on ? (
               <Help>Skill cards are paused. Nothing is added until you turn them back on.</Help>
-            ) : settings.auto && missing ? (
-              <Help>{`${missing} ${missing === 1 ? 'card' : 'cards'} will be added by your server after your next sync.`}</Help>
+            ) : settings.auto && (missing || missingWords) ? (
+              <Help>{`${addNouns(missing, missingWords)} will be added by your server after your next sync.`}</Help>
             ) : null}
             {sample ? (
               <Card style={{ gap: space.xs }}>
@@ -240,3 +246,11 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
     </Screen>
   );
 }
+
+/** "3 cards and 19 words", for the button and the line under it. */
+function addNouns(cards: number, words: number): string {
+  const parts = [cards ? `${cards} ${cards === 1 ? 'card' : 'cards'}` : '', words ? `${words} ${words === 1 ? 'word' : 'words'}` : ''].filter(Boolean);
+  return parts.join(' and ');
+}
+
+const addLabel = (cards: number, words: number) => `Add ${addNouns(cards, words)} now`;

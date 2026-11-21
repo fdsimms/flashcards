@@ -1,5 +1,6 @@
 {
  "noteType": "Basic",
+ "wordNoteType": "Omnilanguage",
  "tag": "skill",
  "subdeck": "Skills",
  "laterSteps": [
@@ -9,6 +10,7 @@
   "numbers-99",
   "numbers-999",
   "numbers-big",
+  "dates-day",
   "dates-weekday",
   "dates-year",
   "money-1000",
@@ -340,7 +342,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -386,7 +389,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -400,7 +404,7 @@
         "skill::drill::dates-day",
         "skill::lang::th"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Thai · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -421,6 +425,236 @@
         "skill::lang::th"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "มกราคม",
+        "Meaning": "January",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "กุมภาพันธ์",
+        "Meaning": "February",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "มีนาคม",
+        "Meaning": "March",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "เมษายน",
+        "Meaning": "April",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "พฤษภาคม",
+        "Meaning": "May",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "มิถุนายน",
+        "Meaning": "June",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "กรกฎาคม",
+        "Meaning": "July",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "สิงหาคม",
+        "Meaning": "August",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "กันยายน",
+        "Meaning": "September",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ตุลาคม",
+        "Meaning": "October",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "พฤศจิกายน",
+        "Meaning": "November",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ธันวาคม",
+        "Meaning": "December",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันอาทิตย์",
+        "Meaning": "Sunday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันจันทร์",
+        "Meaning": "Monday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันอังคาร",
+        "Meaning": "Tuesday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันพุธ",
+        "Meaning": "Wednesday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันพฤหัสบดี",
+        "Meaning": "Thursday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันศุกร์",
+        "Meaning": "Friday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "วันเสาร์",
+        "Meaning": "Saturday",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -458,7 +692,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "consonants",
@@ -904,7 +1139,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "vowels",
@@ -1110,7 +1346,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "classifiers",
@@ -1256,7 +1493,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -1307,7 +1545,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -1353,7 +1592,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -1367,7 +1607,7 @@
         "skill::drill::dates-day",
         "skill::lang::es"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Spanish · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -1388,6 +1628,236 @@
         "skill::lang::es"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "enero",
+        "Meaning": "January",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "febrero",
+        "Meaning": "February",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "marzo",
+        "Meaning": "March",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "abril",
+        "Meaning": "April",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mayo",
+        "Meaning": "May",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "junio",
+        "Meaning": "June",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "julio",
+        "Meaning": "July",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "agosto",
+        "Meaning": "August",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "septiembre",
+        "Meaning": "September",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "octubre",
+        "Meaning": "October",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "noviembre",
+        "Meaning": "November",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "diciembre",
+        "Meaning": "December",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "domingo",
+        "Meaning": "Sunday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "lunes",
+        "Meaning": "Monday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "martes",
+        "Meaning": "Tuesday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "miércoles",
+        "Meaning": "Wednesday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "jueves",
+        "Meaning": "Thursday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "viernes",
+        "Meaning": "Friday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sábado",
+        "Meaning": "Saturday",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -1425,7 +1895,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -1476,7 +1947,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -1522,7 +1994,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -1536,7 +2009,7 @@
         "skill::drill::dates-day",
         "skill::lang::fr"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>French · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -1557,6 +2030,236 @@
         "skill::lang::fr"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "janvier",
+        "Meaning": "January",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "février",
+        "Meaning": "February",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mars",
+        "Meaning": "March",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "avril",
+        "Meaning": "April",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mai",
+        "Meaning": "May",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "juin",
+        "Meaning": "June",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "juillet",
+        "Meaning": "July",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "août",
+        "Meaning": "August",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "septembre",
+        "Meaning": "September",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "octobre",
+        "Meaning": "October",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "novembre",
+        "Meaning": "November",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "décembre",
+        "Meaning": "December",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dimanche",
+        "Meaning": "Sunday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "lundi",
+        "Meaning": "Monday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mardi",
+        "Meaning": "Tuesday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mercredi",
+        "Meaning": "Wednesday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "jeudi",
+        "Meaning": "Thursday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "vendredi",
+        "Meaning": "Friday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "samedi",
+        "Meaning": "Saturday",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -1594,7 +2297,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -1645,7 +2349,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -1691,7 +2396,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -1705,7 +2411,7 @@
         "skill::drill::dates-day",
         "skill::lang::de"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>German · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -1726,6 +2432,236 @@
         "skill::lang::de"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "Januar",
+        "Meaning": "January",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Februar",
+        "Meaning": "February",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "März",
+        "Meaning": "March",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "April",
+        "Meaning": "April",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Mai",
+        "Meaning": "May",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Juni",
+        "Meaning": "June",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Juli",
+        "Meaning": "July",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "August",
+        "Meaning": "August",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "September",
+        "Meaning": "September",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Oktober",
+        "Meaning": "October",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "November",
+        "Meaning": "November",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Dezember",
+        "Meaning": "December",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Sonntag",
+        "Meaning": "Sunday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Montag",
+        "Meaning": "Monday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Dienstag",
+        "Meaning": "Tuesday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Mittwoch",
+        "Meaning": "Wednesday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Donnerstag",
+        "Meaning": "Thursday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Freitag",
+        "Meaning": "Friday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Samstag",
+        "Meaning": "Saturday",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -1763,7 +2699,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "cases",
@@ -2039,7 +2976,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -2090,7 +3028,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -2136,7 +3075,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -2150,7 +3090,7 @@
         "skill::drill::dates-day",
         "skill::lang::el"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Greek · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -2171,6 +3111,236 @@
         "skill::lang::el"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "Ιανουάριος",
+        "Meaning": "January",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Φεβρουάριος",
+        "Meaning": "February",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Μάρτιος",
+        "Meaning": "March",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Απρίλιος",
+        "Meaning": "April",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Μάιος",
+        "Meaning": "May",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Ιούνιος",
+        "Meaning": "June",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Ιούλιος",
+        "Meaning": "July",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Αύγουστος",
+        "Meaning": "August",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Σεπτέμβριος",
+        "Meaning": "September",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Οκτώβριος",
+        "Meaning": "October",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Νοέμβριος",
+        "Meaning": "November",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Δεκέμβριος",
+        "Meaning": "December",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Κυριακή",
+        "Meaning": "Sunday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Δευτέρα",
+        "Meaning": "Monday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Τρίτη",
+        "Meaning": "Tuesday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Τετάρτη",
+        "Meaning": "Wednesday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Πέμπτη",
+        "Meaning": "Thursday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Παρασκευή",
+        "Meaning": "Friday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Σάββατο",
+        "Meaning": "Saturday",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -2208,7 +3378,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "cases",
@@ -2334,7 +3505,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -2385,7 +3557,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -2431,7 +3604,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -2445,7 +3619,7 @@
         "skill::drill::dates-day",
         "skill::lang::ja"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Japanese · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -2466,6 +3640,236 @@
         "skill::lang::ja"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "一月",
+        "Meaning": "January",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "二月",
+        "Meaning": "February",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "三月",
+        "Meaning": "March",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "四月",
+        "Meaning": "April",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "五月",
+        "Meaning": "May",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "六月",
+        "Meaning": "June",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "七月",
+        "Meaning": "July",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "八月",
+        "Meaning": "August",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "九月",
+        "Meaning": "September",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "十月",
+        "Meaning": "October",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "十一月",
+        "Meaning": "November",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "十二月",
+        "Meaning": "December",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "日曜日",
+        "Meaning": "Sunday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "月曜日",
+        "Meaning": "Monday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "火曜日",
+        "Meaning": "Tuesday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "水曜日",
+        "Meaning": "Wednesday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "木曜日",
+        "Meaning": "Thursday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "金曜日",
+        "Meaning": "Friday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "土曜日",
+        "Meaning": "Saturday",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -2503,7 +3907,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "classifiers",
@@ -2649,7 +4054,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -2700,7 +4106,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -2746,7 +4153,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -2760,7 +4168,7 @@
         "skill::drill::dates-day",
         "skill::lang::nb"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Norwegian · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -2781,6 +4189,236 @@
         "skill::lang::nb"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "januar",
+        "Meaning": "January",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "februar",
+        "Meaning": "February",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mars",
+        "Meaning": "March",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "april",
+        "Meaning": "April",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mai",
+        "Meaning": "May",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "juni",
+        "Meaning": "June",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "juli",
+        "Meaning": "July",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "august",
+        "Meaning": "August",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "september",
+        "Meaning": "September",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "oktober",
+        "Meaning": "October",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "november",
+        "Meaning": "November",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "desember",
+        "Meaning": "December",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "søndag",
+        "Meaning": "Sunday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mandag",
+        "Meaning": "Monday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tirsdag",
+        "Meaning": "Tuesday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "onsdag",
+        "Meaning": "Wednesday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "torsdag",
+        "Meaning": "Thursday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fredag",
+        "Meaning": "Friday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "lørdag",
+        "Meaning": "Saturday",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -2818,7 +4456,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -2869,7 +4508,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -2915,7 +4555,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -2929,7 +4570,7 @@
         "skill::drill::dates-day",
         "skill::lang::pl"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Polish · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -2950,6 +4591,236 @@
         "skill::lang::pl"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "styczeń",
+        "Meaning": "January",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "luty",
+        "Meaning": "February",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "marzec",
+        "Meaning": "March",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "kwiecień",
+        "Meaning": "April",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "maj",
+        "Meaning": "May",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "czerwiec",
+        "Meaning": "June",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "lipiec",
+        "Meaning": "July",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sierpień",
+        "Meaning": "August",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "wrzesień",
+        "Meaning": "September",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "październik",
+        "Meaning": "October",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "listopad",
+        "Meaning": "November",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "grudzień",
+        "Meaning": "December",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "niedziela",
+        "Meaning": "Sunday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "poniedziałek",
+        "Meaning": "Monday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "wtorek",
+        "Meaning": "Tuesday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "środa",
+        "Meaning": "Wednesday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "czwartek",
+        "Meaning": "Thursday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "piątek",
+        "Meaning": "Friday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sobota",
+        "Meaning": "Saturday",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -2987,7 +4858,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "cases",
@@ -3393,7 +5265,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   },
@@ -3444,7 +5317,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "numbers",
@@ -3490,7 +5364,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "dates",
@@ -3504,7 +5379,7 @@
         "skill::drill::dates-day",
         "skill::lang::ru"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Russian · Saying dates: With the weekday</b></div><div>Say today's date aloud with its weekday, then the same for a week from now.</div>",
@@ -3525,6 +5400,236 @@
         "skill::lang::ru"
        ],
        "suspended": true
+      }
+     ],
+     "words": [
+      {
+       "fields": {
+        "Entry": "январь",
+        "Meaning": "January",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "февраль",
+        "Meaning": "February",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "март",
+        "Meaning": "March",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "апрель",
+        "Meaning": "April",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "май",
+        "Meaning": "May",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "июнь",
+        "Meaning": "June",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "июль",
+        "Meaning": "July",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "август",
+        "Meaning": "August",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "сентябрь",
+        "Meaning": "September",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "октябрь",
+        "Meaning": "October",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ноябрь",
+        "Meaning": "November",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "декабрь",
+        "Meaning": "December",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "воскресенье",
+        "Meaning": "Sunday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "понедельник",
+        "Meaning": "Monday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "вторник",
+        "Meaning": "Tuesday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "среда",
+        "Meaning": "Wednesday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "четверг",
+        "Meaning": "Thursday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "пятница",
+        "Meaning": "Friday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "суббота",
+        "Meaning": "Saturday",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -3562,7 +5667,8 @@
        ],
        "suspended": true
       }
-     ]
+     ],
+     "words": []
     },
     {
      "id": "cases",
@@ -3908,7 +6014,8 @@
        ],
        "suspended": false
       }
-     ]
+     ],
+     "words": []
     }
    ]
   }

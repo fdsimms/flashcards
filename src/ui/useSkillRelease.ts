@@ -24,7 +24,7 @@ export function useSkillRelease(repo: NoteStore & Pick<AnkiLink, 'setAnkiCardSta
       const drill = notes.get(card.noteId) && drillOfTags(notes.get(card.noteId)!.tags);
       if (!drill || card.retired) return [];
       const settled = card.sched.state !== 0 && !isInProgress(card);
-      return [{ card, state: { id: card.id, stepId: drill.step.id, language: drill.language, suspended: !!card.suspended, settled, missing: missing.get(card.id) } }];
+      return [{ card, state: { id: card.id, stepId: drill.step.id, language: drill.language, suspended: !!card.suspended, settled, started: card.sched.state !== 0, missing: missing.get(card.id) } }];
     });
     const ids = new Set(releasable(skill.map((s) => s.state)));
     if (!ids.size) return;

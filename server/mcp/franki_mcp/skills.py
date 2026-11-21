@@ -1,8 +1,9 @@
 """
 Franki's skill cards (src/tools/skills.ts): drills for time, numbers, dates and money, a card each for
 Thai's consonants and vowels, classifiers and cases. Franki adds them to a language deck's `::Skills`
-subdeck when the learner taps Add now. This module adds the same cards by itself for a deck whose
-automatic switch is on, and lets Claude read and change a deck's settings.
+subdeck when the learner taps Add now, together with the words the drills are said in that the deck
+lacks (the months and weekdays for dates; src/tools/skillWords.ts). This module adds the same cards and
+words by itself for a deck whose automatic switch is on, and lets Claude read and change a deck's settings.
 
 The cards come from `skill_catalog.json`, which the app writes out of its own skill definitions
 (src/tools/skillCatalog.ts, `npm run catalog:skills`; a test fails when the file is stale), so there is
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,7 +41,10 @@ EVERY = 60 * 60
 log = logging.getLogger(__name__)
 CATALOG: dict[str, Any] = json.loads((Path(__file__).parent / "skill_catalog.json").read_text(encoding="utf-8"))
 NOTE_TYPE = CATALOG["noteType"]
+WORD_NOTE_TYPE = CATALOG["wordNoteType"]
 TAG = CATALOG["tag"]
+# Anki's `tag:skill` also matches its children, so the words (tagged skill::words) are left out of every search for the skill cards.
+NOT_WORDS = f"-tag:{TAG}::words"
 SUBDECK = CATALOG["subdeck"]
 DRILL_TAG = f"{TAG}::drill::"
 GROUP_IDS = {g["id"] for lang in CATALOG["languages"].values() for g in lang["groups"]}
@@ -96,7 +101,7 @@ def _groups(language: str) -> list[dict[str, Any]]:
 def _have_fronts(col: Collection) -> set[str]:
     """The first fields of the skill cards the collection has, which is how a card counts as added."""
     out: set[str] = set()
-    for nid in col.find_notes(f'"note:{search_text(NOTE_TYPE)}" tag:{TAG}'):
+    for nid in col.find_notes(f'"note:{search_text(NOTE_TYPE)}" tag:{TAG} {NOT_WORDS}'):
         try:
             out.add(col.get_note(nid)["Front"])
         except KeyError:
@@ -109,6 +114,33 @@ def _missing(col: Collection, language: str, off: tuple[str, ...]) -> list[dict[
     return [n for g in _groups(language) if g["id"] not in off for n in g["notes"] if n["front"] not in have]
 
 
+def _norm_word(w: str) -> str:
+    return unicodedata.normalize("NFC", w).lower().strip()
+
+
+def _headwords(col: Collection, deck_name: str) -> set[str]:
+    """What the deck's own notes have as words (the skill words included, so one added already isn't added again): each note's Entry, and each word in it, as `knownAmong` reads them in the app (src/tools/skillWords.ts)."""
+    have: set[str] = set()
+    for nid in col.find_notes(f'"deck:{search_text(deck_name)}" "note:{search_text(WORD_NOTE_TYPE)}"'):
+        try:
+            entry = col.get_note(nid)["Entry"]
+        except KeyError:
+            continue
+        text = _norm_word(re.sub(r"<[^>]*>", " ", entry))
+        have.add(text)
+        have.update(w for w in re.split(r"[\W_]+", text) if w)
+    return have
+
+
+def _missing_words(col: Collection, deck_name: str, language: str, off: tuple[str, ...]) -> list[dict[str, Any]]:
+    """The words the skills that are on need that the deck lacks, in any of its subdecks, studied or not."""
+    wanted = [w for g in _groups(language) if g["id"] not in off for w in g["words"]]
+    if not wanted:
+        return []
+    have = _headwords(col, deck_name)
+    return [w for w in wanted if _norm_word(w["fields"]["Entry"]) not in have]
+
+
 def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, ...]) -> dict[str, Any]:
     """Adds the cards of the skills that are on and the deck lacks, as the app's Add now does: Basic notes in `<deck>::Skills`, later drill steps suspended."""
     nt = col.models.by_name(NOTE_TYPE)
@@ -119,8 +151,15 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
         )
     subdeck = f"{deck_name}::{SUBDECK}"
     todo = _missing(col, language, off)
-    if not todo:
-        return {"deck": subdeck, "added": 0, "skipped": 0}
+    words = _missing_words(col, deck_name, language, off)
+    if not todo and not words:
+        return {"deck": subdeck, "added": 0, "words": 0, "skipped": 0}
+    wnt = col.models.by_name(WORD_NOTE_TYPE) if words else None
+    if words and (not wnt or not {"Entry", "Meaning"} <= {f["name"] for f in wnt["flds"]}):
+        raise ToolError(
+            f"The collection has no {WORD_NOTE_TYPE} note type with Entry and Meaning fields, which the words these skills need "
+            "(such as the months) are written in. Sync Franki to bring it in, or switch off the skills that need words (dates), and try again."
+        )
     did = col.decks.id_for_name(subdeck) or col.decks.id(subdeck)
     added = skipped = 0
     suspend: list[int] = []
@@ -138,14 +177,27 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
             suspend += [c.id for c in note.cards()]
     if suspend:
         col.sched.suspend_cards(suspend)
-    return {"deck": subdeck, "added": added, "skipped": skipped}
+    # The words the drills are said in, tagged so Franki's Review brings some up each day (SKILL_WORDS_TAG).
+    added_words = 0
+    for w in words:
+        note = col.new_note(wnt)
+        for name, value in w["fields"].items():
+            if name in note:
+                note[name] = value
+        note.tags = list(w["tags"])
+        # The same Entry in another note of the type is the word, there already.
+        if note.fields_check() != NoteFieldsCheckResult.NORMAL:
+            continue
+        col.add_note(note, did)
+        added_words += 1
+    return {"deck": subdeck, "added": added, "words": added_words, "skipped": skipped}
 
 
 def set_paused(col: Collection, deck_name: str, paused: bool) -> int:
     """Suspends every skill card in the deck, or resumes them: all but a later drill step, which waits for Franki's Review to release it once the step before has settled. Returns how many cards changed."""
     later = {f"{DRILL_TAG}{s}" for s in CATALOG["laterSteps"]}
     ids: list[int] = []
-    for nid in col.find_notes(f'"deck:{search_text(deck_name)}" tag:{TAG}'):
+    for nid in col.find_notes(f'"deck:{search_text(deck_name)}" tag:{TAG} {NOT_WORDS}'):
         note = col.get_note(nid)
         waits = any(t.lower() in later for t in note.tags)
         for card in note.cards():
@@ -161,16 +213,19 @@ def set_paused(col: Collection, deck_name: str, paused: bool) -> int:
 def _state(col: Collection, deck_id: int, name: str, language: str) -> dict[str, Any]:
     s = read_settings(col, deck_id)
     have = _have_fronts(col)
+    headwords = _headwords(col, name) if any(g["words"] for g in _groups(language)) else set()
     skills = [
         {
             "id": g["id"], "title": g["title"], "on": g["id"] not in s.off,
             "cards": len(g["notes"]), "missing": sum(1 for n in g["notes"] if n["front"] not in have),
+            "words_missing": sum(1 for w in g["words"] if _norm_word(w["fields"]["Entry"]) not in headwords),
         }
         for g in _groups(language)
     ]
     return {
         "deck": name, "language": CATALOG["languages"][language]["name"], "on": s.on, "auto": s.auto, "skills": skills,
         "missing": sum(k["missing"] for k in skills if k["on"]),
+        "words_missing": sum(k["words_missing"] for k in skills if k["on"]),
     }
 
 
@@ -184,18 +239,18 @@ def _work(col: Collection) -> list[tuple[str, str, tuple[str, ...]]]:
             continue
         name = deck["name"]
         language = language_of_deck(name)
-        if language and _missing(col, language, s.off):
+        if language and (_missing(col, language, s.off) or _missing_words(col, name, language, s.off)):
             out.append((name, language, s.off))
     return out
 
 
 async def auto_add(cm: CollectionManager) -> int:
-    """One pass of the daily job: the cards every deck with automatic adding on lacks. Returns how many were added."""
+    """One pass of the daily job: the cards, and the words they need, every deck with automatic adding on lacks. Returns how many notes were added."""
     if not await cm.read(_work):
         return 0  # nothing to write, so no change to send
 
     def run(col: Collection) -> int:
-        return sum(add_missing(col, name, language, off)["added"] for name, language, off in _work(col))
+        return sum(r["added"] + r["words"] for r in (add_missing(col, name, language, off) for name, language, off in _work(col)))
 
     return await cm.write(run)
 
@@ -234,8 +289,10 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
         Thai's consonant classes and vowel length, classifiers or counters, and which case follows a
         preposition. Says for each deck its three settings (`on`: the master switch, off means every skill
         card is suspended; `auto`: the server adds missing cards by itself every hour; each skill's `on`),
-        and how many cards each skill still `missing`. With no deck, every language deck. To remove skill
-        cards for good, find_notes "deck:<name> tag:skill" and delete_notes; set auto to false first, or the
+        and how many cards each skill still `missing`, and how many `words_missing` (the months and weekdays
+        the dates drills are said in: the server adds them to the deck too, tagged skill::words, and Franki
+        brings some up each day). With no deck, every language deck. To remove skill
+        cards for good, find_notes "deck:<name> tag:skill -tag:skill::words" and delete_notes (the words stay: they are the deck's own); set auto to false first, or the
         server adds them again."""
 
         def run(col: Collection) -> dict[str, Any]:
@@ -255,7 +312,7 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
     async def set_skill_cards(deck: str, on: bool | None = None, auto: bool | None = None, skills_off: list[str] | None = None) -> dict[str, Any]:
         """Changes a language deck's skill card settings, which Franki picks up at its next sync. Only what
         is given changes. `on` false pauses: every skill card in the deck is suspended and nothing is added;
-        true resumes them (a later drill step stays suspended until Franki's Review releases it, once the
+        true resumes them (a later drill step, and the first dates step, stay suspended until Franki's Review releases them, once the
         step before has settled). `auto` true lets the server add the cards of the skills that are on by
         itself every hour, including cards from later app updates; turn it on only after the user has seen
         what add_skill_cards would add. `skills_off` replaces the list of skills switched off (ids from
@@ -281,8 +338,9 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
     @server.tool(annotations=WRITE)
     async def add_skill_cards(deck: str, dry_run: bool = True) -> dict[str, Any]:
         """Adds the skill cards of the skills that are on in a language deck and it lacks, as Franki's Add now
-        does: Basic notes in "<deck>::Skills", a later drill step suspended until the step before settles.
-        Cards already there are skipped. With dry_run (the default) nothing is written: it says how many cards
+        does: Basic notes in "<deck>::Skills", a later drill step suspended until the step before settles,
+        and the words those skills need (the months and weekdays for dates) that the deck lacks, as
+        Omnilanguage notes in the same subdeck. Cards already there are skipped. With dry_run (the default) nothing is written: it says how many cards
         each skill would add. Refused while the deck's skill cards are paused (set_skill_cards on=true)."""
 
         def run(col: Collection) -> dict[str, Any]:

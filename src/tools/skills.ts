@@ -12,6 +12,7 @@ import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { dateNeeds, dateWordDrafts, stillNeeded, type SkillWordDraft, type WordNeed } from './skillWords';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
@@ -99,11 +100,11 @@ export function questionKey(q: DrillQuestion): string {
   }
 }
 
-/** A question for `step` in `language`, never `previous` again. */
-export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language): DrillQuestion {
+/** A question for `step` in `language`, never `previous` again. `months` limits a date to the months the learner has studied. */
+export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, months?: readonly number[]): DrillQuestion {
   if (step.group === 'dates') {
     const s = step as DateStep;
-    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random), parts: s.parts };
+    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, months), parts: s.parts };
   }
   if (step.group === 'money') {
     const s = step as MoneyStep;
@@ -136,9 +137,9 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
  * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
  * Returns what's left of `retry` too.
  */
-export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language): { question: DrillQuestion; retry: DrillQuestion[] } {
+export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, months?: readonly number[]): { question: DrillQuestion; retry: DrillQuestion[] } {
   const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
-  if (at < 0) return { question: drawQuestion(step, previous, random, language), retry: [...retry] };
+  if (at < 0) return { question: drawQuestion(step, previous, random, language, months), retry: [...retry] };
   return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
 }
 
@@ -261,6 +262,14 @@ export function stepWords(stepId: string, language: Language): string[] {
   if (language === 'pl' && stepId === 'time-quarters') return ['kwadrans'];
   return [];
 }
+
+/** Everything a drill step waits for in the deck: the single words of `stepWords` and, for a dates step, the months and weekdays (src/tools/skillWords.ts). */
+export function stepNeeds(stepId: string, language: Language): WordNeed[] {
+  return [...stepWords(stepId, language).map((w): WordNeed => ({ words: [w], min: 1, label: w })), ...dateNeeds(stepId, language)];
+}
+
+/** Whether a step is added suspended and released later: it comes after another step, or waits for words. */
+export const stepWaits = (step: DrillStep, language: Language): boolean => !!step.after || stepNeeds(step.id, language).length > 0;
 
 /**
  * The words of `words` the deck hasn't got, studied: a word counts when a studied note's headword
@@ -415,11 +424,16 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
           Back: '<div>Rate how it went. In Franki this card is a short drill.</div>',
         },
         tags: [SKILL_TAG, `${SKILL_TAG}::drill::${step.id}`, lang],
-        suspended: !!step.after,
+        suspended: stepWaits(step, language),
       });
     }
   }
   return drafts;
+}
+
+/** The notes for the words `groups` need that the deck may lack: the months and weekdays for dates. The caller leaves out the ones it has. */
+export function skillWordDrafts(language: Language, groups: SkillGroup[]): SkillWordDraft[] {
+  return groups.includes('dates') && hasDrills('dates', language) ? dateWordDrafts(language) : [];
 }
 
 /** The drill a note's tags make it, with its language; undefined for any other note. */
@@ -439,17 +453,25 @@ export interface SkillCardState {
   suspended: boolean;
   /** Started and scheduled a week or more out (the progress gate's line, src/core/progress.ts). */
   settled: boolean;
-  /** The words its step waits for that the deck hasn't got yet (`stepWords`, `missingWords`). */
+  /** What its step waits for in the deck, said for a person (`stepNeeds`, `stillNeeded`). */
   missing?: readonly string[];
+  /** Answered at least once: a first step held for words is released only while it hasn't been, so a card the learner suspended mid-ladder isn't undone. */
+  started?: boolean;
 }
 
-/** The suspended cards to release: those whose step before, in the same language, has settled, and whose words the deck has. */
+/**
+ * The suspended cards to release: a step whose step before, in the same language, has settled, or a
+ * first step that was waiting only for words and hasn't been started; either one only once the deck
+ * has the words it needs.
+ */
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
   return cards.filter((c) => {
     if (!c.suspended || c.missing?.length) return false;
-    const after = drillStep(c.stepId)?.after;
-    return !!after && settled.has(`${c.language}|${after}`);
+    const step = drillStep(c.stepId);
+    if (!step) return false;
+    if (step.after) return settled.has(`${c.language}|${step.after}`);
+    return !c.started && stepNeeds(step.id, c.language).length > 0;
   }).map((c) => c.id);
 }
 
@@ -533,7 +555,7 @@ export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, n
     const n = notes.get(c.noteId);
     const drill = n && drillOfTags(n.tags);
     if (!drill) continue;
-    const missing = missingWords(stepWords(drill.step.id, drill.language), studied);
+    const missing = stepNeeds(drill.step.id, drill.language).flatMap((need) => stillNeeded(need, studied) ?? []);
     if (missing.length) out.set(c.id, missing);
   }
   return out;
