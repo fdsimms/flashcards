@@ -301,7 +301,8 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const intraday = [...previewing, ...(previewDeck ? [] : rest.filter((c) => isLearning(c) && !isInterdayLearning(c, h)))]
     .filter((c) => shownAt(c) < nextDay);
   for (const c of intraday) heldBack(c, null);
-  // A skill card is taken whatever room is left, and uses none (`isSkillNote`); it still buries its siblings as any card does.
+  // A skill card's review is taken whatever room is left, and uses none (`isSkillNote`); a new one shares the words' new
+  // room like any new card. Either buries its siblings as any card does.
   const skill = (c: Card) => input.skillCards.has(c.id);
   const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
     // Room first, as Anki checks the limit before a card is gathered: one the limits leave out buries nothing.
@@ -314,7 +315,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
     let n = 0;
     return sortNew(
-      gatherNew(cards, order.newGatherPriority, ctx, (c) => skill(c) ? !heldBack(c, 'new') : n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
       order.newSortOrder, ctx,
     );
   };

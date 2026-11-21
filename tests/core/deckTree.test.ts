@@ -198,28 +198,33 @@ describe('skill cards', () => {
     skillCards: asSkill(skills),
   });
 
-  it('are offered past the daily new limit, and leave its room for words', () => {
+  it("share the daily new limit with words, and can't pass a parent deck's through a subdeck", () => {
     const words = newCards(10);
     const skills = newCards(30);
-    const q = treeQueue('Thai', withSkills(words, skills));
-    expect(q.fresh.filter((c) => asSkill(skills).has(c.id))).toHaveLength(30);
-    expect(q.fresh.filter((c) => asSkill(words).has(c.id))).toHaveLength(5);
+    expect(treeQueue('Thai', withSkills(words, skills)).fresh).toHaveLength(5);
+    const base = withSkills([], []);
+    const q = (studied: Map<string, { introduced: number; reviewed: number }>) => treeQueue('Thai', {
+      ...base, cardsByDeck: new Map([['Thai::Skills', skills]]), skillCards: asSkill(skills), studiedByDeck: studied,
+      limitsFor: (d) => (d === 'Thai' ? { newPerDay: 5, reviewsPerDay: 200 } : { newPerDay: 20, reviewsPerDay: 200 }),
+    });
+    expect(q(new Map()).fresh).toHaveLength(5);
+    expect(q(new Map([['Thai::Skills', { introduced: 3, reviewed: 0 }]])).fresh).toHaveLength(2);
   });
 
-  it('are offered with the review limit spent, and use none of it', () => {
-    const skills = newCards(3);
-    const q = treeQueue('Thai', withSkills(reviewCards(4, 10), skills, { newPerDay: 20, reviewsPerDay: 4 }));
-    expect(q.due).toHaveLength(4);
-    expect(q.fresh).toHaveLength(3);
+  it('have reviews offered with the review limit spent, using none of it; new ones wait like new words', () => {
+    const skillReviews = reviewCards(3, 10);
+    const q = treeQueue('Thai', withSkills(reviewCards(4, 10), [...skillReviews, ...newCards(3)], { newPerDay: 20, reviewsPerDay: 4 }));
+    expect(q.due).toHaveLength(4 + 3);
+    expect(q.fresh).toHaveLength(0);
   });
 
-  it('are not held back by a progress gate, nor counted by it', () => {
+  it('are not counted as in progress by a progress gate, and new ones share its room', () => {
     const skills = inProgress(6);
     const words = [...inProgress(2), ...newCards(5)];
     const q = treeQueue('Thai', withSkills(words, [...skills, ...newCards(4)], { newPerDay: 20, reviewsPerDay: 200 }, 3));
     // The gate is 3 and 2 words are in progress, so one new word; the 6 skill cards in progress don't count.
     expect(q.fresh.filter((c) => !asSkill(skills).has(c.id) && c.sched.state === 0 && words.includes(c))).toHaveLength(1);
-    expect(q.fresh.filter((c) => c.sched.state === 0)).toHaveLength(1 + 4);
+    expect(q.fresh.filter((c) => c.sched.state === 0)).toHaveLength(1);
   });
 
   it("don't count as unstudied words, which the deck list's runway reads", () => {

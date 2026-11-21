@@ -96,8 +96,9 @@ export function studiedKind(card: Card, dayStartsAtHour: number): 'new' | 'revie
  * filtered deck alone, which has no limits), else `studiedKind`.
  */
 export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, preview: boolean, skill = false): 'new' | 'review' | null {
-  // A skill card is outside the limits (`isSkillNote`), as `studiedToday` leaves its answers out.
-  if (preview || skill) return null;
+  // A skill card's review uses no room (`isSkillNote`); its first answer uses new room like any new card's.
+  if (preview) return null;
+  if (skill) return studiedKind(card, dayStartsAtHour) === 'new' ? 'new' : null;
   if (card.sched.state === 2 && studyDayKey(new Date(card.sched.due), dayStartsAtHour) > studyDayKey(now, dayStartsAtHour)) return null;
   return studiedKind(card, dayStartsAtHour);
 }
@@ -186,18 +187,19 @@ export function studiedToday(input: {
   const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
   // The deck each card is studied in (deckTree.ts's cardDeck): an answer in a filtered deck counts there, as in Anki.
   const deckOf = new Map(input.cards.map((c) => [c.id, c.filteredDeck ?? c.deck ?? deckOfNote.get(c.noteId)]));
-  // Skill cards use no limits (`isSkillNote`).
+  // A skill card's reviews use no limits; its first answer counts as introduced (`isSkillNote`).
   const skillCards = skillCardIds(input.notes, input.cards);
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
     if (a.at.getTime() < start) continue;
     // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
     // is, 50 previews took 50 off the home deck's review room.
-    if (a.preview || skillCards.has(a.cardId)) continue;
+    if (a.preview) continue;
     // Where it was answered, when that was a filtered deck the card has since left (`Answer.deck`).
     const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
+    if (skillCards.has(a.cardId) && !a.wasNew) continue; // a skill card's reviews use no room (`isSkillNote`)
     if (a.wasNew) {
       // Each time, as Anki's deck counter goes up: a card reset to new (Forget) and studied again
       // the same day is introduced twice, as the session counted it.
