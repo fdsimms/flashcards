@@ -2,7 +2,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { ScrollView } from 'react-native';
 import type { Repo } from '../db/repo';
-import type { Api } from '../reader/api';
+import type { Api, Language } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
 import { TOOLS, TOOL_LANGUAGES, type ToolInfo } from '../tools/tools';
 import { FLAG_IMAGES } from './flagImages';
@@ -15,12 +15,19 @@ import { useGrammarDue } from './useGrammarDue';
 import { usePracticeLanguage } from './usePracticeLanguage';
 
 /** The Practice tab: small drills outside the decks (src/tools/tools.ts), one row each. */
-export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOpen: (tool: ToolInfo) => void; onCram: () => void; onSettings: () => void; readerApi: Api | null; repo: Repo }) {
+export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied }: {
+  onOpen: (tool: ToolInfo) => void; onCram: () => void; onSettings: () => void; readerApi: Api | null; repo: Repo;
+  /** The languages the decks are in, most cards first (`studiedLanguages`): listed first, and the first visit's. */
+  studied: Language[];
+}) {
   const c = useTheme();
   const grammarDue = useGrammarDue(readerApi, repo);
   const problem = useConnectionProblem();
-  const [language, setLanguage] = usePracticeLanguage();
+  const [language, setLanguage] = usePracticeLanguage(studied);
+  const menu = [...studied, ...TOOL_LANGUAGES.filter((l) => !studied.includes(l))];
   const name = LANGUAGES[language].name;
+  // The list is in one language, so its Grammar row counts that language's due points only.
+  const grammarDueHere = grammarDue?.languages.find((d) => d.language === language)?.count ?? 0;
   return (
     <Screen
       title="Practice"
@@ -28,7 +35,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
         <>
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Menu icon={FLAG_IMAGES[language]} iconRenderingMode="original" accessibilityLabel={`Language: ${name}. Change the language`}>
-            {TOOL_LANGUAGES.map((l) => (
+            {menu.map((l) => (
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => setLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
@@ -57,7 +64,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={!off ?(tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
+                detail={!off ?(tool.id === 'grammar' && grammarDueHere ? `${grammarDueHere} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />

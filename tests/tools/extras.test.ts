@@ -93,6 +93,19 @@ describe('planExtras', () => {
     }
   });
 
+  it('passes a turn on from a language with nothing to offer', () => {
+    // Texts off: Spanish has no drill, so it would never be practiced and would take every turn.
+    let state = EMPTY_EXTRA_STATE;
+    for (let day = 0; day < 4; day++) {
+      const now = new Date(2026, 10, 14 + day, 12);
+      const plan = planExtras(input({ prefs: { read: false }, languages: ['th', 'es'], state, now }));
+      expect(plan.extras.map((e) => e.language)).toEqual(['th']);
+      state = { ...state, plan: undefined };
+    }
+    expect(turnOrder(input({ prefs: { read: false }, languages: ['th', 'es'] }))).toEqual(['th']);
+    expect(turnOrder(input({ languages: ['th', 'es'] }))).toEqual(['th', 'es']);
+  });
+
   it('offers nothing when turned off or with no drills and no texts', () => {
     expect(planExtras(input({ prefs: { on: false } })).extras).toEqual([]);
     expect(planExtras(input({ prefs: { drills: false, read: false } })).extras).toEqual([]);

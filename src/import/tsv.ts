@@ -111,6 +111,22 @@ export function importTsv(
     fallbackDeck?: string; now?: Date; noteTypes?: Map<string, NoteType>;
     /** The decks there already, Anki's with their ids: a number in the deck column can name one by id. */
     decks?: { id?: number; name: string }[];
+    /**
+     * The separator when the file has no #separator line, in place of Anki's guess: a comma for a
+     * .csv. Anki guesses, then shows a preview where it can be changed; Franki has no preview, and the
+     * guess takes a semicolon in any meaning ("to eat; to consume") over the comma between columns.
+     */
+    separator?: string;
+    /**
+     * The new-card position of the first row: each row's cards come in at its own, in file order,
+     * as Anki numbers the notes of an import. Without it they have none and sort by id.
+     */
+    firstPosition?: number;
+    /**
+     * Fields an Omnilanguage note in the file's own deck (not one a deck column names) gets where the
+     * file leaves them empty: a deck made in Franki's language, and whether it asks both ways.
+     */
+    fieldDefaults?: Record<string, string>;
   } = {},
 ): ImportResult {
   const warnings: string[] = [];
@@ -133,7 +149,7 @@ export function importTsv(
   if (headers['separator'] !== undefined && !sep) {
     warnings.push(`The file's separator "${headers['separator'].trim()}" isn't one Anki writes, so it was guessed from the text. In Anki, export with Tab, Comma, Semicolon, Space, Pipe or Colon.`);
   }
-  sep ??= guessSeparator(body);
+  sep ??= opts.separator ?? guessSeparator(body);
   // #html:false is plain text, which Anki escapes; with no #html line, Anki decides by whether the text holds a tag.
   const html = headers['html'] !== undefined ? headers['html'].trim().toLowerCase() !== 'false' : looksLikeHtml(body);
   // #tags: go on every note, besides any in the tags column.
@@ -159,6 +175,11 @@ export function importTsv(
   }
 
   const rows = parseDelimited(body, sep).filter((r) => r.some((c) => c.trim() !== ''));
+  // Most rows in one column means the columns weren't split where the file splits them.
+  if (rows.length && !columns && rows.filter((r) => r.length < 2).length * 2 > rows.length) {
+    const named = Object.entries(SEPARATORS).find(([, ch]) => ch === sep)?.[0] ?? sep;
+    warnings.push(`Most rows came in as one field, split by ${named === ' ' ? 'space' : named}. If a row holds a word and its meaning, add a #separator line to the top of the file (e.g. #separator:Comma) and import it again.`);
+  }
   const notes: Note[] = [];
   const cards: Card[] = [];
   const usedIds = new Set<string>();
@@ -212,9 +233,12 @@ export function importTsv(
       firstRow.set(derived, idx);
     }
     usedIds.add(id);
+    if (opts.fieldDefaults && model === 'Omnilanguage' && !deckCell) {
+      for (const [k, v] of Object.entries(opts.fieldDefaults)) if (!fields[k]?.trim()) fields[k] = v;
+    }
     const note: Note = { id, deck, model, fields, tags };
     notes.push(note);
-    const made = makeCards(note, opts.now, noteType);
+    const made = makeCards(note, opts.now, noteType).map((c) => (opts.firstPosition !== undefined ? { ...c, position: opts.firstPosition + idx } : c));
     if (!made.length) warnings.push(`Row ${idx + 1}: "${entry}" makes no cards: every card type's front would be blank. Fill in the field its front shows.`);
     cards.push(...made);
   });

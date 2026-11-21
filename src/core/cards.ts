@@ -16,7 +16,7 @@ import { grammarText, wordGrammar } from './wordGrammar';
  * is spoken in. A Language field is matched whole; a deck name is searched for each, in this order.
  */
 export const LANG_TAGS: Record<string, string> = {
-  thai: 'th-TH', ภาษาไทย: 'th-TH',
+  thai: 'th-TH', ภาษาไทย: 'th-TH', ไทย: 'th-TH',
   polish: 'pl-PL', polski: 'pl-PL',
   russian: 'ru-RU', русский: 'ru-RU',
   french: 'fr-FR', français: 'fr-FR', francais: 'fr-FR',
@@ -48,16 +48,68 @@ export const LANG_TAGS: Record<string, string> = {
 };
 
 /**
+ * The languages a deck made in Franki can be in, by the English name its notes' Language field
+ * holds ("Spanish"), each once, in `LANG_TAGS`' order: the first name each tag has there.
+ */
+export const NOTE_LANGUAGES: { name: string; tag: string }[] = Object.entries(LANG_TAGS)
+  .filter(([key, tag], i, all) => all.findIndex(([, t]) => t === tag) === i && /^[a-z ]+$/.test(key))
+  .map(([key, tag]) => ({ name: key.replace(/\b[a-z]/g, (ch) => ch.toUpperCase()), tag }));
+
+/** The Language field of a plain note in a deck set to no language: never read aloud, whatever its deck is called. */
+export const NO_LANGUAGE = 'None';
+
+/** The English name a deck's name gives (`deckNameLanguage`), as a Language field holds it. */
+export function noteLanguageOfDeck(deck: string): string | undefined {
+  const tag = deckNameLanguage(deck);
+  return NOTE_LANGUAGES.find((l) => l.tag === tag)?.name;
+}
+
+/**
  * The language a note is spoken in: its Language field, else a language its deck's name gives.
  * Undefined when neither names one, which means don't speak it: iOS's default voice would read
  * the word as English, which a learner can't recognize.
  */
 export function speechLangFor(note: Note): string | undefined {
-  const raw = htmlToText(note.fields.Language ?? '').normalize('NFC').toLowerCase();
-  if (raw && LANG_TAGS[raw]) return LANG_TAGS[raw];
-  // Fall back to scanning the deck name for a known language.
-  const deck = note.deck.normalize('NFC').toLowerCase();
-  for (const [k, v] of Object.entries(LANG_TAGS)) if (deck.includes(k)) return v;
+  const raw = htmlToText(note.fields.Language ?? '').normalize('NFC').trim().toLowerCase();
+  // A note in a deck set to no language (trivia named after a place) says so, over its deck's name.
+  if (raw === NO_LANGUAGE.toLowerCase()) return undefined;
+  return (raw ? LANG_TAGS[raw] ?? languageOfCode(raw) : undefined) ?? deckNameLanguage(note.deck);
+}
+
+/** A Language field holding a code rather than a name, as a shared deck may: pl, th-TH, zh_HK. */
+function languageOfCode(raw: string): string | undefined {
+  const code = raw.replace(/_/g, '-');
+  const tags = [...new Set(Object.values(LANG_TAGS))];
+  const primary = code.split('-')[0] === 'no' ? 'nb' : code.split('-')[0];
+  return tags.find((t) => t.toLowerCase() === code) ?? tags.find((t) => t.split('-')[0] === primary);
+}
+
+/** A letter, mark or digit: what can't stand next to a language's name for it to be a word of its own. */
+const WORDY = /[\p{L}\p{M}\p{N}]/u;
+/** Scripts written without spaces between words, where a name is found inside a longer run (ภาษาไทยพื้นฐาน). */
+const UNSPACED = /[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff]/;
+
+/**
+ * The language a deck's name gives: a language's name (`LANG_TAGS`) as a word of its own, read one
+ * level at a time from the top, the first name in the first level that has one. So Polish for Thai
+ * speakers is Polish, Russian::Polish cognates is Russian, and Trivia::Geography::Thailand and
+ * Prussian history are no language at all. The MCP reads deck names the same way
+ * (`server/mcp/franki_mcp/skills.py`, `language_of_deck`), checked against the examples in the skill catalog.
+ */
+export function deckNameLanguage(deck: string): string | undefined {
+  for (const level of deck.normalize('NFC').toLowerCase().split('::')) {
+    let best: { at: number; length: number; tag: string } | undefined;
+    for (const [key, tag] of Object.entries(LANG_TAGS)) {
+      const spaced = !UNSPACED.test(key);
+      for (let at = level.indexOf(key); at >= 0; at = level.indexOf(key, at + 1)) {
+        const end = at + key.length;
+        if (spaced && ((at > 0 && WORDY.test(level[at - 1])) || (end < level.length && WORDY.test(level[end])))) continue;
+        if (!best || at < best.at || (at === best.at && key.length > best.length)) best = { at, length: key.length, tag };
+        break;
+      }
+    }
+    if (best) return best.tag;
+  }
   return undefined;
 }
 
@@ -339,16 +391,24 @@ export function frontFieldName(note: Note): string | undefined {
   return names.find((n) => /^(front|question|prompt)$/i.test(n)) ?? names[0];
 }
 
+/**
+ * A note with no note type to render it by (one made in Franki before it had one): its front field,
+ * then the rest. Its front is the word, as in an Omnilanguage note, so it's read aloud in the
+ * note's language when one is known (a Language field, or the deck's name), and not at all otherwise.
+ */
 function renderGeneric(note: Note): RenderedCard {
   const names = Object.keys(note.fields);
   const frontName = frontFieldName(note) ?? names[0];
+  const speechLang = speechLangFor(note);
+  const say = speechLang ? t(note, frontName) || undefined : undefined;
   const backName = names.find((n) => /^(back|answer)$/i.test(n)) ?? names[1];
   const front: Block[] = [{ text: t(note, frontName), emphasis: true }];
   const back: Block[] = [];
   if (backName) back.push({ text: t(note, backName), emphasis: true });
   for (const n of names) {
-    if (n === frontName || n === backName) continue;
+    // Language is what the note is spoken in (`speechLangFor`), not something to learn.
+    if (n === frontName || n === backName || n === 'Language') continue;
     pushIf(back, t(note, n), n);
   }
-  return { front: { blocks: front }, back: { blocks: back } };
+  return { front: { blocks: front, speak: say }, back: { blocks: back }, ...(speechLang ? { speechLang } : {}) };
 }

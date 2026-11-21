@@ -2,6 +2,7 @@ import { decodeMessage, float, message, uint, utf8Decode, utf8Encode } from './p
 import type { SyncDb } from './sync/collectionSync';
 import { parseJson, stringifyJson } from './sync/json';
 import { COL_MODIFIED_SQL, REVLOG_INSERT_SQL, nextRevlogId, revlogParams, type AnkiRevlogRow } from './writeback';
+import { REAL_ANSWER } from './collection';
 
 /**
  * Anki's Forget and Set Due Date, written into the kept collection as Anki writes them, so sync
@@ -167,7 +168,7 @@ async function rewrite(
     for (const cid of cids) {
       const row = await db.first<RescheduleRow>(ROW_SQL, cid);
       if (!row) continue;
-      const answered = await db.first<{ m: number | null }>('SELECT max(id) AS m FROM revlog WHERE cid = ? AND ease > 0', cid);
+      const answered = await db.first<{ m: number | null }>(`SELECT max(id) AS m FROM revlog WHERE cid = ? AND ${REAL_ANSWER}`, cid);
       const next = await change({ ...row, data: row.data ?? '' }, cid);
       revlogId = nextRevlogId(now.getTime(), revlogId);
       await db.run(REVLOG_INSERT_SQL, ...revlogParams(manualRevlog(next, row.ivl, revlogId, cid)));

@@ -89,7 +89,7 @@ export function SyncSettings(props: {
               Signed in as {s.user}. {syncStatusText(s, new Date())}
             </Text>
             <Help>
-              Franki syncs when you open it, when you finish studying a deck, and when you leave the app. Images and sounds
+              Franki syncs when you open it, when you finish studying a deck, and when you leave the app, except in the middle of studying, so Undo still works when you come back. Images and sounds
               added in Anki come down with each sync.
             </Help>
             <Button label="Sync now" onPress={syncNow} busy={props.syncing} />

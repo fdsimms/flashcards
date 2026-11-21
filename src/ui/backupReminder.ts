@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
 import type { DeckRow } from '../core/deckTree';
-import { backupReminderPlan } from '../db/backup';
+import { backupReminderPlan, oldestAdded } from '../db/backup';
+import { noteAddedAt } from '../core/cram';
 import type { AppRepo } from './AppContext';
 
 /**
@@ -55,7 +56,8 @@ function reschedule(repo: AppRepo, on: boolean, hasCards: boolean, dayStartsAtHo
       .filter((n) => n.identifier.startsWith(ID_PREFIX))
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
     if (!on) return;
-    const plan = backupReminderPlan({ lastBackupAt: await repo.lastBackupAt(), hasCards, now: new Date(), dayStartsAtHour });
+    const firstAddedAt = hasCards ? oldestAdded((await repo.listNotes()).map(noteAddedAt)) : null;
+    const plan = backupReminderPlan({ lastBackupAt: await repo.lastBackupAt(), firstAddedAt, now: new Date(), dayStartsAtHour });
     for (const [i, r] of plan.entries()) {
       await Notifications.scheduleNotificationAsync({
         identifier: `${ID_PREFIX}${i}`,

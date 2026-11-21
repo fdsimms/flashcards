@@ -36,9 +36,14 @@ export const OMNI_RATE = 0.9;
 /** The speeds offered, slowest first. */
 export const VOICE_RATES = [0.6, 0.7, 0.8, 0.9, 1.0, 1.2];
 
-/** "th_TH", "th-TH" and "th" are all "th". */
+/**
+ * "th_TH", "th-TH" and "th" are all "th". Cantonese (zh-HK, yue) is "yue": it shares Chinese's code
+ * but is a different spoken language, so a Mandarin voice chosen for zh must never read it.
+ */
 export function languageKey(lang: string): string {
-  return speechLanguage(lang).split('-')[0].toLowerCase();
+  const tag = speechLanguage(lang).toLowerCase();
+  const primary = tag.split('-')[0];
+  return primary === 'yue' || tag === 'zh-hk' || tag === 'zh-mo' ? 'yue' : primary;
 }
 
 const NAMES: Record<string, string> = {
@@ -46,7 +51,7 @@ const NAMES: Record<string, string> = {
   en: 'English', es: 'Spanish', fi: 'Finnish', fr: 'French', he: 'Hebrew', hi: 'Hindi', hr: 'Croatian',
   hu: 'Hungarian', id: 'Indonesian', it: 'Italian', ja: 'Japanese', ko: 'Korean', ms: 'Malay', nb: 'Norwegian',
   nl: 'Dutch', no: 'Norwegian', pl: 'Polish', pt: 'Portuguese', ro: 'Romanian', ru: 'Russian', sk: 'Slovak',
-  sl: 'Slovenian', sv: 'Swedish', th: 'Thai', tr: 'Turkish', uk: 'Ukrainian', vi: 'Vietnamese', zh: 'Chinese',
+  sl: 'Slovenian', sv: 'Swedish', th: 'Thai', tr: 'Turkish', uk: 'Ukrainian', vi: 'Vietnamese', yue: 'Cantonese', zh: 'Chinese',
 };
 
 /** The language's name in English, or its code when it isn't one listed. */

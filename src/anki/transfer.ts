@@ -124,8 +124,9 @@ export interface OpenedDeckPackage {
  * `lockAnki`. The caller merges or discards it.
  */
 export async function openDeckPackage(repo: Repo & AnkiLink, picked: File): Promise<OpenedDeckPackage> {
+  // A deck package adds to a collection, so with none there's nothing to merge into: say what does work.
   if (!(await repo.keptCollection())) {
-    throw new PackageRefused(NO_COLLECTION);
+    throw new PackageRefused("A deck package adds to an Anki collection, and there's none in Franki yet. Import the deck into Anki on a computer and sync, or export its notes from Anki as Notes in Plain Text and import that file here.");
   }
   const work = workFolder('apkg-import');
   const mediaDir = workFolder('apkg-import-media');

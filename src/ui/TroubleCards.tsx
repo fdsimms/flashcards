@@ -30,8 +30,10 @@ const MODES: { value: TroubleMode; label: string }[] = [
  * time, or over the last 30 study days. Tapping one offers what can be done about it: a memory
  * hint, a flag for an agent, the note editor, Card Info, or suspending it.
  */
-export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFlaggedCard }: {
+export function TroubleCards({ repo, agentFlags, onEditNote, onCardInfo, suggestHints, fixFlaggedCard }: {
   repo: AppRepo;
+  /** Whether a card can be flagged for Claude to check: only with sync on, which is how the MCP reaches the collection. */
+  agentFlags: boolean;
   onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void;
   onCardInfo: (cardId: string) => void;
   /** Read & Listen's hint ideas, while it's signed in. */
@@ -108,7 +110,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFl
   const open = (row: TroubleRow) => {
     const options = [
       ...(canAddMnemonic(row.note) ? ['Write a mnemonic'] : []),
-      'Flag for Claude to check', 'Edit note', 'Card info', 'Suspend card', 'Cancel',
+      ...(agentFlags ? ['Flag for Claude to check'] : []), 'Edit note', 'Card info', 'Suspend card', 'Cancel',
     ];
     const at = (label: string) => options.indexOf(label);
     ActionSheetIOS.showActionSheetWithOptions({

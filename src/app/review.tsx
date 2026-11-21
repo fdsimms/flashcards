@@ -4,8 +4,13 @@ import { collectionChanged } from '../core/collectionChanged';
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
+import { ScrollView } from 'react-native';
 import { useApp } from '../ui/AppContext';
+import { EmptyDeckCard } from '../ui/EmptyDeckCard';
+import { Screen } from '../ui/kit';
+import { readable, space } from '../ui/theme';
 import { lastStudiedDeck } from '../ui/lastDeck';
+import { useReviewOpen } from '../ui/reviewOpen';
 import { ExtraCard } from '../ui/DailyExtras';
 import { backToDecks } from '../ui/leaveScreen';
 import { Review } from '../ui/Review';
@@ -17,10 +22,12 @@ import { useWordAudio } from '../ui/useWordAudio';
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
 export default function ReviewRoute() {
   const router = useRouter();
-  const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
+  const { repo, sync, syncSettings, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
   // The Home Screen's "Study" quick action opens the deck studied last (useHomeShortcuts).
   useEffect(() => { if (deck) lastStudiedDeck.save(deck); }, [deck]);
+  // Leaving the app while here doesn't sync, so Undo still works on coming back (reviewOpen.ts).
+  useReviewOpen();
   // Sync when leaving, however it's left: the Back button, the swipe, or "Back to decks".
   const syncRef = useRef(sync);
   syncRef.current = sync;
@@ -71,9 +78,19 @@ export default function ReviewRoute() {
   const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
   // With nothing further down the list, offer the first earlier deck that still has cards.
   const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
+  // A deck with no cards yet (just made): what to do next, in place of "All done for now".
+  if (decks.find((r) => r.deck === deck)?.cards === 0) {
+    return (
+      <Screen title={deck.split('::').pop() ?? deck}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
+          <EmptyDeckCard deck={deck} />
+        </ScrollView>
+      </Screen>
+    );
+  }
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} onAddWord={addWord} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey + changed} onDone={() => backToDecks(router)} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} agentFlags={!!syncSettings?.enabled} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} onAddWord={addWord} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey + changed} onDone={() => backToDecks(router)} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       earlierDeck={earlierDeck?.split('::').pop()}

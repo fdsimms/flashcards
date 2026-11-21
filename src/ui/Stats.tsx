@@ -177,9 +177,11 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
             <Text style={{ ...type.headline, color: c.text }}>Cards</Text>
             <Row label="New" value={stats.counts.new} />
             <Row label="Learning" value={stats.counts.learning} />
+            <Row label="Relearning" hint="Forgotten, and being learned again" value={stats.counts.relearning} />
             <Row label="Young" hint={`Reviews less than ${MATURE_DAYS} days apart`} value={stats.counts.young} />
             <Row label="Mature" hint={`Reviews ${MATURE_DAYS} days or more apart`} value={stats.counts.mature} />
             <Row label="Suspended" value={stats.counts.suspended} />
+            <Row label="Buried" hint="Held back until tomorrow" value={stats.counts.buried} />
           </Box>
 
           <Box>

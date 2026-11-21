@@ -1,4 +1,4 @@
-import { LANG_TAGS } from '../core/cards';
+import { deckNameLanguage, LANG_TAGS } from '../core/cards';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { DRILL_STEPS, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillGroups, skillWordDrafts } from './skills';
 import { SKILL_WORD_NOTE_TYPE, stepNeeds } from './skillWords';
@@ -18,8 +18,10 @@ export interface SkillCatalog {
   subdeck: string;
   /** The drill steps that wait on the step before (`DrillStep.after`) or on the deck's words (`stepWaits`): resuming paused skill cards leaves them suspended for Review to release. */
   laterSteps: string[];
-  /** A deck name's words in the order `languageOfDeck` tries them, each with its language code, or null for a language with no skill cards. */
+  /** The names a deck's name is searched for (`deckNameLanguage`), each with its language code, or null for a language with no skill cards. */
   deckKeys: [string, string | null][];
+  /** Deck names with the language the app reads from each: the MCP's `language_of_deck` is tested against them, so the two can't drift. */
+  deckExamples: [string, string | null][];
   languages: Record<string, {
     name: string;
     groups: {
@@ -32,6 +34,13 @@ export interface SkillCatalog {
   }>;
 }
 
+/** Deck names that test the rules of `deckNameLanguage`: whole words, top level first, scripts without spaces. */
+const DECK_EXAMPLES = [
+  'Thai', '🐟 Norsk', 'Polski', 'Deutsch::Verbs', 'Trivia', 'Japanese', 'Italiano', '👅 Languages::🐘 ภาษาไทย::Tier 1',
+  'ภาษาไทยพื้นฐาน', 'ไทย', '👅 Languages::🍥 日本語', 'Trivia::Geography::Thailand', 'Trivia::Greek mythology', 'Prussian history',
+  'Gdansk trip', 'Russian::Polish cognates', 'Polish for Thai speakers', 'Spanish::French false friends', 'thai-thai', 'Español (México)',
+];
+
 export function skillCatalog(): SkillCatalog {
   const withSkills = LANGUAGE_ORDER.filter((l) => skillGroups(l).length);
   const languageOfSpeech = (speech: string) => withSkills.find((l) => LANGUAGES[l].speech === speech) ?? null;
@@ -42,6 +51,10 @@ export function skillCatalog(): SkillCatalog {
     subdeck: SKILLS_SUBDECK,
     laterSteps: DRILL_STEPS.filter((s) => s.after || LANGUAGE_ORDER.some((l) => stepNeeds(s.id, l).length)).map((s) => s.id),
     deckKeys: Object.entries(LANG_TAGS).map(([key, speech]) => [key, languageOfSpeech(speech)]),
+    deckExamples: DECK_EXAMPLES.map((deck) => {
+      const speech = deckNameLanguage(deck);
+      return [deck, speech ? languageOfSpeech(speech) : null];
+    }),
     languages: Object.fromEntries(withSkills.map((l) => [l, {
       name: LANGUAGES[l].name,
       groups: skillGroups(l).map((g) => ({

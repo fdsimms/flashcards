@@ -423,6 +423,10 @@ export function cardDocument(
     colors?: { background: string; text: string; cloze: string };
     /** Sets the page in this font (the bundled files are at `base`, with a trailing slash); the system font leaves the deck's own. */
     font?: { id: AppFont; base: string };
+    /** The note's language as a speech tag (`speechLangFor`), for text whose script alone doesn't say: kanji in a Japanese deck. */
+    language?: string;
+    /** Settings, Thai text size: a side with Thai in it is set at this size and line height, over the deck's own. */
+    thai?: { fontSize: number; lineHeight: number };
   },
 ): string {
   const colors = opts.colors ?? (opts.dark
@@ -434,8 +438,15 @@ export function cardDocument(
   // A side written in Japanese (any kana: kanji alone may be Chinese) is marked so, and has Japanese's
   // face after the system font, so its kanji take their Japanese forms. `lang` reaches a deck that
   // names its own font too (.card { font-family: arial }), as WebKit picks a missing glyph's face by it.
-  const ja = keyboardLanguageForText(htmlToText(html)) === 'ja';
-  return `<!doctype html><html${ja ? ' lang="ja"' : ''}><head><meta charset="utf-8">${base}
+  // Kanji alone reads as Chinese by script, so a Japanese note's language says so (今日 in a Japanese deck).
+  const text = htmlToText(html);
+  const script = keyboardLanguageForText(text);
+  const ja = script === 'ja' || (script === 'zh' && !!opts.language?.toLowerCase().startsWith('ja'));
+  // Thai text size reaches a template card too: after the deck's CSS, and more specific than its `.card`.
+  const thai = opts.thai && !ja && /[\u0e00-\u0e7f]/.test(text) ? opts.thai : undefined;
+  const thaiCss = thai ? `html[lang="th"] body.card { font-size: ${thai.fontSize}px; line-height: ${(thai.lineHeight / thai.fontSize).toFixed(2)}; }` : '';
+  const lang = ja ? ' lang="ja"' : thai ? ' lang="th"' : '';
+  return `<!doctype html><html${lang}><head><meta charset="utf-8">${base}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 html { height: 100%; }
@@ -455,6 +466,7 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 #image-occlusion-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; max-width: unset; max-height: unset; }
 #image-occlusion-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 ${opts.css}
+${thaiCss}
 ${opts.dark ? `/* A deck's plain \`.card { background: white; color: black }\` (Ultimate Geography's) would leave a white
    card in dark mode. \`body.card\` outranks \`.card\` but not a deck's own \`.nightMode .card\`, so a deck
    that styles night mode itself keeps its colors. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keyboardLanguageFor, keyboardLanguageForText } from '../../src/core/keyboardLanguage';
+import { answerKeyboard, keyboardLanguageFor, keyboardLanguageForText, keyboardRequest } from '../../src/core/keyboardLanguage';
 
 describe('keyboardLanguageFor', () => {
   it('asks for the language when it has its own alphabet', () => {
@@ -18,6 +18,14 @@ describe('keyboardLanguageFor', () => {
 
   it('leaves other Latin-script languages on whatever keyboard is up', () => {
     for (const tag of ['es-MX', 'de-DE', 'fr-FR', 'pl-PL', 'nb-NO']) expect(keyboardLanguageFor(tag)).toBeUndefined();
+  });
+
+  it("asks for a Latin-script language's own keyboard, then English, so it leaves a Cyrillic or Thai one", () => {
+    expect(keyboardRequest('pl-PL')).toBe('pl,en');
+    expect(keyboardRequest('de_DE')).toBe('de,en');
+    expect(keyboardRequest('ru-RU')).toBe('ru');
+    expect(keyboardRequest('en-US')).toBe('en');
+    expect(keyboardRequest(undefined)).toBeUndefined();
   });
 
   it('asks for nothing without a language', () => {
@@ -43,13 +51,22 @@ describe('keyboardLanguageForText', () => {
 
   it('uses the majority script when an answer mixes them', () => {
     expect(keyboardLanguageForText('дозорный (a)')).toBe('ru');
-    expect(keyboardLanguageForText('the word дозор means a patrol')).toBeUndefined();
+    expect(keyboardLanguageForText('the word дозор means a patrol')).toBe('en');
   });
 
-  it('asks for nothing for Latin text, digits or an empty answer', () => {
-    expect(keyboardLanguageForText('kot')).toBeUndefined();
-    expect(keyboardLanguageForText('Größe')).toBeUndefined();
+  it('asks for English for Latin text, and nothing for digits or an empty answer', () => {
+    expect(keyboardLanguageForText('kot')).toBe('en');
+    expect(keyboardLanguageForText('Größe')).toBe('en');
     expect(keyboardLanguageForText('1984')).toBeUndefined();
     expect(keyboardLanguageForText('')).toBeUndefined();
+  });
+});
+
+describe('answerKeyboard', () => {
+  it('takes kanji alone as Japanese in a Japanese note, and as Chinese otherwise', () => {
+    expect(answerKeyboard('今日', 'ja-JP')).toBe('ja');
+    expect(answerKeyboard('今日', undefined)).toBe('zh');
+    expect(answerKeyboard('今日', 'zh-CN')).toBe('zh');
+    expect(answerKeyboard('kot', 'ja-JP')).toBe('en');
   });
 });

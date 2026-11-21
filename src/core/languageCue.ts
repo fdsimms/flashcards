@@ -1,5 +1,5 @@
 import type { CardKind } from './types';
-import { languageName } from './voices';
+import { languageKey, languageName } from './voices';
 
 /** The language a note's Meaning is written in. Omnilanguage notes are always glossed in English. */
 const MEANING_LANGUAGE = 'English';
@@ -13,7 +13,8 @@ const MEANING_LANGUAGE = 'English';
  */
 export function languageCue(kind: CardKind, speechLang: string | undefined): { from: string; to: string } | undefined {
   if (!speechLang) return undefined;
-  const code = speechLang.split('-')[0];
+  // languageKey, so Cantonese says Cantonese, not Chinese.
+  const code = languageKey(speechLang);
   if (code === 'en') return undefined;
   const word = languageName(code);
   if (kind === 'forward' || kind === 'audio') return { from: word, to: MEANING_LANGUAGE };

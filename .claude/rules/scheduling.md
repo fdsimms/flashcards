@@ -37,10 +37,11 @@ own count between UTC dates, which made a step across UTC midnight a day's wait.
 relearning card keeps the interval its lapse gave it (`relearnDays`), as Anki's does. A step crossing into a
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
 review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so. **The
-tag comes off once the word has recovered** (`leechRecovered`, `src/core/leechRecovery.ts`): every
-studied card of the note is an unsuspended review scheduled `LEECH_RECOVERED_DAYS` (21) or more out.
-Anki never removes it; Franki does because its Leeches filter, Trouble and cram read the tag as a
-live signal. Undo puts the tag back (`leechClearedNoteId`). **The mnemonic is asked for at the fourth
+tag stays on, as in Anki, but a word that has recovered stops counting as a leech** (`isLiveLeech`,
+`src/core/leechRecovery.ts`): every studied card of the note is an unsuspended review scheduled
+`LEECH_RECOVERED_DAYS` (21) or more out. It's read from the cards each time, never stored or written
+to Anki, since the learner's own searches and filtered decks use the tag; Trouble, Browse's marker,
+a cram's missed words and Review's chip read it. **The mnemonic is asked for at the fourth
 miss too** (`asksEarlyHint`, `src/core/leechHint.ts`), once, with no tag: the threshold comes many failed reviews late.
 
 **Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
@@ -55,8 +56,9 @@ the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previ
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
 **Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`, or
-a today-only limit from Custom Study on its day), with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in
-`src/core/config.ts` only for a deck that has none.
+a today-only limit from Custom Study on its day). A deck with no preset (one made in Franki with no
+Anki collection) takes its own from Deck options (`DeckSettings.newPerDay` / `reviewsPerDay`, through
+`queueInput`'s required `ownLimitsFor`), else `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts`.
 
 **A study session is built as Anki's v3 scheduler builds it** (`treeQueue` in
 `src/core/deckTree.ts`, orders in `src/core/order.ts`; each rule's source in rslib is named where
@@ -78,9 +80,12 @@ card ahead of it in the rebuilt order. Learning steps around the mixed stretch (
 and always come from the rebuild.
 
 **Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
-Anki's cards are counted from the kept collection's review log, which holds answers synced from
-AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
-Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
+Anki's cards are counted from the kept collection's own per-deck "studied today" counts (`ankiDeckStudied`,
+`Deck.Common`), which every device's answers add to (Franki's too, `deckStats.ts`) on the deck they were
+given in and every deck above it, so an answer given in a filtered deck on the desktop counts there, as
+Anki's limits count it, and not against the card's home deck, which the review log can't tell. Without a
+collection, the review log, and Franki-only cards from Franki's table. Counting Franki's table alone
+offered new cards already studied in Anki that day. **A card Anki
 buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
 was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
 in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's

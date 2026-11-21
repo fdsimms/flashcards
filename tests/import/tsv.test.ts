@@ -119,3 +119,41 @@ describe('TSV import', () => {
     expect(res.warnings).toEqual([expect.stringMatching(/^Row 2: there's no deck with the id 999/)]);
   });
 });
+
+describe('a word list', () => {
+  it('takes the separator it is given over the guess, so a semicolon in a meaning splits nothing', () => {
+    const text = 'กิน,to eat\nทาน,to eat; to consume (polite)\n';
+    const { notes, warnings } = importTsv(text, { separator: ',' });
+    expect(notes.map((n) => [n.fields.Entry, n.fields.Meaning])).toEqual([['กิน', 'to eat'], ['ทาน', 'to eat; to consume (polite)']]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('says so when most rows came in as one field', () => {
+    const { warnings } = importTsv('กิน,to eat\nทาน,to eat; to consume\nดื่ม,to drink\n');
+    expect(warnings.some((w) => w.startsWith('Most rows came in as one field, split by semicolon.'))).toBe(true);
+  });
+
+  it('numbers the rows in file order, every card of a note at its row', () => {
+    const text = '#columns:Entry\tMeaning\tGenerateReverse\nzebra\tz\ty\napple\ta\ty\n';
+    const { cards } = importTsv(text, { firstPosition: 10 });
+    expect(cards.map((c) => [c.id.split(':').slice(2).join(':'), c.position])).toEqual([
+      ['zebra:forward', 10], ['zebra:reverse', 10], ['apple:forward', 11], ['apple:reverse', 11],
+    ]);
+    expect(importTsv(text).cards.every((c) => c.position === undefined)).toBe(true);
+  });
+});
+
+describe("a word list imported into a deck made in Franki", () => {
+  it("gives each word the deck's language, and a reverse card when the deck asks both ways", () => {
+    const { notes, cards } = importTsv('hola\thello\n', { fallbackDeck: 'Words', fieldDefaults: { Language: 'Spanish', GenerateReverse: 'y' } });
+    expect(notes[0].deck).toBe('Words');
+    expect(notes[0].fields.Language).toBe('Spanish');
+    expect(cards.map((c) => c.kind).sort()).toEqual(['forward', 'reverse']);
+  });
+
+  it("keeps a language the file gives, and leaves a row a deck column sends elsewhere alone", () => {
+    const text = '#columns:Entry\tMeaning\tLanguage\tDeck\n#deck column:4\nkot\tcat\tPolish\t\npies\tdog\t\tOther\n';
+    const { notes } = importTsv(text, { fallbackDeck: 'Words', fieldDefaults: { Language: 'Spanish' } });
+    expect(notes.map((n) => [n.deck, n.fields.Language])).toEqual([['Words', 'Polish'], ['Other', '']]);
+  });
+});

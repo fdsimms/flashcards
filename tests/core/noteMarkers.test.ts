@@ -34,6 +34,11 @@ describe('a note\'s markers in Browse', () => {
     expect(run([first, second], { ...note, tags: ['leech'] })).toEqual([{ kind: 'leech', label: 'Leech' }]);
   });
 
+  it('leaves a leech that has recovered unmarked, though Anki\'s tag stays', () => {
+    const mature: Card = { ...first, sched: { ...first.sched, state: 2, scheduledDays: 30, reps: 20, lapses: 9 } };
+    expect(run([mature], { ...note, tags: ['leech'] })).toEqual([]);
+  });
+
   it('names each flag color once, with its own count', () => {
     const m = run([{ ...first, flag: 1 }, { ...second, flag: 4 }, { ...third, flag: 4 }]);
     expect(m).toEqual([

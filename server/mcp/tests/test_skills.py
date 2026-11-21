@@ -21,7 +21,10 @@ CARDS = "tag:skill -tag:skill::words"
 
 
 def test_a_deck_name_means_the_language_the_app_reads_from_it():
-    assert [skills.language_of_deck(n) for n in ("Thai", "🐟 Norsk", "Deutsch::Verbs", "Trivia", "Italiano")] == ["th", "nb", "de", None, None]
+    # The examples and the app's answers come from the catalog (`deckExamples`), so the two readings can't drift.
+    examples = skills.CATALOG["deckExamples"]
+    assert examples
+    assert [(n, skills.language_of_deck(n)) for n, _ in examples] == [(n, lang) for n, lang in examples]
 
 
 def test_settings_are_read_as_the_app_reads_them():

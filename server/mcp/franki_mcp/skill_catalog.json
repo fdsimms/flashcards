@@ -32,6 +32,10 @@
    "th"
   ],
   [
+   "ไทย",
+   "th"
+  ],
+  [
    "polish",
    "pl"
   ],
@@ -298,6 +302,88 @@
   [
    "english",
    null
+  ]
+ ],
+ "deckExamples": [
+  [
+   "Thai",
+   "th"
+  ],
+  [
+   "🐟 Norsk",
+   "nb"
+  ],
+  [
+   "Polski",
+   "pl"
+  ],
+  [
+   "Deutsch::Verbs",
+   "de"
+  ],
+  [
+   "Trivia",
+   null
+  ],
+  [
+   "Japanese",
+   "ja"
+  ],
+  [
+   "Italiano",
+   null
+  ],
+  [
+   "👅 Languages::🐘 ภาษาไทย::Tier 1",
+   "th"
+  ],
+  [
+   "ภาษาไทยพื้นฐาน",
+   "th"
+  ],
+  [
+   "ไทย",
+   "th"
+  ],
+  [
+   "👅 Languages::🍥 日本語",
+   "ja"
+  ],
+  [
+   "Trivia::Geography::Thailand",
+   null
+  ],
+  [
+   "Trivia::Greek mythology",
+   "el"
+  ],
+  [
+   "Prussian history",
+   null
+  ],
+  [
+   "Gdansk trip",
+   null
+  ],
+  [
+   "Russian::Polish cognates",
+   "ru"
+  ],
+  [
+   "Polish for Thai speakers",
+   "pl"
+  ],
+  [
+   "Spanish::French false friends",
+   "es"
+  ],
+  [
+   "thai-thai",
+   "th"
+  ],
+  [
+   "Español (México)",
+   "es"
   ]
  ],
  "languages": {
@@ -1491,7 +1577,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">แก</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gaae · A, as in \"cat\", held longer. Example: แม่ (mâe), mother.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gaae · A, as in \"cat\", held longer. Example: แม่ (mâae), mother.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -1552,6 +1638,46 @@
       {
        "front": "<div style=\"font-size:64px\">เกือ</div><div>Short or long?</div>",
        "back": "<div><b>Long</b></div><div>guea · Example: เรือ (ruea), boat.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "tags": [
+        "skill",
+        "skill::vowels",
+        "skill::lang::th"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div style=\"font-size:64px\">กำ</div><div>Short or long?</div>",
+       "back": "<div><b>Short</b></div><div>gam · Um, as in \"drum\". Example: ทำ (tham), do, make.</div><div>A short vowel, but it ends in m, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "tags": [
+        "skill",
+        "skill::vowels",
+        "skill::lang::th"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div style=\"font-size:64px\">ไก</div><div>Short or long?</div>",
+       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\". Example: ไม่ (mâi), not.</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "tags": [
+        "skill",
+        "skill::vowels",
+        "skill::lang::th"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div style=\"font-size:64px\">ใก</div><div>Short or long?</div>",
+       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\", the same sound as ไ. Example: ใช่ (châi), yes, that's right.</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "tags": [
+        "skill",
+        "skill::vowels",
+        "skill::lang::th"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div style=\"font-size:64px\">เกา</div><div>Short or long?</div>",
+       "back": "<div><b>Short</b></div><div>gao · Ow, as in \"now\". Example: เขา (khǎo), he, she, they.</div><div>A short vowel, but it ends in o, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",

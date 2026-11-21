@@ -153,3 +153,18 @@ describe('reading a collection', () => {
     expect(cards.map((c) => c.ankiId)).toEqual(data.cards.filter((c) => c.note === book.id).map((c) => String(c.cardId)));
   });
 });
+
+describe("a card's last review, as Anki's FSRS reads it", () => {
+  it('skips Manual rows and previews in a filtered deck that does not reschedule', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const { COLLECTION_QUERIES } = await import('../../src/anki/collection');
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE revlog (id INTEGER PRIMARY KEY, cid INTEGER, ease INTEGER, type INTEGER, factor INTEGER)');
+    const add = db.prepare('INSERT INTO revlog (id, cid, ease, type, factor) VALUES (?, ?, ?, ?, ?)');
+    add.run(1, 7, 3, 1, 2500); // a review
+    add.run(2, 7, 3, 3, 0); // a preview (cramming): doesn't count
+    add.run(3, 7, 0, 4, 2500); // Set Due Date: doesn't count
+    add.run(4, 8, 3, 3, 2500); // a filtered deck that reschedules: counts
+    expect(db.prepare(COLLECTION_QUERIES.lastReviews).all().map((r) => [r.cid, r.last])).toEqual([[7, 1], [8, 4]]);
+  });
+});

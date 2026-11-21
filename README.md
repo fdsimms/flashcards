@@ -26,7 +26,7 @@ Franki works on your real Anki collection. It gets there one of two ways.
 
 ### Sync (recommended)
 
-Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app, and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
+Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app (unless you leave in the middle of studying, so Undo still works when you come back), and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
 
 New, renamed and deleted decks, deck options, note types and tags are merged the way Anki merges them. (On a build made before that was added, Franki sends its answers and then downloads the whole collection instead, so nothing is lost.) When the two collections can't be merged at all (the first sync, or after a field was added to a note type, which makes Anki upload), Franki downloads the server's, and asks first if that would lose answers given in Franki.
 
@@ -54,7 +54,7 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Decks
 
-The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck**, in the **…** menu at the top right, makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. The **…** button on a deck's row opens its menu:
+The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck**, in the **…** menu at the top right (or **Make a deck** when there are none), makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. It also asks the language the deck's words are in (read from the name until you pick one; **No language** for trivia) and whether each word should also ask its meaning, to answer in the language. A word added to a new deck in a language is a note in that language, read aloud and shown in Practice, with no note type from Anki needed. A deck with no cards yet offers **Add words** and **Import a word list** (a .csv or .txt file with a word and its meaning on each line). A deck that isn't in an Anki collection keeps its daily limits in Franki: **Deck options** sets new cards and reviews a day. The **…** button on a deck's row opens its menu:
 
 - **Add note** opens the note editor in that deck, which is how to fill a deck you just made.
 - **Rename** renames it and every deck inside it. "::" moves it inside another deck. A name another deck has (in any capitalization) is refused, as is one inside the deck itself.
@@ -67,7 +67,7 @@ These changes go into your Anki collection as Anki would make them, so the next 
 
 ## Stats
 
-**Stats** (in the **…** menu at the top of the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, young, mature, suspended); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
+**Stats** (in the **…** menu at the top of the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, relearning, young, mature, suspended, buried); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
 
 ## Backing up
 

@@ -182,7 +182,7 @@ describe("today's counts", () => {
   const note = omniNote();
   const deck = note.deck;
   const counts = (input: Partial<Parameters<typeof studiedToday>[0]>) =>
-    studiedToday({ notes: [note], cards: [], reviews: [], revlog: [], now: NOW, dayStartsAtHour: H, ...input });
+    studiedToday({ notes: [note], cards: [], reviews: [], revlog: [], now: NOW, dayStartsAtHour: H, ankiCounters: undefined, ...input });
 
   it("counts a Franki-only card's first answer as introduced, and answers in Review as reviews", () => {
     const [card] = makeCards(note, NOW);
@@ -296,5 +296,23 @@ describe("today's counts", () => {
       { cardId: card.id, ...review(card.sched, 3, NOW).log, state: 1 }, // a step within the day: no limit
     ];
     expect(counts({ cards: [card], reviews }).get(deck)).toEqual({ introduced: 0, reviewed: 1 });
+  });
+});
+
+describe("today's counts from Anki's own counters", () => {
+  const n = (id: string, deck: string, tags: string[] = []) => ({ ...omniNote(), id, deck, tags });
+  it("counts each deck's own answers from Anki's counts, so one given in a filtered deck isn't the home deck's", () => {
+    const notes = [n('a', 'Polski'), n('b', 'Polski::Verbs')];
+    const cards = notes.map((x) => ({ ...makeCards(x, NOW)[0], ankiId: x.id === 'a' ? '1' : '2' }));
+    // Anki counts a deck's subdecks in; Custom Study Session holds what was studied on the desktop there.
+    const ankiCounters = [
+      { deck: 'Polski', introduced: 3, reviewed: 10 },
+      { deck: 'Polski::Verbs', introduced: 1, reviewed: 4 },
+      { deck: 'Custom Study Session', introduced: 0, reviewed: 25 },
+    ];
+    const out = studiedToday({ notes, cards, reviews: [], revlog: [], now: NOW, dayStartsAtHour: H, ankiCounters });
+    expect(out.get('Polski')).toEqual({ introduced: 2, reviewed: 6 });
+    expect(out.get('Polski::Verbs')).toEqual({ introduced: 1, reviewed: 4 });
+    expect(out.get('Custom Study Session')).toEqual({ introduced: 0, reviewed: 25 });
   });
 });

@@ -4,7 +4,7 @@ import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
 import { toHiragana } from '../core/kana';
 import { stripMarks } from '../core/letters';
-import { kanjiNeighbors, lookalikeIndex } from '../core/lookalikes';
+import { kanjiNeighbors, lookalikeForm, lookalikeIndex } from '../core/lookalikes';
 import { searchPlace, searchQuery, searchRank, type SearchPlace } from '../core/searchRank';
 import { meaningSet, sameMeaning } from '../core/synonyms';
 import type { Note } from '../core/types';
@@ -61,14 +61,17 @@ const unmarked = (s: string) => stripMarks(s.normalize('NFKD')).normalize('NFC')
 
 /**
  * What a word sounds like, near enough to be confused by ear: its romanization (or kana, katakana
- * read as the hiragana it spells) with tones, accents and hyphens taken off, else its spelling the
- * same way. Kana keeps its voicing marks (stripMarks): かいがん and かいかん don't sound alike. Thai without a
+ * read as the hiragana it spells) with tones, accents and hyphens taken off, else its spelling as the
+ * lookalike check compares it, without hyphens or spaces. Kana keeps its voicing marks (stripMarks): かいがん and かいかん don't sound alike. Thai without a
  * romanization has none, as Thai script carries the tone in letters that can't be taken off.
  */
 export function soundKey(w: MixupWord): string | undefined {
-  const base = w.roman || (w.language === 'th' || w.language === 'ja' ? '' : w.word);
+  if (!w.roman && (w.language === 'th' || w.language === 'ja')) return undefined;
+  // A spelling keeps the letters its language hears (ą, ö, й, ё), as the lookalike check does
+  // (`lookalikeForm`): only languages whose accents are marks, and Russian stress marks, lose them.
+  const base = w.roman ? unmarked(toHiragana(w.roman).toLocaleLowerCase()) : lookalikeForm(w.word, w.language);
   if (!base) return undefined;
-  const key = unmarked(toHiragana(base).toLocaleLowerCase()).replace(/[-‐·'’\s]/g, '');
+  const key = base.replace(/[-‐·'’\s]/g, '');
   return (w.language === 'ja' ? heardAs(key) : key) || undefined;
 }
 

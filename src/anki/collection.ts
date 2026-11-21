@@ -47,6 +47,9 @@ const FILTERED = { reschedule: 1, previewHardSecs: 5, previewGoodSecs: 6, previe
 export const STRIP_UNICASE_SQL = "UPDATE sqlite_master SET sql = replace(sql, ' COLLATE unicase', '') WHERE sql LIKE '%COLLATE unicase%'";
 
 /** What `buildExport` needs, by name, so both platforms read exactly the same columns. */
+/** A review log row that's an answer FSRS counts (rslib revlog/mod.rs, `has_rating_and_affects_scheduling`). */
+export const REAL_ANSWER = 'ease > 0 AND NOT (type = 3 AND factor = 0)';
+
 export const COLLECTION_QUERIES = {
   col: 'SELECT crt FROM col',
   notetypes: 'SELECT id, name, config FROM notetypes',
@@ -56,8 +59,10 @@ export const COLLECTION_QUERIES = {
   cards: 'SELECT id, nid, did, ord, type, queue, due, ivl, factor, reps, lapses, left, odid, odue, data, mod, flags FROM cards',
   decks: 'SELECT id, name, kind FROM decks',
   deckConfigs: 'SELECT id, config FROM deck_config',
-  // The latest real answer: Anki's FSRS skips Manual rows (Set Due Date, Forget), which have ease 0.
-  lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 GROUP BY cid',
+  // The latest real answer, as Anki's `has_rating_and_affects_scheduling` reads one: not a Manual row
+  // (Set Due Date, Forget: ease 0), and not a preview in a filtered deck that doesn't reschedule
+  // (`is_cramming`: type 3, Filtered, with factor 0), which FSRS never sees.
+  lastReviews: `SELECT cid, MAX(id) AS last FROM revlog WHERE ${REAL_ANSWER} GROUP BY cid`,
   // `KEY AS key`: Anki declares the column in capitals, and SQLite names a result column as declared.
   config: "SELECT KEY AS key, val FROM config WHERE KEY IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled', 'timeLim')",
 } as const;

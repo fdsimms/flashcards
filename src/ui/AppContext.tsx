@@ -11,7 +11,7 @@ import { studiedToday } from '../core/queue';
 import type { WordChoice } from '../core/quickAdd';
 import type { Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
-import { backupStatus } from '../db/backup';
+import { backupStatus, oldestAdded } from '../db/backup';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
@@ -32,6 +32,9 @@ import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
 import { useOwedAnswers } from './useOwedAnswers';
+import { noteAddedAt } from '../core/cram';
+import { ankiToday } from '../core/order';
+import { reviewOpen } from './reviewOpen';
 import { useSync } from './useSync';
 import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
@@ -127,22 +130,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       repo.lastBackupAt(), repo.listDeckSettings(), repo.ankiDecks(),
     ]);
     // Every answer given today, here or in Anki on another device (synced), counts toward the limits.
-    const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
+    // Anki's own counts of what each deck has studied today, which know where an answer was given (`studiedToday`).
+    const ankiDay = ankiToday(now, collection.dayStartsAtHour, collection.collectionCreated, collection.creationOffset);
+    const ankiCounters = ankiDay === undefined ? undefined : await repo.ankiDeckStudied(ankiDay);
+    const studied = studiedToday({ notes, cards, reviews, revlog, now, dayStartsAtHour: collection.dayStartsAtHour, ankiCounters: ankiCounters?.length ? ankiCounters : undefined });
     const settings = await applyPriorityStamps(repo, notes, savedSettings, now);
     const held = await loadHeld(repo, { notes, cards, settings, now, dayStartsAtHour: collection.dayStartsAtHour });
     const vacation = await loadVacation();
-    const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, collection, now, held, vacation, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
+    const rows = deckRows(queueInput({ notes, cards, params: allParams, studied, gateFor: (d) => settings.get(d)?.gateCap, ownLimitsFor: (d) => settings.get(d), collection, now, held, vacation, boostFor: boostFor({ notes, settings, now }) }), listedDecks(ankiDecks, settings), (d) => settings.get(d)?.position);
     setDecks(rows);
     snapshot.save(rows, now, collection.dayStartsAtHour);
-    setBackup(backupStatus(lastBackup, now, cards.length > 0, collection.dayStartsAtHour));
+    setBackup(backupStatus(lastBackup, now, cards.length ? oldestAdded(notes.map(noteAddedAt)) : null, collection.dayStartsAtHour));
     setAnkiUnsent((await repo.ankiStatus()).unsent);
     collapse.load();
   }), [repo, collapse.load, snapshot.save, load.guard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync, when it's on: at launch, on coming back to the app (from Today or the deck list, so a deck
   // being studied isn't changed under it), after studying a deck (Review's screen asks), and on
-  // leaving the app. With sync off, coming back counts the decks again, as a sync would: a new study
-  // day may have started.
+  // leaving the app, unless a review is open (reviewOpen.ts: a sync would end its Undo). With sync
+  // off, coming back counts the decks again, as a sync would: a new study day may have started.
   useOwedAnswers(repo);
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
   const onDecks = pathname === TODAY_PATH || pathname === DECKS_PATH;
@@ -153,7 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background') sync();
+      if (state === 'background') { if (!reviewOpen()) sync(); }
       else if (state === 'active' && onDecksRef.current) {
         if (syncOnRef.current) sync();
         else refresh();

@@ -180,6 +180,20 @@ describe('templateOrdinals', () => {
   });
 });
 
+describe('cardDocument, by language', () => {
+  const page = (html: string, extra: Record<string, unknown> = {}) => cardDocument(html, { css: '.card { font-size: 18px; }', ord: 0, dark: false, autoplay: true, ...extra });
+  it('marks kanji alone as Japanese when the note is in Japanese, and as nothing otherwise', () => {
+    expect(page('今日', { language: 'ja-JP' })).toContain('<html lang="ja">');
+    expect(page('今日')).not.toContain('lang="ja"');
+  });
+  it('sets Thai at the Thai text size, after the deck\'s own CSS', () => {
+    const out = page('สวัสดี', { thai: { fontSize: 32, lineHeight: 48 } });
+    expect(out).toContain('<html lang="th">');
+    expect(out.indexOf('html[lang="th"] body.card { font-size: 32px; line-height: 1.50; }')).toBeGreaterThan(out.indexOf('.card { font-size: 18px; }'));
+    expect(page('hello', { thai: { fontSize: 32, lineHeight: 48 } })).not.toContain('lang="th"');
+  });
+});
+
 describe('cardDocument', () => {
   it('wraps the card with its CSS, Anki body classes and sound buttons', () => {
     const doc = cardDocument('Hi [sound:hello.mp3]', { css: '.card { color: red; }', ord: 1, dark: true, autoplay: true });

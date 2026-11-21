@@ -39,6 +39,16 @@ describe('soundKey', () => {
     expect(soundKey({ noteId: 'a', language: 'ja', word: '海岸', meaning: 'coast', roman: 'かいがん' })).toBe('かいがん');
     expect(soundKey({ noteId: 'a', language: 'ja', word: 'パン', meaning: 'bread', roman: 'パン' })).toBe('ぱん');
   });
+  it('keeps a letter its language hears: Polish ą and ę, German umlauts, Russian й and ё', () => {
+    const key = (language: 'pl' | 'de' | 'ru', word: string) => soundKey({ noteId: 'a', language, word, meaning: 'x' });
+    expect(key('pl', 'kąt')).not.toBe(key('pl', 'kat'));
+    expect(key('pl', 'pięć')).not.toBe(key('pl', 'piec'));
+    expect(key('de', 'schön')).not.toBe(key('de', 'schon'));
+    expect(key('ru', 'мой')).not.toBe(key('ru', 'мои'));
+    expect(key('ru', 'всё')).not.toBe(key('ru', 'все'));
+    // A stress mark added for learning isn't a letter.
+    expect(key('ru', 'молоко́')).toBe(key('ru', 'молоко'));
+  });
   it('hears a Japanese long vowel as short, and a small っ or ゃ as missed', () => {
     const key = (roman: string) => soundKey({ noteId: 'a', language: 'ja', word: 'x', meaning: 'x', roman });
     expect(key('おばあさん')).toBe(key('おばさん'));

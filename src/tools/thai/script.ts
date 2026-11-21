@@ -54,7 +54,7 @@ export const SYLLABLES: Syllable[] = [
   { text: 'หนึ่ง', roman: 'nùeng', meaning: 'one', initial: 'น', cls: 'low', leadingH: true, mark: 'ek', live: true, long: false },
   { text: 'มา', roman: 'maa', meaning: 'come', initial: 'ม', cls: 'low', mark: 'none', live: true, long: true },
   { text: 'นอน', roman: 'naawn', meaning: 'sleep', initial: 'น', cls: 'low', mark: 'none', live: true, long: true },
-  { text: 'แม่', roman: 'mâe', meaning: 'mother', initial: 'ม', cls: 'low', mark: 'ek', live: true, long: true },
+  { text: 'แม่', roman: 'mâae', meaning: 'mother', initial: 'ม', cls: 'low', mark: 'ek', live: true, long: true },
   { text: 'พ่อ', roman: 'phâaw', meaning: 'father', initial: 'พ', cls: 'low', mark: 'ek', live: true, long: true },
   { text: 'ม้า', roman: 'máa', meaning: 'horse', initial: 'ม', cls: 'low', mark: 'tho', live: true, long: true },
   { text: 'น้ำ', roman: 'náam', meaning: 'water', initial: 'น', cls: 'low', mark: 'tho', live: true, long: true },

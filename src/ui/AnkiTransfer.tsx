@@ -11,9 +11,8 @@ import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
 import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
-import { importTsv } from '../import/tsv';
-import { leaveAnkiNotes, reconcileIds } from '../import/reconcile';
 import { Button, Card, Help, MessageList, Screen } from './kit';
+import { importWordList } from './wordListImport';
 import { space, type, useTheme, readable } from './theme';
 
 /** Warnings listed per import. Past this the rest are counted, never dropped silently. */
@@ -115,14 +114,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const importTsvFile = (picked: File, name: string) => run('import', async () => {
     try {
-      const notes = await repo.listNotes();
-      // Anki's decks with their ids, and Franki's own by name, for a deck column that gives a deck's id.
-      const decks = [...await repo.ankiDecks(), ...[...new Set(notes.map((n) => n.deck))].map((name) => ({ name }))];
-      // A row matching a note from Anki is left alone: this import can't change Anki's copy.
-      const cards = await repo.listCards();
-      const ankiNotes = new Set(cards.filter((c) => c.ankiId).map((c) => c.noteId));
-      const result = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes, cards), ankiNotes);
-      await repo.upsertNotesAndCards(result.notes, result.cards);
+      const result = await importWordList(repo, await picked.text(), name);
       const shown = result.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [
         `Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`,

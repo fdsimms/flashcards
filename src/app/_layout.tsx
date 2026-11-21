@@ -43,6 +43,7 @@ function RootStack() {
       <Stack.Screen name="lesson-word-add" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* A cram's sheet (Practice, Cram): its name, its day and its first words, full height for the keyboard. */}
       <Stack.Screen name="cram-edit" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
+      <Stack.Screen name="deck-new" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
       <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
       {/* The tab bar's player opens Now Playing as a sheet, and its Up Next button the queue over it. */}

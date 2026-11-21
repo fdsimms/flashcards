@@ -1,5 +1,6 @@
 import { daysInMonth, randomDate, shiftMonth, type CalendarDate, type DateParts, type DateSaying } from './date';
 import { distinct, type Phrase } from './phrase';
+import { canonicalText } from '../core/letters';
 
 /**
  * Saying dates as a quiz, besides saying it aloud: the ways to answer, every form of a date a
@@ -39,7 +40,7 @@ export function acceptedForms(saying: DateSaying): Phrase[] {
 export function usualSpelling(typed: string, saying: Pick<DateSaying, 'spellings'>): string {
   return (saying.spellings ?? []).reduce(
     (text, [other, usual]) => text.replace(typeof other === 'string' ? new RegExp(other.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu') : other, usual),
-    typed.normalize('NFC'),
+    canonicalText(typed),
   );
 }
 

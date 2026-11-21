@@ -5,7 +5,7 @@ import { examplesOf } from './examples';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { elidesBefore } from './gender';
 import { htmlToText } from './html';
-import { foldYo, unaccented } from './letters';
+import { canonicalText, foldYo, unaccented } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 import { isNoForm } from './wordGrammar';
 
@@ -269,7 +269,7 @@ export type Verdict = 'right' | 'almost' | 'wrong';
  * σ for a final ς, ss for ß, and a curly apostrophe for a straight one ("j’espère").
  */
 const clean = (s: string) =>
-  foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
+  foldYo(canonicalText(s).trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
     .replace(/ς/g, 'σ').replace(/ß/g, 'ss').replace(/[’‘ʼ]/g, "'");
 /** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
 

@@ -1,5 +1,6 @@
 import { dayKeyOf, nextStudyDayStart, studyDayStart } from './day';
 import type { Card, ReviewLogEntry } from './types';
+import { isBuried } from './queue';
 
 /**
  * Study statistics for a deck (with its subdecks) or the whole collection, as the Stats screen
@@ -124,7 +125,8 @@ export interface Stats {
   overdue: number;
   /** Today and the study days after it. Today counts what's due later today too. */
   forecast: DayDue[];
-  counts: { new: number; learning: number; young: number; mature: number; suspended: number };
+  /** Cards by stage, as Anki's Card Counts splits them: buried apart from the stage it's in, relearning apart from learning. */
+  counts: { new: number; learning: number; relearning: number; young: number; mature: number; suspended: number; buried: number };
 }
 
 export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Date; dayStartsAtHour: number; days: number }): Stats {
@@ -167,15 +169,19 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
   }
   today.newCards = newToday.size;
 
-  const counts = { new: 0, learning: 0, young: 0, mature: 0, suspended: 0 };
+  const counts = { new: 0, learning: 0, relearning: 0, young: 0, mature: 0, suspended: 0, buried: 0 };
   let overdue = 0;
   for (const c of input.cards) {
     if (c.retired) continue;
     if (c.suspended) { counts.suspended++; continue; }
     const s = c.sched;
-    if (s.state === 0) { counts.new++; continue; }
-    if (s.state === 2) counts[s.scheduledDays >= MATURE_DAYS ? 'mature' : 'young']++;
-    else counts.learning++;
+    // A buried card is counted as buried, not in its stage, as Anki counts it; it's still due on its day.
+    const stage = isBuried(c, now, h) ? 'buried'
+      : s.state === 0 ? 'new'
+      : s.state === 2 ? (s.scheduledDays >= MATURE_DAYS ? 'mature' : 'young')
+      : s.state === 3 ? 'relearning' : 'learning';
+    counts[stage]++;
+    if (s.state === 0) continue;
     const due = new Date(s.due);
     if (due < todayStart) { overdue++; continue; }
     const fi = forecastIndex.get(dayOf(due));

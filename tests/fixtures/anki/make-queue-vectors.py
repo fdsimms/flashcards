@@ -136,7 +136,7 @@ rows = {
     "notes": [{"id": a, "mid": b, "tags": c, "flds": d} for a, b, c, d in col.db.all("SELECT id, mid, tags, flds FROM notes")],
     "cards": base_cards,
     "decks": [{"id": a, "name": b, "kind": bytes(c).hex()} for a, b, c in col.db.all("SELECT id, name, kind FROM decks")],
-    "lastReviews": [{"cid": a, "last": b} for a, b in col.db.all("SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 GROUP BY cid")],
+    "lastReviews": [{"cid": a, "last": b} for a, b in col.db.all("SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 AND NOT (type = 3 AND factor = 0) GROUP BY cid")],
     "revlog": [dict(zip("id cid ease lastIvl time type".split(), r)) for r in col.db.all("SELECT id, cid, ease, lastIvl, time, type FROM revlog ORDER BY id")],
 }
 variants = []

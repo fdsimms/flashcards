@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEECH_RECOVERED_DAYS, leechRecovered, withoutLeechTag } from '../../src/core/leechRecovery';
+import { isLiveLeech, LEECH_RECOVERED_DAYS, leechRecovered } from '../../src/core/leechRecovery';
 import type { Card, Note } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
 
@@ -29,6 +29,12 @@ describe('leech recovery', () => {
     expect(leechRecovered(note(), [card('a'), card('b')])).toBe(true);
   });
 
+  it('ignores a card of the note never studied, suspended or not', () => {
+    expect(leechRecovered(note(), [card('a'), card('b', { state: 0, scheduledDays: 0 })])).toBe(true);
+    expect(leechRecovered(note(), [card('a'), card('b', { state: 0, scheduledDays: 0, suspended: true })])).toBe(true);
+    expect(leechRecovered(note(), [card('b', { state: 0, scheduledDays: 0 })])).toBe(false);
+  });
+
   it('is held back by a suspended card, and ignores retired ones and other notes', () => {
     expect(leechRecovered(note(), [card('a', { suspended: true })])).toBe(false);
     expect(leechRecovered(note(), [card('a'), card('b', { retired: true, scheduledDays: 1 })])).toBe(true);
@@ -42,7 +48,10 @@ describe('leech recovery', () => {
     expect(leechRecovered(note(), [card('a', { retired: true })])).toBe(false);
   });
 
-  it('takes only the leech tag off', () => {
-    expect(withoutLeechTag(['verb', 'Leech', 'travel'])).toEqual(['verb', 'travel']);
+  it('is a live leech while tagged and not recovered, and again once it lapses', () => {
+    expect(isLiveLeech(note(), [card('a', { scheduledDays: 3 })])).toBe(true);
+    expect(isLiveLeech(note(), [card('a')])).toBe(false);
+    expect(isLiveLeech(note(), [card('a', { state: 3, scheduledDays: 0 })])).toBe(true);
+    expect(isLiveLeech(note([]), [card('a', { scheduledDays: 3 })])).toBe(false);
   });
 });

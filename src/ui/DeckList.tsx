@@ -1,4 +1,4 @@
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { leadingEmoji } from '../core/deckBadge';
@@ -8,7 +8,7 @@ import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, Card, Group, Help, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
@@ -131,6 +131,8 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   const badge = leadingEmoji(row.name);
   // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;
+  // Reviews kept apart from a lookalike just seen: Anki still counts them as due today, so the row says where they went.
+  const heldLine = row.held ? `${row.held} lookalike ${row.held === 1 ? 'review waits' : 'reviews wait'} until tomorrow` : null;
   return (
     <Pressable
       onPress={editing ? undefined : (onPress ?? onOpen)}
@@ -138,7 +140,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       accessibilityRole={editing ? undefined : 'button'}
       accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
-      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine].filter(Boolean).join('. ')}
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine, heldLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -169,6 +171,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           // Under the cap, new cards come in; at it, they wait until cards are a week out (the color says so).
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
         ) : null}
+        {heldLine ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{heldLine}</Text> : null}
       </View>
       {editing ? (
         // Touching the handle picks the deck up at once; the list's own scrolling gives way to the drag.
@@ -305,17 +308,20 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
   );
 }
 
-/** With no decks at all: where to bring them in from. */
+/** With no decks at all: make one (NewDeck.tsx), or bring in an Anki collection. */
 export function NoDecksCard({ onImport }: { onImport: () => void }) {
   const c = useTheme();
+  const router = useRouter();
   return (
     <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-      <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
+      <Icon name="rectangle.stack" size={40} color={c.textTertiary} weight="regular" />
       <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-        Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.
+        Make a deck for what you're learning and add words to it, or bring in your Anki collection.
       </Text>
-      <Button label="Set up Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+      <Button label="Make a deck" onPress={() => router.push('/deck-new')} style={{ alignSelf: 'stretch' }} />
+      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+      <Help>Anki users: sync with your own Anki server, or choose a collection exported from AnkiMobile.</Help>
     </Card>
   );
 }

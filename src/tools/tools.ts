@@ -1,3 +1,4 @@
+import { deckNameLanguage } from '../core/cards';
 import { grammarPointsFor } from '../core/grammar';
 import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
@@ -253,7 +254,30 @@ export function toolLanguage(tool: ToolInfo, last: Language | undefined): Langua
   return last && tool.languages.includes(last) ? last : tool.languages[0];
 }
 
-/** The language the Practice list shows: the one last practiced if tools come in it, else the first. */
-export function listLanguage(last: Language | undefined): Language {
-  return last && TOOL_LANGUAGES.includes(last) ? last : TOOL_LANGUAGES[0];
+/**
+ * The language the Practice list shows: the one last practiced if tools come in it, else the one
+ * with the most cards of those studied (`studiedLanguages`), else the first.
+ */
+export function listLanguage(last: Language | undefined, studied: Language[]): Language {
+  if (last && TOOL_LANGUAGES.includes(last)) return last;
+  return studied.find((l) => TOOL_LANGUAGES.includes(l)) ?? TOOL_LANGUAGES[0];
+}
+
+/**
+ * The tool languages the decks are in, the one with the most cards first: read from each top-level
+ * deck's name and its subdecks' (`deckNameLanguage`), as a card's language is. The language menu
+ * lists these first, and a first visit opens in the first.
+ */
+export function studiedLanguages(decks: { deck: string; depth: number; total: number }[]): Language[] {
+  const cards = new Map<Language, number>();
+  for (const d of decks) {
+    const code = deckNameLanguage(d.deck)?.split('-')[0].toLowerCase();
+    const lang = (code === 'no' ? 'nb' : code) as Language | undefined;
+    if (!lang || !TOOL_LANGUAGES.includes(lang)) continue;
+    // A deck's total includes its subdecks', so only the highest deck in a language counts.
+    const parent = d.deck.split('::').slice(0, -1).join('::');
+    if (parent && decks.some((p) => p.deck === parent && deckNameLanguage(p.deck) === deckNameLanguage(d.deck))) continue;
+    cards.set(lang, (cards.get(lang) ?? 0) + d.total);
+  }
+  return [...cards].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || TOOL_LANGUAGES.indexOf(a[0]) - TOOL_LANGUAGES.indexOf(b[0])).map(([l]) => l);
 }

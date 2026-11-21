@@ -19,6 +19,7 @@ import type { ToolScreenProps } from './index';
 import { MarkButtons, PracticeCard, useSwipeSetting } from './PracticeCard';
 import { RoundRing } from './RoundRing';
 import { ToolScreen, useAnswer, useToolLanguage } from './ToolScreen';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 /** Sentences asked for at once. */
 const ROUND = 10;
@@ -213,6 +214,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                 borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
               }}
             />
+            <MissingKeyboardNote speechTag={LANGUAGES[language].speech} />
           </View>
         )}
       </View>

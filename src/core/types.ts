@@ -329,6 +329,19 @@ export interface DeckSettings {
   priorityTag?: string;
   /** Days after Franki first saw the tag on a note that its new cards still come first (default 14). */
   priorityDays?: number;
+  /*
+   * For a deck with no Anki options preset (one made in Franki without an Anki collection), its own
+   * and not inherited: the daily limits (`NEW_PER_DAY` and `REVIEWS_PER_DAY` when unset), and how a
+   * note added to it starts (`startNoteFor`).
+   */
+  /** New cards a day. */
+  newPerDay?: number;
+  /** Reviews a day. */
+  reviewsPerDay?: number;
+  /** The language its notes are in, by its English name ("Spanish"); empty for none (trivia); unset, read from the deck's name. */
+  noteLanguage?: string;
+  /** A note added to it also asks the meaning, to answer in the language (Omnilanguage's GenerateReverse). */
+  askBothWays?: boolean;
   /** The most that may come first, as a percent of the day's new cards (default 50). */
   priorityPercent?: number;
   /** Note id to when Franki first saw the tag on it, kept on the deck whose switch is on. */

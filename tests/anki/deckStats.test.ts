@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deckAndParents, studiedDelta, withStudied } from '../../src/anki/deckStats';
+import { deckAndParents, studiedDelta, studiedOn, withStudied } from '../../src/anki/deckStats';
 import { decodeMessage, int, MessageWriter, uint } from '../../src/anki/protobuf';
 
 const common = (fields: Record<number, number>, collapsed = false) => {
@@ -39,5 +39,14 @@ describe("a deck's studied-today counts", () => {
     expect(deckAndParents(decks, 3).map((d) => d.id)).toEqual([3, 1, 2]);
     expect(deckAndParents(decks, 1).map((d) => d.id)).toEqual([1]);
     expect(deckAndParents(decks, 9)).toEqual([]);
+  });
+});
+
+describe('studiedOn', () => {
+  it("reads a deck's counts for the day, and none from an earlier one", () => {
+    const common = withStudied(new Uint8Array(), 100, { new: 2, review: 5, ms: 1000 });
+    expect(studiedOn(common, 100)).toEqual({ new: 2, review: 5 });
+    expect(studiedOn(common, 101)).toEqual({ new: 0, review: 0 });
+    expect(studiedOn(new Uint8Array(), 100)).toEqual({ new: 0, review: 0 });
   });
 });

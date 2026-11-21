@@ -85,12 +85,35 @@ def save_settings(col: Collection, deck_id: int, s: Settings) -> None:
     col.set_config(SKILL_CARDS_KEY, all_)
 
 
+def _wordy(ch: str) -> bool:
+    """A letter, mark or digit, as the app's `WORDY` (\\p{L}\\p{M}\\p{N}) tests."""
+    return unicodedata.category(ch)[0] in "LMN"
+
+
+# Scripts written without spaces between words, where a name is found inside a longer run (`UNSPACED`).
+_UNSPACED = re.compile("[\u0e00-\u0e7f\u3040-\u30ff\u3400-\u9fff]")
+
+
 def language_of_deck(name: str) -> str | None:
-    """The language a deck's name means, as the app reads it (`languageOfDeck`): the first language name in it, in the catalog's order."""
-    deck = unicodedata.normalize("NFC", name).lower()
-    for key, language in CATALOG["deckKeys"]:
-        if unicodedata.normalize("NFC", key) in deck:
-            return language
+    """The language a deck's name means, as the app reads it (`deckNameLanguage` in src/core/cards.ts):
+    a language's name as a word of its own, one level at a time from the top, the first name in the
+    first level that has one. `test_skills.py` checks it against the catalog's `deckExamples`."""
+    for level in unicodedata.normalize("NFC", name).lower().split("::"):
+        best: tuple[int, int, str | None] | None = None
+        for raw_key, language in CATALOG["deckKeys"]:
+            key = unicodedata.normalize("NFC", raw_key)
+            spaced = not _UNSPACED.search(key)
+            at = level.find(key)
+            while at >= 0:
+                end = at + len(key)
+                if spaced and ((at > 0 and _wordy(level[at - 1])) or (end < len(level) and _wordy(level[end]))):
+                    at = level.find(key, at + 1)
+                    continue
+                if best is None or at < best[0] or (at == best[0] and len(key) > best[1]):
+                    best = (at, len(key), language)
+                break
+        if best is not None:
+            return best[2]
     return None
 
 

@@ -109,3 +109,18 @@ describe('spellings the other answer checks take as the same', () => {
     expect(compareTyped('øl', 'ol').sameLetters).toBe(true);
   });
 });
+
+describe('Thai typed in another order', () => {
+  it('is exactly right when the marks were typed in an order that draws the same', () => {
+    // ที่ with the tone mark typed before the vowel; น้ำ with ำ typed as ํ and า, either side of the tone.
+    expect(compareTyped('ที่', 'ท่ี').exact).toBe(true);
+    expect(compareTyped('น้ำ', 'นํ้า').exact).toBe(true);
+    expect(compareTyped('น้ำ', 'น้ํา').exact).toBe(true);
+  });
+
+  it('says a vowel or tone mark is different, not an accent', () => {
+    expect(comparisonLine(compareTyped('กิน', 'กน'))).toBe('Right consonants, but a vowel or tone mark is different.');
+    expect(comparisonLine(compareTyped('บ้าน', 'บาน'))).toBe('Right consonants, but a vowel or tone mark is different.');
+    expect(comparisonLine(compareTyped('café', 'cafe'))).toBe('Right letters, but one has the wrong accent or mark.');
+  });
+});

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
 import { todayProgress } from '../core/todaySummary';
+import { EmptyDeckCard } from './EmptyDeckCard';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Screen } from './kit';
 import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
@@ -143,6 +144,8 @@ export function Today(props: {
   }, [props.decks, props.extra?.due, props.extra?.fresh]); // eslint-disable-line react-hooks/exhaustive-deps
   const backup = props.sync ? undefined : props.backup;
   const anyDecks = props.decks.length > 0 || !!props.extra;
+  // Decks made in Franki with nothing in them yet: what to do next, in place of "All caught up".
+  const firstEmpty = !props.extra && props.decks.length && props.decks.every((r) => r.cards === 0) ? props.decks[0].deck : undefined;
   const ready = props.ready !== false;
   return (
     <Screen
@@ -167,7 +170,8 @@ export function Today(props: {
         {/* One fade for the whole screen, the first time it shows (ready). */}
         <Reveal style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
           {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
-          {anyDecks ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
+          {anyDecks && !firstEmpty ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
+          {firstEmpty ? <EmptyDeckCard deck={firstEmpty} /> : null}
           {backup?.overdue ? (
             <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
           ) : null}

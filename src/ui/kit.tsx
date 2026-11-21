@@ -15,6 +15,7 @@ import { useConnectionProblem } from './connection';
 import { splitFailure } from '../core/failure';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
+import { useMissingKeyboard } from './useMissingKeyboard';
 import { useReduceMotion } from './motion';
 import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
@@ -567,6 +568,7 @@ export function MessageList({ lines }: { lines: string[] }) {
 export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, code, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; code?: boolean; ref?: React.Ref<TextInputInstance> }) {
   const c = useTheme();
   const keyboard = useKeyboardLanguage(keyboardLanguage);
+  const noKeyboard = useMissingKeyboard(keyboardLanguage);
   const dark = useColorScheme() === 'dark';
   const [focused, setFocused] = React.useState(false);
   return (
@@ -588,6 +590,7 @@ export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, co
           ...(code ? { fontFamily: 'Menlo', fontSize: type.callout.fontSize } : null),
         }}
       />
+      {noKeyboard ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{noKeyboard}</Text> : null}
     </View>
   );
 }

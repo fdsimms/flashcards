@@ -126,6 +126,6 @@ export function useDailyExtras() {
     /** The languages with a deck, for the settings screen. */
     languages,
     /** The languages taking turns, next first. */
-    turns: saved ? turnOrder({ prefs: saved.prefs, state: saved.state, languages }) : [],
+    turns: saved ? turnOrder({ prefs: saved.prefs, state: saved.state, languages, readerOn }) : [],
   };
 }

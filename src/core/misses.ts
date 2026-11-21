@@ -39,7 +39,8 @@ const GENDERED: MissReason[] = [
 ];
 
 // Languages where stress isn't the usual slip: gender, the written form (Spanish accents, French and
-// Norwegian spelling), and the ending a verb or noun takes.
+// Norwegian spelling, Polish ó/u, rz/ż, ą/ę), and the ending a verb or noun takes. Polish stress is
+// fixed (the second-to-last syllable), so it's never why a Polish word was missed.
 const WRITTEN: MissReason[] = [
   { key: 'gender', label: 'Gender' },
   { key: 'spelling', label: 'Spelling' },
@@ -60,7 +61,7 @@ const JAPANESE: MissReason[] = [
 const REASONS_BY_LANGUAGE: Record<string, MissReason[]> = {
   th: THAI,
   de: GENDERED,
-  pl: GENDERED,
+  pl: WRITTEN,
   ru: GENDERED,
   el: GENDERED,
   es: WRITTEN,
