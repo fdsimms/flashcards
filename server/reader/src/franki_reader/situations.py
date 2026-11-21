@@ -29,6 +29,7 @@ from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 from franki_reader.production import MAX_CHARS, VERDICTS
+from franki_reader.register import DEFAULT, Register, instruction
 
 MAX_UNKNOWN = 2  # words in one of their lines outside the known ones
 MAX_LINES = 40  # lines in a conversation
@@ -185,6 +186,8 @@ class Conversation:
     # Words the learner wants to use, from a cram they're rehearsing (each "word (meaning)"). The
     # other person is only asked to work them in where the scene allows; none is required.
     words: tuple[str, ...] = ()
+    # How casual or formal the other person's lines are, and what the feedback judges them against.
+    register: Register = DEFAULT
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
@@ -216,6 +219,8 @@ def play_intro(conversation: Conversation) -> str:
             "learner has a natural chance to use them too. Never list them, name them or explain them "
             "during the scene, and do not force one in where it doesn't fit."
         )
+    if conversation.register != DEFAULT:
+        notes.append(f"Register for your lines: {instruction(conversation.register)}")
     if not notes:
         return intro
     head, _, words = intro.rpartition("The word list")
@@ -223,14 +228,21 @@ def play_intro(conversation: Conversation) -> str:
 
 
 def feedback_system(conversation: Conversation) -> str:
-    """The feedback prompt, with a sentence about the structure being practiced when there is one."""
-    if conversation.focus is None:
-        return FEEDBACK_SYSTEM
-    return (
-        f"{FEEDBACK_SYSTEM} The learner was practicing this structure: "
-        f"{_focus_text(conversation.focus)}. In each `note`, say how that line used it, or where "
-        "it could have, whenever that is the most useful thing to say about the line."
-    )
+    """The feedback prompt, with a sentence about the structure being practiced when there is one,
+    and one about the register when it isn't the default."""
+    text = FEEDBACK_SYSTEM
+    if conversation.focus is not None:
+        text += (
+            f" The learner was practicing this structure: {_focus_text(conversation.focus)}. In "
+            "each `note`, say how that line used it, or where it could have, whenever that is the "
+            "most useful thing to say about the line."
+        )
+    if conversation.register != DEFAULT:
+        text += (
+            f" The learner chose a {conversation.register} register for this scene, so judge"
+            " how natural each line is for that register, not for everyday speech."
+        )
+    return text
 
 
 def word_list(entries: list[Entry]) -> str:

@@ -109,7 +109,7 @@ export function useSenseContrast({ repo, writes, card, note, decks, addWord, onO
       if (was.before === undefined) return;
       removed.current = { noteId: id, before: was.before };
       haptic.select();
-      hold.show({ label: `Removed ${row.word} from this card`, before: [] });
+      hold.show({ label: `Removed ${row.word} from this card` });
     } catch (e) {
       Alert.alert(`Couldn't remove ${row.word}`, failureText(e, { next: 'Try again.' }));
     } finally {

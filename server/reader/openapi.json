@@ -6607,6 +6607,22 @@
             ],
             "title": "Particle"
           },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
           "phrases": {
             "anyOf": [
               {
@@ -7450,6 +7466,22 @@
               }
             ],
             "title": "Cast"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
           }
         },
         "type": "object",
@@ -7540,6 +7572,22 @@
             "type": "boolean",
             "title": "Speak",
             "default": true
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
           }
         },
         "type": "object",
@@ -7842,6 +7890,22 @@
             "maxLength": 120,
             "title": "Topic",
             "default": ""
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
           }
         },
         "type": "object",

@@ -20,6 +20,8 @@ from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 from franki_reader.recognition import Recognition
+from franki_reader.register import DEFAULT as DEFAULT_REGISTER
+from franki_reader.register import Register
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 from franki_reader.wanikani import ReadWaniKani, WaniKaniUnavailable, WaniKaniWord
 
@@ -498,6 +500,9 @@ class Settings:
     daily_tasks: dict[str, str] = field(default_factory=dict)
     # How many rotating languages get a task each study day.
     daily_rotate_count: int = 1
+    # How casual or formal the text Claude writes sounds, where a cram or a scene doesn't choose its
+    # own (register.py).
+    register: Register = DEFAULT_REGISTER
 
     def common_for(self, language: Code) -> int:
         return self.common.get(language, LANGUAGES[language].common)

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
 import type { StageChange } from '../wanikani/srs';
-import type { Side, Slot } from '../wanikani/stagePopups';
+import type { Slot } from '../wanikani/stagePopups';
 import { Icon } from './kit';
 import { useReduceMotion } from './motion';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
@@ -18,18 +18,16 @@ const EXIT_MS = STAGE_POPUP_EXIT_MS;
 /**
  * The pill just above the card's question band when an answer moves an item into another stage group
  * (Apprentice, Guru, Master, Enlightened, Burned). Put it in a view that wraps the band: it hangs off
- * that view's top edge. A rise swoops in from the upper left on an arc, overshoots, and settles; the
- * arrow hops. Each group takes a tint from the theme, and a white ring lifts it off any card color. A drop is a quiet neutral pill with a down arrow that
- * only fades up, so a miss shows without an alarm color or a fanfare. The parent removes it after
+ * that view's top edge. A rise starts slightly below where it rests and fades in while moving up into
+ * place; the arrow hops. Each group takes a tint from the theme, and a white ring lifts it off any card color. A drop is a quiet neutral pill with a down arrow that
+ * does the same over a shorter distance, so a miss shows without an alarm color or a fanfare. The parent removes it after
  * `stagePopupMs`; it lifts itself away just before. Key it to the answer so each one replays. Several
- * can show at once (stagePopups.ts): `side` is the side it swoops in from, and `slot` where it rests,
+ * can show at once (stagePopups.ts): `slot` is where it rests,
  * which moves as newer ones push it up and away. With Reduce Motion on, or the animation turned off
  * in WaniKani's settings, it only fades.
  */
-export function StagePopup({ change, side, slot, animate, hold }: {
+export function StagePopup({ change, slot, animate, hold }: {
   change: StageChange;
-  /** The side a rise swoops in from: -1 the left, 1 the right. A drop has none. */
-  side: Side;
   /** Where it rests now: the newest at 0, older ones pushed up and aside, a pushed-off one faded out. */
   slot: Slot;
   /** WaniKani's own setting (Settings, WaniKani, Animate level ups); Reduce Motion turns the motion off too. */
@@ -82,9 +80,7 @@ export function StagePopup({ change, side, slot, animate, hold }: {
       exitRun.start();
       return () => exitRun.stop();
     }
-    const enterRun = change.up
-      ? Animated.spring(enter, { toValue: 1, speed: 14, bounciness: 11, useNativeDriver: true })
-      : Animated.timing(enter, { toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    const enterRun = Animated.timing(enter, { toValue: 1, duration: change.up ? 260 : 200, easing: Easing.out(Easing.cubic), useNativeDriver: true });
     const hopRun = change.up ? Animated.timing(hop, { toValue: 1, duration: 420, delay: 300, easing: Easing.out(Easing.back(3)), useNativeDriver: true }) : null;
     enterRun.start();
     hopRun?.start();
@@ -97,20 +93,16 @@ export function StagePopup({ change, side, slot, animate, hold }: {
   // Burned's fill is the secondary text color, so its text is the page's background.
   const ink = !change.up ? c.text : change.burned ? c.bg : c.onRating;
 
-  // A rise comes in along an arc from its side; the spring runs past 1, which is the overshoot. A drop only rises a few points.
-  const swoops = change.up && !reduce;
+  // Both start a little below where they rest and fade in while moving up into place; a rise starts slightly further down than a drop.
   const fadeIn = enter.interpolate({ inputRange: [0, 0.3], outputRange: [0, 1], extrapolate: 'clamp' });
   const fadeOut = exit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  const enterX = enter.interpolate({ inputRange: [0, 1], outputRange: [swoops ? side * 120 : 0, 0] });
-  const enterY = enter.interpolate({ inputRange: [0, 1], outputRange: [swoops ? -80 : 6, 0] });
-  const enterTilt = enter.interpolate({ inputRange: [0, 1], outputRange: [swoops ? side * 16 : 0, 0] });
-  const enterScale = enter.interpolate({ inputRange: [0, 1], outputRange: [swoops ? 0.55 : 1, 1] });
+  const enterY = enter.interpolate({ inputRange: [0, 1], outputRange: [change.up ? 14 : 6, 0] });
   const lift = exit.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
   const transform = [
-    { translateX: Animated.add(enterX, px) },
+    { translateX: px },
     { translateY: Animated.add(Animated.add(Animated.add(enterY, lift), py), shift) },
-    { scale: Animated.multiply(enterScale, pScale) },
-    { rotate: Animated.add(enterTilt, pTilt).interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] }) },
+    { scale: pScale },
+    { rotate: pTilt.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] }) },
   ];
 
   return (

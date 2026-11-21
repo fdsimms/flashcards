@@ -90,7 +90,7 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
       const already = more && shown ? shown.shown : [];
       // Not this cram's own name: every theme is an angle on it.
       const others = crams.filter((x) => x.id !== cramId);
-      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic));
+      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register));
       setThemeState({ suggested: { cramId, language: forLanguage, words, themes: answer.themes, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't get theme ideas.", next: 'Try again.' }));

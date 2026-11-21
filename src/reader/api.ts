@@ -11,6 +11,7 @@ import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
+import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
 
 /**
@@ -203,7 +204,7 @@ export type SituationRoles = { you: string; them: string; name: string; gender: 
 export type SituationLine = { speaker: 'them' | 'you'; text: string };
 // `focus`: a grammar topic the scene practices (Your topics), so the other person uses it and the feedback comments on it.
 export type SituationFocus = { title: string; lead: string };
-export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[] };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[]; /* how casual or formal the other person's lines are; the server's Settings register when left out */ register?: RegisterLevel };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
@@ -414,6 +415,8 @@ export type Settings = {
   daily_rotate_count?: number;
   /** Each language's story characters' voices (the defaults where none were chosen); missing from a server older than story voices. */
   cast?: Partial<Record<Language, Record<CastKind, CastVoice>>>;
+  /** How casual or formal the text Claude writes sounds, where a cram or scene doesn't choose its own (registerLevel.ts); missing from a server older than the setting. */
+  register?: RegisterLevel;
 };
 
 // A change to the settings. A deck or voice named '' goes back to the default, and so does a
@@ -681,10 +684,10 @@ export function createApi(
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
     // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
-    // Claude picks; `scene` is then the situation they're for. Returns the new lesson's id.
-    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[]) => {
+    // Claude picks; `scene` is then the situation they're for. `register`: a cram's own, else the server's Settings one. Returns the new lesson's id.
+    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[], register?: RegisterLevel) => {
       const response = await send('POST', '/api/lessons', {
-        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}),
+        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}), ...registerChoice(register),
       });
       return ((await response.json()) as { id: number }).id;
     },

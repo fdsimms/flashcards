@@ -63,7 +63,12 @@ class Fakes:
         self.rates: list[float] = []
 
     async def write(
-        self, language: str, scene: str, feedback: str, learner: str = "male"
+        self,
+        language: str,
+        scene: str,
+        feedback: str,
+        learner: str = "male",
+        register: str = "everyday",
     ) -> tuple[Any, Usage]:
         self.asked.append((scene, feedback))
         return good_plan(), USAGE
@@ -179,7 +184,7 @@ def test_a_lesson_claude_cannot_write_fails_with_its_reason(tmp_path: Path) -> N
     fakes = Fakes()
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         raise LessonFailed("Claude didn't answer. Try again in a moment.", USAGE)
 
@@ -197,7 +202,7 @@ def test_the_stage_follows_the_lesson_from_writing_to_joining(tmp_path: Path) ->
     seen: list[str] = []
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         seen.append(_stage(conn))
         return good_plan(), USAGE
@@ -263,7 +268,7 @@ def test_asks_claude_again_once_when_the_first_plan_is_unusable(tmp_path: Path) 
     answers = [{"title": "x", "dialogue": [], "phrases": []}, good_plan()]
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         fakes.asked.append((scene, feedback))
         return answers.pop(0), USAGE
@@ -283,7 +288,7 @@ def test_gives_up_after_two_unusable_plans(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         return {"title": "x", "dialogue": [], "phrases": []}, USAGE
 
@@ -311,7 +316,9 @@ def test_asks_again_naming_the_dialogue_words_the_learner_doesnt_know(tmp_path: 
     fakes = Fakes()
     answers = [STRANGE, good_plan()]
 
-    async def write(language: str, scene: str, feedback: str, learner: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str, register: str = "everyday"
+    ) -> tuple[Any, Usage]:
         fakes.asked.append((scene, feedback))
         return answers.pop(0), USAGE
 
@@ -326,7 +333,9 @@ def test_asks_again_naming_the_dialogue_words_the_learner_doesnt_know(tmp_path: 
 def test_keeps_the_closest_dialogue_when_every_try_has_unknown_words(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
-    async def write(language: str, scene: str, feedback: str, learner: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str, register: str = "everyday"
+    ) -> tuple[Any, Usage]:
         return STRANGE, USAGE
 
     lesson_id = run(conn, Fakes(), tmp_path, write=write, lexicon=deck("bonjour"))
@@ -420,7 +429,7 @@ def thai_plan(*, particle: str = "ครับ", first_person: str = "ผม") -
 
 def thai_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> Any:
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         asked.append((learner, feedback))
         return answers.pop(0), USAGE
@@ -507,6 +516,7 @@ def given_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> 
         given: tuple[lesson.Phrase, ...],
         feedback: str,
         learner: str = "male",
+        register: str = "everyday",
     ) -> tuple[Any, Usage]:
         asked.append((", ".join(p.text for p in given), feedback))
         return answers.pop(0), USAGE

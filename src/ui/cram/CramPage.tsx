@@ -17,6 +17,8 @@ import { Button, Card as Box, Group, Help, Loading, NavRow, ProgressBar, Screen,
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { Pill } from './CramBits';
+import { RegisterPicker } from '../reader/RegisterPicker';
+import type { RegisterLevel } from '../../reader/registerLevel';
 import { CramListen } from './CramListen';
 import { CramQuestions } from './CramQuestions';
 import { CramTalk } from './CramTalk';
@@ -39,6 +41,8 @@ export function CramPage(props: {
   repo: AppRepo;
   id: string;
   readerApi: Api | null;
+  /** The register Settings holds, for the picker's Default (undefined while unknown). */
+  serverRegister?: RegisterLevel;
   onEditNote: (noteId: string, onClose: () => void) => void;
   onRead: (language: Language, words: string[]) => void;
 }) {
@@ -231,9 +235,14 @@ export function CramPage(props: {
                 label="Rehearse"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen plays.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
                 disabled={!props.readerApi || !language}
-                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords) }); } }}
+                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords, cram.register) }); } }}
               />
             </Group>
+            {props.readerApi ? (
+              <Box>
+                <RegisterPicker own={cram.register} settings={props.serverRegister} onChange={(register) => keep({ ...cram, register }, "Couldn't save the register.")} />
+              </Box>
+            ) : null}
 
             <Button variant="secondary" label="Start the lesson" onPress={() => go('/cram-lesson')} />
             <Help>Your questions and words on one screen to check off as you go, and a place to jot down new words.</Help>

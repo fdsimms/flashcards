@@ -117,6 +117,8 @@ describe('the request, a theme and its story', () => {
       words: [{ id: 'a', text: 'สั่ง', english: 'order', kind: 'carried' }, { id: 'b', text: 'เผ็ด', english: 'spicy', kind: 'missed' }, { id: 'c', text: 'จาน', english: 'plate', kind: 'deck' }],
       weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true, topic: 'My violin recital',
     });
+    expect(themesRequest('th', words, [], [], false, 'x', 'formal').register).toBe('formal');
+    expect('register' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
   });
   it("counts a theme's words by kind and finds the ones still here", () => {
     expect(themeCounts(theme, words)).toEqual({ carried: 1, missed: 0, fresh: 0, deck: 1, new: 1 });

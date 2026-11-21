@@ -102,6 +102,9 @@ export interface AnkiDeckConfig {
   autoplay?: boolean;
   /** Anki's "Maximum answer seconds": the most time one answer records. */
   maxAnswerSecs?: number;
+  /** Anki's "Show answer timer" and "Stop timer on answer". */
+  showTimer?: boolean;
+  stopTimerOnAnswer?: boolean;
   /** Today-only limits: the limit, and the Anki day number it's for. */
   newLimitToday?: { limit: number; today: number };
   reviewLimitToday?: { limit: number; today: number };
@@ -157,6 +160,8 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, d
       easyDays: c.easyDays?.length ? c.easyDays : undefined,
       autoplay: c.autoplay,
       maxAnswerSecs: c.maxAnswerSecs,
+      ...(c.showTimer ? { showTimer: true } : {}),
+      ...(c.stopTimerOnAnswer ? { stopTimerOnAnswer: true } : {}),
       newLimitToday: dayLimit(c.newLimitToday),
       reviewLimitToday: dayLimit(c.reviewLimitToday),
     });

@@ -2,8 +2,8 @@ import type { StageChange } from './srs';
 
 /**
  * The level-up popups on screen at once (StagePopup.tsx). A new one doesn't cut the one before it:
- * it swoops in from alternating sides, and every older one is pushed up and away from that side,
- * tilting the way it moves. A drop comes straight up and pushes upward only. Pure, so the
+ * it rises into place and is given alternating sides, and every older one is pushed up and away
+ * from that side, tilting the way it moves. A drop has no side and pushes upward only. Pure, so the
  * arrangement is tested; the screen only animates to what `stackSlots` says.
  */
 
@@ -19,7 +19,7 @@ export const X_LIMIT = 64;
 /** How much dimmer each step down the stack is. */
 const DIM_STEP = 0.25;
 
-/** The side a popup swoops in from: -1 the left, 1 the right, 0 none (a drop). */
+/** The side a popup's successors push it toward is the opposite of: -1 the left, 1 the right, 0 none (a drop). */
 export type Side = -1 | 0 | 1;
 
 export interface StackEntry {

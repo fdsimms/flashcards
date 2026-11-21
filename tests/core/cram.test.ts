@@ -266,6 +266,11 @@ describe('noteAddedAt', () => {
 });
 
 describe('parseCram', () => {
+  it('keeps a cram\'s register and drops one it doesn\'t know', () => {
+    expect(parseCram(JSON.stringify({ ...cram(), register: 'formal' }))?.register).toBe('formal');
+    expect(parseCram(JSON.stringify({ ...cram(), register: 'slang' }))?.register).toBeUndefined();
+  });
+
   it('reads a saved cram and refuses anything else', () => {
     expect(parseCram(JSON.stringify(cram()))).toEqual(cram());
     expect(parseCram(JSON.stringify({ id: 'x', name: 'X', date: '2026-11-20', createdAt: WED.toISOString() }))).toMatchObject({ addNew: true, rounds: [] });

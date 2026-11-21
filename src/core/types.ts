@@ -129,6 +129,10 @@ export interface DeckParams {
   autoplay?: boolean;
   /** The most time one answer records, in seconds (Anki's "Maximum answer seconds"). Missing means 60, Anki's default. */
   maxAnswerSecs?: number;
+  /** Anki's "Show answer timer": Review shows how long the card has been up. Missing means no, Anki's default. */
+  showTimer?: boolean;
+  /** Anki's "Stop timer on answer": the timer stops when the answer is shown. */
+  stopTimerOnAnswer?: boolean;
   /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
   newLimitToday?: DayLimit;
   reviewLimitToday?: DayLimit;
@@ -156,6 +160,8 @@ export interface CollectionSettings {
   creationOffset?: number;
   /** Anki's load balancer (`loadBalancerEnabled`), on unless turned off. */
   loadBalancer?: boolean;
+  /** Anki's session time limit (`timeLim`, Preferences, Review), in seconds; 0 or missing is off. */
+  timeLimitSecs?: number;
 }
 
 export interface ReviewLogEntry {

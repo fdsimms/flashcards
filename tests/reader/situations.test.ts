@@ -96,4 +96,13 @@ describe('rehearsing a cram', () => {
     expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [] });
     expect(rehearsalOf({ language: 'th', scene: 'x', words: '[1,"a (b)",""]' })?.words).toEqual(['a (b)']);
   });
+
+  it("carries a cram's register through a rehearsal and into the request, and sends none when it follows Settings", () => {
+    const params = rehearsalParams('th', 'Dinner with Nok', [], 'casual');
+    expect(rehearsalOf(params)?.register).toBe('casual');
+    expect(rehearsalOf(rehearsalParams('th', 'Dinner with Nok', []))?.register).toBeUndefined();
+    expect(rehearsalOf({ ...params, register: 'slang' })?.register).toBeUndefined();
+    expect(conversationOf(startChat('th', 'Dinner', undefined, undefined, 'casual')).register).toBe('casual');
+    expect('register' in conversationOf(startChat('th', 'Dinner'))).toBe(false);
+  });
 });

@@ -124,3 +124,17 @@ def test_needs_the_passphrase_and_at_least_one_word() -> None:
         assert (
             c.post("/api/cram/themes", json={**BODY, "words": []}, headers=AUTH).status_code == 422
         )
+
+
+def test_the_register_is_the_requests_or_else_the_settings() -> None:
+    asked: list[Seeds] = []
+    c, _conn = client(asked=asked)
+    with c:
+        assert c.post("/api/cram/themes", json=BODY, headers=AUTH).status_code == 200
+        c.patch("/api/settings", headers=AUTH, json={"register": "formal"})
+        assert c.post("/api/cram/themes", json=BODY, headers=AUTH).status_code == 200
+        body = {**BODY, "register": "casual"}
+        assert c.post("/api/cram/themes", json=body, headers=AUTH).status_code == 200
+        bad = {**BODY, "register": "slang"}
+        assert c.post("/api/cram/themes", json=bad, headers=AUTH).status_code == 422
+    assert [s.register for s in asked] == ["everyday", "formal", "casual"]
