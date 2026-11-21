@@ -7,6 +7,7 @@ import {
   type DrillRequest, type FormsSuggestion, type PracticeRecord,
 } from '../core/forms';
 import { heldCards, lookalikeIndex, lookalikeSettings, seenEvents, soonerOffer, whenSeen, type SeenEvent } from '../core/lookalikes';
+import { heldReverseCards } from '../core/reverseHold';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from '../core/types';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
@@ -56,7 +57,8 @@ export function useReviewForms(repo: Repo, input: {
   const lastHeld = useRef<Set<string> | undefined>(undefined);
   const held = useMemo(() => {
     if (settling && lastHeld.current) return lastHeld.current;
-    lastHeld.current = cards ? heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }) : undefined;
+    // With them, a new reverse card whose word isn't recognized yet (`heldReverseCards`), as `loadHeld` holds it.
+    lastHeld.current = cards ? new Set([...heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }), ...heldReverseCards(cards, notes.values())]) : undefined;
     return lastHeld.current;
   }, [cards, deckOf, index, seen, deckSettings, now, H, settling]);
 

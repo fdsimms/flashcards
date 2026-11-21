@@ -1,6 +1,5 @@
 import { dayKeyOf, studyDayKey } from './day';
 import type { DeckLimits } from './deckTree';
-import type { Card } from './types';
 
 /**
  * Vacation mode (Franki's own, never written to Anki): a lighter load while away, so a trip doesn't
@@ -11,8 +10,8 @@ import type { Card } from './types';
  *   review limit, weakest cards first (relative overdueness), so the fewer reviews go to the cards
  *   closest to being forgotten.
  * - **Paused** shows nothing.
- * - **After it ends** the weakest-first order stays on while a review that came due before the end
- *   is still waiting, for at most `CATCH_UP_DAYS`, then the deck's own order returns.
+ * - **After it ends** nothing of its own applies: catching up is the queue's, as after any days
+ *   away (`isBehind`, order.ts), which puts the reviews likeliest to be remembered first.
  *
  * Pure, so it's tested; src/ui/vacationPrefs.ts keeps the setting on the phone. Days are study-day
  * keys (`studyDayKey`), so a vacation ends at the collection's "Next day starts at", not midnight.
@@ -24,8 +23,6 @@ export type VacationMode = 'off' | 'light' | 'paused';
 export const VACATION_LENGTHS = [3, 7, 14, 0] as const;
 export const VACATION_NEW_CHOICES = [0, 1, 2, 3, 5] as const;
 export const VACATION_REVIEW_CHOICES = [10, 25, 50, 75] as const;
-/** How long after a vacation ends the weakest-first order can stay on, whatever is left. */
-export const CATCH_UP_DAYS = 14;
 /** How long after a vacation ends Today says so. */
 export const WELCOME_BACK_DAYS = 2;
 
@@ -121,19 +118,13 @@ export interface VacationPlan {
   weakestFirst: boolean;
 }
 
-/** A review that came due before the vacation ended and still waits. */
-const backlogged = (c: Card, until: string, dayStartsAtHour: number) =>
-  !c.suspended && !c.retired && c.sched.state === 2 && studyDayKey(new Date(c.sched.due), dayStartsAtHour) < until;
-
-export function vacationPlan(prefs: VacationPrefs | undefined, cards: Card[], now: Date, dayStartsAtHour: number): VacationPlan | undefined {
+export function vacationPlan(prefs: VacationPrefs | undefined, now: Date, dayStartsAtHour: number): VacationPlan | undefined {
   if (!prefs) return undefined;
   const today = studyDayKey(now, dayStartsAtHour);
   const mode = activeMode(prefs, today);
   if (mode === 'paused') return { paused: true, weakestFirst: true };
   if (mode === 'light') return { paused: false, newPerDeck: prefs.newPerDeck, reviewShare: prefs.reviewPercent / 100, weakestFirst: true };
-  const { until } = prefs;
-  if (until === undefined || today < until || daysBetween(until, today) > CATCH_UP_DAYS) return undefined;
-  return cards.some((c) => backlogged(c, until, dayStartsAtHour)) ? { paused: false, weakestFirst: true } : undefined;
+  return undefined;
 }
 
 /**

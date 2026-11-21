@@ -979,7 +979,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   // Not while vacation mode is paused: the queue offers nothing then, so the card would never come.
-  const waitingFor = !current && cards && !vacationPlan(vacation, cards, now, H)?.paused
+  const waitingFor = !current && cards && !vacationPlan(vacation, now, H)?.paused
     ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
