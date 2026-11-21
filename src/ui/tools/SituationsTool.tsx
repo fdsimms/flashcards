@@ -15,6 +15,7 @@ import { keep, keepable } from '../../reader/corrections';
 import { loadKept, saveKept } from '../../reader/correctionsStorage';
 import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
+import { loadParticle } from '../../reader/lessonStorage';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
@@ -326,7 +327,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     setWaiting(true);
     setProblem(null);
     try {
-      const got = await api.situationTurn(conversationOf(from), prefs().situationsAzure);
+      const got = await api.situationTurn(conversationOf(from, await loadParticle()), prefs().situationsAzure);
       if (asking.current !== mine) return;
       onChat(withTheirs(from, got));
       void say(got);
@@ -374,7 +375,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     setFinishing(true);
     setProblem(null);
     try {
-      const [got, settings] = await Promise.all([api.situationFeedback(conversationOf(chat)), api.settings().catch(() => null)]);
+      const [got, settings] = await Promise.all([loadParticle().then((particle) => api.situationFeedback(conversationOf(chat, particle))), api.settings().catch(() => null)]);
       if (asking.current !== mine) return;
       setDeck(settings?.decks?.[chat.language] ?? null);
       onFeedback(got);
