@@ -18,20 +18,22 @@ export type Approval = { saved: number; refused: { id: number; entry: string; re
  * "Approve all" on the queued notes: saves each ready note as the note editor would save it untouched
  * (`approvalDraft`), then takes it off the queue. The caller asks first, in an alert naming how many
  * notes will be added, and that tap is the approval (the way `useAddMinedWord` links an aspect pair).
+ * `onProgress` hears after each note is dealt with, so the screen can show how far along it is.
  * A note the deck refuses (a duplicate) stays queued with its reason, and the rest are still saved.
  * New notes are recorded afterward one at a time, in the background, with one alert if any fail.
  */
-export function useApproveQueued(remove: (id: number) => Promise<void>): (notes: QueuedNote[]) => Promise<Approval> {
+export function useApproveQueued(remove: (id: number) => Promise<void>): (notes: QueuedNote[], onProgress?: (done: number, id: number, saved: boolean) => void) => Promise<Approval> {
   const { repo } = useApp();
   const recorder = useRecorder();
   const settings = useVoiceSettings(repo);
 
-  return useCallback(async (notes) => {
+  return useCallback(async (notes, onProgress) => {
     const noteTypes = await repo.listNoteTypes();
     const { dayStartsAtHour } = await repo.collectionSettings();
     const crams = runningCramTags(await loadCrams(repo).catch(() => cramsNow()), new Date(), dayStartsAtHour);
     const result: Approval = { saved: 0, refused: [], stuck: [] };
     const savedNotes: Note[] = [];
+    let done = 0;
     for (const note of notes) {
       const target = reviewTarget(note);
       const fromType = noteTypes.get(target.model)?.fields;
@@ -41,6 +43,7 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
         result.saved++;
       } catch (e) {
         result.refused.push({ id: note.id, entry: note.entry, reason: failureText(e, { next: 'Open it from the list to try again.' }) });
+        onProgress?.(++done, note.id, false);
         continue;
       }
       try {
@@ -48,6 +51,7 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
       } catch {
         result.stuck.push(note.entry);
       }
+      onProgress?.(++done, note.id, true);
     }
     // Recording is slow and not part of approving: one at a time, so a long list isn't 50 requests at once.
     void (async () => {
