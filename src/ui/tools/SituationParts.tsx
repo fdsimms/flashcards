@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { compareTyped } from '../../core/typedCompare';
 import type { SituationFeedback, SituationTurn } from '../../reader/api';
+import { needsMeaning } from '../../reader/languages';
 import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
 import { Button, Icon, Tappable } from '../kit';
@@ -17,20 +18,37 @@ type TextLook = { fontSize: number; lineHeight: number; fontFamily?: string };
  * out and glossed on a tap, a play button, and its English behind a tap. In "Heard only", the words
  * wait behind Show the text too.
  */
-export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
+export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }: {
   turn: SituationTurn;
   name: string;
   look: TextLook;
   lang: string;
   heardOnly: boolean;
   onPlay?: () => void;
+  /** Asks the server for the meaning of a word Claude gave no gloss for (the line's English says which sense). */
+  lookup?: (word: string, english: string) => Promise<string | null>;
 }) {
   const c = useTheme();
   const { playing, tap } = useSoundingButton();
   const [english, setEnglish] = useState(false);
   const [shown, setShown] = useState(!heardOnly);
   const [tapped, setTapped] = useState<number | null>(null);
+  // Meanings looked up by word index: null while asked for, '' when none came back.
+  const [looked, setLooked] = useState<Record<number, string | null>>({});
   const word = tapped === null ? null : turn.words[tapped];
+  const pick = (i: number) => {
+    haptic.select();
+    const next = tapped === i ? null : i;
+    setTapped(next);
+    const w = next === null ? null : turn.words[next];
+    if (next === null || !w || !lookup || !needsMeaning(w) || looked[next]) return;
+    setLooked((l) => ({ ...l, [next]: null }));
+    lookup(w.text, turn.english).then(
+      (meaning) => setLooked((l) => ({ ...l, [next]: meaning ?? '' })),
+      () => setLooked((l) => ({ ...l, [next]: '' })),
+    );
+  };
+  const meaning = word === null || tapped === null ? '' : word.gloss ?? word.parts ?? looked[tapped] ?? (lookup && needsMeaning(word) ? 'Looking up the meaning...' : '');
   return (
     <View style={{ alignSelf: 'flex-start', maxWidth: '88%', backgroundColor: c.surface, borderRadius: radius.l, borderBottomLeftRadius: radius.s / 2, ...smooth, padding: space.m, gap: space.xs }}>
       <Text style={{ ...type.caption, fontWeight: '600', color: c.onSpeakerB }}>{name}</Text>
@@ -40,7 +58,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
             {turn.words.length ? turn.words.map((w, i) => (w.status === null ? w.text : (
               <Text
                 key={i}
-                onPress={() => { haptic.select(); setTapped(tapped === i ? null : i); }}
+                onPress={() => pick(i)}
                 accessibilityRole="button"
                 accessibilityHint="Shows what it means"
                 style={w.status === 'known' ? (tapped === i ? { backgroundColor: c.accentFill } : undefined) : { backgroundColor: c.highlight }}
@@ -68,7 +86,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay }: {
       </View>
       {word ? (
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {`${word.text}${word.translit ? ` (${word.translit})` : ''}: ${word.gloss ?? word.parts ?? 'no meaning yet'}`}
+          {`${word.text}${word.translit ? ` (${word.translit})` : ''}: ${meaning || 'no meaning yet'}`}
         </Text>
       ) : null}
       {english ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{turn.english}</Text> : (

@@ -386,11 +386,11 @@ export function practiceWords(cram: Cram, noteIds: string[]): string[] {
 
 const wordsText = (n: number) => (n === 1 ? '1 word' : `${n} words`);
 
-/** What the Practice button says: "Practice 14 words", "Practice the 5 to go", "Practice all 14 again". */
+/** What the Practice button says: "Practice 14 words", "Practice 5 words" (the ones not solid yet), "Practice all 14 again". */
 export function practiceLabel(cram: Cram, noteIds: string[]): string {
   const { solid, toGo } = practiceProgress(cram, noteIds);
   if (!solid.length) return `Practice ${wordsText(noteIds.length)}`;
-  if (toGo.length) return `Practice the ${toGo.length} to go`;
+  if (toGo.length) return `Practice ${wordsText(toGo.length)}`;
   return noteIds.length === 1 ? 'Practice it again' : `Practice all ${noteIds.length} again`;
 }
 
@@ -497,6 +497,9 @@ export function lastCramLanguage(crams: Cram[], notes: Iterable<Note>): Language
   }
   return undefined;
 }
+
+/** The most words "missed lately" brings into a cram at once: the cram's sheet and its page both stop here. */
+export const MISSED_MAX = 10;
 
 /** The words missed lately (Trouble's "Missed lately", most missed first) in `language`, as note ids, leaving out `except`. */
 export function missedLately(rows: { note: Note; misses: number }[], language: Language, except: Iterable<string> = []): string[] {

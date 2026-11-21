@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
-import type { Language } from '../../reader/api';
+import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Icon, Tappable } from '../kit';
@@ -12,15 +12,20 @@ import { radius, space, type, useTheme } from '../theme';
  * Make a card, in a cram's Add: what was typed (English, romanization or the language) is looked up
  * as Find word does for an audio lesson (`findWords`, which writes nothing), the word picked is sent
  * to the note queue for Claude to write (`ask`), and the note joins the cram once it's approved,
- * since a new note in the cram's language gets its tag. A second tap while one is on its way does
- * nothing, so a word isn't queued twice.
+ * since a new note in the cram's language gets its tag. Once Claude has written it, the card here
+ * opens it in the note editor (`approve`), so it's approved without leaving the cram. A second tap
+ * while one is on its way does nothing, so a word isn't queued twice.
  */
-export function CramAsk({ text, language, findWords, ask }: {
+export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   text: string;
   language: Language;
   findWords: (text: string) => Promise<LessonWordCandidate[]>;
   /** Queues the word and keeps it on the cram as being written; says 'held' when it waits for a connection. */
   ask: (word: LessonWordCandidate) => Promise<'queued' | 'held' | undefined>;
+  /** The note queue as the server last said it: the card shows a Review button here once Claude has written it. */
+  queued?: QueuedNote[];
+  /** Opens the written card in the note editor; saving there is the approval. True when it was saved. */
+  approve?: (note: QueuedNote) => Promise<boolean>;
 }) {
   const c = useTheme();
   const name = LANGUAGES[language].name;
@@ -28,6 +33,7 @@ export function CramAsk({ text, language, findWords, ask }: {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ for: string; word: string; held: boolean }>();
   const [problem, setProblem] = useState<{ for: string; text: string }>();
+  const [approved, setApproved] = useState<string>();
   const working = useRef(false);
   const typed = text.trim();
   // What's shown belongs to what's typed now: an answer for an earlier search isn't.
@@ -61,15 +67,30 @@ export function CramAsk({ text, language, findWords, ask }: {
     if (how) { haptic.success(); setDone({ for: typed, word: word.text, held: how === 'held' }); }
   });
 
+  // The word's card once Claude has written it. The queue holds it until it's saved in the note editor.
+  const ready = sent && !approved ? queued?.find((n) => n.state === 'ready' && n.entry === sent.word) : undefined;
+  const review = (note: QueuedNote) => run(async () => {
+    haptic.tap();
+    if (await approve?.(note)) { haptic.success(); setApproved(sent?.word); }
+  });
+
   if (sent) {
     return (
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-        <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
-        <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>
-          {sent.held
-            ? `${sent.word} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.`
-            : `Claude is writing a card for ${sent.word}. Approve it from the card on Today and it joins the cram.`}
-        </Text>
+      <Card style={{ gap: space.m }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+          <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
+          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>
+            {approved === sent.word
+              ? `The card for ${sent.word} is added to the cram.`
+              : ready
+                ? `Claude wrote a card for ${sent.word}. Review it and it joins the cram.`
+                : sent.held
+                  ? `${sent.word} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.`
+                  : `Claude is writing a card for ${sent.word}. Approve it here when it's ready and it joins the cram.`}
+          </Text>
+        </View>
+        {ready && approve ? <Button label="Review and add" onPress={() => void review(ready)} disabled={busy} /> : null}
+        {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
       </Card>
     );
   }

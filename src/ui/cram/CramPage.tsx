@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
 import {
-  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, pendingRequests, practiceLabel, practiceProgress,
+  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceProgress,
   practiceSummary, textWords, themeTopic, withoutCapture, withoutRequest, wordState, type Cram, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
@@ -61,7 +61,7 @@ export function CramPage(props: {
   }, [collection.cards]);
   const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
   const inCram = useMemo(() => new Set(notes.map((n) => n.id)), [notes]);
-  const missed = useMissedLately(repo, cram && !cram.finishedAt ? language : undefined).filter((nid) => !inCram.has(nid));
+  const missed = useMissedLately(repo, cram && !cram.finishedAt ? language : undefined).filter((nid) => !inCram.has(nid)).slice(0, MISSED_MAX);
   const [showAll, setShowAll] = useState(false);
   const [capProblem, setCapProblem] = useState<string>();
   const [problem, setProblem] = useState<string>();
