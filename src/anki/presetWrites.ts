@@ -1,4 +1,6 @@
-import { decodeMessage, uint, withUint } from './protobuf';
+import type { PresetOptions } from '../core/presetOptions';
+import { DECK_CONFIG_FIELDS as F, deckName, readDeckConfig, readDeckKind } from './collection';
+import { floatField, packedFloatsField, uint, withFields, withUint, decodeMessage, type Field } from './protobuf';
 import type { SyncDb } from './sync/collectionSync';
 import { COL_MODIFIED_SQL } from './writeback';
 
@@ -10,8 +12,12 @@ import { COL_MODIFIED_SQL } from './writeback';
  * the kept collection (`withSyncConnection`), inside `lockAnki`.
  */
 
-/** DeckConfig.Config.new_mix */
-const NEW_MIX = 30;
+async function writeConfig(db: SyncDb, presetId: number, config: Uint8Array, now: Date) {
+  await db.transaction(async () => {
+    await db.run('UPDATE deck_config SET config = ?, mtime_secs = ?, usn = -1 WHERE id = ?', config, Math.floor(now.getTime() / 1000), presetId);
+    await db.run(COL_MODIFIED_SQL, now.getTime());
+  });
+}
 
 /**
  * Sets a preset's "New/review order" (0 mix with reviews, 1 after reviews, 2 before reviews).
@@ -20,11 +26,87 @@ const NEW_MIX = 30;
 export async function setAnkiNewMix(db: SyncDb, presetId: number, newMix: number, now: Date): Promise<boolean> {
   const row = await db.first<{ config: Uint8Array }>('SELECT config FROM deck_config WHERE id = ?', presetId);
   if (!row) return false;
-  if ((uint(decodeMessage(row.config), NEW_MIX) ?? 0) === newMix) return true;
-  const config = withUint(row.config, NEW_MIX, newMix);
-  await db.transaction(async () => {
-    await db.run('UPDATE deck_config SET config = ?, mtime_secs = ?, usn = -1 WHERE id = ?', config, Math.floor(now.getTime() / 1000), presetId);
-    await db.run(COL_MODIFIED_SQL, now.getTime());
-  });
+  if ((uint(decodeMessage(row.config), F.newMix) ?? 0) === newMix) return true;
+  await writeConfig(db, presetId, withUint(row.config, F.newMix, newMix), now);
+  return true;
+}
+
+/** One deck on a preset, and the values it sets for itself (Deck.Normal), which the preset's don't reach. */
+export interface PresetDeck {
+  name: string;
+  own: { newPerDay?: number; reviewsPerDay?: number; desiredRetention?: number };
+}
+
+export interface AnkiPreset {
+  id: number;
+  name: string;
+  options: PresetOptions;
+  /** Every normal deck that uses it, by name. */
+  decks: PresetDeck[];
+}
+
+/**
+ * A preset's options and the decks that use it, as the kept collection has them. A deck whose
+ * preset is gone uses the Default preset (id 1), as Anki reads it (`buildExport` does the same).
+ * Null when Anki has no such preset.
+ */
+export async function readAnkiPreset(db: SyncDb, presetId: number): Promise<AnkiPreset | null> {
+  const row = await db.first<{ name: string; config: Uint8Array }>('SELECT name, config FROM deck_config WHERE id = ?', presetId);
+  if (!row) return null;
+  const c = readDeckConfig(row.config);
+  const ids = new Set((await db.all<{ id: number }>('SELECT id FROM deck_config')).map((r) => Number(r.id)));
+  // Anki's deck list leaves out the Default deck while it holds no cards, so this does too.
+  const defaultEmpty = !(await db.first('SELECT 1 FROM cards WHERE did = 1 OR odid = 1 LIMIT 1'));
+  const decks: PresetDeck[] = [];
+  for (const d of await db.all<{ id: number; name: string; kind: Uint8Array }>('SELECT id, name, kind FROM decks NOT INDEXED')) {
+    if (Number(d.id) === 1 && defaultEmpty) continue;
+    const kind = readDeckKind(d.kind);
+    if (!kind) continue;
+    const uses = ids.has(kind.configId) ? kind.configId : 1;
+    if (uses !== presetId) continue;
+    const own: PresetDeck['own'] = {};
+    if (kind.newLimit !== undefined) own.newPerDay = kind.newLimit;
+    if (kind.reviewLimit !== undefined) own.reviewsPerDay = kind.reviewLimit;
+    if (kind.desiredRetention !== undefined) own.desiredRetention = kind.desiredRetention;
+    decks.push({ name: deckName(d.name), own });
+  }
+  decks.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return {
+    id: presetId,
+    name: row.name,
+    options: {
+      newPerDay: c.newPerDay,
+      reviewsPerDay: c.reviewsPerDay,
+      learnSteps: c.learnSteps,
+      relearnSteps: c.relearnSteps,
+      // Anki's defaults when the preset leaves them out.
+      maxInterval: c.maxInterval || 36500,
+      desiredRetention: c.desiredRetention ?? 0.9,
+    },
+    decks,
+  };
+}
+
+/**
+ * Sets a preset's daily limits, steps, maximum interval and desired retention. Only the options
+ * that changed are rewritten, so a value Franki reads rounded (a step of a few seconds) keeps
+ * Anki's own bits when it wasn't touched. False when Anki has no such preset.
+ */
+export async function setAnkiPresetOptions(db: SyncDb, presetId: number, options: PresetOptions, now: Date): Promise<boolean> {
+  const current = await readAnkiPreset(db, presetId);
+  if (!current) return false;
+  const row = (await db.first<{ config: Uint8Array }>('SELECT config FROM deck_config WHERE id = ?', presetId))!;
+  const was = current.options;
+  const set: Record<number, Field[]> = {};
+  const uintField = (v: number): Field[] => (v ? [{ wire: 0, value: BigInt(v) }] : []);
+  const sameSteps = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 1e-3);
+  if (options.newPerDay !== was.newPerDay) set[F.newPerDay] = uintField(options.newPerDay);
+  if (options.reviewsPerDay !== was.reviewsPerDay) set[F.reviewsPerDay] = uintField(options.reviewsPerDay);
+  if (options.maxInterval !== was.maxInterval) set[F.maxInterval] = uintField(options.maxInterval);
+  if (Math.abs(options.desiredRetention - was.desiredRetention) >= 1e-4) set[F.desiredRetention] = [floatField(options.desiredRetention)];
+  if (!sameSteps(options.learnSteps, was.learnSteps)) set[F.learnSteps] = options.learnSteps.length ? [packedFloatsField(options.learnSteps)] : [];
+  if (!sameSteps(options.relearnSteps, was.relearnSteps)) set[F.relearnSteps] = options.relearnSteps.length ? [packedFloatsField(options.relearnSteps)] : [];
+  if (Object.keys(set).length === 0) return true;
+  await writeConfig(db, presetId, withFields(row.config, set), now);
   return true;
 }

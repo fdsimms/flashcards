@@ -122,7 +122,9 @@ does. `listDeckSettings` applies it over the phone's row without the lock, and `
 writes it there under the lock; a deck Anki doesn't have, and a gate saved before this moved, stay
 in the phone's row until the next read moves them. **The new card order** (Deck options) is the Anki
 preset's own option: `setNewCardOrder` writes it into the kept collection first, as every deck on that
-preset and every device must agree, and sync sends it (`deckConfigJson`).
+preset and every device must agree, and sync sends it (`deckConfigJson`). **Anki options** (Deck options; `presetService.ts`) do the same for the
+preset's daily limits, steps, maximum interval and desired retention, and list every deck the change
+reaches first; a deck's own Anki limits and retention (Deck.Normal) still win over the preset's.
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
