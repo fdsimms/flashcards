@@ -2,36 +2,34 @@ import { DatePicker, Host } from '@expo/ui/swift-ui';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
-import type { NoteStore } from '../../anki/noteService';
-import { CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, type Cram } from '../../core/cram';
-import { talkOf, themeDeckWords } from '../../core/cramThemes';
+import {
+  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, type Cram,
+} from '../../core/cram';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
-import { noteHasTag, tagCounts } from '../../core/priority';
-import { parseTags } from '../../core/noteEditing';
+import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Group, Help, Screen, Segments, Select, SwitchRow } from '../kit';
-import { TagTokenField } from '../TagTokenField';
+import { Button, Card, Field, Group, Help, Screen, Select, SwitchRow } from '../kit';
+import { LANGUAGES } from '../../reader/languages';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
-import { CramThemeCard } from './CramThemeCard';
-import { setThemeState, useThemeState } from './themeStore';
+import { CheckRow, Pill } from './CramBits';
+import { useMissedLately } from './useMissedLately';
 import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
 
-type Source = 'new' | 'pick' | 'tag';
-
 const ANY_LANGUAGE = 'Any language';
-
+/** The most words "missed lately" brings into a new cram. */
+const MISSED_MAX = 10;
 
 /**
- * A cram's sheet: its name, its day, and whether new cards join it; for a new one, also which words
- * it starts with (none yet, picked next, or the notes with a tag) and whether the words not used at
- * the last cram come too. Editing one can delete it. Saving a new one opens it (or the word picker).
- * A new one can start from a theme to talk about (`onSuggest` opens the ideas; they're Read & Listen's,
- * so it's left out while that's off): the theme's title is the name, its words the first words.
+ * A cram's sheet. A new one is one step: what it's for, the day (a chip for each of the next five
+ * days, or Other for the calendar), the language (the last cram's, to start), and which words it
+ * starts with (the ones not used last time, the ones missed lately), then Start cram opens its page,
+ * where everything else is planned. Editing one changes its name, day and language, whether new
+ * cards join it, and can delete it.
  */
-export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: string; onSuggest?: () => void }) {
+export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const router = useRouter();
@@ -39,54 +37,52 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
   const { now, dayStartsAtHour: H } = useCramClock(repo);
   const collection = useCollection(repo);
   const editing = id ? crams.find((x) => x.id === id) : undefined;
+  const days = dayChoices(now, H);
   const [name, setName] = useState('');
-  const [date, setDate] = useState(() => new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 12));
+  const [date, setDate] = useState(() => days[1].date);
+  const [otherDay, setOtherDay] = useState(false);
   const [addNew, setAddNew] = useState(true);
   const [language, setLanguage] = useState<Cram['language']>();
-  const [source, setSource] = useState<Source>('new');
-  const [tag, setTag] = useState('');
   const [carry, setCarry] = useState(true);
+  const [missed, setMissed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
   const newId = useRef<string | undefined>(undefined);
-  const { chosen } = useThemeState();
-  const theme = id ? undefined : chosen;
+  const picked = useRef(false);
 
-  // A theme picked on the ideas screen names the cram, and goes when this sheet does: the next new cram starts clean.
-  useEffect(() => { if (theme) setName(theme.theme.title); }, [theme?.theme.title]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => setThemeState({ chosen: undefined }), []);
-
-  // An edit starts from the cram as saved.
+  // An edit starts from the cram as saved; a new one in the last cram's language.
   useEffect(() => {
     if (!editing) return;
     setName(editing.name);
-    setDate(cramDay(editing));
+    setDate(editing.date);
+    setOtherDay(!days.some((d) => d.date === editing.date));
     setAddNew(editing.addNew);
     setLanguage(editing.language);
   }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (id || picked.current || !loaded || !collection.loaded) return;
+    setLanguage(lastCramLanguage(crams, collection.notes));
+  }, [id, loaded, collection.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const noteIds = useMemo(() => new Set(collection.notes.map((n) => n.id)), [collection.notes]);
   const carried = editing ? undefined : carryOver(crams, noteIds);
-  const tags = parseTags(tag);
-  const counts = useMemo(() => tagCounts(collection.notes), [collection.notes]);
-  const tagged = source === 'tag' && tags.length ? collection.notes.filter((n) => tags.some((t) => noteHasTag(n, t))) : [];
-  // The theme's words still in the collection (one deleted since the ideas were written is left out).
-  const themeIds = useMemo(() => (theme ? themeDeckWords(theme.theme, theme.words).map((w) => w.noteId).filter((nid) => noteIds.has(nid)) : []), [theme, noteIds]);
+  const missedIds = useMissedLately(repo, editing ? undefined : language)
+    .filter((nid) => noteIds.has(nid) && !carried?.noteIds.includes(nid))
+    .slice(0, MISSED_MAX);
+  const languageName = language ? LANGUAGES[language].name : undefined;
 
   const save = async () => {
     if (busy) return;
-    const dateKey = dayKeyOf(date);
     // A cram's own day, unchanged, can be kept when it's past (renaming a finished cram).
-    const keptDay = !!editing && dateKey === editing.date;
-    const wrong = keptDay && name.trim() ? undefined : cramProblem(name, dateKey, now, H);
+    const keptDay = !!editing && date === editing.date;
+    const wrong = keptDay && name.trim() ? undefined : cramProblem(name, date, now, H);
     if (wrong) { setProblem(wrong); return; }
-    if (!editing && source === 'tag' && !tagged.length) { setProblem(tags.length ? 'No notes have those tags.' : 'Add a tag, or choose another way to add words.'); return; }
     haptic.tap();
     setBusy(true);
     setProblem(undefined);
     try {
       if (editing) {
-        await saveCram(repo, { ...editing, name: name.trim(), date: dateKey, addNew, language });
+        await saveCram(repo, { ...editing, name: name.trim(), date, addNew, language });
         // Saved either way; the cram's page runs the cap again and says if it can't.
         capCramCards(repo).catch(() => undefined);
         leaveScreen(router, PRACTICE_PATH);
@@ -94,22 +90,22 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
       }
       // Kept for a second try: the cram is saved before its words are tagged, so a try that failed
       // part way is finished by the next one rather than making a second cram.
-      newId.current ??= cramId(name, dateKey, crams.map((x) => x.id));
+      newId.current ??= cramId(name, date, crams.map((x) => x.id));
+      const takeCarried = !!carried && carry;
       const cram: Cram = {
         id: newId.current,
         name: name.trim(),
-        date: dateKey,
+        date,
         createdAt: new Date().toISOString(),
         addNew,
         ...(language ? { language } : {}),
         rounds: [],
-        ...(carried && carry ? { carriedIn: carried.noteIds } : {}),
-        ...(theme ? { theme: talkOf(theme.theme) } : {}),
+        ...(takeCarried ? { carriedIn: carried.noteIds } : {}),
       };
-      const words = [...(carried && carry ? carried.noteIds : []), ...tagged.map((n) => n.id), ...themeIds];
-      await startCram(repo, cram, words, carried && carry ? carried.from : undefined);
+      const words = [...(takeCarried ? carried.noteIds : []), ...(missed ? missedIds : [])];
+      await startCram(repo, cram, words, takeCarried ? carried.from : undefined);
       capCramCards(repo).catch(() => undefined);
-      router.replace({ pathname: source === 'pick' ? '/cram-words' : '/cram', params: { id: cram.id } });
+      router.replace({ pathname: '/cram', params: { id: cram.id } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't save the cram.", next: 'Try again.' }));
       setBusy(false);
@@ -138,83 +134,90 @@ export function CramEditor({ repo, id, onSuggest }: { repo: NoteStore; id?: stri
   };
 
   const ready = loaded && collection.loaded && (!id || !!editing);
+  const pickDay = (d: string) => { haptic.select(); setOtherDay(false); setDate(d); };
   return (
     <Screen
       title={editing ? 'Edit cram' : 'New cram'}
       largeTitle={false}
       toolbar={(
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
+      footer={(
         <>
-          <Stack.Toolbar placement="left">
-            <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
-          </Stack.Toolbar>
-          <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Button accessibilityLabel="Save the cram" disabled={busy || !ready} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
-          </Stack.Toolbar>
+          {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          <Button label={editing ? 'Save' : 'Start cram'} onPress={save} busy={busy} disabled={!ready} />
         </>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         <Card>
-          <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Ordering spicy food" autoFocus={!id} returnKeyType="done" />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 44 }}>
-            <Text style={{ ...type.body, color: c.text, flex: 1 }}>Day</Text>
-            <Host matchContents colorScheme={dark ? 'dark' : 'light'} seedColor={c.accent}>
-              <DatePicker
-                selection={date}
-                range={{ start: studyDayStart(now, H) }}
-                displayedComponents={['date']}
-                onDateChange={(d) => setDate(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12))}
-              />
-            </Host>
+          <Field label="What's it for?" value={name} onChangeText={setName} placeholder="e.g. Talking about my weekend" autoFocus={!id} returnKeyType="done" />
+        </Card>
+        <View style={{ gap: space.s }}>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>Day</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+            {days.map((d) => <Pill key={d.date} label={d.label} selected={!otherDay && date === d.date} onPress={() => pickDay(d.date)} />)}
+            <Pill label="Other" icon="calendar" selected={otherDay} onPress={() => { haptic.select(); setOtherDay(true); }} accessibilityLabel="Another day" />
           </View>
+          {otherDay ? (
+            <Card>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 44 }}>
+                <Text style={{ ...type.body, color: c.text, flex: 1 }}>Day</Text>
+                <Host matchContents colorScheme={dark ? 'dark' : 'light'} seedColor={c.accent}>
+                  <DatePicker
+                    selection={cramDay({ date })}
+                    range={{ start: studyDayStart(now, H) }}
+                    displayedComponents={['date']}
+                    onDateChange={(d) => setDate(dayKeyOf(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12)))}
+                  />
+                </Host>
+              </View>
+            </Card>
+          ) : null}
+        </View>
+        <Card>
           <Select
             label="Language"
             options={[ANY_LANGUAGE, ...CRAM_LANGUAGE_CHOICES.map((x) => x.label)]}
             value={CRAM_LANGUAGE_CHOICES.find((x) => x.code === language)?.label ?? ANY_LANGUAGE}
-            onChange={(v) => setLanguage(CRAM_LANGUAGE_CHOICES.find((x) => x.label === v)?.code)}
+            onChange={(v) => { picked.current = true; setLanguage(CRAM_LANGUAGE_CHOICES.find((x) => x.label === v)?.code); }}
           />
-          <Help>{language ? 'Add words offers only words in this language.' : 'Add words offers every word until one is added, then only words in its language.'}</Help>
+          <Help>{languageName ? `Add offers only ${languageName} words, and new ${languageName} cards join it.` : 'Add offers every word, and only new cards in no language join it.'}</Help>
         </Card>
-        {!editing && (onSuggest || theme) ? (
-          <CramThemeCard
-            picked={theme ? { title: theme.theme.title, words: themeIds.length, questions: theme.theme.questions.length } : undefined}
-            onSuggest={() => { haptic.tap(); onSuggest?.(); }}
-            onRemove={() => { haptic.tap(); setThemeState({ chosen: undefined }); }}
-          />
+        {!editing && (carried || missedIds.length) ? (
+          <View style={{ gap: space.s }}>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>Start with</Text>
+            <Group>
+              {carried ? (
+                <CheckRow
+                  first
+                  label={`${carried.noteIds.length === 1 ? '1 word' : `${carried.noteIds.length} words`} you didn't use last time`}
+                  detail={`From ${carried.from.name}`}
+                  checked={carry}
+                  onPress={() => { haptic.select(); setCarry(!carry); }}
+                />
+              ) : null}
+              {missedIds.length ? (
+                <CheckRow
+                  first={!carried}
+                  label={`${missedIds.length === 1 ? '1' : missedIds.length} ${languageName ?? ''} ${missedIds.length === 1 ? 'word' : 'words'} you missed lately`.replace(/\s+/g, ' ')}
+                  detail="Answered Again in Review, most missed first"
+                  checked={missed}
+                  onPress={() => { haptic.select(); setMissed(!missed); }}
+                />
+              ) : null}
+            </Group>
+          </View>
         ) : null}
-        <Group>
-          <SwitchRow first label="Add new cards to it" hint="Cards you add in the note editor until the day get this cram's tag." value={addNew} onValueChange={setAddNew} />
-          {carried ? (
-            <SwitchRow
-              label={`${carried.noteIds.length === 1 ? '1 word' : `${carried.noteIds.length} words`} from ${carried.from.name}`}
-              hint="Words you didn't use at your last cram."
-              value={carry}
-              onValueChange={setCarry}
-            />
-          ) : null}
-        </Group>
-        {!editing ? (
-          <Card>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>Words</Text>
-            <Segments<Source>
-              options={[{ value: 'new', label: 'None yet' }, { value: 'pick', label: 'Select' }, { value: 'tag', label: 'By tag' }]}
-              value={source}
-              onChange={setSource}
-            />
-            {source === 'new' ? <Help>Add words later from the cram's page, or as you add new cards.</Help> : null}
-            {source === 'pick' ? <Help>Once it's saved, you select the words from your decks.</Help> : null}
-            {source === 'tag' ? (
-              <>
-                <TagTokenField label="Tags" tags={tags} onChange={(t) => setTag(t.join(' '))} counts={counts} placeholder="e.g. lesson-12" />
-                <Help>{tags.length ? `${tagged.length === 1 ? '1 note has' : `${tagged.length} notes have`} it.` : 'Notes with any of these tags join the cram.'}</Help>
-              </>
-            ) : null}
-          </Card>
+        {!editing ? <Help>Add words, questions for your tutor and things to talk about on the cram's page.</Help> : null}
+        {editing ? (
+          <Group>
+            <SwitchRow first label="New cards join it" hint={languageName ? `${languageName} cards you add before the day get this cram's tag.` : "Cards you add before the day get this cram's tag."} value={addNew} onValueChange={setAddNew} />
+          </Group>
         ) : null}
-        <Help>
-          Until the day, a review of these words is due no later than that day. Afterwards they keep their usual schedule. The words are kept as a tag starting with cram::, so Anki and Claude can add to them too.
-        </Help>
-        {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+        <Help>Until the day, a review of these words is due no later than that day. Afterwards they keep their usual schedule.</Help>
         {editing ? <Button variant="destructive" label="Delete cram" onPress={remove} disabled={busy} /> : null}
       </ScrollView>
     </Screen>

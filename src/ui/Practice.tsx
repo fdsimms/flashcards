@@ -42,7 +42,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {/* Crams are about the decks' own words, in any language, so they sit apart from the tools. */}
         <Group>
-          <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Practice words for a day coming up, like a lesson with a tutor." onPress={onCram} />
+          <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Plan and practice for a day coming up, like a lesson with a tutor." onPress={onCram} />
         </Group>
         <Group>
           {/* A tool that doesn't come in the chosen language isn't listed. */}

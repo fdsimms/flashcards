@@ -7756,6 +7756,12 @@
             "type": "boolean",
             "title": "Stretch",
             "default": false
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Topic",
+            "default": ""
           }
         },
         "type": "object",
