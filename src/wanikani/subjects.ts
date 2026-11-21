@@ -262,6 +262,25 @@ export interface MnemonicPart {
 
 const MARKUP = /<(radical|kanji|vocabulary|reading|meaning|ja)>(.+?)<\/\1>/gu;
 
+/**
+ * The mnemonics and hints the answer side offers, in WaniKani's order: those of the meaning when
+ * the meaning is shown, and of the reading when the reading is shown (never one's for the other's
+ * question, which would give its answer away).
+ */
+export function mnemonicSections(s: Subject, showMeaning: boolean, showReading: boolean): { title: string; markup: string }[] {
+  const out: { title: string; markup: string }[] = [];
+  if (showMeaning && s.meaningMnemonic) out.push({ title: 'Meaning mnemonic', markup: s.meaningMnemonic });
+  if (showMeaning && s.meaningHint) out.push({ title: 'Hint', markup: s.meaningHint });
+  if (showReading && s.readingMnemonic) out.push({ title: 'Reading mnemonic', markup: s.readingMnemonic });
+  if (showReading && s.readingHint) out.push({ title: 'Hint', markup: s.readingHint });
+  return out;
+}
+
+/** The example sentences that go with the full answer: only when both the meaning and the reading are shown. */
+export function shownSentences(s: Subject, showMeaning: boolean, showReading: boolean): ContextSentence[] {
+  return showMeaning && showReading ? s.contextSentences.slice(0, 2) : [];
+}
+
 /** A mnemonic split into its marked-up words and the text between them. Other tags are dropped. */
 export function mnemonicParts(markup: string): MnemonicPart[] {
   const parts: MnemonicPart[] = [];
