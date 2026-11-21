@@ -48,6 +48,8 @@ Franki also imports Anki's "Notes in Plain Text" export, and other text files of
 
 **Edit** while studying opens the note of the card on screen. **Browse** on the deck list lists every note, searchable by any word in it, a tag or its deck, with **Add** for a new one (pick the deck and note type). The editor shows each field of the note type, and the note's deck, which you can change to move it. Select text in a field and tap **Bold**, **Italic** or **Underline** (again to undo), or **Plain text** to take formatting away; a field with formatting shows how it will look underneath. A line break is kept as one, and other formatting shows as HTML and is kept as it is. It says which cards the note makes, refuses one that makes none, and warns when another note of the type has the same first field. **Delete note** removes it with its cards.
 
+**Note types** (Settings, Decks and cards) lists the collection's note types. Open one to edit each card type's front and back template and the styling; Franki checks them as Anki does (a field the note type doesn't have, a front that shows no field) and says what to change. A change reaches Anki at the next sync, without replacing either collection. A change that would give notes a card they don't have yet is refused, since Anki would add those cards and Franki can't yet: make it in Anki.
+
 Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
 
 ## Decks
@@ -169,4 +171,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Changing a note's type, and editing a note type's fields, card templates or styling (do these in Anki and sync). Making Image Occlusion notes (Image Occlusion cards made in Anki study as they do there), and LaTeX in cards (MathJax works). Changing a deck's Anki options, such as limits, steps and desired retention, and optimizing FSRS parameters (both are in Anki's deck options). Anki's full search syntax in Browse.
+Changing a note's type, and adding, renaming or removing a note type's fields or card types (do these in Anki and sync). Making Image Occlusion notes (Image Occlusion cards made in Anki study as they do there), and LaTeX in cards (MathJax works). Changing a deck's Anki options, such as limits, steps and desired retention, and optimizing FSRS parameters (both are in Anki's deck options). Anki's full search syntax in Browse.

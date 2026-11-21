@@ -556,8 +556,9 @@ export function MessageList({ lines }: { lines: string[] }) {
  * field outlines in the accent while it's being typed in. `ref` reaches the TextInput (React 19
  * passes it as a prop). `keyboardLanguage` is the language the answer is typed in (a speech tag, ru-RU):
  * the field opens on that language's keyboard when the person has it (useKeyboardLanguage).
+ * `code` sets it in the system's monospaced face, for a card template or styling.
  */
-export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; ref?: React.Ref<TextInputInstance> }) {
+export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, code, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; code?: boolean; ref?: React.Ref<TextInputInstance> }) {
   const c = useTheme();
   const keyboard = useKeyboardLanguage(keyboardLanguage);
   const dark = useColorScheme() === 'dark';
@@ -578,6 +579,7 @@ export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, ..
           ...type.body, color: c.text, backgroundColor: c.fill, ...smooth,
           borderColor: error ? c.danger : focused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m,
           paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+          ...(code ? { fontFamily: 'Menlo', fontSize: type.callout.fontSize } : null),
         }}
       />
     </View>

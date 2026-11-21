@@ -54,7 +54,7 @@ export function cardsFor(note: Note, noteTypes: Map<string, NoteType>, now: Date
 }
 
 /** The Anki template ordinal a Franki card kind stands for. */
-function ordOf(note: Note, kind: Card['kind']): number {
+export function ordOf(note: Note, kind: Card['kind']): number {
   if (isOmnilanguage(note)) return omnilanguageKindByOrd.indexOf(kind as (typeof omnilanguageKindByOrd)[number]);
   return kind.startsWith('t') ? Number(kind.slice(1)) : 0;
 }

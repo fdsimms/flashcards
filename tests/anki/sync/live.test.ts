@@ -16,10 +16,12 @@ import {
   CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL, ankiDayNumber, cardStateParams, cardUpdate, cardUpdateParams, nextRevlogId, revlogEntry, revlogParams,
 } from '../../../src/anki/writeback';
 import { ankiCollapsedDecks, setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
+import { setAnkiNoteTypeLook } from '../../../src/anki/notetypeWrites';
 import { setAnkiNewMix } from '../../../src/anki/presetWrites';
+import { cardRequirements } from '../../../src/core/noteTypeEdits';
 import { addAnkiDeck, removeAnkiDeck, renameAnkiDeck } from '../../../src/anki/deckEdits';
 import { review } from '../../../src/core/scheduler';
-import type { Card } from '../../../src/core/types';
+import type { Card, NoteType } from '../../../src/core/types';
 import { importAnkiJson } from '../../../src/import/ankiJson';
 import { ANKI_PYTHON, ankiDevice, ankiIntegrity, startAnkiServer, type AnkiServer } from '../../support/ankiServer';
 import { readCollectionRows } from '../../support/ankiRows';
@@ -101,6 +103,11 @@ function franki(server: AnkiServer, collated: boolean) {
     collapsed: () => withDb(ankiCollapsedDecks),
     /** Sets a preset's new card order as Deck options does (setAnkiNewMix). */
     setNewMix: (preset: number, mix: number) => withDb((db) => setAnkiNewMix(db, preset, mix, new Date())),
+    /** Changes a note type's templates and styling as the Note type screen does (setAnkiNoteTypeLook). */
+    async editNoteType(name: string, edit: (nt: NoteType) => NoteType) {
+      const nt = edit(importAnkiJson(buildExport(await readCollectionRows(kept))).noteTypes!.find((t) => t.name === name)!);
+      return withDb((db) => setAnkiNoteTypeLook(db, name, { templates: nt.templates, css: nt.css, reqs: cardRequirements(nt) }, new Date()));
+    },
     /** Suspends, buries and flags cards as the review menu does (setAnkiCardStates). */
     async setStates(changes: { pick: (c: Card) => boolean; state: { suspended: boolean; buried: boolean; flag: number } }[], now = new Date()) {
       const cards = importAnkiJson(buildExport(await readCollectionRows(kept))).cards;
@@ -337,6 +344,26 @@ for (const collated of [true, false]) {
       const after = (desktop.run('dump').dump as Dump).deck_config.find((r) => r[0] === 1)!;
       const was = comparable(before[4] as string);
       expect(comparable(after[4] as string)).toEqual({ ...was, 30: ['1'] });
+    });
+
+    it(collated
+      ? "sends a note type's templates and styling changed in Franki, which Anki then has exactly, without a full sync"
+      : "refuses to change a note type's templates, which it couldn't send without a full upload", async () => {
+      const result = await me.editNoteType('Basic (and reversed card)', (nt) => ({
+        ...nt,
+        css: `${nt.css}\n.card { color: navy; }`,
+        templates: nt.templates.map((t) => (t.ord === 1 ? { ...t, front: `<i>${t.front}</i>`, back: `${t.back}<br>{{Front}}` } : t)),
+      }));
+      if (!collated) {
+        expect(result).toBe('noCollation');
+        return;
+      }
+      expect(result).toBe('saved');
+      expect(await me.sync()).toMatchObject({ kind: 'synced' });
+      desktop.run('sync');
+      await expectSame();
+      const theirs = (desktop.run('dump').dump as Dump).templates.filter((r) => r[2] === 'Card 2');
+      expect(theirs.some((r) => Buffer.from(String(r[5]), 'base64').toString('utf8').includes('<i>{{Back}}</i>'))).toBe(true);
     });
 
     it('removes what Anki deleted', async () => {

@@ -120,6 +120,9 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
         <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
       </Group>
       <Help>The last five apply to Omnilanguage cards. Other note types use the buttons and their own templates.</Help>
+      <Group>
+        <NavRow first label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
+      </Group>
     </>
   );
 }

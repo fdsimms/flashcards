@@ -87,8 +87,14 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   maximum interval and retention) is written into the kept collection
   as Anki writes one** (`config` edited in place, `mtime_secs`, usn -1, the collection's modified stamp)
   and sent in `applyChanges` as the JSON Anki's own client sends (`deckConfigJson`, the inverse of
-  `deckConfigRow`, checked against presets Anki wrote). Franki changes no note type, so a note type
-  pending is still the only thing that needs a full upload.
+  `deckConfigRow`, checked against presets Anki wrote). **A note type's templates and styling changed in
+  Franki** (`notetypeWrites.ts`, the Note type screen) are written the same way, with the card requirements
+  Anki works out from the fronts (`cardRequirements`) and the templates' mtime and usn zeroed as Anki's
+  `update_dict` leaves them (`notetype-vectors.json`), and sent in `applyChanges` as `notetypeJson`. That
+  needs the collation; without it a note type pending still needs a full upload, so the change is refused.
+  Franki never adds, removes or renames a field or card type: that changes the schema (`scm`), and every
+  device then has to replace its collection. Anki adds a card when a template edit makes a note generate
+  one, which Franki doesn't yet, so such an edit is refused (`notesGainingCards`).
 - **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
   (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
   and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live
