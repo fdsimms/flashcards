@@ -17,7 +17,10 @@
   "dates-year",
   "money-100",
   "money-1000",
-  "money-10000"
+  "money-10000",
+  "counting-few",
+  "counting-many",
+  "counting-any"
  ],
  "deckKeys": [
   [
@@ -6497,6 +6500,53 @@
      ]
     },
     {
+     "id": "counting",
+     "title": "Counting things",
+     "notes": [
+      {
+       "front": "<div><b>Polish · Counting things: 1 with the noun</b></div><div>Say 1 with three nouns aloud, one of each gender, such as a cat, a book and an apple.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-one",
+        "skill::lang::pl"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div><b>Polish · Counting things: 2 to 4</b></div><div>Say 2, 3 and 4 with a noun aloud, and 2 with a feminine noun.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-few",
+        "skill::lang::pl"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Polish · Counting things: 5 and up</b></div><div>Say 5, 11 and 20 with a noun aloud.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-many",
+        "skill::lang::pl"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Polish · Counting things: Any number to 100</b></div><div>Say 21, 22 and 25 with a noun aloud, then any other number to 100.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-any",
+        "skill::lang::pl"
+       ],
+       "suspended": true
+      }
+     ],
+     "words": []
+    },
+    {
      "id": "cases",
      "title": "Which case",
      "notes": [
@@ -7511,6 +7561,53 @@
        ]
       }
      ]
+    },
+    {
+     "id": "counting",
+     "title": "Counting things",
+     "notes": [
+      {
+       "front": "<div><b>Russian · Counting things: 1 with the noun</b></div><div>Say 1 with three nouns aloud, one of each gender, such as a cat, a book and an apple.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-one",
+        "skill::lang::ru"
+       ],
+       "suspended": false
+      },
+      {
+       "front": "<div><b>Russian · Counting things: 2 to 4</b></div><div>Say 2, 3 and 4 with a noun aloud, and 2 with a feminine noun.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-few",
+        "skill::lang::ru"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Russian · Counting things: 5 and up</b></div><div>Say 5, 11 and 20 with a noun aloud.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-many",
+        "skill::lang::ru"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Russian · Counting things: Any number to 100</b></div><div>Say 21, 22 and 25 with a noun aloud, then any other number to 100.</div>",
+       "back": "<div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::counting-any",
+        "skill::lang::ru"
+       ],
+       "suspended": true
+      }
+     ],
+     "words": []
     },
     {
      "id": "cases",

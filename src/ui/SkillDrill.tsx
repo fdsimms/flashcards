@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
@@ -26,7 +26,7 @@ import { AnswerContent, Status } from './tools/ToolScreen';
 export interface Drill { step: DrillStep; language: Language; months?: number[] }
 
 /** The chip's symbol for each kind of drill. */
-const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
+const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
 
 /**
  * The questions missed the last time a card was answered Again, by card id. When the card comes
@@ -146,6 +146,7 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           <Dots results={skill.results} at={skill.results.length} />
           {question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
           <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>
+          {questionNote(question, drill.language) ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{questionNote(question, drill.language)}</Text> : null}
           {answer ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
               <View style={{ height: 1, backgroundColor: c.textTertiary, opacity: 0.6 }} />
