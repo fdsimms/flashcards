@@ -104,6 +104,8 @@ export function Screen(props: {
   footer?: React.ReactNode;
   /** Extra style for the footer's box, to set it apart from the content (a surface fill, an edge). */
   footerStyle?: StyleProp<ViewStyle>;
+  /** The footer's height once laid out, for a screen whose content must clear it (pad the scroll content by this). */
+  onFooterLayout?: (height: number) => void;
   /** Floats over the content's bottom edge, just above the footer, without moving anything. Needs a footer. */
   floating?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
@@ -142,7 +144,7 @@ export function Screen(props: {
         {props.children}
         {props.floating ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{props.floating}</View> : null}
       </View>
-      <View style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
+      <View onLayout={props.onFooterLayout ? (e) => props.onFooterLayout?.(e.nativeEvent.layout.height) : undefined} style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
         {props.footer}
       </View>
     </View>
