@@ -81,7 +81,7 @@ export function ReadDailyTasks({ api, onSettings }: {
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!settings && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {settings && !supported ? (
-          <Help>Your Read & Listen server doesn't have this yet. Update it (server/update.sh), then open this again.</Help>
+          <Help>Your Read & Listen server hasn't been updated for this yet. It updates itself within about 15 minutes of a new version, so open this again then.</Help>
         ) : null}
 
         {settings && supported ? (
@@ -111,8 +111,8 @@ export function ReadDailyTasks({ api, onSettings }: {
               ))}
             </Group>
             <Help>
-              Every day languages get a task each day a text is waiting. Rotate languages take turns, the one read least
-              recently first. A rotating language you read on your own counts as its turn.
+              Languages set to Every day get a task on each day a text is waiting. Languages set to Rotate take turns,
+              starting with the one you read least recently. Reading one yourself counts as its turn.
             </Help>
 
             <SectionTitle>Rotation</SectionTitle>
@@ -140,7 +140,7 @@ export function ReadDailyTasks({ api, onSettings }: {
                 </Tappable>
               </View>
             </Group>
-            <Help>dundundun adds a Read & Listen task for each language chosen for today. Franki picks them once each day.</Help>
+            <Help>Each day, dundundun adds a Read & Listen task for each language chosen that day.</Help>
             {failed ? <ErrorNote message={failed} /> : null}
           </>
         ) : null}

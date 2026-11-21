@@ -49,6 +49,9 @@ from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
+from franki_reader.met import MetWord
+from franki_reader.register import DEFAULT as DEFAULT_REGISTER
+from franki_reader.register import Register, instruction
 
 # The models a text can be asked to be written by (the shelf's "Written by").
 TextModel = Literal["claude-sonnet-5-5", "claude-haiku-5-5"]
@@ -241,6 +244,12 @@ class TextRequest:
     unset: tuple[str, ...] = ()
     unset_uses: int = grammar.UNSET_USES
     story: StoryContext | None = None
+    # The Settings register (register.py). Each line still carries its own register label, chosen
+    # by who is talking to whom, so this sets the baseline and the default asks for nothing extra.
+    register: Register = DEFAULT_REGISTER
+    # Words outside the deck the learner looked up in earlier texts, to bring back where one fits
+    # (met.py). Still unfamiliar words: they count against the coverage target.
+    met: tuple[MetWord, ...] = ()
 
     def __post_init__(self) -> None:
         used = len(self.stretch) if self.choose is None else self.choose
@@ -446,9 +455,14 @@ two in a row. Each one needs known words around it for the learner to work out i
 means, using words the learner knows: say what it goes with or what it does (a fire before its \
 sparks, a coat before its hood). A short clue is enough; never explain the word. Use a stretch word \
 a second time in a different situation.
+- Every line must be a complete, grammatical Thai sentence, however simple. Never leave out a \
+classifier, particle, auxiliary or connective to fit a listed word in, and never string listed \
+words together as a list or a fragment. A word that grammar needs is worth more than coverage: add \
+it even when it is not on the list, and gloss it. The learner can look it up, but they can't learn \
+from a sentence that isn't Thai.
 - Before you answer, go through your draft word by word and check each one is on the list. Replace \
-any that isn't with a listed word or a simpler way of saying it. Getting this right first time \
-matters more than a clever text.
+any that isn't with a listed word or a simpler way of saying it, unless the line needs that word to \
+be grammatical. Getting this right first time matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
 English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
@@ -527,10 +541,15 @@ word. Use a stretch word a second time in a different situation.
 following from the line before it. Sense comes before coverage. With few words to work with, choose \
 a simple, ordinary situation (greeting, asking, buying, saying what you have or want) rather than \
 joining unrelated words into a scene. Never write a line only because its words are allowed.
+- Every line must be a complete, grammatical {name} sentence, however simple. Never leave out a \
+preposition, article, auxiliary, conjunction or ending to fit a listed word in, and never string \
+listed words together as a list or a fragment. A word that grammar needs is worth more than \
+coverage: add it even when it is neither an allowed common word nor on the list, and gloss it. \
+The learner can look it up, but they can't learn from a sentence that isn't {name}.
 - Before you answer, go through your draft word by word and check each one is either an allowed \
 common word or on the list, then read each line as a native speaker would and rewrite any that \
-doesn't make sense. Replace a word that isn't allowed with an allowed word or a simpler way of \
-saying it.
+doesn't make sense or isn't grammatical. Replace a word that isn't allowed with an allowed word or \
+a simpler way of saying it, unless the line needs that word to be grammatical.
 - Write natural {name}, the way a native speaker would say it, never a word-for-word translation \
 of an English phrase or idiom. If an English idea has no plain {name} equivalent, say something else.
 - A dialogue is natural, everyday spoken {name} between two speakers, A and B. In "roles", give \
@@ -649,6 +668,21 @@ def request_message(request: TextRequest) -> str:
         )
     else:
         parts.append("No stretch words this time.")
+    if request.met:
+        parts.append(
+            "Words met before: the learner looked these up in earlier texts, and they are not on "
+            "the list. Where one fits the topic naturally, use it once in place of another word "
+            "that is not on the list, in any of its forms, and gloss it. They count as words "
+            "outside the list, so the coverage target stays the same. Don't wrap them in asterisks, "
+            "and use none that doesn't fit:\n"
+            + "\n".join(f"- {w.text} ({w.meaning})" for w in request.met)
+        )
+    if request.register != DEFAULT_REGISTER:
+        parts.append(
+            f"Register: the learner wants {request.register} speech. {instruction(request.register)}"
+            " Lines between people who would talk differently, such as a customer and a clerk, may"
+            " still differ, but keep to this as the default."
+        )
     if request.story is not None:
         parts.append(_story_part(request.story))
     if request.practice:

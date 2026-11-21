@@ -53,11 +53,11 @@ export function problemForStatus(status: number): WaniKaniProblem {
 /** What a problem means to the person, and what to do. */
 export function problemText(problem: WaniKaniProblem): string {
   switch (problem) {
-    case 'unauthorized': return "WaniKani didn't accept the token. Make a new one on wanikani.com and enter it in WaniKani's settings.";
-    case 'forbidden': return 'This token can only read. Make one on wanikani.com with "reviews:create" and "assignments:start" checked, and enter it in WaniKani\'s settings.';
+    case 'unauthorized': return "WaniKani didn't accept the token. Make a new one on wanikani.com and enter it in Settings, WaniKani.";
+    case 'forbidden': return 'This token can only read. Make one on wanikani.com with "reviews:create" and "assignments:start" checked, and enter it in Settings, WaniKani.';
     case 'rateLimited': return 'WaniKani asked Franki to slow down. Try again in a minute.';
     case 'rejected': return "WaniKani didn't take this answer: the item may have been reviewed somewhere else.";
-    case 'unavailable': return "Couldn't reach WaniKani. Check the connection and try again.";
+    case 'unavailable': return "Couldn't reach WaniKani. Check your connection, then try again.";
   }
 }
 

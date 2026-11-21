@@ -1,8 +1,10 @@
-import { examplesOf } from './examples';
+import { examplesOf, sourceOf } from './examples';
 import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
+import { SENSE_CONTRAST_FIELD, contrastWords } from './senseContrast';
+import { numberedSenses } from './senseMarks';
 import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { fieldIsEmpty, templateOrdinals } from './template';
@@ -13,7 +15,7 @@ import { grammarText, wordGrammar } from './wordGrammar';
  * Language names, in English and as the language writes itself, with the BCP-47 tag a note in it
  * is spoken in. A Language field is matched whole; a deck name is searched for each, in this order.
  */
-const LANG_TAGS: Record<string, string> = {
+export const LANG_TAGS: Record<string, string> = {
   thai: 'th-TH', ภาษาไทย: 'th-TH',
   polish: 'pl-PL', polski: 'pl-PL',
   russian: 'ru-RU', русский: 'ru-RU',
@@ -174,6 +176,15 @@ export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | u
 const THAI_TWO = 'สอง';
 
 /**
+ * The counted example for one counting word: the noun, "two", then the counting word. A word that
+ * counts itself (ครั้ง, วัน, ชั่วโมง) leaves the noun off, since "สองครั้ง" is the phrase and
+ * "ครั้งสองครั้ง" is not.
+ */
+export function countedExample(entry: string, counter: string): string {
+  return `${entry === counter ? '' : entry}${THAI_TWO}${counter}`;
+}
+
+/**
  * A Thai noun's counting words, from the Classifier field (several may be listed, separated by
  * commas, slashes or line breaks). Only when the word and every counting word are Thai: another
  * language's counters stay a row under Forms, since the noun-number-counter order is Thai's.
@@ -193,11 +204,13 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // A noun's article from its Gender, or a Norwegian verb's å (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
   const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry) ?? verbMarker(lang2, t(note, 'PartOfSpeech'), entry);
-  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), t(note, 'PartOfSpeech'), entry) : undefined;
+  const say = speechLang ? spokenEntry(lang2, t(note, 'Gender'), t(note, 'PartOfSpeech'), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
   const pronunciation = t(note, 'Pronunciation');
+  // A Russian word with its stress mark (the Stress field, filled by the MCP's fill_stress): on an answer only, since text is never written with it.
+  const stressed = t(note, 'Stress');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
   // The IPA (the note type may not have the field yet: then it's empty). A card that already keeps a
@@ -205,6 +218,9 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // isn't given away while its reading is still hidden; any other card shows it plainly.
   const pronunciationTap = translit || kana ? 'Show pronunciation' : undefined;
   const meaning = t(note, 'Meaning');
+  // A Meaning that numbers its senses: an answer that shows it lets each be marked as missed (senseMarks.ts).
+  const senses = numberedSenses(meaning);
+  const sensed = senses.length ? { senses } : {};
   const front: Block[] = [];
   const back: Block[] = [];
 
@@ -216,12 +232,19 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, register.toLowerCase() === 'neutral' ? '' : register, t(note, 'Dialect')]
       .filter(Boolean);
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta, gender: genderOf(gender) });
+    // The line the word was met in (a game, a show), first after the chips: the strongest hook for the word. It is laid
+    // out as an example is, its translation behind the same tap, under "From" and the title instead of "Example".
+    const source = sourceOf(note);
+    if (source) {
+      pushIf(b, htmlToText(source.line), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(source.line, entry), source: source.where });
+      pushIf(b, htmlToText(source.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+    }
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
-    pushIf(b, counting.map((w) => `${t(note, 'Entry')}${THAI_TWO}${w}`).join('\n'), 'Counting', undefined, undefined,
+    pushIf(b, counting.map((w) => countedExample(t(note, 'Entry'), w)).join('\n'), 'Counting', undefined, undefined,
       { role: 'counting', rows: counting.map((w) => {
         const known = THAI_COUNTING_WORDS[w];
-        return { label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}`, ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
+        return { label: w, value: countedExample(t(note, 'Entry'), w), ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
       }) });
     // What kind of word it is and its forms, each under its name (wordGrammar.ts): the verb class is its top line, not a chip.
     const grammar = wordGrammar(note, counting.length > 0);
@@ -235,7 +258,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     for (const ex of examplesOf(note)) {
       pushIf(b, htmlToText(ex.context), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(ex.context, entry), ...(ex.tag ? { tag: ex.tag } : {}) });
       pushIf(b, htmlToText(ex.romanized), undefined, undefined, 'Show romanization', { role: 'exampleRomanized', segments: fieldSegments(ex.romanized, translit), tones: isThai });
-      pushIf(b, htmlToText(ex.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+      pushIf(b, htmlToText(ex.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation', ...(htmlToText(ex.literal) ? { literal: htmlToText(ex.literal) } : {}) });
     }
     pushIf(b, t(note, 'Hanzi'), speechLang?.startsWith('ja') ? 'Kanji' : 'Hanzi');
     pushIf(b, t(note, 'Etymology'), 'Etymology');
@@ -243,14 +266,24 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   };
 
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
-  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
+  const pushEntry = (blocks: Block[], shown = entry) => pushIf(blocks, shown, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
+
+  // "Not this word" (senseContrast.ts): the words for the senses the Sense rules out. On an answer only,
+  // never a front: on the reverse card it would stand beside the meaning that asks for the word.
+  const pushContrast = (blocks: Block[]) => {
+    const rows = contrastWords(note.fields[SENSE_CONTRAST_FIELD] ?? '');
+    pushIf(blocks, rows.map((r) => `${r.sense}: ${r.word}`).join('\n'), undefined, undefined, undefined, { role: 'contrast', rows: rows.map((r) => ({ label: r.sense, value: r.word })) });
+  };
 
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     // The word is already on screen, so its meaning is set smaller than a headline to save room.
-    pushIf(back, meaning, undefined, true, undefined, { role: 'meaning' });
+    pushIf(back, meaning, undefined, true, undefined, { role: 'meaning', ...sensed });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+    pushContrast(back);
+    // The word is on the front unmarked, so its stress is a line of its own here.
+    pushIf(back, stressed, undefined);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
@@ -265,10 +298,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
-    pushEntry(back);
+    // The word is the answer, so it's shown with its stress mark where the note has one.
+    pushEntry(back, stressed || entry);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
+    pushContrast(back);
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
   }
@@ -282,10 +317,11 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
       role: 'note',
     });
   }
-  pushEntry(back);
+  pushEntry(back, stressed || entry);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
-  pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
+  pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss', ...sensed });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+  pushContrast(back);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
   pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });

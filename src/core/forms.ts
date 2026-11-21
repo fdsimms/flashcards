@@ -5,7 +5,7 @@ import { examplesOf } from './examples';
 import { grammarPointForForms, type GrammarPointInfo } from './grammar';
 import { elidesBefore } from './gender';
 import { htmlToText } from './html';
-import { foldUndecomposed, foldYo } from './letters';
+import { foldYo, unaccented } from './letters';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from './types';
 import { isNoForm } from './wordGrammar';
 
@@ -272,7 +272,6 @@ const clean = (s: string) =>
   foldYo(s.normalize('NFC').trim().replace(/\s+/g, ' ').replace(/[.!?¡¿]+$/u, '').toLocaleLowerCase())
     .replace(/ς/g, 'σ').replace(/ß/g, 'ss').replace(/[’‘ʼ]/g, "'");
 /** Without accents and other marks: "esperé" -> "espere", "øl" -> "ol", "łza" -> "lza". */
-const unmarked = (s: string) => foldUndecomposed(s.normalize('NFD').replace(/[̀-ͯ]/g, '').normalize('NFC'));
 
 /**
  * A typed answer against a form's accepted answers. Case and surrounding spaces don't matter.
@@ -286,7 +285,7 @@ export function checkAnswer(typed: string, answers: string[], others: string[] =
   const all = answers.map(clean);
   if (all.includes(t)) return 'right';
   if (others.some((o) => clean(o) === t)) return 'wrong';
-  return all.some((a) => unmarked(a) === unmarked(t)) ? 'almost' : 'wrong';
+  return all.some((a) => unaccented(a) === unaccented(t)) ? 'almost' : 'wrong';
 }
 
 /** A form as a drill names it: "present · yo", or only its label when it has no group of its own ("plural", "infinitive"). */
@@ -761,8 +760,7 @@ export function formsSuggestion(input: {
 }
 
 /**
- * Prompts for practicing several words' forms (a card's own word, or the words gathered at the end
- * of a session): up to `perWord` each, taken in turn so one word's forms aren't all together.
+ * Prompts for practicing some words' forms: up to `perWord` each, taken in turn so one word's forms aren't all together.
  */
 export function wordPrompts(
   notes: Note[],
@@ -789,7 +787,7 @@ export function unreadableNotice(notes: Note[]): string | undefined {
     .filter((p) => p.count > 0)
     .map((p) => `${p.count} in ${p.word}`);
   if (!parts.length) return undefined;
-  return `Some lines of the Forms field couldn't be read, so they weren't asked (${parts.join(', ')}). Each line needs what the form is and the form, like "present · yo: espero". Edit the note to fix them.`;
+  return `Some lines of the Forms field couldn't be read, so they weren't asked (${parts.join(', ')}). Each line needs the form's name, then the form, e.g. "present · yo: espero". Edit the note to fix them.`;
 }
 
 /** Every word with forms, for the drill's wrong choices. */
@@ -912,8 +910,8 @@ export function patternPrompts(
 // What a drill asks
 
 /**
- * What a drill is for, small enough to pass to its screen: some words' forms (a card's own word,
- * or the words gathered at the end of a session), or a pattern across a deck.
+ * What a drill is for, small enough to pass to its screen: some words' forms (a card's own word),
+ * or a pattern across a deck.
  */
 export type DrillRequest =
   | { kind: 'words'; noteIds: string[]; perWord: number }

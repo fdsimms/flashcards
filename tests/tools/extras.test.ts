@@ -32,11 +32,11 @@ describe('planExtras', () => {
   });
 
   it('offers the drill missed most lately first', () => {
-    let marks = recordMark({}, 'money:th', ['coins'], false, NOW.getTime());
-    marks = recordMark(marks, 'money:th', ['coins'], false, NOW.getTime());
-    marks = recordMark(marks, 'time:th', ['thum'], false, NOW.getTime());
+    let marks = recordMark({}, 'script:th', ['ก'], false, NOW.getTime());
+    marks = recordMark(marks, 'script:th', ['ก'], false, NOW.getTime());
+    marks = recordMark(marks, 'counting:th', ['คน'], false, NOW.getTime());
     const plan = planExtras(input({ prefs: { modes: { th: 'always' } }, marks }));
-    expect(plan.extras[0]).toEqual({ language: 'th', kind: 'money', why: 'focus' });
+    expect(plan.extras[0]).toEqual({ language: 'th', kind: 'script', why: 'focus' });
   });
 
   it('never offers a drill the language has no version of', () => {
@@ -86,6 +86,13 @@ describe('planExtras', () => {
     }
   });
 
+  it('never offers a drill that a deck has as skill cards', () => {
+    for (let day = 0; day < 20; day++) {
+      const plan = planExtras(input({ prefs: { modes: { th: 'always', ja: 'always' } }, languages: ['th', 'ja'], now: new Date(2026, 10, 1 + day, 12) }));
+      for (const e of plan.extras) expect(['time', 'dates', 'money', 'numbers']).not.toContain(e.kind);
+    }
+  });
+
   it('offers nothing when turned off or with no drills and no texts', () => {
     expect(planExtras(input({ prefs: { on: false } })).extras).toEqual([]);
     expect(planExtras(input({ prefs: { drills: false, read: false } })).extras).toEqual([]);
@@ -108,18 +115,18 @@ describe('planExtras', () => {
 });
 
 describe('done', () => {
-  const extra = { language: 'th', kind: 'numbers', why: 'focus' } as const;
+  const extra = { language: 'th', kind: 'counting', why: 'focus' } as const;
 
   it('needs the answers of today', () => {
     let state = EMPTY_EXTRA_STATE;
-    for (let i = 0; i < EXTRA_ANSWERS - 1; i++) state = recordAnswer(state, 'numbers', 'th', START + i * 1000);
+    for (let i = 0; i < EXTRA_ANSWERS - 1; i++) state = recordAnswer(state, 'counting', 'th', START + i * 1000);
     expect(isDone(state, extra, START)).toBe(false);
-    expect(isDone(recordAnswer(state, 'numbers', 'th', START + 99_000), extra, START)).toBe(true);
+    expect(isDone(recordAnswer(state, 'counting', 'th', START + 99_000), extra, START)).toBe(true);
   });
 
   it('does not count yesterday\'s answers', () => {
     let state = EMPTY_EXTRA_STATE;
-    for (let i = 0; i < EXTRA_ANSWERS; i++) state = recordAnswer(state, 'numbers', 'th', START - 1000 - i);
+    for (let i = 0; i < EXTRA_ANSWERS; i++) state = recordAnswer(state, 'counting', 'th', START - 1000 - i);
     expect(isDone(state, extra, START)).toBe(false);
   });
 

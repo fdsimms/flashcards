@@ -100,7 +100,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
     <>
       <Button label={`Record audio with ${azureVoiceName(voice)}`} variant="secondary" onPress={record} busy={busy} />
       {error ? <ErrorNote message={error} onRetry={record} /> : null}
-      {!error && held.some((h) => h.noteId === note.id) ? <Help>{problem === 'server' ? `Your server isn't answering. This note will be recorded with ${azureVoiceName(voice)} once it does.` : `Offline. This note will be recorded with ${azureVoiceName(voice)} when you're back online.`}</Help> : null}
+      {!error && held.some((h) => h.noteId === note.id) ? <Help>{problem === 'server' ? `Couldn't reach your server. This note will be recorded with ${azureVoiceName(voice)} once it answers.` : `You're offline. This note will be recorded with ${azureVoiceName(voice)} when you're back online.`}</Help> : null}
     </>
   );
 }

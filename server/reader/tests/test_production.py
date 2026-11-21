@@ -34,6 +34,7 @@ JUDGED = {
     "corrected": "Potrzebuję narzędzia.",
     "english": "I need a tool.",
     "notes": ["Potrzebować takes the genitive: narzędzia."],
+    "hints": ["The noun after the verb is in the wrong case."],
     "used_word": True,
 }
 LINES = (
@@ -59,6 +60,21 @@ def client(check_attempt: Any = None, check_retell: Any = None) -> tuple[TestCli
 
 def test_a_slip_is_corrected_with_its_notes() -> None:
     assert clean_attempt(JUDGED, SENTENCE) == JUDGED
+
+
+def test_a_hint_that_gives_the_fix_away_is_dropped() -> None:
+    hints = ["It should be narzędzia.", "The noun after Potrzebuję is in the wrong case.", " ", 5]
+    cleaned = clean_attempt({**JUDGED, "hints": hints}, SENTENCE)
+    # The first names a word of the correction the learner didn't write; the second names only theirs.
+    assert cleaned is not None
+    assert cleaned["hints"] == ["The noun after Potrzebuję is in the wrong case."]
+
+
+def test_a_right_answer_has_no_hints_and_a_missing_list_is_none() -> None:
+    right = clean_attempt({**JUDGED, "verdict": "right"}, SENTENCE)
+    assert right is not None and right["hints"] == []
+    older = clean_attempt({k: v for k, v in JUDGED.items() if k != "hints"}, SENTENCE)
+    assert older is not None and older["hints"] == []
 
 
 def test_a_right_answer_keeps_the_learners_own_words() -> None:

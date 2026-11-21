@@ -153,7 +153,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
             {page.state !== 'practice' && practicingCount >= maxPractice ? (
               <Help>{`You're already practicing ${maxPractice} grammar points. Set one to Know it on the Grammar screen to practice this one.`}</Help>
             ) : changed ? (
-              <Help>Texts written from now on will use this.</Help>
+              <Help>Applies to texts written from now on.</Help>
             ) : null}
             {choiceError ? <ErrorNote message={choiceError} /> : null}
           </View>

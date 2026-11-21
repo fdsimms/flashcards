@@ -4,7 +4,7 @@ import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { cardTypeName } from '../core/cardInfo';
-import { failureText, Refusal } from '../core/failure';
+import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
 import { canAddMnemonic, mnemonicQuestion, withMnemonic, type MnemonicQuestion } from '../core/leechHint';
 import { notePreview } from '../core/noteEditing';
 import { answersFrom, calendarStart, type Answer } from '../core/stats';
@@ -73,7 +73,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFl
   const setState = async (card: Card, change: Parameters<typeof setCardStates>[2]) => {
     if (!data) return;
     const { ankiError } = await setCardStates(repo, [card], change, new Date(), data.dayStartsAtHour);
-    if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+    if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: NOT_IN_ANKI }));
     haptic.success();
   };
 
@@ -107,7 +107,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFl
 
   const open = (row: TroubleRow) => {
     const options = [
-      ...(canAddMnemonic(row.note) ? ['Write a memory hint'] : []),
+      ...(canAddMnemonic(row.note) ? ['Write a mnemonic'] : []),
       'Flag for Claude to check', 'Edit note', 'Card info', 'Suspend card', 'Cancel',
     ];
     const at = (label: string) => options.indexOf(label);
@@ -115,7 +115,7 @@ export function TroubleCards({ repo, onEditNote, onCardInfo, suggestHints, fixFl
       title: notePreview(row.note).front || undefined,
       options, cancelButtonIndex: at('Cancel'), destructiveButtonIndex: at('Suspend card'),
     }, (i) => {
-      if (i === at('Write a memory hint')) setHintFor(row);
+      if (i === at('Write a mnemonic')) setHintFor(row);
       if (i === at('Flag for Claude to check')) setFlagFor(row);
       if (i === at('Edit note')) onEditNote({ noteId: row.note.id }, (result) => { if (result) reload(); });
       if (i === at('Card info')) onCardInfo(row.card.id);
@@ -201,7 +201,7 @@ function Row({ row, mode, noteType, first, last, onPress }: { row: TroubleRow; m
   const missed = mode === 'most'
     ? `Forgotten ${row.misses.toLocaleString()} ${row.misses === 1 ? 'time' : 'times'} in ${row.answers.toLocaleString()} ${row.answers === 1 ? 'answer' : 'answers'}`
     : `Again ${row.misses.toLocaleString()} of ${row.answers.toLocaleString()} ${row.answers === 1 ? 'review' : 'reviews'}`;
-  const detail = [cardTypeName(row.card, noteType), missed, row.leech ? 'Leech' : '', row.card.flag === AGENT_FLAG ? 'Flagged for an agent' : ''].filter(Boolean).join(' · ');
+  const detail = [cardTypeName(row.card, noteType), missed, row.leech ? 'Leech' : '', row.card.flag === AGENT_FLAG ? 'Flagged for Claude' : ''].filter(Boolean).join(' · ');
   return (
     <Pressable
       onPress={onPress}

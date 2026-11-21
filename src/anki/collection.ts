@@ -24,12 +24,13 @@ import { decodeMessage, float, floats, message, string, uint } from './protobuf'
  * (`STRIP_UNICASE_SQL`); the collection Franki keeps is never changed that way.
  */
 
-/** DeckConfig.Config */
-const CONFIG = {
+/** DeckConfig.Config (exported for presetWrites.ts, which writes some of them) */
+export const DECK_CONFIG_FIELDS = {
   learnSteps: 1, relearnSteps: 2, fsrsParams4: 3, easyDays: 4, fsrsParams5: 5, fsrsParams6: 6, newPerDay: 9, reviewsPerDay: 10,
-  maxInterval: 16, leechAction: 21, leechThreshold: 22, disableAutoplay: 23, capAnswerSecs: 24, buryNew: 27, buryReviews: 28, buryInterdayLearning: 29,
-  newMix: 30, interdayLearningMix: 31, newSortOrder: 32, reviewOrder: 33, newGatherPriority: 34, desiredRetention: 37,
-};
+  maxInterval: 16, leechAction: 21, leechThreshold: 22, disableAutoplay: 23, capAnswerSecs: 24, showTimer: 25, buryNew: 27, buryReviews: 28, buryInterdayLearning: 29,
+  newMix: 30, interdayLearningMix: 31, newSortOrder: 32, reviewOrder: 33, newGatherPriority: 34, desiredRetention: 37, stopTimerOnAnswer: 38,
+} as const;
+const CONFIG = DECK_CONFIG_FIELDS;
 /** Notetype.Config and Notetype.Template.Config */
 const NOTETYPE = { kind: 1, css: 3 };
 const TEMPLATE = { front: 1, back: 2 };
@@ -58,7 +59,7 @@ export const COLLECTION_QUERIES = {
   // The latest real answer: Anki's FSRS skips Manual rows (Set Due Date, Forget), which have ease 0.
   lastReviews: 'SELECT cid, MAX(id) AS last FROM revlog WHERE ease > 0 GROUP BY cid',
   // `KEY AS key`: Anki declares the column in capitals, and SQLite names a result column as declared.
-  config: "SELECT KEY AS key, val FROM config WHERE KEY IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled')",
+  config: "SELECT KEY AS key, val FROM config WHERE KEY IN ('rollover', 'collapseTime', 'newCardsIgnoreReviewLimit', 'applyAllParentLimits', 'creationOffset', 'loadBalancerEnabled', 'timeLim')",
 } as const;
 
 /**
@@ -130,6 +131,8 @@ export function readDeckConfig(blob: Uint8Array): Required<Omit<AnkiDeckConfig, 
     autoplay: uint(msg, CONFIG.disableAutoplay) !== 1,
     // Anki's own default when it's missing (and its deck options don't go below 30).
     maxAnswerSecs: uint(msg, CONFIG.capAnswerSecs) || 60,
+    showTimer: uint(msg, CONFIG.showTimer) === 1,
+    stopTimerOnAnswer: uint(msg, CONFIG.stopTimerOnAnswer) === 1,
   };
 }
 
@@ -184,6 +187,7 @@ export function collectionSettings(config: CollectionRows['config'], collectionC
     ...(collectionCreated !== undefined ? { collectionCreated } : {}),
     ...(num('creationOffset') !== undefined ? { creationOffset: num('creationOffset') } : {}),
     loadBalancer: bool('loadBalancerEnabled') ?? true,
+    ...(num('timeLim') ? { timeLimitSecs: num('timeLim') } : {}),
   };
 }
 
@@ -197,7 +201,8 @@ export function readTemplateConfig(blob: Uint8Array): { front: string; back: str
   return { front: string(msg, TEMPLATE.front) ?? '', back: string(msg, TEMPLATE.back) ?? '' };
 }
 
-const deckName = (raw: string) => raw.split('\x1f').join('::');
+/** A deck's name as Franki writes it, from Anki's (levels separated by \x1f). */
+export const deckName = (raw: string) => raw.split('\x1f').join('::');
 
 /** The importer's input from a collection's rows. */
 export function buildExport(rows: CollectionRows): AnkiExport & {

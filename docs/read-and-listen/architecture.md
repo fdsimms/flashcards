@@ -157,7 +157,7 @@ Franki's (Client, below).
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
   of at least six between them steps the language's text difficulty one level easier (Harder to
   Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
-  one's check too. A good score changes nothing, and nothing steps back: only the Text difficulty
+  one's check too. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
   setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -263,6 +263,7 @@ Franki's (Client, below).
   A right quiz answer is no lookup, but every answer is kept on the reading, by word, as
   `quiz_right` and `quiz_wrong` (`Session.quizRight`, `readings.quiz_right`; the latest answer to a
   word wins), a record only: nothing reads it yet, and a wrong one or I don't know is also a lookup.
+  **Tapping a word again on the same reading doesn't ask again** (20 November 2026): the quiz's choices and the pick are kept per word (`Session.quizAnswers`) and the popover opens on that record, with only the right and the picked choice drawn (`QuizChoices` `settled`).
   Nothing is graded or added to the deck, and a card's example
   sentence and the shelf's practice-word popovers are unchanged.
 - The reader's playback speed and the highlight switch are kept between launches, in the Keychain
@@ -316,6 +317,18 @@ Franki's (Client, below).
   `meanings.py` does for texts, with the sentence's ContextTranslation as the line's English), so
   they have one next time. Until then, offline, or with Read & Listen off, the sentence shows as
   before. Tapping a word grades nothing.
+- **A Thai compound's parts on a card's headword** (19 November 2026, by the owner's decision: the
+  server splits it, no new note field). On the back of a Thai card, a headword that is a compound
+  (ความคิด) is drawn as the example sentence's words are: a dotted underline under each part, a tick
+  where two touch, and a tap on a part opens the same popover (its meaning, play, pronunciation, Add to
+  deck for a part not in the deck). The phone asks for the headword in the same `/api/glosses` call, as a
+  sentence with `parts: true`, its Meaning as the English, and keeps the answer apart from a sentence of
+  the same text (`partsKey`). The server splits it with `Lexicon.parts`: the general Thai dictionary and
+  the deck's entries, never into the word itself (`word_tokenize` returns a compound whole, because
+  it is a word), fewest parts first, then the most that are deck entries. A word that doesn't split
+  (one part, under four letters, not Thai) comes back whole and the card draws it as before. A part with
+  no meaning is glossed in the background as a sentence's words are. Only Thai: the other languages
+  write a compound with no gap the dictionary can cut. Tapping a part grades nothing.
 
 ## Using the language
 
@@ -332,6 +345,7 @@ answers aren't kept.
   `effort: medium` (raised from low on 15 November 2026, since a wrong verdict teaches the wrong
   thing); the cost is `production` in `/api/costs`, failed calls included. The app draws the
   correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
+- **A try before the correction** (21 November 2026, the owner, from a mock with and without hints; `asksAnotherTry` in `src/reader/production.ts`). The first check of a sentence or retelling with mistakes shows the verdict, the writing with its mistakes picked out, and `hints`: where each mistake is and what kind, never the fix. The buttons are Show the correction and Try again; the second check, or Show the correction, gives the whole result as before, and a right answer goes straight to it. Fixing a mistake oneself is what a correction read off the screen doesn't ask for. The server drops a hint holding a word that is in `corrected` and not in the writing (`_hints`, `production.py`), so a hint can't hand over the fix; in a language written without spaces only the prompt keeps that. Sentences' Check mine is left as it was: its own sentence is already on screen when the check is asked for.
 - **Use today's words** (`src/ui/reader/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
   of a review session of a language's deck while Read & Listen is on, with the notes answered while
   new in it (`wordsToUse`), one at a time, to write a sentence with. Placed after the session rather
@@ -422,6 +436,7 @@ aloud is never heard by the phone.
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
 - **The role-play never asks for what wasn't taught** (18 November 2026, the owner, after a lesson on "can you say that again", "soon" and "don't forget"): the narrator said "first speaker" while speaker B opened the conversation, a "put them together" sentence was just "soon, don't forget", and the role-play asked for A's lines the lesson never taught. Now the request has A speak first, and the narrator says "first" or "second" as the dialogue really runs (`_role_play`). A line of A's made only of words the phrases taught is asked cold; any other is said by the native voice first and then repeated in a silence, with one narrator line saying so. A lesson on the learner's own words drops a mix that is only whole phrases in a row (`_is_phrases_end_to_end`; not applied to written lessons, whose phrases can make a sentence), and both requests say a mix is one complete sentence a person would say. The request also keeps A's lines short and built from the phrases.
+- **A lesson opens by asking for phrases of earlier lessons** (21 November 2026, the owner; `earlier_phrases` in `lesson.py`). Inside one lesson a phrase is recalled minutes apart; this asks across days. Before the dialogue the narrator says "First, some phrases from earlier lessons." and asks for one phrase from each of the lessons 1, 3 and 6 back (`RECALL_GAPS`, counted in lessons heard), a different phrase each time a lesson comes back, never one this lesson teaches. Only a lesson played to the end counts: the app says so when one finishes (`POST /api/lessons/{id}/heard`, `lessons.heard_at`; held on the phone while the server can't be reached, `heldReader`), since the server otherwise knows only when a lesson was made, and a learner is never asked for what they weren't given. A lesson played before this was kept has no `heard_at` and isn't asked for until it's played again. Not the closing pass that was removed: that asked the lesson's own phrases once more in the same sitting.
 - **Each phrase does a different job** (18 November 2026, the owner: "How Are You?" came out as "how are you" said over and over). A narrow scene gave four phrases that were one question with a word added, and every phrase is heard many times (taught, built up, asked, recalled), so the repeats filled the lesson. The request now asks for different jobs (ask, answer, ask back, react, thank), reaching to what comes before and after a narrow scene, and the ladder rule asks for at least two words the earlier phrases lack. Prompt only: a code check on word overlap was tried and flagged real ladders ("Please" then "The check, please"), so it was dropped.
 - **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
   from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
@@ -450,6 +465,8 @@ aloud is never heard by the phone.
   language or the words change. Its cost is kept in `call_costs` as "lesson_topics" and is the `lesson_topics` block of `/api/costs`, apart from `lessons` so a suggestion isn't counted as a lesson made.
 - **A typed word is confirmed before the lesson speaks it** (18 November 2026, the owner: romanization typed in Add a word was spoken completely wrong, and word plus Meaning boxes felt like inventing words; then "it shouldn't be only for Thai"). The voice reads what it is given as the language's own writing, so romanization came out as noise. In every lesson language Add a word (`LessonWordAdd.tsx`) is one box that takes romanization, the language or English; **Find word** asks `POST /api/lessons/words` (`lesson_words.py`, Haiku, one call per tap), which lists up to five real words it could be, each in the language's own writing with its reading (Thai's romanization with tone marks, Russian's and Greek's romanization, Japanese's kana; empty for the Latin-script languages) and its meaning. The learner picks one and that word and meaning join the lesson, so there is no meaning to type. `lesson_words.clean` drops a candidate with none of the language's script, or, for Thai, Russian, Greek and Japanese, one with a Latin letter, since that is the romanization handed back as the word; a repeat and one without a meaning go too. A word already written in the language goes through the same list, so it is shown once for confirmation (and a misspelling is corrected). The cost is kept in `call_costs` (feature "lesson_words"); nothing here is a card or a rating.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
+- **A cram theme's story is written for the learner's gender too** (21 November 2026, the owner: a talking point said ฉัน for a man). The app sends the same `particle` setting with `/api/cram/themes` (Thai only, `CramThemes.tsx`), `cram_themes.SYSTEM` asks for ผม and ครับ or ดิฉัน/ฉัน and ค่ะ, and `clean_themes` drops a story that uses the other gender's words (`gender.thai_fits`) while keeping the theme. The tutor questions aren't gendered: the learner asks them of someone else.
+  Situations does the same: `particle` goes with the turn and feedback requests (`conversationOf`), and the feedback prompt judges and corrects the learner's own lines as a man's or a woman's Thai (`situations._THAI_LEARNER`). Not yet covered: the Sentences stock and grammar drills, written ahead with no request to carry it.
 - **The voice slows down while a phrase is taught** (17 November 2026, the owner's request). The native voice's clips inside `_teach` (the first "Listen." hearing and each repeat-after step) are `Say(..., slow=True)` and spoken at `lesson.TEACH_RATE` (0.8). Asking for a phrase, its answer, the dialogue, the role-play and the narrator stay at normal speed, so the learner still hears natural speed. `slow` is part of a clip's identity, so a phrase heard slowly and then asked for normally is two recordings (a little more Azure billing); the last build-up step and the first hearing are the same slow clip and are spoken once. A lesson made before this keeps its old audio.
 - **Silences are sized to the phrase** (`pause_ms`: 2 s plus 0.7 s a word, 3 to 15 s), so a longer
   phrase gets longer to say. They are baked into the audio, so they can't be adjusted after the
@@ -551,11 +568,13 @@ aloud is never heard by the phone.
 
 ## Cram themes
 
-Themes to talk about at a lesson with a tutor (19 November 2026, the owner: from a video on preparing for tutoring, "a way to help generate themes to talk about"). On a new cram's sheet, "Suggest themes" (and "Plan the next lesson" on the cram list, once a cram is finished) opens Theme ideas: three themes, each with a title, a reason, chips for the words it reuses (from last time, missed, recently added) and new words, and counts. A theme opens to its words, common words the deck lacks (a + sends one to the note queue), questions to steer the lesson with (tap to hear) and "Things to say", a short story built from the owner's words that can be edited and listened to. "Use theme" fills the cram's sheet: the title is the name, the theme's deck words are the first words, and the questions and story are kept on the cram (`Cram.theme`, shown on its page).
+Themes to talk about at a lesson with a tutor (19 November 2026, the owner: from a video on preparing for tutoring, "a way to help generate themes to talk about"). On a cram's page, Talking points' "Suggest talking points" (and the "Words for the topic" pill) opens Talking points (since 21 November 2026; before, Theme ideas on a new cram's sheet): three themes, each with a title, a reason, chips for the words it reuses (from last time, missed, recently added) and new words, and counts. A theme opens to its words, common words the deck lacks (a + sends one to the note queue), questions to steer the lesson with (tap to hear) and "Things to say", a short story built from the owner's words that can be edited and listened to. "Use theme" keeps the questions and story on the cram (`Cram.themes`, one card per theme under Talking points; an older cram's single `theme` is read as a list of one) and tags the theme's deck words (`applyThemes`). Each card on the list has a checkbox (21 November 2026, the owner), and "Use N themes" in the footer keeps all the checked ones at once; using a theme again adds to the cram's list, replacing one with the same title. **Every theme is an angle on the cram's name** (`topic` in the request, `TOPIC` in the prompt): the owner already knows what the lesson is for, so ideas about something else were noise; a name with no subject ("Thai lesson") leaves Claude free. With nothing in mind, the new cram's sheet has "Not sure yet? Get ideas": the cram starts under a stand-in name (`untitled`), its themes are asked with no topic (`themeTopic`), and the theme used names it (`withTheme`). A word to learn sent to the note queue from a theme shows on the cram as being written (`Cram.requested`).
 
 - **The app picks the seeds, the server writes, the code checks** (`src/core/cramThemes.ts`, `cram_themes.py`). The phone sends up to 60 studied words in the language, each labeled why it's on offer (the last finished cram's unused words, missed in the latest cram's last round or tagged leech, added in the last 14 days, else just studied), the Practice tools' live misses as lines ("Telling the time: band:thum"), and the titles to avoid (every cram's name and theme, and the ideas already shown). The server adds the common words the deck lacks (`word_suggestions.suggest`) and sends Claude both lists numbered. Claude answers with numbers, so only a word really in a list can be named; a new word takes the list's meaning, else Claude's. Questions and the story are kept only when written in the language's own script (`lesson_words.is_written`, shared with Find word). A theme with no words or fewer than two questions is dropped, not repaired.
+- **Spoken register, not written** (21 November 2026, the owner: a cram's Thai questions and story read as textbook Thai, with อย่างไร, และ, ฉัน and การ-). The prompt asks for the way an ordinary person talks (the spoken form of a word, the subject dropped when clear, no formal written words), not slang or close-friend casual, and keeps the language's ordinary politeness toward a tutor; the owner wants to sound like a normal person, not extra casual (`SYSTEM` in `cram_themes.py`). Only the prompt carries it; nothing in code checks register.
+- **Register is a setting with per-cram and per-scene overrides** (21 November 2026, the owner, from a mock: "an option anywhere we generate substantial amounts of text"). Three levels, Casual, Everyday and Formal (`register.py`, `registerLevel.ts`), Everyday by default. Settings, Read & Listen's language screen, holds the default (`Settings.register`); a cram (`Cram.register`, its page's Get ready) and a Situations rehearsal (its start screen, beginning at the cram's) can choose their own, and Default follows Settings. The app sends a register only when one was chosen (`registerChoice`), so the server applies Settings itself; a request that names one (`register` on `ThemesIn`, `LessonIn` and `SituationIn`) wins. It reaches the cram themes, audio lessons (a Japanese casual lesson teaches the plain form, not です/ます; a Thai lesson keeps its polite particle whatever the level), Situations (the other person's lines and the feedback's "natural" check) and the texts the shelf and topics write (from Settings only, and only when it isn't Everyday). The sentence for a level goes in the user message or an uncached prompt, never a cached system prompt (`generator.system_prompt` must stay byte-identical). Not covered: grammar drills and Sentences are written ahead into a stock, so a register would need the stock keyed by it; their prompts ask for ordinary speech. The register chip on a text's line (`register.ts`, `generator.REGISTERS`) is a different thing: it labels what was written.
 - **Cheap model, one call per tap** (`CHEAP_MODEL`, effort low; cost kept as "cram_themes" in `call_costs`, its own block in `/api/costs`). It's asked when Theme ideas opens, on Show different themes, and when Comfortable/Stretch changes; never in the background.
-- **Nothing here grades or writes.** A theme's words are only tagged when the cram is saved (the cram's own tag, as any cram), a word to learn is only queued, and the notes it becomes are saved in the note editor, where saving is the approval. The ideas and the picked theme live in memory (`themeStore.ts`) and go when the sheet closes.
+- **Nothing here grades or writes.** A theme's words are only tagged on Use theme (the cram's own tag, as any cram), a word to learn is only queued, and the notes it becomes are saved in the note editor or Approve all, where saving is the approval. The ideas live in memory (`themeStore.ts`, keyed by the cram) until asked for again.
 - **Rehearse in Situations** (19 November 2026, the owner: "cram should be intertwined with the situations practice feature"). A cram's page and a theme's page have a Rehearse row: Situations opens on the cram's title (or the theme's) as the scene, and `POST /api/situations/turn` takes `words`, up to 15 "word (meaning)" strings (`rehearsalParams` and `rehearsalOf`, `src/reader/situations.ts`). The turn's prompt asks the other person to work them in where the scene allows and never to require, list or explain them; the existing check on their lines is unchanged. The scene screen says "Leaning on N words from this cram", with Start and Pick a different scene. Play it again keeps the words.
 - **Keep these** (`src/reader/corrections.ts`, `correctionsStorage.ts`). After a rehearsal's How it went, "Keep these" stores the lines that needed a fix (what was said, the correction, the note) in `kept-corrections.json` in the documents folder, on the phone only, up to 30, none older than 60 days, and only when tapped. Theme ideas adds the newest four for the language to what Practice has been missing, as lines like `Mistake in a rehearsal: said "X", corrected to "Y"` (`combineWeakSpots`: Practice's up to four first). Those lines go to Claude with the theme request, as the lines already do in Situations. Nothing is added to the deck or graded.
 - **No personal data as a seed**: a journal or the calendar is never sent; the seeds are the deck, the rounds and Practice only.
@@ -1061,7 +1080,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   speech can't be reread, for listening; below it comprehension varied widely). **Standard is 95%,
   Easier is 97%, Harder is 93%** (`STANDARD_FLOOR`, `EASIER_FLOOR` and `HARDER_FLOOR`,
   `difficulty.py`), chosen per language in Settings (Text difficulty) or stepped easier by a poor
-  check after reading. **Harder is below the research's least** and the setting says so: the
+  check after reading and harder by a high one. **Harder is below the research's least** and the setting says so: the
   evidence is that coverage helps gradually, not as a cliff, and the reader has a gloss on every
   word, but at about 7 new words in 100 expect more lookups. It is only ever a deliberate choice: a
   floor saved by an older server never reads as Harder, and the spread-out rule (`crowding.py`)
@@ -1232,6 +1251,15 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   so they use the text's own meaning. The top-up pass now also asks, once, for the words of the 30
   newest texts that only had the language's meaning, so texts waiting to be read get their own sense
   too.
+- **A tap on a word with no meaning asks for one** (20 November 2026, by the owner's decision, which
+  overrides "a tap never makes a call" for meanings). A card's example sentence is glossed once, and a
+  word nothing glossed stayed "No meaning available" (the background pass keeps a word it got nothing
+  for as empty, and the app keeps the first answer). Now the popover on a card's sentence, a lesson's phrases, a text, and the shelf's and a story's
+  "Last time" line calls `/api/word-meaning` for a word with no meaning (`needsMeaning`), passing the
+  line's English: `Engine.define_word` returns the kept one when there is one, else asks Claude for
+  that one word, ignoring the failure cooldown and replacing an empty kept row (`save_meaning_batch`
+  upgrades an empty meaning, never a real one). The answer is kept, so the next tap is free. Grammar
+  explanations pass no lookup (they have no English line), so their taps never make a call.
 - **Stretch words** are 1-4 words (15 November 2026: was 1-3, `MAX_STRETCH`), each asked for once or twice (twice for a word with several forms or senses or a longer phrase, once for a simple one), young words first (most fragile, below), then ones reviewed today. No random assignment.
 - **Stretch order: fragile young words first** (15 November 2026, the owner's decision from a review of
   the learning science). The order is words returning from an earlier day (`RETURN_DAYS`), then young
@@ -1300,6 +1328,16 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be reviewed today
   or young, and not waiting for its review, so a word that has matured since is left alone. In "Fit
   the topic" it's offered first, and the model may still pass it over if it doesn't fit.
+- **Words looked up outside the deck come back too** (`met.py`). A word outside the deck was met
+  once, in the text that needed it, and picking a word up from reading takes several meetings. A
+  word tapped or marked in a text read to the end, and still not known to the deck, is offered to
+  later texts (3 at most, `MET_OFFERED`) until it has been met on 4 different study days
+  (`MET_DAYS`, the day it was looked up included), counted from the texts read in the last 30 days,
+  whichever text brought the word, and never twice in a day. It stays a word outside the list: it
+  counts against the coverage target and takes the place of another unfamiliar word. Prompt only:
+  the model uses one where it fits, and no draft is sent back for leaving them out. A meeting is
+  counted by the word as written, so a word that comes back in another form isn't counted and is
+  offered again until its lookup is 30 days old. Nothing here touches a card.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
   applying from the next text written. A story is told by a narrator (speaker `N`), one or two plain
   sentences a line, and is spoken in voice A. The brief's feasibility test found narrative drops
@@ -1853,7 +1891,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   coverage target is one of three for each language, **Harder (93% known words)**, **Standard
   (95%)** or **Easier (97%)**, chosen on the language's settings page (`PUT /api/difficulty`),
   applying from the next text written, or stepped one level easier by a poor score on the check after
-  reading (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  reading and one harder by a high score (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
   written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
   exit check reads the log. The level is saved as `difficulty_v3`; a floor saved by an older server
   (`difficulty_v2`) is read as Standard or Easier by `store.load_difficulty` (96% or more is Easier).
@@ -1969,7 +2007,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
   `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
-  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  (also the new note's tag), a Notes line, the `Language` every note carries, `GenerateReverse` when the word is one the learner would say and `GenerateAudioCard` when it's one they'd hear (the owner's rule, 21 November 2026: production and listening practice only for a word they'd actually say or hear; Claude answers `say` and `hear` for each word, and the switches can be changed in the editor before saving), and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
   KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and
@@ -1995,6 +2033,30 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+- **Quick add is a sheet of its own, for every deck** (`src/ui/QuickAdd.tsx`, the `quick-add` route; 21
+  November 2026, mocked first, the owner picked all of it: "do it all"). It opens from a + in the Decks
+  header (on the deck last added to), from a deck's long-press menu and ⋯ sheet
+  ("Quick add to", that deck), and from the Home Screen's quick actions ("Add words", "Add to" the last
+  deck, and "Study" the deck last studied, which opens Review; `src/ui/lastDeck.ts`, `modules/home-shortcuts`, which keeps a tap that launched the app until JS takes it, since
+  expo-quick-actions loses that one under the scene lifecycle). Words go in one per Return, or pasted as a
+  list. A Read & Listen language's deck, while it's on, queues them as before; any other deck saves a word
+  and its meaning as a note of the deck's usual type when Add is tapped (`useQuickAddNotes`, the type the
+  note editor would start with, `startModelFor`), and that tap is the approval, since only what the owner
+  typed is saved. A word the deck already has says so on its row before Add, by the key `saveNote`
+  refuses it by (`duplicateKey`), with Add anyway.
+- **A word typed the way it sounds** (in Latin letters for a language with its own script, romanized
+  loosely, or misspelled) is queued as typed, and Claude gives its `spelling` and the other words it could
+  be (`alternatives`, at most three; none when the owner gave a meaning, which says which word was meant).
+  The ready note opens on the spelling with "You typed ..." under the Entry, or, when there are
+  alternatives, asks which word was meant above the fields (`WordChoice.tsx`): another choice queues that
+  word in its place, and Neither takes it off the queue. Approve all leaves such a word queued
+  (`needsChoice`). Without Claude a word in Latin letters for such a language is refused on its row,
+  saying why, except Japanese, where romaji turns into kana as it's typed (`asTyped`).
+- **Don't know the word?** (Quick add, with Claude): a meaning typed in English is sent to
+  `POST /api/word-lookup` (`word_lookup.py`, Haiku, one call per lookup, its cost kept as `word_lookup`),
+  and a word picked from what comes back is queued like a typed one. **Say it**: the field's microphone,
+  when Settings, Speaking is on, puts what was heard in the field, through the same recognizer as
+  Answer by speaking (`useSpokenAnswer`).
 
 ## Suggested words
 
@@ -2027,6 +2089,9 @@ suggest words to add, so the deck keeps going without the owner having to think 
   then one call asks for 40, told the words to avoid (kept and dismissed ones). The x teaches it: a
   dismissed word is never suggested again and is listed as one to avoid. A call that fails is said on
   the screen (`written_error`), not dropped. Its cost is kept in `call_costs` (feature "rare_words").
+  The prompt asks for words writers use for their precision (apodictic, epigone) and rules out the
+  cute ones from "beautiful words" lists (widdershins, sesquipedalian), words more mentioned than used
+  (21 November 2026, the owner). This is only the prompt: words already kept stay until shown or dismissed.
   The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
   of the deck has (`entryKeys`, an entry with or without its article) and words held for Claude.
 - **The screen** groups the words by source, each with its meaning when one is known (a text's gloss,

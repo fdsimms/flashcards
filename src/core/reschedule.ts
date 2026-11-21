@@ -20,6 +20,13 @@ export interface DueDateSpec {
 }
 
 /** Undefined when the text isn't one Anki would take. */
+/** What Undo says Set Due Date did: "Set this card due today", "...due in 3 days", "...due in 3-7 days". */
+export function dueDateLabel(spec: DueDateSpec): string {
+  if (spec.max === 0) return 'Set this card due today';
+  if (spec.min === spec.max) return spec.min === 1 ? 'Set this card due tomorrow' : `Set this card due in ${spec.min} days`;
+  return `Set this card due in ${spec.min}-${spec.max} days`;
+}
+
 export function parseDueDate(text: string): DueDateSpec | undefined {
   const m = /^(\d+)(?:-(\d+))?(!)?$/.exec(text.trim());
   if (!m) return undefined;

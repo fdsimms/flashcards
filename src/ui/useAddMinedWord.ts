@@ -85,7 +85,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
       try {
         const added = await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
         haptic.success();
-        if (added === 'held') Alert.alert(`Added ${word}`, `${connection.offline() ? "You're offline, so it goes to Claude when you're back online" : "Your server isn't answering, so it goes to Claude once it does"}. Then it will be ready to review on Today.`);
+        if (added === 'held') Alert.alert(`Added ${word}`, `${connection.offline() ? "You're offline. Claude fills it in when you're back online" : "Couldn't reach your server. Claude fills it in once the server answers"}. Then it'll be ready to review on Today.`);
         else Alert.alert(`Added ${word} to your queue`, "Claude is writing an example sentence and translation. In a few minutes it will be ready to review on Today.");
         return true;
       } catch {

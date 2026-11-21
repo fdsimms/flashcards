@@ -1,18 +1,30 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { quickAddDecks } from '../reader/noteQueue';
+import { talkOf, themeDeckWords } from '../core/cramThemes';
 import { useApp } from '../ui/AppContext';
 import { CramThemes } from '../ui/cram/CramThemes';
-import { Loading, Screen } from '../ui/kit';
+import { applyThemes, capCramCards, cramsNow } from '../ui/useCrams';
 
-/** Theme ideas for a cram (Practice, Cram): themes to talk about at a lesson, written by Read & Listen's server. */
+/** Talking points for the cram named by `id` (its page's Talking points): angles on what it's for, written by Read & Listen's server. Checked themes are kept together with Use themes. */
 export default function CramThemesRoute() {
   const router = useRouter();
-  const { reader, decks, repo } = useApp();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { reader, repo } = useApp();
   if (!reader.api) return <Redirect href="/read-settings" />;
-  // Read & Listen's settings are still loading.
-  if (!reader.settings) return <Screen title="Theme ideas" largeTitle={false}><Loading /></Screen>;
-  const languages = quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), reader.settings.language).map((d) => d.language);
-  if (!languages.length) return <Redirect href="/read-settings" />;
-  return <CramThemes repo={repo} api={reader.api} languages={languages} onOpen={(index) => router.push({ pathname: '/cram-theme', params: { index: String(index) } })} />;
+  return (
+    <CramThemes
+      repo={repo}
+      api={reader.api}
+      cramId={id}
+      onOpen={(index) => router.push({ pathname: '/cram-theme', params: { id, index: String(index) } })}
+      onUse={async (themes, words) => {
+        const now = cramsNow().find((x) => x.id === id);
+        if (!now) return;
+        const noteIds = [...new Set(themes.flatMap((t) => themeDeckWords(t, words).map((w) => w.noteId)))];
+        await applyThemes(repo, now, themes.map(talkOf), noteIds);
+        capCramCards(repo).catch(() => undefined);
+        router.dismissTo({ pathname: '/cram', params: { id } });
+      }}
+    />
+  );
 }

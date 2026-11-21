@@ -19,7 +19,7 @@ const REQUIRED = ['notes', 'cards', 'reviews'] as const;
  * made before it existed) is emptied rather than kept: a restore puts back the backup's state,
  * not a mix of it and what was here.
  */
-export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params', 'note_types', 'deck_settings', 'form_practice', 'grammar_answers', 'confused_pairs', 'crams'] as const;
+export const RESTORED_TABLES = ['notes', 'cards', 'reviews', 'deck_params', 'note_types', 'deck_settings', 'form_practice', 'grammar_answers', 'confused_pairs', 'crams', 'anki_owed'] as const;
 
 export interface TableRestore {
   table: string;
@@ -68,7 +68,7 @@ export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: b
   if (!lastBackupAt) return { text: 'Not backed up yet', overdue: true };
   // By study day, not by 24 hours: one made at 11 PM was yesterday's by the next morning.
   const days = daysBetween(studyDayKey(new Date(lastBackupAt), dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
-  const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Last backed up yesterday' : `Last backed up ${days} days ago`;
+  const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Backed up yesterday' : `Backed up ${days} days ago`;
   return { text, overdue: days >= BACKUP_REMINDER_DAYS };
 }
 
@@ -86,9 +86,9 @@ export function backupCardText(info: BackupInfo | null, now: Date, dayStartsAtHo
   if (!info) return { title: 'Not backed up yet', overdue: true };
   const at = new Date(info.at);
   const days = daysBetween(studyDayKey(at, dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
-  const title = days <= 0 ? `Last backup made today, ${clock(at)}`
-    : days === 1 ? `Last backup made yesterday, ${clock(at)}`
-    : `Last backup made ${days} days ago`;
+  const title = days <= 0 ? `Backed up today, ${clock(at)}`
+    : days === 1 ? `Backed up yesterday, ${clock(at)}`
+    : `Backed up ${days} days ago`;
   const held = [info.cards === null ? '' : plural(info.cards, 'card', 'cards'), info.media ? plural(info.media, 'image or sound', 'images and sounds') : ''].filter(Boolean).join(', ');
   const detail = days >= 2 ? [at.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), held].filter(Boolean).join(', ') : held;
   return { title, detail: detail || undefined, overdue: days >= BACKUP_REMINDER_DAYS };

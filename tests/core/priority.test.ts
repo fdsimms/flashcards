@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boostCap, boostFor, noteHasAnyTag, noteHasTag, parsePriorityNumber, planPriorityStamps, priorityMatchCount, prioritySettings, suggestTags, tagCounts } from '../../src/core/priority';
+import { boostCap, boostFor, SKILL_WORDS_PERCENT, noteHasAnyTag, noteHasTag, parsePriorityNumber, planPriorityStamps, priorityMatchCount, prioritySettings, suggestTags, tagCounts } from '../../src/core/priority';
 import type { DeckSettings, Note } from '../../src/core/types';
 
 const note = (id: string, deck: string, tags: string[]): Note => ({ id, deck, model: 'Basic', fields: {}, tags });
@@ -109,8 +109,34 @@ describe('planPriorityStamps', () => {
 
 describe('parsePriorityNumber', () => {
   it('accepts whole numbers in range and says what to fix otherwise', () => {
-    expect(parsePriorityNumber(' 14 ', 1, 365, 'Days')).toEqual({ value: 14 });
-    expect(parsePriorityNumber('0', 1, 365, 'Days')).toEqual({ error: 'Days must be from 1 to 365.' });
-    expect(parsePriorityNumber('1.5', 1, 365, 'Days')).toHaveProperty('error');
+    expect(parsePriorityNumber(' 14 ', 1, 365)).toEqual({ value: 14 });
+    expect(parsePriorityNumber('0', 1, 365)).toEqual({ error: 'Enter a whole number from 1 to 365.' });
+    expect(parsePriorityNumber('1.5', 1, 365)).toHaveProperty('error');
+  });
+});
+
+describe('the words a skill needs', () => {
+  const notes = [note('w1', 'Thai::Skills', ['skill::words']), note('w2', 'Thai::Skills', ['skill::words']), note('c1', 'Thai::Skills', ['skill']), note('x', 'Thai', []), note('p', 'Polski::Skills', ['skill::words'])];
+
+  it('come first with no setting on, a quarter of the room and never the skill cards themselves', () => {
+    const boost = boostFor({ notes, settings: new Map(), now: NOW })('Thai')!;
+    expect([...boost.noteIds].sort()).toEqual(['w1', 'w2']);
+    expect(boost.percent).toBe(SKILL_WORDS_PERCENT);
+    expect(SKILL_WORDS_PERCENT).toBe(25);
+    expect(boostCap(boost.percent, 20)).toBe(5);
+    expect(boostCap(boost.percent, 1)).toBe(1);
+  });
+
+  it('stay inside the deck being studied, and give nothing where there are none', () => {
+    expect([...boostFor({ notes, settings: new Map(), now: NOW })('Polski')!.noteIds]).toEqual(['p']);
+    expect(boostFor({ notes: [notes[3]], settings: new Map(), now: NOW })('Thai')).toBeUndefined();
+  });
+
+  it('share one boost with the deck\'s own tagged cards, the larger share winning', () => {
+    const tagged = [...notes, note('t', 'Thai', ['italki'])];
+    const boost = boostFor({ notes: tagged, settings: new Map([['Thai', on({ priorityPercent: 60 })]]), now: NOW })('Thai')!;
+    expect([...boost.noteIds].sort()).toEqual(['t', 'w1', 'w2']);
+    expect(boost.percent).toBe(60);
+    expect(boostFor({ notes: tagged, settings: new Map([['Thai', on({ priorityPercent: 10 })]]), now: NOW })('Thai')!.percent).toBe(25);
   });
 });

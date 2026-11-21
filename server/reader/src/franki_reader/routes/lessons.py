@@ -21,6 +21,7 @@ from franki_reader.languages import (
     Code,
 )
 from franki_reader.lesson_audio import LessonAudioFailed
+from franki_reader.register import Register
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 from franki_reader.routes.views import instant
 
@@ -42,6 +43,9 @@ class LessonIn(BaseModel):
     # decides the voice they repeat after, who speaks as A in the role-play, and the particle every
     # phrase carries. Left out, khrap; any other language ignores it.
     particle: Literal["khrap", "kha"] | None = None
+    # How casual or formal the lesson sounds; the Settings default when left out.
+    # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
+    register_level: Register | None = Field(default=None, alias="register")
     # The learner's own words and phrases to teach, each with its meaning (a cram's, in the app),
     # rather than phrases Claude picks for the scene. The scene is then the situation they're for.
     phrases: list[GivenIn] | None = Field(default=None, max_length=lesson.MAX_GIVEN)
@@ -170,6 +174,7 @@ def router(ctx: AppContext) -> APIRouter:
             narrator=narrator,
             lexicon=engine.snapshot(body.language)[1],
             learner="female" if body.language == "th" and body.particle == "kha" else "male",
+            register=body.register_level or store.load_settings(engine.conn).register,
             given=given,
             write_given=write_given_lesson,
         )
@@ -228,7 +233,14 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return {
             "candidates": [
-                {"text": c.text, "reading": c.reading, "english": c.english} for c in candidates
+                {
+                    "text": c.text,
+                    "reading": c.reading,
+                    "english": c.english,
+                    "commonness": c.commonness,
+                    "register": c.register,
+                }
+                for c in candidates
             ]
         }
 
@@ -268,6 +280,14 @@ def router(ctx: AppContext) -> APIRouter:
         if not store.add_lesson_mark(
             engine.conn, lesson_id, body.text, body.english, body.reason, engine.clock()
         ):
+            raise HTTPException(404, "No such lesson.")
+        return Response(status_code=204)
+
+    @routes.post("/api/lessons/{lesson_id}/heard", status_code=204, dependencies=authed)
+    async def heard_route(lesson_id: int) -> Response:
+        """Notes that the lesson was played to the end, so a later lesson may ask for its phrases.
+        Never grades a card."""
+        if not store.mark_lesson_heard(engine.conn, lesson_id, engine.clock()):
             raise HTTPException(404, "No such lesson.")
         return Response(status_code=204)
 

@@ -11,6 +11,7 @@ import { normalizeEndpoint, SyncClient, type HttpPost } from './sync/client';
 import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection, type SqlValue } from './sync/collectionSync';
 import { syncMedia } from './sync/mediaSync';
 import { SyncError } from './sync/protocol';
+import { collectionChanged } from '../core/collectionChanged';
 import { reviewWrites } from '../core/writeQueue';
 import { isRetryable, runSync, syncErrorText, type FullSyncQuestion, type SyncReport } from './sync/runSync';
 import { adoptDownloadedCollection, refreshFromKeptCollection } from './transfer';
@@ -165,7 +166,7 @@ async function syncOnce(
   await reviewWrites.idle();
   const settings = await repo.syncSettings();
   const key = await SecureStore.getItemAsync(HOST_KEY);
-  if (!settings.enabled || !key) throw new SyncError('auth', 'Sync is not set up.');
+  if (!settings.enabled || !key) throw new SyncError('signedOut', 'Sync is not set up.');
   const client = new SyncClient(settings.server, key, expoPost);
   try {
     const report = await runSync({
@@ -178,6 +179,7 @@ async function syncOnce(
       download: async () => {
         const file = await receiveCollection(client);
         await adoptDownloadedCollection(repo, file);
+        collectionChanged.bump();
       },
       upload: async () => {
         // Readied on a copy, and the kept collection only once the server has taken it: readying
@@ -188,7 +190,11 @@ async function syncOnce(
         await uploadCollection(client, new Uint8Array(await copy.arrayBuffer()));
         await repo.withSyncConnection((db) => prepareForUpload(db, () => at));
       },
-      refresh: () => refreshFromKeptCollection(repo),
+      // Review, if it's open, loads its cards again (collectionChanged.ts).
+      refresh: async () => {
+        await refreshFromKeptCollection(repo);
+        collectionChanged.bump();
+      },
       syncMedia: (usn) => syncMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia, read: readMedia }, usn),
       choose,
     });

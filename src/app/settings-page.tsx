@@ -1,5 +1,6 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
+import { dailyTasksSummary } from '../reader/dailyTasks';
 import { settingsPage } from '../core/settingsPages';
 import { useApp } from '../ui/AppContext';
 import { LessonSettingsRows } from '../ui/reader/LessonSettingsRows';
@@ -22,6 +23,7 @@ export default function SettingsPageRoute() {
       page={info.id}
       repo={repo}
       readerOn={!!reader.api}
+      dailySummary={dailyTasksSummary(reader.settings)}
       lessonRows={(
         <LessonSettingsRows
           readerOn={!!reader.api}

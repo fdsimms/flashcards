@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, createApi, type ReadingLog, type Settings, type Shelf } from '../../src/reader/api';
 import { EMPTY_INDEX, type DownloadIndex, type HeldReaderAction } from '../../src/reader/downloads';
-import { wholeText, withOffline } from '../../src/reader/offlineApi';
+import { wholeText, listenKey, withOffline } from '../../src/reader/offlineApi';
 import { card, readerText, saved } from '../support/reader';
 
 const LOG = { finished: true, words_glossed: [], words_flagged: [], audio_speed: null, listen_only: false, seconds: 60 } as ReadingLog;
@@ -121,6 +121,45 @@ describe('withOffline: what is sent', () => {
     await api.chooseNext(2, 1);
     expect(held).toEqual([]);
     expect(calls).toEqual(['POST /api/texts/2/choice']);
+  });
+});
+
+describe('withOffline: a lesson heard', () => {
+  it('is sent when the server answers, and held when it cannot be reached or the request is lost', async () => {
+    const on = setup();
+    await on.api.lessonHeard(7);
+    expect(on.calls).toEqual(['POST /api/lessons/7/heard']);
+    expect(on.held).toEqual([]);
+
+    const off = setup({ unreachable: true });
+    await off.api.lessonHeard(7);
+    expect(off.held).toEqual([{ kind: 'lessonHeard', lessonId: 7 }]);
+    expect(off.calls).toEqual([]);
+
+    const down = setup({ server: 'down' });
+    await down.api.lessonHeard(7);
+    expect(down.held).toEqual([{ kind: 'lessonHeard', lessonId: 7 }]);
+  });
+
+  it("doesn't hold a text's reading back", async () => {
+    const { api, calls } = setup({ held: [{ kind: 'lessonHeard', lessonId: 2 }] });
+    await api.logListen(2, 'k');
+    expect(calls).toEqual(['POST /api/texts/2/listen']);
+  });
+});
+
+describe('withOffline: a listen', () => {
+  it('is held with an id of its own, and sent with that id', async () => {
+    const off = setup({ unreachable: true });
+    await off.api.logListen(4);
+    const [action] = off.held;
+    expect(action).toMatchObject({ kind: 'listen', textId: 4 });
+    expect((action as { key?: string }).key).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+
+    const on = setup();
+    await on.api.logListen(4, 'm1x-abc');
+    expect(on.calls).toEqual(['POST /api/texts/4/listen']);
+    expect(listenKey(1_700_000_000_000, () => 0.5)).not.toBe(listenKey(1_700_000_000_001, () => 0.5));
   });
 });
 

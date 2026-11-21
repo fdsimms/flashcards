@@ -37,14 +37,16 @@ const EXEMPT: Record<string, string[]> = {
     'src/ui/Voices.tsx', 'src/ui/tools/GrammarDrill.tsx', 'src/ui/tools/ToolScreen.tsx', 'src/ui/tools/index.tsx',
     'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts',
   ],
-  // A cram's page and its Listen row (src/core/cram.ts) use Read & Listen for a text and an audio
-  // lesson from the cram's words, and import only the NoteStore type; the cram's tag is written by
-  // useCrams.ts, which nothing in src/reader imports. The theme ideas (CramThemes, CramThemeDetail)
-  // ask Read & Listen for themes to talk about and import only the NoteStore and Repo types, the
-  // second for the phone's voice; CramTalk reads a theme's questions aloud the same way. A word to
-  // learn goes to the note queue, where saving the note in the editor is the approval.
+  // A cram's Listen row and its Add (src/core/cram.ts) use Read & Listen for an audio lesson from the
+  // cram's words and to find a word to make a card for (CramMakeCards for every word jotted down in
+  // the lesson at once), and import only the NoteStore type; the
+  // cram's tag is written by useCrams.ts, which nothing in src/reader imports. The talking points
+  // (CramThemes, CramThemeDetail) ask Read & Listen for themes to talk about and import only the
+  // NoteStore and Repo types, the second for the phone's voice; CramTalk reads a theme's questions
+  // aloud the same way. A word to learn goes to the note queue, where saving the note in the editor
+  // (or Approve all, after its alert) is the approval.
   'a cram, which imports only the NoteStore and Repo types': [
-    'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramPage.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx',
+    'src/ui/cram/CramLesson.tsx', 'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramMakeCards.tsx', 'src/ui/cram/CramQuestions.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx', 'src/ui/cram/CramWords.tsx',
   ],
   // The lesson word picker lists the decks' notes to choose a lesson's words from, and imports only the NoteStore type; it reads, and writes nothing.
   'the audio lesson word picker, which imports only the NoteStore type': ['src/ui/reader/LessonWordPicker.tsx'],
@@ -55,6 +57,11 @@ const EXEMPT: Record<string, string[]> = {
   // the alert that names how many; the screen itself imports no writer, and an Approve all never runs
   // without that alert.
   'approved by an alert': ['src/ui/useAddMinedWord.ts', 'src/ui/useApproveQueued.ts'],
+  // The review screen's "not this word" box (src/core/senseContrast.ts). It reads Read & Listen's
+  // language decks and note queue to say where Add sends a word and whether one is already waiting,
+  // and Add itself goes through useAddMinedWord. The one thing it saves is the card's own note with
+  // a word taken out of SenseContrast, on the x's tap, with Undo. It never answers or adds a card.
+  'the review screen\'s box of words a Sense rules out': ['src/ui/useSenseContrast.ts'],
 };
 const ALL_EXEMPT = Object.values(EXEMPT).flat();
 

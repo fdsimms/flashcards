@@ -273,6 +273,21 @@ export function wrongSoFar(s: Session, assignmentId: number): number {
   return p ? p.wrongMeaning + p.wrongReading : 0;
 }
 
+/**
+ * The reviews answered wrong at least once this session, for the end screen: items finished first
+ * (in the order they were), then any left unfinished. A lesson quiz's miss only asks again, so
+ * lessons are left out. An Again on a question asking both counts as a wrong meaning.
+ */
+export function missedItems(s: Session): { assignmentId: number; subjectId: number; wrongMeaning: number; wrongReading: number }[] {
+  const ids = [...s.finished, ...Object.keys(s.items).map(Number).filter((id) => !s.finished.includes(id))];
+  return ids.flatMap((id) => {
+    const item = s.items[id];
+    const p = s.progress[id];
+    if (!item || item.lesson || !p || p.wrongMeaning + p.wrongReading === 0) return [];
+    return [{ assignmentId: id, subjectId: item.subjectId, wrongMeaning: p.wrongMeaning, wrongReading: p.wrongReading }];
+  });
+}
+
 /** Reviews and lessons not finished yet: the session's own due and new counts. */
 export function remaining(s: Session): { reviews: number; lessons: number } {
   let reviews = 0;
@@ -286,10 +301,22 @@ export function remaining(s: Session): { reviews: number; lessons: number } {
   return { reviews, lessons };
 }
 
-/** How far through: items finished over all items. */
+/**
+ * How far through: questions answered right over questions needed. An item needs a meaning and,
+ * unless it has no reading (a radical, a kana-only word), a reading, so the bar moves on each
+ * right answer instead of only when an item's second half lands. A miss moves nothing. The "N
+ * remaining" label stays in items, as WaniKani counts them.
+ */
 export function sessionProgress(s: Session): number {
-  const total = Object.keys(s.items).length;
-  return total ? s.finished.length / total : 0;
+  let needed = 0;
+  let done = 0;
+  for (const id of Object.keys(s.items)) {
+    const item = s.items[Number(id)];
+    const p = s.progress[item.assignmentId];
+    needed += item.asksReading ? 2 : 1;
+    done += (p.meaning ? 1 : 0) + (item.asksReading && p.reading ? 1 : 0);
+  }
+  return needed ? done / needed : 0;
 }
 
 /** A session with what's held back for undo (see the top of this file). */
@@ -319,6 +346,28 @@ export function studyAnswer(study: Study, correct: boolean, at: Date, random: ()
   const history = study.held ? [study.session] : [...study.history, study.session];
   const { session, outcome } = answerQuestion(study.session, correct, at, random);
   return { study: { ...study, session, held: outcome ?? null, history }, send };
+}
+
+/**
+ * Whether the item of the current question has its other question (`credit`) still waiting, as a
+ * separate question further back in the queue.
+ */
+export function canCredit(s: Session, credit: 'meaning' | 'reading'): boolean {
+  const q = s.queue[0];
+  return !!q && q.kind !== 'lesson' && q.kind !== 'both' && q.kind !== credit && s.queue.some((x, i) => i > 0 && x.assignmentId === q.assignmentId && x.kind === credit);
+}
+
+/**
+ * Counts the item's other question as answered right, for a learner who typed its answer into this
+ * question's box. The current question stays up. It isn't an answer, so nothing is sent or kept for undo.
+ */
+export function studyCredit(study: Study, credit: 'meaning' | 'reading'): Study {
+  const s = study.session;
+  if (!canCredit(s, credit)) return study;
+  const id = s.queue[0].assignmentId;
+  const at = s.queue.findIndex((x, i) => i > 0 && x.assignmentId === id && x.kind === credit);
+  const queue = s.queue.filter((_, i) => i !== at);
+  return { ...study, session: { ...s, queue, progress: { ...s.progress, [id]: { ...s.progress[id], [credit]: true } } } };
 }
 
 /**

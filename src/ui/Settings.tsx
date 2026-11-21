@@ -74,7 +74,7 @@ export function Settings({ repo, backupText, wanikaniOn, onAnki, onBackup, onWan
             <SectionTitle>Everywhere</SectionTitle>
             <Group>
               <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(shownFont).label} onPress={onFont} />
-              <NavRow label="Voices" detail="The voices each language is recorded and read aloud with" onPress={onVoices} />
+              <NavRow label="Voices" detail="Which voice reads and records each language" onPress={onVoices} />
               <NavRow label="Speaking" loading={speaking === undefined} detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
             </Group>
           </>

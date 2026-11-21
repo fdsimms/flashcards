@@ -3,6 +3,7 @@ import React from 'react';
 import { useApp } from '../../ui/AppContext';
 import { ReaderMiniPlayer } from '../../ui/reader/ReaderMiniPlayer';
 import { useAudioQueue } from '../../ui/useAudioQueue';
+import { useHomeShortcuts } from '../../ui/useHomeShortcuts';
 
 /**
  * The bottom tab bar: Today (the first screen: only what's for today), Decks (every deck), Read &
@@ -12,6 +13,8 @@ import { useAudioQueue } from '../../ui/useAudioQueue';
  */
 export default function TabsLayout() {
   const { reader } = useApp();
+  // Long-press Franki's icon: Add words (Quick add).
+  useHomeShortcuts();
   // Up Next has something playing or waiting to (useAudioQueue).
   const playing = useAudioQueue().queue.now !== null;
   return (

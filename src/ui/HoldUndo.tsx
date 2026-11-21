@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
-import type { Card } from '../core/types';
 import { Icon, Tappable } from './kit';
 import { useReduceMotion } from './motion';
 import { lift, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * After Review's menu buries or suspends cards, the card moves on and a strip floats over the next
- * one for a few seconds with Undo, so a wrong tap doesn't mean opening the note editor. Undo puts the
- * cards' suspended and buried state back (Review's `undoHold`); it never touches a schedule.
+ * one for a few seconds with Undo, so a wrong tap doesn't mean opening the note editor. Set Due Date
+ * and Forget show it too. Undo takes the action back (Review's `undoAction`), which the header's Undo
+ * also does once the strip has gone.
  */
 
 const OFFER_MS = 5000;
@@ -18,8 +18,6 @@ export interface HoldOffer {
   id: number;
   /** What was done, as the strip says it ("Buried this note until tomorrow"). */
   label: string;
-  /** The cards as they were before, so Undo can restore their state. */
-  before: Card[];
 }
 
 /** The strip's state and its own timeout. `show(null)` takes it away. */

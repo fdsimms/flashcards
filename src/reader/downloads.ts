@@ -205,11 +205,12 @@ export type HeldReaderAction =
   | { kind: 'language'; language: Language }
   | { kind: 'choice'; textId: number; choice: number }
   | { kind: 'reading'; textId: number; log: ReadingLog }
-  | { kind: 'listen'; textId: number };
+  | { kind: 'listen'; textId: number; key?: string }
+  | { kind: 'lessonHeard'; lessonId: number };
 
 export function parseHeldReader(raw: unknown): HeldReaderAction[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((a): a is HeldReaderAction => (a?.kind === 'language' && typeof a.language === 'string') || (typeof a?.textId === 'number'
+  return raw.filter((a): a is HeldReaderAction => (a?.kind === 'language' && typeof a.language === 'string') || (a?.kind === 'lessonHeard' && typeof a.lessonId === 'number') || (typeof a?.textId === 'number'
     && ((a.kind === 'choice' && typeof a.choice === 'number') || (a.kind === 'reading' && a.log && typeof a.log === 'object') || a.kind === 'listen')));
 }
 

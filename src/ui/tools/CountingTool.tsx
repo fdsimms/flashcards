@@ -73,7 +73,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question), (q) => counting.patterns(q.noun, q.n));
+    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question), (q) => counting.patterns(q.noun, q.n), countKey);
     // A missed question comes back only in the same language and range.
     setHeld({ language, question: retries.next(`${language}|${m}`, question && countKey(question), draw) });
   };

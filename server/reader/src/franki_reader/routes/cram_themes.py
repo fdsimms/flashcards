@@ -1,11 +1,14 @@
 """Themes to talk about for a cram (cram_themes.py)."""
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from franki_reader import cram_themes, store, word_suggestions
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
+from franki_reader.register import Register
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 
 
@@ -27,6 +30,14 @@ class ThemesIn(BaseModel):
     avoid: list[str] = Field(default_factory=list, max_length=cram_themes.MAX_AVOID)
     # Questions and a story a little above the learner's level.
     stretch: bool = False
+    # What the lesson is for, as the learner named the cram: every theme is an angle on it.
+    topic: str = Field(default="", max_length=cram_themes.MAX_TITLE * 2)
+    # How casual or formal the questions and the story sound; the Settings default when left out.
+    # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
+    register_level: Register | None = Field(default=None, alias="register")
+    # Thai only: the learner's polite ending, khrap (a man's) or kha (a woman's), the same choice
+    # audio lessons use. The story is the learner's own words, so it is written for their gender.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 class LineOut(BaseModel):
@@ -93,6 +104,9 @@ def router(ctx: AppContext) -> APIRouter:
             ),
             avoid=tuple(" ".join(a.split())[: cram_themes.MAX_TITLE * 2] for a in body.avoid),
             stretch=body.stretch,
+            topic=" ".join(body.topic.split()),
+            register=body.register_level or store.load_settings(engine.conn).register,
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
         )
         try:
             raw, used = await write_cram_themes(body.language, seeds)

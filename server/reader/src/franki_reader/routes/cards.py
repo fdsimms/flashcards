@@ -11,15 +11,17 @@ from franki_reader import (
     aspect,
     conjugation,
     fix_card,
+    meanings,
     store,
 )
+from franki_reader.coverage import Checker
 from franki_reader.ipa import ipa_of_entry
 from franki_reader.languages import Code
 from franki_reader.mnemonics import (
     MnemonicRequest,
     MnemonicsFailed,
 )
-from franki_reader.reader import render_sentence
+from franki_reader.reader import compound_parts, render_parts, render_sentence
 from franki_reader.routes.context import AppContext
 
 MAX_GLOSS_SENTENCES = 1000  # example sentences one /api/glosses call can ask about
@@ -61,11 +63,21 @@ class GlossSentence(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
     # The sentence's translation, which tells Claude which sense a word has.
     english: str = Field(default="", max_length=1000)
+    # A card's headword, to come back split into the words it is made of (Thai compounds) instead of
+    # segmented as a sentence is, which keeps a compound whole because it is a word.
+    parts: bool = False
 
 
 class GlossesIn(BaseModel):
     language: Code
     sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
+
+
+class WordMeaningIn(BaseModel):
+    language: Code
+    word: str = Field(min_length=1, max_length=80)
+    # The English of the line the word was tapped in, which tells Claude which sense is meant.
+    english: str = Field(default="", max_length=1000)
 
 
 class CardTurnIn(BaseModel):
@@ -98,6 +110,21 @@ class AspectIn(BaseModel):
     word: str = Field(min_length=1, max_length=80)
     # The sentence it was read in, so a homograph can be told apart; optional.
     line: str = Field(default="", max_length=400)
+
+
+def with_own(
+    known: dict[str, str],
+    item: Any,
+    own: dict[str, dict[str, str]],
+    lexicon: Checker,
+) -> dict[str, str]:
+    """`known` with the meanings the sentence (or, for a headword's parts, each part) was asked for
+    on top, empty ones left out so they fall back to `known`'s."""
+    pieces = (compound_parts(item.text, lexicon) or []) if item.parts else [item.text]
+    return {
+        **known,
+        **{w: m for piece in pieces for w, m in own.get(piece, {}).items() if m},
+    }
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -136,6 +163,26 @@ def router(ctx: AppContext) -> APIRouter:
             engine.conn, "mnemonics", body.language, engine.clock(), used.cost_usd()
         )
         return {"hints": hints}
+
+    @routes.post("/api/word-meaning", dependencies=authed)
+    async def word_meaning(body: WordMeaningIn) -> dict[str, str | None]:
+        """The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else
+        Claude's, asked now. Never writes to Anki or grades a card."""
+        try:
+            meaning = await engine.define_word(
+                body.language, body.word.strip(), body.english.strip()
+            )
+        except meanings.MeaningsUnavailable as e:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't look up a meaning"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            ) from e
+        except meanings.MeaningsFailed as e:
+            # What a paid failure cost is already kept by `fill_words`. Not 502, which the app
+            # reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        return {"meaning": meaning}
 
     @routes.post("/api/ask-card", dependencies=authed)
     async def ask_card_route(body: AskCardIn) -> dict[str, str]:
@@ -233,7 +280,13 @@ def router(ctx: AppContext) -> APIRouter:
         """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
         language = body.language
         entries, lexicon = engine.snapshot(language)
-        sentences = [(s.text, s.english) for s in body.sentences]
+        # A headword's parts are asked about one by one, as the words of a sentence are: with the
+        # headword's meaning as the English, which tells Claude what ความ does in ความคิด.
+        sentences = [
+            (piece, s.english)
+            for s in body.sentences
+            for piece in ((compound_parts(s.text, lexicon) or []) if s.parts else [s.text])
+        ]
 
         async def after() -> None:
             await engine.refresh_lexicon(language)
@@ -243,12 +296,19 @@ def router(ctx: AppContext) -> APIRouter:
         if not entries:
             return {"ready": False, "sentences": []}
         known = engine.meanings(language)
+        # What each sentence was asked about for itself wins over the language's first-kept meaning.
+        own = store.sentence_meanings(engine.conn, language, [piece for piece, _ in sentences])
         translits = {e.text: e.translit for e in entries if e.translit}
+        ai_ipa = engine.ai_ipa(language)
         return {
             "ready": True,
             "sentences": [
-                render_sentence(text, lexicon, known, translits, engine.ai_ipa(language))
-                for text, _ in sentences
+                render_parts(s.text, lexicon, with_own(known, s, own, lexicon), translits, ai_ipa)
+                if s.parts
+                else render_sentence(
+                    s.text, lexicon, with_own(known, s, own, lexicon), translits, ai_ipa
+                )
+                for s in body.sentences
             ],
         }
 

@@ -46,6 +46,15 @@ export async function sendHeld<T>(
   return { left: [], refused };
 }
 
+/**
+ * A held list after `tried` was sent and `left` of it wasn't: what was sent or refused comes off,
+ * and everything else stays where it is, items held while it ran included. The order is the
+ * list's own, never `left` moved to the end: a story choice has to go before the reading held after it.
+ */
+export function afterSend<T>(list: readonly T[], tried: readonly T[], left: readonly T[]): T[] {
+  return list.filter((x) => !tried.includes(x) || left.includes(x));
+}
+
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** What the Offline sheet lists as waiting for the connection, one line each, leaving out what has none. */

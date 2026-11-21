@@ -2,28 +2,28 @@ import { Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { dayName, isAwaitingFinish, isRunning, roundStatus, type Cram } from '../../core/cram';
+import { cramNotes, dayName, isAwaitingFinish, isRunning, practiceSummary, type Cram } from '../../core/cram';
 import { haptic } from '../haptics';
-import { Button, Group, Help, NavRow, Screen, SectionTitle } from '../kit';
+import { Group, Help, NavRow, Screen, SectionTitle } from '../kit';
 import { readable, space, useTheme } from '../theme';
-import { useCramClock, useCrams } from '../useCrams';
+import { useCollection, useCramClock, useCrams } from '../useCrams';
 
 /**
  * Practice, Cram: every cram, the ones coming up first, then those finished. The + button starts
- * one. With none yet, says what a cram is for. Plan the next lesson (Read & Listen on, a cram finished)
- * asks for theme ideas.
+ * one. With none yet, says what a cram is for.
  */
-export function CramList({ repo, onPlan }: { repo: NoteStore; onPlan?: () => void }) {
+export function CramList({ repo }: { repo: NoteStore }) {
   const c = useTheme();
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
   const { now, dayStartsAtHour: H } = useCramClock(repo);
+  const collection = useCollection(repo);
   const current = crams.filter((x) => !x.finishedAt).sort((a, b) => a.date.localeCompare(b.date));
   const past = crams.filter((x) => x.finishedAt).sort((a, b) => b.date.localeCompare(a.date));
   const open = (cram: Cram) => { haptic.tap(); router.push({ pathname: '/cram', params: { id: cram.id } }); };
   const detail = (cram: Cram) => {
     if (isAwaitingFinish(cram, now, H)) return 'Over. Check off the words you used.';
-    if (isRunning(cram, now, H)) return `${dayName(cram, now, H)}. ${roundStatus(cram, now, H).text}`;
+    if (isRunning(cram, now, H) && collection.loaded) return `${dayName(cram, now, H)}. ${practiceSummary(cram, cramNotes(cram, collection.notes).map((n) => n.id))}`;
     return dayName(cram, now, H);
   };
   return (
@@ -38,14 +38,8 @@ export function CramList({ repo, onPlan }: { repo: NoteStore; onPlan?: () => voi
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {loaded && !crams.length ? (
           <Help>
-            A cram is a set of words to know by a day coming up, like a lesson with a tutor or a trip. Until that day, Franki offers short practice rounds on just those words, and their reviews are due no later than that day. Tap + to start one.
+            Get ready for a tutor lesson or a trip: collect the words, questions and things to talk about, and practice them before the day. The words come up for review by then too. Tap + to start one.
           </Help>
-        ) : null}
-        {onPlan && past.length ? (
-          <>
-            <Button label="Plan the next lesson" onPress={() => { haptic.tap(); onPlan(); }} />
-            <Help>Shows themes built around the words you didn't use and what you missed in rounds.</Help>
-          </>
         ) : null}
         {current.length ? (
           <Group>

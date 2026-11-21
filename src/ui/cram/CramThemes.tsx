@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind } from '../../core/cramThemes';
+import { cramLanguageOf, themeTopic } from '../../core/cram';
+import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind, type ThemeWord } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Api, CramTheme, Language } from '../../reader/api';
 import { flaggedName, LANGUAGES } from '../../reader/languages';
 import { keptLines } from '../../reader/corrections';
 import { loadKept } from '../../reader/correctionsStorage';
+import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Card, ErrorNote, Help, Icon, Loading, Screen, Segments, Select, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
 import { readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
@@ -47,57 +49,61 @@ export function themeChips(theme: CramTheme, words: Parameters<typeof themeCount
 }
 
 /**
- * Theme ideas for a cram: Claude writes a few themes to talk about at a lesson from the words you
- * have (the ones not used last time, missed, added lately), and what Practice has been missing.
- * Asked for when the screen opens, and again with Show different themes; a theme is opened to see its
- * words and questions, and picking one fills in a new cram. Nothing is added to the deck here.
+ * Talking points for a cram: Claude writes a few angles on what the cram is for (its name) from the
+ * words you have (the ones not used last time, missed, added lately), and what Practice has been
+ * missing. Asked for when the screen opens, and again with Show different themes; a theme is opened
+ * to see its words and questions, and Use theme there adds them to the cram. Several can be checked
+ * and added together with Use themes. Nothing is added to the deck here.
  */
-export function CramThemes({ repo, api, languages, onOpen }: {
+export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
   repo: NoteStore;
   api: Api;
-  /** The languages Read & Listen has decks for, the one being read first. */
-  languages: Language[];
+  cramId: string;
   onOpen: (index: number) => void;
+  /** Keeps the checked themes on the cram and adds their deck words; the screen says so if this throws. */
+  onUse: (themes: CramTheme[], words: ThemeWord[]) => Promise<void>;
 }) {
   const c = useTheme();
   const { suggested } = useThemeState();
   const { crams, loaded: cramsLoaded } = useCrams(repo);
   const collection = useCollection(repo);
-  const [language, setLanguage] = useState<Language>(suggested?.language ?? languages[0]);
-  const [stretch, setStretch] = useState(suggested?.stretch ?? false);
+  const cram = crams.find((x) => x.id === cramId);
+  const topic = cram ? themeTopic(cram) : '';
+  const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
+  const [stretch, setStretch] = useState(suggested?.cramId === cramId ? suggested.stretch : false);
   const [asking, setAsking] = useState(false);
   const [problem, setProblem] = useState<string>();
-  // What the answer is for: one that lands after the language changed belongs to nothing on screen.
-  const current = useRef(language);
-  current.current = language;
   const asked = useRef(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [using, setUsing] = useState(false);
 
   const words = useMemo(
-    () => (collection.loaded ? themeWords({ notes: collection.notes, cards: collection.cards, language, crams, now: new Date() }) : []),
+    () => (collection.loaded && language ? themeWords({ notes: collection.notes, cards: collection.cards, language, crams, now: new Date() }) : []),
     [collection.loaded, collection.notes, collection.cards, language, crams],
   );
-  const shown = suggested?.language === language ? suggested : undefined;
+  const shown = suggested?.cramId === cramId && suggested.language === language ? suggested : undefined;
 
   const ask = useCallback(async (more: boolean, wantStretch: boolean) => {
-    if (asking || !words.length) return;
+    if (asking || !words.length || !language) return;
     const forLanguage = language;
     setAsking(true);
     setProblem(undefined);
     try {
       const marks = await loadToolMarks();
       const kept = await loadKept();
+      const particle = await loadParticle();
       const weak = combineWeakSpots(weakSpots(marks, forLanguage, Date.now(), (id) => toolById(id)?.title), keptLines(kept, forLanguage, Date.now()));
       const already = more && shown ? shown.shown : [];
-      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(crams, already), wantStretch));
-      if (current.current !== forLanguage) return;
-      setThemeState({ suggested: { language: forLanguage, words, themes: answer.themes, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
+      // Not this cram's own name: every theme is an angle on it.
+      const others = crams.filter((x) => x.id !== cramId);
+      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register, particle));
+      setThemeState({ suggested: { cramId, language: forLanguage, words, themes: answer.themes, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
     } catch (e) {
-      if (current.current !== forLanguage) return;
       setProblem(failureText(e, { what: "Couldn't get theme ideas.", next: 'Try again.' }));
     } finally {
       setAsking(false);
     }
-  }, [api, asking, crams, language, shown, words]);
+  }, [api, asking, cramId, crams, language, shown, topic, words]);
 
   // Asked once on opening, when there's nothing for this language yet.
   useEffect(() => {
@@ -106,31 +112,48 @@ export function CramThemes({ repo, api, languages, onOpen }: {
     void ask(false, stretch);
   }, [collection.loaded, cramsLoaded, words.length, shown]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pickLanguage = (name: string) => {
-    const next = languages.find((l) => LANGUAGES[l].name === name);
-    if (!next || next === language) return;
-    setLanguage(next);
-    asked.current = false;
-    setProblem(undefined);
-  };
   const pickStretch = (on: boolean) => {
     setStretch(on);
     haptic.select();
     void ask(false, on);
   };
 
-  const noWords = collection.loaded && !words.length;
+  // Only themes still on screen count: asking for different ones replaces the list.
+  const chosen = shown ? shown.themes.filter((t) => picked.has(t.title)) : [];
+  const toggle = (title: string) => {
+    haptic.select();
+    setPicked((prev) => { const next = new Set(prev); if (!next.delete(title)) next.add(title); return next; });
+  };
+  const use = async () => {
+    if (!shown || !chosen.length || using) return;
+    haptic.tap();
+    setUsing(true);
+    try {
+      await onUse(chosen, shown.words);
+    } catch (e) {
+      Alert.alert("Couldn't use the themes", failureText(e, { next: 'Try again.' }));
+    } finally {
+      setUsing(false);
+    }
+  };
+
+  const noWords = collection.loaded && !!language && !words.length;
   return (
-    <Screen title="Theme ideas" largeTitle={false}>
+    <Screen
+      title="Talking points"
+      largeTitle={false}
+      footer={chosen.length ? <Button label={`Use ${chosen.length} ${plural(chosen.length, 'theme', 'themes')}`} busy={using} onPress={() => { void use(); }} /> : undefined}
+    >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-        {languages.length > 1 ? <Select label="Language" options={languages.map((l) => LANGUAGES[l].name)} value={LANGUAGES[language].name} onChange={pickLanguage} /> : null}
+        {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
+        {cram && language ? <Help>{topic ? `Ways to talk about "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. The cram is named after the one you pick.`}</Help> : null}
         <Segments<'comfortable' | 'stretch'>
           options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'stretch', label: 'Stretch' }]}
           value={stretch ? 'stretch' : 'comfortable'}
           onChange={(v) => pickStretch(v === 'stretch')}
         />
         {!collection.loaded || !cramsLoaded ? <Loading /> : null}
-        {noWords ? <Help>{`Needs ${LANGUAGES[language].name} words you've studied at least once.`}</Help> : null}
+        {noWords && language ? <Help>{`Needs ${LANGUAGES[language].name} words you've studied at least once.`}</Help> : null}
         {problem ? <ErrorNote message={problem} onRetry={() => { void ask(false, stretch); }} /> : null}
         {asking && !shown ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
@@ -140,8 +163,19 @@ export function CramThemes({ repo, api, languages, onOpen }: {
         ) : null}
         {shown?.themes.map((theme, i) => (
           <Tappable key={theme.title} onPress={() => { haptic.tap(); onOpen(i); }} accessibilityRole="button" accessibilityLabel={`Open ${theme.title}`} scaleTo={0.98}>
-            <Card>
-              <Text style={{ ...type.headline, color: c.text }}>{theme.title}</Text>
+            <Card style={picked.has(theme.title) ? { borderColor: c.accent, borderWidth: 2 } : undefined}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+                <Text style={{ ...type.headline, color: c.text, flex: 1 }}>{theme.title}</Text>
+                <Tappable
+                  onPress={() => toggle(theme.title)}
+                  hitSlop={space.s}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: picked.has(theme.title) }}
+                  accessibilityLabel={`Select ${theme.title}`}
+                >
+                  <Icon name={picked.has(theme.title) ? 'checkmark.circle.fill' : 'circle'} size={24} color={picked.has(theme.title) ? c.accent : c.textTertiary} />
+                </Tappable>
+              </View>
               {theme.why ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{theme.why}</Text> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s - 2 }}>
                 {themeChips(theme, shown.words).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}

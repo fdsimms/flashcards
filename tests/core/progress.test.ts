@@ -30,7 +30,7 @@ describe('isInProgress', () => {
 describe('parseGateCap', () => {
   it('takes a whole number from 1 to 5000 and says why anything else is refused', () => {
     expect(parseGateCap(' 120 ')).toEqual({ cap: 120 });
-    expect(parseGateCap('12.5')).toEqual({ error: 'Enter a whole number, e.g. 100.' });
+    expect(parseGateCap('12.5')).toEqual({ error: 'Enter a whole number from 1 to 5000.' });
     expect(parseGateCap('0')).toHaveProperty('error');
     expect(parseGateCap('9000')).toHaveProperty('error');
   });

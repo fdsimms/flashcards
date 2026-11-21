@@ -85,7 +85,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
     } catch (e) {
       if (!open.current) return;
       setPhase('form');
-      setError(failureText(e, { what: "Couldn't get a fix from Claude.", next: 'The card is flagged, so you can try again or ask Claude through the MCP.' }));
+      setError(failureText(e, { what: "Couldn't get a fix from Claude.", next: 'The card is still flagged. Try again, or ask Claude about it in a chat.' }));
     } finally {
       if (open.current) setBusy(false);
     }
@@ -108,8 +108,8 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
           {phase === 'form' ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
               {fix
-                ? 'Claude can suggest a fix now, or find this card later through the Franki MCP. The card gets the purple flag either way.'
-                : 'Claude finds this card through the Franki MCP, checks it and suggests a fix for you to approve. The card gets the purple flag.'}
+                ? 'Claude can suggest a fix now, or check this card later when you ask in a chat. The card gets the purple flag either way.'
+                : 'Claude checks this card when you ask in a chat, and suggests a fix for you to approve. The card gets the purple flag.'}
             </Text>
           ) : null}
         </View>
@@ -129,7 +129,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
               maxLength={FLAG_NOTE_MAX}
             />
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              Up to {FLAG_NOTE_MAX} characters. The note is saved with the card's tags and syncs to your other devices.
+              Up to {FLAG_NOTE_MAX} characters. Syncs to your other devices.
             </Text>
             {error ? <ErrorNote message={error} /> : null}
             {fix ? (
@@ -150,7 +150,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
 
         {asking ? (
           <>
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{`Checking ${word || 'this card'} and your note. The card is flagged, so closing this leaves it for later.`}</Text>
+            <Text style={{ ...type.subhead, color: c.textSecondary }}>{`Checking ${word || 'this card'} and your note. Closing this keeps the flag.`}</Text>
             <Button label="Close" variant="secondary" onPress={onClose} />
           </>
         ) : null}
@@ -186,12 +186,12 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
                 <Button label="Apply fix" onPress={() => void apply()} busy={busy} />
                 <Button label="Not now" variant="secondary" onPress={onClose} disabled={busy} />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  Apply saves the note, syncs the change to Anki and clears the flag. Not now leaves the card flagged.
+                  Applying also clears the flag.
                 </Text>
               </>
             ) : (
               <>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>The card stays flagged, so you can ask Claude about it through the MCP or edit the note yourself.</Text>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>The card stays flagged. Ask Claude about it in a chat, or edit the note yourself.</Text>
                 <Button label="Close" variant="secondary" onPress={onClose} />
               </>
             )}

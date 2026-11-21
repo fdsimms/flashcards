@@ -1,4 +1,4 @@
-import { MessageWriter, decodeMessage, messages, string, uint, utf8Decode } from './protobuf';
+import { MessageWriter, bytesField, decodeMessage, messages, string, uint, utf8Decode } from './protobuf';
 import { zstdUnwrap, zstdWrap } from './zstd';
 
 /**
@@ -35,16 +35,24 @@ export interface MediaEntry {
   sha1: Uint8Array;
 }
 
-/** The media list: entry i is stored in the package as file "i". */
-export function decodeMediaList(raw: Uint8Array, version: number): string[] {
+/**
+ * The media list: entry i is stored in the package as file "i", with its SHA-1 (as hex) in the
+ * current format; an old package's JSON list has no hashes.
+ */
+export function decodeMediaEntries(raw: Uint8Array, version: number): { name: string; sha1?: string }[] {
   if (version >= LATEST_VERSION) {
-    return messages(decodeMessage(zstdUnwrap(raw)), 1).map((e) => string(e, 1) ?? '');
+    return messages(decodeMessage(zstdUnwrap(raw)), 1).map((e) => {
+      const sha1 = bytesField(e, 3);
+      return { name: string(e, 1) ?? '', ...(sha1?.length === 20 ? { sha1: hex(sha1) } : {}) };
+    });
   }
   const map = JSON.parse(utf8Decode(raw)) as Record<string, string>;
-  const out: string[] = [];
-  for (const [k, v] of Object.entries(map)) out[Number(k)] = v;
+  const out: { name: string }[] = [];
+  for (const [k, v] of Object.entries(map)) out[Number(k)] = { name: v };
   return out;
 }
+
+const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 
 export function encodeMediaList(entries: MediaEntry[]): Uint8Array {
   const all = new MessageWriter();

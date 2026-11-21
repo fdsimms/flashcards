@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { afterLine, linePosition, lineShown, skipTo, type Handoff } from '../../src/reader/handoff';
+import { afterLine, linePosition, lineShown, skipTo, voicedLineAt, type Handoff } from '../../src/reader/handoff';
 import type { Word } from '../../src/reader/api';
 
 const lines = [{ audio: true }, { audio: false }, { audio: true }, { audio: true }];
@@ -50,4 +50,11 @@ describe('the line Now Playing shows', () => {
   it('shows nothing for lines handed over without their words', () => {
     expect(lineShown({ lines, current: 0 })).toBeNull();
   });
+});
+
+it('the scrubber counts only the lines that have audio', () => {
+  const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
+  expect(voicedLineAt({ lines }, 0)).toBe(1);
+  expect(voicedLineAt({ lines }, 1)).toBe(3);
+  expect(voicedLineAt({ lines }, 2)).toBeNull();
 });

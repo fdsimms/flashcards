@@ -14,7 +14,8 @@ A problem's level says who acts on it:
 - "format": the value breaks the field's format. Refused on write, unless a fix settles it.
 - "required": a field every note of its kind carries is empty. Refused on a new note.
 - "gap": grammar a finished note carries (a plural, an auxiliary) that is still to fill. Reported, never refused.
-- "review": a person or Claude has to read it (commas that may be inside one gloss). Lint only.
+- "review": a person or Claude has to read it (commas that may be inside one gloss). Lint reports it; a write
+  says so too for the rules in WARN_ON_WRITE, and saves the note anyway.
 """
 
 from __future__ import annotations
@@ -44,15 +45,16 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
-SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation"})
+SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral", "Source"})
 NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, never counted, no aspect partner)
 
 MAX_SENSES = 3  # distinct senses a Meaning numbers
 MAX_GLOSSES = 3  # glosses to one sense
 MAX_MEANING = 80
+MAX_CONTRAST_WORDS = 2  # words SenseContrast gives for one excluded sense
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,10 @@ RULES: dict[str, str] = {
     "meaning-many": f"More than {MAX_SENSES} senses, or more than {MAX_GLOSSES} glosses to a sense",
     "meaning-examples": "A numbered sense without an example of its own",
     "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
+    "sense-names-gloss": "Sense says which gloss it is about, so Meaning may hold two senses on one line",
+    "sense-has-entry": "Sense contains the Entry, which the reverse card shows on its front",
+    "contrast-format": 'SenseContrast is not one "english sense = word" pair per line',
+    "sense-restates-meaning": "Sense restates the Meaning's glosses instead of saying what the word does not cover",
     "context-missing": "No example sentence",
     "context-markup": "Context has markup other than <b> and <br>",
     "context-no-bold": "The word is not in bold in Context",
@@ -138,17 +144,23 @@ RULES: dict[str, str] = {
     "context-labels": "Several examples without a matching ContextLabels line for each",
     "context-end-punctuation": "A Japanese example with no 。",
     "translation-missing": "No translation of the example",
+    "literal-redundant": "ContextLiteral says the same as ContextTranslation",
+    "source-markup": "Source has markup other than <b> and <br>",
+    "source-lines": "Source is not the line, its translation and where it was met, one to a line",
+    "source-no-bold": "The word isn't in <b></b> in Source's line",
     "switch-value": "A card switch holds something other than y",
     "register-missing": "Register is empty",
     "register-unknown": "Register is not one of the list",
     "pos-missing": "PartOfSpeech is empty",
     "pos-unknown": "PartOfSpeech is not one of the list",
     "pos-in-tags": "A tag repeats the part of speech",
+    "source-tag": "A source:: tag is not the title in lowercase words joined by hyphens",
     "language-missing": "Language is empty",
     "gender-missing": "A noun without Gender",
     "gender-unknown": "Gender is not a value this language uses",
     "romanization-missing": "A Thai note without its romanization",
     "romanization-letters": "A romanization outside the deck's scheme",
+    "romanization-toneless": "A Thai example romanization with no tone marks",
     "romanization-unneeded": "A romanization in a language that is not romanized",
     "kana-missing": "A word with kanji and no KanaReading",
     "kana-format": "KanaReading is not one reading in kana",
@@ -194,6 +206,12 @@ def plain(value: str) -> str:
     return text.strip()
 
 
+def source_tag(title: str) -> str:
+    """The tag for words met in `title` (a game, a show, a book), as the house style writes it: lowercase, words joined by hyphens."""
+    words = re.split(r"[\s_\-]+|::", title.strip().lower())
+    return "source::" + "-".join(w for w in words if w)
+
+
 def _escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -232,6 +250,34 @@ def senses(meaning: str) -> list[str]:
     if _NUMBER.match(text):
         text = re.sub(r"\s+(?=\d+[.)]\s)", "\n", text)
     return [item for item in (_NUMBER.sub("", line.strip(), count=1).strip() for line in text.split("\n")) if item]
+
+
+_STOP = frozenset("or and to a an the of in for as be on at by with from is are e g".split())
+_EXCLUDES = re.compile(r"\b(?:not|never|without|rather than|instead of)\b|n't\b", re.IGNORECASE)
+
+
+def _gloss_words(text: str) -> set[str]:
+    """The content words of an English line, lightly stemmed, for comparing a Sense with a Meaning."""
+    words = set()
+    for word in re.findall(r"[a-z]+", text.lower()):
+        if word in _STOP:
+            continue
+        words.add(re.sub(r"(?:ing|ed|es|s)$", "", word) if len(word) > 4 else word)
+    return words
+
+
+def sense_restates_meaning(meaning: str, sense: str) -> bool:
+    """Whether a Sense only repeats the Meaning. A Sense earns its place by saying what the word does not
+    cover ("hot in temperature, not spicy"), so one with no exclusion in it (not, never, without) is
+    suspect when at least half its content words are the Meaning's, when it is two glosses joined by
+    "or", or when it is a gloss with a colon and a usage note. A fake exclusion ("intelligent, not well
+    dressed") still passes: that one needs a person, which is why this is a review rule."""
+    sense = plain(sense).replace("\n", " ")
+    if not sense or _EXCLUDES.search(sense):
+        return False
+    mine, theirs = _gloss_words(sense), _gloss_words(plain(meaning))
+    overlap = len(mine & theirs) / len(mine) if mine else 0.0
+    return overlap >= 0.5 or bool(re.search(r",? or ", sense)) or ":" in sense
 
 
 def write_senses(items: Sequence[str]) -> str:
@@ -407,6 +453,15 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
     elif any(t in TAG_POS for t in tags):
         add("pos-in-tags", "tags", "format", "PartOfSpeech holds the part of speech; tags are for topics and sources.",
             {"tags": " ".join(t for t in tags if t not in TAG_POS)})  # fmt: skip
+    # Where a word was met (a game, a show, a book): one tag a title, so check_words and find_notes
+    # "tag:source::*" can group its words. Anki compares tags without case, so "Source::Elden_Ring"
+    # would quietly be a second spelling of the same tag in the tag list.
+    for tag in tags:
+        prefix, sep, title = tag.partition("::")
+        if sep and prefix.lower() == "source" and tag != source_tag(title):
+            add("source-tag", "tags", "format", f'Write the source tag "{source_tag(title)}": the title in lowercase words joined by hyphens.',
+                {"tags": " ".join(source_tag(t.partition("::")[2]) if t == tag else t for t in tags)})  # fmt: skip
+            break
 
     # -- Entry --
     if entry != raw("Entry"):
@@ -504,6 +559,40 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             if pos == "verb" and any(gl and not gl[0].startswith("to ") for gl in gloss_lists):
                 add("meaning-verb-to", "Meaning", "review", 'A verb\'s gloss starts with "to".')
 
+    # -- Sense --
+    sense = txt("Sense").lower()
+    if sense and entry and re.search(r"(?<!\w)" + re.escape(entry.lower()) + r"(?!\w)", sense):
+        # An Entry in plain ASCII can be spelled like an English word (German "die", Spanish "red"),
+        # so only a person can say whether the Sense names it. Any other Entry can't be English.
+        add("sense-has-entry", "Sense", "review" if entry.isascii() else "format",
+            "Sense is English only, without the word or a form of it: the reverse card shows Sense on its front.")  # fmt: skip
+    if sense and meaning and not (lang and lang.definition):
+        # A gloss as the Sense would quote it: without its "to" or its bracket.
+        glosses = [re.sub(r"^to ", "", re.sub(r"\s*\([^)]*\)", "", g)).strip().lower()
+                   for item in senses(raw("Meaning")) for g in split_top(item, ";")]  # fmt: skip
+        quoted = any(g and re.search(r"(?<!\w)" + re.escape(g) + r"(?!\w)", sense) for g in glosses)
+        if len(glosses) > 1 and (quoted or re.search(r"\b(?:as in|means)\b", sense)):
+            add("sense-names-gloss", "Sense", "review",
+                "If Sense has to say which gloss it is about, the glosses are different senses: number them in "
+                "Meaning, one to a line with an example each, and leave Sense empty.")  # fmt: skip
+    if txt("Sense") and meaning and not (lang and lang.definition) and sense_restates_meaning(raw("Meaning"), raw("Sense")):
+        add("sense-restates-meaning", "Sense", "review",
+            "Sense repeats the Meaning. Say what the word does not cover (\"hot in temperature, not spicy\"), or leave Sense empty.")  # fmt: skip
+
+    # -- SenseContrast: the same reading as src/core/senseContrast.ts, which draws the card's box from it --
+    for line in _lines(raw("SenseContrast")):
+        left, eq, right = line.partition("=")
+        words = [w.strip() for w in right.split(";")]
+        if not eq or not left.strip() or not all(words) or len(words) > MAX_CONTRAST_WORDS:
+            add("contrast-format", "SenseContrast", "format",
+                'One pair per line (<br>): the English sense the word does not cover, " = ", then the word for it '
+                f'as an Entry is written ("rain shower = aguacero"). At most {MAX_CONTRAST_WORDS} words, joined by "; ".')  # fmt: skip
+            break
+        if entry and any(w.lower() == entry.lower() for w in words):
+            add("contrast-format", "SenseContrast", "format",
+                "SenseContrast names the word for a sense this word does not cover, never the Entry itself.")
+            break
+
     # -- Context --
     context = raw("Context")
     context_lines = _lines(context)
@@ -532,21 +621,46 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 f"example{'' if len(context_lines) == 1 else 's'}. Give Context one line per sense, in the same order, with "
                 "ContextTranslation and ContextLabels to match.")  # fmt: skip
         labels = _lines(raw("ContextLabels"))
-        counts = {"ContextTranslation": len(_lines(raw("ContextTranslation"))), "ContextRomanized": len(_lines(raw("ContextRomanized")))}
+        counts = {name: len(_lines(raw(name))) for name in ("ContextTranslation", "ContextRomanized", "ContextLiteral")}
         if len(context_lines) > 1 and not labels:
             add("context-labels", "ContextLabels", "format",
                 "Several examples need ContextLabels: one short label per line, in the same order.")  # fmt: skip
         elif labels and (len(labels) != len(context_lines) or any(n and n != len(context_lines) for n in counts.values())):
             add("context-labels", "ContextLabels", "format",
-                "Context, ContextTranslation, ContextRomanized and ContextLabels need the same number of lines.")  # fmt: skip
+                "Context, ContextTranslation, ContextRomanized, ContextLiteral and ContextLabels need the same number of lines.")  # fmt: skip
         if lang and lang.name == "japanese" and any(not re.search(r"[。？！?!…]$", line.rstrip("」』）)")) for line in context_lines):
             fixed = "<br>".join(
                 piece if re.search(r"[。？！?!…]$", plain(piece).rstrip("」』）)")) else piece.rstrip() + "。"
                 for piece in re.split(r"<\s*br\s*/?>", context) if plain(piece)
             )  # fmt: skip
             add("context-end-punctuation", "Context", "format", "A Japanese sentence ends with 。", {"Context": fixed})
+        words = lambda name: re.sub(r"[^\w\s]", "", txt(name).lower()).split()  # noqa: E731
+        if txt("ContextLiteral") and words("ContextLiteral") == words("ContextTranslation"):
+            add("literal-redundant", "ContextLiteral", "format",
+                "ContextLiteral is only for a literal reading that differs from the translation: clear it.", {"ContextLiteral": ""})  # fmt: skip
         if not (lang and lang.definition) and not txt("ContextTranslation"):
             add("translation-missing", "ContextTranslation", "required", "Translate the example into natural American English.")
+
+    # -- Source: the line the word was met in (a game, a show), its translation, and where --
+    source = raw("Source")
+    source_lines = _lines(source)
+    if source_lines:
+        if re.search(r"<\s*/?\s*(?!b\s*>|/b\s*>|br\b)[a-z]", source, re.IGNORECASE) or "&nbsp;" in source:
+            fixed = re.sub(r"(?i)<(/?)strong\b[^>]*>", r"<\1b>", source)
+            fixed = re.sub(r"(?i)</(?:div|p)>\s*<(?:div|p)\b[^>]*>", "<br>", fixed)
+            fixed = re.sub(r"(?i)</?(?:i|em|div|p|span|font|u)\b[^>]*>", "", fixed).replace("&nbsp;", " ")
+            fixed = re.sub(r"(?i)(?:\s*<br\s*/?>\s*)+", "<br>", fixed)
+            fixed = re.sub(r"(?:<br>)+$", "", fixed).strip()
+            add("source-markup", "Source", "format", "Source takes only <b> and <br>.", {"Source": fixed})
+        # The app reads the last line as the title and a line between as the translation (sourceOf, src/core/examples.ts).
+        wanted = (2,) if lang and lang.definition else (3,) if lang else (2, 3)
+        if len(source_lines) not in wanted:
+            add("source-lines", "Source", "format",
+                "Source is the line as it was shown or said, " + ("" if wanted == (2,) else "its translation, ")
+                + "and where it was met (the title), one to a line (<br>).")  # fmt: skip
+        first = re.split(r"(?i)<\s*br\s*/?>|</(?:div|p)>", source, maxsplit=1)[0]
+        if not re.search(r"(?i)<(?:b|strong)\b", first):
+            add("source-no-bold", "Source", "format", "Put the word in <b></b> in Source's first line, as the line spells it.")
 
     # -- gender --
     if lang:
@@ -569,6 +683,11 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 add("romanization-letters", name, "format",
                     "Use the deck's scheme: dt and bp for ต and ป, th ph kh for the aspirated letters, g for ก; "
                     "aw / aaw, ae / aae, ue / uue, əə for the vowels; lowercase.")  # fmt: skip
+        # A sentence of four or more syllables with every one mid tone does not happen: the tones were left off.
+        sentence = txt("ContextRomanized")
+        if len(re.findall(r"[^\s-]+", sentence)) >= 4 and not _TONE_MARKS.search(unicodedata.normalize("NFD", sentence)):
+            add("romanization-toneless", "ContextRomanized", "review",
+                "Add the tone marks (low à, falling â, high á, rising ǎ; mid none), derived from the Thai spelling by the tone rules.")  # fmt: skip
     elif lang and lang.name in ("russian", "greek"):
         for name in ("Transliteration", "ContextRomanized"):
             if txt(name):
@@ -639,11 +758,14 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
     return out
 
 
+# The review rules a write reports back (the note is saved either way); the rest are for lint_notes.
+WARN_ON_WRITE = frozenset({"sense-restates-meaning"})
+
 FIXABLE = frozenset(
-    {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "entry-markup", "entry-article",
+    {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "source-tag", "entry-markup", "entry-article",
      "entry-infinitive-marker", "entry-aspect-pair", "meaning-markup", "meaning-numbered", "meaning-lines",
      "meaning-slashes", "meaning-commas", "meaning-article", "meaning-title-case", "context-markup",
-     "context-end-punctuation", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian", "keyforms-unlabeled"}
+     "context-end-punctuation", "source-markup", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian", "keyforms-unlabeled"}
 )  # fmt: skip
 
 
@@ -687,6 +809,7 @@ class Prepared:
     tidied: list[str]  # what the fixes changed, a line each
     refused: list[str]  # what the caller has to change before it's written
     gaps: list[str]  # grammar still to fill, reported with the note written
+    review: list[str]  # review-level problems a person should read, reported with the note written
 
 
 def _tidy_values(fields: Mapping[str, str]) -> dict[str, str]:
@@ -725,6 +848,7 @@ def prepare(new: Mapping[str, str], tags: Sequence[str] = (), existing: Mapping[
         tidied=[f"{p.field}: {RULES[p.rule]}, fixed" for p in fixed.applied],
         refused=[f"{p.field}: {p.message}" for p in refuse],
         gaps=[f"{p.field}: {p.message}" for p in left if p.level == "gap"] if existing is None else [],
+        review=[f"{p.field}: {p.message}" for p in left if p.rule in WARN_ON_WRITE and (existing is None or "Sense" in written or "Meaning" in written)],
     )
 
 
@@ -745,24 +869,53 @@ _COMMON = """\
 Entry: the citation form as plain text. No article (Gender supplies it), no markup, one word or one phrase.
   A verb's fixed preposition follows it bare (zweifeln an). An aspect partner goes in AspectPartner.
 Meaning: English glosses, lowercase. A verb starts with "to"; a noun has no "a" or "the". A word with one
-  sense is one line: one to three near-synonyms joined by "; " (fame; glory). A word with distinct senses
-  numbers them, one to a line (<br>), the most common first, three at most:
+  sense is one line: one to three near-synonyms joined by "; " (fame; glory). The test: every gloss on a line
+  could translate the word in the same example sentence. If one could not (ziehen: pull the door, move to
+  Berlin), they are different senses, and each gets a number. A word with distinct senses numbers them, one to a line (<br>), the most common first, three at most:
   "1. train<br>2. move (in a game)<br>3. draft (of air)". Number only senses worth being tested on: every one
   listed has to be recalled to pass the card. A rarer sense is left out, or gets a note of its own; two
-  different words spelled alike are two notes. A short bracket to pin a sense down. No slashes, sub-senses
-  or markup; grammar and usage go in Notes.
+  different words spelled alike are two notes. A short bracket pins down a numbered sense. On a Meaning with
+  one sense, a bracket that only narrows which English sense is meant moves to Sense: "to know" with the
+  Sense "a fact, not a person", not "to know (a fact)". A bracket that labels grammar ((prefix),
+  (classifier)) or register ((formal)), or explains the gloss (baht (Thai currency)), stays. No slashes, sub-senses or markup; grammar and usage go in Notes.
 Examples for a numbered Meaning: Context holds one example per sense, in the same order, each on its own
   line (<br>), with ContextTranslation line for line and ContextLabels naming each in a word or two
-  ("train", "move", "draft"). Sense is no longer written: the numbers say it.
+  ("train", "move", "draft").
+Sense: only when the word covers some, not all, of its English gloss's most common senses, so the learner
+  doesn't assume it works wherever the gloss does (leke, "to play": to play for fun, as children do). Say what
+  the word does not cover ("hot in temperature, not spicy"), never the Meaning again in other words ("itchy,
+  or counter for vehicles" repeats "itchy; to itch; classifier for vehicles"). Empty when the word spans the
+  same senses as the gloss, since a Sense would then imply the others don't apply; a gloss that is merely
+  ambiguous English is not a reason. One short line, about 8 words at most, lowercase, no markup, American
+  English, shown under the meaning. Never the word itself or a form of it: the reverse card shows Sense on
+  its front. If a Sense would have to say which gloss it is about ("move as in relocate"), the Meaning holds
+  two senses: number them and leave Sense empty. Never beside a numbered Meaning: the numbers and
+  ContextLabels already say which sense.
+SenseContrast: only beside a Sense that rules out an English sense, and only when the word for that sense is
+  one worth knowing: "rain shower = aguacero" for ducha (Sense "a bathroom shower, not rain"). One pair per
+  line (<br>): the excluded sense in English, " = ", then the word as an Entry is written (no article), two
+  at most joined by "; ". The card's answer shows it under the Sense, with a button that adds the word as a
+  note of its own. Empty when no single word covers the excluded sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
-ContextTranslation: the sentence in natural American English.
+ContextTranslation: the sentence in natural American English, as a person would say it.
+ContextLiteral: only when the word-for-word reading differs from ContextTranslation in a way that teaches
+  something about the sentence's structure ("Even though tired, still working." under "I keep working even
+  though I'm tired."). Empty when the two say about the same thing (quiero comida: "I want food" needs no
+  "want food"). Numbered examples: one line each, as above.
+Source: only for a word met somewhere in particular (a game, a show, a book, a song). Three lines (<br>): the
+  line exactly as it was shown or said, with the word in <b></b> as the line spells it; that line in natural
+  American English; and where it was met, the title with the chapter or episode when known (The Last Train,
+  chapter 4). Empty for any other word. Context is still an example sentence of its own, written as above.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
   conjunction, particle, classifier, interjection, prefix, suffix, phrase. Always filled. Not repeated in tags.
 Language: the language's English name in lowercase. GenerateReverse, GenerateAudioCard, SuppressFrontCard: "y" or empty.
+  GenerateReverse (meaning to word) only for a word the learner would say or write themselves; GenerateAudioCard
+  (hear it, recall the meaning) only for one they would hear in everyday speech. A word to recognize only
+  (literary, technical, rare, met on signs or in the news) gets neither. Never change either on an existing note unasked.
 KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>). First "pattern:", a short
   sentence or two on what kind of word it is and what is unusual about it (pattern: Masculine inanimate.
   Genitive in -u. The e drops out.). Then the forms the rest can be worked out from, each under what it is
@@ -772,11 +925,14 @@ KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>).
   (or "genitive plural" and so on), feminine, neuter, comparative, superlative, I, you, "he, she", we, they,
   present, past, perfect, participle, future, imperative, perfective, imperfective. Never a form with no label.
 Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
+Stress: Russian only, the Entry with its stress mark (говори́ть). fill_stress fills it; write it only when sure.
 Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".
 Etymology: the real origin, or a cognate or false friend in a language the learner knows. Mnemonic: a sound
-  or image hook only. Tags: topic, source and status. No em dashes in what is written about a word (Meaning,
+  or image hook only. Tags: topic, source and status. A word met in a game, a show, a book or a song gets
+  that title's tag, "source::" then the title in lowercase words joined by hyphens (source::the-last-train),
+  the same tag for every word from it: find_notes "tag:source::*" lists them, and check_words shows it. No em dashes in what is written about a word (Meaning,
   Notes, Etymology, Mnemonic); an example sentence keeps its language's own punctuation.
 A grammar field of a word that has no such form holds "-": Plural of a noun with no plural in normal
   use, Classifier of a noun that is never counted, AspectPartner of a verb with no partner. The card
@@ -811,7 +967,7 @@ _PER_LANGUAGE = {
                 "kun, katakana for on) and a keyword, joined by \"; \": 割(わ)divide; 込(こ)go into.\n"
                 "VerbClass: godan, ichidan, suru or irregular. Context ends with 。",
     "english": "Rare English words for a native speaker: Meaning is a one-sentence definition and there is no\n"
-               "ContextTranslation. Etymology is expected.",
+               "ContextTranslation, and Source has no translation line. Etymology is expected.",
 }  # fmt: skip
 
 EXAMPLES: dict[str, dict[str, str]] = {

@@ -39,10 +39,9 @@ export function LessonSettingsRows({ readerOn, narrator, defaultNarrator, langua
         <LessonTurnSettings waits={waits} turns={turns} />
       </Group>
       <Help>
-        Waiting, a lesson stops where you're meant to speak and goes on when you tap Continue (or Play on the lock screen); off, it plays
-        straight through. The microphone is on only during a pause, and what it hears stays on this iPhone: only its loudness is read, to
-        tell when you've stopped, and your answer is played back and then deleted. With either on, Bluetooth headphones sound like a phone
-        call while a lesson plays. Also on each lesson's screen.
+        The microphone is on only during a pause. Only its loudness is checked, to tell when you've stopped, and your answer stays on
+        this iPhone and is deleted after it plays. While either setting is on, Bluetooth headphones sound like a phone call during a
+        lesson. You can also change these on each lesson's screen.
       </Help>
       {language === 'th' ? (
         <Card>

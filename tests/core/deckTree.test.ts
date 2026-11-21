@@ -21,6 +21,7 @@ function reviewCards(count: number, day: number): Card[] {
 function input(cardsByDeck: Record<string, Card[]>, limits: Record<string, { newPerDay: number; reviewsPerDay: number }> = {}, studied: TreeQueueInput['studiedByDeck'] = new Map(), gates: Record<string, number> = {}): TreeQueueInput {
   return {
     gateFor: (d) => gates[d],
+    skillCards: new Set(),
     cardsByDeck: new Map(Object.entries(cardsByDeck)),
     limitsFor: (d) => limits[d] ?? { newPerDay: 20, reviewsPerDay: 200 },
     studiedByDeck: studied,
@@ -187,6 +188,56 @@ describe('progress gate', () => {
   it('shows the count against the cap on a gated deck row', () => {
     const rows = deckRows(input({ Thai: [...inProgress(4), ...newCards(1)] }, {}, new Map(), { Thai: 10 }));
     expect(rows[0].gate).toEqual({ inProgress: 4, cap: 10 });
+  });
+});
+
+describe('skill cards', () => {
+  const asSkill = (cards: Card[]) => new Set(cards.map((c) => c.id));
+  const withSkills = (cards: Card[], skills: Card[], limits = { newPerDay: 5, reviewsPerDay: 200 }, gate?: number) => ({
+    ...input({ Thai: [...cards, ...skills] }, { Thai: limits }, new Map(), gate === undefined ? {} : { Thai: gate }),
+    skillCards: asSkill(skills),
+  });
+
+  it("share the daily new limit with words, and can't pass a parent deck's through a subdeck", () => {
+    const words = newCards(10);
+    const skills = newCards(30);
+    expect(treeQueue('Thai', withSkills(words, skills)).fresh).toHaveLength(5);
+    const base = withSkills([], []);
+    const q = (studied: Map<string, { introduced: number; reviewed: number }>) => treeQueue('Thai', {
+      ...base, cardsByDeck: new Map([['Thai::Skills', skills]]), skillCards: asSkill(skills), studiedByDeck: studied,
+      limitsFor: (d) => (d === 'Thai' ? { newPerDay: 5, reviewsPerDay: 200 } : { newPerDay: 20, reviewsPerDay: 200 }),
+    });
+    expect(q(new Map()).fresh).toHaveLength(5);
+    expect(q(new Map([['Thai::Skills', { introduced: 3, reviewed: 0 }]])).fresh).toHaveLength(2);
+  });
+
+  it('have reviews offered with the review limit spent, using none of it; new ones wait like new words', () => {
+    const skillReviews = reviewCards(3, 10);
+    const q = treeQueue('Thai', withSkills(reviewCards(4, 10), [...skillReviews, ...newCards(3)], { newPerDay: 20, reviewsPerDay: 4 }));
+    expect(q.due).toHaveLength(4 + 3);
+    expect(q.fresh).toHaveLength(0);
+  });
+
+  it('are not counted as in progress by a progress gate, and new ones share its room', () => {
+    const skills = inProgress(6);
+    const words = [...inProgress(2), ...newCards(5)];
+    const q = treeQueue('Thai', withSkills(words, [...skills, ...newCards(4)], { newPerDay: 20, reviewsPerDay: 200 }, 3));
+    // The gate is 3 and 2 words are in progress, so one new word; the 6 skill cards in progress don't count.
+    expect(q.fresh.filter((c) => !asSkill(skills).has(c.id) && c.sched.state === 0 && words.includes(c))).toHaveLength(1);
+    expect(q.fresh.filter((c) => c.sched.state === 0)).toHaveLength(1);
+  });
+
+  it("don't count as unstudied words, which the deck list's runway reads", () => {
+    const skills = newCards(8);
+    const rows = deckRows(withSkills(newCards(3), skills));
+    expect(rows.find((r) => r.deck === 'Thai')!.unstudied).toBe(3);
+  });
+
+  it('queueInput marks the cards of notes tagged skill', () => {
+    const cards = newCards(4);
+    const notes = cards.map((c, i) => ({ id: c.noteId, deck: 'Thai', model: 'Basic', fields: { Front: c.noteId, Back: '' }, tags: i < 3 ? ['skill', 'skill::drill::time-hours'] : [] }));
+    const built = queueInput({ notes, cards, params: new Map(), studied: new Map(), collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW });
+    expect(built.skillCards.size).toBe(3);
   });
 });
 
@@ -545,7 +596,8 @@ describe(`a deck's queue as Anki ${queueVectors.anki} builds it (tests/fixtures/
       const cards = data.cards.map((c) => ({ ...c, ankiMod: ankiMod.get(c.ankiId!) }));
       const collection = data.collectionSettings!;
       const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
-      const input = queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now });
+      // Without Franki's own catch-up order (`catchUp`), which Anki doesn't have: these are Anki's queues.
+      const input = { ...queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now }), catchUp: false };
       for (const [deck, anki] of Object.entries(v.queues)) {
         const q = treeQueue(deck, input);
         expect(q.order.map((c) => c.ankiId), deck).toEqual(anki.order);

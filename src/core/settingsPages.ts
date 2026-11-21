@@ -51,7 +51,7 @@ export const DECK_OPTIONS_LIST = '/deck-options-list';
 
 export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'anki', page: 'settings', label: 'Anki', keywords: ['sync', 'import', 'export', 'apkg', 'server'], route: '/anki' },
-  { id: 'backup', page: 'settings', label: 'Backup', keywords: ['restore', 'save', 'export'], route: '/backup' },
+  { id: 'backup', page: 'settings', label: 'Backup', keywords: ['restore', 'save', 'export', 'automatic'], route: '/backup' },
   { id: 'wanikani', page: 'settings', label: 'WaniKani', keywords: ['token', 'japanese', 'kanji', 'type', 'typing', 'answer', 'meaning', 'reading'], route: '/wanikani-settings' },
   { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text'], route: '/app-font' },
   { id: 'voices', page: 'settings', label: 'Voices', keywords: ['text to speech', 'tts', 'azure', 'read aloud'], route: '/voices' },
@@ -75,13 +75,16 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'answerButtons', page: 'decks', label: 'Answer buttons', keywords: ['again', 'hard', 'good', 'easy', 'rating'], route: '/answer-buttons' },
   { id: 'swipe', page: 'decks', label: 'Swipe to answer', keywords: ['gesture', 'drag', 'good', 'again'] },
   { id: 'hints', page: 'decks', label: 'Show romanization and translation', keywords: ['romaji', 'hint', 'answer'] },
-  { id: 'hook', page: 'decks', label: 'Ask for your own hook', keywords: ['mnemonic'] },
+  { id: 'hook', page: 'decks', label: 'Ask for your own mnemonic', keywords: ['hook', 'memory hint'] },
   { id: 'thaiSize', page: 'decks', label: 'Thai text size', keywords: ['script', 'larger', 'bigger'], route: '/thai-text-size' },
   { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
+  { id: 'noteTypes', page: 'decks', label: 'Note types', keywords: ['card types', 'templates', 'styling', 'css', 'front', 'back', 'models', 'layout'], route: '/note-types' },
 
-  { id: 'readerOn', page: 'read', label: 'Read & Listen', keywords: ['passphrase', 'sign in', 'texts', 'stories', 'server'], route: '/read-settings' },
-  { id: 'keepPlaying', page: 'read', label: 'Keep playing the shelf', keywords: ['up next', 'queue', 'autoplay', 'continuous', 'listening'], route: '/read-settings' },
+  { id: 'readerOn', page: 'read', label: 'Server', keywords: ['read & listen', 'passphrase', 'sign in', 'turn on', 'turn off', 'texts', 'stories', 'server', 'share counts'], route: '/read-settings' },
+  { id: 'readListening', page: 'read', label: 'Reading and listening', keywords: ['read & listen', 'voices', 'highlight', 'slow', 'meanings', 'word forms', 'explain', 'lock screen', 'dynamic island', 'offline', 'download'], route: '/read-listening' },
+  { id: 'keepPlaying', page: 'read', label: 'Keep playing the shelf', keywords: ['up next', 'queue', 'autoplay', 'continuous', 'listening'], route: '/read-listening' },
   { id: 'readDaily', page: 'read', label: 'Daily reading tasks', keywords: ['dundundun', 'rotate', 'every day', 'tasks', 'languages', 'today'], route: '/read-daily-tasks' },
+  { id: 'register', page: 'read', label: 'Register', keywords: ['formal', 'casual', 'everyday', 'polite', 'informal', 'how people talk', 'style', 'tone'], route: '/read-language' },
   { id: 'readLanguage', page: 'read', label: 'Language settings', keywords: ['grammar', 'vocabulary', 'level', 'voices'], route: '/read-language' },
 
   { id: 'narrator', page: 'lessons', label: 'Narrator', keywords: ['voice', 'audio lessons'], route: '/read-narrator' },

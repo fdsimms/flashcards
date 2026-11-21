@@ -7,6 +7,7 @@ import { saveNote, type NoteStore } from '../anki/noteService';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
+import { FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -27,7 +28,7 @@ export function TypeItButton({ onPress }: { onPress: () => void }) {
       scaleTo={0.98}
       dimTo={0.85}
       style={{
-        minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l,
+        minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l,
         flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.fill,
       }}
     >
@@ -60,27 +61,29 @@ export function useOwnHook(repo: Repo, showing: string | undefined, onSaved: (no
       const saved = await saveNote(repo as NoteStore, { id: now.id, deck: now.deck, model: now.model, fields: withMnemonic(now.fields, hint), tags: now.tags });
       onSaved(saved);
     } catch (e) {
-      Alert.alert("Couldn't save your hook", failureText(e, { next: `The answer is saved. Add the hook in the note editor: "${hint}"` }));
+      Alert.alert("Couldn't save your mnemonic", failureText(e, { next: `The answer is saved. Add the mnemonic in the note editor: "${hint}"` }));
     }
   }, [repo, onSaved]);
   return { on, text, setText, answered };
 }
 
 /** On the answer side of a new word seen for the first time: an optional line for one's own mnemonic. */
-export function OwnHookField({ value, onChange }: { value: string; onChange: (text: string) => void }) {
+export function OwnHookField({ value, onChange, onFocusChange }: { value: string; onChange: (text: string) => void; onFocusChange?: (focused: boolean) => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   return (
     <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.s }}>
       <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>
-        Your own hook <Text style={{ fontWeight: '400', color: c.textSecondary }}>(optional)</Text>
+        Your own mnemonic <Text style={{ fontWeight: '400', color: c.textSecondary }}>(optional)</Text>
       </Text>
       <TextInput
         value={value}
         onChangeText={onChange}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => onFocusChange?.(false)}
         multiline
-        placeholder="A picture, a sound-alike, a word it reminds you of"
-        accessibilityLabel="Your own hook for this word"
+        placeholder="e.g. a word it sounds like"
+        accessibilityLabel="Your own mnemonic for this word"
         placeholderTextColor={c.textTertiary}
         selectionColor={c.accent}
         keyboardAppearance={dark ? 'dark' : 'light'}
@@ -90,7 +93,7 @@ export function OwnHookField({ value, onChange }: { value: string; onChange: (te
         }}
       />
       <Text style={{ ...type.caption, color: c.textSecondary }}>
-        Saved to the note's Mnemonic when you answer, and shown on the back from then on. Asked only the first time you see a new word.
+        Shown on the back of this card from now on.
       </Text>
     </View>
   );

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor } from '../../src/core/noteEditing';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
+
+/** Search with no cards: plain words and note searches only. */
+const NO_CARDS = { byNote: new Map<string, Card[]>(), now: NOW, dayStartsAtHour: 4 };
 
 const basic = (id: string, front: string, back: string, deck = 'Trivia', tags: string[] = []): Note =>
   ({ id, deck, model: 'Basic', fields: { Front: front, Back: back }, tags });
@@ -38,16 +41,69 @@ describe('finding notes', () => {
   ];
 
   it('matches every word, case aside, in fields, tags or deck, sorted by what shows first', () => {
-    expect(searchNotes(notes, 'capital').map((n) => n.id)).toEqual(['2', '1']);
-    expect(searchNotes(notes, 'CAPITAL lima').map((n) => n.id)).toEqual(['1']);
-    expect(searchNotes(notes, 'geo').map((n) => n.id)).toEqual(['1']);
-    expect(searchNotes(notes, 'polski').map((n) => n.id)).toEqual(['3']);
-    expect(searchNotes(notes, 'book').map((n) => n.id)).toEqual(['n1']);
+    expect(searchNotes(notes, 'capital', null, NO_CARDS).map((n) => n.id)).toEqual(['2', '1']);
+    expect(searchNotes(notes, 'CAPITAL lima', null, NO_CARDS).map((n) => n.id)).toEqual(['1']);
+    expect(searchNotes(notes, 'geo', null, NO_CARDS).map((n) => n.id)).toEqual(['1']);
+    expect(searchNotes(notes, 'polski', null, NO_CARDS).map((n) => n.id)).toEqual(['3']);
+    expect(searchNotes(notes, 'book', null, NO_CARDS).map((n) => n.id)).toEqual(['n1']);
+  });
+
+  it('puts the closest matches first: the meaning itself before a mention in another field', () => {
+    const omni = (id: string, entry: string, meaning: string, deck: string, more: Record<string, string> = {}): Note =>
+      ({ id, deck, model: 'Omnilanguage', fields: { Entry: entry, Meaning: meaning, Notes: '', ContextTranslation: '', ...more }, tags: [] });
+    const found = [
+      omni('desultory', 'desultory', 'Lacking any definite plan. Also used of effort or performance that is halfhearted.', 'English'),
+      { id: 'henry', deck: 'Trivia', model: 'Shakespeare', fields: { Title: '<i>Henry VIII</i>', Year: '1613', Other: 'Globe Theater burned down during early performance' }, tags: [] },
+      omni('hervorragend', 'hervorragend', 'outstanding; excellent', 'Deutsch', { ContextTranslation: 'That was an outstanding performance.' }),
+      omni('enso', '演奏', 'musical performance; playing an instrument', '日本語'),
+      omni('sadaeng', 'แสดง', '1. to perform; to act<br>2. to show; to display', 'ไทย', { Notes: 'การแสดง = performance' }),
+      omni('leistung', 'Leistung', 'performance; achievement', 'Deutsch'),
+      omni('gaansadaeng', 'การแสดง', 'performance; show', 'ไทย'),
+    ];
+    const ids = (q: string) => searchNotes(found, q, null, NO_CARDS).map((n) => n.id);
+    // As a listed meaning, then a word in a meaning, then in another field (ties by what shows first).
+    expect(ids('performance')).toEqual(['leistung', 'gaansadaeng', 'desultory', 'enso', 'henry', 'hervorragend', 'sadaeng']);
+    // "to perform" lists as "perform"; the start of "performance" comes after it.
+    expect(ids('perform')[0]).toBe('sadaeng');
+    // The front comes before the meaning, and the whole front before a front that only holds it.
+    expect(ids('แสดง')).toEqual(['sadaeng', 'gaansadaeng']);
+    // Words found apart rank behind them found together.
+    expect(ids('musical performance')).toEqual(['enso']);
+    expect(ids('performance show')).toEqual(['gaansadaeng', 'sadaeng']);
+  });
+
+  it('finds a word typed without its accents', () => {
+    const polish = [basic('z', 'żółw', 'turtle', 'Polski'), basic('w', 'zołza', 'shrew', 'Polski')];
+    expect(searchNotes(polish, 'zolw', null, NO_CARDS).map((n) => n.id)).toEqual(['z']);
+    expect(searchNotes(polish, 'zo', null, NO_CARDS).map((n) => n.id)).toEqual(['w', 'z']);
   });
 
   it('keeps to a deck and its subdecks when one is picked', () => {
-    expect(searchNotes(notes, '', 'Trivia').map((n) => n.id)).toEqual(['2', '1']);
-    expect(searchNotes(notes, 'capital', 'Trivia::South America').map((n) => n.id)).toEqual(['2']);
+    expect(searchNotes(notes, '', 'Trivia', NO_CARDS).map((n) => n.id)).toEqual(['2', '1']);
+    expect(searchNotes(notes, 'capital', 'Trivia::South America', NO_CARDS).map((n) => n.id)).toEqual(['2']);
+  });
+
+  it("reads Anki's search syntax, its cards' state included, and finds nothing in a search it can't read", () => {
+    const sched = { due: NOW.toISOString(), stability: 1, difficulty: 5, elapsedDays: 0, scheduledDays: 1, learningSteps: 0, reps: 0, lapses: 0, lastReview: null };
+    const cards = {
+      ...NO_CARDS,
+      byNote: new Map<string, Card[]>([
+        ['1', [{ id: 'c1', noteId: '1', kind: 't0', suspended: false, retired: false, flag: 1, sched: { ...sched, state: 0 } }]],
+        ['2', [{ id: 'c2', noteId: '2', kind: 't0', suspended: true, retired: false, sched: { ...sched, state: 2 } }]],
+      ]),
+    };
+    const ids = (q: string) => searchNotes(notes, q, null, cards).map((n) => n.id);
+    expect(ids('deck:Trivia is:new')).toEqual(['1']);
+    expect(ids('capital -is:suspended')).toEqual(['1']);
+    expect(ids('flag:1 or deck:Polski')).toEqual(['1', '3']);
+    expect(ids('note:Omnilanguage')).toEqual(['n1']);
+    expect(ids('(capital')).toEqual([]);
+  });
+
+  it('ranks a note found through "or" by where the best plain word it holds is, then by what it shows first', () => {
+    const found = [basic('a', 'lima', 'x'), basic('b', 'peru', 'capital of peru is lima'), basic('c', 'capital', 'y'), basic('d', 'lima capital', 'z')];
+    // Both words on the front, then one word on the front, then both only in the meaning.
+    expect(searchNotes(found, 'lima or capital', null, NO_CARDS).map((n) => n.id)).toEqual(['d', 'c', 'a', 'b']);
   });
 
   it('offers a row of chips per level of the picked deck', () => {
@@ -67,9 +123,21 @@ describe('finding notes', () => {
   });
 
   it('warns of another note of the same type with the same first field', () => {
-    expect(duplicateOf(notes, { model: 'Basic', fields: { Front: ' capital OF <i>peru</i>? ' } }, 'Front')?.id).toBe('1');
-    expect(duplicateOf(notes, { id: '1', model: 'Basic', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
-    expect(duplicateOf(notes, { model: 'Other', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+    expect(duplicateOf(notes, { deck: 'Trivia', model: 'Basic', fields: { Front: ' capital OF <i>peru</i>? ' } }, 'Front')?.id).toBe('1');
+    expect(duplicateOf(notes, { id: '1', deck: 'Trivia', model: 'Basic', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+    expect(duplicateOf(notes, { deck: 'Trivia', model: 'Other', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+  });
+
+  it('compares an Omnilanguage note only with notes of its own language', () => {
+    const omni = (id: string, deck: string, Entry: string, Language = ''): Note =>
+      ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'm', Language }, tags: [] }) as Note;
+    const existing = [omni('de', 'Languages::Deutsch', 'in'), omni('th', 'Languages::Thai', 'in', 'Thai')];
+    expect(duplicateOf(existing, { deck: 'Languages::Norsk', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')).toBeUndefined();
+    expect(duplicateOf(existing, { deck: 'Languages::Deutsch', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')?.id).toBe('de');
+    // The Language field wins over the deck name.
+    expect(duplicateOf(existing, { deck: 'Misc', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm', Language: 'Thai' } }, 'Entry')?.id).toBe('th');
+    // No language to go by: compared with all, as Anki does.
+    expect(duplicateOf(existing, { deck: 'Misc', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')?.id).toBe('de');
   });
 });
 
@@ -141,5 +209,21 @@ describe('a note being added', () => {
     expect(addDraftChanged(start, { fields: { ...start.fields, Meaning: 'to rule' }, tags: start.tags })).toBe(true);
     expect(addDraftChanged(start, { fields: start.fields, tags: '' })).toBe(true);
     expect(addDraftChanged({ fields: {}, tags: '' }, { fields: { Front: 'a' }, tags: '' })).toBe(true);
+  });
+});
+
+describe('startModelFor', () => {
+  const note = (deck: string, model: string, id: string): Note => ({ id, deck, model, fields: {}, tags: [] });
+  const notes = [note('Trivia', 'Basic', '1'), note('Languages::Polski', 'Omnilanguage', '2'), note('Languages::Polski::Odmiana', 'Omnilanguage', '3'), note('Languages::Polski', 'Basic', '4'), note('Languages::Español', 'Omnilanguage', '5')];
+
+  it("starts with the type the deck's notes use most, its subdecks included", () => {
+    expect(startModelFor(notes, ['Basic', 'Omnilanguage'], 'Languages::Polski')).toBe('Omnilanguage');
+    expect(startModelFor(notes, ['Basic', 'Omnilanguage'], 'Trivia')).toBe('Basic');
+  });
+
+  it("falls back to the collection's most used type, then the first type", () => {
+    expect(startModelFor(notes, ['Cloze'], 'Empty deck')).toBe('Omnilanguage');
+    expect(startModelFor([], ['Cloze', 'Basic'], 'Empty deck')).toBe('Cloze');
+    expect(startModelFor([], [], 'Empty deck')).toBe('');
   });
 });

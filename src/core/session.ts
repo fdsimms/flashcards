@@ -1,4 +1,5 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
+import type { AnkiActionUndo } from '../anki/cardUndo';
 import type { AnkiUndo } from '../anki/writeback';
 import type { RatingValue } from './scheduler';
 import type { Card, DeckParams } from './types';
@@ -58,12 +59,91 @@ export interface AnswerRecord {
   buried: Card[];
   /** The note the answer tagged as a leech: undo takes the tag back off, leaving anything edited since (a hint). */
   leechNoteId?: string;
+  /** The note whose leech tag the answer took off (`leechRecovered`): undo puts it back. */
+  leechClearedNoteId?: string;
   /** An answer in a filtered deck that only previews. */
   preview?: boolean;
   /** What the answer used of today's limits (`answerCounts`), worked out once, so undo takes back the same. */
   counts: 'new' | 'review' | null;
   /** What went wrong, chosen from Again's menu (misses.ts), for the session end's list of misses. */
   miss?: string;
+}
+
+/**
+ * Something Review's menu did to cards, enough to take it back (`undoCardAction`, src/anki/cardUndo.ts).
+ * `state` is a bury, suspend or flag; `schedule` is Set Due Date or Forget, which change the schedule too.
+ */
+export interface CardAction {
+  kind: 'state' | 'schedule';
+  /** What was done, as the undo offer says it ("Suspended this card"). */
+  label: string;
+  /** The cards as they were before. */
+  before: Card[];
+  /** What undoes it in the kept Anki collection, when it changed cards there. */
+  anki?: AnkiActionUndo;
+  /** How many answers stood in the session's history when it was done: an answer given after it is undone first. */
+  afterAnswers: number;
+}
+
+/**
+ * Which comes off first when Undo is tapped: the latest menu action or the latest answer, as Anki's
+ * undo takes back the latest thing done whichever kind it was. `answers` is how many answers
+ * stand in the history. Null when there's nothing to undo.
+ */
+export function nextUndo(answers: number, actions: readonly CardAction[]): 'action' | 'answer' | null {
+  const last = actions[actions.length - 1];
+  if (last && last.afterAnswers >= answers) return 'action';
+  if (answers > 0) return 'answer';
+  return last ? 'action' : null;
+}
+
+/**
+ * A card as it was before a menu action (`before`), put over the card as it is now (`live`): the
+ * fields the action can change go back, and the rest stays as it is now. A bury, suspend or flag
+ * changes only the card's state; Set Due Date and Forget change its schedule and bring it home too.
+ */
+export function restoreCard(live: Card, before: Card, kind: CardAction['kind']): Card {
+  const state = { ...live, suspended: before.suspended, buriedAt: before.buriedAt, flag: before.flag, ankiMod: before.ankiMod };
+  if (kind === 'state') return state;
+  return {
+    ...state, sched: before.sched, position: before.position,
+    filteredDeck: before.filteredDeck, filteredDue: before.filteredDue, previewDue: before.previewDue,
+  };
+}
+
+/**
+ * Anki's session time limit (its timebox, Preferences, Review): reached once `limitSecs` have
+ * passed since the stretch started at `startMs`. Anki checks it after each answer. Never reached
+ * with no limit (0, Anki's default).
+ */
+export function timeboxReached(startMs: number, nowMs: number, limitSecs: number | undefined): boolean {
+  return !!limitSecs && limitSecs > 0 && nowMs - startMs >= limitSecs * 1000;
+}
+
+/** What the time limit alert says: "You studied 34 cards in 15 minutes." */
+export function timeboxMessage(cards: number, ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60000));
+  return `You studied ${cards} ${cards === 1 ? 'card' : 'cards'} in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`;
+}
+
+/**
+ * The answer timer's reading, as Anki's reviewer shows it: the seconds the card has been up,
+ * stopped at the preset's maximum answer seconds (`capped` then, which Anki shows in red), and
+ * held at the moment the answer was shown when the preset says to stop it then.
+ */
+export function answerTimer(
+  shownAtMs: number, nowMs: number, revealedAtMs: number | undefined,
+  params: Pick<DeckParams, 'maxAnswerSecs' | 'stopTimerOnAnswer'> | undefined,
+): { secs: number; capped: boolean } {
+  const until = params?.stopTimerOnAnswer && revealedAtMs !== undefined ? Math.min(nowMs, revealedAtMs) : nowMs;
+  const max = params?.maxAnswerSecs ?? DEFAULT_MAX_ANSWER_SECS;
+  const secs = Math.max(0, Math.floor((until - shownAtMs) / 1000));
+  return secs >= max ? { secs: max, capped: true } : { secs, capped: false };
+}
+
+/** "0:07", "1:00": minutes and seconds. */
+export function clockText(secs: number): string {
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */
@@ -116,6 +196,37 @@ export function currentCard(queue: Queue, preferId?: string): Card | undefined {
     if (preferred) return preferred;
   }
   return nextCard(queue);
+}
+
+/**
+ * `next`, a queue rebuilt after an answer or an edit, with its mixed stretch (`Queue.main`) in the
+ * order `prev`, the queue before it, had it in. Review rebuilds the queue after every answer, and
+ * the mix (`intersperse`, order.ts) spaces new cards by how many cards are left: rebuilt each time,
+ * the card on top is a new one only once fewer reviews are left than new cards, so 150 reviews
+ * came before the first new card. Anki builds the queue once and takes cards off it; this gives
+ * the same: a card still queued keeps its place, one that left (answered, buried, held) is dropped,
+ * and one that wasn't queued before (an undone answer, a card come due, extra new cards from Custom
+ * Study) goes after the card before it in the rebuilt order, or first when it has none. The learning
+ * steps around the mixed stretch are timed, so they come from `next` as they are.
+ */
+export function keepSessionOrder(prev: Queue | undefined, next: Queue): Queue {
+  if (!prev || !prev.main.length || !next.main.length) return next;
+  const nextById = new Map(next.main.map((c) => [c.id, c]));
+  // The cards as `next` has them (an answer or an edit changed some), in `prev`'s places.
+  const kept = prev.main.filter((c) => nextById.has(c.id)).map((c) => nextById.get(c.id)!);
+  if (!kept.length) return next;
+  let main = kept;
+  if (kept.length < next.main.length) {
+    const placed = new Set(kept.map((c) => c.id));
+    main = [...kept];
+    next.main.forEach((c, i) => {
+      if (placed.has(c.id)) return;
+      const before = i > 0 ? main.findIndex((m) => m.id === next.main[i - 1].id) : -1;
+      main.splice(before + 1, 0, c);
+    });
+  }
+  const start = next.order.indexOf(next.main[0]);
+  return { ...next, main, order: [...next.order.slice(0, start), ...main, ...next.order.slice(start + next.main.length)] };
 }
 
 /**

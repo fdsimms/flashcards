@@ -3,8 +3,9 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drawQuestion, drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, missesToCarry, nextDrillQuestion, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
+import { drillSeenFor, loadDrillSeen, noteDrillAsked } from '../tools/drillSeenStorage';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
@@ -22,14 +23,25 @@ import { AnswerContent, Status } from './tools/ToolScreen';
  * the drill's state, the card's face and the footer while the drill runs.
  */
 
-export interface Drill { step: DrillStep; language: Language }
+/** A drill's step and language, and for dates the months (1 to 12) whose words the deck has studied: only those are asked about. */
+export interface Drill { step: DrillStep; language: Language; months?: number[] }
 
 /** The chip's symbol for each kind of drill. */
-const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
+const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
+
+/**
+ * The questions missed the last time a card was answered Again or Hard, by card id. When the card comes
+ * back they're asked again before any new one, as a failed card in Anki comes back unchanged. Kept
+ * in memory only, and dropped as soon as the card is answered Good or Easy.
+ */
+const carriedMisses = new Map<string, DrillQuestion[]>();
 
 interface DrillState {
   key: string;
   question: DrillQuestion;
+  /** Missed questions still to ask again, and the ones missed so far in this showing. */
+  retry: DrillQuestion[];
+  missed: DrillQuestion[];
   shown: boolean;
   results: boolean[];
   /** When the question came up, and how long each answer took to give (to Show answer, or to the end of speaking it). */
@@ -40,10 +52,15 @@ interface DrillState {
 }
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
-export function useSkillDrill(showing: string | undefined, drill: Drill | undefined) {
-  const first = useMemo(() => (drill && showing ? { question: drawQuestion(drill.step, undefined, Math.random, drill.language), at: Date.now() } : undefined), [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
+export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
+  const first = useMemo(() => {
+    if (!drill || !showing) return undefined;
+    void loadDrillSeen();
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
+    return { ...next, at: Date.now() };
+  }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
-  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, shown: false, results: [], askedAt: first.at, times: [] } : null;
+  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, retry: first.retry, missed: [], shown: false, results: [], askedAt: first.at, times: [] } : null;
   const done = !!live && live.results.length >= DRILL_QUESTIONS;
   const reveal = (heard?: string) => {
     if (!live || live.shown || !drill) return;
@@ -72,8 +89,19 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
-      setState({ key: live.key, question: last ? live.question : drawQuestion(drill.step, live.question, Math.random, drill.language), shown: false, results, askedAt: Date.now(), times: live.times });
+      const missed = right ? live.missed : [...live.missed, live.question];
+      // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
+      noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
+      setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
+    },
+    /** The card was answered: after Again or Hard, what was missed comes back with it; Good and Easy let it go. */
+    rated: (rating: number) => {
+      if (!cardId) return;
+      const carry = missesToCarry(rating, live?.missed ?? []);
+      if (carry.length) carriedMisses.set(cardId, carry);
+      else carriedMisses.delete(cardId);
     },
   };
 }
@@ -100,8 +128,9 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
   const answer = skill.shown ? drillAnswer(question, drill.language) : undefined;
   const right = skill.results.filter(Boolean).length;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
-      <View style={{ position: 'absolute', top: space.m, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
+    // The top padding clears the language pill CardSurface draws at the card's top edge in a mixed deck; the chip sits in the flow below it, never pinned to the same spot.
+    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+      <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
         <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
         <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>{`Skill · ${GROUP_TITLES[drill.step.group]}`}</Text>
       </View>
@@ -111,8 +140,8 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${DRILL_QUESTIONS}`}</Text>
           <Dots results={skill.results} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {skill.suggested === 3 ? 'All right. Good is outlined.'
-              : skill.suggested === 2 && skill.slow ? `All right, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
+            {skill.suggested === 3 ? 'All correct. Good is outlined.'
+              : skill.suggested === 2 && skill.slow ? `All correct, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
                 : skill.suggested === 2 ? 'One miss. Hard is outlined.' : 'More than one miss. Again is outlined.'}
             {'\n'}Tap the rating that fits.
           </Text>
@@ -122,6 +151,7 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           <Dots results={skill.results} at={skill.results.length} />
           {question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
           <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>
+          {questionNote(question, drill.language) ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{questionNote(question, drill.language)}</Text> : null}
           {answer ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
               <View style={{ height: 1, backgroundColor: c.textTertiary, opacity: 0.6 }} />

@@ -1,7 +1,10 @@
 import { nextStudyDayStart } from './day';
+import { isOmnilanguage, speechLangFor } from './cards';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
+import { matchesSearch, parseSearch, rankedWords, type Glob } from './ankiSearch';
+import { searchPlace, searchQuery, searchRank, type SearchPlace } from './searchRank';
 import type { Card, Note } from './types';
 
 /**
@@ -32,6 +35,18 @@ export function asEdited(html: string): string {
 }
 
 /** Tags typed as text, separated by spaces: each once, whatever its case (the first spelling wins). */
+/**
+ * The note type a new note in `deck` starts as: the one its notes (subdecks included) use most, else
+ * the collection's most used, else the first of `typeNames`. The note editor and Quick add both start
+ * here, so a word added either way is the same kind of note.
+ */
+export function startModelFor(notes: readonly Note[], typeNames: readonly string[], deck: string): string {
+  const inDeck = notes.filter((n) => n.deck === deck || n.deck.startsWith(`${deck}::`));
+  const counts = new Map<string, number>();
+  for (const n of inDeck.length ? inDeck : notes) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? typeNames[0] ?? '';
+}
+
 export function parseTags(text: string): string[] {
   const seen = new Map<string, string>();
   for (const t of text.split(/\s+/)) if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t);
@@ -48,32 +63,93 @@ export function addDraftChanged(start: { fields: Record<string, string>; tags: s
   return filled(start.fields) !== filled(now.fields) || parseTags(start.tags).join(' ') !== parseTags(now.tags).join(' ');
 }
 
+/** The names of the fields a note shows first: Omnilanguage's Entry and Meaning, else the first two. */
+function previewFieldNames(note: Note): [string | undefined, string | undefined] {
+  if ('Entry' in note.fields && 'Meaning' in note.fields) return ['Entry', 'Meaning'];
+  const names = Object.keys(note.fields);
+  return [names[0], names[1]];
+}
+
 /** The fields a note shows first, as plain text: Omnilanguage's Entry and Meaning, else the first two. */
 export function notePreview(note: Note): { front: string; back: string } {
   const line = (html: string | undefined) => htmlToText(html ?? '').replace(/\s+/g, ' ').trim();
-  if ('Entry' in note.fields && 'Meaning' in note.fields) return { front: line(note.fields.Entry), back: line(note.fields.Meaning) };
-  const values = Object.values(note.fields);
-  return { front: line(values[0]), back: line(values[1]) };
+  const [front, back] = previewFieldNames(note);
+  return { front: line(front && note.fields[front]), back: line(back && note.fields[back]) };
 }
 
 const fold = (s: string) => s.toLocaleLowerCase();
 
 /**
- * Notes matching every word of a search, case aside, in any field (as text), a tag or the deck's
- * name; within a deck and its subdecks when one is given. Sorted by what they show first, as
- * Anki's browser sorts by the sort field.
+ * A note as search reads it: what shows first, what shows second, every other field, then its
+ * tags and deck. Worked out once per note object and kept while it lives, so typing doesn't redo
+ * it for every note at each letter; a note is never changed in place (an edit loads new ones).
  */
-export function searchNotes(notes: Note[], query: string, deck?: string | null): Note[] {
-  const words = query.trim().split(/\s+/).filter(Boolean).map(fold);
+const searchPlaces = new WeakMap<Note, SearchPlace[]>();
+
+function searchPlacesOf(note: Note): SearchPlace[] {
+  let places = searchPlaces.get(note);
+  if (!places) {
+    const [front, back] = previewFieldNames(note);
+    const field = (name: string | undefined) => htmlToText((name && note.fields[name]) ?? '');
+    const others = Object.keys(note.fields).filter((k) => k !== front && k !== back).map(field).join('\n');
+    places = [field(front), field(back), others, [...note.tags, note.deck].join('\n')].map(searchPlace);
+    searchPlaces.set(note, places);
+  }
+  return places;
+}
+
+/**
+ * Whether a note holds a plain word of a search, case and accents aside, in any field (as text), a
+ * tag or the deck's name: anywhere in it, or matching its `*` and `_` wildcards.
+ */
+function textMatches(note: Note, text: Glob): boolean {
+  const places = searchPlacesOf(note);
+  if (text.wild) {
+    const re = new RegExp(text.source, 'isu');
+    const loose = new RegExp(searchQuery(text.source).phrase.loose, 'isu');
+    return places.some((p) => re.test(p.exact) || loose.test(p.loose));
+  }
+  const { phrase } = searchQuery(text.text);
+  return places.some((p) => p.exact.includes(phrase.exact) || p.loose.includes(phrase.loose));
+}
+
+/** Where a note found without holding any plain word of the search ranks: after every one that holds one. */
+const NOT_RANKED = 1e6;
+
+/** A note's cards, and the moment and study day Browse's search reads them at. */
+export type SearchCards = { byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number };
+
+/**
+ * Notes matching a search in Anki's syntax (src/core/ankiSearch.ts), within a deck and its
+ * subdecks when one is given; none when the search can't be read (`parseSearch` says why). A plain
+ * word matches case and accents aside, in any field (as text), a tag or the deck's name. The
+ * closest matches to the plain words come first (`searchRank`): the search on the front before it
+ * in the meaning, before it in another field, before a tag or the deck; and within each, the search
+ * as a whole entry ("performance" in "performance; show") before a whole word, the start of a
+ * word, then anywhere. Ties, and every note when no plain word is typed, are sorted by what they
+ * show first, as Anki's browser sorts by the sort field.
+ */
+export function searchNotes(notes: Note[], query: string, deck: string | null | undefined, cards: SearchCards): Note[] {
+  const parsed = parseSearch(query);
+  if (!parsed.ok) return [];
+  const { node } = parsed;
+  const words = rankedWords(node);
+  const search = searchQuery(words.join(' '));
+  const ctx = { now: cards.now, dayStartsAtHour: cards.dayStartsAtHour, textMatches };
   const inDeck = (d: string) => !deck || d === deck || d.startsWith(`${deck}::`);
+  const rank = new Map<string, number>();
   const out = notes.filter((n) => {
     if (!inDeck(n.deck)) return false;
+    if (node && !matchesSearch(node, n, cards.byNote.get(n.id) ?? [], ctx)) return false;
     if (!words.length) return true;
-    const hay = fold([...Object.values(n.fields).map(htmlToText), ...n.tags, n.deck].join('\n'));
-    return words.every((w) => hay.includes(w));
+    const places = searchPlacesOf(n);
+    // A note found through an `or` may not hold every plain word: it ranks by the best one it holds.
+    const best = Math.min(...words.map((w) => searchRank(places, searchQuery(w)) ?? NOT_RANKED));
+    rank.set(n.id, searchRank(places, search) ?? best + 0.75);
+    return true;
   });
   const key = new Map(out.map((n) => [n.id, notePreview(n).front]));
-  return out.sort((a, b) => key.get(a.id)!.localeCompare(key.get(b.id)!));
+  return out.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0) || key.get(a.id)!.localeCompare(key.get(b.id)!));
 }
 
 /** What Browse can narrow its notes to, beside a deck and a search. */
@@ -155,10 +231,25 @@ export function deckChipRows(notes: Note[], scope: string | null): DeckChip[][] 
 /**
  * Another note of the same type whose first field reads the same, as Anki's duplicate check
  * compares them (as text, case aside). The editor warns as you type; `saveNote` refuses.
+ * One Omnilanguage note type holds every language, so there a word only repeats a word of its own
+ * language: Norwegian "in" and German "in" are two notes. A note with no known language (neither
+ * its Language field nor its deck names one) is compared with all of them, as Anki would.
  */
-export function duplicateOf(notes: Note[], draft: { id?: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
-  const text = (html: string | undefined) => fold(htmlToText(html ?? '').trim());
-  const mine = text(draft.fields[firstField]);
+export function duplicateOf(notes: Note[], draft: { id?: string; deck: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
+  const mine = duplicateKey(draft.fields[firstField]);
   if (!mine) return undefined;
-  return notes.find((n) => n.id !== draft.id && n.model === draft.model && text(n.fields[firstField]) === mine);
+  const myLanguage = isOmnilanguage(draft as Note) ? speechLangFor({ deck: draft.deck, fields: draft.fields } as Note) : undefined;
+  return notes.find((n) => {
+    if (n.id === draft.id || n.model !== draft.model || duplicateKey(n.fields[firstField]) !== mine) return false;
+    const theirs = myLanguage ? speechLangFor(n) : undefined;
+    return !theirs || theirs === myLanguage;
+  });
+}
+
+/**
+ * What `duplicateOf` compares a first field by: its text, case aside. Exported for a check that indexes
+ * many notes by it first (Quick add's), then asks `duplicateOf` about the few that match.
+ */
+export function duplicateKey(html: string | undefined): string {
+  return fold(htmlToText(html ?? '').trim());
 }

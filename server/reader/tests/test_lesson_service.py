@@ -63,7 +63,12 @@ class Fakes:
         self.rates: list[float] = []
 
     async def write(
-        self, language: str, scene: str, feedback: str, learner: str = "male"
+        self,
+        language: str,
+        scene: str,
+        feedback: str,
+        learner: str = "male",
+        register: str = "everyday",
     ) -> tuple[Any, Usage]:
         self.asked.append((scene, feedback))
         return good_plan(), USAGE
@@ -96,6 +101,32 @@ def run(conn: Any, fakes: Fakes, tmp_path: Path, **over: Any) -> int:
     args.update(over)
     asyncio.run(lesson_service.make_lesson(conn, lesson_id, "fr", "ordering a coffee", **args))
     return lesson_id
+
+
+def test_a_lesson_opens_with_a_phrase_of_a_lesson_played_to_the_end(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    first = run(conn, Fakes(), tmp_path)
+    # Made but never played: nothing of it is asked for.
+    fakes = Fakes()
+    run(conn, fakes, tmp_path)
+    assert "First, some phrases from earlier lessons." not in [t for t, _, _ in fakes.spoken]
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET plan = ? WHERE id = ?",
+            ('{"phrases": [{"text": "Merci.", "english": "Thank you."}]}', first),
+        )
+    assert store.mark_lesson_heard(conn, first, NOW)
+    assert not store.mark_lesson_heard(conn, 999, NOW)
+    fakes = Fakes()
+    run(conn, fakes, tmp_path)
+    spoken = [t for t, _, _ in fakes.spoken]
+    assert spoken[:3] == [
+        "First, some phrases from earlier lessons.",
+        "How do you say: Thank you.",
+        "Merci.",
+    ]
+    assert store.heard_lesson_phrases(conn, "fr", 0) == [[("Merci.", "Thank you.")]]
+    assert store.heard_lesson_phrases(conn, "th", 0) == []
 
 
 def test_makes_a_lesson_and_keeps_it(tmp_path: Path) -> None:
@@ -179,7 +210,7 @@ def test_a_lesson_claude_cannot_write_fails_with_its_reason(tmp_path: Path) -> N
     fakes = Fakes()
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         raise LessonFailed("Claude didn't answer. Try again in a moment.", USAGE)
 
@@ -197,7 +228,7 @@ def test_the_stage_follows_the_lesson_from_writing_to_joining(tmp_path: Path) ->
     seen: list[str] = []
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         seen.append(_stage(conn))
         return good_plan(), USAGE
@@ -263,7 +294,7 @@ def test_asks_claude_again_once_when_the_first_plan_is_unusable(tmp_path: Path) 
     answers = [{"title": "x", "dialogue": [], "phrases": []}, good_plan()]
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         fakes.asked.append((scene, feedback))
         return answers.pop(0), USAGE
@@ -283,7 +314,7 @@ def test_gives_up_after_two_unusable_plans(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         return {"title": "x", "dialogue": [], "phrases": []}, USAGE
 
@@ -311,7 +342,9 @@ def test_asks_again_naming_the_dialogue_words_the_learner_doesnt_know(tmp_path: 
     fakes = Fakes()
     answers = [STRANGE, good_plan()]
 
-    async def write(language: str, scene: str, feedback: str, learner: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str, register: str = "everyday"
+    ) -> tuple[Any, Usage]:
         fakes.asked.append((scene, feedback))
         return answers.pop(0), USAGE
 
@@ -326,7 +359,9 @@ def test_asks_again_naming_the_dialogue_words_the_learner_doesnt_know(tmp_path: 
 def test_keeps_the_closest_dialogue_when_every_try_has_unknown_words(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
 
-    async def write(language: str, scene: str, feedback: str, learner: str) -> tuple[Any, Usage]:
+    async def write(
+        language: str, scene: str, feedback: str, learner: str, register: str = "everyday"
+    ) -> tuple[Any, Usage]:
         return STRANGE, USAGE
 
     lesson_id = run(conn, Fakes(), tmp_path, write=write, lexicon=deck("bonjour"))
@@ -420,7 +455,7 @@ def thai_plan(*, particle: str = "ครับ", first_person: str = "ผม") -
 
 def thai_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> Any:
     async def write(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         asked.append((learner, feedback))
         return answers.pop(0), USAGE
@@ -507,6 +542,7 @@ def given_write(answers: list[dict[str, Any]], asked: list[tuple[str, str]]) -> 
         given: tuple[lesson.Phrase, ...],
         feedback: str,
         learner: str = "male",
+        register: str = "everyday",
     ) -> tuple[Any, Usage]:
         asked.append((", ".join(p.text for p in given), feedback))
         return answers.pop(0), USAGE

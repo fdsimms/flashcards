@@ -12,6 +12,16 @@ export function verdictLine(check: WritingCheck): string {
   return check.notes.length > 1 ? `Almost. ${check.notes.length} things to fix.` : 'Almost. One thing to fix.';
 }
 
+/**
+ * Whether a check is first shown without its correction, for one more try: the first check of a
+ * piece of writing that has mistakes. Working a mistake out and fixing it oneself is what makes
+ * the correction stick, which reading the fixed sentence doesn't ask for. The second check shows
+ * everything whatever it finds, and so does Show the correction; a right answer has nothing to hold back.
+ */
+export function asksAnotherTry(check: WritingCheck, tries: number): boolean {
+  return tries <= 1 && (check.verdict !== 'right' || check.used_word === false);
+}
+
 export interface WordToUse {
   noteId: string;
   word: string;

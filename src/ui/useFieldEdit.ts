@@ -1,7 +1,7 @@
 import { useCallback, useState, type MutableRefObject } from 'react';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { withFieldText, type EditableField } from '../core/editField';
-import { Refusal } from '../core/failure';
+import { NOTE_GONE, Refusal } from '../core/failure';
 import { reviewWrites } from '../core/writeQueue';
 import type { Note } from '../core/types';
 import type { Repo } from '../db/repo';
@@ -19,7 +19,7 @@ export function useFieldEdit(repo: Repo, writes: MutableRefObject<number>, onSav
       // The answer's own writes finish first, then the note as it is now: the answer may have changed it (a tag).
       await reviewWrites.idle();
       const now = await repo.getNote(noteId);
-      if (!now) throw new Refusal("This note isn't in Franki anymore. Go back to the deck and open the card again.");
+      if (!now) throw new Refusal(NOTE_GONE);
       const fields = withFieldText(now.fields, field, text);
       if (fields === now.fields) return;
       onSaved(await saveNote(repo as NoteStore, { id: now.id, deck: now.deck, model: now.model, fields, tags: now.tags }));

@@ -379,7 +379,8 @@ export interface paths {
         /**
          * Listened
          * @description A finished text heard again with its words hidden. Only counted: no reading, no
-         *     difficulty change. 404 for a text that wasn't read to the end.
+         *     difficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen
+         *     already counted under it isn't counted twice.
          */
         post: operations["listened_api_texts__text_id__listen_post"];
         delete?: never;
@@ -1053,6 +1054,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{lesson_id}/heard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Heard Route
+         * @description Notes that the lesson was played to the end, so a later lesson may ask for its phrases.
+         *     Never grades a card.
+         */
+        post: operations["heard_route_api_lessons__lesson_id__heard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/review": {
         parameters: {
             query?: never;
@@ -1157,6 +1179,27 @@ export interface paths {
         put?: never;
         /** Make Mnemonics */
         post: operations["make_mnemonics_api_mnemonics_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/word-meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Word Meaning
+         * @description The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else
+         *     Claude's, asked now. Never writes to Anki or grades a card.
+         */
+        post: operations["word_meaning_api_word_meaning_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1555,6 +1598,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/word-lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look Up
+         * @description Words for a meaning typed in English (Quick add's "Don't know the word?"). Only returns
+         *     words: a picked one is queued like any other.
+         */
+        post: operations["look_up_api_word_lookup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/word-suggestions": {
         parameters: {
             query?: never;
@@ -1817,6 +1881,15 @@ export interface components {
              */
             helper: string;
         };
+        /** FoundWordOut */
+        FoundWordOut: {
+            /** Entry */
+            entry: string;
+            /** Meaning */
+            meaning: string;
+            /** Note */
+            note: string;
+        };
         /** FrankiCountsIn */
         FrankiCountsIn: {
             /** Due */
@@ -1840,6 +1913,11 @@ export interface components {
              * @default
              */
             english: string;
+            /**
+             * Parts
+             * @default false
+             */
+            parts: boolean;
         };
         /** GlossesIn */
         GlossesIn: {
@@ -1897,6 +1975,8 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
         };
@@ -1906,6 +1986,11 @@ export interface components {
             text: string;
             /** English */
             english: string;
+        };
+        /** ListenIn */
+        ListenIn: {
+            /** Key */
+            key?: string | null;
         };
         /** MarkIn */
         MarkIn: {
@@ -2124,6 +2209,8 @@ export interface components {
                     [key: string]: components["schemas"]["CastChoice"] | null;
                 };
             } | null;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
         };
         /** SituationFocus */
         SituationFocus: {
@@ -2155,6 +2242,10 @@ export interface components {
              * @default true
              */
             speak: boolean;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** SituationLine */
         SituationLine: {
@@ -2258,6 +2349,15 @@ export interface components {
              * @default false
              */
             stretch: boolean;
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** ThemesOut */
         ThemesOut: {
@@ -2340,6 +2440,36 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+        };
+        /** WordLookupIn */
+        WordLookupIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Meaning */
+            meaning: string;
+        };
+        /** WordLookupOut */
+        WordLookupOut: {
+            /** Words */
+            words: components["schemas"]["FoundWordOut"][];
+        };
+        /** WordMeaningIn */
+        WordMeaningIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Word */
+            word: string;
+            /**
+             * English
+             * @default
+             */
+            english: string;
         };
         /** WordOut */
         WordOut: {
@@ -3190,7 +3320,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ListenIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -4681,6 +4815,37 @@ export interface operations {
             };
         };
     };
+    heard_route_api_lessons__lesson_id__heard_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     make_review_route_api_lessons_review_post: {
         parameters: {
             query?: never;
@@ -4874,6 +5039,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    word_meaning_api_word_meaning_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordMeaningIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | null;
                     };
                 };
             };
@@ -5700,6 +5902,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    look_up_api_word_lookup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordLookupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WordLookupOut"];
+                };
             };
             /** @description Validation Error */
             422: {

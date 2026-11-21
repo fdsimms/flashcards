@@ -23,7 +23,7 @@ describe('a date in Polish', () => {
   it('gives the "on" form, the day in the genitive and the weekday after w', () => {
     const on = sayPolishDate(nov12, all).also[0];
     expect(on.text).toBe('w czwartek, dwunastego listopada dwa tysiące dwudziestego szóstego roku');
-    expect(on.note).toBe('Saying on which day');
+    expect(on.note).toBe('As in "on the 12th"');
     expect(sayPolishDate({ year: 2026, month: 11, day: 10 }, all).also[0].text).toMatch(/^we wtorek, dziesiątego listopada/);
     expect(sayPolishDate({ year: 2026, month: 11, day: 11 }, all).also[0].text).toMatch(/^w środę/);
     expect(sayPolishDate({ year: 2026, month: 11, day: 15 }, all).also[0].text).toMatch(/^w niedzielę/);

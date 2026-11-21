@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
-  lastMissed, nextRoundAt, parseCram, roundStatus, runningCramTags, wordState, withRound, type Cram,
+  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
+  afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withThemes, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
+  withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
 import type { Card, Note } from '../../src/core/types';
@@ -69,41 +70,114 @@ describe('the cram day', () => {
   });
 });
 
-describe('nextRoundAt', () => {
-  it('opens the first round at once', () => {
-    expect(nextRoundAt(cram(), WED, H)?.getTime()).toBe(WED.getTime());
+describe('practice', () => {
+  it('can start any time, as often as wanted: the words not solid yet, else all of them', () => {
+    const ids = ['a', 'b', 'c'];
+    expect(practiceWords(cram(), ids)).toEqual(ids);
+    expect(practiceLabel(cram(), ids)).toBe('Practice 3 words');
+    expect(practiceSummary(cram(), ids)).toBe('Not practiced yet.');
+    // Three passes in an hour: nothing waits between them.
+    const three = cram({
+      rounds: [round(new Date(2026, 10, 18, 8), ids, ['a']), round(new Date(2026, 10, 18, 8, 20), ids, ['a', 'b']), round(new Date(2026, 10, 18, 8, 40), ['a', 'b'], ['a'])],
+    });
+    // c was got the first time in both passes it was in; b only in the last, so it isn't solid yet.
+    expect(practiceProgress(three, ids)).toEqual({ solid: ['c'], toGo: ['a', 'b'] });
+    expect(practiceWords(three, ids)).toEqual(['a', 'b']);
+    expect(practiceLabel(three, ids)).toBe('Practice 2 words');
+    expect(practiceSummary(three, ids)).toBe('1 of 3 words solid.');
+    const all = withRound(withRound(three, round(WED, ['a', 'b'], [])), round(WED, ['a'], []));
+    expect(practiceWords(all, ids)).toEqual(ids);
+    expect(practiceLabel(all, ids)).toBe('Practice all 3 again');
+    expect(practiceSummary(cram(), [])).toBe('No words yet.');
   });
-  it('waits four hours after a round', () => {
-    const c = cram({ rounds: [round(new Date(2026, 10, 18, 8))] });
-    expect(nextRoundAt(c, WED, H)).toEqual(new Date(2026, 10, 18, 12));
+  it(`takes ${SOLID_PASSES} clean passes in a row to count a word as solid`, () => {
+    expect(SOLID_PASSES).toBe(2);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], [])] }), ['a']).solid).toEqual([]);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], [])] }), ['a']).solid).toEqual(['a']);
+    // A miss in the latest pass undoes it, and so does one in the pass before.
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], []), round(WED, ['a'], ['a'])] }), ['a']).solid).toEqual([]);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], ['a']), round(WED, ['a'], [])] }), ['a']).solid).toEqual([]);
   });
-  it('offers no third round in a study day, but the next day', () => {
-    const c = cram({ rounds: [round(new Date(2026, 10, 18, 8)), round(new Date(2026, 10, 18, 13))] });
-    expect(nextRoundAt(c, new Date(2026, 10, 18, 20), H)).toEqual(new Date(2026, 10, 19, 4));
+  it('counts a word added after the last pass as still to go', () => {
+    const c = cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], [])] });
+    expect(practiceProgress(c, ['a', 'new'])).toEqual({ solid: ['a'], toGo: ['new'] });
   });
-  it("counts the rounds of the day the round would fall in, not the last one's", () => {
-    // Two rounds on Tuesday don't stop one on Wednesday.
-    const c = cram({ rounds: [round(new Date(2026, 10, 17, 8)), round(new Date(2026, 10, 17, 18))] });
-    expect(nextRoundAt(c, WED, H)!.getTime()).toBeLessThanOrEqual(WED.getTime());
+  it('names a cram started without a topic after the theme it takes, and asks for free ideas until then', () => {
+    const talk = { title: 'My weekend at the beach', questions: [] };
+    const untitled = cram({ name: standInName('Thai'), untitled: true });
+    expect(untitled.name).toBe('Thai lesson');
+    expect(standInName(undefined)).toBe('Lesson');
+    expect(themeTopic(untitled)).toBe('');
+    const named = withThemes(untitled, [talk]);
+    expect(named).toMatchObject({ name: 'My weekend at the beach', themes: [talk], id: untitled.id });
+    expect(named.untitled).toBeUndefined();
+    expect(themeTopic(named)).toBe('My weekend at the beach');
+    // A cram named by its owner keeps its name.
+    expect(withThemes(cram(), [talk])).toMatchObject({ name: 'Thai lesson', themes: [talk] });
+    expect(themeTopic(cram())).toBe('Thai lesson');
   });
-  it('offers rounds on the day itself and none after', () => {
-    expect(nextRoundAt(cram(), new Date(2026, 10, 20, 15), H)).toBeDefined();
-    expect(nextRoundAt(cram(), new Date(2026, 10, 21, 5), H)).toBeUndefined();
-    const late = cram({ rounds: [round(new Date(2026, 10, 21, 1))] });
-    expect(nextRoundAt(late, new Date(2026, 10, 21, 2), H)).toBeUndefined();
-    expect(nextRoundAt(cram({ finishedAt: WED.toISOString() }), WED, H)).toBeUndefined();
+  it('keeps several themes in order, replacing one with the same title, and names an untitled cram after the first', () => {
+    const a = { title: 'A', questions: [] };
+    const b = { title: 'B', questions: [] };
+    const b2 = { title: 'B', questions: [{ text: 'q', english: '' }] };
+    expect(withThemes(cram({ untitled: true, name: 'Thai lesson' }), [a, b])).toMatchObject({ name: 'A', themes: [a, b] });
+    expect(withThemes(cram({ themes: [a, b] }), [b2]).themes).toEqual([a, b2]);
+    expect(withThemes(cram(), [])).toEqual(cram());
+  });
+  it('reads a cram saved with its one theme as a list of one', () => {
+    const talk = { title: 'A', questions: [] };
+    const json = JSON.stringify({ ...cram(), theme: talk });
+    expect(parseCram(json)?.themes).toEqual([talk]);
+    expect(parseCram(json)).not.toHaveProperty('theme');
   });
 });
 
-describe('roundStatus', () => {
-  it('says when the next round is', () => {
-    expect(roundStatus(cram(), WED, H)).toEqual({ ready: true, text: 'Round 1 is ready.', action: 'Start round 1' });
-    const one = cram({ rounds: [round(new Date(2026, 10, 18, 8))] });
-    expect(roundStatus(one, WED, H)).toEqual({ ready: false, text: '1 round done. Next round at 12:00 PM.' });
-    expect(roundStatus(one, new Date(2026, 10, 18, 13), H)).toEqual({ ready: true, text: '1 round done. Round 2 is ready.', action: 'Start round 2' });
-    const two = cram({ rounds: [round(new Date(2026, 10, 18, 8)), round(new Date(2026, 10, 18, 13))] });
-    expect(roundStatus(two, new Date(2026, 10, 18, 20), H).text).toBe('2 rounds done. Next round tomorrow.');
-    expect(roundStatus(two, new Date(2026, 10, 21, 5), H).text).toBe('2 rounds done. No rounds left.');
+describe('planning', () => {
+  it('keeps questions for the tutor, once each, and checks them off', () => {
+    const one = withQuestion(cram(), '  How do I say   "encore"? ', 'q1')!;
+    expect(one.questions).toEqual([{ id: 'q1', text: 'How do I say "encore"?' }]);
+    expect(withQuestion(one, 'how do i say "encore"?', 'q2')).toBeUndefined();
+    expect(withQuestion(one, '   ', 'q3')).toBeUndefined();
+    expect(withQuestionAsked(one, 'q1', true).questions).toEqual([{ id: 'q1', text: 'How do I say "encore"?', asked: true }]);
+    expect(withoutQuestion(one, 'q1').questions).toEqual([]);
+  });
+  it('keeps what was typed in the lesson, once each', () => {
+    const one = withCapture(cram(), ' ประหม่า ')!;
+    expect(one.captured).toEqual(['ประหม่า']);
+    expect(withCapture(one, 'ประหม่า')).toBeUndefined();
+    expect(withoutCapture(one, 'ประหม่า').captured).toEqual([]);
+  });
+  it("turns the lesson's jottings into cards being written, keeping what changed meanwhile", () => {
+    const sent = withCapture(withCapture(cram(), 'encore')!, 'bow')!;
+    // Jotted after the request went out, while it was on its way.
+    const now = withCapture(sent, 'ประหม่า')!;
+    const next = afterCardsAsked(now, [{ capture: 'encore', word: { text: 'อังกอร์', english: 'encore' } }]);
+    expect(next.captured).toEqual(['bow', 'ประหม่า']);
+    expect(next.requested).toEqual([{ text: 'อังกอร์', english: 'encore' }]);
+  });
+  it('shows a card asked of Claude until a note with the word is in the cram', () => {
+    const asked = withRequest(withRequest(cram(), { text: 'เวที', english: 'stage' }), { text: 'ปรบมือ', english: 'to clap' });
+    expect(withRequest(asked, { text: 'เวที', english: 'a stage' }).requested).toHaveLength(2);
+    const inCram = [{ ...omniNote({ Entry: '<b>เวที</b>', Meaning: 'stage' }), id: 'n' }];
+    expect(pendingRequests(asked, inCram)).toEqual([{ text: 'ปรบมือ', english: 'to clap' }]);
+    expect(pendingRequests(withoutRequest(asked, 'ปรบมือ'), inCram)).toEqual([]);
+  });
+  it('finds notes by the word, then by a whole word of the meaning', () => {
+    const n = (id: string, entry: string, meaning: string): Note => ({ ...omniNote({ Entry: entry, Meaning: meaning }), id });
+    const notes = [n('1', 'อีกครั้ง', 'once more, again'), n('2', 'พูดอีกครั้งได้ไหม', 'Could you say that again?'), n('3', 'against', 'x'), n('4', 'ไวโอลิน', 'violin')];
+    expect(searchNotes(notes, 'again', 10).map((x) => x.id)).toEqual(['3', '2', '1']);
+    expect(searchNotes(notes, 'อีกครั้ง', 10).map((x) => x.id)).toEqual(['1', '2']);
+    expect(searchNotes(notes, 'VIOLIN', 10).map((x) => x.id)).toEqual(['4']);
+    expect(searchNotes(notes, 'a.*', 10)).toEqual([]);
+    expect(searchNotes(notes, '  ', 10)).toEqual([]);
+    expect(searchNotes(notes, 'again', 1)).toHaveLength(1);
+  });
+  it('offers today, tomorrow and the next three days, by study day', () => {
+    expect(dayChoices(WED, H)).toEqual([
+      { label: 'Today', date: '2026-11-18' }, { label: 'Tomorrow', date: '2026-11-19' }, { label: 'Fri', date: '2026-11-20' }, { label: 'Sat', date: '2026-11-21' }, { label: 'Sun', date: '2026-11-22' },
+    ]);
+    // At 1 AM it's still Tuesday's study day.
+    expect(dayChoices(new Date(2026, 10, 18, 1), H)[0]).toEqual({ label: 'Today', date: '2026-11-17' });
   });
 });
 
@@ -138,8 +212,32 @@ describe('finishing and carrying over', () => {
 
 describe('runningCramTags', () => {
   it('tags new notes for running crams that add them', () => {
-    const crams = [cram(), cram({ id: 'off', addNew: false }), cram({ id: 'over', date: '2026-11-17' })];
-    expect(runningCramTags(crams, WED, H)).toEqual(['cram::thai-lesson-2026-11-20']);
+    const crams = [cram({ language: 'th' }), cram({ id: 'off', addNew: false, language: 'th' }), cram({ id: 'over', date: '2026-11-17', language: 'th' })];
+    expect(runningCramTags(crams, [], 'th', WED, H)).toEqual(['cram::thai-lesson-2026-11-20']);
+  });
+  it("tags only crams in the note's own language, reading a cram's from its words when none was picked", () => {
+    const thaiWord = { ...omniNote({ Entry: 'ไวโอลิน', Meaning: 'violin' }), id: 't', tags: ['cram::by-words'] };
+    const crams = [cram({ id: 'polish', language: 'pl' }), cram({ id: 'by-words' }), cram({ id: 'empty' })];
+    expect(runningCramTags(crams, [thaiWord], 'th', WED, H)).toEqual(['cram::by-words']);
+    expect(runningCramTags(crams, [thaiWord], 'pl', WED, H)).toEqual(['cram::polish']);
+    // A note in no language Read & Listen knows joins only a cram that has none either.
+    expect(runningCramTags(crams, [thaiWord], undefined, WED, H)).toEqual(['cram::empty']);
+  });
+});
+
+describe('suggestions for a new cram', () => {
+  const thai = (id: string): Note => ({ ...omniNote({ Entry: 'เกือบ', Meaning: 'almost' }), id });
+  const polish = (id: string): Note => ({ ...omniNote({ Entry: 'kot', Meaning: 'cat', Language: 'Polish' }), id, deck: 'Polski' });
+  it('starts in the language of the cram made last', () => {
+    const older = cram({ id: 'a', language: 'pl', createdAt: '2026-11-01T00:00:00.000Z' });
+    const newer = cram({ id: 'b', language: 'th', createdAt: '2026-11-10T00:00:00.000Z' });
+    expect(lastCramLanguage([newer, older], [])).toBe('th');
+    expect(lastCramLanguage([cram({ id: 'c', createdAt: '2026-11-12T00:00:00.000Z' }), older], [])).toBe('pl');
+    expect(lastCramLanguage([], [])).toBeUndefined();
+  });
+  it("offers the words missed lately in the cram's language, most missed first", () => {
+    const rows = [{ note: thai('a'), misses: 1 }, { note: thai('b'), misses: 3 }, { note: polish('c'), misses: 5 }, { note: thai('a'), misses: 2 }, { note: thai('d'), misses: 9 }];
+    expect(missedLately(rows, 'th', ['d'])).toEqual(['a', 'b']);
   });
 });
 
@@ -182,9 +280,16 @@ describe('noteAddedAt', () => {
 });
 
 describe('parseCram', () => {
+  it('keeps a cram\'s register and drops one it doesn\'t know', () => {
+    expect(parseCram(JSON.stringify({ ...cram(), register: 'formal' }))?.register).toBe('formal');
+    expect(parseCram(JSON.stringify({ ...cram(), register: 'slang' }))?.register).toBeUndefined();
+  });
+
   it('reads a saved cram and refuses anything else', () => {
     expect(parseCram(JSON.stringify(cram()))).toEqual(cram());
     expect(parseCram(JSON.stringify({ id: 'x', name: 'X', date: '2026-11-20', createdAt: WED.toISOString() }))).toMatchObject({ addNew: true, rounds: [] });
+    expect(parseCram(JSON.stringify({ ...cram(), language: 'fr' }))?.language).toBe('fr');
+    expect(parseCram(JSON.stringify({ ...cram(), language: 'xx' }))?.language).toBeUndefined();
     expect(parseCram('{')).toBeUndefined();
     expect(parseCram('{"id":1}')).toBeUndefined();
   });
@@ -196,6 +301,14 @@ describe('Read & Listen', () => {
   it('takes the language most words are in', () => {
     expect(cramLanguage([thai('a', 'เกือบ', 'almost'), thai('b', 'ค่อยๆ', 'gradually'), polish('c')])).toBe('th');
     expect(cramLanguage([])).toBeUndefined();
+  });
+  it('offers only notes in the cram\'s language, keeping any already in it', () => {
+    const all = [thai('a', 'เกือบ', 'almost'), thai('b', 'ค่อยๆ', 'gradually'), polish('c')];
+    expect(addableNotes(all, [all[0]]).map((n) => n.id)).toEqual(['a', 'b']);
+    expect(addableNotes(all, [all[0], all[2]]).map((n) => n.id)).toEqual(['a', 'b', 'c']);
+    expect(addableNotes(all, [])).toEqual(all);
+    expect(addableNotes(all, [], 'pl').map((n) => n.id)).toEqual(['c']);
+    expect(addableNotes(all, [all[0]], 'pl').map((n) => n.id)).toEqual(['a', 'c']);
   });
   it('practices only studied words in a text', () => {
     const [studied] = makeCards(omniNote(), WED);

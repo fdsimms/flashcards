@@ -912,6 +912,22 @@ def test_a_pass_cut_short_skips_the_texts_it_already_timed(tmp_path: Path) -> No
     assert len(voice.calls) == len(second.lines)
 
 
+def test_a_word_looked_up_outside_the_deck_is_offered_to_a_later_days_text() -> None:
+    clock = Clock()
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = run(lambda: fetch(e, topic.id))
+    e.record_reading(text.id, Reading(None, True, ("ทอน", "ฉัน"), (), 1.0, False, 120))
+
+    # The same day it was met: not again. The next day: offered, with its gloss; the known word never.
+    assert e._request("Food stall", ENTRIES, Difficulty()).met == ()
+    clock.now = NOW + timedelta(days=1)
+    assert [(w.text, w.meaning) for w in e._request("Food stall", ENTRIES, Difficulty()).met] == [
+        ("ทอน", "give change")
+    ]
+    assert e._request("Food stall", ENTRIES, Difficulty(), "es").met == ()
+
+
 # ==== Stretch words setting ====
 
 

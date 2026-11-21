@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answerCalendar, answersFrom, CALENDAR_DAYS, calendarStart, computeStats, INTERVAL_GROUPS, intervalGroups, intervalText,
-  MATURE_DAYS, percent, type Answer, type Calendar,
+  answerButtons, answerCalendar, answersByHour, answersFrom, answerStreaks, CALENDAR_DAYS, calendarStart, computeStats,
+  INTERVAL_GROUPS, intervalGroups, intervalText, MATURE_DAYS, percent, retentionGap, retentionGapLine, retentionTarget, STATS_RANGES, subdeckLevels, trueRetention, type Answer, type Calendar,
 } from '../../src/core/stats';
 import type { Card, ReviewLogEntry } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
@@ -101,19 +101,6 @@ describe('stats', () => {
     expect(s.forecast.map((d) => [d.key, d.due])).toEqual([
       ['2026-11-11', 2], ['2026-11-12', 0], ['2026-11-13', 1], ['2026-11-14', 0], ['2026-11-15', 0], ['2026-11-16', 0], ['2026-11-17', 0],
     ]);
-  });
-
-  it('measures retention on reviews only, with mature cards apart', () => {
-    const answers = [
-      answer('a', new Date(2026, 10, 10, 9), { lastIntervalDays: 40 }),
-      answer('b', new Date(2026, 10, 10, 9), { rating: 1, lastIntervalDays: 40 }),
-      answer('c', new Date(2026, 10, 1, 9), { lastIntervalDays: 3 }), // ten days ago: the month, not the week
-      answer('d', new Date(2026, 10, 10, 9), { kind: 'learn', rating: 1 }),
-    ];
-    const s = computeStats({ cards: [], answers, now: NOW, dayStartsAtHour: H, days: 30 });
-    expect(s.retention).toEqual({ week: { passed: 1, total: 2 }, month: { passed: 2, total: 3 }, matureMonth: { passed: 1, total: 2 } });
-    expect(percent(s.retention.month)).toBe(67);
-    expect(percent({ passed: 0, total: 0 })).toBeNull();
   });
 });
 
@@ -221,5 +208,140 @@ describe('intervals', () => {
     expect(intervalText(95)).toBe('3 months');
     expect(intervalText(365)).toBe('1 year');
     expect(intervalText(548)).toBe('1.5 years');
+  });
+});
+
+describe('answer buttons', () => {
+  it('counts each button by learning, young and mature, within the range', () => {
+    const answers = [
+      answer('a', new Date(2026, 10, 11, 9), { kind: 'learn', rating: 1 }),
+      answer('a', new Date(2026, 10, 11, 9, 5), { kind: 'relearn', rating: 3 }),
+      answer('b', new Date(2026, 10, 10, 9), { rating: 2, lastIntervalDays: 3 }),
+      answer('c', new Date(2026, 10, 10, 9), { rating: 4 }), // no interval known (Franki's table): young
+      answer('d', new Date(2026, 10, 10, 9), { rating: 1, lastIntervalDays: MATURE_DAYS }),
+      answer('e', new Date(2026, 10, 10, 9), { rating: 3, lastIntervalDays: 40, preview: true }), // a preview: not counted
+      answer('f', new Date(2026, 9, 1, 9), { rating: 3, lastIntervalDays: 40 }), // before the range
+    ];
+    const out = answerButtons({ answers, since: calendarStart(NOW, H, 30) });
+    expect(out.learning).toEqual({ pressed: [1, 0, 1, 0], total: 2, passed: 1 });
+    expect(out.young).toEqual({ pressed: [0, 1, 0, 1], total: 2, passed: 2 });
+    expect(out.mature).toEqual({ pressed: [1, 0, 0, 0], total: 1, passed: 0 });
+  });
+
+  it('offers ranges no longer than the answers the screen loads', () => {
+    expect(Math.max(...STATS_RANGES.map((r) => r.days))).toBeLessThanOrEqual(CALENDAR_DAYS);
+  });
+});
+
+describe('answers by hour', () => {
+  it('runs the hours from the start of the study day, late nights last', () => {
+    const answers = [
+      answer('a', new Date(2026, 10, 11, 4, 30)),
+      answer('a', new Date(2026, 10, 11, 9, 10), { rating: 1 }),
+      answer('b', new Date(2026, 10, 11, 9, 50), { kind: 'learn' }),
+      answer('c', new Date(2026, 10, 11, 2, 15)), // 2 AM: near the end of the study day before
+      answer('d', new Date(2026, 9, 1, 9)), // before the range
+    ];
+    const out = answersByHour({ answers, since: calendarStart(NOW, H, 30), dayStartsAtHour: H });
+    expect(out).toHaveLength(24);
+    expect(out[0]).toEqual({ hour: 4, total: 1, passed: 1 });
+    expect(out[5]).toEqual({ hour: 9, total: 2, passed: 1 });
+    expect(out[22]).toEqual({ hour: 2, total: 1, passed: 1 });
+    expect(out.at(-1)!.hour).toBe(3);
+    expect(out.reduce((n, h) => n + h.total, 0)).toBe(4);
+  });
+});
+
+describe('true retention', () => {
+  it('splits reviews by period and by young and mature, on study days', () => {
+    const answers = [
+      answer('a', new Date(2026, 10, 11, 9), { lastIntervalDays: 40 }), // today
+      answer('b', new Date(2026, 10, 11, 2), { rating: 1, lastIntervalDays: 3 }), // 2 AM: yesterday's study day
+      answer('c', new Date(2026, 10, 10, 9), { lastIntervalDays: 3 }), // yesterday
+      answer('d', new Date(2026, 10, 1, 9), { rating: 1, lastIntervalDays: 40 }), // ten days ago: the month
+      answer('e', new Date(2026, 1, 1, 9), { lastIntervalDays: 3 }), // in the year
+      answer('f', new Date(2026, 10, 11, 9), { kind: 'learn', rating: 1 }), // a step: not counted
+      answer('g', new Date(2026, 10, 11, 9), { rating: 1, preview: true }), // a preview: not counted
+    ];
+    const rows = trueRetention({ answers, now: NOW, dayStartsAtHour: H });
+    const r = (p: { passed: number; total: number }) => `${p.passed}/${p.total}`;
+    expect(rows.map((x) => [x.label, r(x.young), r(x.mature), r(x.all)])).toEqual([
+      ['Today', '0/0', '1/1', '1/1'],
+      ['Yesterday', '1/2', '0/0', '1/2'],
+      ['Last 7 days', '1/2', '1/1', '2/3'],
+      ['Last 30 days', '1/2', '1/2', '2/4'],
+      ['Last year', '2/3', '1/2', '3/5'],
+    ]);
+    expect(percent(rows[4].all)).toBe(60);
+    expect(percent({ passed: 0, total: 0 })).toBeNull();
+  });
+});
+
+describe('retention against its target', () => {
+  const since = new Date(2026, 9, 12, 4);
+  const many = (cardId: string, total: number, passed: number) =>
+    Array.from({ length: total }, (_, i) => answer(cardId, new Date(2026, 10, 10, 9), { rating: i < passed ? 3 : 1 }));
+
+  it("counts each review with its own deck's target, and leaves out steps, previews, older answers and cards with no target", () => {
+    const answers = [
+      ...many('a', 3, 3), ...many('b', 1, 0),
+      answer('a', new Date(2026, 10, 10, 9), { kind: 'learn', rating: 1 }),
+      answer('a', new Date(2026, 10, 10, 9), { rating: 1, preview: true }),
+      answer('a', new Date(2026, 8, 1, 9), { rating: 1 }),
+      answer('c', new Date(2026, 10, 10, 9), { rating: 1 }),
+    ];
+    const got = retentionTarget({ answers, since, targetOf: (id) => ({ a: 0.9, b: 0.8 } as Record<string, number>)[id] });
+    expect(got?.rate).toEqual({ passed: 3, total: 4 });
+    expect(got?.target).toBeCloseTo(0.875);
+    expect(got?.mixed).toBe(true);
+    expect(retentionTarget({ answers, since, targetOf: () => undefined })).toBeNull();
+  });
+
+  it('says nothing on too few reviews or a small difference, and names the side otherwise', () => {
+    const at = (total: number, passed: number, target = 0.9) => ({ target, rate: { passed, total }, mixed: false });
+    expect(retentionGap(at(100, 70))).toBeNull();
+    expect(retentionGap(at(1000, 880))).toBeNull(); // 2 points under
+    expect(retentionGap(at(250, 216))).toBeNull(); // 3.6 points under, within chance for 250 reviews
+    expect(retentionGap(at(1000, 860))).toBe('under');
+    expect(retentionGap(at(1000, 860, 0.8))).toBe('over');
+    expect(retentionGapLine(at(1000, 880))).toBeNull();
+    expect(retentionGapLine(at(1000, 860))).toContain('you remembered 86% of reviews, under the 90% aimed for');
+    expect(retentionGapLine(at(1000, 860, 0.8))).toContain('over the 80% aimed for');
+  });
+});
+
+describe('streaks', () => {
+  const streaks = (dates: Date[]) => answerStreaks(answerCalendar({ answers: dates.map((d) => answer('a', d)), now: NOW, dayStartsAtHour: H }));
+
+  it('counts days in a row up to today, and the longest run', () => {
+    expect(streaks([
+      new Date(2026, 9, 1, 9), new Date(2026, 9, 2, 9), new Date(2026, 9, 3, 9), new Date(2026, 9, 4, 9),
+      new Date(2026, 10, 10, 9), new Date(2026, 10, 11, 3), // 3 AM: the 10th's study day too
+      new Date(2026, 10, 11, 9),
+    ])).toEqual({ current: 2, longest: 4 });
+  });
+
+  it("keeps the streak while today isn't studied yet, and ends it after a missed day", () => {
+    expect(streaks([new Date(2026, 10, 9, 9), new Date(2026, 10, 10, 9)])).toEqual({ current: 2, longest: 2 });
+    expect(streaks([new Date(2026, 10, 9, 9)])).toEqual({ current: 0, longest: 1 });
+    expect(streaks([])).toEqual({ current: 0, longest: 0 });
+  });
+});
+
+describe('subdeck levels', () => {
+  const decks = ['Polski', 'Polski::Odmiana::Rzeczowniki', 'Polski::Słówka', 'Polski::Odmiana', 'Thai'];
+
+  it('offers each level of subdecks down to the deck chosen', () => {
+    expect(subdeckLevels(decks, null)).toEqual([]);
+    expect(subdeckLevels(decks, 'Polski')).toEqual([{ parent: 'Polski', children: ['Polski::Odmiana', 'Polski::Słówka'] }]);
+    expect(subdeckLevels(decks, 'Polski::Odmiana')).toEqual([
+      { parent: 'Polski', children: ['Polski::Odmiana', 'Polski::Słówka'] },
+      { parent: 'Polski::Odmiana', children: ['Polski::Odmiana::Rzeczowniki'] },
+    ]);
+    expect(subdeckLevels(decks, 'Thai')).toEqual([]);
+  });
+
+  it('finds a subdeck that only a deeper deck names', () => {
+    expect(subdeckLevels(['A::B::C'], 'A')).toEqual([{ parent: 'A', children: ['A::B'] }]);
   });
 });

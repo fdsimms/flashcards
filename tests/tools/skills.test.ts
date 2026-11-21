@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DATE_STEPS, DRILL_STEPS, drawQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  heardRight, languageOfDeck, missingWords, skillDrafts, skillOffer, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  heardRight, holdable, questionNote, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, studiedHeadwords, studiedIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
+import { stepNeeds } from '../../src/tools/skillWords';
+import { countEnding } from '../../src/tools/counting';
+import { COUNTING } from '../../src/tools/tools';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
 
 describe('skill drills', () => {
   it('gives every step a unique id, and each later step the one before it', () => {
     expect(new Set(DRILL_STEPS.map((s) => s.id)).size).toBe(DRILL_STEPS.length);
-    for (const ladder of [TIME_STEPS, NUMBER_STEPS, DATE_STEPS, MONEY_STEPS]) {
+    for (const ladder of [TIME_STEPS, NUMBER_STEPS, DATE_STEPS, MONEY_STEPS, COUNT_STEPS]) {
       expect(ladder[0].after).toBeUndefined();
       ladder.slice(1).forEach((s, i) => expect(s.after).toBe(ladder[i].id));
     }
@@ -53,6 +56,27 @@ describe('skill drills', () => {
     }
   });
 
+  it('asks missed questions again before drawing new ones', () => {
+    const step = DATE_STEPS[0];
+    const a = drawQuestion(step);
+    const b = drawQuestion(step, a);
+    const first = nextDrillQuestion(step, undefined, [a, b]);
+    expect(first.question).toBe(a);
+    const second = nextDrillQuestion(step, first.question, first.retry);
+    expect(second.question).toBe(b);
+    expect(second.retry).toEqual([]);
+    expect(questionKey(nextDrillQuestion(step, b, second.retry).question)).not.toBe(questionKey(b));
+  });
+
+  it('carries misses over after Again or Hard only', () => {
+    const q = drawQuestion(DATE_STEPS[0]);
+    expect(missesToCarry(1, [q])).toEqual([q]);
+    expect(missesToCarry(2, [q])).toEqual([q]);
+    expect(missesToCarry(3, [q])).toEqual([]);
+    expect(missesToCarry(4, [q])).toEqual([]);
+    expect(missesToCarry(1, [])).toEqual([]);
+  });
+
   it('answers in the language, with the formal form for a time', () => {
     const time = drillAnswer({ kind: 'time', time: { hour: 14, minute: 30 } }, 'th');
     expect(time?.everyday.text).toBeTruthy();
@@ -80,15 +104,16 @@ describe('skill drills', () => {
 describe('skill cards in the collection', () => {
   it('offers the groups a language has', () => {
     expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'classifiers']);
-    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'cases']);
+    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'counting', 'cases']);
     expect(skillGroups('en')).toEqual([]);
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
   });
 
-  it('writes one drill card per step, the later steps suspended', () => {
+  it('writes one drill card per step, each suspended until its step before settles or its words are studied', () => {
     const drafts = skillDrafts('th', 'Thai', ['time']);
     expect(drafts).toHaveLength(4);
-    expect(drafts.map((d) => d.suspended)).toEqual([false, true, true, true]);
+    // The first step waits for "half" (ครึ่ง), the others for the step before.
+    expect(drafts.map((d) => d.suspended)).toEqual([true, true, true, true]);
     expect(drafts[0].tags).toEqual([SKILL_TAG, 'skill::drill::time-hours', 'skill::lang::th']);
     expect(drafts[0].fields.Front).toContain("Thai · Telling the time: O'clock and half past");
   });
@@ -149,14 +174,14 @@ describe('skill progress', () => {
     expect(sections.map((s) => s.title)).toEqual(['Telling the time', 'Numbers']);
     expect(sections[0].rows).toEqual([
       { title: "O'clock and half past", detail: 'Next in 12 days', meter: 94, locked: false },
-      { title: 'Quarter past and to', detail: "Comes in after o'clock and half past settles", locked: true },
+      { title: 'Quarter past and to', detail: "Starts once you know o'clock and half past well", locked: true },
     ]);
     expect(sections[1].rows.map((r) => r.detail)).toEqual(['Not started yet', 'Due tomorrow']);
   });
 
   it('counts a set of letters by how many have settled', () => {
     const sections = skillSections([info('skill::consonants', { settled: true }), info('skill::consonants'), info('skill::consonants', { started: false })]);
-    expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 settled · 1 not started', meter: 33, locked: false }] }]);
+    expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 learned · 1 not started', meter: 33, locked: false }] }]);
   });
 
   it('is empty with no skill cards', () => {
@@ -222,14 +247,6 @@ describe('the five additions', () => {
   it('waits for the words a step needs, and says so', () => {
     const release = releasable;
     const sections = skillSections;
-    expect(stepWords('numbers-999', 'th')).toEqual(['ร้อย']);
-    expect(stepWords('money-10000', 'pl')).toEqual(['tysiąc']);
-    expect(stepWords('time-quarters', 'pl')).toEqual(['kwadrans']);
-    expect(stepWords('numbers-99', 'th')).toEqual([]);
-    expect(missingWords(['ร้อย'], ['หนึ่งร้อย', 'แมว'])).toEqual(['ร้อย']);
-    expect(missingWords(['ร้อย'], ['ร้อย'])).toEqual([]);
-    expect(missingWords(['sto'], ['Sto, setka'])).toEqual([]);
-    expect(missingWords(['sto'], ['stopa'])).toEqual(['sto']);
     const cards = [
       { id: 'a', stepId: 'numbers-99', language: 'th' as const, suspended: false, settled: true },
       { id: 'b', stepId: 'numbers-999', language: 'th' as const, suspended: true, settled: false, missing: ['ร้อย'] },
@@ -266,5 +283,182 @@ describe('the five additions', () => {
     expect(skillOffer('Thai', [])).toBe('Thai');
     expect(skillOffer('Thai', [{ deck: 'Thai::Skills', tags: ['skill'] }])).toBeUndefined();
     expect(skillOffer('🧠 Trivia', [])).toBeUndefined();
+  });
+});
+
+describe('skill steps that wait for words', () => {
+  const note = (id: string, deck: string, Entry: string, tags: string[] = []) => ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'x' }, tags });
+
+  it('hold every first step that says a word back, and the rest as before', () => {
+    const suspended = (lang: 'th' | 'nb', groups: ('time' | 'numbers' | 'dates' | 'money')[]) => skillDrafts(lang, 'x', groups).map((d) => [d.tags.find((t) => t.startsWith('skill::drill::'))!.slice(14), d.suspended]);
+    expect(suspended('nb', ['dates'])).toEqual([['dates-day', true], ['dates-weekday', true], ['dates-year', true]]);
+    expect(suspended('nb', ['numbers', 'money'])).toEqual(expect.arrayContaining([['numbers-10', true], ['money-100', true]]));
+    expect(stepWaits(drillStep('time-hours')!, 'nb')).toBe(true);
+    // Thai has no word for a quarter, so its quarter step waits only for the hours before it.
+    expect(stepWaits(drillStep('time-quarters')!, 'th')).toBe(true);
+    expect(stepWaits(drillStep('time-five')!, 'nb')).toBe(true);
+    expect(stepWaits(drillStep('time-hours')!, 'en')).toBe(false);
+  });
+
+  it('write the words for the groups that need them, and nothing for the others', () => {
+    expect(skillWordDrafts('nb', ['dates'])).toHaveLength(19);
+    expect(skillWordDrafts('nb', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(expect.arrayContaining(['halv', 'kvart', 'en', 'ti', 'hundre', 'tusen', 'krone']));
+    expect(skillWordDrafts('nb', ['consonants', 'classifiers'])).toEqual([]);
+    expect(skillWordDrafts('en', ['dates'])).toEqual([]);
+  });
+
+  it('say what a card still waits for, from the headwords studied in its own language deck', () => {
+    const notes = new Map([
+      ['n1', note('n1', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb'])],
+      ['n2', note('n2', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-year', 'skill::lang::nb'])],
+    ]);
+    const cards = [{ id: 'c1', noteId: 'n1' }, { id: 'c2', noteId: 'n2' }];
+    const asks: string[] = [];
+    const studied = (words: string[]) => (deck: string) => { asks.push(deck); return words; };
+    expect(missingByCard(cards, notes, studied(['januar']))).toEqual(new Map([['c1', ['2 more month names']], ['c2', ['2 more month names', 'weekday names']]]));
+    expect(asks[0]).toBe('Norsk');
+    expect(missingByCard(cards, notes, studied(['januar', 'februar', 'mars']))).toEqual(new Map([['c2', ['weekday names']]]));
+    expect(missingByCard(cards, notes, studied(['januar', 'februar', 'mars', 'søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']))).toEqual(new Map());
+  });
+
+  it('never count a word studied in another language\'s deck', () => {
+    const started = { sched: { state: 2 } };
+    const all = [note('g1', 'Deutsch::Tier 1', 'Januar'), note('g2', 'Deutsch', 'Februar'), note('g3', 'Deutsch', 'März'), note('s1', 'Norsk::Tier 1', 'januar'), note('s2', 'Norsk::Skills', 'mars', ['skill'])];
+    const cards = all.map((n) => ({ noteId: n.id, ...started }));
+    const norwegian = studiedHeadwords(all as never, cards, skillLanguageDeck('Norsk::Skills'));
+    expect(norwegian).toEqual(['januar']);
+    const skillNote = note('k', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb']);
+    expect(missingByCard([{ id: 'c', noteId: 'k' }], new Map([['k', skillNote]]), studiedIn(all as never, cards))).toEqual(new Map([['c', ['2 more month names']]]));
+    expect(skillLanguageDeck('A::B::Skills')).toBe('A::B');
+    expect(skillLanguageDeck('A::B')).toBe('A::B');
+  });
+
+  it('release a first step once its words are studied, but never one already started or in a paused deck', () => {
+    const first = { id: 'a', stepId: 'dates-day', language: 'nb' as const, suspended: true, settled: false, started: false };
+    expect(releasable([{ ...first, missing: ['2 more month names'] }])).toEqual([]);
+    expect(releasable([{ ...first, missing: [] }])).toEqual(['a']);
+    expect(releasable([first])).toEqual(['a']);
+    expect(releasable([{ ...first, started: true }])).toEqual([]);
+    expect(releasable([{ ...first, suspended: false }])).toEqual([]);
+    expect(releasable([{ ...first, paused: true }])).toEqual([]);
+    // A step with nothing to wait for, such as the five-minute one with nothing before it, isn't released this way.
+    expect(releasable([{ ...first, stepId: 'time-five' }])).toEqual([]);
+  });
+
+  it('release a later step only while its deck is not paused', () => {
+    const before = { id: 'a', stepId: 'numbers-10', language: 'nb' as const, suspended: false, settled: true, started: true };
+    const next = { id: 'b', stepId: 'numbers-99', language: 'nb' as const, suspended: true, settled: false, started: false };
+    expect(releasable([before, next])).toEqual(['b']);
+    expect(releasable([{ ...before, paused: true }, { ...next, paused: true }])).toEqual([]);
+  });
+
+  it('hold back a live card that was never started and lacks its words, and nothing else', () => {
+    const live = { id: 'a', stepId: 'dates-day', language: 'nb' as const, suspended: false, settled: false, started: false, missing: ['3 month names'] };
+    expect(holdable([live])).toEqual(['a']);
+    expect(holdable([{ ...live, started: true }])).toEqual([]);
+    expect(holdable([{ ...live, suspended: true }])).toEqual([]);
+    expect(holdable([{ ...live, paused: true }])).toEqual([]);
+    expect(holdable([{ ...live, missing: [] }])).toEqual([]);
+    expect(holdable([{ ...live, stepId: 'time-five' }])).toEqual([]);
+  });
+
+  it('need the words their steps say', () => {
+    expect(stepNeeds('dates-day', 'nb').map((n) => n.label)).toEqual(['month names']);
+    expect(stepNeeds('dates-year', 'nb').map((n) => n.label)).toEqual(['month names', 'weekday names']);
+    expect(stepNeeds('time-five', 'nb')).toEqual([]);
+  });
+
+  it('ask only about the months known', () => {
+    const step = drillStep('dates-day')!;
+    let state = 3;
+    const random = () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
+    let previous: ReturnType<typeof drawQuestion> | undefined;
+    for (let i = 0; i < 100; i++) {
+      const q = drawQuestion(step, previous, random, 'nb', [2, 11]);
+      expect(q.kind === 'date' && [2, 11].includes(q.date.month)).toBe(true);
+      previous = q;
+    }
+    const next = nextDrillQuestion(step, undefined, [], random, 'nb', [7]);
+    expect(next.question.kind === 'date' && next.question.date.month).toBe(7);
+  });
+});
+
+describe('counting things drills', () => {
+  const draw = (step: (typeof COUNT_STEPS)[number], language: 'pl' | 'ru') => {
+    const q = drawQuestion(step, undefined, Math.random, language);
+    if (q.kind !== 'count') throw new Error('not a count');
+    return q.question;
+  };
+
+  it('is offered in Polish and Russian only, as four steps each waiting on the one before', () => {
+    expect(COUNT_STEPS.map((s) => s.title)).toEqual(['1 with the noun', '2 to 4', '5 and up', 'Any number to 100']);
+    expect(hasDrills('counting', 'pl')).toBe(true);
+    expect(hasDrills('counting', 'ru')).toBe(true);
+    // German has counting nouns but no case to learn from the number.
+    expect(hasDrills('counting', 'de')).toBe(false);
+    expect(hasDrills('counting', 'th')).toBe(false);
+    expect(skillGroups('ru').find((g) => g.id === 'counting')).toMatchObject({ title: 'Counting things', count: 4 });
+    expect(skillGroups('de').some((g) => g.id === 'counting')).toBe(false);
+  });
+
+  it('draws a number within each step, and a noun of the language', () => {
+    for (const language of ['pl', 'ru'] as const) {
+      for (let k = 0; k < 300; k++) {
+        expect(draw(COUNT_STEPS[0], language).n).toBe(1);
+        const few = draw(COUNT_STEPS[1], language);
+        expect(countEnding(few.n)).toBe('2-4');
+        const many = draw(COUNT_STEPS[2], language);
+        expect(many.n).toBeGreaterThanOrEqual(5);
+        expect(['many', 'teen']).toContain(countEnding(many.n));
+        const any = draw(COUNT_STEPS[3], language);
+        expect(any.n).toBeGreaterThanOrEqual(1);
+        expect(any.n).toBeLessThanOrEqual(100);
+        for (const q of [few, many, any]) expect(q.noun).toBeLessThan(COUNTING[language]!.nouns.length);
+      }
+    }
+  });
+
+  it('reaches 22 and 21 only in the last step', () => {
+    const seen = (step: (typeof COUNT_STEPS)[number]) => new Set(Array.from({ length: 2000 }, () => draw(step, 'pl').n));
+    expect(seen(COUNT_STEPS[1]).has(22)).toBe(true);
+    expect(seen(COUNT_STEPS[2]).has(21)).toBe(false);
+    expect(seen(COUNT_STEPS[2]).has(22)).toBe(false);
+    expect(seen(COUNT_STEPS[3]).has(21)).toBe(true);
+  });
+
+  it('shows the count with its noun, says it as the tool does, and gives the rule', () => {
+    const q = { kind: 'count' as const, question: { noun: 0, n: 5 } };
+    expect(questionText(q, 'pl')).toBe('5 kot');
+    expect(questionText(q, 'ru')).toBe('5 кот');
+    expect(questionNote(q, 'pl')).toBe('cat');
+    expect(questionNote(q, 'ru')).toBe('kot · cat');
+    expect(questionNote({ kind: 'money', amount: 100 }, 'pl')).toBeUndefined();
+    expect(drillAnswer(q, 'pl')?.everyday.text).toBe('pięć kotów');
+    expect(drillAnswer(q, 'ru')?.everyday.text).toBe('пять котов');
+    expect(drillAnswer(q, 'pl')?.last?.title).toBe('Rule');
+    expect(drillAnswer({ kind: 'count', question: { noun: 5, n: 2 } }, 'pl')?.everyday.text).toBe('dwie książki');
+    expect(drillAnswer(q, 'en')).toBeUndefined();
+  });
+
+  it('takes a spoken count said in words or with the number as digits', () => {
+    const q = { kind: 'count' as const, question: { noun: 0, n: 5 } };
+    expect(heardRight(q, 'pięć kotów', 'pl')).toBe(true);
+    expect(heardRight(q, '5 kotów', 'pl')).toBe(true);
+    expect(heardRight(q, '5 koty', 'pl')).toBe(false);
+    expect(heardRight(q, 'pięć koty', 'pl')).toBe(false);
+  });
+
+  it('writes one card per step, the first live and the rest suspended, and none for other languages', () => {
+    const drafts = skillDrafts('pl', 'Polish', ['counting']);
+    expect(drafts.map((d) => d.suspended)).toEqual([false, true, true, true]);
+    expect(drafts[0].tags).toEqual([SKILL_TAG, 'skill::drill::counting-one', 'skill::lang::pl']);
+    expect(drafts[0].fields.Front).toContain('Polish · Counting things: 1 with the noun');
+    expect(skillDrafts('de', 'German', ['counting'])).toEqual([]);
+    expect(skillWordDrafts('pl', ['counting'])).toEqual([]);
+  });
+
+  it('lists the steps in Skills under Counting things', () => {
+    const sections = skillSections([{ tags: ['skill', 'skill::drill::counting-one', 'skill::lang::pl'], suspended: false, started: false, settled: false, dueInDays: 0 }]);
+    expect(sections).toEqual([{ title: 'Counting things', rows: [{ title: '1 with the noun', detail: 'Not started yet', locked: false }] }]);
   });
 });

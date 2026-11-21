@@ -77,7 +77,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
 
   const openInClaude = () => {
     haptic.tap();
-    Linking.openURL(claudeChatLink(card, text)).catch(() => setError("Couldn't open the Claude app. Make sure it's installed, or open claude.ai in a browser."));
+    Linking.openURL(claudeChatLink(card, text)).catch(() => setError("Couldn't open Claude. Open claude.ai in a browser and ask there."));
   };
 
   const lastAnswer = [...turns].reverse().find((t) => t.role === 'assistant')?.content;
@@ -98,7 +98,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             {ask
               ? 'Claude sees this card and its note, and what you ask here. Nothing is sent until you send a question.'
-              : "Asking here needs Read & Listen (Settings, Read & Listen). You can still ask in the Claude app."}
+              : "Asking here uses Read & Listen. Turn it on in Settings, Read & Listen. You can still ask in the Claude app."}
           </Text>
         </View>
         {turns.map((t, i) => (
@@ -125,12 +125,12 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
         {onSaveAnswer && lastAnswer && !asking ? (
           <View style={{ gap: space.xs }}>
             {addedAnswer === lastAnswer ? (
-              <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Added to the note's Notes</Text>
+              <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Added to Notes</Text>
             ) : (
               <>
-                <Button label="Add to the note's Notes" variant="secondary" onPress={() => void addToNote(lastAnswer)} busy={adding} accessibilityLabel="Add this answer to the note's Notes field" />
+                <Button label="Add to Notes" variant="secondary" onPress={() => void addToNote(lastAnswer)} busy={adding} accessibilityLabel="Add this answer to the Notes field" />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  Adds this answer to the Notes field, under anything already there. Notes show on the card's back, and the change syncs to Anki. You can edit it later in the note editor.
+                  It goes under anything already there, shows on the card's back and syncs to Anki.
                 </Text>
               </>
             )}
@@ -146,7 +146,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
           <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Open in the Claude app instead</Text>
         </Tappable>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          Opens a new chat with this card and your question filled in. It uses your Claude plan, not the server's key. If the app doesn't open, claude.ai opens in the browser.
+          Opens a new chat with this card and your question filled in, in the Claude app or on claude.ai. It uses your Claude plan, not Read & Listen's Claude key.
         </Text>
       </ScrollView>
     </Modal>

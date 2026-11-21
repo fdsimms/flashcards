@@ -87,7 +87,9 @@ describe('one sync, start to finish', () => {
   });
 
   it('says what to do about each kind of failure', () => {
-    expect(syncErrorText(new SyncError('auth', 'x'))).toMatch(/Sign in again/);
+    expect(syncErrorText(new SyncError('auth', 'x'))).toMatch(/didn't accept the sign-in. Sign in again in Settings, Anki/);
+    // Sync on with no key in the Keychain (a restored iPhone) isn't the server refusing anything.
+    expect(syncErrorText(new SyncError('signedOut', 'x'))).toBe("This iPhone isn't signed in to your sync server. Sign in again in Settings, Anki.");
     expect(syncErrorText(new SyncError('network', 'timed out'))).toMatch(/Couldn't reach the server.*timed out/);
   });
 });
@@ -137,6 +139,6 @@ describe('which failures get a quiet retry', () => {
     expect(isRetryable(new SyncError('server', 'busy'))).toBe(true);
   });
   it("doesn't retry what trying again can't change", () => {
-    for (const kind of ['auth', 'clock', 'sanity'] as const) expect(isRetryable(new SyncError(kind, 'x'))).toBe(false);
+    for (const kind of ['auth', 'signedOut', 'clock', 'sanity'] as const) expect(isRetryable(new SyncError(kind, 'x'))).toBe(false);
   });
 });

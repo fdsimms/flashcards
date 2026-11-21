@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { setDueDates } from '../anki/rescheduleService';
-import { cardsToCap, cramTag, finished, isRunning, type Cram } from '../core/cram';
+import { cardsToCap, cramTag, finished, isRunning, withThemes, type Cram, type CramTalk } from '../core/cram';
 import { noteHasTag } from '../core/priority';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -133,6 +133,17 @@ export async function finishCram(repo: NoteStore, cram: Cram, notes: Note[], use
   await setCramTag(repo, cram, ids, false);
 }
 
+/**
+ * Use theme / Use themes (Talking points' ideas): each theme's questions and story are kept on the
+ * cram (which takes the first one's name when it had only a stand-in, `withThemes`), then their words
+ * from the deck get the cram's tag. Saved first, so a try that failed part way keeps the themes and
+ * the next try finishes the tagging.
+ */
+export async function applyThemes(repo: NoteStore, cram: Cram, talks: CramTalk[], noteIds: string[]): Promise<void> {
+  await saveCram(repo, withThemes(cram, talks));
+  await setCramTag(repo, cram, noteIds, true);
+}
+
 /** Deletes a cram, taking its tag off its words first. */
 export async function deleteCram(repo: NoteStore, cram: Cram, notes: Note[]): Promise<void> {
   await setCramTag(repo, cram, notes.map((n) => n.id), false);
@@ -162,11 +173,18 @@ async function capOnce(repo: NoteStore): Promise<number> {
   const now = new Date();
   const { dayStartsAtHour } = await repo.collectionSettings();
   if (!all.some((c) => isRunning(c, now, dayStartsAtHour))) return 0;
-  await reviewWrites.idle();
-  const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+  // The cards are read again for each group, after any answer still being written: an answer given
+  // while an earlier group was being moved (each waits its turn for the collection) may have lapsed
+  // a card, and Set Due Date from the copy read before would make it a review due on the cram's day.
+  const plan = async () => {
+    await reviewWrites.idle();
+    const [notes, cards] = await Promise.all([repo.listNotes(), repo.listCards()]);
+    return cardsToCap(all, notes, cards, now, dayStartsAtHour);
+  };
   let moved = 0;
-  for (const [days, group] of cardsToCap(all, notes, cards, now, dayStartsAtHour)) {
-    moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).length;
+  for (const [days] of await plan()) {
+    const group = (await plan()).get(days);
+    if (group?.length) moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).cards.length;
   }
   return moved;
 }

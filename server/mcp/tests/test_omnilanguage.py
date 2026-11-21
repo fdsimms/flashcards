@@ -142,8 +142,23 @@ def test_thai_romanization_is_held_to_one_scheme():
     for wrong in ("dəən-taang", "dɤɤn-thaang", "Dəən-thaang", "dəən-thɯang", "pai", "kin"):
         assert "romanization-letters" in rules({**note, "Transliteration": wrong}), wrong
     assert "romanization-missing" in rules({**note, "ContextRomanized": ""})
+    # A sentence with no tone mark at all was romanized without tones.
+    assert "romanization-toneless" in rules({**note, "ContextRomanized": "khao dəən-thaang bawi"})
     # Russian and Greek notes carry none.
     assert "romanization-unneeded" in rules({"Entry": "дом", "Language": "russian", "Transliteration": "dom"})
+
+
+def test_a_literal_line_must_pair_with_each_example():
+    two = {**GERMAN_NOUN, "Sense": "a setting, or an attitude", "Context": "Die <b>Einstellungen</b> sind im Menü.<br>Seine <b>Einstellung</b> ist gut.",
+           "ContextTranslation": "The settings are in the menu.<br>His attitude is good.", "ContextLabels": "setting<br>attitude"}  # fmt: skip
+    assert "context-labels" not in rules({**two, "ContextLiteral": "The settings are in the menu.<br>His attitude is good."})
+    assert "context-labels" in rules({**two, "ContextLiteral": "The settings are in the menu."})
+
+
+def test_a_literal_that_repeats_the_translation_is_cleared():
+    same = {**GERMAN_NOUN, "ContextLiteral": "the settings are in the menu"}
+    assert "literal-redundant" in rules(same)
+    assert "literal-redundant" not in rules({**GERMAN_NOUN, "ContextLiteral": "The settings are in the menu there."})
 
 
 def test_several_examples_need_a_label_each():
@@ -152,6 +167,53 @@ def test_several_examples_need_a_label_each():
     assert "context-labels" in rules(two)
     assert "context-labels" not in rules({**two, "ContextLabels": "setting<br>attitude"})
     assert "context-labels" in rules({**two, "ContextLabels": "setting<br>attitude<br>extra"})
+
+
+def test_a_sense_that_says_which_gloss_it_means_is_two_senses_to_number():
+    verb = {"Entry": "ziehen", "Meaning": "to pull; to move", "Language": "german", "Register": "neutral", "PartOfSpeech": "verb",
+            "Context": "Er <b>zieht</b> die Tür zu.", "ContextTranslation": "He pulls the door shut."}  # fmt: skip
+    found = lambda fields: [(p.rule, p.field, p.level) for p in o.problems(fields) if p.rule == "sense-names-gloss"]  # noqa: E731
+    warned = [("sense-names-gloss", "Sense", "review")]
+    assert found({**verb, "Sense": "move as in relocate"}) == warned
+    assert found({**verb, "Sense": "to change where you live"}) == []
+    assert found({**verb, "Sense": "this means changing homes"}) == warned
+    # A bracket on the gloss doesn't hide it, and a gloss inside a longer word is not a quote of it.
+    assert found({**verb, "Meaning": "to pull; to move (house)", "Sense": "move: to another city"}) == warned
+    assert found({**verb, "Sense": "by removing a cover"}) == []
+    # One gloss narrowed is what Sense is for.
+    assert found({**verb, "Entry": "leke", "Language": "norwegian", "Meaning": "to play", "Sense": "to play for fun, as children do"}) == []
+    # A warning for a person to read: it never refuses a write.
+    assert o.prepare({**verb, "Sense": "move as in relocate"}).refused == []
+    assert o.prepare({"Sense": "move as in relocate"}, existing=verb).refused == []
+
+
+def test_a_sense_never_holds_the_word_the_reverse_card_asks_for():
+    noun = {"Entry": "ducha", "Meaning": "shower", "Language": "spanish", "Register": "neutral", "PartOfSpeech": "noun", "Gender": "f",
+            "Context": "La <b>ducha</b> está fría.", "ContextTranslation": "The shower is cold."}  # fmt: skip
+    found = lambda fields: [(p.rule, p.level) for p in o.problems(fields) if p.field == "Sense"]  # noqa: E731
+    assert found({**noun, "Sense": "a bathroom shower, not rain"}) == []
+    # An Entry that could be an English word is for a person to read; any other is refused on write.
+    assert found({**noun, "Sense": "a Ducha in the bathroom, not rain"}) == [("sense-has-entry", "review")]
+    assert found({**noun, "Entry": "red", "Meaning": "net", "Sense": "a net for fishing, not a red one"}) == [("sense-has-entry", "review")]
+    greek = {**noun, "Entry": "πίνακας", "Language": "greek", "Gender": "m", "Plural": "πίνακες", "Meaning": "painting",
+             "Context": "Ο <b>πίνακας</b> είναι ωραίος.", "ContextTranslation": "The painting is nice."}  # fmt: skip
+    assert found({**greek, "Sense": "a πίνακας on the wall"}) == [("sense-has-entry", "format")]
+    assert "without the word" in " ".join(o.prepare({"Sense": "a πίνακας on the wall"}, existing=greek).refused)
+    assert o.prepare({"Sense": "a framed picture, not a photo"}, existing=greek).refused == []
+
+
+def test_a_sense_contrast_is_one_english_sense_and_its_word_per_line():
+    noun = {"Entry": "ducha", "Meaning": "shower", "Sense": "a bathroom shower, not rain", "Language": "spanish", "Register": "neutral",
+            "PartOfSpeech": "noun", "Gender": "f", "Context": "La <b>ducha</b> está fría.", "ContextTranslation": "The shower is cold."}  # fmt: skip
+    found = lambda value: [(p.rule, p.level) for p in o.problems({**noun, "SenseContrast": value}) if p.field == "SenseContrast"]  # noqa: E731
+    refused = [("contrast-format", "format")]
+    assert found("rain shower = aguacero") == []
+    assert found("rain shower = aguacero; chubasco<br>baby shower = fiesta de bebé") == []
+    # No "=", a side left empty, three words, or the note's own word.
+    for bad in ("aguacero", "rain shower =", "= aguacero", "rain shower = aguacero; ", "rain = aguacero; chubasco; lluvia", "shower = Ducha"):
+        assert found(bad) == refused, bad
+    assert "One pair per line" in " ".join(o.prepare({"SenseContrast": "aguacero"}, existing=noun).refused)
+    assert "SenseContrast: only beside a Sense" in o.guide("spanish")["every_note"]
 
 
 def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
@@ -165,6 +227,36 @@ def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
     assert "auxiliary-unknown" in rules({**verb, "Auxiliary": "werden"})
     masculine = {**GERMAN_NOUN, "Entry": "Tisch", "Gender": "m", "Plural": "Tische"}
     assert {p.field for p in o.problems(masculine) if p.level == "gap"} == {"Genitive"}
+
+
+def test_a_source_tag_is_the_title_in_lowercase_words_joined_by_hyphens():
+    assert o.source_tag("The Last_Train") == "source::the-last-train"
+    assert o.source_tag("deep::down  -- here") == "source::deep-down-here"
+    assert rules(GERMAN_NOUN, ["source::the-last-train", "travel"]) == set()
+    assert rules(GERMAN_NOUN, ["Source::The_Last_Train"]) == {"source-tag"}
+    # Each one is fixed and the other tags kept, in order.
+    fixed = o.fix(GERMAN_NOUN, ["travel", "source::Night_Bus", "SOURCE::Big-Game"])
+    assert fixed.tags == ["travel", "source::night-bus", "source::big-game"]
+    # A tag that only starts with the word isn't one.
+    assert rules(GERMAN_NOUN, ["sourcebook::Rare_Words"]) == set()
+
+
+def test_a_source_is_the_line_its_translation_and_where_with_the_word_in_bold():
+    line = "Hast du die <b>Einstellungen</b> gesehen? — Nein!"
+    good = {**GERMAN_NOUN, "Source": f"{line}<br>Did you see the settings? No!<br>The Last Train, chapter 4"}
+    # The line keeps its own punctuation, a dash included.
+    assert rules(good) == set()
+    assert rules({**good, "Source": f"{line}<br>The Last Train"}) == {"source-lines"}
+    assert rules({**good, "Source": "Hast du die Einstellungen gesehen?<br>Did you see them?<br>The Last Train"}) == {"source-no-bold"}
+    # The English deck's notes have no translation line.
+    english = {"Entry": "lugubrious", "Meaning": "Looking or sounding sad and dismal.", "Language": "english", "Register": "literary",
+               "PartOfSpeech": "adjective", "Context": "A <b>lugubrious</b> tune.", "Source": "A <b>lugubrious</b> silence fell.<br>Night Bus"}  # fmt: skip
+    assert "source-lines" not in rules(english)
+    assert "source-lines" in rules({**english, "Source": "A <b>lugubrious</b> silence fell.<br>A sad silence.<br>Night Bus"})
+    # Stray markup is tidied; a note with no Source is fine.
+    fixed = o.fix({**good, "Source": f"<div><i>{line}</i></div><div>Did you see the settings? No!</div><div>The Last Train</div>"})
+    assert fixed.fields["Source"] == f"{line}<br>Did you see the settings? No!<br>The Last Train"
+    assert rules({**GERMAN_NOUN, "Source": ""}) == set()
 
 
 def test_a_new_note_is_tidied_and_refused_for_what_only_its_writer_can_fix():
@@ -222,6 +314,13 @@ def test_the_guide_gives_a_languages_rules_values_and_a_finished_note():
     for name, example in {**o.EXAMPLES, "several senses": o.SEVERAL_SENSES}.items():
         assert [p for p in o.problems(example) if p.level != "gap"] == [], name
     assert german["example_with_several_senses"]["Meaning"].startswith("1. ")
+    # Sense flags a word that covers only some of its gloss's senses, and is not written beside numbered senses.
+    assert "Sense: only when the word covers some, not all" in german["every_note"]
+    assert "Sense is no longer written" not in german["every_note"]
+    # The guide says how to tell two senses from two glosses, and which brackets move to Sense.
+    for said in ("could translate the word in the same example sentence", "would have to say which gloss it is about",
+                 "Never the word itself or a form of it", "moves to Sense"):  # fmt: skip
+        assert said in german["every_note"], said
     assert "No rules beyond the common ones" in o.guide("italian")["this_language"]
 
 
@@ -305,3 +404,36 @@ def test_a_word_with_no_such_form_says_so_with_a_dash():
     assert o.problems(ruhm) == []
     assert "grammar-gap" in rules({**ruhm, "Plural": ""})
     assert 'holds "-"' in o.guide("german")["every_note"]
+
+
+def test_a_sense_that_restates_the_meaning_is_flagged_and_one_that_excludes_is_not():
+    # Real Senses from the collection: each restates its Meaning in other words.
+    restating = {
+        "itchy; to itch; classifier for vehicles": "itchy, or counter for vehicles",
+        "lost; disappeared; to recover (from illness)": "lost or gone, or recover from illness",
+        'part; portion; as for': 'part or portion, or "as for"',
+        "cheap; correct; passive marker (for something bad done to you)": "cheap, correct, or marks something bad done to you",
+        "to hold; carry (in the hand); to regard as": "hold or carry, or regard as",
+        "furthermore; in addition": "furthermore: formal, adds a further point",
+        "when": "when, as a question",
+    }
+    for meaning, sense in restating.items():
+        assert o.sense_restates_meaning(meaning, sense), (meaning, sense)
+        assert "sense-restates-meaning" in rules({**GERMAN_NOUN, "Meaning": meaning, "Sense": sense}), sense
+    # A Sense that says what the word does not cover, or is empty, is left alone.
+    for meaning, sense in {"hot": "hot in temperature, not spicy", "hair": "hair on the head, not body hair",
+                           "to play": "to play for fun, not an instrument or a sport", "long": "long in time, not in length"}.items():
+        assert not o.sense_restates_meaning(meaning, sense), sense
+    assert not o.sense_restates_meaning("hot", "")
+    assert "sense-restates-meaning" not in rules(GERMAN_NOUN)
+    # It is a review rule: lint reports it, and a write saves the note and says why.
+    flagged = {**GERMAN_NOUN, "Meaning": "part; portion", "Sense": "part or portion, or as for"}
+    assert [(p.rule, p.level) for p in o.problems(flagged) if p.rule == "sense-restates-meaning"] == [("sense-restates-meaning", "review")]
+    ready = o.prepare(flagged)
+    assert not ready.refused and len(ready.review) == 1 and ready.review[0].startswith("Sense:")
+
+
+def test_an_update_that_leaves_sense_and_meaning_alone_does_not_repeat_the_warning():
+    stored = {**GERMAN_NOUN, "Meaning": "part; portion", "Sense": "part or portion, or as for"}
+    assert o.prepare({"Notes": "takes the genitive"}, existing=stored).review == []
+    assert len(o.prepare({"Sense": "part or portion, or as for"}, existing=stored).review) == 1

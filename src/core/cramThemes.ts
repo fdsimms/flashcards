@@ -1,4 +1,6 @@
 import type { CramTheme as ApiTheme, CramThemesRequest, Language } from '../reader/api';
+import type { Particle } from '../reader/lessons';
+import { registerChoice, type RegisterLevel } from '../reader/registerLevel';
 import { lessonPhraseOf, lastMissed, noteAddedAt, type Cram, type CramTalk } from './cram';
 import { noteHasTag } from './priority';
 import type { Card, Note } from './types';
@@ -18,6 +20,8 @@ export const THEME_WORDS_MAX = 60;
 export const THEME_AVOID_MAX = 30;
 export const THEME_WEAK_MAX = 8;
 export const THEME_WEAK_CHARS = 120;
+/** The server's `MAX_TITLE * 2`: the longest topic it takes. */
+export const THEME_TOPIC_CHARS = 120;
 /** A note added in this many days counts as lately added. */
 export const FRESH_DAYS = 14;
 /** A note tagged as a leech counts as missed too. */
@@ -95,7 +99,7 @@ export function combineWeakSpots(practice: string[], kept: string[]): string[] {
   return [...first, ...kept.slice(0, THEME_WEAK_MAX - first.length)];
 }
 
-/** The titles not to suggest again: those already on screen, then every cram's name and theme, newest first. */
+/** The titles not to suggest again: those already on screen, then every cram's name and themes, newest first. */
 export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -104,18 +108,22 @@ export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
     if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); }
   };
   shown.forEach(add);
-  for (const c of [...crams].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) { add(c.theme?.title); add(c.name); }
+  for (const c of [...crams].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) { for (const t of c.themes ?? []) add(t.title); add(c.name); }
   return out.slice(0, THEME_AVOID_MAX);
 }
 
-/** The request for the server's themes. */
-export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean): CramThemesRequest {
+/** The request for the server's themes. `topic` is what the lesson is for (the cram's name): every theme is an angle on it. */
+export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string, register?: RegisterLevel, particle?: Particle): CramThemesRequest {
   return {
     language,
     words: words.map((w) => ({ id: w.noteId, text: w.text, english: w.english, kind: w.kind })),
     weak_spots: weak,
     avoid,
     stretch,
+    topic: topic.replace(/\s+/g, ' ').trim().slice(0, THEME_TOPIC_CHARS),
+    ...registerChoice(register),
+    // Thai only: the story is the learner's own words, so the server writes it for their gender.
+    ...(language === 'th' && particle ? { particle } : {}),
   };
 }
 

@@ -1,4 +1,4 @@
-import { type CalendarDate, type DateParts, type DateSaying, isValidDate, weekdayOf } from '../date';
+import { type CalendarDate, type DateParts, type DateSaying, isValidDate, type Spelling, weekdayOf } from '../date';
 import { distinct, type Phrase } from '../phrase';
 import { greekCardinal, greekNumber } from './numbers';
 import { greekRoman } from './translit';
@@ -16,6 +16,9 @@ const MONTHS = ['Ιανουαρίου', 'Φεβρουαρίου', 'Μαρτίο�
 const SPOKEN_MONTHS = ['Γενάρη', 'Φλεβάρη', 'Μάρτη', 'Απρίλη', 'Μάη', 'Ιούνη', 'Ιούλη', 'Αυγούστου', 'Σεπτέμβρη', 'Οκτώβρη', 'Νοέμβρη', 'Δεκέμβρη'];
 const WEEKDAYS = ['Κυριακή', 'Δευτέρα', 'Τρίτη', 'Τετάρτη', 'Πέμπτη', 'Παρασκευή', 'Σάββατο'];
 
+/** The formal spellings of 7, 8 and 9, as standard as the spoken ones the numbers here use (numbers.ts). */
+const FORMAL_SPELLINGS: Spelling[] = [['επτά', 'εφτά'], ['οκτώ', 'οχτώ'], ['εννέα', 'εννιά'], ['επτακόσια', 'εφτακόσια'], ['οκτακόσια', 'οχτακόσια'], ['εννεακόσια', 'εννιακόσια']];
+
 const say = (text: string, note?: string): Phrase => ({ text, roman: greekRoman(text), ...(note ? { note } : {}) });
 
 /** The day of the month in words: πρώτη, then feminine cardinals (τρεις, είκοσι μία). */
@@ -31,8 +34,8 @@ export function sayGreekDate(d: CalendarDate, parts: DateParts): DateSaying {
   const everyday = say(`${weekday}${day} ${MONTHS[d.month - 1]}${year}`);
   const also = [
     say(`${weekday}${day} του ${SPOKEN_MONTHS[d.month - 1]}${year}`, 'The month by its everyday name'),
-    say(`${weekday}${d.day === 1 ? 'την' : 'στις'} ${day} ${MONTHS[d.month - 1]}${year}`, 'Saying on which day'),
+    say(`${weekday}${d.day === 1 ? 'την' : 'στις'} ${day} ${MONTHS[d.month - 1]}${year}`, 'As in "on the 12th"'),
   ];
   const written = say(`${parts.weekday ? `${WEEKDAYS[weekdayOf(d)]} ` : ''}${d.day} ${MONTHS[d.month - 1]}${parts.year ? ` ${d.year}` : ''}`);
-  return { everyday, also: distinct([everyday, ...also]).slice(1), written };
+  return { everyday, also: distinct([everyday, ...also]).slice(1), written, spellings: FORMAL_SPELLINGS };
 }

@@ -21,13 +21,14 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
 
 Franki keeps a whole Anki collection file and writes every answer into it. It gets there by sync
 (below) or by file: a collection package (.colpkg) from AnkiMobile's Export, packed back up for
-Anki with "Send to Anki", one app holding the collection at a time.
+Anki with "Send to Anki", one app holding the collection at a time. A deck package (.apkg) adds
+to that collection instead of replacing it (`apkgMerge.ts`; `import-and-cards.md` has the rules).
 
 - **Notes added, edited and deleted in Franki go into the kept collection as Anki writes them**
   (`src/anki/noteWrites.ts`, through `noteService.ts`, which keeps Franki's tables in step), checked
   live against Anki. A deck or note type is found by reading the whole table (`NOT INDEXED`) and
   comparing names here, since a lookup by name needs Anki's collation.
-- **Anki's collection is the record.** A package import replaces every Anki card's scheduling
+- **Anki's collection is the record.** A collection package import replaces every Anki card's scheduling
   (`applyAnkiCollection`), studied here or not, unlike a TSV re-import; the screen warns first
   when answers haven't been sent to Anki yet.
 - **Franki writes an answer into the kept collection the way Anki writes one**
@@ -38,6 +39,13 @@ Anki with "Send to Anki", one app holding the collection at a time.
   Every answer and undo in Review goes through `writeAnkiAnswer` / `undoAnkiAnswer`, which wait on
   `lockAnki` while a sync or an import holds the collection. A sync also writes what Anki's own
   sync writes (notes, graves, config, decks in place).
+- **An answer is owed to the collection until it's written there** (`src/anki/owedAnswers.ts`, the
+  `anki_owed` table). Review saves Franki's rows and the owed row first (`reviewWrites`), then
+  writes the collection in a second queue (`ankiWrites`), because that write can wait a long time
+  behind a sync stuck on the network and the next answers' rows mustn't wait with it.
+  `writeAnkiAnswer` deletes the owed row in its own transaction and writes nothing when the row is
+  already gone, so an answer can't be written twice. Whatever is still owed at launch is written
+  then, before the first sync (`useOwedAnswers`). `reviewWrites.idle()` waits for both queues.
 - **Anki's three collated tables (fields, templates, notetypes) are read from a scratch copy**
   with the `unicase` collation stripped (`STRIP_UNICASE_SQL`), which works on any build. Never
   strip it from the kept collection: its indexes are ordered by it.
@@ -75,11 +83,18 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   when the collation is registered. Without it (a build made before the module) a sync still updates
   an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
   downloads the whole collection (`downloadNeeded`). The live test runs both ways.
-- **A preset changed in Franki (`presetWrites.ts`: the new card order) is written into the kept collection
+- **A preset changed in Franki (`presetWrites.ts`: the new card order, and Anki options' limits, steps,
+  maximum interval and retention) is written into the kept collection
   as Anki writes one** (`config` edited in place, `mtime_secs`, usn -1, the collection's modified stamp)
   and sent in `applyChanges` as the JSON Anki's own client sends (`deckConfigJson`, the inverse of
-  `deckConfigRow`, checked against presets Anki wrote). Franki changes no note type, so a note type
-  pending is still the only thing that needs a full upload.
+  `deckConfigRow`, checked against presets Anki wrote). **A note type's templates and styling changed in
+  Franki** (`notetypeWrites.ts`, the Note type screen) are written the same way, with the card requirements
+  Anki works out from the fronts (`cardRequirements`) and the templates' mtime and usn zeroed as Anki's
+  `update_dict` leaves them (`notetype-vectors.json`), and sent in `applyChanges` as `notetypeJson`. That
+  needs the collation; without it a note type pending still needs a full upload, so the change is refused.
+  Franki never adds, removes or renames a field or card type: that changes the schema (`scm`), and every
+  device then has to replace its collection. Anki adds a card when a template edit makes a note generate
+  one, which Franki doesn't yet, so such an edit is refused (`notesGainingCards`).
 - **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
   (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
   and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live

@@ -62,6 +62,33 @@ def test_only_thai_script_words_with_a_meaning_are_kept_once_each() -> None:
     assert clean({"candidates": "no"}, "th") == []
 
 
+def test_commonness_and_register_are_kept_only_when_they_are_on_the_lists() -> None:
+    answer = {
+        "candidates": [
+            {
+                "text": "ใหม่",
+                "reading": "mài",
+                "english": "new",
+                "commonness": "very_common",
+                "register": "neutral",
+            },
+            {
+                "text": "ไม่",
+                "reading": "mâi",
+                "english": "not",
+                "commonness": "popular",
+                "register": 3,
+            },
+            {"text": "ไม้", "reading": "máai", "english": "wood"},  # an older answer with neither
+        ]
+    }
+    assert clean(answer, "th") == [
+        Candidate("ใหม่", "mài", "new", "very_common", "neutral"),
+        Candidate("ไม่", "mâi", "not"),
+        Candidate("ไม้", "máai", "wood"),
+    ]
+
+
 @pytest.mark.parametrize(
     "language,good,romanized",
     [
@@ -142,7 +169,11 @@ def test_the_route_returns_the_candidates_and_keeps_the_cost() -> None:
     c, conn = client(find)
     answer = c.post("/api/lessons/words", json={"language": "th", "text": "  mai "}, headers=AUTH)
     assert answer.status_code == 200
-    assert answer.json() == {"candidates": [{"text": "ใหม่", "reading": "mài", "english": "new"}]}
+    assert answer.json() == {
+        "candidates": [
+            {"text": "ใหม่", "reading": "mài", "english": "new", "commonness": "", "register": ""}
+        ]
+    }
     assert seen == [("th", "mai")]
     assert costs(conn) == [("lesson_words", "th")]
 

@@ -1,13 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { addSkillCards } from '../anki/skillCards';
+import { addSkillCards, canWriteWords, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
+import { DEFAULT_SKILL_SETTINGS, type SkillSettings } from '../anki/skillSettings';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { studyDayStart } from '../core/day';
 import { failureText } from '../core/failure';
 import { retrievability } from '../core/order';
 import { isInProgress } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
-import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedHeadwords, SKILLS_SUBDECK, skillGroups, skillSections, type SkillGroup, type SkillSection } from '../tools/skills';
+import type { Note } from '../core/types';
+import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
+import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedIn, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
@@ -17,27 +20,33 @@ import { hairline, radius, readable, space, type, useTheme } from './theme';
  * Skill cards (src/tools/skills.ts, src/anki/skillCards.ts), from a deck's options: how the deck's
  * skills are doing (each drill step's next review and FSRS's chance of recall, what's still locked),
  * then what adding them puts in the deck, group by group, with a sample of how a drill card reads in
- * Anki on the computer. Nothing is written until Add, which is the approval.
+ * Anki on the computer. Three separate controls, saved in the collection so the server reads them
+ * (src/anki/skillSettings.ts): the master switch (off suspends the deck's skill cards), which skills
+ * are on, and whether the server adds the cards of those by itself. Nothing is written to the deck
+ * until Add now or the server's job; a switch is the approval for the server's.
  */
 export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void }) {
   const c = useTheme();
   const { repo, refresh } = useApp();
   const found = useMemo(() => languageOfDeck(deck), [deck]);
   const groups = useMemo(() => (found ? skillGroups(found.language) : []), [found]);
-  const [picked, setPicked] = useState<Set<SkillGroup>>(() => new Set(groups.map((g) => g.id)));
+  const [settings, setSettings] = useState<SkillSettings>(DEFAULT_SKILL_SETTINGS);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const busy = useRef(false);
   const [sections, setSections] = useState<SkillSection[]>([]);
   const [loads, setLoads] = useState(0);
+  // Whether the collection has the note type the words are written in; without it the cards are added and the words aren't.
+  const [canWords, setCanWords] = useState(true);
   // The deck's skill cards, read again after an Add.
   useEffect(() => {
     let live = true;
     (async () => {
-      const [notes, cards, params, settings] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.collectionSettings()]);
+      const [notes, cards, params, settings, saved, noteTypes] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.collectionSettings(), repo.ankiSkillSettings(), repo.listNoteTypes()]);
       const now = new Date();
       const H = settings.dayStartsAtHour;
       const today = studyDayStart(now, H).getTime();
-      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedHeadwords(notes, cards));
+      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedIn(notes, cards));
       const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
       const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
         const n = skillNotes.get(cd.noteId)!;
@@ -49,29 +58,92 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
           missing: missing.get(cd.id),
         };
       });
-      if (live) setSections(skillSections(info));
+      if (live) { setSections(skillSections(info)); setNotes(notes); setCanWords(canWriteWords(noteTypes.get(SKILL_WORD_NOTE_TYPE))); setSettings(saved.get(deck) ?? DEFAULT_SKILL_SETTINGS); }
     })().catch(() => { if (live) setSections([]); });
     return () => { live = false; };
   }, [repo, deck, loads]);
-  const count = groups.filter((g) => picked.has(g.id)).reduce((n, g) => n + g.count, 0);
-  const sample = DRILL_STEPS.find((s) => picked.has(s.group));
+  const onGroups = groups.filter((g) => !settings.off.includes(g.id)).map((g) => g.id);
+  const missing = useMemo(() => (found ? missingDrafts(notes, found.language, found.name, onGroups).length : 0), [notes, found, settings.off]);
+  // The words the skills that are on need (the months and weekdays for dates) that the deck doesn't have: added with the cards.
+  const missingWords = useMemo(() => (found && canWords ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off, canWords]);
+  const unwritable = useMemo(() => (found && !canWords ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off, canWords]);
+  const skillCount = useMemo(() => notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).length, [notes, deck]);
+  const sample = DRILL_STEPS.find((s) => !settings.off.includes(s.group));
   const subdeck = `${deck.split('::').pop()}::${SKILLS_SUBDECK}`;
 
-  const add = async () => {
-    if (!found || busy.current || !count) return;
+  // Saves the deck's settings in the collection first, then shows them; a failed save puts the old ones back.
+  const save = async (next: SkillSettings) => {
+    const before = settings;
+    setSettings(next);
+    try {
+      if (!(await repo.setAnkiSkillSettings(deck, next))) throw new SkillsRefused(`Anki doesn't have a deck called ${deck} yet. Sync with your Anki server, then try again.`);
+    } catch (e) {
+      setSettings(before);
+      Alert.alert("Couldn't save skill card settings", failureText(e, { next: 'Try again.' }));
+      return false;
+    }
+    return true;
+  };
+
+  const setOn = async (on: boolean) => {
+    if (busy.current) return;
     busy.current = true;
-    setProgress({ done: 0, total: count });
+    try {
+      if (!(await save({ ...settings, on }))) return;
+      const { dayStartsAtHour } = await repo.collectionSettings();
+      await setSkillsPaused(repo, deck, !on, new Date(), dayStartsAtHour);
+      await refresh();
+      setLoads((n) => n + 1);
+    } catch (e) {
+      Alert.alert(on ? "Couldn't resume skill cards" : "Couldn't pause skill cards", failureText(e, { next: 'Try again.' }));
+    } finally {
+      busy.current = false;
+    }
+  };
+
+  const confirmDelete = () => Alert.alert(
+    `Delete ${skillCount} skill ${skillCount === 1 ? 'card' : 'cards'}?`,
+    "They're removed from Anki too, with their review history, and automatic adding turns off. The words added for them stay in your deck.",
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: () => void (async () => {
+          if (busy.current) return;
+          busy.current = true;
+          try {
+            await deleteSkillCards(repo, deck);
+            await save({ ...settings, auto: false });
+            await refresh();
+            haptic.success();
+            setLoads((n) => n + 1);
+          } catch (e) {
+            Alert.alert("Couldn't delete skill cards", failureText(e, { next: 'Try again.' }));
+          } finally {
+            busy.current = false;
+          }
+        })(),
+      },
+    ],
+  );
+
+  const add = async () => {
+    if (!found || busy.current || !(missing || missingWords)) return;
+    busy.current = true;
+    setProgress({ done: 0, total: missing + missingWords });
     try {
       const { dayStartsAtHour } = await repo.collectionSettings();
       const got = await addSkillCards(repo, {
-        deck, language: found.language, languageName: found.name, groups: groups.filter((g) => picked.has(g.id)).map((g) => g.id),
+        deck, language: found.language, languageName: found.name, groups: onGroups,
         dayStartsAtHour, refresh: () => refreshFromKeptCollection(repo), onProgress: (done, total) => setProgress({ done, total }),
       });
       await refresh();
       haptic.success();
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
+      if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you've studied them.`);
+      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} couldn't be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that use them start once you've added and studied those words yourself.`);
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
-      parts.push('Later drill steps wait, suspended, until the step before has a review a week or more out.');
+      parts.push('Later steps start once you know the earlier ones.');
       setLoads((n) => n + 1);
       Alert.alert('Skill cards added', parts.join(' '), [{ text: 'OK', onPress: onDone }]);
     } catch (e) {
@@ -86,18 +158,18 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
     <Screen
       title="Skill cards"
       largeTitle={false}
-      footer={found && groups.length ? (
+      footer={found && groups.length && settings.on && (missing || missingWords || progress) ? (
         <Button
-          label={progress ? `Adding ${progress.done} of ${progress.total}` : `Add ${count} ${count === 1 ? 'card' : 'cards'}`}
+          label={progress ? `Adding ${progress.done} of ${progress.total}` : addLabel(missing, missingWords)}
           busy={false}
-          disabled={!count || !!progress}
+          disabled={!(missing || missingWords) || !!progress}
           onPress={() => void add()}
         />
       ) : undefined}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {!found ? (
-          <Card><Help>{"This deck's name doesn't say which language it's in, so there are no skill cards to offer. Skill cards come for a deck named after its language, such as Thai or Polski."}</Help></Card>
+          <Card><Help>{"This deck's name doesn't say which language it's in. Skill cards need a deck named after its language, e.g. Thai or Polski."}</Help></Card>
         ) : !groups.length ? (
           <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
         ) : (
@@ -122,9 +194,24 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 </Card>
               </View>
             ))}
-            {sections.length ? <Help>The bar is FSRS's chance you'd get it right now. For a set of single cards, it's how many have a review a week or more out.</Help> : null}
-            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Add skill cards</Text>
-            <Help>{`Skill cards go into ${subdeck}, made if it isn't there. They come up in your reviews like any card, and FSRS spaces them. A drill card asks a few questions, then you rate it. Later steps are added suspended and come in as the step before settles.`}</Help>
+            {sections.length ? <Help>The bar shows how well you know each skill.</Help> : null}
+            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Skill cards</Text>
+            <Group>
+              <SwitchRow
+                first
+                label="Skill cards"
+                hint={`Turn off to suspend every skill card in ${subdeck} and stop adding more. Turning it back on resumes them.`}
+                value={settings.on}
+                onValueChange={(on) => void setOn(on)}
+              />
+            </Group>
+            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: space.m }}>Skills in this deck</Text>
+            <Help>{`Skill cards go into ${subdeck} and come up in your reviews like any other card. A drill card asks a few questions, then you rate it. Each step starts once you know the one before. Turning a skill off stops new cards. Ones already added stay.`}</Help>
+            {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
+              <Help>{canWords
+                ? `These skills also add the words their drills use (months, numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you've studied its words.`
+                : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added and studied its words yourself.`}</Help>
+            ) : null}
             <Group>
               {groups.map((g, i) => (
                 <SwitchRow
@@ -132,11 +219,25 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                   first={i === 0}
                   label={g.title}
                   hint={g.detail}
-                  value={picked.has(g.id)}
-                  onValueChange={(on) => setPicked((p) => { const next = new Set(p); if (on) next.add(g.id); else next.delete(g.id); return next; })}
+                  value={!settings.off.includes(g.id)}
+                  onValueChange={(on) => void save({ ...settings, off: on ? settings.off.filter((o) => o !== g.id) : [...settings.off, g.id].sort() })}
                 />
               ))}
             </Group>
+            <Group>
+              <SwitchRow
+                first
+                label="Add new skill cards automatically"
+                hint="After each sync, your server adds new cards for the skills that are on. When this is off, add them with the button below."
+                value={settings.auto}
+                onValueChange={(auto) => void save({ ...settings, auto })}
+              />
+            </Group>
+            {!settings.on ? (
+              <Help>Skill cards are paused. Nothing is added until you turn them back on.</Help>
+            ) : settings.auto && (missing || missingWords) ? (
+              <Help>{`${addNouns(missing, missingWords)} will be added by your server after your next sync.`}</Help>
+            ) : null}
             {sample ? (
               <Card style={{ gap: space.xs }}>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>In Anki on your computer, a drill card reads</Text>
@@ -145,9 +246,18 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
               </Card>
             ) : null}
             <Help>{`${subdeck} uses Anki's Default options preset, as any new deck does. To give it its own limits, change its preset in Anki on your computer.`}</Help>
+            {skillCount ? <Button label="Delete skill cards…" variant="destructive" onPress={confirmDelete} /> : null}
           </>
         )}
       </ScrollView>
     </Screen>
   );
 }
+
+/** "3 cards and 19 words", for the button and the line under it. */
+function addNouns(cards: number, words: number): string {
+  const parts = [cards ? `${cards} ${cards === 1 ? 'card' : 'cards'}` : '', words ? `${words} ${words === 1 ? 'word' : 'words'}` : ''].filter(Boolean);
+  return parts.join(' and ');
+}
+
+const addLabel = (cards: number, words: number) => `Add ${addNouns(cards, words)} now`;

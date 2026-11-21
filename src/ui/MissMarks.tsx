@@ -3,17 +3,23 @@ import { ActionSheetIOS, Text, View } from 'react-native';
 import type { MissReason } from '../core/misses';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
+import { FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
+
+/** The chevron's tap area, and (with the divider) how far the words are pushed right to center on the whole button. */
+const CHEVRON_WIDTH = 44;
 
 /**
  * Review's Again button for a card that has reasons to choose from (src/core/misses.ts): a plain
  * tap is a plain Again, and the chevron, or pressing and holding the button, asks what went wrong
  * and answers Again with that reason. The reason never changes the rating.
  */
-export function AgainSplit({ interval, reasons, onAnswer }: {
+export function AgainSplit({ interval, reasons, suggested, onAnswer }: {
   /** When the card is next due after Again, as the other buttons show it. */
   interval: string | undefined;
   reasons: MissReason[];
+  /** Again is the rating that fits (a typed answer was wrong): outlined, as the other buttons outline theirs. */
+  suggested?: boolean;
   /** Answers Again; `miss` is the reason's key, absent for a plain Again. */
   onAnswer: (miss?: string) => void;
 }) {
@@ -27,16 +33,17 @@ export function AgainSplit({ interval, reasons, onAnswer }: {
     );
   };
   return (
-    <View style={{ flex: 1, flexDirection: 'row', minHeight: 60, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again }}>
+    <View style={{ flex: 1, flexDirection: 'row', minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again, ...(suggested ? { borderWidth: 3, borderColor: c.text } : null) }}>
       <Tappable
         onPress={() => onAnswer()}
         onLongPress={choose}
         accessibilityRole="button"
-        accessibilityLabel={`Again, next in ${interval ?? ''}`}
-        accessibilityHint="Press and hold to say what went wrong"
+        accessibilityLabel={`Again, next in ${interval ?? ''}${suggested ? ', suggested' : ''}`}
+        accessibilityHint="Touch and hold to say what went wrong"
         scaleTo={0.95}
         dimTo={0.85}
-        style={{ flex: 1, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', gap: 2 }}
+        // Left padding the width of the divider and chevron, so the words sit in the middle of the whole button, as on Good.
+        style={{ flex: 1, paddingVertical: space.s, paddingLeft: CHEVRON_WIDTH + hairline, alignItems: 'center', justifyContent: 'center', gap: 2 }}
       >
         {/* The interval sits above the label, as on the other buttons. */}
         <Text style={{ ...type.footnote, color: c.onRating, fontVariant: ['tabular-nums'] }}>{interval}</Text>
@@ -48,7 +55,7 @@ export function AgainSplit({ interval, reasons, onAnswer }: {
         accessibilityRole="button"
         accessibilityLabel="Again, and say what went wrong"
         dimTo={0.85}
-        style={{ width: 44, alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: CHEVRON_WIDTH, alignItems: 'center', justifyContent: 'center' }}
       >
         <Icon name="chevron.down" size={16} color={c.onRating} weight="bold" />
       </Tappable>

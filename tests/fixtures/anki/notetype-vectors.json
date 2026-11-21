@@ -1,0 +1,225 @@
+{
+ "cases": [
+  {
+   "note_type": "Basic (and reversed card)",
+   "kind": "normal",
+   "fields": [
+    "Front",
+    "Back"
+   ],
+   "templates": [
+    {
+     "ord": 0,
+     "name": "Card 1",
+     "front": "{{Front}}",
+     "back": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}"
+    },
+    {
+     "ord": 1,
+     "name": "Card 2",
+     "front": "{{Front}}<br>{{Back}}",
+     "back": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}"
+    }
+   ],
+   "css": ".card { font-family: Georgia; font-size: 24px; }",
+   "req": [
+    [
+     0,
+     "any",
+     [
+      0
+     ]
+    ],
+    [
+     1,
+     "any",
+     [
+      0,
+      1
+     ]
+    ]
+   ],
+   "config": "GjAuY2FyZCB7IGZvbnQtZmFtaWx5OiBHZW9yZ2lhOyBmb250LXNpemU6IDI0cHg7IH0qsgFcZG9jdW1lbnRjbGFzc1sxMnB0XXthcnRpY2xlfQpcc3BlY2lhbHtwYXBlcnNpemU9M2luLDVpbn0KXHVzZXBhY2thZ2VbdXRmOF17aW5wdXRlbmN9Clx1c2VwYWNrYWdle2Ftc3N5bWIsYW1zbWF0aH0KXHBhZ2VzdHlsZXtlbXB0eX0KXHNldGxlbmd0aHtccGFyaW5kZW50fXswaW59ClxiZWdpbntkb2N1bWVudH0KMg5cZW5ke2RvY3VtZW50fUIFEAEaAQBCCAgBEAEaAgABSAI=",
+   "usn": -1,
+   "template_configs": [
+    [
+     0,
+     "Cgl7e0Zyb250fX0SJ3t7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0JhY2t9fUDn67GPtfOepOsB",
+     0,
+     0
+    ],
+    [
+     1,
+     "ChV7e0Zyb250fX08YnI+e3tCYWNrfX0SKHt7RnJvbnRTaWRlfX0KCjxociBpZD1hbnN3ZXI+Cgp7e0Zyb250fX1Aouif6tKLnvxA",
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "note_type": "Basic (optional reversed card)",
+   "kind": "normal",
+   "fields": [
+    "Front",
+    "Back",
+    "Add Reverse"
+   ],
+   "templates": [
+    {
+     "ord": 0,
+     "name": "Card 1",
+     "front": "{{Front}}",
+     "back": "{{FrontSide}}<hr id=answer>{{Back}}<br>{{Add Reverse}}"
+    },
+    {
+     "ord": 1,
+     "name": "Card 2",
+     "front": "{{#Add Reverse}}{{Back}}{{/Add Reverse}}",
+     "back": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Front}}"
+    }
+   ],
+   "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+   "req": [
+    [
+     0,
+     "any",
+     [
+      0
+     ]
+    ],
+    [
+     1,
+     "all",
+     [
+      1,
+      2
+     ]
+    ]
+   ],
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgUQARoBAEIICAEQAhoCAQJIAw==",
+   "usn": -1,
+   "template_configs": [
+    [
+     0,
+     "Cgl7e0Zyb250fX0SNnt7RnJvbnRTaWRlfX08aHIgaWQ9YW5zd2VyPnt7QmFja319PGJyPnt7QWRkIFJldmVyc2V9fUDH/Ou+0drShZUB",
+     0,
+     0
+    ],
+    [
+     1,
+     "Cih7eyNBZGQgUmV2ZXJzZX19e3tCYWNrfX17ey9BZGQgUmV2ZXJzZX19Eih7e0Zyb250U2lkZX19Cgo8aHIgaWQ9YW5zd2VyPgoKe3tGcm9udH19QKnu8MjLqsz4wQE=",
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "note_type": "Basic",
+   "kind": "normal",
+   "fields": [
+    "Front",
+    "Back"
+   ],
+   "templates": [
+    {
+     "ord": 0,
+     "name": "Card 1",
+     "front": "{{#Front}}{{Back}}{{/Front}}",
+     "back": "{{FrontSide}}\n\n<hr id=answer>\n\n{{Back}}"
+    }
+   ],
+   "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+   "req": [
+    [
+     0,
+     "all",
+     [
+      0,
+      1
+     ]
+    ]
+   ],
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgYQAhoCAAFIAQ==",
+   "usn": -1,
+   "template_configs": [
+    [
+     0,
+     "Chx7eyNGcm9udH19e3tCYWNrfX17ey9Gcm9udH19Eid7e0Zyb250U2lkZX19Cgo8aHIgaWQ9YW5zd2VyPgoKe3tCYWNrfX1A/4q19+iN58hK",
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "note_type": "Basic (type in the answer)",
+   "kind": "normal",
+   "fields": [
+    "Front",
+    "Back"
+   ],
+   "templates": [
+    {
+     "ord": 0,
+     "name": "Card 1",
+     "front": "{{Tags}}",
+     "back": "{{Front}}\n\n<hr id=answer>\n\n{{type:Back}}"
+    }
+   ],
+   "css": ".card {\n    font-family: arial;\n    font-size: 20px;\n    line-height: 1.5;\n    text-align: center;\n    color: black;\n    background-color: white;\n}\n",
+   "req": [
+    [
+     0,
+     "none",
+     []
+    ]
+   ],
+   "config": "GpQBLmNhcmQgewogICAgZm9udC1mYW1pbHk6IGFyaWFsOwogICAgZm9udC1zaXplOiAyMHB4OwogICAgbGluZS1oZWlnaHQ6IDEuNTsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIGNvbG9yOiBibGFjazsKICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwp9CiqyAVxkb2N1bWVudGNsYXNzWzEycHRde2FydGljbGV9ClxzcGVjaWFse3BhcGVyc2l6ZT0zaW4sNWlufQpcdXNlcGFja2FnZVt1dGY4XXtpbnB1dGVuY30KXHVzZXBhY2thZ2V7YW1zc3ltYixhbXNtYXRofQpccGFnZXN0eWxle2VtcHR5fQpcc2V0bGVuZ3Roe1xwYXJpbmRlbnR9ezBpbn0KXGJlZ2lue2RvY3VtZW50fQoyDlxlbmR7ZG9jdW1lbnR9QgBIBA==",
+   "usn": -1,
+   "template_configs": [
+    [
+     0,
+     "Cgh7e1RhZ3N9fRIoe3tGcm9udH19Cgo8aHIgaWQ9YW5zd2VyPgoKe3t0eXBlOkJhY2t9fUDKwvbxrKTPrv0B",
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "note_type": "Cloze",
+   "kind": "cloze",
+   "fields": [
+    "Text",
+    "Back Extra"
+   ],
+   "templates": [
+    {
+     "ord": 0,
+     "name": "Cloze",
+     "front": "{{cloze:Text}}<br>{{hint:Back Extra}}",
+     "back": "{{cloze:Text}}<br>\n{{Back Extra}}"
+    }
+   ],
+   "css": "",
+   "req": [
+    [
+     0,
+     "any",
+     [
+      0,
+      1
+     ]
+    ]
+   ],
+   "config": "CAEqsgFcZG9jdW1lbnRjbGFzc1sxMnB0XXthcnRpY2xlfQpcc3BlY2lhbHtwYXBlcnNpemU9M2luLDVpbn0KXHVzZXBhY2thZ2VbdXRmOF17aW5wdXRlbmN9Clx1c2VwYWNrYWdle2Ftc3N5bWIsYW1zbWF0aH0KXHBhZ2VzdHlsZXtlbXB0eX0KXHNldGxlbmd0aHtccGFyaW5kZW50fXswaW59ClxiZWdpbntkb2N1bWVudH0KMg5cZW5ke2RvY3VtZW50fUIGEAEaAgABSAU=",
+   "usn": -1,
+   "template_configs": [
+    [
+     0,
+     "CiV7e2Nsb3plOlRleHR9fTxicj57e2hpbnQ6QmFjayBFeHRyYX19EiF7e2Nsb3plOlRleHR9fTxicj4Ke3tCYWNrIEV4dHJhfX1AqKK90Iffks/hAQ==",
+     0,
+     0
+    ]
+   ]
+  }
+ ]
+}

@@ -135,3 +135,37 @@ jobs:
         run: uv run pytest -q && uv run pytest -q ../speech/tests
         env:
           TZ: Pacific/Kiritimati
+
+  # What the server's updater runs unattended (server/update.sh, within 15 minutes of a merge): a
+  # Caddyfile Caddy won't load takes sync, the MCP and Read & Listen down together, and an update
+  # script that doesn't parse can never pull its own fix. Only when one of them changed.
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for deploy changes
+        if: github.event_name == 'pull_request'
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            deploy:
+              - 'server/Caddyfile'
+              - 'server/docker-compose.yml'
+              - 'server/update.sh'
+              - 'server/install-auto-update.sh'
+              - '.github/workflows/test.yml'
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.deploy == 'true'
+        name: Caddy loads the Caddyfile
+        run: docker run --rm -e DOMAIN=example.com -v "$PWD/server/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
+      - if: github.event_name != 'pull_request' || steps.paths.outputs.deploy == 'true'
+        name: The compose file and the update scripts parse
+        run: |
+          docker compose -f server/docker-compose.yml config --quiet
+          sh -n server/update.sh
+          sh -n server/install-auto-update.sh
+        env:
+          DOMAIN: example.com
+          ANKI_USER: user
+          ANKI_PASSWORD: password
+          COMPOSE_PROFILES: mcp,reader

@@ -13,6 +13,7 @@ export default function CramRoute() {
       repo={repo}
       id={id}
       readerApi={reader.api}
+      serverRegister={reader.settings?.register}
       onEditNote={(noteId, onClose) => openNoteEditor({ noteId }, () => onClose())}
       onRead={async (language, words) => {
         // Synced first, so the server knows the words as they are now.

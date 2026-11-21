@@ -179,13 +179,15 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
                 );
               });
             })()}
-            {story.running ? <Help>Each episode is written once you've read the one before, so a series you leave alone writes nothing more.</Help> : null}
+            {story.running ? <Help>Each new episode is written after you read the last one, so a series you leave alone costs nothing.</Help> : null}
           </>
         ) : null}
       </ScrollView>
       <GlossPopover
         tapped={tapped}
         language={language}
+        // A word of "Last time" is looked up in the sense of its line.
+        meaningLookup={(word) => api.wordMeaning(language, word.text, story?.last_recap_line?.words.includes(word) ? story.last_recap_line.english : undefined)}
         grammar={null}
         api={api}
         grammarChosen={{}}

@@ -1,47 +1,77 @@
+import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { cramNotes, cramTag, meaningOf, noteAddedAt } from '../../core/cram';
+import { addableNotes, cramLanguageOf, cramNotes, cramTag, meaningOf, noteAddedAt, searchNotes, withRequest } from '../../core/cram';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
-import { noteHasTag } from '../../core/priority';
+import type { LessonWordCandidate } from '../../core/lessonWords';
+import { noteHasTag, tagCounts } from '../../core/priority';
 import type { Note } from '../../core/types';
+import type { Language, QueuedNote } from '../../reader/api';
+import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Divider, Field, Icon, Loading, Screen } from '../kit';
-import { MIN_TAP, readable, space, type, useTheme } from '../theme';
-import { capCramCards, setCramTag, useCollection, useCrams } from '../useCrams';
+import { Field, Group, Help, Loading, NavRow, Screen } from '../kit';
+import { radius, readable, space, type, useTheme } from '../theme';
+import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
+import { CheckRow } from './CramBits';
+import { CramAsk } from './CramAsk';
+import { leaveScreen } from '../leaveScreen';
+import { PRACTICE_PATH } from '../tabPaths';
 
 /** How many notes the list shows at once: a search narrows it. */
-const SHOWN = 80;
+const SHOWN = 60;
 
 /**
- * Add words: every note in the collection, searched by its word or meaning, the most recently added
- * first. A tap adds the cram's tag to the note or takes it off; the check shows at once and is put
- * back, with the reason, if the note can't be saved.
+ * Add, on a cram's page: type a word, a meaning or something to say, in the language or English.
+ * Notes in the cram's language match by word or by a whole word of the meaning (`searchNotes`); a
+ * tap adds the cram's tag or takes it off, the check showing at once and put back, with the reason,
+ * if the note can't be saved. What's typed can also be a tag ("Add all 12 tagged italki"), or, with
+ * Read & Listen on, a card for Claude to write (`CramAsk`). Nothing typed: the newest notes.
  */
-export function CramWords({ repo, id }: { repo: NoteStore; id: string }) {
+export function CramWords({ repo, id, initial, findWords, queue, queued, approve }: {
+  repo: NoteStore;
+  id: string;
+  /** What the field starts with (a word typed in the lesson, from the cram's page). */
+  initial?: string;
+  /** Find word's lookup, while Read & Listen is on. */
+  findWords?: (language: Language, text: string) => Promise<LessonWordCandidate[]>;
+  /** Sends a word to the note queue in the language's deck, while Read & Listen is on and has one. */
+  queue?: (language: Language, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
+  /** The note queue as the server last said it, so a card asked for here shows when it's ready. */
+  queued?: QueuedNote[];
+  /** Opens a ready queued note in the note editor and takes it off the queue once saved; true when it was saved. */
+  approve?: (note: QueuedNote) => Promise<boolean>;
+}) {
   const c = useTheme();
+  const router = useRouter();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initial ?? '');
   // What each tap asked for, shown until the notes are read again and agree; a note being saved
   // takes no second tap, so an add and a take-out of one note can't race.
   const [asked, setAsked] = useState<Map<string, boolean>>(new Map());
   const saving = useRef(new Set<string>());
   const [problem, setProblem] = useState<string>();
 
-  const inCram = useMemo(() => new Set(cram ? cramNotes(cram, collection.notes).map((n) => n.id) : []), [cram, collection.notes]);
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const all = collection.notes.map((n) => ({ note: n, word: headword(n), meaning: meaningOf(n) }));
-    const hits = q ? all.filter((r) => r.word.toLowerCase().includes(q) || r.meaning.toLowerCase().includes(q)) : all;
-    return hits.sort((a, b) => noteAddedAt(b.note) - noteAddedAt(a.note)).slice(0, SHOWN);
-  }, [collection.notes, query]);
+  const inCram = useMemo(() => (cram ? cramNotes(cram, collection.notes) : []), [cram, collection.notes]);
+  const inCramIds = useMemo(() => new Set(inCram.map((n) => n.id)), [inCram]);
+  const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
+  const offered = useMemo(() => addableNotes(collection.notes, inCram, language), [collection.notes, inCram, language]);
+  const typed = query.trim();
+  const rows = useMemo(
+    () => (typed ? searchNotes(offered, typed, SHOWN) : [...offered].sort((a, b) => noteAddedAt(b) - noteAddedAt(a)).slice(0, SHOWN)),
+    [offered, typed],
+  );
+  const counts = useMemo(() => tagCounts(collection.notes), [collection.notes]);
+  const tagMatch = typed && !/\s/.test(typed) ? counts.find((t) => t.tag.toLowerCase() === typed.toLowerCase().replace(/^#/, ''))?.tag : undefined;
+  const tagged = useMemo(() => (tagMatch ? offered.filter((n) => noteHasTag(n, tagMatch) && !inCramIds.has(n.id)) : []), [tagMatch, offered, inCramIds]);
+  const exact = typed && rows.some((n) => headword(n).trim().toLowerCase() === typed.toLowerCase());
 
-  if (!cram || !collection.loaded) return <Screen title="Add words"><Loading /></Screen>;
+  if (!cram || !collection.loaded) return <Screen title="Add" largeTitle={false}><Loading /></Screen>;
   const tag = cramTag(cram);
-  const checked = (note: Note) => asked.get(note.id) ?? inCram.has(note.id);
+  const checked = (note: Note) => asked.get(note.id) ?? inCramIds.has(note.id);
   const toggle = async (note: Note) => {
     if (saving.current.has(note.id)) return;
     const on = !checked(note);
@@ -60,45 +90,87 @@ export function CramWords({ repo, id }: { repo: NoteStore; id: string }) {
       saving.current.delete(note.id);
     }
   };
+  const addTagged = async () => {
+    haptic.tap();
+    setProblem(undefined);
+    try {
+      await setCramTag(repo, cram, tagged.map((n) => n.id), true);
+      collection.reload();
+      capCramCards(repo).catch(() => undefined);
+    } catch (e) {
+      setProblem(failureText(e, { what: "Couldn't add the words.", next: 'Try again.' }));
+    }
+  };
+  const ask = async (words: LessonWordCandidate[]) => {
+    if (!queue || !language) return undefined;
+    const how = await queue(language, words.map((w) => ({ entry: w.text, meaning: w.english })));
+    // The cram as it is now: a word asked for while another save was in flight isn't lost.
+    const now = cramsNow().find((x) => x.id === cram.id);
+    if (how && now) await saveCram(repo, words.reduce((next, w) => withRequest(next, { text: w.text, english: w.english }), now));
+    return how;
+  };
 
+  const name = language ? LANGUAGES[language].name : undefined;
   return (
-    <Screen title="Add words" largeTitle={false}>
+    <Screen
+      title="Add"
+      largeTitle={false}
+      toolbar={(
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button accessibilityLabel="Done adding" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Done</Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
+    >
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl }}
         ListHeaderComponent={(
-          <View style={{ gap: space.s, paddingVertical: space.m }}>
-            <Field label={`${inCram.size === 1 ? '1 word' : `${inCram.size} words`} in ${cram.name}`} value={query} onChangeText={setQuery} placeholder="Search by word or meaning" autoCapitalize="none" autoCorrect={false} clearButtonMode="while-editing" />
+          <View style={{ gap: space.m, paddingVertical: space.m }}>
+            <Field
+              label={`${inCram.length === 1 ? '1 word' : `${inCram.length} words`} in ${cram.name}`}
+              value={query}
+              onChangeText={setQuery}
+              placeholder={name ? 'A word, a meaning, or something to say' : 'Search by word or meaning'}
+              autoFocus={!initial}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              returnKeyType="search"
+            />
+            <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
+            {typed && !exact && language && findWords && queue ? (
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
+            ) : null}
+            {tagMatch && tagged.length ? (
+              <Group>
+                <NavRow first icon={{ name: 'tag', color: c.accent }} label={`Add all ${tagged.length} tagged ${tagMatch}`} onPress={() => void addTagged()} />
+              </Group>
+            ) : null}
             {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+            {rows.length ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{typed ? 'In your deck' : 'Added most recently'}</Text> : null}
           </View>
         )}
         data={rows}
-        keyExtractor={(r) => r.note.id}
+        keyExtractor={(n) => n.id}
         renderItem={({ item, index }) => {
-          const on = checked(item.note);
+          const on = checked(item);
+          const meaning = meaningOf(item);
           return (
-            <Pressable
-              onPress={() => toggle(item.note)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={`${item.word}, ${item.meaning}`}
-              style={({ pressed }) => ({
-                minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingHorizontal: space.m,
-                backgroundColor: pressed ? c.fill : c.surface,
-              })}
-            >
-              {index === 0 ? null : <Divider inset={space.m} />}
-              <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ ...type.body, color: c.text }}>{item.word || 'Untitled'}</Text>
-                <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{[item.meaning, item.note.deck.split('::').pop()].filter(Boolean).join(' · ')}</Text>
-              </View>
-              {noteHasTag(item.note, tag) !== on ? <Text style={{ ...type.caption, color: c.textSecondary }}>Saving</Text> : null}
-            </Pressable>
+            <View style={{ backgroundColor: c.surface, borderTopLeftRadius: index === 0 ? radius.l : 0, borderTopRightRadius: index === 0 ? radius.l : 0, borderBottomLeftRadius: index === rows.length - 1 ? radius.l : 0, borderBottomRightRadius: index === rows.length - 1 ? radius.l : 0, overflow: 'hidden' }}>
+              <CheckRow
+                first={index === 0}
+                label={headword(item) || 'Untitled'}
+                detail={[meaning, item.deck.split('::').pop()].filter(Boolean).join(' · ')}
+                checked={on}
+                onPress={() => void toggle(item)}
+                trailing={noteHasTag(item, tag) !== on ? <Text style={{ ...type.caption, color: c.textSecondary }}>Saving</Text> : undefined}
+              />
+            </View>
           );
         }}
-        ListFooterComponent={rows.length === SHOWN ? <Text style={{ ...type.footnote, color: c.textSecondary, paddingTop: space.m }}>{`Showing the ${SHOWN} most recently added. Search to find others.`}</Text> : undefined}
+        ListEmptyComponent={typed ? <Help>{`None of your ${name ?? ''} words match.`.replace('  ', ' ')}</Help> : undefined}
+        ListFooterComponent={rows.length === SHOWN ? <Text style={{ ...type.footnote, color: c.textSecondary, paddingTop: space.m }}>{typed ? `Showing the best ${SHOWN} matches.` : `Showing the ${SHOWN} most recently added. Search to find others.`}</Text> : undefined}
       />
     </Screen>
   );

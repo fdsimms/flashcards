@@ -195,6 +195,41 @@ class Lexicon:
     def _splits_into_known(self, token: str) -> bool:
         return self.known_pieces(token) is not None
 
+    @cached_property
+    def _dictionary(self) -> frozenset[str]:
+        return frozenset(thai_words()) | self.known
+
+    def parts(self, token: str) -> list[str] | None:
+        """The words a compound is made of (ความคิด into ความ, คิด), for a card's headword: split by
+        the general dictionary together with the deck's entries, and never into the token itself,
+        which `word_tokenize` returns whole because it is a word. Fewest parts first, then the
+        most that are deck entries, then the shorter first part (as newmm breaks a tie). None for a
+        word that doesn't split into two or more words of two letters or more."""
+        n = len(token)
+        if n < 4 or n > _MAX_COMPOUND or not all(_is_thai(ch) for ch in token):
+            return None
+        best: dict[int, tuple[int, int, list[str]] | None] = {n: (0, 0, [])}
+
+        def solve(start: int) -> tuple[int, int, list[str]] | None:
+            if start in best:
+                return best[start]
+            found: tuple[int, int, list[str]] | None = None
+            for end in range(start + 2, n + 1):
+                piece = token[start:end]
+                if piece == token or piece not in self._dictionary:
+                    continue
+                rest = solve(end)
+                if rest is None:
+                    continue
+                key = (rest[0] + 1, rest[1] - (piece in self.known))
+                if found is None or key < found[:2]:
+                    found = (key[0], key[1], [piece, *rest[2]])
+            best[start] = found
+            return found
+
+        split = solve(0)
+        return split[2] if split and len(split[2]) > 1 else None
+
     def entry_of(self, token: str) -> str | None:
         return token if token in self.known else None
 
@@ -292,3 +327,11 @@ def _counts(token: str) -> bool:
 
 def _is_number(token: str) -> bool:
     return bool(_NUMBER.match(token))
+
+
+# Longest headword `Lexicon.parts` splits: a longer string is a phrase, not a compound.
+_MAX_COMPOUND = 24
+
+
+def _is_thai(ch: str) -> bool:
+    return "\u0e01" <= ch <= "\u0e4e"

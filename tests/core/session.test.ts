@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { studiedKind } from '../../src/core/queue';
-import { answerTimeMs, bumpStudied, currentCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, upNext, type AnswerRecord } from '../../src/core/session';
+import { mix } from '../../src/core/order';
+import { studiedKind, type Queue } from '../../src/core/queue';
+import { answerTimeMs, answerTimer, bumpStudied, clockText, currentCard, keepSessionOrder, nextUndo, restoreCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, timeboxMessage, timeboxReached, upNext, type AnswerRecord, type CardAction } from '../../src/core/session';
+import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
 describe('answerTimeMs', () => {
@@ -45,7 +47,7 @@ describe('currentCard', () => {
   it('shows the card an undo brought back, else the queue\'s next', () => {
     const [a] = makeCards({ ...omniNote(), id: 'a' }, NOW);
     const [b] = makeCards({ ...omniNote(), id: 'b' }, NOW);
-    const q = { due: [], fresh: [a, b], order: [a, b] };
+    const q = { due: [], fresh: [a, b], order: [a, b], main: [a, b] };
     expect(currentCard(q)?.id).toBe(a.id);
     expect(currentCard(q, b.id)?.id).toBe(b.id);
     expect(currentCard(q, 'gone')?.id).toBe(a.id);
@@ -57,11 +59,11 @@ describe('upNext', () => {
     const [a] = makeCards({ ...omniNote(), id: 'a' }, NOW);
     const [b] = makeCards({ ...omniNote(), id: 'b' }, NOW);
     const [c] = makeCards({ ...omniNote(), id: 'c' }, NOW);
-    const q = { due: [], fresh: [a, b, c], order: [a, b, c] };
+    const q = { due: [], fresh: [a, b, c], order: [a, b, c], main: [a, b, c] };
     expect(upNext(q, a)?.id).toBe(b.id);
     // An undo shows a card from further down: the one at the front still comes next.
     expect(upNext(q, b)?.id).toBe(a.id);
-    expect(upNext({ due: [], fresh: [a], order: [a] }, a)).toBeUndefined();
+    expect(upNext({ due: [], fresh: [a], order: [a], main: [a] }, a)).toBeUndefined();
     // A card the answer leaves out (a sibling it buries, a lookalike it holds back) won't come next.
     expect(upNext(q, a, (card) => card.id === b.id)?.id).toBe(c.id);
     expect(upNext(q, a, (card) => card.id !== a.id)).toBeUndefined();
@@ -108,5 +110,146 @@ describe('swipeRating', () => {
   it('never gives a rating the answer buttons do not show', () => {
     expect(swipeRating(200, 0, [1, 2])).toBeNull();
     expect(swipeRating(-200, 0, [3, 4])).toBeNull();
+  });
+});
+
+describe('keepSessionOrder', () => {
+  const card = (id: string, state: 0 | 2 = 2): Card => {
+    const [c] = makeCards({ ...omniNote(), id }, NOW);
+    return { ...c, id, sched: { ...c.sched, state } };
+  };
+  /** A queue as `treeQueue` builds one: learning due now, the mixed stretch, learning ahead. */
+  const queueOf = (learnNow: Card[], reviews: Card[], fresh: Card[], learnAhead: Card[] = []): Queue => {
+    const main = mix(reviews, fresh, 0);
+    return { due: [...learnNow, ...reviews], fresh, order: [...learnNow, ...main, ...learnAhead], main };
+  };
+  const ids = (cards: Card[]) => cards.map((c) => c.id);
+
+  it('brings the first new card up after about a review in fifteen, not once the reviews run low', () => {
+    const reviews = Array.from({ length: 150 }, (_, i) => card(`r${i}`));
+    const fresh = Array.from({ length: 10 }, (_, i) => card(`n${i}`, 0));
+    // What Review does: rebuild after every answer, then answer the card on top.
+    let shown = queueOf([], reviews, fresh);
+    const answered: string[] = [];
+    while (shown.order.length) {
+      const top = shown.order[0];
+      answered.push(top.id);
+      const rest = (cards: Card[]) => cards.filter((c) => !answered.includes(c.id));
+      shown = keepSessionOrder(shown, queueOf([], rest(reviews), rest(fresh)));
+    }
+    expect(answered).toHaveLength(160);
+    expect(answered.findIndex((id) => id.startsWith('n'))).toBeLessThan(15);
+    expect(answered.filter((id) => id.startsWith('n'))).toHaveLength(10);
+    // Without it, the same loop gets its first new card at answer 142.
+    let bare = queueOf([], reviews, fresh);
+    const bareAnswered: string[] = [];
+    while (bare.order.length) {
+      bareAnswered.push(bare.order[0].id);
+      const rest = (cards: Card[]) => cards.filter((c) => !bareAnswered.includes(c.id));
+      bare = queueOf([], rest(reviews), rest(fresh));
+    }
+    expect(bareAnswered.findIndex((id) => id.startsWith('n'))).toBeGreaterThan(100);
+  });
+
+  it("starts from the rebuilt queue when there's no earlier one or nothing in common", () => {
+    const next = queueOf([], [card('a'), card('b')], [card('n', 0)]);
+    expect(keepSessionOrder(undefined, next)).toBe(next);
+    const other = queueOf([], [card('x')], []);
+    expect(ids(keepSessionOrder(other, next).main)).toEqual(ids(next.main));
+  });
+
+  it('drops what left, keeps the rest where it was, and takes the cards as the rebuild has them', () => {
+    const [a, b, c, d] = ['a', 'b', 'c', 'd'].map((id) => card(id));
+    const prev = queueOf([], [a, b, c, d], []);
+    const b2 = { ...b, suspended: true };
+    // The rebuild puts d first (say a different review order) and has lost a.
+    const next = queueOf([], [d, c, b2], []);
+    const kept = keepSessionOrder(prev, next);
+    expect(ids(kept.main)).toEqual(['b', 'c', 'd']);
+    expect(kept.main[0]).toBe(b2);
+    expect(kept.order).toEqual(kept.main);
+  });
+
+  it('puts a card that was not queued before after the card ahead of it in the rebuilt order, or first', () => {
+    const [a, b, c, back, extra] = [card('a'), card('b'), card('c'), card('back'), card('extra', 0)];
+    const prev = queueOf([], [a, b, c], []);
+    const next: Queue = { due: [], fresh: [extra], order: [back, a, b, extra, c], main: [back, a, b, extra, c] };
+    expect(ids(keepSessionOrder(prev, next).main)).toEqual(['back', 'a', 'b', 'extra', 'c']);
+  });
+
+  it('takes the learning steps around the mixed stretch from the rebuild, as they are timed', () => {
+    const [l1, l2, l3, a, b] = [card('l1'), card('l2'), card('l3'), card('a'), card('b')];
+    const prev = queueOf([l1], [a, b], []);
+    const next = queueOf([l2], [b, a], [], [l3]);
+    expect(ids(keepSessionOrder(prev, next).order)).toEqual(['l2', 'a', 'b', 'l3']);
+  });
+});
+
+describe('nextUndo', () => {
+  const action = (afterAnswers: number): CardAction => ({ kind: 'state', label: 'Suspended this card', before: [], afterAnswers });
+  it('takes back whichever was done last, an answer or a menu action', () => {
+    expect(nextUndo(0, [])).toBeNull();
+    expect(nextUndo(2, [])).toBe('answer');
+    expect(nextUndo(2, [action(2)])).toBe('action');
+    // An answer given after the action comes off first, then the action.
+    expect(nextUndo(3, [action(2)])).toBe('answer');
+    expect(nextUndo(0, [action(0)])).toBe('action');
+  });
+
+  it('takes an action whose answers have since been dropped (a failed write) before an earlier answer', () => {
+    expect(nextUndo(1, [action(2)])).toBe('action');
+  });
+});
+
+describe('restoreCard', () => {
+  const [card] = makeCards(omniNote(), NOW);
+  const before: Card = { ...card, suspended: true, flag: 2, ankiMod: 100, position: 7, sched: { ...card.sched, state: 2, reps: 4 } };
+  const live: Card = { ...card, suspended: false, flag: undefined, buriedAt: NOW.toISOString(), ankiMod: 200, position: undefined, sched: { ...card.sched, reps: 9 } };
+
+  it('puts back only the state after a bury, suspend or flag', () => {
+    const r = restoreCard(live, before, 'state');
+    expect(r).toMatchObject({ suspended: true, flag: 2, buriedAt: undefined, ankiMod: 100 });
+    expect(r.sched).toBe(live.sched);
+    expect(r.position).toBeUndefined();
+  });
+
+  it('puts back the schedule and position too after Set Due Date or Forget', () => {
+    const r = restoreCard(live, before, 'schedule');
+    expect(r.sched).toBe(before.sched);
+    expect(r.position).toBe(7);
+    expect(r.suspended).toBe(true);
+  });
+});
+
+describe('the session time limit', () => {
+  it('is reached once the limit has passed since the stretch began, and never without one', () => {
+    expect(timeboxReached(0, 899_999, 900)).toBe(false);
+    expect(timeboxReached(0, 900_000, 900)).toBe(true);
+    expect(timeboxReached(0, 9_000_000, 0)).toBe(false);
+    expect(timeboxReached(0, 9_000_000, undefined)).toBe(false);
+  });
+
+  it('says how many cards were studied in how many minutes', () => {
+    expect(timeboxMessage(34, 15 * 60_000 + 20_000)).toBe('You studied 34 cards in 15 minutes.');
+    expect(timeboxMessage(1, 10_000)).toBe('You studied 1 card in 1 minute.');
+  });
+});
+
+describe('answerTimer', () => {
+  it("counts the card's seconds up to the preset's maximum, where it stops", () => {
+    expect(answerTimer(0, 12_400, undefined, { maxAnswerSecs: 60 })).toEqual({ secs: 12, capped: false });
+    expect(answerTimer(0, 75_000, undefined, { maxAnswerSecs: 60 })).toEqual({ secs: 60, capped: true });
+    expect(answerTimer(0, 75_000, undefined, undefined)).toEqual({ secs: 60, capped: true });
+  });
+
+  it('stops at Show answer only when the preset says so', () => {
+    expect(answerTimer(0, 20_000, 8_000, { stopTimerOnAnswer: true })).toEqual({ secs: 8, capped: false });
+    expect(answerTimer(0, 20_000, 8_000, { stopTimerOnAnswer: false })).toEqual({ secs: 20, capped: false });
+  });
+
+  it('reads as minutes and seconds', () => {
+    expect(clockText(7)).toBe('0:07');
+    expect(clockText(60)).toBe('1:00');
+    expect(clockText(125)).toBe('2:05');
   });
 });

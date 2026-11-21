@@ -24,6 +24,10 @@ describe('settings pages', () => {
     expect(searchSettings('autoplay').map((e) => e.id)).toEqual(['keepPlaying']);
     expect(searchSettings('skill').map((e) => e.id)).toEqual(['deckSkills']);
     expect(searchSettings('cards in progress').map((e) => e.id)).toEqual(['deckGate']);
+    expect(searchSettings('css').map((e) => e.id)).toEqual(['noteTypes']);
+    // Listening settings live on their own screen, not the one that turns Read & Listen on.
+    expect(searchSettings('autoplay')[0].route).toBe('/read-listening');
+    expect(searchSettings('passphrase')[0].route).toBe('/read-settings');
   });
 
   it('needs every word, ignores case, and finds nothing for a blank query', () => {

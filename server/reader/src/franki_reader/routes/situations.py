@@ -15,6 +15,7 @@ from franki_reader.languages import (
     Code,
 )
 from franki_reader.reader import render_sentence
+from franki_reader.register import Register
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 from franki_reader.suggestions import suggest
 from franki_reader.tts import (
@@ -53,8 +54,14 @@ class SituationIn(BaseModel):
     # Whether to record their next line with Azure. The app turns it off when it reads their lines
     # with the phone's own voices (Settings, Read & Listen), so nothing is recorded or billed.
     speak: bool = True
+    # How casual or formal the other person's lines are; the Settings default when left out.
+    # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
+    register_level: Register | None = Field(default=None, alias="register")
+    # Thai only: the learner's polite ending, khrap (a man's) or kha (a woman's), the same choice
+    # audio lessons use. The learner's own lines are judged and corrected as that speaker's.
+    particle: Literal["khrap", "kha"] | None = None
 
-    def conversation(self) -> situations.Conversation:
+    def conversation(self, default: Register) -> situations.Conversation:
         roles = situations.Roles(**self.roles.model_dump()) if self.roles else None
         lines = tuple(situations.Line(ln.speaker, " ".join(ln.text.split())) for ln in self.lines)
         focus = (
@@ -68,7 +75,14 @@ class SituationIn(BaseModel):
             if w
         )
         return situations.Conversation(
-            self.language, self.scene.strip(), roles, lines, focus, words
+            self.language,
+            self.scene.strip(),
+            roles,
+            lines,
+            focus,
+            words,
+            self.register_level or default,
+            "female" if self.language == "th" and self.particle == "kha" else "male",
         )
 
 
@@ -121,7 +135,7 @@ def router(ctx: AppContext) -> APIRouter:
         """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
         if play is None:
             raise HTTPException(503, NO_CLAUDE.replace("check your writing", "play a situation"))
-        conversation = body.conversation()
+        conversation = body.conversation(store.load_settings(engine.conn).register)
         if conversation.lines and conversation.roles is None:
             raise HTTPException(422, "A conversation under way needs its `roles`.")
         if conversation.lines and conversation.lines[-1].speaker != "you":
@@ -164,7 +178,7 @@ def router(ctx: AppContext) -> APIRouter:
     async def situation_feedback(body: SituationIn) -> dict[str, Any]:
         if give_feedback is None:
             raise HTTPException(503, NO_CLAUDE)
-        conversation = body.conversation()
+        conversation = body.conversation(store.load_settings(engine.conn).register)
         if not any(ln.speaker == "you" for ln in conversation.lines):
             raise HTTPException(422, "There are no lines of yours to check yet.")
         try:

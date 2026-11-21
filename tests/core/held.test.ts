@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { OfflineError } from '../../src/core/connection';
-import { holdRecording, parseRecordings, sendHeld, waitingLines } from '../../src/core/held';
+import { afterSend, holdRecording, parseRecordings, sendHeld, waitingLines } from '../../src/core/held';
 import { ApiError } from '../../src/reader/api';
 
 describe('held recordings', () => {
@@ -12,6 +12,23 @@ describe('held recordings', () => {
   it('reads back only what it wrote', () => {
     expect(parseRecordings([{ noteId: 'a', voice: 'v' }, { noteId: 3 }, null])).toEqual([{ noteId: 'a', voice: 'v' }]);
     expect(parseRecordings('nope')).toEqual([]);
+  });
+});
+
+describe('afterSend', () => {
+  it('takes off what was sent or refused and keeps the order, with what was held meanwhile', () => {
+    const [choice, reading, listen, later] = [{ n: 'choice' }, { n: 'reading' }, { n: 'listen' }, { n: 'later' }];
+    // The choice was left (the connection dropped) and its reading was held while the send ran:
+    // the choice still goes first.
+    expect(afterSend([choice, reading], [choice], [choice])).toEqual([choice, reading]);
+    expect(afterSend([choice, reading, listen, later], [choice, reading, listen], [listen])).toEqual([listen, later]);
+    expect(afterSend([choice], [choice], [])).toEqual([]);
+  });
+
+  it('does not put back an item replaced while it was being sent', () => {
+    const old = { noteId: 'a', voice: 'v' };
+    const newer = { noteId: 'a', voice: 'w' };
+    expect(afterSend([newer], [old], [old])).toEqual([newer]);
   });
 });
 

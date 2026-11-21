@@ -57,7 +57,7 @@ function HearAgainCover({ text, meta, onPlay, onHide }: { text: PastText; meta: 
       meta={meta}
       onPress={onPlay}
       onLongPress={onHide}
-      accessibilityLabel={`${text.title}. ${meta}. Plays with the words hidden. Press and hold for Not now.`}
+      accessibilityLabel={`${text.title}. ${meta}. Plays with the words hidden. Touch and hold for Not now.`}
     />
   );
 }

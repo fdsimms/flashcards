@@ -3,7 +3,8 @@ import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
-import { buildPackageForAnki, importCollectionPackage } from '../anki/transfer';
+import { deckPackagePreviewText, deckPackageResultLines } from '../anki/apkgMerge';
+import { buildPackageForAnki, importCollectionPackage, openDeckPackage, type OpenedDeckPackage } from '../anki/transfer';
 import { failureText } from '../core/failure';
 import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
@@ -23,8 +24,9 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /**
  * Moving the collection between AnkiMobile and Franki: by sync with an Anki server (set up on
  * SyncSettings), or by file: bring it in (a .colpkg from AnkiMobile's Export), and send it back
- * with Franki's answers written into it. With sync on, sending a file back is hidden: it would
- * replace AnkiMobile's collection behind the server's back.
+ * with Franki's answers written into it. A deck package (.apkg) is merged into the collection.
+ * With sync on, sending a file back is hidden: it would replace AnkiMobile's collection behind
+ * the server's back.
  */
 export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
   repo: Repo & BackupStore & AnkiLink;
@@ -75,6 +77,42 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     }
   });
 
+  // A deck package is merged into the collection, not swapped for it: look it over first, then
+  // ask, then merge. Nothing is written until Import is tapped.
+  const importDeckPackage = (picked: File, name: string) => run('import', async () => {
+    let opened: OpenedDeckPackage;
+    try {
+      await reviewWrites.idle();
+      opened = await repo.lockAnki(() => openDeckPackage(repo, picked));
+    } catch (e: any) {
+      say(failureText(e, { what: `Couldn't import ${name}.`, next: 'Try again.' }));
+      return;
+    }
+    if (!opened.plan.newNotes && !opened.media.add) {
+      opened.discard();
+      setLog((l) => [...deckPackageResultLines(name, opened.plan, 0, opened.media.kept), ...l]);
+      return;
+    }
+    Alert.alert(`Import ${name}?`, deckPackagePreviewText(opened.plan, opened.media.add, syncOn), [
+      { text: 'Cancel', style: 'cancel', onPress: () => opened.discard() },
+      { text: 'Import', onPress: () => mergeDeckPackage(opened, name) },
+    ]);
+  });
+
+  const mergeDeckPackage = (opened: OpenedDeckPackage, name: string) => {
+    if (running.current) { opened.discard(); return; }
+    run('import', async () => {
+      try {
+        // Answers Review is still writing go first: the refresh after the merge reads every card's scheduling from Anki's copy.
+        await reviewWrites.idle();
+        const r = await repo.lockAnki(() => opened.merge());
+        setLog((l) => [...deckPackageResultLines(name, r.plan, r.media, r.kept), ...l]);
+      } catch (e: any) {
+        say(failureText(e, { what: `Couldn't import ${name}.`, next: 'Try again.' }));
+      }
+    });
+  };
+
   const importTsvFile = (picked: File, name: string) => run('import', async () => {
     try {
       const notes = await repo.listNotes();
@@ -108,14 +146,14 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     const picked = new File(asset.uri);
 
     if (lower.endsWith('.apkg')) {
-      say(`Couldn't import ${name}. A deck package holds only some decks, and answers given here couldn't go back into Anki from it. In AnkiMobile, export your whole collection (.colpkg) instead.`);
+      importDeckPackage(picked, name);
       return;
     }
     if (lower.endsWith('.db') || lower.endsWith('.sqlite')) {
       const kind = await repo.sqliteFileKind(fileUriToPath(asset.uri)).catch(() => 'other' as const);
       say(kind === 'backup'
         ? `Couldn't import ${name}. It's a backup from Franki. Restore it from the Backup screen instead.`
-        : `Couldn't import ${name}. Franki imports a collection exported from AnkiMobile (.colpkg).`);
+        : `Couldn't import ${name}. Franki imports a collection (.colpkg) or a deck package (.apkg) exported from Anki.`);
       return;
     }
     // The three extensions Anki's own text import takes (rslib's CSV importer reads them all alike).
@@ -128,7 +166,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     const current = await repo.ankiStatus();
     if (current.unsent > 0) {
       Alert.alert(
-        'Import over answers not in Anki?',
+        "Replace answers that aren't in Anki?",
         `Franki has ${plural(current.unsent, 'answer', 'answers')} that ${current.unsent === 1 ? "isn't" : "aren't"} in Anki yet. Importing replaces Franki's collection with this one, and ${current.unsent === 1 ? "it'll be lost. Send to Anki first to keep it." : "they'll be lost. Send to Anki first to keep them."}`,
         [
           { text: 'Cancel', style: 'cancel' },
@@ -154,7 +192,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       // Franki can't see whether AnkiMobile took the file in, so it asks rather than guess.
       Alert.alert(
         'Did it open in Anki?',
-        'Once AnkiMobile has imported it, Anki has every answer given here, and Franki counts them as sent.',
+        'Tap Yes once AnkiMobile has imported the file. Franki then marks these answers as sent.',
         [
           { text: 'Not yet', style: 'cancel' },
           {
@@ -165,7 +203,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
                 await refresh();
                 say('Sent to Anki.');
               } catch (e) {
-                say(failureText(e, { what: "Couldn't count the answers as sent.", next: 'Send to Anki again, then tap Yes.' }));
+                say(failureText(e, { what: "Couldn't mark the answers as sent.", next: 'Send to Anki again, then tap Yes.' }));
               }
             },
           },
@@ -184,7 +222,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
           <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
           <Help>
             {syncOn
-              ? 'Sync is on. Answers given here go to your Anki server, and changes made in Anki come back, with no files to move.'
+              ? 'Sync is on. Answers given here go to your Anki server, and changes made in Anki come back.'
               : 'Instead of moving files, Franki can sync with an Anki sync server you run, the way Anki on your other devices does.'}
           </Help>
           <Button label={syncOn ? 'Sync settings' : 'Set up sync'} variant="secondary" onPress={onSyncSettings} />
@@ -195,6 +233,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
             In AnkiMobile, tap the button at the bottom left of the deck list, choose Export, and pick Collection with media
             included. Save it to Files, then choose it here. It replaces what Franki has, and keeps all of Anki's history.
             {syncOn ? " The next sync then asks whether to keep this collection or the server's." : ''}
+            {' '}A deck package (.apkg) is added to what Franki has instead, and notes already here keep their progress.
           </Help>
           <Button label="Choose file" onPress={pick} busy={busy === 'import'} disabled={busy === 'send'} />
         </Card>
@@ -208,7 +247,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
             </Text>
             <Help>
               Makes a collection file with every answer given here. Open it in AnkiMobile, which replaces its collection with
-              this one, then sync Anki as usual. Don't study in AnkiMobile in between, or what you do there is replaced.
+              this one, then sync Anki. Don't study in AnkiMobile in between, or what you do there is replaced.
             </Help>
             <Button label="Send to Anki" variant="secondary" onPress={send} busy={busy === 'send'} disabled={busy === 'import'} />
           </Card>

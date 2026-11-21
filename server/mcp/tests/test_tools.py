@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 
 import pytest
 
@@ -31,6 +32,10 @@ async def test_finds_and_reads_notes(client):
     full = (await call(client, "get_notes", note_ids=[peru["note_id"]]))["notes"][0]
     assert full["fields"]["Back"] == "Lima"
     assert full["cards"][0]["deck"] == TRIVIA and full["cards"][0]["filtered_deck"] == "Filtered Deck 1"
+    # `fields` returns just those fields and leaves the cards out; a field the note lacks is refused with its fields.
+    slim = (await call(client, "get_notes", note_ids=[peru["note_id"]], fields=["Back"]))["notes"][0]
+    assert slim["fields"] == {"Back": "Lima"} and "cards" not in slim
+    assert "has no field Nope" in await call_error(client, "get_notes", note_ids=[peru["note_id"]], fields=["Nope"])
     assert "couldn't read the search" in await call_error(client, "find_notes", query='"deck:')
 
 
@@ -403,3 +408,19 @@ async def test_text_overrides_need_note_ids(client):
         target_field="Back", voice="en-US-JennyNeural", text_overrides={"not-an-id": "x"},
     )
     assert "note ids" in err
+
+
+async def test_one_word_in_two_languages_is_not_a_duplicate(client, desktop):
+    # One Omnilanguage note type holds every language: German "in" and Norwegian "in" are two notes.
+    desktop.run(
+        "add-notetype", "Omnilanguage", "Entry,Meaning,Language",
+        "+", "add-fields-note", "Omnilanguage", "Deutsch", json.dumps({"Entry": "in", "Meaning": "in", "Language": "german"}),
+        "+", "sync",
+    )
+
+    def note(language: str) -> dict:
+        return {"deck": "Deutsch", "note_type": "Omnilanguage", "fields": {"Entry": "in", "Meaning": "in (trendy)", "Language": language}}
+
+    out = await call(client, "add_notes", notes=[note("norwegian"), note("german")], allow_nonstandard=True, record_audio=False)
+    assert "note_id" in out["results"][0]
+    assert "same first field" in out["results"][1]["error"]

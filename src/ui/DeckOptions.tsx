@@ -4,7 +4,9 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
 import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
+import { skillCardIds } from '../core/skillTag';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
+import { newCardOrderOf } from '../core/newCardOrder';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
@@ -21,8 +23,8 @@ import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
-/** Settings made in the app for one deck: the progress gate, new card order, skill cards, forms practice, lookalike words and recordings. */
-export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; onSkillCards: () => void; recorder: RecordDeps | null }) {
+/** Settings made in the app for one deck: the progress gate, new card order, Anki options, skill cards, forms practice, lookalike words and recordings. */
+export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOptions, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; onSkillCards: () => void; onAnkiOptions: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
@@ -33,6 +35,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
   const [inProgress, setInProgress] = useState<number>();
   // An Anki filtered deck has no limits or cards of its own to add to, so custom study isn't offered on it.
   const [filtered, setFiltered] = useState(false);
+  // Whether the deck is studied with an Anki preset, which Anki options edits.
+  const [hasPreset, setHasPreset] = useState(false);
   // Every deck's settings, for what this deck inherits from the decks above it.
   const [all, setAll] = useState<Map<string, DeckSettings>>(new Map());
   // The scripts this deck's cards are written in, for the card fonts that can draw them (`deckScripts`).
@@ -47,13 +51,14 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
       await saving.current; // a reload after a failed save reads what the saves still queued wrote
       const [all, cards, notes, params] = await Promise.all([repo.listDeckSettings(), repo.listCards(deck), repo.listNotes(), repo.listDeckParams()]);
       setFiltered(!!paramsForDeck(deck, params)?.filtered);
+      setHasPreset(!!newCardOrderOf(deck, params));
       setScripts(deckScripts(deck, notes));
       setAllNotes(notes);
       const s = all.get(deck) ?? {};
       setAll(all);
       setSettings(s);
       setCapText(String(s.gateCap ?? DEFAULT_GATE_CAP));
-      setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck])))));
+      setInProgress(inProgressCount(deck, groupByDeck(cards, new Map(notes.map((n) => [n.id, n.deck]))), skillCardIds(notes, cards)));
     })().catch((e) => setLoadError(failureText(e, { what: "Couldn't load this deck's options.", next: 'Try again.' })));
   }, [repo, deck, attempt]);
 
@@ -108,7 +113,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
           <SwitchRow
             first
             label="Limit cards in progress"
-            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit, and its subdecks' own daily new card limits don't apply.`}
+            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
             value={on}
             onValueChange={toggle}
           />
@@ -133,7 +138,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, recorder 
         {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}
         {filtered ? null : (
           <Group>
-            <NavRow first label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
+            {hasPreset ? <NavRow first label="Anki options" detail="Daily limits, learning steps, maximum interval and desired retention" onPress={onAnkiOptions} /> : null}
+            <NavRow first={!hasPreset} label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
             <NavRow label="Skill cards" detail="Times, numbers, dates, prices, letters and cases as cards in your reviews" onPress={onSkillCards} />
           </Group>
         )}

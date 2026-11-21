@@ -13,6 +13,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { PlayPill } from '../PlayButton';
+import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
@@ -45,6 +46,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   const [chosenRate, setRate] = useState(prefs().rate);
   const rate = slowOffered ? chosenRate : NORMAL_RATE;
   const play = useLinePlayer(api, text, rate);
+  const listenButton = useSoundingButton();
 
   // A listening question plays its line as it comes up.
   useEffect(() => {
@@ -98,12 +100,12 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
             <View style={{ alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text, textAlign: 'center' }}>Which line did you hear?</Text>
               <Tappable
-                onPress={() => { haptic.tap(); play(q.line); }}
+                onPress={() => listenButton.tap(() => play(q.line))}
                 accessibilityRole="button"
-                accessibilityLabel="Play the line again"
+                accessibilityLabel={listenButton.playing ? 'Pause' : 'Play the line again'}
                 style={{ width: 64, height: 64, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Icon name="play.fill" size={24} color={c.onAccent} />
+                <Icon name={listenButton.playing ? 'pause.fill' : 'play.fill'} size={24} color={c.onAccent} />
               </Tappable>
               {slowOffered ? (
                 <Segments
@@ -197,6 +199,7 @@ const KIND_LABEL: Record<CheckQuestion['kind'], string> = { text: 'About the tex
 /** Plays one of the text's lines at `rate` (the reader's speed unless one is given), on a player of its own. */
 function useLinePlayer(api: Api, text: ReaderText, rate: number) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
+  useTrackedPlayer(player);
   return (line: number, at = rate) => {
     if (!text.lines[line]?.audio) return;
     player.replace(api.audioSource(text.id, line, at));
@@ -259,8 +262,8 @@ export function CheckCard({ text, questions, picks, onStart }: {
   const effect = !canSteer(questions)
     ? ''
     : questions.every(steersDifficulty)
-      ? ' Low scores on this text and your last one make new texts a level easier (Settings, Text difficulty).'
-      : ' Low scores on this text and your last one make new texts a level easier (Settings, Text difficulty). Questions on words don\'t count toward it.';
+      ? ' Low scores on this text and your last one make new texts a level easier, and high scores a level harder (Settings, Text difficulty).'
+      : ' Low scores on this text and your last one make new texts a level easier, and high scores a level harder (Settings, Text difficulty). Questions on words don\'t count toward it.';
   if (!picks) {
     return (
       <Card style={{ gap: space.s }}>

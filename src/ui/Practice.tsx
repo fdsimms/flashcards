@@ -42,7 +42,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {/* Crams are about the decks' own words, in any language, so they sit apart from the tools. */}
         <Group>
-          <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Practice words for a day coming up, like a lesson with a tutor." onPress={onCram} />
+          <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Plan and practice for a day coming up, like a lesson with a tutor." onPress={onCram} />
         </Group>
         <Group>
           {/* A tool that doesn't come in the chosen language isn't listed. */}
@@ -57,7 +57,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={!off ?(tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Off. Turn on Read & Listen in Settings to use it.' : problem === 'offline' ? "Needs a connection. Back when you're online." : "Can't reach your server right now. Back when it answers."}
+                detail={!off ?(tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />

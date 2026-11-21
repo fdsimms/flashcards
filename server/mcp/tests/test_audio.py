@@ -170,8 +170,8 @@ async def test_a_noun_is_read_with_its_article(client, azure, desktop):
     n = nouns(desktop)
     out = await call(client, "add_tts_audio", note_ids=list(n.values())[:5], source_fields=["Entry"], target_field="Audio",
                      voice="de-DE-KatjaNeural", preview=True)
-    # The article its Gender gives; none where the Entry has its own, in a language that only shows one, or without a gender.
-    assert [p["text"] for p in out["preview"]] == ["die Einstellung", "l'amertume", "el agua", "en bil", "кошка"]
+    # The article its Gender gives; none where the Entry has its own, in a language that shows none, or without a gender.
+    assert [p["text"] for p in out["preview"]] == ["die Einstellung", "l'amertume", "el agua", "en bil", "эта кошка"]
     out = await call(client, "add_tts_audio", note_ids=[n["Tisch"]], source_fields=["Entry"], target_field="Audio",
                      voice="de-DE-KatjaNeural", preview=True)
     assert out["preview"][0]["text"] == "Tisch"

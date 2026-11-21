@@ -303,6 +303,31 @@ function templateIsEmpty(nodes: ParsedNode[], nonempty: Set<string>): boolean {
   return true;
 }
 
+/**
+ * Every field a template names, in replacements and in {{#Field}} / {{^Field}} sections, special
+ * fields included (a replacement's name is the part after its filters). Undefined when Anki
+ * couldn't parse the template (a section left open, or closed without being opened).
+ */
+export function templateFieldNames(template: string): string[] | undefined {
+  const parsed = parseTemplate(template);
+  if (!parsed) return undefined;
+  const out = new Set<string>();
+  const walk = (nodes: ParsedNode[]) => {
+    for (const n of nodes) {
+      if (n.kind === 'replacement') out.add(n.key);
+      else if (n.kind === 'conditional' || n.kind === 'negated') { out.add(n.key); walk(n.children); }
+    }
+  };
+  walk(parsed);
+  return [...out];
+}
+
+/** Whether a template's front would fill in at least one of `nonempty` (rslib `renders_with_fields`); false when it can't be parsed. */
+export function rendersWithFields(template: string, nonempty: Set<string>): boolean {
+  const parsed = parseTemplate(template);
+  return parsed !== undefined && !templateIsEmpty(parsed, nonempty);
+}
+
 /** Fields that count as filled for card generation: the note's own, and the special fields Anki fills (Tags only when there are tags). */
 function nonemptyFields(note: Note, noteType: NoteType): Set<string> {
   const set = new Set(Object.entries(note.fields).filter(([, v]) => !fieldIsEmpty(v)).map(([k]) => k));

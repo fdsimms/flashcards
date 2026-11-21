@@ -25,6 +25,14 @@ describe('cards', () => {
     const r = renderCard(omniNote({ Meaning: 'a <b>book</b><br>(noun) [sound:x.mp3]' }), 'forward');
     expect(r.back.blocks.find((b) => b.text.startsWith('a book'))?.text).toBe('a book\n(noun)');
   });
+  it('puts the literal reading on the translation block, so it opens with the translation', () => {
+    const back = renderCard(omniNote({ Context: 'Ctx', ContextTranslation: 'I keep working even though I am tired.', ContextLiteral: 'Even though tired, still working.' }), 'forward').back.blocks;
+    const translation = back.find((b) => b.role === 'exampleTranslation');
+    expect(translation?.text).toBe('I keep working even though I am tired.');
+    expect(translation?.literal).toBe('Even though tired, still working.');
+    expect(back.some((b) => b.text === 'Even though tired, still working.')).toBe(false);
+    expect(renderCard(omniNote({ Context: 'Ctx', ContextTranslation: 'He reads.' }), 'forward').back.blocks.find((b) => b.role === 'exampleTranslation')?.literal).toBeUndefined();
+  });
   it("hides what Anki's template wraps in {{hint:}} behind a tap-to-show label", () => {
     const note = omniNote({ Transliteration: 'nang-suu', Context: 'Ctx', ContextRomanized: 'rom', ContextTranslation: 'He reads.' });
     const back = renderCard(note, 'forward').back.blocks;
@@ -48,6 +56,21 @@ describe('cards', () => {
     expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
     expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
   });
+  it("shows a Russian word's stress mark on answers only: a line on the forward back, the headword where the word is the answer", () => {
+    const note = omniNote({ Entry: 'говорить', Meaning: 'to speak', Transliteration: '', Language: 'russian', GenerateReverse: 'y', GenerateAudioCard: 'y', Stress: 'говори\u0301ть' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks.map((b) => b.text)).toEqual(['говорить']);
+    expect(forward.back.blocks.map((b) => b.text)).toContain('говори\u0301ть');
+    for (const kind of ['reverse', 'audio'] as const) {
+      const side = renderCard(note, kind);
+      expect(side.front.blocks.map((b) => b.text)).not.toContain('говори\u0301ть');
+      expect(side.back.blocks[0].text).toBe('говори\u0301ть');
+      expect(side.back.blocks.map((b) => b.text)).not.toContain('говорить');
+    }
+    // With none, the word is shown as it's written.
+    expect(renderCard({ ...note, fields: { ...note.fields, Stress: '' } }, 'reverse').back.blocks[0].text).toBe('говорить');
+  });
+
   it("keeps the Pronunciation behind a tap when the card already hides a transliteration or a reading, after it", () => {
     const thai = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk', Pronunciation: '/kʰwaːm˧.sùk/' });
     const japanese = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese', Pronunciation: '/otona/' });
@@ -113,6 +136,26 @@ describe('cards', () => {
     });
     expect(back.find((b) => b.role === 'example')?.segments?.find((s) => s.marked)?.text).toBe('Einstellungen');
   });
+  it('puts the line the word was met in right after the tags, headed by where, with its translation behind a tap', () => {
+    const note = omniNote({
+      Entry: 'abwerfen', Meaning: 'to throw off', Language: 'german', PartOfSpeech: 'verb', Transliteration: '',
+      KeyForms: 'past: warf ab', Context: 'Er <b>warf</b> seinen Mantel <b>ab</b>.', ContextTranslation: 'He threw off his coat.',
+      Source: '<b>Wirf</b> die Rüstung <b>ab</b>!<br>Throw off the armor!<br>The Last Train',
+    });
+    for (const kind of ['forward', 'reverse'] as const) {
+      const back = renderCard({ ...note, fields: { ...note.fields, GenerateReverse: 'y' } }, kind).back.blocks;
+      const roles = back.map((b) => b.role);
+      const at = roles.indexOf('chips');
+      expect(roles.slice(at, at + 4)).toEqual(['chips', 'example', 'exampleTranslation', 'grammar']);
+      expect(back[at + 1]).toMatchObject({ text: 'Wirf die Rüstung ab!', source: 'The Last Train' });
+      expect(back[at + 1].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['Wirf', 'ab']);
+      expect(back[at + 2]).toMatchObject({ text: 'Throw off the armor!', tapLabel: 'Show translation' });
+      // The note's own example is still there, as an example.
+      expect(back.filter((b) => b.role === 'example').map((b) => b.source)).toEqual(['The Last Train', undefined]);
+    }
+    // A note without a Source shows as it always has.
+    expect(renderCard({ ...note, fields: { ...note.fields, Source: '' } }, 'forward').back.blocks.some((b) => b.source !== undefined)).toBe(false);
+  });
   it('shows labeled key forms, the counting word, the auxiliary and the aspect pair as cells, and the verb class as the top line', () => {
     const box = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'grammar');
     const cells = (over: Record<string, string>) => box(over)?.cells?.map((c) => [c.label, c.value]);
@@ -134,6 +177,8 @@ describe('cards', () => {
     expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง', counts: { roman: 'hèng', what: expect.stringContaining('hospitals') } }] });
     // A counting word with no description still shows counted.
     expect(back({ Classifier: 'ซอง' }).find((b) => b.role === 'counting')?.rows).toEqual([{ label: 'ซอง', value: 'หนังสือสองซอง' }]);
+    // A word that counts itself is shown as "two times", not with its own noun in front.
+    expect(back({ Entry: 'ครั้ง', Classifier: 'ครั้ง' }).find((b) => b.role === 'counting')?.rows?.map((r) => r.value)).toEqual(['สองครั้ง']);
     expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'grammar')).toBe(false);
     // Several counting words each get a line; the other forms stay in the Grammar box.
     const several = back({ Classifier: 'ตัว, คัน', Plural: 'x' });
@@ -146,18 +191,18 @@ describe('cards', () => {
     expect(block({ Entry: '劇団', Language: 'japanese', Hanzi: '劇(ゲキ) drama' })?.label).toBe('Kanji');
     expect(block({ Entry: '剧团', Language: 'mandarin', Hanzi: '劇 drama' })?.label).toBe('Hanzi');
   });
-  it('puts этот / эта / это before a Russian noun wherever the word is shown, but never speaks it', () => {
+  it('puts этот / эта / это before a Russian noun wherever the word is shown and speaks it with the word', () => {
     const note = omniNote({ Entry: 'кошка', Meaning: 'cat', Language: 'russian', Gender: 'f', Transliteration: '' });
     const forward = renderCard(note, 'forward');
     expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
-    expect(forward.front.speak).toBe('кошка');
+    expect(forward.front.speak).toBe('эта кошка');
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
   });
   it('puts ten / ta / to before a Polish noun by its Gender, but not before one that already starts with it', () => {
     const note = omniNote({ Entry: 'mężczyzna', Meaning: 'man', Language: 'polish', Gender: 'm', Transliteration: '' });
     const forward = renderCard(note, 'forward');
     expect(forward.front.blocks[0]).toMatchObject({ text: 'mężczyzna', prefix: 'ten' });
-    expect(forward.front.speak).toBe('mężczyzna');
+    expect(forward.front.speak).toBe('ten mężczyzna');
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ prefix: 'ten' });
     expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'kobieta', Gender: 'f' } }, 'forward').front.blocks[0].prefix).toBe('ta');
     expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'dziecko', Gender: 'n' } }, 'forward').front.blocks[0].prefix).toBe('to');
@@ -170,7 +215,7 @@ describe('cards', () => {
     const note = omniNote({ Entry: 'spodnie', Meaning: 'pants', Language: 'polish', Gender: 'pl', Transliteration: '' });
     const men = { ...note, fields: { ...note.fields, Entry: 'ludzie', Gender: 'mpl' } };
     expect(renderCard(note, 'forward').front.blocks[0]).toMatchObject({ text: 'spodnie', prefix: 'te' });
-    expect(renderCard(note, 'forward').front.speak).toBe('spodnie');
+    expect(renderCard(note, 'forward').front.speak).toBe('te spodnie');
     expect(renderCard(men, 'forward').front.blocks[0]).toMatchObject({ text: 'ludzie', prefix: 'ci' });
   });
   it("puts å before a Norwegian verb and says it, and leaves a phrase or another language's verb alone", () => {
@@ -293,6 +338,31 @@ describe('cards', () => {
     const reverse = renderCard(omniNote({ Meaning: 'experience', Sense: 'a skill, or something lived through', GenerateReverse: 'y' }), 'reverse');
     expect(reverse.front.blocks.map((b) => b.role)).toEqual([undefined, 'sense']);
     expect(reverse.back.blocks.some((b) => b.role === 'sense')).toBe(false);
+  });
+  it('gives an answer that shows a numbered Meaning its senses, and no other side', () => {
+    const note = omniNote({ Entry: 'Zug', Language: 'german', Meaning: '1. train<br>2. move (in a game)<br>3. draft (of air)', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+    const senses = ['train', 'move (in a game)', 'draft (of air)'];
+    expect(renderCard(note, 'forward').back.blocks.find((b) => b.role === 'meaning')?.senses).toEqual(senses);
+    expect(renderCard(note, 'audio').back.blocks.find((b) => b.role === 'gloss')?.senses).toEqual(senses);
+    // A reverse card's prompt is the senses: nothing on it can be marked.
+    const reverse = renderCard(note, 'reverse');
+    expect([...reverse.front.blocks, ...reverse.back.blocks].some((b) => b.senses)).toBe(false);
+    expect(renderCard(note, 'forward').front.blocks.some((b) => b.senses)).toBe(false);
+    expect(renderCard(omniNote({ Meaning: 'fame; glory' }), 'forward').back.blocks.some((b) => b.senses)).toBe(false);
+  });
+  it('shows the words a Sense rules out on every answer and never on a front', () => {
+    const note = omniNote({ Entry: 'ducha', Language: 'spanish', Meaning: 'shower', Sense: 'a bathroom shower, not rain', SenseContrast: 'rain shower = aguacero; chubasco', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+    for (const kind of ['forward', 'reverse', 'audio'] as const) {
+      const card = renderCard(note, kind);
+      expect(card.front.blocks.some((b) => b.role === 'contrast' || b.text.includes('aguacero'))).toBe(false);
+      const box = card.back.blocks.find((b) => b.role === 'contrast');
+      expect(box?.rows).toEqual([{ label: 'rain shower', value: 'aguacero' }, { label: 'rain shower', value: 'chubasco' }]);
+      expect(box?.text).toBe('rain shower: aguacero\nrain shower: chubasco');
+    }
+    // Right under the Sense where the answer shows one.
+    const back = renderCard(note, 'forward').back.blocks;
+    expect(back[back.findIndex((b) => b.role === 'sense') + 1]?.role).toBe('contrast');
+    expect(renderCard(omniNote({ Sense: 'a bathroom shower, not rain' }), 'forward').back.blocks.some((b) => b.role === 'contrast')).toBe(false);
   });
   it('renders one example box per line of Context when ContextLabels is set, each with its own romanization, translation and tag', () => {
     const note = omniNote({

@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -13,8 +13,8 @@ import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
-  dropItem, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
+  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type QuestionKind, type Session, type TypedKinds,
+  canCredit, dropItem, missedItems, studyAnswer, studyCredit, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { stackSlots } from '../wanikani/stagePopups';
@@ -30,9 +30,11 @@ import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
+import { useMiniCram } from './useMiniCram';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
-import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
+import { WaniKaniMissList } from './WaniKaniMisses';
+import { CardContent, CardTools, hasMnemonicPanel, MnemonicsPanel, QuestionBand, subjectColor } from './WaniKaniCard';
 
 /** The longest the card's resize after the keyboard may take (ms). */
 const KEYBOARD_SLIDE_MS = 150;
@@ -115,6 +117,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [typed, setTyped] = useState('');
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
+  // An item marked to come back a few more times this session, by assignment id (src/core/miniCram.ts), and the
+  // question it was last asked, which its returns ask again. Practice: nothing is sent to WaniKani or kept for undo.
+  const cram = useMiniCram();
+  const cramKind = useRef(new Map<string, QuestionKind>());
   // When the offline copy this session was built from was made; null when it came from WaniKani.
   const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
   // How many refused answers this screen has said were dropped: marked seen as it closes.
@@ -144,6 +150,20 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     seenDropped(shownDropped.current);
     if (studyRef.current) send(studyFlush(studyRef.current).send);
     wanikani.refresh(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // And when the app is left: the held answer is only in this screen's memory, so one closed from
+  // the app switcher (or dropped by iOS in the background) lost it, and the item came back as a
+  // review. Once it's sent it can't be undone, so leaving the app ends Undo for that answer.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'background' || !studyRef.current?.held) return;
+      const closed = studyFlush(studyRef.current);
+      sendRef.current(closed.send);
+      setStudy(closed.study);
+    });
+    return () => sub.remove();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -222,9 +242,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const showMeaning = lesson || (revealed && asksMeaning);
   const showReading = lesson || (revealed && asksReading);
 
-  // The keyboard is dismissed once an answer is judged and comes back with the next typed question. The new
-  // card is laid out before it does, so the card was tall, then shrank under the keyboard and its centered
-  // content jumped up. For the moment before the keyboard shows, hold the height it had last time.
+  // A typed question keeps the keyboard up through its verdict and into the next typed question. It is
+  // dismissed only by a question that isn't typed (Show answer), and comes back with the next typed one. The
+  // new card is laid out before it does, so the card was tall, then shrank under the keyboard and its
+  // centered content jumped up. For the moment before the keyboard shows, hold the height it had last time.
   const lastKeyboard = useRef(0);
   if (keyboard > 0) lastKeyboard.current = keyboard;
   const typedQuestion = !!question && !lesson && isTyped(study!.typed, question.kind);
@@ -243,7 +264,48 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const holding = keyboard === 0 && typedQuestion && !revealed && Date.now() < holdUntil.current;
   const keyboardPad = Math.max(0, (keyboard > 0 ? keyboard : holding ? lastKeyboard.current : 0) - insets.bottom);
 
+  // ==== keeping the keyboard up ====
+  // One answer box serves every typed question, and anything that takes focus from it is undone: iOS drops the
+  // keyboard when a box unmounts, when a sheet or alert opens over it, and when the screen is left and come back to.
+  const answerBox = useRef<TextInputInstance>(null);
+  // True while one of this screen's own sheets or alerts is open: focus is not pulled back until it closes.
+  const modalOpen = useRef(false);
+  const screenFocused = useRef(true);
+  const wantsKeyboard = useRef(false);
+  wantsKeyboard.current = typedQuestion;
+  const refocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (wantsKeyboard.current && screenFocused.current && !modalOpen.current) answerBox.current?.focus();
+    });
+  }, []);
+  // A sheet that gives focus back when it closes, whichever button closed it. `onPick` returns false when the
+  // pick leaves the screen or the app, which has nothing to focus.
+  const showSheet = (config: Parameters<typeof ActionSheetIOS.showActionSheetWithOptions>[0], onPick: (i: number) => boolean | void) => {
+    modalOpen.current = true;
+    ActionSheetIOS.showActionSheetWithOptions(config, (i) => {
+      modalOpen.current = false;
+      if (onPick(i) !== false) refocus();
+    });
+  };
+  useFocusEffect(useCallback(() => {
+    screenFocused.current = true;
+    refocus();
+    return () => { screenFocused.current = false; };
+  }, [refocus]));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') refocus(); });
+    return () => sub.remove();
+  }, [refocus]);
+  // The next typed question starts empty in the same box, so any text the keyboard is still holding back goes too.
+  useEffect(() => {
+    answerBox.current?.clear();
+    refocus();
+  }, [questionKey, refocus]);
+
+  // The mnemonics panel over the card; it belongs to one question, so every move to another closes it.
+  const [panel, setPanel] = useState(false);
   const resetQuestion = () => {
+    setPanel(false);
     setRevealed(false);
     setTyped('');
     setVerdict(null);
@@ -291,10 +353,33 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     }
     if (!currentQuestion(r.study.session)) haptic.success();
     else if (change) change.burned ? haptic.success() : haptic.select();
+    // A marked item whose return is due comes up before the next question.
+    const id = String(question.assignmentId);
+    cramKind.current.set(id, question.kind);
+    cram.answered(id, correct ? 3 : 1, !currentQuestion(r.study.session), cramUsable(r.study.session));
+  };
+
+  /** Whether a return may show this item: it's still in the session and its word is loaded. */
+  const cramUsable = (sess: Session) => (id: string) => {
+    const it = sess.items[Number(id)];
+    return !!it && subjects.has(it.subjectId);
+  };
+
+  /** Missed it or Got it on a return: nothing is sent or scheduled, and it isn't in undo. */
+  const answerReturn = (id: string, got: boolean) => {
+    if (!study) return;
+    haptic.answer();
+    answerFlash.flash(got ? 3 : 1);
+    cram.returned(id, got, !currentQuestion(study.session), cramUsable(study.session));
+    resetQuestion();
   };
 
   const undo = () => {
     // A typed answer judged wrong and not yet counted (before Next) still counts as a miss.
+    // Not from the session an answer was just given from (a tap landing before the screen has
+    // drawn that answer): its held outcome has gone to WaniKani, and undoing from it would take
+    // back the answer before, which can't be taken back.
+    if (study && answeredFrom.current === study) return;
     const back = study && studyUndo(study, verdict?.result === 'wrong');
     if (!back) return;
     // Undoing the answer that saved a synonym takes the synonym back too.
@@ -305,6 +390,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       setSynonyms((m) => new Map(m).set(saved.subjectId, withPending(saved.subjectId, m.get(saved.subjectId) ?? [], [{ subjectId: saved.subjectId, synonym: saved.synonym, remove: true }])));
     }
     haptic.tap();
+    cram.clearShowing();
     answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
@@ -341,16 +427,23 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       setRetry(question.kind === 'reading' ? 'Type the reading, then press Check.' : 'Type the meaning, then press Check.');
       return;
     }
-    const v = question.kind === 'reading' ? checkReading(subject, typed) : checkMeaning(subject, synonyms.get(subject.id) ?? [], typed);
+    const own = synonyms.get(subject.id) ?? [];
+    const v = question.kind === 'reading' ? checkReading(subject, typed, own) : checkMeaning(subject, own, typed);
     if (v.result === 'retry') {
+      // The right answer to the item's other question, typed in this box: that question counts as answered
+      // when it is still waiting, and this one stays up.
+      if (study && v.credit && canCredit(study.session, v.credit)) {
+        setStudy(studyCredit(study, v.credit));
+        setTyped('');
+        setRetry(v.credit === 'reading' ? 'Counted as the reading. Now type the meaning.' : 'Counted as the meaning. Now type the reading.');
+        return;
+      }
       setRetry(v.message);
       return;
     }
     setRetry(null);
     setVerdict(v);
     setRevealed(true);
-    // The keyboard comes down once the answer is judged so the whole card shows; the next question brings it back (autoFocus).
-    Keyboard.dismiss();
     if (v.result === 'correct') {
       haptic.select();
       // The stage popup comes with the right answer, not with the Next press after it.
@@ -377,10 +470,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const text = typed.trim();
     const canSave = canSaveMeaning(question) && !!text;
     // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
-    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
+    const options = ['Count as right', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
+    showSheet({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
-      if (picked === 'Mark as correct') answer(true);
+      if (picked === 'Count as right') answer(true);
       if (picked === 'Ask later') {
         if (studyRef.current !== study) return;
         later();
@@ -404,11 +497,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const isLesson = !!study.session.items[assignmentId]?.lesson;
     const word = subject;
     const name = word.characters ?? word.meanings[0]?.meaning ?? 'this word';
+    modalOpen.current = true;
+    const closeAlert = () => { modalOpen.current = false; refocus(); };
     Alert.alert(
       `Skip ${name} for good?`,
       "It won't come up in lessons or reviews on this iPhone again. WaniKani still lists it, so it stays on wanikani.com. You can bring it back in WaniKani's options.",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: closeAlert },
         {
           text: 'Skip',
           style: 'destructive',
@@ -420,30 +515,50 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             if (onIt) resetQuestion();
             checkPopup.current = null;
             popups.hideAll();
+            closeAlert();
           },
         },
       ],
+      { onDismiss: closeAlert },
     );
   };
 
   const title = 'WaniKani';
+  // With the keyboard up the card has about 230pt for its content, so the screen gives it the room the
+  // count takes: the count moves into the title and the progress bar sits right over the card.
+  const compact = keyboardPad > 0;
+  const countTitle = `${title} · ${kind === 'reviews' ? `${left.reviews} left` : `${left.lessons} new`}`;
+  const countRow = compact ? null : (
+    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
+      {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
+    </View>
+  );
+  const cardTop = compact ? space.l : space.xxl;
   // Only before the question is answered or its answer is shown, so it can't be used to dodge a miss.
   const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
     const skippable = canSkip(subject) && !!question;
-    const options = [...(askable ? ['Ask later'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
+    const id = question && !lesson ? String(question.assignmentId) : undefined;
+    const marked = id ? !!cram.entry(id) : false;
+    const options = [...(askable ? ['Ask later'] : []), ...(id ? [marked ? 'Stop cramming this word' : 'Cram this word'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+    showSheet({ options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Ask later') later();
+      if (picked === 'Cram this word' || picked === 'Stop cramming this word') {
+        if (!id || !question || !progress) return;
+        cramKind.current.set(id, question.kind);
+        cram.toggle(id, progress.meaning || progress.reading || progress.wrongMeaning > 0 || progress.wrongReading > 0);
+      }
       if (picked === 'Skip this word for good') confirmSkip();
       if (picked === 'Open on wanikani.com' && subject.url) Linking.openURL(subject.url).catch(() => undefined);
       if (picked === 'WaniKani options') onOptions();
+      return picked !== 'Open on wanikani.com' && picked !== 'WaniKani options';
     });
-  } : undefined), [subject, onOptions, askable, study, lesson, question]); // eslint-disable-line react-hooks/exhaustive-deps
+  } : undefined), [subject, onOptions, askable, study, lesson, question, cram.entry]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolbar = (
     <Stack.Toolbar placement="right">
       {study && canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
-      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, skip this word, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
+      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, cram this word, skip this word, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
     </Stack.Toolbar>
   );
 
@@ -471,6 +586,60 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : <ActivityIndicator color={c.accent} />}
         </View>
       </Screen>
+    );
+  }
+
+  // A mini cram return takes the screen before the next question, or the end of the session.
+  const returnItem = cram.showing ? study.session.items[Number(cram.showing)] : undefined;
+  const returnSubject = returnItem ? subjects.get(returnItem.subjectId) : undefined;
+  if (cram.showing && returnItem && returnSubject) {
+    const id = cram.showing;
+    const asked = cramKind.current.get(id) ?? 'meaning';
+    const showM = revealed && (asked === 'meaning' || asked === 'both');
+    const showR = revealed && (asked === 'reading' || asked === 'both');
+    const returnMenu = () => {
+      const options = ['Stop cramming this word', 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
+        const picked = options[i];
+        if (picked === 'Stop cramming this word') { cram.toggle(id, true); resetQuestion(); }
+        if (picked === 'Open on wanikani.com' && returnSubject.url) Linking.openURL(returnSubject.url).catch(() => undefined);
+        if (picked === 'WaniKani options') onOptions();
+      });
+    };
+    const returnToolbar = (
+      <Stack.Toolbar placement="right">
+        {canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
+        <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: stop cramming this word, open on wanikani.com or WaniKani's options" onPress={returnMenu} />
+      </Stack.Toolbar>
+    );
+    const returnFooter = revealed ? (
+      <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+        <RateButton label="Missed it" detail="Extra pass" color={c.again} onPress={() => answerReturn(id, false)} />
+        <RateButton label="Got it" detail="Extra pass" color={c.good} onPress={() => answerReturn(id, true)} />
+      </Reveal>
+    ) : <Button label="Show answer" onPress={() => { Keyboard.dismiss(); setRevealed(true); if (prefs.autoplay && (asked === 'reading' || asked === 'both')) play(audioUrl(returnSubject)); }} />;
+    return (
+      <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
+        <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
+          {countRow}
+          <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+          <CardSurface color={subjectColor(c, returnSubject.type)} top={cardTop}>
+            <CardContent
+              subject={returnSubject}
+              label={`${SUBJECT_TYPE_NAMES[returnSubject.type]} · Level ${returnSubject.level}`}
+              parts={madeOf(returnSubject, subjects)}
+              showMeaning={showM}
+              showReading={showR}
+              synonyms={synonyms.get(returnSubject.id) ?? []}
+              lesson={false}
+              compact={compact}
+              contentKey={`${id}:${cram.returnsAnswered}`}
+            />
+            <QuestionBand kind={asked === 'lesson' ? 'both' : asked} />
+            {answerFlash.overlay}
+          </CardSurface>
+        </Screen>
+      </View>
     );
   }
 
@@ -505,6 +674,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
           {droppedNote()}
           {next.held && prefs.maxApprentice !== null ? <LessonsPausedNote apprentice={next.apprentice} limit={prefs.maxApprentice} /> : null}
+          <WaniKaniMissList missed={missedItems(study.session)} subjects={subjects} />
           </ScrollView>
         </Reveal>
       </Screen>
@@ -533,11 +703,15 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
         <View>
         <TextInput
-          key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
+          ref={answerBox}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          // Not editable once judged, so a tap on the box doesn't bring the keyboard back over the answer.
-          editable={!verdict}
+          // Still editable once judged so the keyboard stays up for the whole session: the text is held
+          // (onChangeText ignores it) and the caret hidden, and return goes to the next question. The same
+          // box serves every typed question (no `key`, which unmounted it and dropped the keyboard on each
+          // answer), and a blur that isn't one of our own sheets opening takes focus straight back.
+          caretHidden={!!verdict}
+          onBlur={() => { if (!modalOpen.current) refocus(); }}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
@@ -587,7 +761,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <RateButton label="Again" detail={againDetail} color={c.again} onPress={() => answer(false)} />
         <RateButton
           label="Good"
-          detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Reading to come' : 'Meaning to come'}
+          detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Then the reading' : 'Then the meaning'}
           color={c.good}
           onPress={() => answer(true)}
         />
@@ -598,10 +772,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const slots = stackSlots(popups.stack);
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
-        </View>
+      <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={toolbar} footer={footer}>
+        {countRow}
         {copySavedAt || wanikani.offline ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
             {`${copySavedAt ? `${offlineText(copySavedAt, new Date(), wanikani.dayStartsAtHour)}.` : 'Offline.'} Answers are sent when WaniKani can be reached.`}
@@ -609,37 +781,32 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
-        <CardSurface color={subjectColor(c, subject.type)}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
-          >
-            {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
-            <View style={{ gap: space.xl }}>
-              <SubjectFront subject={subject} label={label} />
-              {showMeaning || showReading ? (
-                <>
-                  <View style={{ height: hairline, backgroundColor: c.wkLine }} />
-                  <SubjectDetails
-                    key={`${subject.id}:${question.kind}`}
-                    subject={subject}
-                    parts={madeOf(subject, subjects)}
-                    showMeaning={showMeaning}
-                    showReading={showReading}
-                    synonyms={synonyms.get(subject.id) ?? []}
-                    lesson={lesson}
-                    onPlay={audioUrl(subject) ? () => { haptic.tap(); play(audioUrl(subject)); } : undefined}
-                  />
-                </>
-              ) : null}
-            </View>
-          </ScrollView>
+        <CardSurface color={subjectColor(c, subject.type)} top={cardTop}>
+          <CardContent
+            subject={subject}
+            label={label}
+            parts={madeOf(subject, subjects)}
+            showMeaning={showMeaning}
+            showReading={showReading}
+            synonyms={synonyms.get(subject.id) ?? []}
+            lesson={lesson}
+            compact={compact}
+            contentKey={`${subject.id}:${question.kind}`}
+          />
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
           <View>
             {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
-            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
+            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
           </View>
+          {/* In the card's corner, not in its flow, so the answer keeps the height. Play is the reading's, as before. */}
+          {showMeaning || showReading ? (
+            <CardTools
+              onPlay={showReading && audioUrl(subject) ? () => { haptic.tap(); play(audioUrl(subject)); } : undefined}
+              onMnemonics={!lesson && hasMnemonicPanel(subject, showMeaning, showReading) ? () => { haptic.tap(); setPanel(true); } : undefined}
+            />
+          ) : null}
+          {panel ? <MnemonicsPanel subject={subject} showMeaning={showMeaning} showReading={showReading} onClose={() => setPanel(false)} /> : null}
           {answerFlash.overlay}
         </CardSurface>
       </Screen>

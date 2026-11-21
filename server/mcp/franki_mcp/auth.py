@@ -57,6 +57,9 @@ FAILURE_WINDOW = 900
 MAX_FAILURES_ALL = 100
 FAILURE_WINDOW_ALL = 300
 WRONG_PASSWORD_DELAY = 1
+# Registering needs no password, so clients that never signed in are kept only up to this many, the
+# newest: otherwise anyone could fill the disk with them. One that holds a refresh token always stays.
+MAX_UNUSED_CLIENTS = 20
 
 
 def _hash(token: str) -> str:
@@ -157,6 +160,14 @@ class SingleUserAuth:
                     error_description=f"{uri} can't be used here: this server only signs in Claude's apps and local clients.",
                 )
         self._put("clients", client_info.client_id, client_info.model_dump(mode="json"), None)
+        with self._lock:
+            self._db.execute(
+                """delete from clients where id in (
+                    select id from clients
+                    where id not in (select json_extract(data, '$.client_id') from refresh where expires > ?)
+                    order by json_extract(data, '$.client_id_issued_at') desc, rowid desc limit -1 offset ?)""",
+                (time.time(), MAX_UNUSED_CLIENTS),
+            )
 
     # ---- approval ----
 

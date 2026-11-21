@@ -185,3 +185,52 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "French" in system_message("fr", False)
     assert "within the learner's level" in system_message("fr", False)
     assert "stretch" in system_message("fr", True)
+
+
+def test_the_system_message_asks_for_spoken_not_written_register() -> None:
+    text = system_message("th", False)
+    assert "ordinary person talks in everyday conversation" in text
+    assert "not the way a textbook or a written text puts it" in text
+
+
+def test_each_register_changes_what_the_system_message_asks_for() -> None:
+    casual = system_message("th", False, register="casual")
+    formal = system_message("th", False, register="formal")
+    assert "with friends or family" in casual
+    assert "stranger, a boss or an interviewer" in formal
+    assert "with friends or family" not in system_message("th", False)
+
+
+def test_a_topic_leads_the_request_and_asks_for_angles_on_it() -> None:
+    text = request_message(seeds(topic="My violin recital"))
+    assert text.startswith("What the lesson is for: My violin recital\n\nThe learner's words:")
+    assert "angle on that" in system_message("fr", False, topic=True)
+    assert "angle on that" not in system_message("fr", False)
+    assert not request_message(seeds()).startswith("What the lesson")
+
+
+def test_a_thai_story_is_asked_for_in_the_learners_gender() -> None:
+    assert "ผม" in system_message("th", False, learner="male")
+    assert "never ฉัน" in system_message("th", False, learner="male")
+    assert "ค่ะ" in system_message("th", False, learner="female")
+    assert "ครับ" not in system_message("fr", False, learner="male")
+
+
+def test_a_thai_story_in_the_other_genders_words_is_dropped_but_the_theme_stays() -> None:
+    def thai(story: str, learner: str) -> object:
+        raw = {
+            "themes": [
+                theme(
+                    questions=[{"text": "คุณวิ่งบ่อยไหม", "english": "Do you run often?"}] * 2,
+                    story={"text": story, "english": "I ran."},
+                )
+            ]
+        }
+        got = clean_themes(raw, seeds(learner=learner), "th")
+        assert len(got) == 1
+        return got[0].story
+
+    assert thai("ฉันวิ่งเสร็จในสามสิบนาที", "male") is None
+    assert thai("ผมวิ่งเสร็จในสามสิบนาทีครับ", "male") is not None
+    assert thai("ผมวิ่งเสร็จในสามสิบนาทีครับ", "female") is None
+    assert thai("ฉันวิ่งเสร็จในสามสิบนาทีค่ะ", "female") is not None

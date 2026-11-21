@@ -2,8 +2,10 @@ import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
+import { parseSearch } from '../core/ankiSearch';
 import { failureText } from '../core/failure';
 import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
+import { markerText, noteMarkers, type NoteMarker } from '../core/noteMarkers';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -11,10 +13,17 @@ import { Chip, Divider, Loading, Screen } from './kit';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
+/** What the empty list says the search box takes, besides words. */
+const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:verb, note:Basic, is:new, flag:1, added:7, Front:kot*, "or", "-" for not, and parentheses.';
+
 /**
  * Every note, searchable and narrowed to a deck or any of its subdecks, and to a state its cards
  * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one.
- * Search matches every word in any field, a tag or the deck name (src/core/noteEditing.ts).
+ * Search reads Anki's syntax (deck:, tag:, is:due, flag:1, or, -; src/core/ankiSearch.ts), and a
+ * plain word matches in any field, a tag or the deck name, closest matches first (a word on the
+ * front, then in the meaning, then elsewhere; src/core/noteEditing.ts). A search that can't be
+ * read says why where the list would be. A row says when its
+ * cards are suspended, buried, flagged or the note is a leech (src/core/noteMarkers.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
   const { bottomPadding } = useKeyboardScroll();
@@ -44,11 +53,12 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
 
   const chipRows = useMemo(() => deckChipRows(notes ?? [], scope), [notes, scope]);
   const found = useMemo(() => {
-    if (!notes) return [];
-    const matched = searchNotes(notes, query, scope);
-    if (!filter || !cards) return matched;
+    if (!notes || !cards) return [];
+    const matched = searchNotes(notes, query, scope, cards);
+    if (!filter) return matched;
     return matched.filter((n) => matchesNoteFilter(filter, n, cards.byNote.get(n.id) ?? [], cards.now, cards.dayStartsAtHour));
   }, [notes, cards, query, scope, filter]);
+  const searchProblem = useMemo(() => { const p = parseSearch(query); return p.ok ? null : p.error; }, [query]);
   // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
 
@@ -61,7 +71,7 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
         </Stack.Toolbar>
       }
     >
-      <Stack.SearchBar placeholder="Words in a note, a tag or a deck" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
+      <Stack.SearchBar placeholder="Words, or e.g. deck:Polski is:due" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
       <FlatList
         data={found}
         keyExtractor={(n) => n.id}
@@ -88,12 +98,22 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
             ) : null}
           </View>
         }
-        ListEmptyComponent={notes ? (
+        ListEmptyComponent={!notes ? <Loading error={error} onRetry={load} /> : searchProblem ? (
+          <Text style={{ ...type.subhead, color: c.danger, paddingTop: space.xl }}>{`Couldn't read the search. ${searchProblem}`}</Text>
+        ) : (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>
-            {query.trim() ? `No notes match "${query.trim()}".` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}
+            {query.trim() ? `No notes match "${query.trim()}".\n${SYNTAX_HINT}` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}
           </Text>
-        ) : <Loading error={error} onRetry={load} />}
-        renderItem={({ item, index }) => <NoteRow note={item} first={index === 0} last={index === found.length - 1} onPress={() => edit({ noteId: item.id })} />}
+        )}
+        renderItem={({ item, index }) => (
+          <NoteRow
+            note={item}
+            markers={cards ? noteMarkers(item, cards.byNote.get(item.id) ?? [], cards.now, cards.dayStartsAtHour) : []}
+            first={index === 0}
+            last={index === found.length - 1}
+            onPress={() => edit({ noteId: item.id })}
+          />
+        )}
       />
     </Screen>
   );
@@ -104,14 +124,14 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
  * can't be one view): the first and last round its corners, and every row but the first draws the
  * divider above it, as a `Group`'s rows do.
  */
-function NoteRow({ note, first, last, onPress }: { note: Note; first: boolean; last: boolean; onPress: () => void }) {
+function NoteRow({ note, markers, first, last, onPress }: { note: Note; markers: NoteMarker[]; first: boolean; last: boolean; onPress: () => void }) {
   const c = useTheme();
   const { front, back } = notePreview(note);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[front || 'Empty note', back, note.deck].filter(Boolean).join(', ')}
+      accessibilityLabel={[front || 'Empty note', back, note.deck, ...markers.map(markerText)].filter(Boolean).join(', ')}
       accessibilityHint="Opens the note to edit"
       style={({ pressed }) => ({
         paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: pressed ? c.fill : c.surface, ...smooth,
@@ -125,6 +145,27 @@ function NoteRow({ note, first, last, onPress }: { note: Note; first: boolean; l
       <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
       {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
       <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
+      {markers.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.xs, paddingTop: space.xs }}>
+          {markers.map((m) => <MarkerChip key={`${m.kind}${m.flag ?? ''}`} marker={m} />)}
+        </View>
+      ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * One state marker: a colored dot and its word, so color is never the only signal (the same
+ * pill shape as the card state chips on the review screen). Suspended is gray, a bury violet, a
+ * leech amber, and a flag the flag's own color.
+ */
+function MarkerChip({ marker }: { marker: NoteMarker }) {
+  const c = useTheme();
+  const dot = marker.kind === 'suspended' ? c.textTertiary : marker.kind === 'buried' ? c.violet : marker.kind === 'leech' ? c.warning : c.flags[marker.flag ?? 0];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{markerText(marker)}</Text>
+    </View>
   );
 }

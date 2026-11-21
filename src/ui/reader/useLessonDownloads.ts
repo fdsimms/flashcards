@@ -25,7 +25,7 @@ export function useLessonDownloads(api: Api) {
       await downloads.saveLesson(api, lesson);
       haptic.success();
     } catch (e) {
-      Alert.alert(`Couldn't download ${lesson.title}`, failureText(e, { next: "Check your connection and try again." }));
+      Alert.alert(`Couldn't download ${lesson.title}`, failureText(e, { next: "Check your connection, then try again." }));
     }
   };
 

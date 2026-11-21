@@ -129,6 +129,10 @@ export interface DeckParams {
   autoplay?: boolean;
   /** The most time one answer records, in seconds (Anki's "Maximum answer seconds"). Missing means 60, Anki's default. */
   maxAnswerSecs?: number;
+  /** Anki's "Show answer timer": Review shows how long the card has been up. Missing means no, Anki's default. */
+  showTimer?: boolean;
+  /** Anki's "Stop timer on answer": the timer stops when the answer is shown. */
+  stopTimerOnAnswer?: boolean;
   /** Today-only limits that replace `newPerDay` / `reviewsPerDay` on their day. */
   newLimitToday?: DayLimit;
   reviewLimitToday?: DayLimit;
@@ -156,6 +160,8 @@ export interface CollectionSettings {
   creationOffset?: number;
   /** Anki's load balancer (`loadBalancerEnabled`), on unless turned off. */
   loadBalancer?: boolean;
+  /** Anki's session time limit (`timeLim`, Preferences, Review), in seconds; 0 or missing is off. */
+  timeLimitSecs?: number;
 }
 
 export interface ReviewLogEntry {
@@ -180,7 +186,7 @@ export interface ReviewLogEntry {
    * kept it hold only a filtered deck.
    */
   deck?: string;
-  /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts). Franki's own: never sent to Anki. */
+  /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts), or the senses marked as missed with any rating (`sense:2`, src/core/senseMarks.ts). Franki's own: never sent to Anki. */
   miss?: string;
 }
 
@@ -199,9 +205,9 @@ export interface RenderedSide {
      * under a reverse card's meaning that says which of the words with that meaning is asked for
      * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), a `gloss` is a meaning shown under the word it translates,
      * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
-     * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), and a `transliteration` is the word's romanization, set larger than an example's. A block with no role is plain labeled text.
+     * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), a `transliteration` is the word's romanization, set larger than an example's, and `contrast` is the "not this word" box under an answer's Sense (`rows`: label the English sense the word doesn't cover, value the word that does; senseContrast.ts). A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration' | 'contrast';
     /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
     field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
@@ -211,7 +217,9 @@ export interface RenderedSide {
     pattern?: string;
     /** A `grammar` block's forms, each under the name of what it is ("genitive", "past", "takes"). */
     cells?: GrammarCell[];
-    /** A `counting` block's lines. */
+    /** A `meaning` or `gloss` block's senses, each without its number, when the Meaning numbers two or more and this side is an answer (senseMarks.ts). */
+    senses?: string[];
+    /** A `counting` block's lines, or a `contrast` block's pairs. */
     rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];
     /** Shown dimmed before an emphasized word: этот / эта / это before a Russian noun, as Anki's template does. */
     prefix?: string;
@@ -220,8 +228,15 @@ export interface RenderedSide {
      * article (or the Russian prefix) with it, and the dot on the gender chip. Display only.
      */
     gender?: 'm' | 'f' | 'n';
+    /** An `exampleTranslation` block's word-for-word reading (ContextLiteral), shown under the natural translation. */
+    literal?: string;
     /** An `example` block's tag, what that sentence shows ("skill", "event"), from ContextLabels. */
     tag?: string;
+    /**
+     * Set on an `example` block that is the line the word was met in (the Source field) rather than an
+     * example sentence: where it was met (the title), which may be empty. The box is headed "From" and this.
+     */
+    source?: string;
     /** A Thai romanization: the screen colors each syllable by its tone (src/core/toneColors.ts). Display only. */
     tones?: boolean;
     /**
@@ -306,6 +321,8 @@ export interface DeckSettings {
   lookalikeDays?: number;
   /** Offer to show a card sooner when a lookalike may have given it away (default on). */
   offerSooner?: boolean;
+  /** Ask "imperfective or perfective?" on a Russian or Polish verb's front (default on). */
+  aspectCheck?: boolean;
   /** Tagged cards first (`prioritySettings`): the switch. Set on a subdeck, it overrides the deck above. */
   priorityFirst?: boolean;
   /** The tags whose notes' new cards come first, separated by spaces as Anki writes them (one tag is all an older version saved). */

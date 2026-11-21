@@ -12,7 +12,7 @@ const H = 4;
 function oneDeck(cards: Card[], opts: { now: Date; dayStartsAtHour: number }) {
   return treeQueue('D', {
     cardsByDeck: new Map([['D', cards]]), limitsFor: () => ({ newPerDay: 99, reviewsPerDay: 999 }),
-    studiedByDeck: new Map(), dayStartsAtHour: opts.dayStartsAtHour, now: opts.now,
+    studiedByDeck: new Map(), skillCards: new Set(), dayStartsAtHour: opts.dayStartsAtHour, now: opts.now,
   });
 }
 
@@ -203,6 +203,16 @@ describe("today's counts", () => {
     expect(answerCounts(reviewDue(new Date(2026, 10, 11, 20)), NOW, H, false)).toBe('review'); // due later today
     expect(answerCounts(reviewDue(new Date(2026, 10, 14, 9)), NOW, H, false)).toBeNull(); // review ahead
     expect(answerCounts(reviewDue(new Date(2026, 10, 12, 2)), NOW, H, false)).toBe('review'); // 2 AM: still today's
+  });
+
+  it("counts a skill card's first answer as introduced and uses no room for its reviews, as a session does", () => {
+    const skill = { ...note, id: 'skill-note', tags: ['skill'] };
+    const [word] = makeCards(note, NOW);
+    const [practice] = makeCards(skill, NOW);
+    const reviews = [word, practice].map((c) => ({ cardId: c.id, ...review(c.sched, 3, NOW).log }));
+    expect(counts({ notes: [note, skill], cards: [word, practice], reviews }).get(deck)).toEqual({ introduced: 2, reviewed: 0 });
+    expect(answerCounts(practice, NOW, H, false, true)).toBe('new');
+    expect(answerCounts({ ...practice, sched: { ...practice.sched, state: 2, due: NOW.toISOString() } }, NOW, H, false, true)).toBeNull();
   });
 
   it('counts a card reset to new and studied again the same day as introduced twice, as Anki does', () => {

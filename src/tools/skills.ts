@@ -1,6 +1,8 @@
 import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
+import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
+import { SKILL_TAG } from '../core/skillTag';
 import type { Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import type { NumberQuestion, NumberSaying } from './number';
@@ -11,6 +13,9 @@ import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { drawUnseen } from './drillSeen';
+import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
+import { countEnding, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
@@ -21,7 +26,7 @@ import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_S
  * outline (src/ui/tools/SkillDrill.tsx), and the learner's tap is what reaches FSRS.
  */
 
-export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money';
+export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money' | 'counting';
 
 export interface DrillStep {
   /** Stable across versions: it's written into the card (`SkillId`) and read back to find the drill. */
@@ -38,6 +43,8 @@ interface TimeStep extends DrillStep { group: 'time'; minutes: 'hours' | 'quarte
 interface NumberStep extends DrillStep { group: 'numbers'; min: number; max: number }
 interface DateStep extends DrillStep { group: 'dates'; parts: DateParts }
 interface MoneyStep extends DrillStep { group: 'money'; max: MoneyMax }
+/** `ending` is which numbers the step draws: one noun form each, or any number to 100 (the last digits then decide the form). */
+interface CountStep extends DrillStep { group: 'counting'; ending: 'one' | 'few' | 'many' | 'any' }
 
 export const TIME_STEPS: TimeStep[] = [
   { id: 'time-hours', group: 'time', title: "O'clock and half past", minutes: 'hours', selfCheck: 'Say three times aloud: one on the hour, one at half past, one in the evening.' },
@@ -65,17 +72,29 @@ export const MONEY_STEPS: MoneyStep[] = [
   { id: 'money-10000', group: 'money', title: 'Prices up to 10,000', max: 10000, after: 'money-1000', selfCheck: 'Say three prices up to 10,000 aloud, such as a phone, a flight and a month\'s rent.' },
 ];
 
-export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS];
+/** Polish and Russian: the noun's form follows the number (dwa koty, pięć kotów; два кота, пять котов), one form per step. */
+export const COUNT_STEPS: CountStep[] = [
+  { id: 'counting-one', group: 'counting', title: '1 with the noun', ending: 'one', selfCheck: 'Say 1 with three nouns aloud, one of each gender, such as a cat, a book and an apple.' },
+  { id: 'counting-few', group: 'counting', title: '2 to 4', ending: 'few', after: 'counting-one', selfCheck: 'Say 2, 3 and 4 with a noun aloud, and 2 with a feminine noun.' },
+  { id: 'counting-many', group: 'counting', title: '5 and up', ending: 'many', after: 'counting-few', selfCheck: 'Say 5, 11 and 20 with a noun aloud.' },
+  { id: 'counting-any', group: 'counting', title: 'Any number to 100', ending: 'any', after: 'counting-many', selfCheck: 'Say 21, 22 and 25 with a noun aloud, then any other number to 100.' },
+];
 
-export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money' };
+export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS, ...COUNT_STEPS];
+
+export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money', counting: 'Counting things' };
 
 export const drillStep = (id: string): DrillStep | undefined => DRILL_STEPS.find((s) => s.id === id);
 
 /** Whether the language has the drills of a group (a saying for each question). */
+/** The languages whose noun changes form with the number: the others' counting is a classifier or a plural to know, not a ladder. */
+const COUNT_LADDER_LANGUAGES: readonly Language[] = ['pl', 'ru'];
+
 export function hasDrills(group: DrillGroup, language: Language): boolean {
   if (group === 'time') return !!TIME_SAYERS[language];
   if (group === 'numbers') return !!NUMBER_SAYERS[language];
   if (group === 'dates') return !!DATE_SAYERS[language];
+  if (group === 'counting') return COUNT_LADDER_LANGUAGES.includes(language) && !!COUNTING[language];
   return !!MONEY_SAYERS[language] && !!CURRENCY_OF[language];
 }
 
@@ -86,7 +105,8 @@ export type DrillQuestion =
   | { kind: 'time'; time: ClockTime }
   | { kind: 'number'; question: NumberQuestion }
   | { kind: 'date'; date: CalendarDate; parts: DateParts }
-  | { kind: 'money'; amount: number };
+  | { kind: 'money'; amount: number }
+  | { kind: 'count'; question: CountQuestion };
 
 /** A question's key, so the same one isn't asked twice in a row. */
 export function questionKey(q: DrillQuestion): string {
@@ -95,19 +115,48 @@ export function questionKey(q: DrillQuestion): string {
     case 'number': return String(q.question.kind === 'phone' ? q.question.written : q.question.n);
     case 'date': return `${q.date.year}-${q.date.month}-${q.date.day}`;
     case 'money': return String(q.amount);
+    case 'count': return `${q.question.noun}:${q.question.n}`;
   }
 }
 
-/** A question for `step` in `language`, never `previous` again. */
-export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language): DrillQuestion {
+/** Whether `n` is in a counting step's range: 1 alone (21 and 31 are in Any number), 2 to 4 (and 22 to 24...), or the rest (5 to 20, 25 to 30...). */
+const countStepFits = (ending: CountStep['ending'], n: number): boolean => {
+  if (ending === 'any') return true;
+  if (ending === 'one') return n === 1;
+  const e = countEnding(n);
+  return ending === 'few' ? e === '2-4' : e === 'many' || e === 'teen';
+};
+
+/** A count for a counting step: a noun and a number from its range, never `previous` again. */
+function drawCount(step: CountStep, previous: CountQuestion | undefined, random: () => number, language: Language | undefined): CountQuestion {
+  const nouns = COUNTING[language && COUNT_LADDER_LANGUAGES.includes(language) ? language : 'pl']?.nouns.length ?? 1;
+  const pool = Array.from({ length: 100 }, (_, i) => i + 1).filter((n) => countStepFits(step.ending, n));
+  const at = previous && previous.noun < nouns ? pool.indexOf(previous.n) : -1;
+  const i = pickOther(nouns * pool.length, at >= 0 ? previous!.noun * pool.length + at : undefined, random);
+  return { noun: Math.floor(i / pool.length), n: pool[i % pool.length] };
+}
+
+/**
+ * A question for `step` in `language`, never `previous` again, and one not in `recent` (the keys the step
+ * asked lately, drillSeen.ts) while the step has others. `months` limits a date to the months the learner has studied.
+ */
+export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): DrillQuestion {
+  return drawUnseen(() => drawOnce(step, previous, random, language, months), questionKey, recent);
+}
+
+function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: () => number, language: Language | undefined, months: readonly number[] | undefined): DrillQuestion {
   if (step.group === 'dates') {
     const s = step as DateStep;
-    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random), parts: s.parts };
+    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, months), parts: s.parts };
   }
   if (step.group === 'money') {
     const s = step as MoneyStep;
     const currency = CURRENCIES[(language && CURRENCY_OF[language]) || 'EUR'];
     return { kind: 'money', amount: randomAmount(currency, s.max, previous?.kind === 'money' ? previous.amount : undefined, random) };
+  }
+  if (step.group === 'counting') {
+    const s = step as CountStep;
+    return { kind: 'count', question: drawCount(s, previous?.kind === 'count' ? previous.question : undefined, random, language) };
   }
   if (step.group === 'time') {
     const s = step as TimeStep;
@@ -130,6 +179,22 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
   return { kind: 'number', question: { kind: 'number', n } };
 }
 
+/**
+ * The next question of a drill: the first of `retry` (questions missed when the card was last
+ * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
+ * Returns what's left of `retry` too.
+ */
+export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): { question: DrillQuestion; retry: DrillQuestion[] } {
+  const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
+  if (at < 0) return { question: drawQuestion(step, previous, random, language, months, recent), retry: [...retry] };
+  return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
+}
+
+/** The questions to ask again when a card returns: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
+export function missesToCarry(rating: number, missed: readonly DrillQuestion[]): DrillQuestion[] {
+  return rating <= 2 ? [...missed] : [];
+}
+
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -144,7 +209,15 @@ export function questionText(q: DrillQuestion, language?: Language): string {
       return q.parts.year ? `${withDay}, ${q.date.year}` : withDay;
     }
     case 'money': return (language && MONEY_SAYERS[language]?.(q.amount).written.text) ?? String(q.amount);
+    case 'count': return `${q.question.n} ${(language && COUNTING[language]?.nouns[q.question.noun]?.cue.text) ?? ''}`.trim();
   }
+}
+
+/** What goes under a count question: its noun's reading where the language has one, and its meaning in English. Nothing for the other questions. */
+export function questionNote(q: DrillQuestion, language?: Language): string | undefined {
+  if (q.kind !== 'count') return undefined;
+  const noun = language && COUNTING[language]?.nouns[q.question.noun];
+  return noun ? [noun.cue.roman, noun.meaning].filter(Boolean).join(' · ') : undefined;
 }
 
 /** A question's answer in `language`: the usual way to say it, the other ways heard, and a formal or written form where there is one. */
@@ -160,6 +233,13 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
   if (q.kind === 'money') {
     const s = MONEY_SAYERS[language]?.(q.amount);
     return s && { everyday: s.everyday, also: s.also };
+  }
+  if (q.kind === 'count') {
+    const counting = COUNTING[language];
+    if (!counting) return undefined;
+    const said = counting.say(q.question.noun, q.question.n);
+    const rule = counting.rule(q.question.noun, q.question.n);
+    return { everyday: said.everyday, also: said.also, ...(rule ? { last: { title: 'Rule', phrase: { text: rule } } } : {}) };
   }
   const s: NumberSaying | undefined = NUMBER_SAYERS[language]?.(q.question);
   return s && { everyday: s.everyday, also: s.also };
@@ -181,7 +261,7 @@ export function suggestedRating(results: readonly boolean[], thinkMs: readonly n
  * time or a price is about speed as much as being right, so a right answer worked out slowly is Hard.
  * The time is from the question coming up to Show answer, or to the end of speaking it.
  */
-export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000 };
+export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000, counting: 6000 };
 
 /** The middle of the times taken: one long pause (a distraction) doesn't make a drill slow. */
 export function medianMs(times: readonly number[]): number | undefined {
@@ -215,6 +295,8 @@ function questionDigits(q: DrillQuestion): string[] {
       return minor ? [`${major}${String(minor).padStart(2, '0')}`] : [String(major), `${major}00`];
     }
     case 'date': return [];
+    // A count is said with its noun; the recognizer may write the number as digits before it (see `heardRight`).
+    case 'count': return [];
   }
 }
 
@@ -229,37 +311,16 @@ export function heardRight(q: DrillQuestion, heard: string, language: Language):
   const answer = drillAnswer(q, language);
   const ways = answer ? [answer.everyday, ...answer.also, ...(answer.last ? [answer.last.phrase] : [])] : [];
   if (ways.some((p) => squeezed(p.text) === said)) return true;
+  // "5 kotów": the number as digits, then the noun as the answer ends with it.
+  if (q.kind === 'count' && answer && squeezed(`${q.question.n}${answer.everyday.text.split(' ').pop()}`) === said) return true;
   const digits = heard.replace(/\D/g, '');
   return !!digits && digits === heard.replace(/[^\d\p{L}]/gu, '') && questionDigits(q).includes(digits);
 }
 
 // ==== Waiting for vocabulary ====
 
-/** The words for a hundred and a thousand, which the hundreds and thousands steps can't be said without. */
-const HUNDRED_THOUSAND: Partial<Record<Language, [string, string]>> = {
-  th: ['ร้อย', 'พัน'], pl: ['sto', 'tysiąc'], ru: ['сто', 'тысяча'], de: ['hundert', 'tausend'], es: ['cien', 'mil'],
-  fr: ['cent', 'mille'], el: ['εκατό', 'χίλια'], nb: ['hundre', 'tusen'], ja: ['百', '千'],
-};
-
-/** The words a drill step waits for in the deck, besides the step before it settling. */
-export function stepWords(stepId: string, language: Language): string[] {
-  const ht = HUNDRED_THOUSAND[language];
-  if (ht && (stepId === 'numbers-999' || stepId === 'money-1000')) return [ht[0]];
-  if (ht && (stepId === 'numbers-big' || stepId === 'money-10000')) return [ht[1]];
-  if (language === 'pl' && stepId === 'time-quarters') return ['kwadrans'];
-  return [];
-}
-
-/**
- * The words of `words` the deck hasn't got, studied: a word counts when a studied note's headword
- * is it, or has it as a word of its own ("sto" in "sto, setka"). Thai and Japanese aren't written with
- * spaces, so there it has to be the whole headword.
- */
-export function missingWords(words: readonly string[], studied: readonly string[]): string[] {
-  const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
-  const known = new Set(studied.flatMap((t) => [norm(t), ...norm(t).split(/[^\p{L}\p{N}]+/u)]).filter(Boolean));
-  return words.filter((w) => !known.has(norm(w)));
-}
+/** Whether a step is added suspended and released later: it comes after another step, or waits for words. */
+export const stepWaits = (step: DrillStep, language: Language): boolean => !!step.after || stepNeeds(step.id, language).length > 0;
 
 // ==== Skill cards in the collection ====
 
@@ -270,11 +331,14 @@ export function missingWords(words: readonly string[], studied: readonly string[
  * phone never sends note types; Basic is in every Anki collection, and Anki on the computer shows the
  * card as it is written here.
  */
-export const SKILL_TAG = 'skill';
+export { SKILL_TAG };
 export const SKILL_NOTE_TYPE = 'Basic';
 export const SKILLS_SUBDECK = 'Skills';
 
 export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
+
+/** Every skill group, for reading a saved list of them back (src/anki/skillSettings.ts) without trusting it. */
+export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'counting', 'consonants', 'vowels', 'cases', 'classifiers'];
 
 /** The languages that count with a classifier or counter, and what it's called. */
 const CLASSIFIER_NAMES: Partial<Record<Language, { one: string; title: string }>> = { th: { one: 'classifier', title: 'Classifiers' }, ja: { one: 'counter', title: 'Counters' } };
@@ -303,6 +367,7 @@ export function skillGroups(language: Language): SkillGroupInfo[] {
   if (hasDrills('numbers', language)) out.push({ id: 'numbers', title: GROUP_TITLES.numbers, detail: `${NUMBER_STEPS.length} drill cards: ${steps(NUMBER_STEPS)}`, count: NUMBER_STEPS.length });
   if (hasDrills('dates', language)) out.push({ id: 'dates', title: GROUP_TITLES.dates, detail: `${DATE_STEPS.length} drill cards: ${steps(DATE_STEPS)}`, count: DATE_STEPS.length });
   if (hasDrills('money', language)) out.push({ id: 'money', title: GROUP_TITLES.money, detail: `${MONEY_STEPS.length} drill cards: ${steps(MONEY_STEPS)}`, count: MONEY_STEPS.length });
+  if (hasDrills('counting', language)) out.push({ id: 'counting', title: GROUP_TITLES.counting, detail: `${COUNT_STEPS.length} drill cards: ${steps(COUNT_STEPS)}`, count: COUNT_STEPS.length });
   if (language === 'th') {
     out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
     out.push({ id: 'vowels', title: 'Vowel length', detail: `${VOWELS.length} cards, one per vowel`, count: VOWELS.length });
@@ -400,11 +465,16 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
           Back: '<div>Rate how it went. In Franki this card is a short drill.</div>',
         },
         tags: [SKILL_TAG, `${SKILL_TAG}::drill::${step.id}`, lang],
-        suspended: !!step.after,
+        suspended: stepWaits(step, language),
       });
     }
   }
   return drafts;
+}
+
+/** The notes for the words the drill groups in `groups` need that the deck may lack (the months for dates, the number words for numbers...). The caller leaves out the ones it has. */
+export function skillWordDrafts(language: Language, groups: SkillGroup[]): SkillWordDraft[] {
+  return wordDrafts(language, groups.filter((g): g is DrillGroup => (g === 'time' || g === 'numbers' || g === 'dates' || g === 'money' || g === 'counting') && hasDrills(g, language)));
 }
 
 /** The drill a note's tags make it, with its language; undefined for any other note. */
@@ -424,18 +494,38 @@ export interface SkillCardState {
   suspended: boolean;
   /** Started and scheduled a week or more out (the progress gate's line, src/core/progress.ts). */
   settled: boolean;
-  /** The words its step waits for that the deck hasn't got yet (`stepWords`, `missingWords`). */
+  /** What its step waits for in the deck, said for a person (`stepNeeds`, `stillNeeded`). */
   missing?: readonly string[];
+  /** Answered at least once: a first step held for words is released only while it hasn't been, so a card the learner suspended mid-ladder isn't undone. */
+  started?: boolean;
+  /** The deck's skill cards are paused (Skill cards switched off): nothing is released or held back. */
+  paused?: boolean;
 }
 
-/** The suspended cards to release: those whose step before, in the same language, has settled, and whose words the deck has. */
+/**
+ * The suspended cards to release: a step whose step before, in the same language, has settled, or a
+ * first step that was waiting only for words and hasn't been started; either one only once the deck
+ * has the words it needs.
+ */
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
   return cards.filter((c) => {
-    if (!c.suspended || c.missing?.length) return false;
-    const after = drillStep(c.stepId)?.after;
-    return !!after && settled.has(`${c.language}|${after}`);
+    if (!c.suspended || c.paused || c.missing?.length) return false;
+    const step = drillStep(c.stepId);
+    if (!step) return false;
+    if (step.after) return settled.has(`${c.language}|${step.after}`);
+    return !c.started && stepNeeds(step.id, c.language).length > 0;
   }).map((c) => c.id);
+}
+
+/**
+ * The live cards to hold back: a step that waits for words, never started, whose words the deck hasn't
+ * studied. A deck got its first steps live before they waited for words, and a learner can unsuspend one;
+ * holding it again keeps a drill from asking about words never studied. Released again by `releasable`
+ * once the words are studied.
+ */
+export function holdable(cards: readonly SkillCardState[]): string[] {
+  return cards.filter((c) => !c.suspended && !c.paused && !c.started && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
 }
 
 // ==== Progress ====
@@ -464,13 +554,13 @@ const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomor
 /** What Skills shows for a deck's skill cards: each drill step in ladder order, and a set of single cards as how many have settled. */
 export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sections: SkillSection[] = [];
-  for (const group of ['time', 'numbers', 'dates', 'money'] as DrillGroup[]) {
+  for (const group of ['time', 'numbers', 'dates', 'money', 'counting'] as DrillGroup[]) {
     const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
       const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
       if (!card) return [];
       const before = step.after ? drillStep(step.after)?.title : undefined;
       if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Waiting for ${card.missing.join(', ')} in your deck`, locked: true }];
-      if (card.suspended) return [{ title: step.title, detail: before ? `Comes in after ${before.charAt(0).toLowerCase() + before.slice(1)} settles` : 'Suspended', locked: true }];
+      if (card.suspended) return [{ title: step.title, detail: before ? `Starts once you know ${before.charAt(0).toLowerCase() + before.slice(1)} well` : 'Suspended', locked: true }];
       if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
       return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
     });
@@ -487,7 +577,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
     if (!of.length) continue;
     const settled = of.filter((c) => c.settled).length;
     const fresh = of.filter((c) => !c.started).length;
-    const row: SkillRow = { title: set.title, detail: `${settled} of ${of.length} settled${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / of.length) * 100), locked: false };
+    const row: SkillRow = { title: set.title, detail: `${settled} of ${of.length} learned${fresh ? ` · ${fresh} not started` : ''}`, meter: Math.round((settled / of.length) * 100), locked: false };
     const into = sections.find((x) => x.title === set.section);
     if (into) into.rows.push(row); else sections.push({ title: set.section, rows: [row] });
   }
@@ -502,23 +592,42 @@ export function skillOffer(deck: string, notes: Iterable<{ deck: string; tags: r
   return found.name;
 }
 
-/** The headwords of the notes studied (a card past new), skill cards left out: what `missingWords` checks a step's words against. */
-export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): string[] {
+/** The language deck a skill note's words are looked up in: the deck above its Skills subdeck, so a German "Juni" never counts as Norwegian's. */
+export const skillLanguageDeck = (deck: string): string => (deck.endsWith(`::${SKILLS_SUBDECK}`) ? deck.slice(0, -(SKILLS_SUBDECK.length + 2)) : deck);
+
+/**
+ * The headwords of the notes studied (a card past new), skill cards left out: what a step's words are
+ * checked against. With `deck`, only the notes in it and its subdecks.
+ */
+export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>, deck?: string): string[] {
   const started = new Set<string>();
   for (const c of cards) if (c.sched.state !== 0 && !c.retired) started.add(c.noteId);
   const out: string[] = [];
-  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG)) out.push(headword(n));
+  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG) && (deck === undefined || isInDeck(n.deck, deck))) out.push(headword(n));
   return out;
 }
 
-/** What each skill card's step still waits for, by card id, given the deck's studied headwords. */
-export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: readonly string[]): Map<string, string[]> {
+/** `studiedHeadwords` for any language deck, each worked out once. */
+export function studiedIn(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): (deck: string) => string[] {
+  const allNotes = [...notes];
+  const allCards = [...cards];
+  const memo = new Map<string, string[]>();
+  return (deck) => {
+    let found = memo.get(deck);
+    if (!found) memo.set(deck, found = studiedHeadwords(allNotes, allCards, deck));
+    return found;
+  };
+}
+
+/** What each skill card's step still waits for, by card id, given the studied headwords of its language deck (`studiedIn`). */
+export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: (languageDeck: string) => readonly string[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const c of cards) {
     const n = notes.get(c.noteId);
     const drill = n && drillOfTags(n.tags);
     if (!drill) continue;
-    const missing = missingWords(stepWords(drill.step.id, drill.language), studied);
+    const words = studied(skillLanguageDeck(n.deck));
+    const missing = stepNeeds(drill.step.id, drill.language).flatMap((need) => stillNeeded(need, words) ?? []);
     if (missing.length) out.set(c.id, missing);
   }
   return out;

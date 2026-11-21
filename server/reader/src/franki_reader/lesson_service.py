@@ -10,6 +10,7 @@ import logging
 import os
 import sqlite3
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from franki_reader.coverage import Checker
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson_audio import LessonAudioFailed, Rendered, Speak
 from franki_reader.lesson_writer import LessonFailed, WriteGiven, WritePlan
+from franki_reader.register import DEFAULT, Register
 from franki_reader.tts import TtsFailed, billed_chars
 
 log = logging.getLogger(__name__)
@@ -80,6 +82,7 @@ async def make_lesson(
     now: Callable[[], datetime],
     narrator: str | None = None,
     learner: lesson.Learner = "male",
+    register: Register = DEFAULT,
     renderer: Renderer = lesson_audio.render,
     lexicon: Checker | None = None,
     given: tuple[lesson.Phrase, ...] = (),
@@ -91,14 +94,23 @@ async def make_lesson(
     try:
         if given and write_given is not None:
             plan, used = await lesson_writer.write_given_plan(
-                write_given, language, scene, given, learner, lexicon
+                write_given, language, scene, given, learner, lexicon, register
             )
         else:
-            plan, used = await lesson_writer.write_plan(write, language, scene, learner, lexicon)
+            plan, used = await lesson_writer.write_plan(
+                write, language, scene, learner, lexicon, register
+            )
     except LessonFailed as e:
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))
         return
+    # Phrases of lessons played to the end come back at the start (lesson.earlier_phrases).
+    plan = replace(
+        plan,
+        earlier=lesson.earlier_phrases(
+            store.heard_lesson_phrases(conn, language, lesson_id), {p.text for p in plan.phrases}
+        ),
+    )
     await _speak_and_keep(
         conn,
         lesson_id,

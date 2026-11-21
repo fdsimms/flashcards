@@ -51,7 +51,7 @@ const comparable = ({ ankiMod, ...c }: Card) => c;
 describe('Forget', () => {
   it("makes an Anki card new in Franki exactly as reading Anki's collection back would", async () => {
     const { store, reimported, byAnkiId } = await franki();
-    const [after] = await forgetCards(store, [await byAnkiId(store, REVIEW)], { resetCounts: false }, NOW);
+    const { cards: [after] } = await forgetCards(store, [await byAnkiId(store, REVIEW)], { resetCounts: false }, NOW);
     expect(after.sched).toMatchObject({ state: 0, reps: 2, lapses: 0 });
     expect(after.position).toBe(1);
     expect(comparable(await byAnkiId(store, REVIEW))).toEqual(comparable(after));
@@ -63,7 +63,7 @@ describe('Forget', () => {
     const cards = [await byAnkiId(store, FILTERED), await byAnkiId(store, SUSPENDED)];
     expect(cards[0].filteredDeck).toBeDefined();
     expect(cards[1].suspended).toBe(true);
-    const after = await forgetCards(store, cards, { resetCounts: true }, NOW);
+    const { cards: after } = await forgetCards(store, cards, { resetCounts: true }, NOW);
     expect(after.map((c) => [c.filteredDeck, c.suspended, c.sched.reps])).toEqual([[undefined, false, 0], [undefined, false, 0]]);
     const again = await reimported();
     expect(comparable(await byAnkiId(again, FILTERED))).toEqual(comparable(after[0]));
@@ -72,7 +72,7 @@ describe('Forget', () => {
 
   it('changes a Franki-only card in Franki', async () => {
     const { store, byAnkiId } = await franki({ kept: false });
-    const [after] = await forgetCards(store, [await byAnkiId(store, REVIEW)], { resetCounts: false }, NOW);
+    const { cards: [after] } = await forgetCards(store, [await byAnkiId(store, REVIEW)], { resetCounts: false }, NOW);
     expect(after.sched).toEqual({ ...newSchedState(NOW), reps: 2, lapses: 0 });
   });
 });
@@ -80,7 +80,7 @@ describe('Forget', () => {
 describe('Set Due Date', () => {
   it("makes the card a review due that day in Franki, as reading Anki's collection back would", async () => {
     const { store, reimported, byAnkiId } = await franki();
-    const [after] = await setDueDates(store, [await byAnkiId(store, SUSPENDED)], parseDueDate('3')!, NOW);
+    const { cards: [after] } = await setDueDates(store, [await byAnkiId(store, SUSPENDED)], parseDueDate('3')!, NOW);
     expect(after.sched.state).toBe(2);
     expect(after.suspended).toBe(false);
     expect(comparable(await byAnkiId(await reimported(), SUSPENDED))).toEqual(comparable(after));

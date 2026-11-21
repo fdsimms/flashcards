@@ -1,7 +1,7 @@
 import { isOmnilanguage, speechLangFor } from './cards';
 import { htmlToText, textToHtml } from './html';
 import type { Language } from '../reader/api';
-import type { Note } from './types';
+import type { Note, SchedState } from './types';
 
 /**
  * The hint written when a card becomes a leech goes in the note's Mnemonic field, which shows on
@@ -23,6 +23,11 @@ export function hasMnemonic(note: Note): boolean {
 export type MnemonicQuestion = { language: Language; entry: string; meaning: string; transliteration: string; context: string };
 
 const READER_LANGUAGES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja'];
+
+/** Whether a stored value is one of Read & Listen's language codes. */
+export function isReaderLanguage(code: unknown): code is Language {
+  return typeof code === 'string' && READER_LANGUAGES.includes(code);
+}
 
 /** The note's language when Read & Listen writes in it. */
 export function readerLanguageOf(note: Note): Language | undefined {
@@ -54,4 +59,20 @@ export function withMnemonic(fields: Record<string, string>, hint: string): Reco
   const added = textToHtml(text);
   const existing = fields.Mnemonic ?? '';
   return { ...fields, Mnemonic: htmlToText(existing) ? `${existing}<br>${added}` : added };
+}
+
+/** How many times a review is forgotten before the mnemonic is asked for, ahead of the leech threshold. */
+export const EARLY_HINT_LAPSES = 4;
+
+/**
+ * Whether an answer is the one that asks for a mnemonic early: a review forgotten for the
+ * `EARLY_HINT_LAPSES`th time, on a note that can hold a mnemonic and has none. A leech is asked at
+ * its threshold (Anki's 8 by default), which is many failed reviews after a hook would have helped;
+ * this asks once, sooner, and tags nothing. A preset whose threshold is at or under this count asks
+ * through the leech itself.
+ */
+export function asksEarlyHint(note: Note, before: SchedState, after: SchedState, leechThreshold: number): boolean {
+  if (before.state !== 2 || after.lapses <= before.lapses || after.lapses !== EARLY_HINT_LAPSES) return false;
+  if (leechThreshold > 0 && leechThreshold <= EARLY_HINT_LAPSES) return false;
+  return canAddMnemonic(note) && !hasMnemonic(note);
 }

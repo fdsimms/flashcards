@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats } from '../../src/core/stats';
+import { computeStats, trueRetention } from '../../src/core/stats';
 import { answersFromLog, LOG_DAYS, logOutcomes, parseLog } from '../../src/wanikani/log';
 import type { Outcome } from '../../src/wanikani/session';
 
@@ -25,6 +25,6 @@ describe('the answer log', () => {
     const log = logOutcomes([], [review(1, 0, now), review(2, 1, now), { kind: 'start', assignmentId: 3, subjectId: 3, at: at(now), takenMs: 1000 }], now);
     const stats = computeStats({ cards: [], answers: answersFromLog(log), now, dayStartsAtHour: 4, days: 30 });
     expect(stats.today).toEqual({ answered: 3, takenMs: 9000, again: 1, newCards: 1 });
-    expect(stats.retention.week).toEqual({ passed: 1, total: 2 });
+    expect(trueRetention({ answers: answersFromLog(log), now, dayStartsAtHour: 4 })[2].all).toEqual({ passed: 1, total: 2 });
   });
 });

@@ -8,8 +8,9 @@ import { AskingText } from './AskingText';
 import { failureText } from '../core/failure';
 
 /**
- * Opens over the review screen when an answer makes a card a leech, asking for a hint to save in
- * the note's Mnemonic field (src/core/leechHint.ts). Skip leaves the card tagged and goes on.
+ * Asks for a hint to save in a leech's Mnemonic field (src/core/leechHint.ts): from the session's
+ * summary, one sheet after another for the leeches made in the session (`step`), or by hand from
+ * the review screen's menu. Skip leaves the card tagged and goes on.
  * When the deck's options suspended the card (`suspended`), the sheet says so, and saving a hint
  * also unsuspends it (`saveLeechHint`), so the hint gets its chance; Skip leaves it suspended.
  * `suggest` is present only while Read & Listen is signed in; it asks that server for ideas, and
@@ -19,7 +20,7 @@ import { failureText } from '../core/failure';
  * Skip does. Not while a hint is written or being saved: then the sheet springs back, as iOS
  * does for a sheet with changes that would be lost.
  */
-export function LeechHintSheet({ word, translit, gloss, misses, suspended, suggest, visible = true, onDismiss, onSave, onSkip }: {
+export function LeechHintSheet({ word, translit, gloss, misses, suspended, step, suggest, visible = true, onDismiss, onSave, onSkip, onSkipRest }: {
   word: string;
   /** The word's transliteration, shown on its own line above the meaning. */
   translit?: string;
@@ -29,6 +30,8 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
   misses?: number;
   /** The answer suspended the card, as the deck's options say for a leech; saving a hint unsuspends it. */
   suspended?: boolean;
+  /** Present when the sheet is one of several asked for in a row from the session summary: which one this is, so the sheet says so and offers to skip the rest. */
+  step?: { n: number; of: number };
   suggest?: () => Promise<string[]>;
   /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review can show the next sheet only then (src/core/sheetQueue.ts). */
   visible?: boolean;
@@ -36,6 +39,8 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
   /** Saves the hint on the note (and unsuspends the card, when `suspended`); throws when it can't, and the sheet says why. */
   onSave: (hint: string) => Promise<void>;
   onSkip: () => void;
+  /** Skips this card and every one still waiting; offered only while `step` says more are left. */
+  onSkipRest?: () => void;
 }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
@@ -53,7 +58,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
     try {
       setIdeas(await suggest());
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't suggest hints.", next: 'Try again, or write your own.' }));
+      setError(failureText(e, { what: "Couldn't suggest mnemonics.", next: 'Try again, or write your own.' }));
     } finally {
       setAsking(false);
     }
@@ -66,7 +71,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
     try {
       await onSave(hint);
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't save the hint.", next: 'Try again, or skip it.' }));
+      setError(failureText(e, { what: "Couldn't save the mnemonic.", next: 'Try again, or skip it.' }));
       setSaving(false);
     }
   };
@@ -91,26 +96,27 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
         <View style={{ gap: space.xs }}>
+          {step ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${step.n} of ${step.of}`}</Text> : null}
           <Text style={{ ...type.headline, color: c.text }}>{misses === undefined ? `Mnemonic for ${word}` : `You've missed ${word} ${misses} times`}</Text>
           {translit ? <Text style={{ ...type.callout, color: c.textSecondary }}>{translit}</Text> : null}
           {gloss ? <Text style={{ ...type.callout, color: translit ? c.text : c.textSecondary }}>{gloss}</Text> : null}
         </View>
         {suspended ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            This card is now suspended, as this deck's options say for a leech. Save a hint to see on the back of this card, and the card goes back into your reviews. The hint is saved on the note and synced to Anki. If you skip, the card stays suspended.
+            This card is suspended because you keep missing it. Save a mnemonic for its back and it goes back into your reviews. Skip, and it stays suspended.
           </Text>
         ) : (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
+            Write a mnemonic to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
           </Text>
         )}
-        <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
+        <Field label="Mnemonic" value={hint} onChangeText={setHint} placeholder="e.g. a word it sounds like, or a picture to imagine" multiline autoFocus />
         {suggest ? (
-          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
+          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest mnemonics" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
             <Icon name="sparkles" size={18} color={c.accent} />
             {asking
               ? <AskingText style={{ ...type.callout, fontWeight: '600', color: c.accent }} />
-              : <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>}
+              : <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{ideas.length ? 'Suggest more mnemonics' : 'Suggest mnemonics'}</Text>}
           </Tappable>
         ) : null}
         {ideas.map((idea) => (
@@ -118,23 +124,28 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, sugge
             key={idea}
             onPress={() => { haptic.select(); setHint(idea); }}
             accessibilityRole="button"
-            accessibilityLabel={`Use this hint: ${idea}`}
+            accessibilityLabel={`Use this mnemonic: ${idea}`}
             style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}
           >
             <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
           </Tappable>
         ))}
         {error ? <ErrorNote message={error} /> : null}
+        {step && step.n < step.of && onSkipRest ? (
+          <Tappable onPress={onSkipRest} disabled={saving} accessibilityRole="button" accessibilityLabel="Skip the rest" style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, justifyContent: 'center' }}>
+            <Text style={{ ...type.callout, color: c.textSecondary }}>Skip the rest</Text>
+          </Tappable>
+        ) : null}
         {suspended ? (
           // The longer label gets the whole width, the main action on top.
           <View style={{ gap: space.s }}>
-            <Button label="Save hint and keep studying" onPress={save} busy={saving} disabled={!hint.trim()} />
+            <Button label={step && step.n < step.of ? 'Save mnemonic and next' : 'Save mnemonic and keep studying'} onPress={save} busy={saving} disabled={!hint.trim()} />
             <Button label="Skip" variant="secondary" onPress={onSkip} disabled={saving} />
           </View>
         ) : (
           <View style={{ flexDirection: 'row', gap: space.m }}>
             <Button label={misses === undefined ? 'Cancel' : 'Skip'} variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
-            <Button label="Save hint" onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
+            <Button label={step && step.n < step.of ? 'Save and next' : 'Save mnemonic'} onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
           </View>
         )}
       </ScrollView>

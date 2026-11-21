@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayKeyOf } from '../../src/core/day';
-import { forgetCard, parseDueDate, pickDays, setDueCard, studyDayAfter } from '../../src/core/reschedule';
+import { dueDateLabel, forgetCard, parseDueDate, pickDays, setDueCard, studyDayAfter } from '../../src/core/reschedule';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
@@ -65,5 +65,14 @@ describe('studyDayAfter', () => {
   it('keeps the hour across a change of clocks', () => {
     // US clocks go back on 2026-11-01.
     expect(studyDayAfter(new Date(2026, 9, 30, 12), 3, H)).toEqual(new Date(2026, 10, 2, H));
+  });
+});
+
+describe('dueDateLabel', () => {
+  it('says the day or days the card was set due', () => {
+    expect(dueDateLabel(parseDueDate('0')!)).toBe('Set this card due today');
+    expect(dueDateLabel(parseDueDate('1')!)).toBe('Set this card due tomorrow');
+    expect(dueDateLabel(parseDueDate('3!')!)).toBe('Set this card due in 3 days');
+    expect(dueDateLabel(parseDueDate('3-7')!)).toBe('Set this card due in 3-7 days');
   });
 });

@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { ActionSheetIOS, Alert } from 'react-native';
 import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
@@ -12,7 +13,7 @@ import { useApp } from './AppContext';
 import type { DeckAction } from './DeckList';
 import { shareDeckNotes } from './exportDeck';
 import { haptic } from './haptics';
-import { failureText } from '../core/failure';
+import { failureText, NOT_IN_ANKI } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
@@ -21,6 +22,7 @@ import { failureText } from '../core/failure';
  */
 export function useDeckActions(onOptions: (deck: string) => void) {
   const { repo, decks, refresh, openNoteEditor, collapse } = useApp();
+  const router = useRouter();
   // One change at a time: a second tap while one is being written does nothing.
   const busy = useRef(false);
 
@@ -103,7 +105,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
         text: verb, style: suspend ? 'destructive' : 'default',
         onPress: () => run(`Couldn't ${verb.toLowerCase()} the cards`, async () => {
           const { ankiError } = await setCardStates(repo, targets, (s) => ({ ...s, suspended: suspend }), new Date(), dayStartsAtHour);
-          if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+          if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: NOT_IN_ANKI }));
         }),
       },
     ]);
@@ -119,6 +121,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
 
   /** One thing done to a deck, from the long-press menu or the ⋯ sheet. */
   const act = useCallback((deck: string, action: DeckAction) => {
+    if (action === 'quick') router.push({ pathname: '/quick-add', params: { deck } });
     // The note editor starts in this deck, which may have no notes yet (one just made).
     if (action === 'note') openNoteEditor({ deck }, (result) => { if (result) refresh(); });
     if (action === 'rename') rename(deck);
@@ -127,14 +130,14 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     if (action === 'suspend') setSuspended(deck, true);
     if (action === 'unsuspend') setSuspended(deck, false);
     if (action === 'delete') remove(deck);
-  }, [openNoteEditor, refresh, rename, onOptions, remove, setSuspended, repo]);
+  }, [router, openNoteEditor, refresh, rename, onOptions, remove, setSuspended, repo]);
 
   /** The sheet the ⋯ button on a deck's row opens: the same choices as the long-press menu. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
-    const options = ['Add note', 'Rename', 'Deck options', 'Export notes', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
-    const actions: DeckAction[] = ['note', 'rename', 'options', 'export', 'suspend', 'unsuspend', 'delete'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 7, destructiveButtonIndex: 6 }, (i) => {
+    const options = ['Quick add', 'Add note', 'Rename', 'Deck options', 'Export notes', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
+    const actions: DeckAction[] = ['quick', 'note', 'rename', 'options', 'export', 'suspend', 'unsuspend', 'delete'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 8, destructiveButtonIndex: 7 }, (i) => {
       if (i < actions.length) act(deck, actions[i]);
     });
   }, [act]);

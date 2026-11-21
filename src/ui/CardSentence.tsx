@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { PixelRatio, Pressable, Text, View, type TextStyle } from 'react-native';
 import { furiganaRuns, hasRuby, shownRuns, type FuriganaSetting } from '../core/furigana';
 import type { Segment } from '../core/highlight';
@@ -26,8 +26,10 @@ type Laid = { y?: number; width?: number };
  * the line between them, so the sentence shows where it splits. The card's own word keeps its
  * highlight. Tapping a word only shows it: nothing is graded or written (reader/cardGlosses.ts).
  */
-export function CardSentence({ gloss, segments, style, furigana }: {
+export function CardSentence({ gloss, segments, style, furigana, center }: {
   gloss: SentenceGloss; segments?: Segment[]; style: TextStyle;
+  /** Centered, for a headword's parts (it is set in the middle of the card, as the word is). */
+  center?: boolean;
   /** The furigana setting, once the answer shows: each word's reading (its gloss's `translit`) over its kanji. */
   furigana?: FuriganaSetting;
 }) {
@@ -38,6 +40,8 @@ export function CardSentence({ gloss, segments, style, furigana }: {
   // The y is the word's unit (it plus its trailing punctuation) and the width is the word's own.
   const [laid, setLaid] = useState<Laid[]>([]);
   const [tapped, setTapped] = useState<(Tapped & { index: number }) | null>(null);
+  // Meanings the popover looked up, so Add to deck starts from what it showed.
+  const looked = useRef(new Map<string, string>());
   const fontSize = style.fontSize ?? 17;
   const lay = (i: number, patch: Laid) => setLaid((prev) => {
     const old = prev[i] ?? {};
@@ -52,7 +56,7 @@ export function CardSentence({ gloss, segments, style, furigana }: {
   });
 
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: center ? 'center' : undefined }}>
       {pieces.flatMap((piece, i) => {
         if (!piece.tappable) {
           // A space becomes a gap; punctuation after a word is drawn with it, below.
@@ -130,12 +134,16 @@ export function CardSentence({ gloss, segments, style, furigana }: {
         flagged={false}
         onToggleFlag={null}
         onPlay={() => { if (tapped) gloss.onPlayWord(tapped.word.text, gloss.language, saidAs(gloss.language, tapped.word.text, tapped.word.translit)); }}
+        meaningLookup={(word) => gloss.api.wordMeaning(gloss.language, word.text, gloss.english).then((meaning) => {
+          if (meaning) looked.current.set(word.text, meaning);
+          return meaning;
+        })}
         onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the card.
           const { text, gloss: meaning } = tapped.word;
           const pronunciation = { ipa: tapped.word.ipa, ipa_source: tapped.word.ipa_source, translit: tapped.word.translit };
           setTapped(null);
-          void gloss.onAddWord(text, meaning ?? '', gloss.language, pronunciation);
+          void gloss.onAddWord(text, meaning ?? looked.current.get(text) ?? '', gloss.language, pronunciation);
         } : null}
         onClose={() => setTapped(null)}
       />

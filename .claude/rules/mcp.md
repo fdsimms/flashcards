@@ -44,6 +44,17 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   languages came to write a Meaning four ways. An update is checked only for the fields it writes,
   so an old note can be corrected a field at a time. `tests/test_omnilanguage.py` holds every
   example the guide shows to its own rules.
+- **Skill cards come from the app's own definitions** (`skills.py`): the notes it adds are read from
+  `skill_catalog.json`, which `src/tools/skillCatalog.ts` writes (`npm run catalog:skills`), and
+  `tests/tools/skillCatalog.test.ts` fails when the file is stale, so the server has no second copy of
+  a card's text. A deck's settings are one config value shared with the app (`frankiSkillCards`,
+  `src/anki/skillSettings.ts`); the hourly job only adds where `on` and `auto` are both set.
+- **A new Omnilanguage note is recorded when `add_notes` adds it**, as the app records one saved on the
+  phone, with the Azure voice saved for its language (`frankiAudioVoices`, a collection config value from
+  a language code to `{voice, rate}`). The app writes a language's entry when its Azure voice is chosen
+  in Settings > Voices (`src/anki/audioVoices.ts`, the same key), because that choice is stored on the
+  phone where the MCP can't read it; `set_audio_voice` writes it too. Each side changes only the
+  language it was given. A failed recording never fails the add: it's the result's `audio_error`.
 - **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
   did): what applies to every tool goes there, and a tool's own rules go in its description.
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;

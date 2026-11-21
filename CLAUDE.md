@@ -142,8 +142,12 @@ effort:low.
 **Plain, literal terms.** Say what a setting or button does, the way the rest of the app talks. No
 jokey metaphors or cutesy voice. Read each line aloud and rewrite it if nobody would say it that way.
 
-**An error says what happened, then what to do.** "Couldn't import deck.apkg. Anki package files
-can't be read yet. In Anki, export as..." rather than "failed: <exception>". Buttons name the action.
+**Before writing a new message, grep `src` for how the app already says it** and reuse that wording,
+or the shared constant where there is one (`NOTE_GONE` and `NOT_IN_ANKI` in `src/core/failure.ts`,
+`NO_COLLECTION` in `src/anki/noteService.ts`).
+
+**An error says what happened, then what to do.** "Couldn't import deck.apkg. It was exported with
+"Support older Anki versions" turned on. Export it again..." rather than "failed: <exception>". Buttons name the action.
 Screens build it with `failureText` (`src/core/failure.ts`): an error written for a person extends
 `Refusal` and is shown as it is; any other error's text goes last, in parentheses.
 `tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.
@@ -176,7 +180,7 @@ src/tools    the Practice tab's tools (similar words, sentences, situations, tim
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). Skill cards (skills.ts) are the one way practice reaches the collection: Add
              skill cards (Deck options) writes Basic notes through saveNote after a preview the learner approves
-             (src/anki/skillCards.ts), and a drill card in Review is rated by the learner's tap, its suggested rating only outlined. It may check an answer, or take Missed it / Got it, and keep only a
+             (src/anki/skillCards.ts), or the MCP's hourly job writes them for a deck whose automatic switch the learner turned on (skillSettings.ts), and a drill card in Review is rated by the learner's tap, its suggested rating only outlined. It may check an answer, or take Missed it / Got it, and keep only a
              fading tally of missed patterns on the phone (marks.ts, patterns.ts) that leans the next random
              question toward them. Screens are src/ui/Practice.tsx and src/ui/tools/
 src/anki     Anki collection packages: reading, writing answers back, packing (pure, tested);
@@ -307,6 +311,10 @@ and checks `lastAnswered` so a double tap logs one review, not two from the same
 functional `setCards(prev => ...)` because the render's own `cards` is stale once the awaits
 return. A screen can also be left mid-await; capture what the request was about before the await
 and compare after.
+
+**A queue sent across an `await` is put back together by a pure function given the queue as it is
+now**, never by position or by which objects it held: it can gain, lose or replace items while the
+send runs (`afterSend`, `afterWordsSent`, `afterSynonymFlush`).
 
 ## Working style
 

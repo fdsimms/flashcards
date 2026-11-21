@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { firstLine, nextLine, nextRepeatCount, paragraphs, previousLine, rangeOf, repeatBadge, wrapsToStart } from '../../src/reader/playback';
+import { firstLine, lineAtX, nextLine, nextRepeatCount, paragraphs, playableNear, previousLine, rangeOf, repeatBadge, wrapsToStart } from '../../src/reader/playback';
 
 const lines = [{ audio: false }, { audio: true }, { audio: false }, { audio: true }];
 
@@ -82,4 +82,20 @@ test('rangeOf finds the paragraph a line is in', () => {
   expect(rangeOf(ranges, 1)).toBe(0);
   expect(rangeOf(ranges, 3)).toBe(1);
   expect(rangeOf(ranges, 9)).toBe(-1);
+});
+
+test('a finger on the line scrubber points at the line under it, kept inside the text', () => {
+  expect(lineAtX(0, 120, 12)).toBe(0);
+  expect(lineAtX(59, 120, 12)).toBe(5);
+  expect(lineAtX(60, 120, 12)).toBe(6);
+  expect(lineAtX(500, 120, 12)).toBe(11);
+  expect(lineAtX(-20, 120, 12)).toBe(0);
+  expect(lineAtX(10, 0, 12)).toBe(0);
+});
+
+test('a scrub lands on the nearest line with audio, ahead first and then behind', () => {
+  expect(playableNear(lines, 0)).toBe(1);
+  expect(playableNear(lines, 2)).toBe(3);
+  expect(playableNear([{ audio: true }, { audio: false }], 1)).toBe(0);
+  expect(playableNear([{ audio: false }], 0)).toBeNull();
 });

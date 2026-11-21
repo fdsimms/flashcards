@@ -3,6 +3,8 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
+import { setAnkiAudioVoice, type AudioVoice } from '../anki/audioVoices';
+import { setAnkiSkillSettings, skillSettingsByName, type SkillSettings } from '../anki/skillSettings';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
   cardRestoreParams, cardStateParams, cardUpdate, cardUpdateParams, ankiDayNumber, nextRevlogId, previewAgain, previewReturn, previewRevlogEntry, revlogEntry, revlogParams, type AnkiCardRow, type AnkiUndo,
@@ -15,6 +17,10 @@ import type { CardState } from '../core/cardState';
 import type { Card, CollectionSettings } from '../core/types';
 import { File } from 'expo-file-system';
 import { fileUriToPath } from './backup';
+import { decodeOwed, encodeOwed, type AnkiAnswer, type OwedAnswer } from '../anki/owedAnswers';
+import { transact } from './transact';
+import { Refusal } from '../core/failure';
+import { NO_COLLECTION } from '../anki/noteService';
 
 /**
  * The Anki collection Franki keeps (Documents/anki/collection.anki2), attached to the app's one
@@ -61,20 +67,16 @@ export interface AnkiLink {
   /** Makes `collection` the one Franki keeps (it's moved, not copied), replacing any before it. */
   keepAnkiCollection(collection: File): Promise<void>;
   /** Writes an answer into the kept collection. Undefined when the card isn't from it. */
-  writeAnkiAnswer(a: {
-    before: Card; after: Card; rating: RatingValue; now: Date; takenMs: number; desiredRetention?: number;
-    /** The card's deck's step counts, for Anki's `left`. */
-    steps?: { learn: number; relearn: number };
-    /** The card's deck's FSRS weights (none for Anki's defaults), for Anki's `decay`. */
-    weights?: number[];
-    /**
-     * Answered in a filtered deck that doesn't reschedule: the card is shown again at `again`
-     * (`previewAgain`), or, finished, goes home unchanged (`previewReturn`).
-     */
-    preview?: { again?: Date };
-    /** Siblings to bury with the answer (`siblingsToBury`), in the same transaction. */
-    bury?: Card[];
-  }): Promise<AnkiUndo | undefined>;
+  /**
+   * `owedId`: the answer's row in `anki_owed` (`oweAnkiAnswer`), deleted in the write's own
+   * transaction. If the row is already gone the answer was written before, and nothing is written.
+   */
+  writeAnkiAnswer(a: AnkiAnswer & { owedId?: number }): Promise<AnkiUndo | undefined>;
+  /** Keeps an answer as owed to the kept collection (src/anki/owedAnswers.ts), and returns its id. */
+  oweAnkiAnswer(owed: OwedAnswer): Promise<number>;
+  /** The answers still owed, oldest first. One that can't be read back is dropped. */
+  owedAnkiAnswers(): Promise<{ id: number; owed: OwedAnswer }[]>;
+  forgetOwedAnkiAnswer(id: number): Promise<void>;
   /**
    * Takes an answer back out of the kept collection. False, changing nothing, when it was already
    * synced (or the collection was replaced since): it's in the server's history, so as in Anki,
@@ -97,6 +99,16 @@ export interface AnkiLink {
   ankiProgressGates(): Promise<Map<string, number>>;
   /** Sets or, with no cap, removes a deck's gate in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
   setAnkiProgressGate(deck: string, cap: number | undefined, now?: Date): Promise<boolean>;
+  /** Each deck's skill card settings kept in the collection (`src/anki/skillSettings.ts`), by deck name; a deck with none has the defaults. Read without a sync. */
+  ankiSkillSettings(): Promise<Map<string, SkillSettings>>;
+  /** Saves a deck's skill card settings in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
+  setAnkiSkillSettings(deck: string, settings: SkillSettings, now?: Date): Promise<boolean>;
+  /**
+   * Sets, or with none removes, the Azure voice the MCP records a language's new notes with (`src/anki/audioVoices.ts`) in the
+   * collection, which a sync carries. Only that language changes. Does nothing while Franki has no Anki collection, since
+   * there is nothing yet for the MCP to read. Waits for the lock.
+   */
+  setAnkiAudioVoice(language: string, voice: AudioVoice | null, now?: Date): Promise<void>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -187,8 +199,27 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
   // name and file on this connection: the second one's attach or detach failed with "database
   // scratch is locked". So reads wait for each other.
   let scratchQueue: Promise<unknown> = Promise.resolve();
+  // A DETACH can fail ("database scratch is locked") while a write transaction on this shared
+  // connection is open, since the scratch reads enrolled in it. The failed detach left `scratch`
+  // attached for the rest of the app's run, so every later sync failed on its ATTACH with
+  // "database scratch is already in use". So the detach waits out a busy moment, and a read
+  // starts by detaching whatever an earlier one left behind.
+  const detachScratch = async () => {
+    for (let attempt = 0; ; attempt++) {
+      const open = await db.getAllAsync<{ name: string }>('PRAGMA database_list');
+      if (!open.some((d) => d.name === 'scratch')) return;
+      try {
+        await db.execAsync('DETACH DATABASE scratch');
+        return;
+      } catch (e) {
+        if (attempt >= 5) throw e;
+        await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+      }
+    }
+  };
   const readRows = async (collection: File): Promise<CollectionRows> => {
     const scratch = new File(workFolder('anki-read'), 'scratch.anki2');
+    await detachScratch();
     await collection.copy(scratch);
     const p = pathOf(scratch);
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
@@ -200,14 +231,14 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await db.execAsync(stripUnicaseIn('scratch'));
       await db.execAsync('PRAGMA writable_schema = OFF');
     } finally {
-      await db.execAsync('DETACH DATABASE scratch');
+      await detachScratch();
     }
     // Attached again so SQLite reads the edited schema.
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
     try {
       return await queryCollectionRows((sql) => db.getAllAsync(inSchema(sql, 'scratch')));
     } finally {
-      await db.execAsync('DETACH DATABASE scratch');
+      await detachScratch();
       scratch.delete();
     }
   };
@@ -248,12 +279,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await setSetting(SETTING.lastSentId, String(max?.m ?? 0));
     },
 
-    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [] }) => lockAnki(async () => {
+    writeAnkiAnswer: ({ before, after, rating, now, takenMs, desiredRetention, steps, weights, preview, bury = [], owedId }) => lockAnki(async () => {
+      // Checked under the lock: an owed answer whose row is gone is already in the collection
+      // (written by this session's own job, or by the catch-up at launch, whichever came first).
+      if (owedId !== undefined && !(await db.getFirstAsync('SELECT 1 FROM anki_owed WHERE id = ?', owedId))) return undefined;
+      const nothingOwed = async () => { if (owedId !== undefined) await db.runAsync('DELETE FROM anki_owed WHERE id = ?', owedId); };
       await attach();
-      if (!attached || !before.ankiId) return undefined;
+      if (!attached || !before.ankiId) { await nothingOwed(); return undefined; }
       const cid = Number(before.ankiId);
       const row = await db.getFirstAsync<AnkiCardRow & { mod: number; usn: number }>(SQL.cardRow, cid);
-      if (!row) return undefined; // the card isn't in this collection (it came from an older one)
+      if (!row) { await nothingOwed(); return undefined; } // the card isn't in this collection (it came from an older one)
       const crt = (await db.getFirstAsync<{ crt: number }>(SQL.crt))!.crt;
       const cs = await collectionSettings();
       const clock = { crt, dayStartsAtHour: cs.dayStartsAtHour, creationOffset: cs.creationOffset };
@@ -266,7 +301,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       }
       const deckRows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
       const decks = deckAndParents(deckRows, row.did).map(({ id, common, mtime_secs, usn }) => ({ id, common, mtime_secs, usn }));
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         const update = !preview ? cardUpdate(after, row, { clock, now, desiredRetention, steps, rating, weights })
           : preview.again ? previewAgain(row, Math.floor(preview.again.getTime() / 1000), now)
           : previewReturn(row, now);
@@ -280,9 +315,27 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
         // Stamped with the clock, as Anki's set_modified does: sync keeps the deck row stamped later.
         for (const d of decks) await db.runAsync(SQL.deckStatsUpdate, withStudied(d.common, today, delta), Math.floor(Date.now() / 1000), -1, d.id);
         await db.runAsync(SQL.colModified, now.getTime());
+        if (owedId !== undefined) await db.runAsync('DELETE FROM anki_owed WHERE id = ?', owedId);
       });
       return { cid, row, revlogId, buried, decks };
     }),
+
+    async oweAnkiAnswer(owed) {
+      return (await db.runAsync('INSERT INTO anki_owed (data) VALUES (?)', encodeOwed(owed))).lastInsertRowId;
+    },
+    async owedAnkiAnswers() {
+      const rows = await db.getAllAsync<{ id: number; data: string }>('SELECT id, data FROM anki_owed ORDER BY id');
+      const out: { id: number; owed: OwedAnswer }[] = [];
+      for (const r of rows) {
+        const owed = decodeOwed(r.data);
+        if (owed) out.push({ id: r.id, owed });
+        else await db.runAsync('DELETE FROM anki_owed WHERE id = ?', r.id);
+      }
+      return out;
+    },
+    async forgetOwedAnkiAnswer(id) {
+      await db.runAsync('DELETE FROM anki_owed WHERE id = ?', id);
+    },
 
     undoAnkiAnswer: (u) => lockAnki(async () => {
       await attach();
@@ -290,7 +343,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       // Checked under the lock, so a sync can't send the answer between this check and the undo.
       const r = await db.getFirstAsync<{ usn: number }>(SQL.revlogUsn, u.revlogId);
       if (!r || r.usn !== -1) return false;
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(u.row, u.cid));
         for (const b of u.buried) await db.runAsync(SQL.cardUpdate, ...cardRestoreParams(b.row, b.cid));
         for (const d of u.decks ?? []) await db.runAsync(SQL.deckStatsUpdate, d.common, d.mtime_secs, d.usn, d.id);
@@ -303,7 +356,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     setAnkiCardStates: (changes, now) => lockAnki(async () => {
       await attach();
       if (!attached || !changes.length) return;
-      await db.withTransactionAsync(async () => {
+      await transact(db, async () => {
         for (const { ankiId, state } of changes) {
           const row = await db.getFirstAsync<{ type: number; queue: number; due: number; flags: number }>(SQL.cardState, Number(ankiId));
           if (row) await db.runAsync(SQL.cardStateUpdate, ...cardStateParams(row, state, now, Number(ankiId)));
@@ -348,6 +401,21 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
 
     setAnkiProgressGate: (deck, cap, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiProgressGate(c, deck, cap, now))),
 
+    async ankiSkillSettings() {
+      await attach();
+      if (!attached) return new Map();
+      const decks = (await db.getAllAsync<{ id: number; name: string }>(SQL.decks)).map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
+      const row = await db.getFirstAsync<{ val: Uint8Array | string }>(SQL.skillSettings);
+      return skillSettingsByName(decks, row?.val);
+    },
+
+    setAnkiSkillSettings: (deck, settings, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiSkillSettings(c, deck, settings, now))),
+
+    setAnkiAudioVoice: async (language, voice, now = new Date()) => {
+      if (!keptCollectionFile().exists) return;
+      await lockAnki(() => link.withSyncConnection((c) => setAnkiAudioVoice(c, language, voice, now)));
+    },
+
     detachAnki: detach,
     attachAnki: attach,
 
@@ -355,7 +423,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     ankiLockState: () => ({ runs: lockRuns, held: lockHeld }),
 
     async withSyncConnection(fn) {
-      if (!keptCollectionFile().exists) throw new Error('There is no Anki collection in Franki yet.');
+      if (!keptCollectionFile().exists) throw new Refusal(NO_COLLECTION);
       const conn = await SQLite.openDatabaseAsync(keptCollectionFile().name, {}, fileUriToPath(ankiFolder().uri));
       try {
         // Waits out the main connection's brief reads rather than failing; and a rollback journal,

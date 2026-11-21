@@ -4,7 +4,7 @@ import { failureText } from '../../core/failure';
 import type { Note } from '../../core/types';
 import { LANGUAGES } from '../../reader/languages';
 import {
-  CASE_CUES, CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRows, caseRule, checkCaseForm, drawGovernor, governorId,
+  CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRows, caseRule, checkCaseForm, drawGovernor, governorId,
   governorNote, inDeck, languageDeck, nounFor, type CaseNoun, type GovernedCase, type Governor,
 } from '../../tools/cases';
 import { useApp } from '../AppContext';
@@ -63,7 +63,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
 
   const ask = () => {
     if (!cases) return;
-    const governor = marks.pick(() => drawGovernor(cases, previous.current), casePatterns);
+    const governor = marks.pick(() => drawGovernor(cases, previous.current), casePatterns, governorId);
     previous.current = governorId(governor);
     answer.hide();
     setQuestion({ governor, noun: nounFor(governor, nouns) });
@@ -167,7 +167,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
           <View style={{ gap: space.s }}>
             <RuleLine rule={caseRule(cases, g)} />
             {!noun ? (
-              <Help>{`None of the ${LANGUAGES[language].name} nouns you're studying list their ${g.case} yet, so there's no noun to put in it. A noun's cases come from its Forms field.`}</Help>
+              <Help>{`None of your ${LANGUAGES[language].name} nouns have their ${g.case} filled in yet. Add it to a noun's Forms field to practice it here.`}</Help>
             ) : null}
           </View>
         ) : null}
@@ -241,7 +241,7 @@ function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k:
                 key={k}
                 onPress={() => onChoose(k)}
                 accessibilityRole="button"
-                accessibilityLabel={`${caseName(k)}, ${CASE_CUES[k]}`}
+                accessibilityLabel={caseName(k)}
                 scaleTo={0.97}
                 style={{
                   flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 1, paddingHorizontal: space.xs, paddingVertical: space.xs + 2,
@@ -249,7 +249,6 @@ function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k:
                 }}
               >
                 <Text maxFontSizeMultiplier={1.3} style={{ ...type.headline, fontSize: 16, color: c.text }}>{caseName(k)}</Text>
-                <Text maxFontSizeMultiplier={1.3} style={{ ...type.caption, color: c.textSecondary }}>{CASE_CUES[k]}</Text>
               </Tappable>
             ))}
           </View>

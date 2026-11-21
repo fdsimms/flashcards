@@ -102,6 +102,9 @@ export interface AnkiDeckConfig {
   autoplay?: boolean;
   /** Anki's "Maximum answer seconds": the most time one answer records. */
   maxAnswerSecs?: number;
+  /** Anki's "Show answer timer" and "Stop timer on answer". */
+  showTimer?: boolean;
+  stopTimerOnAnswer?: boolean;
   /** Today-only limits: the limit, and the Anki day number it's for. */
   newLimitToday?: { limit: number; today: number };
   reviewLimitToday?: { limit: number; today: number };
@@ -157,6 +160,8 @@ export function deckParamsFromConfigs(configs: Record<string, AnkiDeckConfig>, d
       easyDays: c.easyDays?.length ? c.easyDays : undefined,
       autoplay: c.autoplay,
       maxAnswerSecs: c.maxAnswerSecs,
+      ...(c.showTimer ? { showTimer: true } : {}),
+      ...(c.stopTimerOnAnswer ? { stopTimerOnAnswer: true } : {}),
       newLimitToday: dayLimit(c.newLimitToday),
       reviewLimitToday: dayLimit(c.reviewLimitToday),
     });
@@ -310,8 +315,8 @@ export function importAnkiJson(data: AnkiExport, opts: { now?: Date } = {}): Imp
   }
   if (notGenerated) {
     warnings.push(notGenerated === 1
-      ? "1 Omnilanguage card was skipped: Anki still has it, but its note's Generate field for that card type is turned off, so Franki doesn't make it. It stays in Anki as it is."
-      : `${notGenerated} Omnilanguage cards were skipped: Anki still has them, but their notes' Generate fields for those card types are turned off, so Franki doesn't make them. They stay in Anki as they are.`);
+      ? "Skipped 1 Omnilanguage card: its note's Generate field for that card type is off. It stays in Anki."
+      : `Skipped ${notGenerated} Omnilanguage cards: their notes' Generate fields for those card types are off. They stay in Anki.`);
   }
   if (data.collectionCreated === undefined && data.cards?.some((c) => c.type !== 0 && (c.due ?? 0) < TIMESTAMP_DUE)) {
     warnings.push('collectionCreated missing: review cards were set due now instead of their real due dates');

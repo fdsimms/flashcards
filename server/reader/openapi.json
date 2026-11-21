@@ -1231,7 +1231,7 @@
     "/api/texts/{text_id}/listen": {
       "post": {
         "summary": "Listened",
-        "description": "A finished text heard again with its words hidden. Only counted: no reading, no\ndifficulty change. 404 for a text that wasn't read to the end.",
+        "description": "A finished text heard again with its words hidden. Only counted: no reading, no\ndifficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen\nalready counted under it isn't counted twice.",
         "operationId": "listened_api_texts__text_id__listen_post",
         "parameters": [
           {
@@ -1260,6 +1260,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ListenIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -3803,6 +3820,55 @@
         }
       }
     },
+    "/api/lessons/{lesson_id}/heard": {
+      "post": {
+        "summary": "Heard Route",
+        "description": "Notes that the lesson was played to the end, so a later lesson may ask for its phrases.\nNever grades a card.",
+        "operationId": "heard_route_api_lessons__lesson_id__heard_post",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/review": {
       "post": {
         "summary": "Make Review Route",
@@ -4128,6 +4194,74 @@
                     }
                   },
                   "title": "Response Make Mnemonics Api Mnemonics Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/word-meaning": {
+      "post": {
+        "summary": "Word Meaning",
+        "description": "The meaning of a tapped word nothing glosses (Engine.define_word): the kept one, else\nClaude's, asked now. Never writes to Anki or grades a card.",
+        "operationId": "word_meaning_api_word_meaning_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordMeaningIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": "Response Word Meaning Api Word Meaning Post"
                 }
               }
             }
@@ -5526,6 +5660,63 @@
         }
       }
     },
+    "/api/word-lookup": {
+      "post": {
+        "summary": "Look Up",
+        "description": "Words for a meaning typed in English (Quick add's \"Don't know the word?\"). Only returns\nwords: a picked one is queued like any other.",
+        "operationId": "look_up_api_word_lookup_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordLookupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordLookupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/word-suggestions": {
       "get": {
         "summary": "Get Word Suggestions",
@@ -6194,6 +6385,29 @@
         ],
         "title": "FormExplainIn"
       },
+      "FoundWordOut": {
+        "properties": {
+          "entry": {
+            "type": "string",
+            "title": "Entry"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entry",
+          "meaning",
+          "note"
+        ],
+        "title": "FoundWordOut"
+      },
       "FrankiCountsIn": {
         "properties": {
           "due": {
@@ -6251,6 +6465,11 @@
             "maxLength": 1000,
             "title": "English",
             "default": ""
+          },
+          "parts": {
+            "type": "boolean",
+            "title": "Parts",
+            "default": false
           }
         },
         "type": "object",
@@ -6437,6 +6656,22 @@
             ],
             "title": "Particle"
           },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
           "phrases": {
             "anyOf": [
               {
@@ -6477,6 +6712,25 @@
           "english"
         ],
         "title": "LineOut"
+      },
+      "ListenIn": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          }
+        },
+        "type": "object",
+        "title": "ListenIn"
       },
       "MarkIn": {
         "properties": {
@@ -7261,6 +7515,22 @@
               }
             ],
             "title": "Cast"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
           }
         },
         "type": "object",
@@ -7351,6 +7621,37 @@
             "type": "boolean",
             "title": "Speak",
             "default": true
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",
@@ -7647,6 +7948,43 @@
             "type": "boolean",
             "title": "Stretch",
             "default": false
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Topic",
+            "default": ""
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",
@@ -7890,6 +8228,92 @@
           "text"
         ],
         "title": "WordIn"
+      },
+      "WordLookupIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "meaning": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Meaning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "meaning"
+        ],
+        "title": "WordLookupIn"
+      },
+      "WordLookupOut": {
+        "properties": {
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/FoundWordOut"
+            },
+            "type": "array",
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "words"
+        ],
+        "title": "WordLookupOut"
+      },
+      "WordMeaningIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "word": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Word"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "English",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "word"
+        ],
+        "title": "WordMeaningIn"
       },
       "WordOut": {
         "properties": {

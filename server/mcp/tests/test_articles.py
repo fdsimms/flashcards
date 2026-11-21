@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from franki_mcp.articles import ARTICLES, LANGUAGE_CODES, VERB_MARKERS, _LEADING, article_for, marker_for, with_article
+from franki_mcp.articles import ARTICLES, LANGUAGE_CODES, PLURAL_WORDS, VERB_MARKERS, _LEADING, article_for, marker_for, with_article
 
 GENDER_TS = Path(__file__).resolve().parents[3] / "src" / "core" / "gender.ts"
 
@@ -27,6 +27,17 @@ def test_french_elides_before_a_vowel_and_writes_it_with_no_space():
     assert with_article("le", "morceau") == "le morceau"
 
 
+def test_polish_and_russian_say_their_gender_word():
+    assert article_for("polish", "m", "wrzesień") == "ten"
+    assert article_for("Polski", "f", "woda") == "ta"
+    assert article_for("polish", "pl", "spodnie") == "te"
+    assert article_for("polish", "mpl", "ludzie") == "ci"
+    assert article_for("russian", "f", "кошка") == "эта"
+    assert article_for("polish", "m", "ten stół") is None
+    assert article_for("polish", "f", "te spodnie") is None
+    assert article_for("german", "pl", "Hosen") is None
+
+
 def test_an_entry_that_has_its_own_article_gets_no_second():
     for language, gender, entry in [
         ("spanish", "f", "el agua"), ("spanish", "m", "los modales"), ("french", "m", "l'homme"),
@@ -40,8 +51,6 @@ def test_nothing_for_no_gender_a_two_gender_noun_or_a_language_that_says_none():
     assert article_for("german", "", "Tisch") is None
     assert article_for("german", "m/f", "Tisch") is None
     assert article_for("spanish", "n", "x") is None
-    assert article_for("polish", "m", "mężczyzna") is None  # ten is a reminder, never said
-    assert article_for("russian", "f", "кошка") is None
     assert article_for("thai", "m", "x") is None
 
 
@@ -63,6 +72,13 @@ def test_the_table_matches_the_apps():
     said = set(re.findall(r"'(\w+)'", spoken.group(1)))
     assert ARTICLES == {lang: words for lang, words in app.items() if lang in said}
     assert said == set(ARTICLES)
+
+
+def test_the_plural_words_match_the_apps():
+    block = re.search(r"const PLURAL_PREFIXES[^=]*=\s*\{(.*?)\};", _ts(), re.S)
+    assert block
+    app = {lang: dict(re.findall(r"(\w+): '([^']+)'", body)) for lang, body in re.findall(r"(\w+): \{([^}]*)\}", block.group(1))}
+    assert app == PLURAL_WORDS
 
 
 def test_the_leading_articles_match_the_apps():

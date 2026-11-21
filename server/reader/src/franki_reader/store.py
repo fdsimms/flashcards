@@ -20,6 +20,8 @@ from franki_reader.generator import MODEL, Choice, Form, Generated, Line
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
 from franki_reader.lexicon import Entry, ReadDeck
 from franki_reader.recognition import Recognition
+from franki_reader.register import DEFAULT as DEFAULT_REGISTER
+from franki_reader.register import Register
 from franki_reader.study_day import DEFAULT_ROLLOVER, study_day
 from franki_reader.wanikani import ReadWaniKani, WaniKaniUnavailable, WaniKaniWord
 
@@ -283,6 +285,15 @@ CREATE TABLE IF NOT EXISTS word_meanings (
     batch_id INTEGER NOT NULL REFERENCES meaning_batches(id),
     PRIMARY KEY (language, word)
 );
+-- The meaning each word of a card's example sentence has in that sentence (meanings.py), by the
+-- sentence as the card shows it. An empty meaning is a word Claude gave nothing usable for.
+CREATE TABLE IF NOT EXISTS sentence_meanings (
+    language TEXT NOT NULL,
+    sentence TEXT NOT NULL,
+    word TEXT NOT NULL,
+    meaning TEXT NOT NULL,
+    PRIMARY KEY (language, sentence, word)
+);
 -- IPA written by Claude for words with none in Wiktionary's tables (ai_ipa.py), kept for the language
 -- by lower-case word. An empty ipa is a word Claude gave nothing usable for, so it isn't asked again.
 CREATE TABLE IF NOT EXISTS word_ipa (
@@ -489,6 +500,9 @@ class Settings:
     daily_tasks: dict[str, str] = field(default_factory=dict)
     # How many rotating languages get a task each study day.
     daily_rotate_count: int = 1
+    # How casual or formal the text Claude writes sounds, where a cram or a scene doesn't choose its
+    # own (register.py).
+    register: Register = DEFAULT_REGISTER
 
     def common_for(self, language: Code) -> int:
         return self.common.get(language, LANGUAGES[language].common)
@@ -521,6 +535,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
+    if "key" not in {r[1] for r in conn.execute("PRAGMA table_info(listens)")}:
+        # The app's own id for a listen, so one sent twice is counted once; none before it sent one.
+        conn.execute("ALTER TABLE listens ADD COLUMN key TEXT")
     if "roles" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Texts written before speakers had roles have none, and show only A and B.
         conn.execute("ALTER TABLE texts ADD COLUMN roles TEXT NOT NULL DEFAULT '{}'")
@@ -584,9 +601,19 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # Where the learner speaks in a lesson's MP3 (lesson_audio.Pause), as JSON; NULL for a lesson
         # made before they were kept, until lesson_service.find_old_pauses has listened for them.
         conn.execute("ALTER TABLE lessons ADD COLUMN pauses TEXT")
+    if "heard_at" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # When the app last said the lesson was played to the end; NULL until it has. A later
+        # lesson opens by asking for phrases of the lessons heard (lesson.earlier_phrases).
+        conn.execute("ALTER TABLE lessons ADD COLUMN heard_at TEXT")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
+    queue_columns = {r[1] for r in conn.execute("PRAGMA table_info(note_queue)")}
+    if "spelling" not in queue_columns:
+        # How a word typed the way it sounds is really written, and the other words it could be
+        # (JSON), when Claude filled it in (note_queue.Spelled); empty before 21 November 2026.
+        conn.execute("ALTER TABLE note_queue ADD COLUMN spelling TEXT NOT NULL DEFAULT ''")
+        conn.execute("ALTER TABLE note_queue ADD COLUMN alternatives TEXT NOT NULL DEFAULT '[]'")
     if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # Where a story's season is heading, in a few sentences; empty until an episode gives one.
         conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
@@ -1809,6 +1836,7 @@ CallFeature = Literal[
     "lesson_words",
     "topic_image",
     "rare_words",
+    "word_lookup",
 ]
 
 
@@ -1960,6 +1988,28 @@ def stretch_readings(
     return [(datetime.fromisoformat(logged_at), json.loads(stretch)) for logged_at, stretch in rows]
 
 
+def finished_readings(
+    conn: sqlite3.Connection, since: datetime, language: Code = "th"
+) -> list[tuple[datetime, tuple[str, ...], tuple[str, ...], dict[str, str]]]:
+    """Each text read to the end since `since`, oldest first: when (naive UTC, the engine's clock),
+    its lines as stored, the words tapped or marked in it, and its glosses (met.py)."""
+    rows = conn.execute(
+        """SELECT r.logged_at, x.lines, r.words_glossed, r.words_flagged, x.glosses FROM readings r
+           JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ? ORDER BY r.logged_at""",
+        (since.isoformat(), language),
+    )
+    return [
+        (
+            datetime.fromisoformat(logged_at),
+            tuple(ln["text"] for ln in json.loads(lines)),
+            (*json.loads(glossed), *json.loads(flagged)),
+            json.loads(glosses),
+        )
+        for logged_at, lines, glossed, flagged, glosses in rows
+    ]
+
+
 def practiced_since(conn: sqlite3.Connection, since: datetime, language: Code = "th") -> set[str]:
     """The words that were a stretch word in a text read at or after `since` (the start of the
     study day), so the next text can leave them for later (stretch.py, `today`)."""
@@ -2020,9 +2070,13 @@ def previous_check(
     return (row[0], row[1]) if row else None
 
 
-def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
+def log_listen(
+    conn: sqlite3.Connection, text_id: int, now: datetime, key: str | None = None
+) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
-    end (there's nothing to hear again), and nothing is kept."""
+    end (there's nothing to hear again), and nothing is kept. `key` is the app's id for this listen:
+    one already counted under it isn't counted again (the app sends a listen it held while offline
+    until it hears it arrived, so the same one can come twice)."""
     if (
         conn.execute(
             "SELECT 1 FROM readings WHERE text_id = ? AND finished = 1", (text_id,)
@@ -2030,9 +2084,12 @@ def log_listen(conn: sqlite3.Connection, text_id: int, now: datetime) -> bool:
         is None
     ):
         return False
+    if key and conn.execute("SELECT 1 FROM listens WHERE key = ?", (key,)).fetchone() is not None:
+        return True
     with conn:
         conn.execute(
-            "INSERT INTO listens (text_id, listened_at) VALUES (?, ?)", (text_id, now.isoformat())
+            "INSERT INTO listens (text_id, listened_at, key) VALUES (?, ?, ?)",
+            (text_id, now.isoformat(), key or None),
         )
     return True
 
@@ -2515,14 +2572,17 @@ def save_meaning_batch(
     texts: dict[int, dict[str, str]] | None = None,
     counts: tuple[int, int] | None = None,
     registers: dict[int, dict[str, str]] | None = None,
+    sentences: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """A batch of words Claude glossed for a language, as {lower-case word: meaning}, with its cost.
     A word it gave no usable meaning for is kept with an empty one, so it isn't asked again. The
     language keeps the first meaning a word was given, as the fallback for a text or a card's
-    sentence with none of its own. `texts` is the meanings each text was asked for, by text id,
+    sentence with none of its own; an empty one is replaced when a later ask (a tap on the word)
+    gets a usable meaning. `texts` is the meanings each text was asked for, by text id,
     added to that text's own (`StoredText.meanings`). `counts` is how many words the call asked about
     and how many it gave a meaning for, when one word was asked for in more than one text.
-    `registers` is the registers Claude gave, by text id and word, added to that text's own."""
+    `registers` is the registers Claude gave, by text id and word, added to that text's own.
+    `sentences` is the meanings each card sentence was asked for, by sentence and word."""
     texts = texts or {}
     registers = registers or {}
     with conn:
@@ -2554,9 +2614,20 @@ def save_meaning_batch(
             ),
         ).lastrowid
         conn.executemany(
-            "INSERT OR IGNORE INTO word_meanings (language, word, meaning, batch_id)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO word_meanings (language, word, meaning, batch_id) VALUES (?, ?, ?, ?)"
+            " ON CONFLICT (language, word) DO UPDATE SET meaning = excluded.meaning,"
+            " batch_id = excluded.batch_id"
+            " WHERE word_meanings.meaning = '' AND excluded.meaning != ''",
             [(language, word, meaning, batch) for word, meaning in meanings.items()],
+        )
+        conn.executemany(
+            "INSERT OR REPLACE INTO sentence_meanings (language, sentence, word, meaning)"
+            " VALUES (?, ?, ?, ?)",
+            [
+                (language, sentence, word, meaning)
+                for sentence, own in (sentences or {}).items()
+                for word, meaning in own.items()
+            ],
         )
 
 
@@ -2567,6 +2638,24 @@ def word_meanings(conn: sqlite3.Connection, language: Code) -> dict[str, str]:
             "SELECT word, meaning FROM word_meanings WHERE language = ?", (language,)
         ).fetchall()
     )
+
+
+def sentence_meanings(
+    conn: sqlite3.Connection, language: Code, sentences: list[str]
+) -> dict[str, dict[str, str]]:
+    """What each of `sentences` (as a card shows it) has been asked, as {sentence: {lower-case word:
+    meaning}}; a sentence never asked about is left out."""
+    found: dict[str, dict[str, str]] = {}
+    for i in range(0, len(sentences), 500):
+        chunk = sentences[i : i + 500]
+        rows = conn.execute(
+            "SELECT sentence, word, meaning FROM sentence_meanings WHERE language = ?"
+            f" AND sentence IN ({','.join('?' * len(chunk))})",
+            (language, *chunk),
+        )
+        for sentence, word, meaning in rows:
+            found.setdefault(sentence, {})[word] = meaning
+    return found
 
 
 def save_word_ipa(
@@ -2655,9 +2744,16 @@ class QueuedNote:
     error: str
     attempts: int
     tried_at: datetime | None
+    # How the entry is really written, when it was typed some other way, else empty; and the other
+    # words it could be, as {"spelling", "meaning"} (note_queue.Spelled).
+    spelling: str = ""
+    alternatives: list[dict[str, str]] = field(default_factory=list)
 
 
-_QUEUE_COLUMNS = "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at"
+_QUEUE_COLUMNS = (
+    "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at, spelling,"
+    " alternatives"
+)
 
 
 def _queued(row: tuple[Any, ...]) -> QueuedNote:
@@ -2672,6 +2768,8 @@ def _queued(row: tuple[Any, ...]) -> QueuedNote:
         row[7],
         row[8],
         datetime.fromisoformat(row[9]) if row[9] else None,
+        row[10],
+        json.loads(row[11]),
     )
 
 
@@ -2682,10 +2780,23 @@ def add_queued(
     entries: list[tuple[str, str]],
     now: datetime,
 ) -> list[int]:
-    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given."""
+    """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given.
+
+    A word already in the queue for that deck with the same meaning isn't added again, and its
+    row's id is returned: the app sends words it held while offline until it hears they arrived, so
+    the same ones can come twice (an answer lost on the way back) and would each be a note to
+    review. The same word with another meaning is a row of its own."""
     ids: list[int] = []
     with conn:
         for entry, meaning in entries:
+            there = conn.execute(
+                "SELECT id FROM note_queue WHERE language = ? AND deck = ? AND entry = ?"
+                " AND meaning = ? ORDER BY id LIMIT 1",
+                (language, deck, entry, meaning),
+            ).fetchone()
+            if there is not None:
+                ids.append(there[0])
+                continue
             cursor = conn.execute(
                 "INSERT INTO note_queue (language, deck, entry, meaning, created_at)"
                 " VALUES (?, ?, ?, ?, ?)",
@@ -2744,6 +2855,8 @@ def save_queue_result(
     error: str,
     now: datetime,
     cost_usd: float,
+    spelling: str = "",
+    alternatives: list[dict[str, str]] | None = None,
 ) -> None:
     """What came of one word's turn: its filled fields (ready), or why not (failed). A word still waiting
     or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is. The
@@ -2751,13 +2864,16 @@ def save_queue_result(
     with conn:
         updated = conn.execute(
             "UPDATE note_queue SET state = ?, fields = ?, error = ?, attempts = attempts + 1,"
-            " tried_at = ?, cost_usd = cost_usd + ? WHERE id = ? AND state IN ('waiting', 'failed')",
+            " tried_at = ?, cost_usd = cost_usd + ?, spelling = ?, alternatives = ?"
+            " WHERE id = ? AND state IN ('waiting', 'failed')",
             (
                 "ready" if fields is not None else "failed",
                 json.dumps(fields or {}, ensure_ascii=False),
                 "" if fields is not None else error,
                 now.isoformat(),
                 cost_usd,
+                spelling,
+                json.dumps(alternatives or [], ensure_ascii=False),
                 note_id,
             ),
         ).rowcount
@@ -2953,6 +3069,42 @@ def lessons(conn: sqlite3.Connection, language: Code | None = None) -> list[Stor
         (language,) if language else (),
     ).fetchall()
     return [_lesson(r) for r in rows]
+
+
+def mark_lesson_heard(conn: sqlite3.Connection, lesson_id: int, now: datetime) -> bool:
+    """Notes that the lesson was played to the end; False when there's no such lesson. Heard again,
+    it takes the newer time, so it counts as the lesson heard last."""
+    with conn:
+        changed = conn.execute(
+            "UPDATE lessons SET heard_at = ? WHERE id = ?", (now.isoformat(), lesson_id)
+        ).rowcount
+    return changed > 0
+
+
+def heard_lesson_phrases(
+    conn: sqlite3.Connection, language: Code, apart_from: int
+) -> list[list[tuple[str, str]]]:
+    """The phrases (text, English) of each lesson of `language` played to the end, the one heard
+    last first, leaving out lesson `apart_from` (the one being made)."""
+    rows = conn.execute(
+        "SELECT plan FROM lessons WHERE language = ? AND id != ? AND state = 'ready'"
+        " AND heard_at IS NOT NULL ORDER BY heard_at DESC, id DESC",
+        (language, apart_from),
+    ).fetchall()
+    found: list[list[tuple[str, str]]] = []
+    for (plan,) in rows:
+        try:
+            phrases = json.loads(plan).get("phrases") or []
+        except (ValueError, AttributeError):
+            continue
+        found.append(
+            [
+                (p["text"], p["english"])
+                for p in phrases
+                if isinstance(p, dict) and p.get("text") and p.get("english")
+            ]
+        )
+    return found
 
 
 def delete_lesson(conn: sqlite3.Connection, lesson_id: int) -> bool:

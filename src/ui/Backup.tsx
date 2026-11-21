@@ -8,6 +8,8 @@ import { failureText } from '../core/failure';
 import { backupCardText, backupFileName, backupProgress, BACKUP_REMINDER_DAYS, fileUriToPath, type BackupInfo } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
+import { autoBackupPath, makeAutoBackup } from './autoBackup';
+import { AutoBackups } from './AutoBackups';
 import { saveBackupReminder, useBackupReminderOn } from './backupReminder';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, MessageList, ProgressBar, Screen, SwitchRow } from './kit';
@@ -122,12 +124,12 @@ export function Backup({ store, syncOn, onBackedUp }: {
     if (res.canceled) return;
     const asset = res.assets[0];
     Alert.alert(
-      'Replace everything with this backup?',
+      `Restore ${asset.name}?`,
       `Your decks, cards and review history on this iPhone will be replaced by the ones in ${asset.name}. This can't be undone, so back up first if you want to keep them.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Replace',
+          text: 'Restore',
           style: 'destructive',
           onPress: () => run('restore', async () => {
             try {
@@ -135,6 +137,31 @@ export function Backup({ store, syncOn, onBackedUp }: {
               say(`Restored ${asset.name}: ${plural(notes, 'note', 'notes')}, ${plural(cards, 'card', 'cards')}${media ? `, ${plural(media, 'image or sound', 'images and sounds')}` : ''}.`);
             } catch (e: any) {
               say(failureText(e, { what: `Couldn't restore ${asset.name}.`, next: 'Try again.' }));
+            }
+          }),
+        },
+      ],
+    );
+  };
+
+  // A copy of what's here now is made first (never pruned by this restore, so the one picked
+  // stays), which makes the restore something that can be gone back on from the same list.
+  const restoreAutomatic = (name: string, label: string) => {
+    Alert.alert(
+      `Restore the backup from ${label}?`,
+      "Your decks, cards and review history on this iPhone will be replaced by the ones in this backup. Images and sounds stay as they are. A backup of what's here now is made first, so you can go back to it.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: () => run('restore', async () => {
+            try {
+              await makeAutoBackup(store, {});
+              const { notes, cards } = await store.restoreFrom(autoBackupPath(name));
+              say(`Restored the backup from ${label}: ${plural(notes, 'note', 'notes')}, ${plural(cards, 'card', 'cards')}.`);
+            } catch (e: any) {
+              say(failureText(e, { what: `Couldn't restore the backup from ${label}.`, next: 'Try again.' }));
             }
           }),
         },
@@ -173,11 +200,12 @@ export function Backup({ store, syncOn, onBackedUp }: {
           <SwitchRow
             first
             label="Remind me to back up"
-            hint={reminderOn ? `An evening notification when the last backup is ${BACKUP_REMINDER_DAYS} days old.` : `A notification in the evening once the last backup is ${BACKUP_REMINDER_DAYS} days old.`}
+            hint={`An evening notification once the last backup is ${BACKUP_REMINDER_DAYS} days old.`}
             value={!!reminderOn}
             onValueChange={turnReminder}
           />
         </Group>
+        <AutoBackups dayStartsAtHour={dayStartsAtHour} onRestore={restoreAutomatic} disabled={busy !== null} />
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
           <Help>Replace everything on this iPhone with a backup, e.g. after reinstalling the app or on a new phone.</Help>

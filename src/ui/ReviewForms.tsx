@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Switch, Text, View } from 'react-native';
 import { studyDayStart } from '../core/day';
 import {
@@ -7,20 +7,18 @@ import {
   type DrillRequest, type FormsSuggestion, type PracticeRecord,
 } from '../core/forms';
 import { heldCards, lookalikeIndex, lookalikeSettings, seenEvents, soonerOffer, whenSeen, type SeenEvent } from '../core/lookalikes';
+import { heldReverseCards } from '../core/reverseHold';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from '../core/types';
 import type { Repo } from '../db/repo';
 import { haptic } from './haptics';
 import { Button, Card as Box, Help } from './kit';
 import { MIN_TAP, space, type, useTheme } from './theme';
 
-/** Prompts per word when practicing the words gathered at the end of a session. */
-const SESSION_END_PROMPTS = 3;
-
 /**
  * Review's forms practice and lookalikes, kept beside Review rather than inside it: practice and
  * the last week's answers (loaded again whenever Review comes back into view, as after a drill),
  * the cards held back because a lookalike was just seen, the offer to show a card sooner, the
- * suggestion to practice a word's forms, and the words gathered for the end of the session.
+ * and the suggestion to practice a word's forms.
  */
 export function useReviewForms(repo: Repo, input: {
   cards: Card[] | null;
@@ -40,8 +38,7 @@ export function useReviewForms(repo: Repo, input: {
   const [shown, setShown] = useState<{ card?: Card; note?: Note; revealed: boolean }>({ revealed: false });
   const [practice, setPractice] = useState<PracticeRecord[]>([]);
   const [recent, setRecent] = useState<ReviewLogEntry[]>([]);
-  // Suggested this session, put off with "Later today", and the cards whose "Show sooner" was turned off.
-  const [suggested, setSuggested] = useState<Map<string, FormsSuggestion>>(new Map());
+  // Put off with "Later today", and the cards whose "Show sooner" was turned off.
   const [later, setLater] = useState<Set<string>>(new Set());
   const [notSooner, setNotSooner] = useState<Set<string>>(new Set());
 
@@ -60,7 +57,8 @@ export function useReviewForms(repo: Repo, input: {
   const lastHeld = useRef<Set<string> | undefined>(undefined);
   const held = useMemo(() => {
     if (settling && lastHeld.current) return lastHeld.current;
-    lastHeld.current = cards ? heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }) : undefined;
+    // With them, a new reverse card whose word isn't recognized yet (`heldReverseCards`), as `loadHeld` holds it.
+    lastHeld.current = cards ? new Set([...heldCards({ cards, deckOf, index, events: seen, settings: deckSettings, now, dayStartsAtHour: H }), ...heldReverseCards(cards, notes.values())]) : undefined;
     return lastHeld.current;
   }, [cards, deckOf, index, seen, deckSettings, now, H, settling]);
 
@@ -78,18 +76,7 @@ export function useReviewForms(repo: Repo, input: {
       introducedAt: introduced.get(note.id), now, dayStartsAtHour: H,
     });
   }, [note, revealed, later, deckSettings, practice, introduced, now, H]);
-  // Gathered for the end of the session, whether it's practiced now, put off, or passed by.
-  useEffect(() => {
-    if (note && suggestion) setSuggested((m) => (m.get(note.id)?.detail === suggestion.detail ? m : new Map(m).set(note.id, suggestion)));
-  }, [note, suggestion]);
   const soonerOn = !!card && !notSooner.has(card.id);
-
-  // Gathered for the end of the session: suggested, and not practiced since the session began.
-  const today = studyDayStart(now, H).toISOString();
-  const toCheck = [...suggested.entries()]
-    .filter(([id]) => !practice.some((p) => p.noteId === id && p.practicedAt >= today))
-    .map(([id, s]) => ({ note: notes.get(id), suggestion: s }))
-    .filter((x): x is { note: Note; suggestion: FormsSuggestion } => !!x.note);
 
   return {
     held,
@@ -102,7 +89,6 @@ export function useReviewForms(repo: Repo, input: {
     countFrom: offer && soonerOn ? offer.at : undefined,
     soonerOn,
     suggestion,
-    toCheck,
     /** A seen word for lookalikes: called after each answer is written. */
     answered: (entry: ReviewLogEntry) => setRecent((r) => [...r, entry]),
     /**
@@ -123,9 +109,9 @@ export function useReviewForms(repo: Repo, input: {
       if (!card) return;
       setNotSooner((s) => { const out = new Set(s); if (on) out.delete(card.id); else out.add(card.id); return out; });
     },
-    /** The drill for one word, or for the words gathered at the end of the session. */
-    drillFor: (noteIds: string[], deck: string): DrillRequest => ({
-      kind: 'words', noteIds, perWord: noteIds.length === 1 ? formsSettings(deck, deckSettings).prompts : SESSION_END_PROMPTS,
+    /** The drill for one word. */
+    drillFor: (noteId: string, deck: string): DrillRequest => ({
+      kind: 'words', noteIds: [noteId], perWord: formsSettings(deck, deckSettings).prompts,
     }),
     /**
      * What `AnswerExtras` shows about the offer. `goodIn` is when Good would bring the card back,
@@ -165,7 +151,7 @@ export function AnswerExtras(props: {
             <Text style={{ ...type.headline, color: c.text }}>
               {offer.how === 'practice' ? `You practiced ${offer.word}'s forms ${offer.when}` : `You saw ${offer.word} ${offer.when}`}
             </Text>
-            <Help>{`It looks a lot like ${props.word}, so it may have reminded you of this answer. If so, you may not know this word as well as it seemed.`}</Help>
+            <Help>{`It looks a lot like ${props.word}, which may have given the answer away.`}</Help>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
             <View style={{ flex: 1, gap: 2 }}>
@@ -189,30 +175,5 @@ export function AnswerExtras(props: {
         </Box>
       ) : null}
     </View>
-  );
-}
-
-/** At the end of a session: the words suggested for forms practice and not practiced yet, each with its reason. */
-export function FormsCheck({ items, onPractice }: { items: { note: Note; suggestion: FormsSuggestion }[]; onPractice: () => void }) {
-  const c = useTheme();
-  if (!items.length) return null;
-  return (
-    <Box style={{ alignSelf: 'stretch', gap: space.s, marginTop: space.xl }}>
-      <Text style={{ ...type.headline, color: c.text }}>
-        {items.length === 1 ? '1 word from today could use some grammar practice' : `${items.length} words from today could use some grammar practice`}
-      </Text>
-      <Help>{`About ${items.length === 1 ? 'a minute' : `${items.length} minutes`}. It doesn't change any card's due date.`}</Help>
-      {items.map(({ note, suggestion }) => (
-        <View key={note.id} style={{ gap: 2, paddingTop: space.s }}>
-          <Text style={{ ...type.headline, color: c.text }}>{headword(note)}</Text>
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>{suggestion.detail}</Text>
-        </View>
-      ))}
-      <Button
-        label={items.length === 1 ? 'Practice its forms' : `Practice these ${items.length} words`}
-        style={{ minHeight: MIN_TAP, marginTop: space.s }}
-        onPress={onPractice}
-      />
-    </Box>
   );
 }

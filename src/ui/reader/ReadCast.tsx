@@ -70,7 +70,7 @@ export function ReadCast({ api, language, cast, narrator, onSettings, onPick }: 
           ))}
         </Group>
         <Help>
-          {`A series gives its first man, woman, boy, girl and so on the voice chosen here, and the character keeps it in every episode. A second of the same kind gets a voice and pitch nobody else in the series has. A series already running keeps the voices it has given out. The narrator uses the man's voice.`}
+          {`The first character of each kind in a series gets the voice chosen here and keeps it in every episode. A second of the same kind gets a different voice. Characters who already have a voice keep it. The narrator uses the man's voice.`}
         </Help>
         <Button label="Reset to defaults" variant="secondary" onPress={reset} busy={resetting} />
       </ScrollView>

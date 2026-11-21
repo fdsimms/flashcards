@@ -31,6 +31,6 @@ export function newCardOrderOf(deck: string, params: Map<string, DeckParams>): N
 
 /** What a change to the order says it also changes, for the line under the options. */
 export function newCardOrderNote(sharedWith: number): string {
-  const others = sharedWith === 0 ? '' : `This is an Anki options preset that ${sharedWith === 1 ? '1 other deck uses' : `${sharedWith} other decks use`} too, so the change applies to ${sharedWith === 1 ? 'it' : 'them'} as well. `;
+  const others = sharedWith === 0 ? '' : `${sharedWith === 1 ? '1 other deck uses' : `${sharedWith} other decks use`} these options too, so the change applies to ${sharedWith === 1 ? 'it' : 'them'} as well. `;
   return `${others}It syncs to your other devices.`;
 }

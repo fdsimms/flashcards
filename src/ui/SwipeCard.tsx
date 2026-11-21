@@ -11,8 +11,10 @@ import { LanguagePill, type CardLanguage } from './LanguagePill';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, color, language }: {
+export function CardSurface({ children, color, language, top = space.xxl }: {
   children: React.ReactNode;
+  /** The gap above the card (under a progress bar, say). */
+  top?: number;
   /** Fills the card instead of the theme's surface (WaniKani's subject colors). */
   color?: string;
   /** The language a card in a mixed deck belongs to: a wash of its deck's tint behind the card's content, and its name at the top. */
@@ -22,7 +24,7 @@ export function CardSurface({ children, color, language }: {
   return (
     <View
       style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        flex: 1, marginHorizontal: space.l, marginTop: top, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: color ? undefined : c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
       }}
     >
@@ -41,10 +43,10 @@ export type CardMotion = {
   /** An answer was given: the card washes over in its button's color and fades back, over the next card. */
   flash: (rating: RatingValue) => void;
 };
-
+/** How strong an answer's flash starts, and how long it takes to fade. It washes over the next card so the color can be registered after the tap; much longer than this and that card reads as slow to arrive. */
 /** How strong an answer's flash starts (the swipe tint's own peak), and how long it takes to fade. It washes over the next card, so a long fade reads as that card being slow to arrive. */
-const FLASH_PEAK = 0.22;
-const FLASH_MS = 120;
+const FLASH_PEAK = 0.35;
+const FLASH_MS = 350;
 const FILL = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const;
 
 /**

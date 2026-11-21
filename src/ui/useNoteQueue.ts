@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { ApiError, type Api, type Language, type NoteQueue } from '../reader/api';
+import { OfflineError } from '../core/connection';
 import { isOffline } from '../core/held';
 import { holdWords } from '../reader/heldNotes';
 import { noteQueueStore } from '../reader/noteQueueStore';
@@ -14,7 +15,7 @@ const POLL_MS = 4000;
 // comes back to the front, and keeps looking only while some word is still waiting to be filled in.
 const poll = { api: null as Api | null, users: 0, token: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined };
 
-const reason = (e: unknown) => (e instanceof ApiError ? e.message : "Couldn't reach the server. Check your connection and try again.");
+const reason = (e: unknown) => (e instanceof ApiError ? e.message : new OfflineError().message);
 const anyWaiting = (queue: NoteQueue | null) => !!queue?.items.some((n) => n.state === 'waiting');
 
 // A change made here (a word added, retried or removed) makes a look already on its way out of date:

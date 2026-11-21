@@ -82,3 +82,12 @@ describe('a time in Norwegian', () => {
     expect(() => sayNorwegianTime({ hour: 3, minute: 60 })).toThrow(RangeError);
   });
 });
+
+describe('twenty past and twenty to', () => {
+  it('are also said from the hour', () => {
+    expect(everyday(14, 20)).toBe('ti på halv tre');
+    expect(also(14, 20)).toContain('tjue over to');
+    expect(everyday(14, 40)).toBe('ti over halv tre');
+    expect(also(14, 40)).toContain('tjue på tre');
+  });
+});

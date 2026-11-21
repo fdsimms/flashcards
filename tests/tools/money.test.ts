@@ -92,3 +92,9 @@ describe('a price typed after hearing it', () => {
     expect(parseTypedAmount('12,,49', EUR)).toBeUndefined();
   });
 });
+
+describe('Norwegian kroner', () => {
+  it('pays 50 kr with its banknote', () => {
+    expect(breakDown(5000, CURRENCIES.NOK).map((p) => p.value)).toEqual([5000]);
+  });
+});

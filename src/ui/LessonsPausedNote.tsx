@@ -5,7 +5,7 @@ import { smooth, space, type, useTheme } from './theme';
 
 /**
  * Said under "Reviews done" when the Apprentice limit is holding lessons back: how many items are
- * at Apprentice against the limit, and what makes lessons start again. The count can be above the
+ * at Apprentice against the limit. The count can be above the
  * limit (a missed item drops back to Apprentice), so the bar runs to the larger of the two and
  * marks the limit on it, with what's past the limit in a darker segment.
  */
@@ -19,7 +19,7 @@ export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; l
     <Card style={{ alignSelf: 'stretch', marginTop: space.l }}>
       <View
         accessible
-        accessibilityLabel={`Lessons paused. ${apprentice} at Apprentice, limit ${limit}. Lessons resume once some of these move up to Guru.`}
+        accessibilityLabel={`Lessons paused. ${apprentice} at Apprentice, limit ${limit}.`}
         style={{ gap: space.m }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
@@ -44,7 +44,6 @@ export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; l
             <Text style={{ ...type.footnote, fontWeight: '600', color: c.text, fontVariant: ['tabular-nums'] }}>{`Limit ${limit}`}</Text>
           </View>
         </View>
-        <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>Lessons resume once some of these move up to Guru.</Text>
       </View>
     </Card>
   );

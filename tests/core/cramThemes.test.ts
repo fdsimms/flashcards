@@ -91,7 +91,7 @@ describe('themesToAvoid', () => {
   it('lists what is on screen, then every cram name and theme newest first, once each, ignoring case', () => {
     const crams = [
       cram({ id: 'a', name: 'At the bank', createdAt: new Date(2026, 10, 1).toISOString() }),
-      cram({ id: 'b', name: 'Lesson 4', createdAt: new Date(2026, 10, 5).toISOString(), theme: { title: 'At the BANK', questions: [] } }),
+      cram({ id: 'b', name: 'Lesson 4', createdAt: new Date(2026, 10, 5).toISOString(), themes: [{ title: 'At the BANK', questions: [] }] }),
     ];
     expect(themesToAvoid(crams, ['Taxis', '  Taxis '])).toEqual(['Taxis', 'At the BANK', 'Lesson 4']);
   });
@@ -112,12 +112,21 @@ describe('the request, a theme and its story', () => {
     questions: [{ text: 'q', english: 'e' }], story: { text: 'ฉันสั่งอาหาร', english: 'I order food' },
   };
   it('sends every word with its id and why it is there', () => {
-    expect(themesRequest('th', words, ['Money: x'], ['Taxis'], true)).toEqual({
+    expect(themesRequest('th', words, ['Money: x'], ['Taxis'], true, '  My violin\n recital ')).toEqual({
       language: 'th',
       words: [{ id: 'a', text: 'สั่ง', english: 'order', kind: 'carried' }, { id: 'b', text: 'เผ็ด', english: 'spicy', kind: 'missed' }, { id: 'c', text: 'จาน', english: 'plate', kind: 'deck' }],
-      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true,
+      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true, topic: 'My violin recital',
     });
+    expect(themesRequest('th', words, [], [], false, 'x', 'formal').register).toBe('formal');
+    expect('register' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
   });
+
+  it('sends the polite ending for Thai only', () => {
+    expect(themesRequest('th', words, [], [], false, 'x', undefined, 'kha').particle).toBe('kha');
+    expect('particle' in themesRequest('pl', words, [], [], false, 'x', undefined, 'kha')).toBe(false);
+    expect('particle' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
+  });
+
   it("counts a theme's words by kind and finds the ones still here", () => {
     expect(themeCounts(theme, words)).toEqual({ carried: 1, missed: 0, fresh: 0, deck: 1, new: 1 });
     expect(themeDeckWords(theme, words).map((w) => w.noteId)).toEqual(['c', 'a']);

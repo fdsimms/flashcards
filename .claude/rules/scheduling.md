@@ -36,7 +36,12 @@ last answer as Anki does** (`daysSinceLastReview`): to the end of today's study 
 own count between UTC dates, which made a step across UTC midnight a day's wait. Each deck's preset steps apply, else Anki's defaults. A
 relearning card keeps the interval its lapse gave it (`relearnDays`), as Anki's does. A step crossing into a
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
-review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so.
+review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so. **The
+tag comes off once the word has recovered** (`leechRecovered`, `src/core/leechRecovery.ts`): every
+studied card of the note is an unsuspended review scheduled `LEECH_RECOVERED_DAYS` (21) or more out.
+Anki never removes it; Franki does because its Leeches filter, Trouble and cram read the tag as a
+live signal. Undo puts the tag back (`leechClearedNoteId`). **The mnemonic is asked for at the fourth
+miss too** (`asksEarlyHint`, `src/core/leechHint.ts`), once, with no tag: the threshold comes many failed reviews late.
 
 **Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
 the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
@@ -64,6 +69,14 @@ position for new cards). A card is always scheduled with **its own home** deck's
 (`cardHomeDeck`), never the parent being studied, and is studied in the deck it's in
 (`cardDeck`): an Anki filtered deck takes its cards out of their home decks.
 
+**A session keeps the order its queue started in** (`keepSessionOrder`, `src/core/session.ts`, used by
+`Review`). The screen rebuilds the queue after every answer, and the mix spaces new cards by how many
+cards are left, so rebuilt from scratch the card on top is a new one only once fewer reviews remain than
+new cards (150 reviews came before the first). Anki builds the queue once and pops from it; the rebuild
+keeps each queued card's place, drops what left, and puts a card that wasn't queued before after the
+card ahead of it in the rebuilt order. Learning steps around the mixed stretch (`Queue.main`) are timed
+and always come from the rebuild.
+
 **Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
 Anki's cards are counted from the kept collection's review log, which holds answers synced from
 AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
@@ -82,6 +95,14 @@ predicts what another code path will do calls that code path's function; don't w
 Anything that leaves cards out goes in through `queueInput` too, for both: lookalikes of a word just
 seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by
 `useReviewForms` in Review, and a card held in one but not the other shows a count the deck can't open with.
+
+**Skill cards' reviews sit outside the limits; their new cards share the new limit** (`isSkillNote`, `src/core/skillTag.ts`):
+a note tagged `skill` uses no review room, is offered whatever review room is left, adds no review to today's
+studied counts (`studiedToday`, `answerCounts`), isn't counted by a progress gate (`inProgressCount`) and isn't
+in a deck's `unstudied` count. A *new* skill card takes new room like a word and its first answer counts as
+introduced, down the whole path, so a skills subdeck can't offer a language deck more new cards than that
+deck's limit. Every
+one of those reads `TreeQueueInput.skillCards` (`skillCardIds`), which is required so a new caller has to decide.
 
 **A progress gate limits a deck's new cards by what's in progress** (`DeckSettings.gateCap`, set on
 Deck options): new cards come in only while fewer than the cap are in progress in that deck and its
@@ -103,14 +124,20 @@ does. `listDeckSettings` applies it over the phone's row without the lock, and `
 writes it there under the lock; a deck Anki doesn't have, and a gate saved before this moved, stay
 in the phone's row until the next read moves them. **The new card order** (Deck options) is the Anki
 preset's own option: `setNewCardOrder` writes it into the kept collection first, as every deck on that
-preset and every device must agree, and sync sends it (`deckConfigJson`).
+preset and every device must agree, and sync sends it (`deckConfigJson`). **Anki options** (Deck options; `presetService.ts`) do the same for the
+preset's daily limits, steps, maximum interval and desired retention, and list every deck the change
+reaches first; a deck's own Anki limits and retention (Deck.Normal) still win over the preset's.
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
 (`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and
 the review screen agree, and the setting is the phone's own (Keychain), never written to Anki. Nothing
-shifts a due date or adds a review: FSRS must see the real time since each review. After it ends the
-weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
+shifts a due date or adds a review: FSRS must see the real time since each review. After it ends nothing
+of its own applies. **While a review from an earlier study day waits, reviews come likeliest-remembered first**
+(`isBehind`, `src/core/order.ts`; the owner's choice, 21 November 2026), after a vacation or any days away, so what a
+session doesn't reach is what was already slipping; the preset's review order returns once nothing older than today waits.
+**A new reverse or audio card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
+the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it.
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
 Cram): until a running cram's day, a review of one of its words (or a day-long learning step) isn't
@@ -119,13 +146,29 @@ passes `capDays` to `review`, which shortens the interval after fuzz and balanci
 the stored interval and the revlog agree), and `capCramCards` moves reviews already scheduled later
 with Set Due Date (memory state kept, a Manual revlog entry, as Anki writes; one at a time, and
 never a review with no last answer, whose memory state Set Due Date would make up). FSRS still sees the
-real time between reviews; it just gets one sooner. A cram's rounds are practice: their Missed it /
-Got it stay in the cram (`cramRound.ts` imports nothing that schedules, `tests/core/cramRound.test.ts`).
+real time between reviews; it just gets one sooner. A cram's practice (any time, as often as wanted)
+is never a rating: its Missed it / Got it stay in the cram (`cramRound.ts` imports nothing that
+schedules, `tests/core/cramRound.test.ts`). **A new note joins only running crams in its own
+language** (`runningCramTags`, the note editor and Approve all), or a batch approved in one
+language lands in every running cram.
+
+**A mini cram is practice, never a rating** (`src/core/miniCram.ts`, `useMiniCram`, Review's "Cram this card"):
+a card marked during a review comes back three more times in that session (after about 3, 7 and 12
+other cards, held in memory only). Its own answer reaches FSRS once, as always; a return is Missed it /
+Got it, which write no review row, change no counts and aren't in undo, and a real answer to a marked
+card (a learning step coming due) counts as a return unless it was Again. Nothing in the module may
+import what schedules (`tests/core/miniCram.test.ts`).
+WaniKani's review has the same toggle (`WaniKaniReview.tsx`, keyed by assignment): a return asks the
+question the item was last asked, nothing is sent to WaniKani, and it isn't in undo.
 
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
 answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
+**The menu's bury, suspend, flag, Set Due Date and Forget join the same Undo** (`CardAction`, `nextUndo`):
+the latest thing done comes off first, whichever kind, as in Anki. Undo puts the card rows back
+exactly (mod and usn too), deletes the Manual review log row and restores `nextPos`
+(`src/anki/cardUndo.ts`), and is refused once a sync has given those rows the server's usn.
 
 **Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
 on a new word's first answer (`src/core/activeRecall.ts`), Similar words (`src/tools/mixups.ts`)
@@ -134,13 +177,17 @@ Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations
 (`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
 but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
 to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
-hears what was said, not how.
+hears what was said, not how. A word typed with letters wrong outlines Again (`typedMiss`), as a skill
+drill outlines its rating: Hard on a word that wasn't produced counts as remembered. A spoken one never does.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
 takes it back with the answer. The "Last time" line is read from those rows each time, never
 stored. Nothing in `src/core/scheduler.ts` or the queue may read it, and it isn't written into the
-Anki collection.
+Anki collection. **A missed sense is a miss reason kept with any rating** (`src/core/senseMarks.ts`):
+on an answer that shows a numbered Meaning, the senses tapped as missed go in the same column
+(`sense:2`), and the next front says one was missed, never which, read from the card's latest answer.
+With a sense marked Again is outlined, and the rating is still the learner's tap.
 
 **A confused-word link is practice, never an input to scheduling.** Words linked as mixed up
 (`src/core/confusedPairs.ts`, the `confused_pairs` table) are shown on the answer side and asked in

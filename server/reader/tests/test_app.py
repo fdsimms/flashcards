@@ -69,6 +69,11 @@ def test_health_needs_no_passphrase() -> None:
     assert client().get("/health").json() == {"status": "ok"}
 
 
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_the_schema_pages_are_not_served(path: str) -> None:
+    assert client().get(path).status_code == 404
+
+
 @pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer nope"}, {"Authorization": "x"}])
 def test_api_routes_refuse_a_missing_or_wrong_passphrase(headers: dict[str, str]) -> None:
     c = client()
@@ -429,6 +434,15 @@ CAST = {
 }
 
 
+def test_the_register_setting_defaults_to_everyday_and_can_be_changed() -> None:
+    c = client()
+    assert c.get("/api/settings", headers=AUTH).json()["register"] == "everyday"
+    changed = c.patch("/api/settings", headers=AUTH, json={"register": "formal"})
+    assert changed.json()["register"] == "formal"
+    assert c.get("/api/settings", headers=AUTH).json()["register"] == "formal"
+    assert c.patch("/api/settings", headers=AUTH, json={"register": "slang"}).status_code == 422
+
+
 def test_the_stretch_setting_can_be_read_and_changed() -> None:
     c = client()
     assert c.get("/api/settings", headers=AUTH).json() == {
@@ -442,6 +456,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -455,6 +470,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
@@ -467,6 +483,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -617,6 +634,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 
@@ -1625,6 +1643,24 @@ def test_a_finished_text_is_offered_to_hear_again_the_next_day_and_counted_once_
     assert c.get("/api/progress", headers=AUTH).json()["finished"] == 1
 
 
+def test_a_listen_sent_twice_under_one_key_is_counted_once() -> None:
+    now = [NOW]
+    c = relisten_client(now)
+    read(c, "about_right", [])
+    now[0] = NOW + timedelta(days=1)
+    text_id = c.get("/api/relisten", headers=AUTH).json()[0]["id"]
+    url = f"/api/texts/{text_id}/listen"
+    for _ in range(2):
+        assert c.post(url, json={"key": "m1x-abc"}, headers=AUTH).status_code == 204
+    # Its next listen is 3 days on: counted twice, the one after (10 days) would be asked for instead.
+    now[0] = NOW + timedelta(days=5)
+    assert len(c.get("/api/relisten", headers=AUTH).json()) == 1
+    # Another key, or none, is another listen.
+    assert c.post(url, json={"key": "m1x-def"}, headers=AUTH).status_code == 204
+    assert c.post(url, headers=AUTH).status_code == 204
+    assert c.post(url, json={"key": ""}, headers=AUTH).status_code == 422
+
+
 def test_a_text_never_read_to_the_end_cannot_be_counted_as_heard() -> None:
     c = relisten_client([NOW])
     topic = c.post("/api/topics", json={"name": "Food stall"}, headers=AUTH).json()
@@ -1877,3 +1913,16 @@ def test_several_stories_run_and_any_running_one_can_be_pinned_to_the_card() -> 
         True,
         True,
     ]
+
+
+def test_glosses_split_a_headword_into_its_parts_and_ask_for_the_meaning_of_each() -> None:
+    c = client()
+    body = {"language": "th", "sentences": [{"text": "ความคิด", "english": "idea", "parts": True}]}
+    out = c.post("/api/glosses", json=body, headers=AUTH).json()
+    assert out["ready"] is True
+    assert [w["text"] for w in out["sentences"][0]] == ["ความ", "คิด"]
+    # Without the flag it is segmented as a sentence is, which keeps a compound whole.
+    whole = c.post(
+        "/api/glosses", json={"language": "th", "sentences": [{"text": "ความคิด"}]}, headers=AUTH
+    ).json()
+    assert [w["text"] for w in whole["sentences"][0]] == ["ความคิด"]

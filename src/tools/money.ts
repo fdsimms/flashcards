@@ -36,7 +36,7 @@ export const CURRENCIES: Record<CurrencyCode, Currency> = {
   EUR: { code: 'EUR', symbol: '€', minorSymbol: 'c', minorPerMajor: 100, notes: major(200, 100, 50, 20, 10, 5), coins: [...major(2, 1), 50, 20, 10, 5, 2, 1], minorStep: 1 },
   PLN: { code: 'PLN', symbol: 'zł', minorSymbol: 'gr', minorPerMajor: 100, notes: major(500, 200, 100, 50, 20, 10), coins: [...major(5, 2, 1), 50, 20, 10, 5, 2, 1], minorStep: 1 },
   RUB: { code: 'RUB', symbol: '₽', minorSymbol: 'kop', minorPerMajor: 100, notes: major(5000, 2000, 1000, 500, 200, 100, 50), coins: major(10, 5, 2, 1), minorStep: 0 },
-  NOK: { code: 'NOK', symbol: 'kr', minorSymbol: 'øre', minorPerMajor: 100, notes: major(1000, 500, 200, 100), coins: major(20, 10, 5, 1), minorStep: 0 },
+  NOK: { code: 'NOK', symbol: 'kr', minorSymbol: 'øre', minorPerMajor: 100, notes: major(1000, 500, 200, 100, 50), coins: major(20, 10, 5, 1), minorStep: 0 },
   // The sen is long gone: prices are whole yen, so no coin is ever below one.
   JPY: { code: 'JPY', symbol: '¥', minorSymbol: 'sen', minorPerMajor: 100, notes: major(10000, 5000, 2000, 1000), coins: major(500, 100, 50, 10, 5, 1), minorStep: 0 },
 };

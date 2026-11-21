@@ -14,6 +14,15 @@ export const DEFAULT_PRIORITY_DAYS = 14;
 export const DEFAULT_PRIORITY_PERCENT = 50;
 export const MAX_PRIORITY_DAYS = 365;
 
+/**
+ * The words a skill's drills need (src/tools/skillWords.ts) are tagged with this and come first without
+ * any setting: a skill can't be answered on words never studied, so some of them are guaranteed a place
+ * in each day's new cards. Their share is `SKILL_WORDS_PERCENT` of the room the limits leave, at least
+ * one card, and like any boost it never adds cards beyond the daily limit.
+ */
+export const SKILL_WORDS_TAG = 'skill::words';
+export const SKILL_WORDS_PERCENT = 25;
+
 const DAY_MS = 86400000;
 
 export interface PrioritySettings {
@@ -86,11 +95,10 @@ export function suggestTags(counts: TagSuggestion[], query: string, chosen: stri
 }
 
 /** A whole number from what was typed, within `min`..`max`, or what to fix. */
-export function parsePriorityNumber(text: string, min: number, max: number, what: string): { value: number } | { error: string } {
+export function parsePriorityNumber(text: string, min: number, max: number): { value: number } | { error: string } {
   const t = text.trim();
-  if (!/^\d+$/.test(t)) return { error: `${what} must be a whole number from ${min} to ${max}.` };
   const n = Number(t);
-  if (n < min || n > max) return { error: `${what} must be from ${min} to ${max}.` };
+  if (!/^\d+$/.test(t) || n < min || n > max) return { error: `Enter a whole number from ${min} to ${max}.` };
   return { value: n };
 }
 
@@ -127,6 +135,11 @@ export function boostFor(a: { notes: Iterable<Note>; settings: Map<string, DeckS
         if (!since || a.now.getTime() - new Date(since).getTime() < s.days * DAY_MS) noteIds.add(n.id);
       }
       if (noteIds.size) result = { noteIds, percent: s.percent };
+    }
+    // A skill's words come first whatever the deck's own setting says, and share one boost with its tagged notes: the larger share wins.
+    const skillWords = notes.filter((n) => isInDeck(n.deck, root) && n.tags.includes(SKILL_WORDS_TAG));
+    if (skillWords.length) {
+      result = { noteIds: new Set([...(result?.noteIds ?? []), ...skillWords.map((n) => n.id)]), percent: Math.max(result?.percent ?? 0, SKILL_WORDS_PERCENT) };
     }
     memo.set(root, result);
     return result;

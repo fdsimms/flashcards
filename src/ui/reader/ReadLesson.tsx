@@ -77,7 +77,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   }, [api, lesson, showPhrases]);
   const glossFor = (text: string): SentenceGloss | null => {
     const words = glossed.get(glossKey(lesson.language, text));
-    return words ? { api, onPlayWord, onAddWord, language: lesson.language, words } : null;
+    return words ? { api, onPlayWord, onAddWord, language: lesson.language, words, english: [...lesson.phrases, ...lesson.dialogue].find((l) => l.text === text)?.english } : null;
   };
 
   useEffect(() => {
@@ -167,7 +167,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   };
 
   const confirmDelete = () => {
-    Alert.alert('Delete this lesson?', `"${lesson.title}" and its recording are removed from the server.`, [
+    Alert.alert('Delete this lesson?', `"${lesson.title}" will be deleted from your server and this iPhone. This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

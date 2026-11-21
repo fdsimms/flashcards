@@ -4,13 +4,18 @@ import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-nat
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { runningCramTags } from '../core/cram';
+import { readerLanguageOf } from '../core/leechHint';
 import { untiered } from '../core/deckTree';
-import { failureText } from '../core/failure';
+import { failureText, NOT_IN_ANKI } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
-import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
+import { applyTagSuggestion, canAddAnother, clozeChoices, nextNoteFields, typedTag, wrapCloze } from '../core/noteDrafting';
+import { suggestTags, tagCounts } from '../core/priority';
+import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startModelFor } from '../core/noteEditing';
+import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
+import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
@@ -19,9 +24,11 @@ import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { cramsNow, loadCrams } from './useCrams';
+import { WordChoiceCard } from './WordChoice';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
 const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
+const TAG_SUGGESTIONS = 6;
 
 /**
  * Adding or editing a note, as a sheet over whatever opened it (Review, Browse), so that screen
@@ -34,9 +41,10 @@ export function NoteEditor(props: {
   /**
    * Edit this note, or add one (starting in `deck`, and with `model` and `fields` filled in when
    * given, as Read & Listen's marked words do). `fieldNotes` is a line under a field to check
-   * before saving ("Written by AI"), by field name. `tags` start the new note's Tags field.
+   * before saving ("Written by AI"), by field name. `tags` start the new note's Tags field. `choice`:
+   * a queued word that could be more than one word, asked above the fields (WordChoice.tsx).
    */
-  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[] };
+  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[]; choice?: WordChoice };
   onClose: (result?: NoteEditorResult) => void;
   /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
   onCardsChanged?: () => void;
@@ -44,6 +52,8 @@ export function NoteEditor(props: {
   decks?: string[];
   /** Recording audio with an Azure voice (useRecorder); null while Read & Listen is off. */
   recorder?: RecordDeps | null;
+  /** A note saved with Save and add another, while the editor stays open for the next one. */
+  onSaved?: (note: Note) => void;
 }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
@@ -75,6 +85,11 @@ export function NoteEditor(props: {
   const voiceSettings = useVoiceSettings(props.repo);
   // A recording made here (Record audio), sent once the note is saved with it.
   const [recording, setRecording] = useState<Recording>();
+  // Save and add another (a note started from nothing): the fields kept for the next note, and how many were added.
+  const addAnother = canAddAnother(props.target);
+  const [kept, setKept] = useState<Set<string>>(new Set());
+  const [added, setAdded] = useState(0);
+  const [tagsFocused, setTagsFocused] = useState(false);
 
   const format = (name: string, apply: (text: string, sel: Selection) => { text: string; selection: Selection }) => {
     const text = fields[name] ?? '';
@@ -89,6 +104,9 @@ export function NoteEditor(props: {
   useEffect(() => {
     setLoadError(null);
     (async () => {
+      // An answer still being written can tag the note a leech; read before it lands, a save here
+      // would write the tags as they were and drop the tag.
+      await reviewWrites.idle();
       const [all, types, params, cards] = await Promise.all([props.repo.listNotes(), props.repo.listNoteTypes(), props.repo.listDeckParams(), props.repo.listCards()]);
       // Not a note deleted in Anki: it isn't a duplicate of anything anymore.
       setNotes(notesStillThere(all, cards));
@@ -109,10 +127,7 @@ export function NoteEditor(props: {
       } else {
         // Start in the deck asked for, with the note type its notes use most.
         const startDeck = props.target.deck ?? all[0]?.deck ?? '';
-        const inDeck = all.filter((n) => n.deck === startDeck || n.deck.startsWith(`${startDeck}::`));
-        const counts = new Map<string, number>();
-        for (const n of inDeck.length ? inDeck : all) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
-        const startModel = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? [...types.keys()][0] ?? '';
+        const startModel = startModelFor(all, [...types.keys()], startDeck);
         setDeck(startDeck);
         const asked = props.target.model;
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
@@ -120,7 +135,9 @@ export function NoteEditor(props: {
         if (props.target.fields) setFields(props.target.fields);
         // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
         const cs = await props.repo.collectionSettings();
-        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), new Date(), cs.dayStartsAtHour);
+        // Only crams in the note's language take it: read from its Language field, else its deck.
+        const language = readerLanguageOf({ id: '', deck: startDeck, model: startModel, fields: startFields, tags: [] });
+        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), all, language, new Date(), cs.dayStartsAtHour);
         const startTags = [...new Set([...(props.target.tags ?? []), ...crams])];
         if (startTags.length) setTags(startTags.join(' '));
         setStart({ fields: startFields, tags: startTags.join(' ') });
@@ -148,7 +165,12 @@ export function NoteEditor(props: {
     return cardsFor(draftNote, noteTypes, new Date()).map((card) =>
       isOmnilanguage(draftNote) ? OMNI_CARD_NAMES[card.kind] ?? card.kind : nt?.templates.find((t) => `t${t.ord}` === card.kind)?.name ?? 'Card');
   }, [stored, model, noteTypes]); // eslint-disable-line react-hooks/exhaustive-deps
-  const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, model, fields: stored }, fieldNames[0]) : undefined;
+  const isCloze = noteTypes.get(model)?.kind === 'cloze';
+  const cloze = clozeChoices(fields);
+  // The collection's tags, suggested as the Tags field is typed in, as the tag fields elsewhere suggest them (TagTokenField).
+  const collectionTags = useMemo(() => tagCounts(notes), [notes]);
+  const suggestedTags = useMemo(() => (tagsFocused ? suggestTags(collectionTags, typedTag(tags), parseTags(tags), TAG_SUGGESTIONS).map((t) => t.tag) : []), [tagsFocused, collectionTags, tags]);
+  const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, deck, model, fields: stored }, fieldNames[0]) : undefined;
   const changed = editing
     ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, asEdited(original.fields[f] ?? '')])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))
@@ -157,7 +179,7 @@ export function NoteEditor(props: {
   // A ref, not `busy`: a second tap on the header's Save can land before the re-render that disables
   // it reaches the native button, and would add the note twice.
   const saving = useRef(false);
-  const save = async () => {
+  const save = async (another = false) => {
     if (saving.current) return;
     saving.current = true;
     setBusy(true);
@@ -165,6 +187,20 @@ export function NoteEditor(props: {
     try {
       const saved = await saveNote(props.repo, { id: original?.id, deck, model, fields: stored, tags: parseTags(tags) });
       afterSave(props.recorder ?? null, saved, { added: !editing, recording, settings: voiceSettings });
+      if (another) {
+        // The form starts over in the same deck and note type with the same tags, the kept fields
+        // still filled in; the note just added counts for the duplicate warning and the tag suggestions.
+        const next = nextNoteFields(fieldNames, fields, kept);
+        setNotes((all) => [...all, saved]);
+        for (const f of fieldNames) if (!kept.has(f)) selections.current.delete(f);
+        setFields(next);
+        setStart({ fields: next, tags });
+        setAdded((n) => n + 1);
+        props.onSaved?.(saved);
+        const first = fieldNames.find((f) => !kept.has(f));
+        if (first) requestAnimationFrame(() => inputs.current.get(first)?.focus());
+        return;
+      }
       stopAsking();
       props.onClose({ saved });
     } catch (e) {
@@ -228,7 +264,7 @@ export function NoteEditor(props: {
             <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={cancel}>Cancel</Stack.Toolbar.Button>
           </Stack.Toolbar>
           <Stack.Toolbar placement="right">
-            <Stack.Toolbar.Button accessibilityLabel="Save the note" disabled={busy || !loaded || missing} onPress={save}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
+            <Stack.Toolbar.Button accessibilityLabel="Save the note" disabled={busy || !loaded || missing} onPress={() => save()}>{busy ? 'Saving…' : 'Save'}</Stack.Toolbar.Button>
           </Stack.Toolbar>
         </>
       }
@@ -244,6 +280,14 @@ export function NoteEditor(props: {
             <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
               <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>
             </View>
+          ) : null}
+          {added ? <Help>Added {added === 1 ? '1 note' : `${added} notes`} to {untiered(deck)}.</Help> : null}
+          {'choice' in props.target && props.target.choice ? (
+            <WordChoiceCard
+              choice={props.target.choice}
+              onChoose={(word) => { stopAsking(); props.onClose({ chose: word }); }}
+              onRemove={() => { stopAsking(); props.onClose({ dropped: true }); }}
+            />
           ) : null}
           <Card>
             {/* A note in a frequency tier shows as its language's deck, and choosing that deck again leaves it where it is. */}
@@ -266,7 +310,7 @@ export function NoteEditor(props: {
                   label={name}
                   value={fields[name] ?? ''}
                   onChangeText={(v) => { setFields((f) => ({ ...f, [name]: v })); setError(undefined); }}
-                  onFocus={() => setFocused(name)}
+                  onFocus={() => { setFocused(name); setTagsFocused(false); }}
                   onSelectionChange={(e) => selections.current.set(name, e.nativeEvent.selection)}
                   multiline
                   autoCorrect={false}
@@ -277,15 +321,31 @@ export function NoteEditor(props: {
                       <Chip key={m} label={MARK_LABELS[m]} selected={false} onPress={() => format(name, (t, sel) => toggleMark(t, sel, m))} />
                     ))}
                     <Chip label="Plain text" selected={false} onPress={() => format(name, clearFormatting)} />
+                    {isCloze ? <Chip label={`Cloze ${cloze.next}`} selected={false} onPress={() => format(name, (t, sel) => wrapCloze(t, sel, cloze.next))} /> : null}
+                    {isCloze && cloze.same ? <Chip label={`Cloze ${cloze.same} again`} selected={false} onPress={() => format(name, (t, sel) => wrapCloze(t, sel, cloze.same!))} /> : null}
+                    {addAnother ? (
+                      <Chip
+                        label="Keep for next note"
+                        selected={kept.has(name)}
+                        onPress={() => setKept((k) => { const out = new Set(k); if (!out.delete(name)) out.add(name); return out; })}
+                      />
+                    ) : null}
                   </View>
-                ) : null}
+                ) : kept.has(name) ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Kept for the next note.</Text> : null}
                 {hasFormatting(fields[name] ?? '') ? <Preview text={fields[name] ?? ''} /> : null}
                 {'fieldNotes' in props.target && props.target.fieldNotes?.[name] && fields[name] ? (
                   <Text style={{ ...type.footnote, color: c.warning }}>{props.target.fieldNotes[name]}</Text>
                 ) : null}
               </View>
             ))}
-            <Field label="Tags" value={tags} onChangeText={setTags} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
+            <View style={{ gap: space.s }}>
+              <Field label="Tags" value={tags} onChangeText={setTags} onFocus={() => { setTagsFocused(true); setFocused(null); }} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
+              {tagsFocused && suggestedTags.length ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+                  {suggestedTags.map((t) => <Chip key={t} label={t} selected={false} onPress={() => setTags((x) => applyTagSuggestion(x, t))} />)}
+                </View>
+              ) : null}
+            </View>
             {/* A new note is recorded automatically once it's saved (afterSave), so the button is only for editing one. */}
             {editing ? (
               <RecordAudio
@@ -298,16 +358,17 @@ export function NoteEditor(props: {
           </Card>
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
-              Another {model} note in {untiered(duplicate.deck)} already has this {fieldNames[0]}, so this note can't be saved.
+              {untiered(duplicate.deck)} already has a note with this {fieldNames[0]}, so this note can't be saved.
             </Text>
           ) : null}
           <Help>
             {cardNames.length
               ? `Makes ${cardNames.length === 1 ? '1 card' : `${cardNames.length} cards`}: ${cardNames.join(', ')}.`
-              : 'Makes no cards yet. Fill in the fields the card fronts show.'}
-            {' '}Select text in a field to make it bold, italic or underlined, or take its formatting away. A field with
-            formatting shows how it will look underneath.
+              : 'No cards yet. Fill in the fields shown on the front.'}
+            {' '}Select text in a field to make it bold, italic or underlined, {isCloze ? 'take its formatting away, or make it a cloze' : 'or take its formatting away'}. A formatted
+            field shows a preview below it.
           </Help>
+          {addAnother ? <Button label="Save and add another" variant="secondary" onPress={() => save(true)} disabled={busy} /> : null}
           {editing ? (
             <CardStates
               cards={noteCardList}
@@ -324,7 +385,7 @@ export function NoteEditor(props: {
                 const { cards, ankiError } = result;
                 props.onCardsChanged?.();
                 setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
-                if (ankiError) setError(failureText(ankiError, { next: "Changed in Franki, but it won't reach Anki." }));
+                if (ankiError) setError(failureText(ankiError, { next: NOT_IN_ANKI }));
               }}
             />
           ) : null}

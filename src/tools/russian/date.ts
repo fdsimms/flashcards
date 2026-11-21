@@ -16,7 +16,7 @@ const WEEKDAYS = ['воскресенье', 'понедельник', 'втор�
 /** "On" a weekday: в or во and the accusative. */
 const ON_WEEKDAYS = ['в воскресенье', 'в понедельник', 'во вторник', 'в среду', 'в четверг', 'в пятницу', 'в субботу'];
 
-const ON = 'Saying on which day';
+const ON = 'As in "on the 12th"';
 
 function ru(text: string, note?: string): Phrase {
   return { text, roman: russianTranslit(text), ...(note ? { note } : {}) };

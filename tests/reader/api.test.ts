@@ -62,7 +62,7 @@ test('a non-JSON error and a network failure still read plainly', async () => {
   );
   const offline = fakeFetch(new TypeError('Network request failed'));
   await expect(createApi('https://x', 'p', offline.impl).shelf()).rejects.toThrow(
-    "Couldn't reach the server. Check your connection and try again.",
+    "The server can't be reached. Check your connection, then try again.",
   );
 });
 

@@ -21,6 +21,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
   so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
   bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
+- **A header item is a `Stack.Toolbar.Button` or `Menu`, never a component of your own.** `Stack.Toolbar` drops any other child without an error, so `<ReviewMenu />` left Review's whole menu off the header. Build it in a plain function called inside the toolbar (`reviewMenu(props)`), or let a component return its own `<Stack.Toolbar placement>` (`LessonLanguageMenu`). `tests/noCustomToolbarChildren.test.ts` fails the build on one.
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
   token with a light and a dark value instead. Text grows with the system text size, so a box

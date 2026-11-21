@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
+from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
 from .speech import (
@@ -58,6 +59,12 @@ MATURE_DAYS = 21
 # value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
 PROGRESS_GATES_KEY = "frankiProgressGates"
 MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
+# The Azure voice each language's new notes are recorded with: a collection config value mapping a
+# language code ("th") to {voice, rate, locale}. The app writes it when an Azure voice is chosen in
+# Settings > Voices (`AUDIO_VOICES_KEY` in src/anki/audioVoices.ts), and `set_audio_voice` writes it too,
+# so a new note is recorded the same wherever it's added. Kept in the collection because the phone's own
+# Voices choice is stored on the phone, where the MCP can't read it.
+AUDIO_VOICES_KEY = "frankiAudioVoices"
 # Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, a flag::<reason> tag on its
 # note and, when the user typed one, a flagnote::<hex> tag with their note (its UTF-8 bytes in lowercase hex,
 # since a tag can't hold a space and Anki merges tags that differ only by case).
@@ -148,7 +155,7 @@ def _card_dict(col: Collection, card: Card) -> dict[str, Any]:
     }
 
 
-def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]:
+def _note_dict(col: Collection, note: Note, full: bool = True, fields: list[str] | None = None) -> dict[str, Any]:
     nt = note.note_type()
     cards = note.cards()
     out: dict[str, Any] = {
@@ -157,7 +164,13 @@ def _note_dict(col: Collection, note: Note, full: bool = True) -> dict[str, Any]
         "deck": _deck_name(col, cards[0].odid or cards[0].did) if cards else None,
         "tags": note.tags,
     }
-    if full:
+    if full and fields is not None:
+        have = dict(note.items())
+        unknown = [f for f in fields if f not in have]
+        if unknown:
+            raise ToolError(f"This note has no field {', '.join(unknown)}. Its fields are: {', '.join(have)}.")
+        out["fields"] = {f: have[f] for f in fields}
+    elif full:
         out["fields"] = dict(note.items())
         out["cards"] = [_card_dict(col, c) for c in cards]
     else:
@@ -177,6 +190,29 @@ def _deck_id(col: Collection, name: str) -> int:
         names = sorted(n.name for n in col.decks.all_names_and_ids())
         raise ToolError(f'There\'s no deck called "{name}". Decks: {", ".join(names)}. Create it with create_deck first if it\'s new.')
     return did
+
+
+def _repeats_in_language(col: Collection, nt: dict[str, Any], note: Note) -> bool:
+    """Whether Anki's duplicate flag on `note` is a real one. One Omnilanguage note type holds every
+    language, so there a word repeats only a word of its own language (German "in" and Norwegian
+    "in" are two notes, as lint_notes and the app's own check count them); a note with no Language
+    on either side is compared with all, as Anki does. Any other note type: Anki's flag stands."""
+    if nt["name"] != omnilanguage.NOTE_TYPE:
+        return True
+    names = [f["name"] for f in nt["flds"]]
+    if "Language" not in names:
+        return True
+    mine = omnilanguage.plain(note["Language"]).lower()
+    first = omnilanguage.plain(note[names[0]]).lower()
+    rows = col.db.all("select flds from notes where mid = ? and lower(sfld) = ?", nt["id"], first)
+    if not rows:
+        return True  # Anki saw a match this lookup can't, so its flag stands
+    for (flds,) in rows:
+        theirs = omnilanguage.plain(flds.split("\x1f")[names.index("Language")]).lower()
+        if not mine or not theirs or mine == theirs:
+            return True
+    return False
+
 
 
 def _note_type(col: Collection, name: str) -> dict[str, Any]:
@@ -271,9 +307,12 @@ instructions off, so each tool's own description holds its details.
 - Omnilanguage notes (the language decks) follow one house style. Read note_guide for the language
   before writing one: add_notes and update_notes tidy what needs no judgment and refuse the rest,
   saying what to change. lint_notes checks the notes already there.
+- Words the user met somewhere (a game, a show, a screenshot): check_words says in one call which
+  the collection already has and how well each is known, before you suggest cards. A note for one
+  gets the title's source:: tag (note_guide).
 - For any other note type, check its field names with list_note_types first. add_notes refuses a
   duplicate first field unless allow_duplicates is true; tell the user about any it refused.
-- A tool that changes many notes or cards at once previews first (fill_forms, fill_pronunciation,
+- A tool that changes many notes or cards at once previews first (fill_forms, fill_pronunciation, fill_stress,
   order_new_by_frequency, the tier tools, normalize_audio, lint_notes, empty_cards): show the user
   the preview and write only once they agree. Turn a daily fill on only after they've checked a batch.
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:
@@ -282,11 +321,11 @@ instructions off, so each tool's own description holds its details.
   first, and only then pass every_device_synced=true.
 - Audio: add_tts_audio records a field's text with an Azure voice (list_voices names them). Record
   a noun from `Entry`: its article is read with it, from Gender.
-- Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
+- Crams: Franki's Practice, Cram is the plan for a day coming up (a lesson, a trip). Its words
   are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
-  date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes;
-  find_notes "tag:cram::*" lists the words of every cram. The date and the practice rounds are
-  kept in Franki only.
+  date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes, only
+  for notes in the cram's language; find_notes "tag:cram::*" lists the words of every cram. The
+  date, practice, questions for the tutor and talking points are kept in Franki only.
 """
 
 
@@ -371,19 +410,22 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.read(run)
 
     @server.tool(annotations=READ)
-    async def get_notes(note_ids: list[int]) -> dict[str, Any]:
+    async def get_notes(note_ids: list[int], fields: list[str] | None = None) -> dict[str, Any]:
         """Notes in full: every field (as HTML), tags, and each card with its deck, stage
-        (new, learning, review, relearning, suspended, buried), due date, interval and flag."""
+        (new, learning, review, relearning, suspended, buried), due date, interval and flag.
+        `fields` names the only fields to return, and leaves the cards out: much shorter, for
+        reading one or two fields across many notes."""
         if len(note_ids) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
         def run(col: Collection) -> dict[str, Any]:
-            return {"notes": [_note_dict(col, _get_note(col, i)) for i in note_ids]}
+            return {"notes": [_note_dict(col, _get_note(col, i), fields=fields) for i in note_ids]}
 
         return await cm.read(run)
 
     @server.tool(annotations=WRITE)
-    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False, allow_nonstandard: bool = False) -> dict[str, Any]:
+    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False, allow_nonstandard: bool = False,
+                        record_audio: bool = True) -> dict[str, Any]:
         """Adds notes (up to 100 a call) with their cards, as Anki's Add window would. A note whose
         first field matches another note of its type is refused unless allow_duplicates is true;
         one that would make no cards is refused too. Each result has the new note id or the reason
@@ -392,8 +434,14 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         An Omnilanguage note is written in the house style: read note_guide for its language
         first. What needs no judgment is tidied for you (`tidied` says what), grammar a finished
         note carries and this one lacks is listed in `still_to_fill`, and a note that breaks a rule
-        is refused with what to change. allow_nonstandard skips that check, for a deliberate
-        exception the user asked for."""
+        is refused with what to change. A Sense that only repeats the Meaning is saved, with the reason
+        in `to_review`. allow_nonstandard skips that check, for a deliberate
+        exception the user asked for.
+
+        An Omnilanguage note with an empty Audio is recorded as it's added, as Franki does for a note
+        saved on the phone, when a voice is saved for its Language (set_audio_voice). Each result
+        then has `audio` (the file) or `audio_error`; the note is added either way. Pass
+        record_audio=false to add notes with no recording."""
         if len(notes) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
@@ -412,7 +460,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                         if ready.refused:
                             raise ToolError(_house_style(ready.refused))
                         fields, tags = ready.fields, ready.tags
-                        said = {k: v for k, v in (("tidied", ready.tidied), ("still_to_fill", ready.gaps)) if v}
+                        said = {k: v for k, v in (("tidied", ready.tidied), ("still_to_fill", ready.gaps), ("to_review", ready.review)) if v}
                     note = col.new_note(nt)
                     for k, v in fields.items():
                         note[k] = v
@@ -420,7 +468,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     state = note.fields_check()
                     if state == NoteFieldsCheckResult.EMPTY:
                         raise ToolError(f'The first field ("{nt["flds"][0]["name"]}") is empty.')
-                    if state == NoteFieldsCheckResult.DUPLICATE and not allow_duplicates:
+                    if (state == NoteFieldsCheckResult.DUPLICATE and not allow_duplicates
+                            and _repeats_in_language(col, nt, note)):
                         raise ToolError("Another note of this type has the same first field. Pass allow_duplicates to add it anyway.")
                     col.add_note(note, did)
                     results.append({"index": i, "note_id": note.id, "cards": len(note.cards()), **said})
@@ -430,7 +479,60 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     results.append({"index": i, "error": f"Anki refused it: {e}"})
             return {"added": sum(1 for r in results if "note_id" in r), "results": results}
 
-        return await cm.write(run)
+        added = await cm.write(run)
+        if record_audio:
+            await record_new_audio(added["results"])
+        return added
+
+    async def record_new_audio(results: list[dict[str, Any]]) -> None:
+        """Records the Entry of each note just added that has no Audio, with the voice saved for its
+        Language, by the same path as add_tts_audio. A failure is set on the note's result as
+        `audio_error`: the note is already added, and a missing recording is fixed by recording it."""
+        rows = [r for r in results if "note_id" in r]
+        if not rows:
+            return
+
+        def survey(col: Collection) -> tuple[dict[str, Any], dict[int, str]]:
+            voices = col.get_config(AUDIO_VOICES_KEY, {}) or {}
+            languages: dict[int, str] = {}
+            for r in rows:
+                note = _get_note(col, r["note_id"])
+                if note.note_type()["name"] != omnilanguage.NOTE_TYPE or "Audio" not in note or "Language" not in note:
+                    continue
+                if SOUND.search(note["Audio"]):
+                    continue
+                languages[r["note_id"]] = LANGUAGE_CODES.get(_text(col, note["Language"]).strip().lower(), "")
+            return voices, languages
+
+        voices, languages = await cm.read(survey)
+        groups: dict[tuple[str, float, str | None], list[dict[str, Any]]] = {}
+        for r in rows:
+            setting = voices.get(languages.get(r["note_id"], ""))
+            if not isinstance(setting, dict) or not setting.get("voice"):
+                continue
+            key = (str(setting["voice"]), float(setting.get("rate", 1.0)), setting.get("locale"))
+            groups.setdefault(key, []).append(r)
+        for (voice, rate, locale), group in groups.items():
+            for i in range(0, len(group), MAX_AUDIO_NOTES_PER_CALL):
+                chunk = group[i : i + MAX_AUDIO_NOTES_PER_CALL]
+                try:
+                    done = await add_tts_audio(
+                        note_ids=[r["note_id"] for r in chunk], source_fields=["Entry"], target_field="Audio",
+                        voice=voice, rate=rate, language=locale,
+                    )
+                except Exception as e:  # noqa: BLE001 - Azure or the sync out of reach: the notes stay added
+                    for r in chunk:
+                        r["audio_error"] = str(e) or "Recording failed."
+                    continue
+                by_id = {x["note_id"]: x for x in done["results"]}
+                for r in chunk:
+                    x = by_id.get(r["note_id"], {})
+                    if "audio" in x:
+                        r["audio"] = x["audio"]
+                    elif "error" in x:
+                        r["audio_error"] = x["error"]
+                    if "warning" in x:
+                        r["audio_warning"] = x["warning"]
 
     @server.tool(annotations=WRITE)
     async def update_notes(updates: list[NoteUpdate], allow_nonstandard: bool = False) -> dict[str, Any]:
@@ -460,7 +562,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                             if ready.refused:
                                 raise ToolError(_house_style(ready.refused))
                             fields = ready.fields
-                            said = {"tidied": ready.tidied} if ready.tidied else {}
+                            said = {k: v for k, v in (("tidied", ready.tidied), ("to_review", ready.review)) if v}
                         for k, v in fields.items():
                             note[k] = v
                     if u.tags is not None:
@@ -1220,9 +1322,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         - The text is `source_fields`' text (formatting and media left out) joined by `join`, then
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
-        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume), as Franki says
-          it: when `Entry` is the first source field and the note's Gender and Language give one
-          (Spanish, Norwegian, German, French, Greek). An Entry that already starts with its article
+        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume, ten wrzesień), as
+          Franki says it: when `Entry` is the first source field and the note's Gender and Language give
+          one (Spanish, Norwegian, German, French, Greek, and Polish's and Russian's ten/ta/to and
+          этот/эта/это, te/ci for a plural). An Entry that already starts with its article
           (el agua) is read as it is. A Norwegian verb is read with its å (å huske), from
           PartOfSpeech. `article=false` reads the Entry alone.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).
@@ -1356,6 +1459,47 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
         results = await cm.write(save, media=True)
         return {"added": sum(1 for r in results if "audio" in r), "results": results}
+
+    @server.tool(annotations=READ)
+    async def audio_voices() -> dict[str, Any]:
+        """The voice saved for each language (set_audio_voice): add_notes records a new Omnilanguage
+        note's Entry with it. Empty when none is set."""
+        return {"audio_voices": await cm.read(lambda col: col.get_config(AUDIO_VOICES_KEY, {}) or {})}
+
+    @server.tool(annotations=WRITE)
+    async def set_audio_voice(language: str, voice: str | None = None, rate: float = 1.0, locale: str | None = None) -> dict[str, Any]:
+        """Saves the Azure voice that add_notes records a language's new notes with (`language` is the
+        notes' Language field, e.g. "thai", or its code, "th"). Pass no voice to remove it, so that language's new
+        notes get no recording. `rate` is the speed (0.5 to 2.0, 1 is normal); `locale` ("th-TH") only
+        for a Multilingual voice, as in add_tts_audio. Choose the voice with list_voices, and use the
+        one Franki's Settings, Voices has for the language so its cards sound alike. It applies to
+        notes added from now on; record the older ones with add_tts_audio."""
+        named = language.strip().lower()
+        key = LANGUAGE_CODES.get(named) or (named if named in LANGUAGE_CODES.values() else "")
+        if not key:
+            raise ToolError("Say which language: the notes' Language field (thai) or its code (th).")
+        setting: dict[str, Any] | None = None
+        if voice is not None:
+            if not 0.5 <= rate <= 2.0:
+                raise ToolError("rate must be between 0.5 and 2.0.")
+            try:
+                locale_of(voice)
+                setting = {"voice": voice, "rate": rate}
+                if locale is not None:
+                    setting["locale"] = text_locale(locale)
+            except SpeechError as e:
+                raise ToolError(str(e)) from e
+
+        def save(col: Collection) -> dict[str, Any]:
+            voices = dict(col.get_config(AUDIO_VOICES_KEY, {}) or {})
+            if setting is None:
+                voices.pop(key, None)
+            else:
+                voices[key] = setting
+            col.set_config(AUDIO_VOICES_KEY, voices)
+            return voices
+
+        return {"audio_voices": await cm.write(save)}
 
     @server.tool(annotations=WRITE)
     async def normalize_audio(

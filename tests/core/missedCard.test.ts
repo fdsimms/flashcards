@@ -46,3 +46,11 @@ describe('missedCardText', () => {
     expect(missedCardText(note({ Order: '6th', Name: '', Face: '' }), presidents, 't0')).toBeUndefined();
   });
 });
+
+describe('missedCardText for a skill drill', () => {
+  it('has no card text, since its back is the same line on every drill', () => {
+    const noteType = { id: 'b', name: 'Basic', kind: 'normal', fields: ['Front', 'Back'], templates: [{ ord: 0, name: 'Card 1', qfmt: '{{Front}}', afmt: '{{FrontSide}}<hr id=answer>{{Back}}' }], css: '' } as never;
+    const note = { id: 'n', deck: 'Norsk::Skills', model: 'b', fields: { Front: '<div><b>Norwegian · Saying dates: Day and month</b></div><div>Say today\'s date.</div>', Back: '<div>Rate how it went.</div>' }, tags: ['skill', 'skill::drill::dates-1', 'skill::lang::no'] } as never;
+    expect(missedCardText(note, noteType, 't0')).toBeUndefined();
+  });
+});

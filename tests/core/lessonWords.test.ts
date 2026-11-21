@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { LESSON_MAX_WORDS } from '../../src/core/cram';
 import { Refusal } from '../../src/core/failure';
-import { addLessonWord, candidateWord, hasLessonWord, lessonWordHint, noCandidatesText, lessonRequestWords, pickerWords, removeLessonWord, wordKey, type LessonWord } from '../../src/core/lessonWords';
+import { addLessonWord, candidateChips, candidateWord, hasLessonWord, lessonWordHint, noCandidatesText, lessonRequestWords, pickerWords, removeLessonWord, wordKey, type LessonWord } from '../../src/core/lessonWords';
 import type { Card, Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -100,5 +100,18 @@ describe('looking up a typed word', () => {
 
   it('says what was typed and in which language when nothing fits', () => {
     expect(noCandidatesText('  mai   mai ', 'Thai')).toBe('Couldn\'t find a Thai word for "mai mai". Try another spelling.');
+  });
+});
+
+describe('candidateChips', () => {
+  const word = { text: 'แข่ง', reading: 'kêng', english: 'to race' };
+  it('says how common a word is and how it is said when that is worth knowing', () => {
+    expect(candidateChips({ ...word, commonness: 'common', register: 'formal' }).map((c) => c.label)).toEqual(['Common', 'Formal']);
+  });
+  it('shows nothing for neutral speech, a blank or a value it does not know', () => {
+    expect(candidateChips({ ...word, register: 'neutral' })).toEqual([]);
+    expect(candidateChips({ ...word, commonness: '', register: '' })).toEqual([]);
+    expect(candidateChips({ ...word, commonness: 'popular' })).toEqual([]);
+    expect(candidateChips(word)).toEqual([]);
   });
 });

@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
+import type { SFSymbol } from 'expo-symbols';
 import { GENDER_WORDS } from '../core/cards';
+import { NOT_PREFIX } from '../core/synonyms';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
 import { DEFAULT_THAI_TEXT_SIZE, hasCyrillic, hasThai,japaneseFont, thaiTextStyle, withThaiLineHeight, type ThaiTextSize } from '../core/script';
@@ -17,13 +19,26 @@ import { TranslationRow } from './TranslationRow';
 import { EDIT_ICON_ROOM, EditableField } from './EditableField';
 import type { EditableField as FieldName } from '../core/editField';
 import type { SentenceGloss } from './useCardGlosses';
+import { SenseContrastBox, type ContrastActions } from './SenseContrastBox';
+import { MarkableSenses, type SenseMarking } from './SenseMarks';
 
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
 
+/** Chao tone letters (˥˩), which the bundled app fonts lack: a line with them is drawn in the system font, whose face has them, instead of whatever iOS substitutes. */
+const TONE_LETTERS = /[˥-˩]/;
+
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
-const genderColor = (c: Colors, g: Gender) => (g === 'm' ? c.genderM : g === 'f' ? c.genderF : c.genderN);
+/** A hint button's name and icon: an example's two lines are named by their role, the word's own by its tap label without "Show" (Transliteration). */
+function hintButton(b: Block): { label: string; icon: SFSymbol } {
+  if (b.role === 'exampleRomanized') return { label: 'Romanization', icon: 'textformat' };
+  if (b.role === 'exampleTranslation') return { label: 'Translation', icon: 'globe' };
+  const word = (b.tapLabel ?? '').replace(/^Show /, '');
+  return { label: word.charAt(0).toUpperCase() + word.slice(1), icon: b.role === 'transliteration' || b.role === 'reading' ? 'textformat' : 'waveform' };
+}
+
+const genderColor =(c: Colors, g: Gender) => (g === 'm' ? c.genderM : g === 'f' ? c.genderF : c.genderN);
 const toneColor = (c: Colors, t: Tone) => (t === 'low' ? c.toneLow : t === 'falling' ? c.toneFalling : t === 'high' ? c.toneHigh : c.toneRising);
 
 /** A Thai romanization with each syllable colored by its tone; mid tone keeps the text's own color. The tone marks stay, so color is never the only signal. */
@@ -37,6 +52,9 @@ function EntryText({ text, gender, c }: { text: string; gender?: Gender; c: Colo
   if (!gender || !split) return <>{text}</>;
   return <><Text style={{ color: genderColor(c, gender) }}>{split.article}</Text>{split.rest}</>;
 }
+
+/** The gloss that splits a card's headword into the words it is made of, if the server has answered for it. */
+const headwordGloss = (gloss: SentenceGloss[] | null | undefined, text: string) => gloss?.find((g) => g.parts && g.words.map((w) => w.text).join('') === text);
 
 /** Text with its marked segments picked out, as a card's word is in its example sentence. */
 function MarkedText({ text, segments, style, c, tones }: { text: string; segments?: Segment[]; style: TextStyle; c: Colors; tones?: boolean }) {
@@ -63,8 +81,9 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
  * With `furigana` (once the answer shows), a Japanese word is drawn with `wordRuns`, its reading over
  * its kanji, and the sentence's words with theirs; the "Show reading" line goes, as it says the same.
+ * With `contrast`, the "not this word" box under the Sense has its Add, remove and open (SenseContrastBox).
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing, contrast, senseMarking }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss[] | null;
   speakSentence?: (text: string) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
@@ -77,6 +96,10 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   onEditField?: (field: FieldName, text: string) => Promise<void>;
   /** Whether one of those boxes is open (the card holds off swipe-to-rate while it is). */
   onEditing?: (editing: boolean) => void;
+  /** Given on the back in Review: what the "not this word" box's rows do (useSenseContrast). */
+  contrast?: ContrastActions;
+  /** Given on the back in Review: a numbered Meaning's senses can be tapped as missed (useSenseMarks). */
+  senseMarking?: SenseMarking;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -87,18 +110,27 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
 
   // Consecutive lines of one example sentence are laid out together; every other block is its own group.
-  const groups = useMemo(() => {
+  // The hidden lines that follow one another outside an example (transliteration, pronunciation, reading) share
+  // one row of icon buttons, which comes ahead of the run; `bars` holds those groups. Each line keeps its own group
+  // after it, drawn only while it is open.
+  const { groups, bars } = useMemo(() => {
     const out: Item[][] = [];
+    const bars = new Set<Item[]>();
+    let bar: Item[] | null = null;
     side.blocks.forEach((b, i) => {
       // Furigana over the word says what the reading line would.
       if (b.role === 'reading' && furigana && wordRuns) return;
       const last = out[out.length - 1];
       // A note's second example starts its own box.
-      if (isExample(b) && last && isExample(last[0].b) && !(b.role === 'example' && last.some((it) => it.b.role === 'example'))) last.push({ b, i });
-      else out.push([{ b, i }]);
+      if (isExample(b) && last && isExample(last[0].b) && !(b.role === 'example' && last.some((it) => it.b.role === 'example'))) { last.push({ b, i }); return; }
+      if (b.tapLabel && !isExample(b) && !showHints) {
+        if (!bar) { bar = []; bars.add(bar); out.push(bar); }
+        bar.push({ b, i });
+      } else bar = null;
+      out.push([{ b, i }]);
     });
-    return out;
-  }, [side.blocks, furigana, wordRuns]);
+    return { groups: out, bars };
+  }, [side.blocks, furigana, wordRuns, showHints]);
 
   // A block that shows a whole note field, with its edit icon when the card lets it be edited.
   const editable = (b: Block, node: React.ReactElement) => (b.field && onEditField
@@ -108,43 +140,27 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // An editable block's box leaves room at its right for the edit icon.
   const editRoom = (b: Block) => (b.field && onEditField ? { paddingRight: EDIT_ICON_ROOM } : null);
 
-  const reveal = (i: number) => { haptic.select(); setShownHints((prev) => new Set(prev).add(i)); };
-  // An example's romanization and translation buttons open their line and close it again.
+  // A hint button opens its line and closes it again.
   const toggle = (i: number) => { haptic.select(); setShownHints((prev) => { const next = new Set(prev); if (!next.delete(i)) next.add(i); return next; }); };
 
-  // A hidden line outside the example sentence: a centered link.
-  const hint = ({ b, i }: Item) => (
-    <Tappable
-      key={i}
-      accessibilityRole="button"
-      onPress={() => reveal(i)}
-      style={{ alignSelf: 'center', minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}
-    >
-      <Text style={{ ...type.callout, color: c.accent }}>{b.tapLabel}</Text>
-    </Tappable>
-  );
-
-  // The hidden lines inside an Example box share one row of buttons under the sentence, so several examples stay short.
-  // A button highlights while its line is open, and a second tap closes the line.
-  const hintButtons = (items: Item[]) => (
-    <View key="buttons" style={{ flexDirection: 'row', borderTopWidth: hairline, borderTopColor: c.border }}>
-      {items.map((it, k) => {
+  // Hidden lines are round icon buttons: under the word (transliteration, pronunciation, reading), or at the left of an
+  // example's box under its sentence (romanization, translation). A button highlights while its line is open, a second
+  // tap closes it, and its name stays as the accessibility label.
+  const hintIcons = (items: Item[], inExample = false) => (
+    <View key="icons" style={inExample ? { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m, paddingBottom: space.s } : { flexDirection: 'row', justifyContent: 'center', gap: space.m }}>
+      {items.map((it) => {
         const on = shownHints.has(it.i);
-        const romanized = it.b.role === 'exampleRomanized';
+        const { label, icon } = hintButton(it.b);
         return (
           <Tappable
             key={it.i}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={romanized ? 'Romanization' : 'Translation'}
+            accessibilityLabel={label}
             onPress={() => toggle(it.i)}
-            style={{
-              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 2, minHeight: MIN_TAP,
-              backgroundColor: on ? c.accentFill : undefined, borderLeftWidth: k ? hairline : 0, borderLeftColor: c.border,
-            }}
+            style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.accentFill : inExample ? c.surface : c.fill }}
           >
-            <Icon name={romanized ? 'textformat' : 'globe'} size={16} color={c.accentInk} />
-            <Text style={{ ...type.callout, color: c.accentInk }}>{romanized ? 'Romanization' : 'Translation'}</Text>
+            <Icon name={icon} size={20} color={c.accentInk} />
           </Tappable>
         );
       })}
@@ -155,7 +171,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
     if (b.role === 'example') {
       const plain = hasCyrillic(b.text) ? { fontSize: 19, lineHeight: 28 } : { fontSize: type.title.fontSize, lineHeight: 34 };
       const style = { ...(hasThai(b.text) ? thai : plain), ...ja(b.text), color: c.textBody };
-      const sentenceGloss = gloss?.find((g) => g.words.map((w) => w.text).join('') === b.text);
+      const sentenceGloss = gloss?.find((g) => !g.parts && g.words.map((w) => w.text).join('') === b.text);
       if (sentenceGloss) return <CardSentence key={i} gloss={sentenceGloss} segments={b.segments} style={style} furigana={furigana} />;
       return <MarkedText key={i} text={b.text} segments={b.segments} c={c} style={style} />;
     }
@@ -172,7 +188,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // The shown translation is its own labeled row, so one that reads like a question isn't taken for a prompt.
   const translationRow = (it: Item) => (
     <View key={it.i} style={{ paddingHorizontal: space.m, paddingBottom: space.m }}>
-      <TranslationRow>{line(it)}</TranslationRow>
+      <TranslationRow literal={it.b.literal}>{line(it)}</TranslationRow>
     </View>
   );
 
@@ -190,13 +206,19 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           return (
             <View key={first.i} style={{ gap: space.xs }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ ...type.overline, color: c.accent }}>
-                  Example{sentenceBlock?.tag ? <Text style={{ color: c.textDim }}>{`  ${sentenceBlock.tag}`}</Text> : null}
-                </Text>
+                {sentenceBlock?.source !== undefined ? (
+                  <Text style={{ ...type.overline, color: c.accent }}>
+                    From{sentenceBlock.source ? <Text style={{ color: c.textDim, textTransform: 'none' }}>{`  ${sentenceBlock.source}`}</Text> : null}
+                  </Text>
+                ) : (
+                  <Text style={{ ...type.overline, color: c.accent }}>
+                    Example{sentenceBlock?.tag ? <Text style={{ color: c.textDim }}>{`  ${sentenceBlock.tag}`}</Text> : null}
+                  </Text>
+                )}
                 {sentence && speakSentence ? (
                   <Tappable
                     accessibilityRole="button"
-                    accessibilityLabel="Read the example sentence aloud"
+                    accessibilityLabel={sentenceBlock?.source !== undefined ? 'Read the line aloud' : 'Read the example sentence aloud'}
                     onPress={() => { haptic.tap(); speakSentence(sentence); }}
                     hitSlop={space.m}
                     scaleTo={0.9}
@@ -208,14 +230,18 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.filter((it) => it.b.role === 'example').map((it) => (
                   <View key={it.i} style={{ padding: space.m, paddingBottom: space.s }}>{line(it)}</View>))}
-                {buttons.length ? hintButtons(buttons) : null}
+                {buttons.length ? hintIcons(buttons, true) : null}
                 {opened.map((it) => (it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: buttons.length ? space.s : 0, paddingBottom: space.s }}>{line(it)}</View>))}
               </View>
             </View>
           );
         }
-        if (hidden(first)) return hint(first);
+        if (bars.has(group)) {
+          return hintIcons(group);
+        }
+        // A closed line shows through its button in the row above.
+        if (hidden(first)) return null;
 
         const { b, i } = first;
         if (b.role === 'chips') {
@@ -250,9 +276,6 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                     {` (${r.counts?.roman}) counts ${r.counts?.what}.`}
                   </Text>
                 ))}
-                <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>
-                  Say the noun, the number, then the counting word.
-                </Text>
               </View>
             </View>
           );
@@ -286,6 +309,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </View>
           );
         }
+        if (b.senses && senseMarking && which === 'back') {
+          return <MarkableSenses key={i} senses={b.senses} marking={senseMarking} size={b.role === 'gloss' ? { fontSize: type.title.fontSize, lineHeight: 28 } : type.reading} />;
+        }
         if (b.role === 'gloss') {
           return (
             <Text key={i} style={{ ...type.title, fontWeight: '400', lineHeight: 28, color: c.textSecondary, textAlign: 'center' }}>
@@ -294,10 +320,14 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           );
         }
         if (b.role === 'wanted') {
+          // A hint, not a headline: a small pill under the meaning, "Not" set apart from the words it names.
+          const names = b.text.startsWith(NOT_PREFIX);
+          const words = names ? b.text.slice(NOT_PREFIX.length) : b.text;
           return (
-            <Text key={i} style={{ ...(hasThai(b.text) ? thai : { ...type.subhead, lineHeight: 21 }), ...ja(b.text), color: c.textSecondary, textAlign: 'center' }}>
-              {b.text}
-            </Text>
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.s - 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
+              {names ? <Text style={{ ...type.overline, fontSize: 11, color: c.textDim }}>Not</Text> : null}
+              <Text style={{ ...(hasThai(words) ? { ...thai, fontSize: 16, lineHeight: 24 } : { ...type.footnote, lineHeight: 18 }), ...ja(words), color: c.textBody }}>{words}</Text>
+            </View>
           );
         }
         if (b.role === 'sense') {
@@ -306,6 +336,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.text}
             </Text>
           );
+        }
+        if (b.role === 'contrast') {
+          return <SenseContrastBox key={i} pairs={b.rows ?? []} actions={contrast} thaiSize={thaiSize} />;
         }
         if (b.role === 'note') {
           return editable(b, (
@@ -326,6 +359,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.icon ? <Icon name={b.icon} size={28} color={c.text} /> : null}
               {b.emphasis && b.reading && furigana && wordRuns ? (
                 <Ruby runs={wordRuns} style={{ ...type.cardFront, ...ja(b.text), color: c.text }} rubyColor={c.textSecondary} center />
+              ) : b.emphasis && which === 'back' && headwordGloss(gloss, b.text) ? (
+                // A compound's parts, each tapped for its meaning as an example sentence's words are (CardSentence).
+                <CardSentence gloss={headwordGloss(gloss, b.text)!} style={{ ...withThaiLineHeight(type.cardFront, b.text), color: c.text }} center />
               ) : b.emphasis ? (
                 <Text style={{ ...withThaiLineHeight(b.role === 'meaning' ? { ...type.reading, fontWeight: '400' as const } : type.cardFront, b.text), ...ja(b.text), color: c.text, textAlign: 'center' }}>
                   {b.prefix ? <Text style={{ color: b.gender ? genderColor(c, b.gender) : c.textTertiary, fontWeight: b.gender ? '600' : '400' }}>{b.prefix}{withArticle(b.prefix, '').endsWith(' ') ? ' ' : ''}</Text> : null}
@@ -340,7 +376,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                   {b.text.split('\n').map((ln, k) => (hasThai(ln)
                     ? <Text key={k} style={{ ...thai, color: boxed ? c.textBody : c.text, textAlign: b.label ? undefined : 'center' }}>{ln}</Text>
                     // The word's transliteration is set larger and in the text color, apart from an example's small italic romanization.
-                    : <Text key={k} style={{ ...(boxed ? { ...type.subhead, lineHeight: 21 } : b.role === 'transliteration' ? { ...type.title, fontWeight: '500', lineHeight: 28 } : { ...type.body, lineHeight: 24 }), ...ja(ln), color: boxed ? c.textBody : b.role === 'transliteration' ? c.text : c.textSecondary, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
+                    : <Text key={k} style={{ ...(boxed ? { ...type.subhead, lineHeight: 21 } : b.role === 'transliteration' ? { ...type.title, fontWeight: '500', lineHeight: 28 } : { ...type.body, lineHeight: 24 }), ...ja(ln), ...(TONE_LETTERS.test(ln) ? { fontFamily: undefined } : null), color: boxed ? c.textBody : b.role === 'transliteration' ? c.text : c.textSecondary, textAlign: b.label ? undefined : 'center' }}>{b.tones ? <ToneSpans text={ln} c={c} /> : ln}</Text>))}
                 </View>
               )}
             </View>

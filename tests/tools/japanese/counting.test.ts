@@ -33,3 +33,12 @@ describe('counting things in Japanese', () => {
     expect(ja.pickByReading).toBe(true);
   });
 });
+
+describe('the wrong picks after 8', () => {
+  it('leave out the plain reading, which is also said', () => {
+    const picks = (n: number) => ja.wrong(find('pencil'), n).map((p) => p.roman);
+    expect(picks(8)).not.toContain('えんぴつがはちほん');
+    expect(picks(18)).not.toContain('えんぴつがじゅうはちほん');
+    expect(picks(6)).toContain('えんぴつがろくほん');
+  });
+});

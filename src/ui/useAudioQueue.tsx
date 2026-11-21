@@ -1,4 +1,5 @@
-import { File, Paths } from 'expo-file-system';
+import { Paths } from 'expo-file-system';
+import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Api, ReaderText } from '../reader/api';
 import {
@@ -39,8 +40,7 @@ let loading: Promise<AudioQueue> | null = null;
 function loadQueue(): Promise<AudioQueue> {
   loading ??= (async () => {
     try {
-      const f = new File(Paths.document, FILE);
-      stored = parseQueue(f.exists ? JSON.parse(await f.text()) : null);
+      stored = parseQueue(await readJsonSafely(Paths.document, FILE));
     } catch {
       // An unreadable file is an empty queue.
     }
@@ -52,9 +52,7 @@ function loadQueue(): Promise<AudioQueue> {
 function saveQueue(q: AudioQueue) {
   stored = q;
   try {
-    const f = new File(Paths.document, FILE);
-    if (!f.exists) f.create();
-    f.writeSync(JSON.stringify(q));
+    writeJsonSafely(Paths.document, FILE, q);
   } catch {
     // Still played from memory; only its places are lost if the app is closed.
   }
@@ -156,7 +154,7 @@ function useAudioQueueHost(): AudioQueueHost {
     try {
       text = await server.text(item.textId);
     } catch (e) {
-      if (starting.current === mine) setProblem(failureText(e, { next: 'Check your connection and try again.' }));
+      if (starting.current === mine) setProblem(failureText(e, { next: 'Check your connection, then try again.' }));
       return;
     }
     if (starting.current !== mine) return;
@@ -175,10 +173,17 @@ function useAudioQueueHost(): AudioQueueHost {
     });
   }, [host, keepWhilePlaying]);
 
-  /** Logs a text played through, once per time it's started: as read by listening, or heard again. */
+  /** Logs a text played through, once per time it's started: as read by listening, or heard again. A lesson is noted as heard. */
   const logPlayed = useCallback((item: QueueItem, what: Carried) => {
     const server = apiRef.current;
-    if (!server || item.kind !== 'text' || what.kind !== 'text' || began.current?.logged) return;
+    if (!server || began.current?.logged) return;
+    // A lesson played to the end is only noted as heard, so a later lesson can ask for its phrases; withOffline holds it when the server can't be reached.
+    if (item.kind === 'lesson' && what.kind === 'lesson') {
+      if (began.current) began.current.logged = true;
+      server.lessonHeard(item.lesson.id).catch(() => undefined);
+      return;
+    }
+    if (item.kind !== 'text' || what.kind !== 'text') return;
     const from = what.handoff.from === undefined ? item.from : what.handoff.from;
     const text = playingText.current?.id === item.textId ? playingText.current : null;
     const seconds = began.current?.key === keyOf(item) ? (Date.now() - began.current.at) / 1000 : 0;

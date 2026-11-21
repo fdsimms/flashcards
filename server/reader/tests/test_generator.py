@@ -380,6 +380,15 @@ def test_the_register_is_asked_for_in_every_language_and_the_schema() -> None:
     assert "register" in items["required"]
 
 
+def test_every_language_is_told_a_line_must_be_grammatical_even_with_words_off_the_list() -> None:
+    # A line with a word left out to stay in vocabulary ("Κάθεται δίπλα λίμνη") is worse for the
+    # learner than a gloss on an extra word, so the prompt says which wins, in Thai and the rest.
+    for language in ("th", "es", "el"):
+        prompt = system_prompt(ENTRIES, language)
+        assert "complete, grammatical" in prompt
+        assert "to be grammatical" in prompt or "to fit a listed word in" in prompt
+
+
 def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:
     # The form goes in the request, so the cached lexicon prefix is shared by both.
     prompt = system_prompt(ENTRIES)

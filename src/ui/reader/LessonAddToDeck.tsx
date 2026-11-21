@@ -96,7 +96,7 @@ export function LessonAddToDeck({ api, lesson, language, deck, recorder, loadEnt
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         <Help>
           {`Choose the phrases to study as cards in ${LANGUAGES[language].name}. Each opens in the note editor`}
-          {clips ? ' with its recording from the lesson.' : ". This lesson was made before its phrases could be cut out of it, so they come without the lesson's recording."}
+          {clips ? ' with its recording from the lesson.' : ". This is an older lesson, so they come without its recording."}
         </Help>
         {offered === null ? <Loading error={loadError} onRetry={load} /> : (
           <Group accessibilityRole="list">

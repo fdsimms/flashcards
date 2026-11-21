@@ -12,9 +12,12 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useConnectionProblem } from './connection';
+import { splitFailure } from '../core/failure';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
+import { makingSpoken, type StageStep } from '../reader/making';
+import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
@@ -102,6 +105,8 @@ export function Screen(props: {
   footer?: React.ReactNode;
   /** Extra style for the footer's box, to set it apart from the content (a surface fill, an edge). */
   footerStyle?: StyleProp<ViewStyle>;
+  /** The footer's height once laid out, for a screen whose content must clear it (pad the scroll content by this). */
+  onFooterLayout?: (height: number) => void;
   /** Floats over the content's bottom edge, just above the footer, without moving anything. Needs a footer. */
   floating?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
@@ -140,7 +145,7 @@ export function Screen(props: {
         {props.children}
         {props.floating ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{props.floating}</View> : null}
       </View>
-      <View style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
+      <View onLayout={props.onFooterLayout ? (e) => props.onFooterLayout?.(e.nativeEvent.layout.height) : undefined} style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
         {props.footer}
       </View>
     </View>
@@ -192,7 +197,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
+export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -201,6 +206,8 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
   facts?: { label: string; value: string }[];
   /** The detail is still being read: its line is held open (blank), so the row doesn't grow when the value arrives. */
   loading?: boolean;
+  /** Something is being made in the background: the step under way and a bar of its steps stand in for `detail`, and a turning mark for the chevron. The row should be `disabled`. */
+  making?: StageStep[];
   onPress: () => void;
   /** A menu of more things to do with it (Up Next's Play Next and Play Later). */
   onLongPress?: () => void;
@@ -223,7 +230,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : detail ? [detail] : [])].join('. ')}
+      accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : making ? [makingSpoken(making)] : detail ? [detail] : [])].join('. ')}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
         paddingVertical: space.m, paddingLeft: start, paddingRight: space.l, backgroundColor: pressed ? c.fill : 'transparent',
@@ -248,7 +255,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
             <Tag {...badge} />
             {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
           </View>
-        ) : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
+        ) : making ? <MakingProgress steps={making} /> : detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : loading ? <Text style={type.footnote}>{'\u00a0'}</Text> : null}
       </View>
       {action ? (
         <Tappable
@@ -261,7 +268,7 @@ export function NavRow({ label, detail, badge, facts, loading, onPress, onLongPr
           <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
-      <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
+      {making ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
     </Pressable>
   );
 }
@@ -555,8 +562,9 @@ export function MessageList({ lines }: { lines: string[] }) {
  * field outlines in the accent while it's being typed in. `ref` reaches the TextInput (React 19
  * passes it as a prop). `keyboardLanguage` is the language the answer is typed in (a speech tag, ru-RU):
  * the field opens on that language's keyboard when the person has it (useKeyboardLanguage).
+ * `code` sets it in the system's monospaced face, for a card template or styling.
  */
-export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; ref?: React.Ref<TextInputInstance> }) {
+export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, code, ...input }: TextInputProps & { label: string; error?: boolean; keyboardLanguage?: string; code?: boolean; ref?: React.Ref<TextInputInstance> }) {
   const c = useTheme();
   const keyboard = useKeyboardLanguage(keyboardLanguage);
   const dark = useColorScheme() === 'dark';
@@ -577,6 +585,7 @@ export function Field({ label, error, ref, onFocus, onBlur, keyboardLanguage, ..
           ...type.body, color: c.text, backgroundColor: c.fill, ...smooth,
           borderColor: error ? c.danger : focused ? c.accent : 'transparent', borderWidth: 1.5, borderRadius: radius.m,
           paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP,
+          ...(code ? { fontFamily: 'Menlo', fontSize: type.callout.fontSize } : null),
         }}
       />
     </View>
@@ -756,18 +765,48 @@ export function Loading({ error, onRetry }: { error?: string | null; onRetry?: (
   const c = useTheme();
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl, minHeight: 160 }}>
-      {error ? <ErrorNote message={error} onRetry={onRetry} /> : <ActivityIndicator color={c.accent} accessibilityLabel="Loading" />}
+      {error ? <ErrorNote centered message={error} onRetry={onRetry} /> : <ActivityIndicator color={c.accent} accessibilityLabel="Loading" />}
     </View>
   );
 }
 
-/** Something that failed, said as it is, with Try again when there's something to retry. */
-export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+/**
+ * Something that failed, with Try again when there's something to retry. A message that opens with
+ * "Couldn't <what>." shows that sentence as the title and the rest under it (`splitFailure`). The
+ * card is for an error inside a screen; `centered` is for a screen with nothing else to show
+ * (`Loading` uses it).
+ */
+export function ErrorNote({ message, onRetry, centered }: { message: string; onRetry?: () => void; centered?: boolean }) {
   const c = useTheme();
+  const { title, reason } = splitFailure(message);
+  const words = (
+    <>
+      {title ? <Text style={{ ...type.headline, color: c.text, textAlign: centered ? 'center' : 'left' }}>{title}</Text> : null}
+      <Text style={{ ...type.subhead, color: title ? c.textSecondary : c.danger, textAlign: centered ? 'center' : 'left' }}>{reason}</Text>
+    </>
+  );
+  if (centered) {
+    return (
+      <View accessibilityRole="alert" style={{ alignItems: 'center', gap: space.xs, maxWidth: 320 }}>
+        <Icon name="exclamationmark.triangle" size={40} color={c.danger} weight="regular" />
+        <View style={{ gap: space.xs, alignItems: 'center', paddingTop: space.xs }}>{words}</View>
+        {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} style={{ marginTop: space.m, alignSelf: 'stretch' }} /> : null}
+      </View>
+    );
+  }
   return (
-    <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
-      <Text style={{ ...type.subhead, color: c.danger }}>{message}</Text>
-      {onRetry ? <HeaderAction label="Try again" onPress={onRetry} /> : null}
+    <View
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row', alignItems: 'flex-start', gap: space.m, alignSelf: 'stretch', padding: space.m,
+        borderRadius: radius.l, ...smooth, backgroundColor: c.dangerFill, borderWidth: hairline, borderColor: c.dangerEdge,
+      }}
+    >
+      <View style={{ paddingTop: 2 }}><Icon name="exclamationmark.triangle" size={20} color={c.danger} /></View>
+      <View style={{ flex: 1, gap: space.xs }}>
+        {words}
+        {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} style={{ marginTop: space.s }} /> : null}
+      </View>
     </View>
   );
 }

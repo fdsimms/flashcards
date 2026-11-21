@@ -17,13 +17,16 @@ from franki_reader.engine import Engine
 from franki_reader.generator import Usage
 from franki_reader.note_queue import (
     BATCH,
+    MAX_ALTERNATIVES,
     MAX_ATTEMPTS,
     RETRY_AFTER,
     FillFailed,
+    Spelled,
     check,
     claude_notes,
     fill_pending,
     request_message,
+    spelled,
 )
 
 NOW = datetime(2026, 11, 13, 9, 0)
@@ -90,6 +93,19 @@ def test_a_good_answer_gives_the_fields_by_their_anki_names() -> None:
             "PartOfSpeech": "verb",
         },
     )
+
+
+def test_production_and_listening_cards_follow_whether_the_word_is_said_or_heard() -> None:
+    def switches(**over: str) -> tuple[bool, bool]:
+        got = check(filled("ricane", **over), {"ricane": ""}, "fr")
+        assert got is not None
+        return "GenerateReverse" in got[1], "GenerateAudioCard" in got[1]
+
+    assert switches(say="yes", hear="yes") == (True, True)
+    assert switches(say="no", hear="yes") == (False, True)
+    assert switches(say="no", hear="no") == (False, False)
+    # With no answer, as before: a reverse card and no audio card.
+    assert switches() == (True, False)
 
 
 def test_the_owners_meaning_is_kept() -> None:
@@ -571,3 +587,123 @@ def test_the_costs_report_a_failed_call_on_the_queue() -> None:
     assert items(c)[0]["state"] == "failed"
     block = c.get("/api/costs", headers=AUTH).json()["note_queue"]
     assert block["notes"] == 1 and block["cost_usd"] == 2.0
+
+
+def test_a_word_sent_twice_is_queued_once() -> None:
+    conn = store.connect(":memory:")
+    first = store.add_queued(conn, "fr", DECK, [("ricaner", ""), ("le hibou", "owl")], NOW)
+    again = store.add_queued(conn, "fr", DECK, [("le hibou", "owl"), ("la chouette", "")], NOW)
+    assert again[0] == first[1]
+    assert [q.entry for q in store.queued_notes(conn)] == ["ricaner", "le hibou", "la chouette"]
+    # The same word for another deck is another word.
+    store.add_queued(conn, "fr", "Languages::Other", [("ricaner", "")], NOW)
+    assert len(store.queued_notes(conn)) == 4
+
+
+# ---- a word typed the way it sounds ----
+
+
+def test_a_spelling_that_differs_from_the_entry_is_kept_and_one_that_doesnt_is_empty() -> None:
+    assert spelled({"spelling": "торговаться"}, "torgovatsya") == Spelled("торговаться", [])
+    assert spelled({"spelling": "ricane"}, "ricane") == Spelled("", [])
+    # Missing or unusable: the entry as typed stands.
+    assert spelled({}, "ricane") == Spelled("", [])
+    assert spelled({"spelling": "a | b"}, "ricane") == Spelled("", [])
+    assert spelled({"spelling": "<i>x</i>"}, "ricane") == Spelled("", [])
+
+
+def test_alternatives_are_checked_without_repeats_and_capped() -> None:
+    raw = {
+        "spelling": "быть",
+        "alternatives": [
+            {"spelling": "бить", "meaning": "to beat"},
+            {"spelling": "бить", "meaning": "to hit"},  # a repeat
+            {"spelling": "быть", "meaning": "to be"},  # the spelling itself
+            {"spelling": "bit", "meaning": "the entry"},  # the entry as typed
+            {"spelling": "вить", "meaning": ""},  # no meaning to show
+            {"spelling": "пить", "meaning": "to drink"},
+            "not an object",
+            {"spelling": "бит", "meaning": "a bit (computing)"},
+            {"spelling": "быт", "meaning": "everyday life"},
+        ],
+    }
+    got = spelled(raw, "bit")
+    assert got.spelling == "быть"
+    assert got.alternatives == [
+        {"spelling": "бить", "meaning": "to beat"},
+        {"spelling": "пить", "meaning": "to drink"},
+        {"spelling": "бит", "meaning": "a bit (computing)"},
+    ]
+    assert len(got.alternatives) == MAX_ALTERNATIVES
+
+
+def test_the_request_asks_for_the_spelling_and_the_other_words_it_could_be() -> None:
+    message = request_message("ru", [("torgovatsya", "")])
+    assert "- spelling:" in message
+    assert "- alternatives:" in message
+    assert "the spelling alone in Latin letters" in message
+
+
+def test_a_filled_word_keeps_its_spelling_and_alternatives_unless_the_owner_gave_a_meaning() -> (
+    None
+):
+    conn = store.connect(":memory:")
+    store.add_queued(conn, "ru", "Languages::Русский", [("bit", ""), ("byt", "to be")], NOW)
+
+    def answer(language: Any, asked: list[tuple[str, str]]) -> list[dict[str, Any]]:
+        return [
+            filled(
+                e,
+                spelling="быть",
+                alternatives=[{"spelling": "бить", "meaning": "to beat"}],
+                context="Я хочу <b>быть</b> дома.",
+                romanization="Ya khochu byt' doma.",
+                transliteration="byt'",
+            )
+            for e, _ in asked
+        ]
+
+    assert run(conn, Writer(answer)) == 2
+    a, b = store.queued_notes(conn)
+    assert (a.spelling, a.alternatives) == ("быть", [{"spelling": "бить", "meaning": "to beat"}])
+    # "to be" says which word was meant, so there's nothing to choose.
+    assert (b.spelling, b.alternatives) == ("быть", [])
+
+
+def test_the_queue_endpoint_shows_a_ready_words_spelling_and_alternatives() -> None:
+    def answer(language: Any, asked: list[tuple[str, str]]) -> list[dict[str, Any]]:
+        return [
+            filled(
+                e, spelling="ricanait", alternatives=[{"spelling": "riait", "meaning": "laughed"}]
+            )
+            for e, _ in asked
+        ]
+
+    c = queue_client(Writer(answer))
+    with c:
+        add(c, {"entry": "ricane"})
+        got = items(c)
+    assert (got[0]["state"], got[0]["spelling"], got[0]["alternatives"]) == (
+        "ready",
+        "ricanait",
+        [{"spelling": "riait", "meaning": "laughed"}],
+    )
+
+
+def test_a_queue_from_before_spellings_gets_the_columns(tmp_path: Any) -> None:
+    path = tmp_path / "reader.db"
+    old = sqlite3.connect(path)
+    old.execute(
+        "CREATE TABLE note_queue (id INTEGER PRIMARY KEY, language TEXT NOT NULL, deck TEXT NOT NULL,"
+        " entry TEXT NOT NULL, meaning TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'waiting',"
+        " fields TEXT NOT NULL DEFAULT '{}', error TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL"
+        " DEFAULT 0, created_at TEXT NOT NULL, tried_at TEXT, cost_usd REAL NOT NULL DEFAULT 0)"
+    )
+    old.execute(
+        "INSERT INTO note_queue (language, deck, entry, created_at) VALUES ('fr', ?, 'ricane', ?)",
+        (DECK, NOW.isoformat()),
+    )
+    old.commit()
+    old.close()
+    (word,) = store.queued_notes(store.connect(path))
+    assert (word.entry, word.spelling, word.alternatives) == ("ricane", "", [])

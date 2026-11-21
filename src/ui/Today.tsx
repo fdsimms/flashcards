@@ -5,7 +5,7 @@ import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
 import { todayProgress } from '../core/todaySummary';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Screen } from './kit';
-import { CountingText, Reveal, useReduceMotion } from './motion';
+import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
@@ -104,7 +104,9 @@ export function Today(props: {
   ready?: boolean;
   /** "Studied today: ..." under the due and new figures (useTodaySummary), once something has been answered today. */
   studied?: StudiedToday;
-  /** Today's extras (DailyExtras.tsx), under the day's count. */
+  /** Crams due soon (CramCards), under the day's count: they have a date. */
+  crams?: React.ReactNode;
+  /** Today's extras (DailyExtras.tsx), under the decks. */
   extrasStrip?: React.ReactNode;
   /** When the last backup was made, and whether another is due (`backupStatus`); warned about only when overdue, and not while sync is on. */
   backup?: { text: string; overdue: boolean };
@@ -129,6 +131,8 @@ export function Today(props: {
   const { banner: vocabReady } = useVocabReady();
   const noteQueue = useNoteQueueBanner();
   const vacation = useVacationBanner();
+  // A card that goes away (notes reviewed, a cram finished) fades out and the ones below slide up.
+  useLeaveAnimation([vocabReady, noteQueue, vacation, props.crams].filter(Boolean).length);
   const groups = useMemo(() => groupByTopLevel(todayDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
@@ -178,7 +182,7 @@ export function Today(props: {
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
           <NewWordsCards />
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
-          {props.extrasStrip}
+          {props.crams}
           {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (
             groups.map((g) => (
               <Group key={g[0].deck}>
@@ -200,6 +204,7 @@ export function Today(props: {
             ))
           )}
           {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
+          {props.extrasStrip}
         </Reveal>
       </ScrollView>
       )}

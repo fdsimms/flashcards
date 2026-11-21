@@ -7,10 +7,12 @@
 // the routes not converted yet: converting one means a response model on the server, rerunning
 // that, and an alias here in place of the hand-written type.
 
+import { OfflineError } from '../core/connection';
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
+import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
 
 /**
@@ -187,7 +189,8 @@ export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
 // way of saying a Sentences prompt, or a retelling of a text. `corrected` is theirs with only the mistakes
 // fixed, and theirs as written when it's right. Never kept, never graded.
 export type WritingVerdict = 'right' | 'almost' | 'wrong';
-export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; used_word?: boolean };
+// `hints` say where each mistake is and what kind, never the fix: shown before the correction, for another try (absent from an older server).
+export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; hints?: string[]; used_word?: boolean };
 // A retelling's check adds words from the text it could have used (each with the line it's in) and what it left out.
 export type RetellCheck = WritingCheck & { words: { word: string; english: string; line: number }[]; left_out: string };
 export type WritingRequest =
@@ -203,7 +206,7 @@ export type SituationRoles = { you: string; them: string; name: string; gender: 
 export type SituationLine = { speaker: 'them' | 'you'; text: string };
 // `focus`: a grammar topic the scene practices (Your topics), so the other person uses it and the feedback comments on it.
 export type SituationFocus = { title: string; lead: string };
-export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[] };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[]; /* how casual or formal the other person's lines are; the server's Settings register when left out */ register?: RegisterLevel; /* Thai only: the learner's polite ending, so their own lines are judged as a man's or a woman's */ particle?: 'khrap' | 'kha' };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
@@ -414,6 +417,8 @@ export type Settings = {
   daily_rotate_count?: number;
   /** Each language's story characters' voices (the defaults where none were chosen); missing from a server older than story voices. */
   cast?: Partial<Record<Language, Record<CastKind, CastVoice>>>;
+  /** How casual or formal the text Claude writes sounds, where a cram or scene doesn't choose its own (registerLevel.ts); missing from a server older than the setting. */
+  register?: RegisterLevel;
 };
 
 // A change to the settings. A deck or voice named '' goes back to the default, and so does a
@@ -537,7 +542,17 @@ export type QueuedNote = {
   state: 'waiting' | 'ready' | 'failed';
   fields: Record<string, string>;
   error: string;
+  /**
+   * How the entry is really written, once it's ready, when it was typed the way it sounds (in Latin
+   * letters, romanized loosely or misspelled); empty otherwise. Absent from a server before it.
+   */
+  spelling?: string;
+  /** The other words a romanized or misspelled entry could be, for the owner to choose from. */
+  alternatives?: { spelling: string; meaning: string }[];
 };
+
+/** A word for a meaning typed in English (Quick add's "Don't know the word?"). */
+export type FoundWord = Schemas['FoundWordOut'];
 
 // `available` is false when the server has no Claude key, so nothing can be queued.
 export type NoteQueue = { available: boolean; items: QueuedNote[] };
@@ -587,7 +602,7 @@ export function createApi(
       });
     } catch (e) {
       // The guard's own reason (offline, or a server too slow) says more than a bare failure.
-      throw new ApiError(e instanceof Refusal ? e.message : "Couldn't reach the server. Check your connection and try again.", 0);
+      throw new ApiError(e instanceof Refusal ? e.message : new OfflineError().message, 0);
     }
     if (response.status === 401) onUnauthorized?.();
     if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
@@ -610,6 +625,9 @@ export function createApi(
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.
     removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
+    // Words for a meaning typed in English, asked when the owner sends one.
+    lookUpWords: async (language: Language, meaning: string) =>
+      (await call<Schemas['WordLookupOut']>('POST', '/api/word-lookup', { language, meaning })).words,
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
     wordSuggestions: (language: Language) => call<WordSuggestions>('GET', `/api/word-suggestions?language=${language}`),
     // Not interested: the word isn't suggested for the language again.
@@ -668,10 +686,10 @@ export function createApi(
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
     // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
-    // Claude picks; `scene` is then the situation they're for. Returns the new lesson's id.
-    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[]) => {
+    // Claude picks; `scene` is then the situation they're for. `register`: a cram's own, else the server's Settings one. Returns the new lesson's id.
+    makeLesson: async (language: Language, scene: string, narrator?: string, particle?: 'khrap' | 'kha', phrases?: { text: string; english: string }[], register?: RegisterLevel) => {
       const response = await send('POST', '/api/lessons', {
-        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}),
+        language, scene, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(phrases ? { phrases } : {}), ...registerChoice(register),
       });
       return ((await response.json()) as { id: number }).id;
     },
@@ -687,6 +705,8 @@ export function createApi(
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
       call<void>('POST', `/api/lessons/${id}/marks`, mark),
+    // A lesson played to the end, so a later lesson may open by asking for its phrases (server lesson.earlier_phrases). Never a rating.
+    lessonHeard: (id: number) => call<void>('POST', `/api/lessons/${id}/heard`),
     // Makes the review on offer from the phrases noted (no Claude call); returns its id, made in the background like a lesson.
     makeReview: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha') => {
       const response = await send('POST', '/api/lessons/review', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) });
@@ -707,7 +727,8 @@ export function createApi(
     // `listens`: how many times each text is wanted again, 3 (1, 4 and 10 days), 1 (3 days) or 0.
     relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
-    logListen: (textId: number) => call<void>('POST', `/api/texts/${textId}/listen`),
+    // `key` is this listen's own id (`listenKey`), sent again with it if it's held and resent, so the server counts it once.
+    logListen: (textId: number, key?: string) => call<void>('POST', `/api/texts/${textId}/listen`, key ? { key } : undefined),
     // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
@@ -773,9 +794,13 @@ export function createApi(
       call<AspectPair>('POST', '/api/aspect-pair', { language, word, ...(line ? { line } : {}) }),
     // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
     // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
-    // language's deck has been read on the server.
-    glosses: (language: Language, sentences: { text: string; english: string }[]) =>
+    // language's deck has been read on the server. A card's headword is asked with `parts`, and comes back split into the words it is made of.
+    glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
+    // The meaning of a tapped word nothing glosses, from Claude on the server (kept there, so a second tap is free): asked
+    // only when the popover opens on a word with none. `english` is the line it was tapped in, which tells Claude the sense. Null when there is none to give.
+    wordMeaning: async (language: Language, word: string, english?: string) =>
+      (await call<{ meaning: string | null }>('POST', '/api/word-meaning', { language, word, ...(english ? { english } : {}) })).meaning,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.
     explainLine: async (textId: number, line: number, simple: boolean, inLanguage = false) => {

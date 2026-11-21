@@ -48,6 +48,8 @@ Franki also imports Anki's "Notes in Plain Text" export, and other text files of
 
 **Edit** while studying opens the note of the card on screen. **Browse** on the deck list lists every note, searchable by any word in it, a tag or its deck, with **Add** for a new one (pick the deck and note type). The editor shows each field of the note type, and the note's deck, which you can change to move it. Select text in a field and tap **Bold**, **Italic** or **Underline** (again to undo), or **Plain text** to take formatting away; a field with formatting shows how it will look underneath. A line break is kept as one, and other formatting shows as HTML and is kept as it is. It says which cards the note makes, refuses one that makes none, and warns when another note of the type has the same first field. **Delete note** removes it with its cards.
 
+**Note types** (Settings, Decks and cards) lists the collection's note types. Open one to edit each card type's front and back template and the styling; Franki checks them as Anki does (a field the note type doesn't have, a front that shows no field) and says what to change. A change reaches Anki at the next sync, without replacing either collection. A change that would give notes a card they don't have yet is refused, since Anki would add those cards and Franki can't yet: make it in Anki.
+
 Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
 
 ## Decks
@@ -73,15 +75,17 @@ Everything lives on the phone. **Backup** (in Settings) makes one file with the 
 
 ## Studying
 
-Tap a deck to study it with its subdecks. **Undo** in the top right takes back the last answer (and the one before, and so on) and shows that card again.
+Tap a deck to study it with its subdecks. **Undo** in the top right takes back the latest thing you did, an answer or something from the menu below (and the one before, and so on), and shows that card again. As in Anki, it goes back only to the last sync.
 
-The button with three dots in the top right flags, buries or suspends the card on screen, as in Anki, and has three more:
+The button with three dots in the top right flags, buries or suspends the card on screen (or every card of its note), as in Anki, and has three more:
 
 - **Set due date** makes the card a review due that many days from today (0 is today; a range like 3-7 picks a day in it at random). It keeps the card's FSRS memory.
 - **Forget card** makes it a new card again, back in the place it had among the new cards, with its memory cleared. **Forget and reset counts** also sets its review and lapse counts to zero.
 - **Card info** shows when the card was added, first and last studied, when it's due, its interval, its FSRS stability, difficulty and retrievability, its review and lapse counts, how long it takes you, and every answer in its history, including those given in Anki.
 
-Both changes go into your Anki collection the way Anki makes them, so sync and Send to Anki carry them. Undo doesn't take them back.
+Both changes go into your Anki collection the way Anki makes them, so sync and Send to Anki carry them, and Undo takes them back the way Anki's does.
+
+Two of your Anki settings show while you study. With **Show answer timer** on in a deck's options in Anki, Review shows how long the card has been up, stopping at its maximum answer seconds (and at the answer, with **Stop timer on answer**). A **Timebox time limit** in Anki's preferences brings an alert after that many minutes, saying how many cards you studied; **Keep studying** starts the next stretch.
 
 **Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
 
@@ -169,4 +173,4 @@ The study day starts at 4 AM, as in Anki, so a late-night session counts toward 
 
 ## Not built yet
 
-Changing a note's type, and editing a note type's fields, card templates or styling (do these in Anki and sync). Making Image Occlusion notes (Image Occlusion cards made in Anki study as they do there), and LaTeX in cards (MathJax works). Changing a deck's Anki options, such as limits, steps and desired retention, and optimizing FSRS parameters (both are in Anki's deck options). Anki's full search syntax in Browse.
+Changing a note's type, and adding, renaming or removing a note type's fields or card types (do these in Anki and sync). Making Image Occlusion notes (Image Occlusion cards made in Anki study as they do there), and LaTeX in cards (MathJax works). Changing a deck's Anki options, such as limits, steps and desired retention, and optimizing FSRS parameters (both are in Anki's deck options). Anki's full search syntax in Browse.

@@ -1,15 +1,17 @@
 import { Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { markWords, themeDeckWords } from '../../core/cramThemes';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { markWords, themeDeckWords, type ThemeWord } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Repo } from '../../db/repo';
 import type { CramTheme, Language } from '../../reader/api';
+import { scaledFontSize, talkTextStyle, type TextSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Field, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { usePhoneSpeech } from '../usePhoneSpeech';
+import { talkSizeMenu, useTalkSize } from './talkSize';
 import { setThemeState, useThemeState } from './themeStore';
 
 type AddWords = (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
@@ -18,7 +20,8 @@ type AddWords = (language: Language, deck: string, entries: { entry: string; mea
  * One theme from the ideas (CramThemes): the words of yours it uses, common words you lack with a +
  * to send each to Claude through the note queue (saving the note in the editor is the approval),
  * and questions to steer the lesson with, each read aloud when tapped. "Things to say" is the
- * story, the same screen with `view="story"`. Use theme hands the theme to the new cram's sheet.
+ * story, the same screen with `view="story"`. Use theme adds the theme to the cram it was asked for
+ * (its questions and story, and its words), and says so if it can't.
  */
 export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehearse, onUse }: {
   repo: Repo;
@@ -30,13 +33,20 @@ export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehe
   onStory: () => void;
   /** Opens Situations on the theme: its title is the scene and its deck words are worked in. */
   onRehearse: (language: Language, scene: string, words: { text: string; english: string }[]) => void;
-  onUse: () => void;
+  /** Keeps the theme on its cram and adds its deck words; the screen says so if this throws. */
+  onUse: (theme: CramTheme, words: ThemeWord[]) => Promise<void>;
 }) {
   const { suggested } = useThemeState();
   const theme = suggested?.themes[index];
+  const [size, chooseSize] = useTalkSize();
   const toolbar = (
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button accessibilityLabel="Use this theme" disabled={!theme} onPress={() => { if (suggested && theme) { haptic.tap(); setThemeState({ chosen: { language: suggested.language, theme, words: suggested.words } }); onUse(); } }}>Use theme</Stack.Toolbar.Button>
+      {talkSizeMenu(size, chooseSize)}
+      <Stack.Toolbar.Button accessibilityLabel="Use this theme" disabled={!theme} onPress={() => {
+        if (!suggested || !theme) return;
+        haptic.tap();
+        onUse(theme, suggested.words).catch((e) => Alert.alert("Couldn't use the theme", failureText(e, { next: 'Try again.' })));
+      }}>Use theme</Stack.Toolbar.Button>
     </Stack.Toolbar>
   );
   if (!suggested || !theme) {
@@ -48,15 +58,16 @@ export function CramThemeDetail({ repo, index, view, decks, add, onStory, onRehe
   }
   const deck = decks.find((d) => d.language === suggested.language)?.deck;
   return view === 'story'
-    ? <Story repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words).map((w) => w.text)} toolbar={toolbar} />
-    : <Theme repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words)} deck={deck} add={add} onStory={onStory} onRehearse={() => onRehearse(suggested.language, theme.title, themeDeckWords(theme, suggested.words))} toolbar={toolbar} />;
+    ? <Story repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words).map((w) => w.text)} size={size} toolbar={toolbar} />
+    : <Theme repo={repo} theme={theme} language={suggested.language} words={themeDeckWords(theme, suggested.words)} size={size} deck={deck} add={add} onStory={onStory} onRehearse={() => onRehearse(suggested.language, theme.title, themeDeckWords(theme, suggested.words))} toolbar={toolbar} />;
 }
 
-function Theme({ repo, theme, language, words, deck, add, onStory, onRehearse, toolbar }: {
+function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehearse, toolbar }: {
   repo: Repo;
   theme: CramTheme;
   language: Language;
   words: { text: string; english: string }[];
+  size: TextSize;
   deck: string | undefined;
   add: AddWords;
   onStory: () => void;
@@ -93,7 +104,7 @@ function Theme({ repo, theme, language, words, deck, add, onStory, onRehearse, t
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {words.map((w) => (
                 <View key={w.text} style={{ backgroundColor: c.fill, borderRadius: radius.s, paddingVertical: space.xs + 1, paddingHorizontal: space.s + 1, flexDirection: 'row', alignItems: 'baseline', gap: space.xs + 2 }}>
-                  <Text style={{ fontSize: info.fontSize * 0.75, color: c.text }}>{w.text}</Text>
+                  <Text style={{ ...talkTextStyle(info, size, 0.75), color: c.text }}>{w.text}</Text>
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.english}</Text>
                 </View>
               ))}
@@ -114,22 +125,22 @@ function Theme({ repo, theme, language, words, deck, add, onStory, onRehearse, t
                   accessibilityLabel={done ? `${w.word} added` : `Add ${w.word}`}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 44 }}
                 >
-                  <Text style={{ fontSize: info.fontSize * 0.75, color: c.text }}>{w.word}</Text>
+                  <Text style={{ ...talkTextStyle(info, size, 0.75), color: c.text }}>{w.word}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{w.english}</Text>
                   <Icon name={done ? 'checkmark.circle.fill' : 'plus.circle'} size={24} color={done ? c.goodInk : deck ? c.accentInk : c.textTertiary} />
                 </Tappable>
               );
             })}
-            <Help>Added words go to Claude to be filled in. You save each one in the note editor.</Help>
+            <Help>Claude fills in each word you add. Save each one in the note editor.</Help>
             {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
           </Card>
         ) : null}
         <Card>
-          <Text style={{ ...type.footnote, color: c.textSecondary, fontWeight: '600' }}>QUESTIONS TO STEER WITH</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary, fontWeight: '600' }}>QUESTIONS TO ASK</Text>
           {theme.questions.map((q) => (
             <Tappable key={q.text} onPress={() => phone.sayLine(q.text, info.speech, false)} accessibilityRole="button" accessibilityLabel={`Hear ${q.text}`} style={{ gap: 2, paddingVertical: space.xs }}>
-              <Text style={{ fontSize: info.fontSize * 0.8, lineHeight: info.fontSize * 0.8 * info.lineHeight, color: c.text }}>{q.text}</Text>
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>{q.english}</Text>
+              <Text style={{ ...talkTextStyle(info, size), color: c.text }}>{q.text}</Text>
+              <Text style={{ ...type.footnote, fontSize: scaledFontSize(type.footnote.fontSize, size), color: c.textSecondary }}>{q.english}</Text>
             </Tappable>
           ))}
         </Card>
@@ -142,12 +153,13 @@ function Theme({ repo, theme, language, words, deck, add, onStory, onRehearse, t
   );
 }
 
-function Story({ repo, theme, language, words, toolbar }: {
+function Story({ repo, theme, language, words, size, toolbar }: {
   repo: Repo;
   theme: CramTheme;
   language: Language;
   /** The deck words of the theme, marked where the story uses them. */
   words: string[];
+  size: TextSize;
   toolbar: React.ReactNode;
 }) {
   const c = useTheme();
@@ -179,16 +191,16 @@ function Story({ repo, theme, language, words, toolbar }: {
           {editing ? (
             <Field label="Your version" value={draft} onChangeText={setDraft} multiline autoFocus keyboardLanguage={language} />
           ) : (
-            <Text style={{ fontSize: info.fontSize, lineHeight: info.fontSize * info.lineHeight, color: c.text }}>
+            <Text style={{ ...talkTextStyle(info, size, 1), color: c.text }}>
               {runs.map((r, i) => (r.marked ? <Text key={i} style={{ backgroundColor: c.accentFill, color: c.accentInk }}>{r.text}</Text> : r.text))}
             </Text>
           )}
-          {!editing && story.english ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{story.english}</Text> : null}
+          {!editing && story.english ? <Text style={{ ...type.subhead, fontSize: scaledFontSize(type.subhead.fontSize, size), color: c.textSecondary }}>{story.english}</Text> : null}
           {!editing && words.length ? <Help>The highlighted words are from your deck.</Help> : null}
         </Card>
         {editing ? <Button label="Done" onPress={finish} /> : <Button label="Edit the story" variant="secondary" onPress={() => { haptic.tap(); setDraft(story.text); setEditing(true); }} />}
         {!editing ? <Button label="Listen" variant="secondary" onPress={() => { haptic.tap(); phone.sayLine(story.text, info.speech, false); }} /> : null}
-        <Help>Edit the story into what you'd really say, then practice saying it. Saying your own version at the lesson is the point.</Help>
+        <Help>Change the story to what you'd really say, then practice saying it aloud.</Help>
       </ScrollView>
     </Screen>
   );
