@@ -9,14 +9,15 @@ describe('which notes offer reasons', () => {
     expect(THAI.map((r) => r.key)).toEqual(['tone', 'vowel-length', 'similar-letter', 'spelling', 'meaning', 'confused']);
   });
 
-  it('gives German, Polish, Russian and Greek gender, stress, ending and meaning', () => {
-    for (const language of ['German', 'Polish', 'Russian', 'Greek']) {
+  it('gives German, Russian and Greek gender, stress, ending and meaning', () => {
+    for (const language of ['German', 'Russian', 'Greek']) {
       expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'stress', 'ending', 'meaning', 'confused']);
     }
   });
 
-  it('gives Spanish, French and Norwegian gender, spelling, ending and meaning', () => {
-    for (const language of ['Spanish', 'French', 'Norwegian']) {
+  it('gives Spanish, French, Norwegian and Polish gender, spelling, ending and meaning', () => {
+    // Polish stress is fixed, so a Polish word is missed by its spelling, not its stress.
+    for (const language of ['Spanish', 'French', 'Norwegian', 'Polish']) {
       expect(missReasonsFor(omniNote({ Language: language, deck: 'x' })).map((r) => r.key)).toEqual(['gender', 'spelling', 'ending', 'meaning', 'confused']);
     }
   });

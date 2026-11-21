@@ -2,7 +2,7 @@ import type { CramTheme as ApiTheme, CramThemesRequest, Language } from '../read
 import type { Particle } from '../reader/lessons';
 import { registerChoice, type RegisterLevel } from '../reader/registerLevel';
 import { lessonPhraseOf, lastMissed, noteAddedAt, type Cram, type CramTalk } from './cram';
-import { noteHasTag } from './priority';
+import { isLiveLeech } from './leechRecovery';
 import type { Card, Note } from './types';
 import { weightOf, type Marks, type Tally } from '../tools/marks';
 
@@ -24,8 +24,6 @@ export const THEME_WEAK_CHARS = 120;
 export const THEME_TOPIC_CHARS = 120;
 /** A note added in this many days counts as lately added. */
 export const FRESH_DAYS = 14;
-/** A note tagged as a leech counts as missed too. */
-export const LEECH_TAG = 'leech';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,7 +38,7 @@ export interface ThemeWord {
 
 /**
  * The words themes are built from, at most `THEME_WORDS_MAX`: the unused words of the last finished
- * cram, then the ones missed in the latest cram's last round or tagged leech, then those added in the
+ * cram, then the ones missed in the latest cram's last round or still leeches (`isLiveLeech`), then those added in the
  * last `FRESH_DAYS`, then other studied words, newest first within each. Only notes in `language` that
  * an audio lesson could take (`lessonPhraseOf`), and studied (a card that isn't New) unless they were
  * left over from the last cram.
@@ -48,7 +46,11 @@ export interface ThemeWord {
 export function themeWords(input: { notes: Note[]; cards: Iterable<Card>; language: Language; crams: Cram[]; now: Date }): ThemeWord[] {
   const { notes, language, crams, now } = input;
   const studied = new Set<string>();
-  for (const c of input.cards) if (c.sched.state !== 0) studied.add(c.noteId);
+  const cardsOfNote = new Map<string, Card[]>();
+  for (const c of input.cards) {
+    if (c.sched.state !== 0) studied.add(c.noteId);
+    (cardsOfNote.get(c.noteId) ?? cardsOfNote.set(c.noteId, []).get(c.noteId)!).push(c);
+  }
 
   const lastFinished = crams.filter((c) => c.finishedAt).sort((a, b) => (a.finishedAt! < b.finishedAt! ? 1 : -1))[0];
   const carried = new Set(lastFinished?.unused ?? []);
@@ -58,7 +60,7 @@ export function themeWords(input: { notes: Note[]; cards: Iterable<Card>; langua
 
   const kindOf = (n: Note): ThemeKind => {
     if (carried.has(n.id)) return 'carried';
-    if (missed.has(n.id) || noteHasTag(n, LEECH_TAG)) return 'missed';
+    if (missed.has(n.id) || isLiveLeech(n, cardsOfNote.get(n.id) ?? [])) return 'missed';
     const added = noteAddedAt(n);
     return added > 0 && added >= since ? 'fresh' : 'deck';
   };

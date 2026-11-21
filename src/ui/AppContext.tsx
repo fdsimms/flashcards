@@ -32,6 +32,7 @@ import { Loading } from './kit';
 import { useLoadProblem } from './useLoadProblem';
 import { useOpenRepo } from './useOpenRepo';
 import { useOwedAnswers } from './useOwedAnswers';
+import { reviewOpen } from './reviewOpen';
 import { useSync } from './useSync';
 import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
@@ -141,8 +142,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Sync, when it's on: at launch, on coming back to the app (from Today or the deck list, so a deck
   // being studied isn't changed under it), after studying a deck (Review's screen asks), and on
-  // leaving the app. With sync off, coming back counts the decks again, as a sync would: a new study
-  // day may have started.
+  // leaving the app, unless a review is open (reviewOpen.ts: a sync would end its Undo). With sync
+  // off, coming back counts the decks again, as a sync would: a new study day may have started.
   useOwedAnswers(repo);
   const { settings: syncSettings, syncing, sync, reload: reloadSync } = useSync(repo, refresh);
   const onDecks = pathname === TODAY_PATH || pathname === DECKS_PATH;
@@ -153,7 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { if (repo) sync(); }, [repo]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background') sync();
+      if (state === 'background') { if (!reviewOpen()) sync(); }
       else if (state === 'active' && onDecksRef.current) {
         if (syncOnRef.current) sync();
         else refresh();

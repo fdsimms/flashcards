@@ -8,7 +8,7 @@ import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } fro
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
-import { cardDeck, cardHomeDeck, deckCardFonts, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
+import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
@@ -55,8 +55,7 @@ import { LanguageCue } from './LanguageCue';
 import { MemoryStrength } from './MemoryStrength';
 import { fragilePercent } from '../core/memoryStrength';
 import { stateChip } from '../core/stateChip';
-import { isLeechNote } from '../core/trouble';
-import { leechRecovered, withoutLeechTag } from '../core/leechRecovery';
+import { isLiveLeech } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
@@ -376,6 +375,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return q;
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
   const queue = settle ? settle.queue : rebuilt;
+  // Reviews a lookalike seen today holds until tomorrow, for the done screen (as the deck list says, `heldDue`).
+  const heldToday = useMemo(() => (cards ? heldDue(deck, groupByDeck(cards, deckOf), forms.held, now, H) : 0), [cards, deckOf, deck, forms.held, now, H]);
   // While settling, `queue` still holds the card just answered, so a bar worked out from it would move
   // once on that count and again when the queue is rebuilt. It holds still until the rebuilt queue is in.
   const progressRef = useRef(0);
@@ -397,6 +398,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The back is committed: time the flip to the frames after it (a no-op unless timing is on).
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
   const note = current ? notes.get(current.noteId) : undefined;
+  // Tagged a leech and not recovered since (`isLiveLeech`): Anki's tag stays on a recovered word, the chip doesn't.
+  const liveLeech = useMemo(() => !!note && isLiveLeech(note, cards?.filter((c) => c.noteId === note.id) ?? []), [note, cards]);
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
   // A dates drill asks only about the months whose words the deck has studied (src/tools/skillWords.ts).
   const drill = useMemo((): Drill | undefined => {
@@ -839,22 +842,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               // The answer stands; the tag just isn't added.
             }
           }
-          // A leech that has recovered (every card of the note a mature review) loses its tag. Read
-          // from the saved cards, not `pool`, which may hold only part of the note's cards.
-          if (!preview && !isLeech && rating > 1 && isLeechNote(noteBefore) && updated.sched.state === 2) {
-            try {
-              const all = await repo.listCards();
-              if (leechRecovered(noteBefore, all.filter((c) => c.noteId === noteBefore.id))) {
-                // The note as it is now, so an edit made since the answer isn't written back over.
-                const latest = (await repo.getNote(noteBefore.id)) ?? noteBefore;
-                const cleared = await saveNote(repo as NoteStore, { id: latest.id, deck: latest.deck, model: latest.model, fields: latest.fields, tags: withoutLeechTag(latest.tags) }, when);
-                record.leechClearedNoteId = latest.id;
-                setNotes((prev) => new Map(prev).set(cleared.id, cleared));
-              }
-            } catch {
-              // The answer stands; the tag just stays.
-            }
-          }
           if (isLeech && canAddMnemonic(noteBefore)) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
@@ -912,16 +899,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           const restored = await saveNote(repo as NoteStore, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: n.tags.filter((t) => t !== 'leech') });
           setNotes((prev) => new Map(prev).set(restored.id, restored));
         } catch { /* the tag stays */ }
-      }
-      // An answer that let a recovered leech go: the tag comes back with the answer.
-      if (last.leechClearedNoteId) {
-        const c = await repo.getNote(last.leechClearedNoteId);
-        if (c && !isLeechNote(c)) {
-          try {
-            const back = await saveNote(repo as NoteStore, { id: c.id, deck: c.deck, model: c.model, fields: c.fields, tags: [...c.tags, 'leech'] });
-            setNotes((prev) => new Map(prev).set(back.id, back));
-          } catch { /* the tag stays off */ }
-        }
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
@@ -1210,6 +1187,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               {waitingFor ? `The next card comes back in about ${minutes} min.` : 'Nothing else is due in this deck today.'}
             </Text>
           </Reveal>
+          {heldToday && !waitingFor ? (
+            <Reveal rise={8} delay={500}>
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+                {`${heldToday} ${heldToday === 1 ? 'review waits' : 'reviews wait'} until tomorrow, apart from a lookalike you saw today.`}
+              </Text>
+            </Reveal>
+          ) : null}
           {history.length ? <Reveal rise={8} delay={560} style={{ alignSelf: 'stretch' }}><SessionSummary history={history} delay={560} /></Reveal> : null}
           {sessionMisses.rows.length || steps.length || extraCard ? (
             <Reveal rise={8} delay={760} style={{ alignSelf: 'stretch', gap: space.s }}>
@@ -1574,7 +1558,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <SkillDrillCard skill={skill} revealed={revealed} />
         </SwipeCard>
       ) : null}
-      {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
+      {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
       {page && !drill ? (
         <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
@@ -1601,7 +1585,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
-              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} />
+              <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />

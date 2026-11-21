@@ -64,6 +64,11 @@ describe('trouble cards, most missed', () => {
     const rows = run({ cards: [card('a1', 'a', { lapses: 8 })], notes: [note('a', THAI, ['leech'])] });
     expect(rows[0].leech).toBe(true);
   });
+
+  it("doesn't call a recovered word a leech, though it's still tagged", () => {
+    const rows = run({ cards: [card('a1', 'a', { lapses: 8, state: 2, scheduledDays: 40 })], notes: [note('a', THAI, ['leech'])] });
+    expect(rows[0].leech).toBe(false);
+  });
 });
 
 describe('trouble cards, missed lately', () => {

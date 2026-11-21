@@ -131,6 +131,8 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   const badge = leadingEmoji(row.name);
   // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;
+  // Reviews kept apart from a lookalike just seen: Anki still counts them as due today, so the row says where they went.
+  const heldLine = row.held ? `${row.held} lookalike ${row.held === 1 ? 'review waits' : 'reviews wait'} until tomorrow` : null;
   return (
     <Pressable
       onPress={editing ? undefined : (onPress ?? onOpen)}
@@ -138,7 +140,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       accessibilityRole={editing ? undefined : 'button'}
       accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
-      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine].filter(Boolean).join('. ')}
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine, heldLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -169,6 +171,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           // Under the cap, new cards come in; at it, they wait until cards are a week out (the color says so).
           <Text style={{ ...type.footnote, color: atCap ? c.warning : c.textSecondary }}>{gateLine}</Text>
         ) : null}
+        {heldLine ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{heldLine}</Text> : null}
       </View>
       {editing ? (
         // Touching the handle picks the deck up at once; the list's own scrolling gives way to the drag.

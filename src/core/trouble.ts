@@ -1,5 +1,6 @@
 import { calendarStart, type Answer } from './stats';
 import { cardHomeDeck, isInDeck } from './deckTree';
+import { isLiveLeech } from './leechRecovery';
 import type { Card, Note } from './types';
 
 /**
@@ -29,14 +30,11 @@ export interface TroubleRow {
   misses: number;
   /** Answers it's out of: all-time reviews, or reviews in the window. */
   answers: number;
-  /** The note carries Anki's `leech` tag. */
+  /** The note is a leech now: tagged one in Anki, and not recovered since (`isLiveLeech`). */
   leech: boolean;
 }
 
-/** Whether the note is tagged a leech (Anki compares tags without regard to case). */
-export function isLeechNote(note: Note): boolean {
-  return note.tags.some((t) => t.toLowerCase() === 'leech');
-}
+export { isLeechNote } from './leechRecovery';
 
 export function troubleCards(input: {
   cards: Card[];
@@ -50,6 +48,9 @@ export function troubleCards(input: {
 }): TroubleRow[] {
   const { cards, deck, mode } = input;
   const noteById = new Map(input.notes.map((n) => [n.id, n]));
+  const cardsOfNote = new Map<string, Card[]>();
+  for (const c of cards) (cardsOfNote.get(c.noteId) ?? cardsOfNote.set(c.noteId, []).get(c.noteId)!).push(c);
+  const leech = (note: Note) => isLiveLeech(note, cardsOfNote.get(note.id) ?? []);
   const studied = new Map<string, { card: Card; note: Note }>();
   for (const card of cards) {
     if (card.suspended || card.retired || card.sched.state === 0) continue;
@@ -63,7 +64,7 @@ export function troubleCards(input: {
   if (mode === 'most') {
     for (const { card, note } of studied.values()) {
       if (card.sched.lapses < 1) continue;
-      rows.push({ card, note, misses: card.sched.lapses, answers: card.sched.reps, leech: isLeechNote(note) });
+      rows.push({ card, note, misses: card.sched.lapses, answers: card.sched.reps, leech: leech(note) });
     }
   } else {
     const since = calendarStart(input.now, input.dayStartsAtHour, RECENT_DAYS).getTime();
@@ -78,7 +79,7 @@ export function troubleCards(input: {
     for (const [id, t] of tally) {
       if (t.misses < 1) continue;
       const { card, note } = studied.get(id)!;
-      rows.push({ card, note, ...t, leech: isLeechNote(note) });
+      rows.push({ card, note, ...t, leech: leech(note) });
     }
   }
   // Most misses first; of two with as many, the one missed more often for its answers; then a

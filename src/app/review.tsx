@@ -6,6 +6,7 @@ import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
 import { lastStudiedDeck } from '../ui/lastDeck';
+import { useReviewOpen } from '../ui/reviewOpen';
 import { ExtraCard } from '../ui/DailyExtras';
 import { backToDecks } from '../ui/leaveScreen';
 import { Review } from '../ui/Review';
@@ -21,6 +22,8 @@ export default function ReviewRoute() {
   const { deck } = useLocalSearchParams<{ deck: string }>();
   // The Home Screen's "Study" quick action opens the deck studied last (useHomeShortcuts).
   useEffect(() => { if (deck) lastStudiedDeck.save(deck); }, [deck]);
+  // Leaving the app while here doesn't sync, so Undo still works on coming back (reviewOpen.ts).
+  useReviewOpen();
   // Sync when leaving, however it's left: the Back button, the swipe, or "Back to decks".
   const syncRef = useRef(sync);
   syncRef.current = sync;

@@ -5,21 +5,25 @@ import UIKit
 /// `textInputMode` when it takes focus, and answering with one of the keyboards the person has
 /// enabled opens that one. React Native's fields are UITextField and UITextView, so this answers
 /// that question for them (and only them) while a language is set: `set` before the field takes
-/// focus, or while it has it, which reloads the keyboard. A language the person hasn't enabled a
-/// keyboard for changes nothing. `set(nil)` hands the choice back to iOS.
+/// focus, or while it has it, which reloads the keyboard. Languages are asked for in order ("pl,en":
+/// Polish, else English), and one the person hasn't enabled a keyboard for is passed over; with none
+/// enabled nothing changes. `set(nil)` hands the choice back to iOS.
 enum KeyboardLanguage {
-  /// The language's primary subtag ("ru"), or nil for no preference.
-  static var wanted: String?
+  /// Primary subtags in order of preference (["pl", "en"]), or nil for no preference.
+  static var wanted: [String]?
 
-  /// The enabled keyboard for `wanted`: the person's current one when it already is, else the first.
+  /// The enabled keyboard for the first of `wanted` that has one: the person's current keyboard when
+  /// it's one of them, else the first enabled for the earliest language that has one.
   static func mode(for responder: UIResponder, original: UITextInputMode?) -> UITextInputMode? {
-    guard let wanted else { return original }
-    func matches(_ mode: UITextInputMode) -> Bool {
-      guard let tag = mode.primaryLanguage else { return false }
-      return tag.split(separator: "-").first.map(String.init)?.lowercased() == wanted
+    guard let wanted, !wanted.isEmpty else { return original }
+    func language(_ mode: UITextInputMode) -> String? {
+      mode.primaryLanguage?.split(separator: "-").first.map(String.init)?.lowercased()
     }
-    if let original, matches(original) { return original }
-    return UITextInputMode.activeInputModes.first(where: matches) ?? original
+    if let original, let l = language(original), wanted.contains(l) { return original }
+    for want in wanted {
+      if let found = UITextInputMode.activeInputModes.first(where: { language($0) == want }) { return found }
+    }
+    return original
   }
 
   static var installed = false
@@ -54,10 +58,10 @@ public class KeyboardLanguageModule: Module {
   public func definition() -> ModuleDefinition {
     Name("KeyboardLanguage")
 
-    /// `language` is a primary subtag ("ru", "th"), or nil to stop asking for one.
+    /// `language` is primary subtags in order, joined with commas ("ru", "pl,en"), or nil to stop asking.
     AsyncFunction("set") { (language: String?) in
       KeyboardLanguage.install()
-      KeyboardLanguage.wanted = language?.lowercased()
+      KeyboardLanguage.wanted = language?.lowercased().split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
       // A field that already has focus asks again only when its keyboard is reloaded.
       guard language != nil else { return }
       for scene in UIApplication.shared.connectedScenes {

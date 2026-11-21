@@ -1,6 +1,6 @@
 import { FLAG_NAMES } from './cardState';
 import { isBuried } from './queue';
-import { isLeechNote } from './trouble';
+import { isLiveLeech } from './leechRecovery';
 import type { Card, Note } from './types';
 
 /**
@@ -30,7 +30,8 @@ export function noteMarkers(note: Note, cards: Card[], now: Date, dayStartsAtHou
   count('suspended', 'Suspended', live.filter((c) => c.suspended).length);
   // A suspended card is out of study already, so a bury on it adds nothing to say.
   count('buried', 'Buried until tomorrow', live.filter((c) => !c.suspended && isBuried(c, now, dayStartsAtHour)).length);
-  if (isLeechNote(note)) out.push({ kind: 'leech', label: 'Leech' });
+  // A leech that has recovered isn't marked, though Anki's tag stays on it (`isLiveLeech`).
+  if (isLiveLeech(note, cards)) out.push({ kind: 'leech', label: 'Leech' });
   const flags = [...new Set(live.map((c) => c.flag ?? 0).filter((f) => f > 0 && f < FLAG_NAMES.length))].sort((a, b) => a - b);
   for (const f of flags) count('flag', `${FLAG_NAMES[f]} flag`, live.filter((c) => c.flag === f).length, f);
   return out;

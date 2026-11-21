@@ -26,7 +26,7 @@ Franki works on your real Anki collection. It gets there one of two ways.
 
 ### Sync (recommended)
 
-Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app, and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
+Run your own Anki sync server ([server/README.md](server/README.md) sets one up on a small cloud server, with HTTPS), and point Anki on your computer, AnkiMobile and Franki at it. Franki then syncs the way Anki does: when you open it, when you finish studying a deck, when you leave the app (unless you leave in the middle of studying, so Undo still works when you come back), and when you tap **Sync**. Your answers go to the server, and reviews, new notes and changes made in Anki come back, with images and sounds. Franki can't sync with AnkiWeb, whose terms allow only Anki's own apps.
 
 New, renamed and deleted decks, deck options, note types and tags are merged the way Anki merges them. (On a build made before that was added, Franki sends its answers and then downloads the whole collection instead, so nothing is lost.) When the two collections can't be merged at all (the first sync, or after a field was added to a note type, which makes Anki upload), Franki downloads the server's, and asks first if that would lose answers given in Franki.
 

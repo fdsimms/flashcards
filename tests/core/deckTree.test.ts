@@ -466,6 +466,13 @@ describe('held cards', () => {
       ['Languages::Es', 0, 1],
     ]);
   });
+  it("counts the held reviews due today on each deck's row, and not the held new cards", () => {
+    const fresh = newCards(2);
+    const due = reviewCards(2, 10);
+    const held = { ...input({ 'Languages::Es': [...fresh, ...due] }), held: new Set([fresh[0].id, due[0].id]) };
+    expect(deckRows(held).map((r) => [r.deck, r.held])).toEqual([['Languages', 1], ['Languages::Es', 1]]);
+    expect(deckRows(input({ 'Languages::Es': [...fresh, ...due] })).every((r) => r.held === undefined)).toBe(true);
+  });
 });
 
 describe('inheritedSetting', () => {

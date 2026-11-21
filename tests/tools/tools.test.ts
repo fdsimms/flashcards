@@ -3,7 +3,7 @@ import { LANGUAGE_ORDER } from '../../src/reader/languages';
 import { CURRENCIES } from '../../src/tools/money';
 import { FIRST_YEAR, LAST_YEAR } from '../../src/tools/date';
 import { MAX_AGE, MAX_NUMBER, MIN_AGE, NUMBER_KINDS, randomQuestion } from '../../src/tools/number';
-import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS, TOOL_LANGUAGES, toolById, listLanguage, toolLanguage, TOOLS } from '../../src/tools/tools';
+import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, studiedLanguages, TIME_SAYERS, TOOL_LANGUAGES, toolById, listLanguage, toolLanguage, TOOLS } from '../../src/tools/tools';
 
 describe('the Practice tools', () => {
   it('offers Telling the time in every app language but English, in the app order', () => {
@@ -87,8 +87,27 @@ describe('the Practice tools', () => {
   });
 
   it('lists tools in the language last practiced, else the first tool language (never English)', () => {
-    expect(listLanguage('pl')).toBe('pl');
-    expect(listLanguage(undefined)).toBe(TOOL_LANGUAGES[0]);
-    expect(listLanguage('en')).toBe(TOOL_LANGUAGES[0]);
+    expect(listLanguage('pl', ['ru'])).toBe('pl');
+    expect(listLanguage(undefined, [])).toBe(TOOL_LANGUAGES[0]);
+    expect(listLanguage('en', [])).toBe(TOOL_LANGUAGES[0]);
+    // Before one is chosen, the language the decks have most cards in.
+    expect(listLanguage(undefined, ['es', 'pl'])).toBe('es');
+    expect(listLanguage('en', ['pl'])).toBe('pl');
+  });
+});
+
+describe('studiedLanguages', () => {
+  it('lists the languages the decks are in, most cards first, counting a deck once with its subdecks', () => {
+    const decks = [
+      { deck: '👅 Languages', depth: 0, total: 900 },
+      { deck: '👅 Languages::💈 Polski', depth: 1, total: 300 },
+      { deck: '👅 Languages::💈 Polski::Tier 1', depth: 2, total: 100 },
+      { deck: '👅 Languages::🌮 Español', depth: 1, total: 500 },
+      { deck: '👅 Languages::🐟 Norsk', depth: 1, total: 100 },
+      { deck: '👅 Languages::🗽 English', depth: 1, total: 50 },
+      { deck: '🧠 Trivia', depth: 0, total: 2000 },
+    ];
+    expect(studiedLanguages(decks)).toEqual(['es', 'pl', 'nb']);
+    expect(studiedLanguages([])).toEqual([]);
   });
 });

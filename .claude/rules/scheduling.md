@@ -37,10 +37,11 @@ own count between UTC dates, which made a step across UTC midnight a day's wait.
 relearning card keeps the interval its lapse gave it (`relearnDays`), as Anki's does. A step crossing into a
 later day is Anki's queue 3 (`isInterdayLearning`); its answers count as reviews and use the
 review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended if it says so. **The
-tag comes off once the word has recovered** (`leechRecovered`, `src/core/leechRecovery.ts`): every
-studied card of the note is an unsuspended review scheduled `LEECH_RECOVERED_DAYS` (21) or more out.
-Anki never removes it; Franki does because its Leeches filter, Trouble and cram read the tag as a
-live signal. Undo puts the tag back (`leechClearedNoteId`).
+tag stays on, as in Anki, but a word that has recovered stops counting as a leech** (`isLiveLeech`,
+`src/core/leechRecovery.ts`): every studied card of the note is an unsuspended review scheduled
+`LEECH_RECOVERED_DAYS` (21) or more out. It's read from the cards each time, never stored or written
+to Anki, since the learner's own searches and filtered decks use the tag; Trouble, Browse's marker,
+a cram's missed words and Review's chip read it.
 
 **Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
 the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
