@@ -136,7 +136,7 @@ export function checkReading(subject: Subject, typed: string, synonyms: string[]
     const wanted = readingName(subject.readings.find((r) => r.accepted)?.type);
     const given = readingName(other.type);
     if (wanted && given) return { result: 'retry', message: `That's the ${given} reading. Enter the ${wanted} reading.` };
-    return { result: 'retry', message: wanted ? `Enter the ${wanted} reading.` : 'That reading is not the one asked for. Try another.' };
+    return { result: 'retry', message: wanted ? `Enter the ${wanted} reading.` : "That's not the reading WaniKani wants here. Try another." };
   }
   return { result: 'wrong' };
 }

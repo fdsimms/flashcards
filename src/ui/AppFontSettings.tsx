@@ -85,7 +85,7 @@ export function AppFontSettings() {
           />
         </Group>
         <Help>
-          Most fonts are in the app. The Japanese ones are large, so each downloads the first time you pick it and can be removed to free the space. Each font lists the scripts it covers. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
+          The Japanese fonts are large, so each downloads the first time you pick it and can be removed to free the space. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
           {settings.random && font !== settings.font ? ` Right now the app is in ${APP_FONT_OPTIONS.find((o) => o.id === font)?.label}.` : ''}
         </Help>
       </ScrollView>

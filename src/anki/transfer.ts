@@ -10,6 +10,7 @@ import { mergeDeckPackage, packageMediaPlan, planDeckPackage, type DeckPackagePl
 import { buildExport } from './collection';
 import { fileSink, fileSource, pathOf, workFolder } from './files';
 import { sha1Hex } from './sha1';
+import { NO_COLLECTION } from './noteService';
 import { readPackage, writePackage } from './package';
 import { LATEST_VERSION } from './packageFormat';
 
@@ -96,7 +97,7 @@ export async function adoptDownloadedCollection(repo: Repo & AnkiLink, downloade
 /** Packs the kept collection, with Franki's answers in it, as a package for Anki to import. */
 export async function buildPackageForAnki(repo: AnkiLink, now = new Date()): Promise<File> {
   const kept = await repo.keptCollection();
-  if (!kept) throw new PackageRefused("There's no Anki collection in Franki yet. Import one from AnkiMobile first.");
+  if (!kept) throw new PackageRefused(NO_COLLECTION);
   const out = new File(Paths.cache, `Franki to Anki ${dayKeyOf(now)}.colpkg`);
   if (out.exists) out.delete();
   await writePackage(
@@ -124,7 +125,7 @@ export interface OpenedDeckPackage {
  */
 export async function openDeckPackage(repo: Repo & AnkiLink, picked: File): Promise<OpenedDeckPackage> {
   if (!(await repo.keptCollection())) {
-    throw new PackageRefused("A deck package is added to an Anki collection, and Franki doesn't have one yet. Bring your collection in or set up sync first, then import it.");
+    throw new PackageRefused(NO_COLLECTION);
   }
   const work = workFolder('apkg-import');
   const mediaDir = workFolder('apkg-import-media');

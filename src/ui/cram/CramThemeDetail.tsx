@@ -131,12 +131,12 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
                 </Tappable>
               );
             })}
-            <Help>Added words go to Claude to be filled in. You save each one in the note editor.</Help>
+            <Help>Claude fills in each word you add. Save each one in the note editor.</Help>
             {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
           </Card>
         ) : null}
         <Card>
-          <Text style={{ ...type.footnote, color: c.textSecondary, fontWeight: '600' }}>QUESTIONS TO STEER WITH</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary, fontWeight: '600' }}>QUESTIONS TO ASK</Text>
           {theme.questions.map((q) => (
             <Tappable key={q.text} onPress={() => phone.sayLine(q.text, info.speech, false)} accessibilityRole="button" accessibilityLabel={`Hear ${q.text}`} style={{ gap: 2, paddingVertical: space.xs }}>
               <Text style={{ ...talkTextStyle(info, size), color: c.text }}>{q.text}</Text>
@@ -200,7 +200,7 @@ function Story({ repo, theme, language, words, size, toolbar }: {
         </Card>
         {editing ? <Button label="Done" onPress={finish} /> : <Button label="Edit the story" variant="secondary" onPress={() => { haptic.tap(); setDraft(story.text); setEditing(true); }} />}
         {!editing ? <Button label="Listen" variant="secondary" onPress={() => { haptic.tap(); phone.sayLine(story.text, info.speech, false); }} /> : null}
-        <Help>Edit the story into what you'd really say, then practice saying it. Saying your own version at the lesson is the point.</Help>
+        <Help>Change the story to what you'd really say, then practice saying it aloud.</Help>
       </ScrollView>
     </Screen>
   );

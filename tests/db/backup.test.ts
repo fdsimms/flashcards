@@ -57,16 +57,16 @@ describe('backupStatus', () => {
     expect(backupStatus(null, now, false, 4)).toBeUndefined();
     expect(backupStatus(null, now, true, 4)).toEqual({ text: 'Not backed up yet', overdue: true });
     expect(backupStatus(new Date(2026, 10, 11, 8).toISOString(), now, true, 4)).toEqual({ text: 'Backed up today', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, true, 4)).toEqual({ text: 'Last backed up yesterday', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, true, 4)).toEqual({ text: 'Last backed up 7 days ago', overdue: true });
+    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, true, 4)).toEqual({ text: 'Backed up yesterday', overdue: false });
+    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, true, 4)).toEqual({ text: 'Backed up 7 days ago', overdue: true });
   });
 
   it('counts study days, not 24 hours', async () => {
     const { backupStatus } = await import('../../src/db/backup');
     // 11 PM, then 9 AM the next morning: yesterday, though under 24 hours ago.
-    expect(backupStatus(new Date(2026, 10, 10, 23).toISOString(), new Date(2026, 10, 11, 9), true, 4)?.text).toBe('Last backed up yesterday');
+    expect(backupStatus(new Date(2026, 10, 10, 23).toISOString(), new Date(2026, 10, 11, 9), true, 4)?.text).toBe('Backed up yesterday');
     // 11 PM Monday, then 10 PM Wednesday: two days, though under 48 hours ago.
-    expect(backupStatus(new Date(2026, 10, 9, 23).toISOString(), new Date(2026, 10, 11, 22), true, 4)?.text).toBe('Last backed up 2 days ago');
+    expect(backupStatus(new Date(2026, 10, 9, 23).toISOString(), new Date(2026, 10, 11, 22), true, 4)?.text).toBe('Backed up 2 days ago');
     // 2 AM still belongs to the day before.
     expect(backupStatus(new Date(2026, 10, 10, 22).toISOString(), new Date(2026, 10, 11, 2), true, 4)?.text).toBe('Backed up today');
   });
@@ -86,11 +86,11 @@ describe('backupCardText', () => {
     const { backupCardText } = await import('../../src/db/backup');
     const now = new Date(2026, 10, 17, 12);
     const today = backupCardText({ at: new Date(2026, 10, 17, 9, 14).toISOString(), cards: 3482, media: 1240 }, now, 4);
-    expect(today.title).toMatch(/^Last backup made today, 9:14/);
+    expect(today.title).toMatch(/^Backed up today, 9:14/);
     expect(today.detail).toBe('3,482 cards, 1,240 images and sounds');
     expect(today.overdue).toBe(false);
     const old = backupCardText({ at: new Date(2026, 10, 5, 9).toISOString(), cards: 1, media: 0 }, now, 4);
-    expect(old).toEqual({ title: 'Last backup made 12 days ago', detail: expect.stringContaining('1 card'), overdue: true });
+    expect(old).toEqual({ title: 'Backed up 12 days ago', detail: expect.stringContaining('1 card'), overdue: true });
     // A backup made before counts were kept shows the time alone.
     expect(backupCardText({ at: new Date(2026, 10, 17, 9).toISOString(), cards: null, media: null }, now, 4).detail).toBeUndefined();
     expect(backupCardText(null, now, 4)).toEqual({ title: 'Not backed up yet', overdue: true });

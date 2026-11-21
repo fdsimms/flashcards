@@ -61,7 +61,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
     <Screen title="Grammar">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <Help>
-          {`Practice: used at least twice in every text, at most ${max} at a time. Know it: used freely, and the ones you've seen least are worked into texts. Don't know it: kept out of texts. Not set: at most 2 uses in a text, underlined and explained. Applies from the next text written.`}
+          {`Practice: used at least twice in every text, at most ${max} at a time. Know it: used freely, and the ones you've seen least are worked into texts. Don't know it: kept out of texts. Not set: at most 2 uses in a text, underlined and explained. Applies to texts written from now on.`}
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {points === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
@@ -152,7 +152,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
             })}
           </Card>
         ) : null}
-        <Help>The server checks each text for these and rewrites one that misses, so most texts follow them.</Help>
+        <Help>Most texts follow these settings.</Help>
       </ScrollView>
     </Screen>
   );

@@ -61,7 +61,7 @@ export function DailyExtrasSettings() {
               <SwitchRow
                 first
                 label="Suggest extras each day"
-                hint="Short drills from the Practice tab and a text to read, picked from what you've missed lately. Time, dates, money and numbers come up as skill cards in their decks instead. Nothing here changes when a card is due."
+                hint="Short drills from the Practice tab and a text to read, picked from what you've missed lately. They don't change when your cards are due."
                 value={prefs.on}
                 onValueChange={(on) => save({ ...prefs, on })}
               />
@@ -86,7 +86,7 @@ export function DailyExtrasSettings() {
                     ))}
                   </Group>
                 ) : (
-                  <Help>Daily extras follow Read & Listen's language decks. Turn on Read & Listen in Settings, and the languages you study appear here.</Help>
+                  <Help>Turn on Read & Listen (Settings, Read & Listen) and the languages you study appear here.</Help>
                 )}
                 {turns.length > 0 ? (
                   <Help>{`Next in line for a turn: ${turns.map((l) => LANGUAGES[l].name).join(', ')}.`}</Help>

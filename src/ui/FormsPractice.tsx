@@ -144,7 +144,7 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
               ) : (
                 <Help>Pick at least one pattern and one kind of form.</Help>
               )}
-              <Help>Only words whose meaning you've already studied are used, so the practice is about the forms, not new words.</Help>
+              <Help>Uses only words you've already studied.</Help>
             </Card>
           </>
         )}

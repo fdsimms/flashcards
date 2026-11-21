@@ -168,7 +168,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {problem ? <Help>{problem === 'offline' ? "Offline, only lessons on this iPhone are listed." : "Your server isn't answering, so only lessons on this iPhone are listed."}</Help> : null}
+        {problem ? <Help>{problem === 'offline' ? "You're offline, so only lessons on this iPhone are listed." : "Couldn't reach your server, so only lessons on this iPhone are listed."}</Help> : null}
         {lessons !== null && lessons.length === 0 && !problem ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
         {lessons !== null && lessons.length > 0 ? (
           <View onLayout={(e) => { listTop.current = e.nativeEvent.layout.y; }}>

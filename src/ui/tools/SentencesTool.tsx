@@ -115,7 +115,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
   let content: React.ReactNode;
   let footer: React.ReactNode = <View />;
   if (!readerApi) {
-    content = <View style={{ padding: space.l }}><Card><Help>{"Sentences are written on Read & Listen's server. Turn on Read & Listen in Settings to use them."}</Help></Card></View>;
+    content = <View style={{ padding: space.l }}><Card><Help>Sentences uses Read & Listen. Turn it on in Settings, Read & Listen.</Help></Card></View>;
   } else if (error) {
     content = <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => void load()} /></View>;
   } else if (loading || !loaded) {
@@ -151,7 +151,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                 ))}
               </View>
             ) : null}
-            <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>More sentences are written for your words in the background.</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Claude keeps writing more sentences for your words.</Text>
           </View>
         )}
       />
@@ -160,8 +160,8 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
         <Card>
           <Help>
             {loaded.writing
-              ? `Sentences for the ${name} words you've reviewed today or are still learning are being written. Try again in a minute.`
-              : "Claude isn't set up on Read & Listen's server, so it can't write sentences. Add Claude's key to your Read & Listen server to turn this on."}
+              ? `Claude is writing sentences for the ${name} words you reviewed today or are still learning. Try again in a minute.`
+              : "Your Read & Listen server has no Claude key, so it can't write sentences. Add the key to the server's settings, then open this again."}
           </Help>
         </Card>
       </View>

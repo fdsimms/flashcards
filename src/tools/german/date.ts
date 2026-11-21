@@ -26,8 +26,8 @@ export function sayGermanDate(d: CalendarDate, parts: DateParts): DateSaying {
   const on = `am ${parts.weekday ? `${weekday}, dem ` : ''}${stem}en ${month}${year}`;
   const asNumbers = `${parts.weekday ? `${weekday}, ` : ''}der ${stem}e ${germanOrdinalStem(d.month)}e${year}`;
   const also = [
-    say(on, 'Saying on which day: am, and the ordinal ends in -en'),
-    say(asNumbers, 'The month as a number too, as 12.11. is read out'),
+    say(on, 'As in "on the 12th": am, and the ordinal ends in -en'),
+    say(asNumbers, 'With the month as a number, as when reading 12.11. aloud'),
   ];
   const written = `${parts.weekday ? `${weekday}, ` : ''}${d.day}. ${month}${parts.year ? ` ${d.year}` : ''}`;
   // siebente is as standard as siebte (and the usual one in Austria).

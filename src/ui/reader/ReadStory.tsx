@@ -179,7 +179,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
                 );
               });
             })()}
-            {story.running ? <Help>Each episode is written once you've read the one before, so a series you leave alone writes nothing more.</Help> : null}
+            {story.running ? <Help>Each new episode is written after you read the last one, so a series you leave alone costs nothing.</Help> : null}
           </>
         ) : null}
       </ScrollView>

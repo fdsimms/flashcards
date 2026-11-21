@@ -124,12 +124,12 @@ export function Backup({ store, syncOn, onBackedUp }: {
     if (res.canceled) return;
     const asset = res.assets[0];
     Alert.alert(
-      'Replace everything with this backup?',
+      `Restore ${asset.name}?`,
       `Your decks, cards and review history on this iPhone will be replaced by the ones in ${asset.name}. This can't be undone, so back up first if you want to keep them.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Replace',
+          text: 'Restore',
           style: 'destructive',
           onPress: () => run('restore', async () => {
             try {
@@ -200,7 +200,7 @@ export function Backup({ store, syncOn, onBackedUp }: {
           <SwitchRow
             first
             label="Remind me to back up"
-            hint={reminderOn ? `An evening notification when the last backup is ${BACKUP_REMINDER_DAYS} days old.` : `A notification in the evening once the last backup is ${BACKUP_REMINDER_DAYS} days old.`}
+            hint={`An evening notification once the last backup is ${BACKUP_REMINDER_DAYS} days old.`}
             value={!!reminderOn}
             onValueChange={turnReminder}
           />

@@ -167,7 +167,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   };
 
   const confirmDelete = () => {
-    Alert.alert('Delete this lesson?', `"${lesson.title}" and its recording are removed from the server.`, [
+    Alert.alert('Delete this lesson?', `"${lesson.title}" will be deleted from your server and this iPhone. This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

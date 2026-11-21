@@ -95,11 +95,10 @@ export function suggestTags(counts: TagSuggestion[], query: string, chosen: stri
 }
 
 /** A whole number from what was typed, within `min`..`max`, or what to fix. */
-export function parsePriorityNumber(text: string, min: number, max: number, what: string): { value: number } | { error: string } {
+export function parsePriorityNumber(text: string, min: number, max: number): { value: number } | { error: string } {
   const t = text.trim();
-  if (!/^\d+$/.test(t)) return { error: `${what} must be a whole number from ${min} to ${max}.` };
   const n = Number(t);
-  if (n < min || n > max) return { error: `${what} must be from ${min} to ${max}.` };
+  if (!/^\d+$/.test(t) || n < min || n > max) return { error: `Enter a whole number from ${min} to ${max}.` };
   return { value: n };
 }
 

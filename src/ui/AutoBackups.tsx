@@ -56,8 +56,8 @@ export function AutoBackups({ dayStartsAtHour, onRestore, disabled }: {
           </Group>
           <View style={{ paddingHorizontal: space.xs }}>
             <Help>
-              {list.summary} {keep} They hold your decks, cards and review history, not images and sounds, and they're
-              lost with this iPhone, so use Back up now to keep one somewhere else.
+              {list.summary} {keep} They hold your decks, cards and review history, but not images or sounds. If you lose this
+              iPhone you lose them too, so use Back up now to keep one somewhere else.
             </Help>
           </View>
         </>

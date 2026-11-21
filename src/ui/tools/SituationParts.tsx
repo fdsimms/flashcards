@@ -172,7 +172,7 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
                 <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{w.word}</Text>
                 <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{`${w.english} · ${w.why === 'asked' ? 'you asked for it' : 'you heard it'}`}</Text>
                 {onAdd ? (
-                  state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>In the queue</Text> : (
+                  state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>Added</Text> : (
                     <Button variant="secondary" label={state === 'failed' ? 'Try again' : 'Add'} busy={state === 'adding'} onPress={() => onAdd(w)} style={{ minHeight: MIN_TAP, paddingVertical: space.xs }} />
                   )
                 ) : null}
@@ -180,7 +180,7 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
             );
           })}
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            Add puts the word in the note queue, filled in, for you to save in the note editor.
+            Add has Claude fill in the word. Save it in the note editor.
           </Text>
         </View>
       ) : null}

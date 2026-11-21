@@ -98,7 +98,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
       if (added === 'held') {
         Alert.alert(
           entries.length === 1 ? 'Added 1 word' : `Added ${entries.length} words`,
-          `${connection.offline() ? "You're offline, so they go to Claude when you're back online" : "Your server isn't answering, so they go to Claude once it does"}. Then they'll be ready to review on Today.`,
+          `${connection.offline() ? "You're offline, so they go to Claude when you're back online" : "Couldn't reach your server, so they go to Claude once it answers"}. Then they'll be ready to review on Today.`,
         );
       }
       onDone();

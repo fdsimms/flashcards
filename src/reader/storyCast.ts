@@ -81,7 +81,7 @@ export function voiceFamily(voice: string): VoiceFamily | undefined {
 const FAMILIES: Record<VoiceFamily, { tag: string; term: string; note: string }> = {
   hd: { tag: 'HD', term: 'HD (Dragon HD)', note: 'High definition voices. They read the whole text for context and set the tone to match it.' },
   'hd-flash': { tag: 'HD Flash', term: 'Flash', note: 'A lighter HD voice that is made quickly, for fast replies.' },
-  'hd-omni': { tag: 'HD Omni', term: 'Omni', note: 'A newer HD model that Microsoft is rolling out.' },
+  'hd-omni': { tag: 'HD Omni', term: 'Omni', note: "Microsoft's newest HD voices." },
   mai: { tag: 'MAI', term: 'MAI', note: "Voices made by Microsoft AI, separate from the HD ones. Standard MAI voices are for expressive, longer reading." },
   'mai-flash': { tag: 'MAI Flash', term: 'MAI Flash', note: 'The quick, low-delay version of an MAI voice.' },
 };
@@ -100,7 +100,7 @@ export function voiceTag(voice: string): string | undefined {
 export function voiceNotes(voices: { voice: string }[]): { term: string; note: string }[] {
   const present = new Set(voices.map((v) => voiceFamily(v.voice)));
   const notes = (Object.keys(FAMILIES) as VoiceFamily[]).filter((f) => present.has(f)).map((f) => ({ term: FAMILIES[f].term, note: FAMILIES[f].note }));
-  if (present.has('hd') || present.has('hd-flash') || present.has('hd-omni')) notes.push({ term: 'Latest', note: 'In a name, it means Microsoft updates the voice as new versions come out.' });
+  if (present.has('hd') || present.has('hd-flash') || present.has('hd-omni')) notes.push({ term: 'Latest', note: 'Microsoft keeps this voice updated to its latest version.' });
   return notes;
 }
 

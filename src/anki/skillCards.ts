@@ -59,7 +59,7 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
   const now = add.now ?? new Date();
   const basic = (await store.listNoteTypes()).get(SKILL_NOTE_TYPE);
   if (!basic || !basic.fields.includes('Front') || !basic.fields.includes('Back')) {
-    throw new SkillsRefused(`Your collection has no ${SKILL_NOTE_TYPE} note type with Front and Back fields, which skill cards are made of. In Anki on your computer, add one (Tools, Manage Note Types, Add, then Add: Basic), sync, and try again.`);
+    throw new SkillsRefused(`Skill cards need a ${SKILL_NOTE_TYPE} note type with Front and Back fields, and your collection doesn't have one. In Anki on your computer, add one (Tools, Manage Note Types, Add, then Add: Basic), sync, and try again.`);
   }
   const drafts = skillDrafts(add.language, add.languageName, add.groups);
   if (!drafts.length) throw new SkillsRefused('There are no skill cards to add for this deck yet.');

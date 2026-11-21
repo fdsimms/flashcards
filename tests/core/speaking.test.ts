@@ -69,10 +69,10 @@ describe('canListen', () => {
 
 describe('hearingText', () => {
   it('says whether a language can be heard offline', () => {
-    expect(hearingText(true, true)).toBe('Can be heard, also offline');
-    expect(hearingText(true, false)).toBe('Can be heard when online');
-    expect(hearingText(true, null)).toBe('Can be heard');
-    expect(hearingText(false, null)).toBe("Can't be heard");
+    expect(hearingText(true, true)).toBe('Works offline too');
+    expect(hearingText(true, false)).toBe('Works only when online');
+    expect(hearingText(true, null)).toBe('Supported');
+    expect(hearingText(false, null)).toBe('Not supported');
     expect(hearingText(null, null)).toBe('');
   });
 });

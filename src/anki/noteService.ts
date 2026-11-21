@@ -1,7 +1,7 @@
 import { isOmnilanguage, makeCards } from '../core/cards';
 import { cardStateOf, withCardState, type CardState } from '../core/cardState';
 import { untiered } from '../core/deckTree';
-import { Refusal } from '../core/failure';
+import { NOTE_GONE, Refusal } from '../core/failure';
 import { duplicateOf, notesStillThere } from '../core/noteEditing';
 import { withMnemonic } from '../core/leechHint';
 import type { Card, Note, NoteType } from '../core/types';
@@ -48,6 +48,9 @@ export interface NoteDraft {
 /** A note that can't be saved, with the reason to show beside it. */
 export class NoteRefused extends Refusal {}
 
+/** The refusal for anything that writes into the kept Anki collection when Franki doesn't have one. */
+export const NO_COLLECTION = "There's no Anki collection in Franki yet. Bring it in from Settings, Anki, then try again.";
+
 /** The cards a note would have (new ones), the way Franki generates them. */
 export function cardsFor(note: Note, noteTypes: Map<string, NoteType>, now: Date): Card[] {
   return makeCards(note, now, isOmnilanguage(note) ? undefined : noteTypes.get(note.model));
@@ -67,7 +70,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   const noteTypes = await store.listNoteTypes();
   const noteType = noteTypes.get(draft.model);
   const existing = draft.id ? await store.getNote(draft.id) : undefined;
-  if (draft.id && !existing) throw new NoteRefused("This note isn't in Franki anymore.");
+  if (draft.id && !existing) throw new NoteRefused(NOTE_GONE);
   // An edit can move the note to another deck; it can't change its note type.
   const note: Note = { id: draft.id ?? '', deck: draft.deck, model: existing?.model ?? draft.model, fields: draft.fields, tags: draft.tags };
   // A note whose first field another note of its type already has is refused, as Anki's duplicate

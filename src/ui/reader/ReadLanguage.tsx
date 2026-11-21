@@ -127,7 +127,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
             <Group>
               {/* Thai counts only its deck, so it has no common words to check. */}
               {settings.common?.[language] !== undefined ? (
-                <NavRow first label="Vocabulary check" detail="20 questions to find how many common words to count" onPress={onVocabCheck} />
+                <NavRow first label="Vocabulary check" detail="20 questions to see how many common words you know" onPress={onVocabCheck} />
               ) : null}
               <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
               <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
@@ -144,7 +144,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
               <Help>
                 {settings.stretch_words === 'topic'
                   ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it.'
-                  : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies from the next text written."}
+                  : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies to texts written from now on."}
               </Help>
             </Card>
 

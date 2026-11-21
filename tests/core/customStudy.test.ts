@@ -33,10 +33,10 @@ describe('the search a custom study stores', () => {
 describe('what a request needs', () => {
   it('wants a whole number from 1 to 9999', () => {
     expect(customStudyProblem({ kind: 'moreNew', count: 10 })).toBeUndefined();
-    expect(customStudyProblem({ kind: 'moreNew', count: 0 })).toMatch('cards');
-    expect(customStudyProblem({ kind: 'forgotten', days: 1.5 })).toMatch('days');
+    expect(customStudyProblem({ kind: 'moreNew', count: 0 })).toBe('Enter a whole number from 1 to 9999.');
+    expect(customStudyProblem({ kind: 'forgotten', days: 1.5 })).toBe('Enter a whole number from 1 to 9999.');
     expect(customStudyProblem({ kind: 'ahead', days: 10000 })).toMatch('9999');
-    expect(customStudyProblem({ kind: 'cram', select: 'all', count: NaN, include: [], exclude: [] })).toMatch('cards');
+    expect(customStudyProblem({ kind: 'cram', select: 'all', count: NaN, include: [], exclude: [] })).toMatch('9999');
   });
 
   it('adds to the limit the deck has', () => {

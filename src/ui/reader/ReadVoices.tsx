@@ -51,7 +51,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : null}
         {!known && voices === undefined && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {outdated ? <ErrorNote message="Read & Listen's server doesn't offer voices by gender yet. It updates itself within about 15 minutes of an update; try again then." /> : null}
+        {outdated ? <ErrorNote message="Your Read & Listen server hasn't been updated for this yet. It updates itself within about 15 minutes of a new version, so try again then." /> : null}
         {known ? (
           <>
             <Group>
@@ -65,7 +65,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
               </Group>
             ) : null}
             <Help>
-              {`Each text says whether its speakers are men or women, and reads them in these voices. When both speakers are the same gender, the second one is read in the second voice. A story's narrator uses the man's voice, and its characters have voices of their own.`}
+              {`Texts use these voices for their speakers, with the second voice when both speakers are men or both are women. A story's narrator uses the man's voice.`}
             </Help>
             {sharesVoice(voices) ? (
               <Help>{`A second voice that's the same as the first reads two men, or two women, in the same voice. Choose a different one to tell them apart.`}</Help>

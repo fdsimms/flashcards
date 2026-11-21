@@ -119,7 +119,7 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
     <Screen title="Talking points" largeTitle={false}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
-        {cram && language ? <Help>{topic ? `Angles on "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. Use theme names the cram after it.`}</Help> : null}
+        {cram && language ? <Help>{topic ? `Ways to talk about "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. The cram is named after the one you pick.`}</Help> : null}
         <Segments<'comfortable' | 'stretch'>
           options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'stretch', label: 'Stretch' }]}
           value={stretch ? 'stretch' : 'comfortable'}

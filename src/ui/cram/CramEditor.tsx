@@ -125,7 +125,7 @@ export function CramEditor({ repo, id, canSuggest }: {
 
   const remove = () => {
     if (!editing) return;
-    Alert.alert(`Delete ${editing.name}?`, 'Its tag comes off its words. The words and their cards stay as they are.', [
+    Alert.alert(`Delete ${editing.name}?`, 'Only the cram is deleted. Its words and their cards stay in your decks.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -168,7 +168,7 @@ export function CramEditor({ repo, id, canSuggest }: {
           {!editing && canSuggest && !name.trim() ? (
             <>
               <Button variant="secondary" label="Not sure yet? Get ideas" onPress={() => void save(true)} disabled={!ready || !language || busy} />
-              <Help>{language ? 'Starts the cram and suggests things to talk about from your words. The one you use names it.' : 'Choose a language below first.'}</Help>
+              <Help>{language ? 'Starts the cram and suggests things to talk about from your words. The cram is named after the one you pick.' : 'Choose a language below first.'}</Help>
             </>
           ) : null}
         </Card>
@@ -201,7 +201,7 @@ export function CramEditor({ repo, id, canSuggest }: {
             value={CRAM_LANGUAGE_CHOICES.find((x) => x.code === language)?.label ?? ANY_LANGUAGE}
             onChange={(v) => { picked.current = true; setLanguage(CRAM_LANGUAGE_CHOICES.find((x) => x.label === v)?.code); }}
           />
-          <Help>{languageName ? `Add offers only ${languageName} words, and new ${languageName} cards join it.` : 'Add offers every word, and only new cards in no language join it.'}</Help>
+          <Help>{languageName ? `Only ${languageName} words show up when you add words. New ${languageName} cards join the cram.` : 'Words in every language show up when you add words. New cards join the cram only if they have no language.'}</Help>
         </Card>
         {!editing && (carried || missedIds.length) ? (
           <View style={{ gap: space.s }}>
@@ -234,7 +234,7 @@ export function CramEditor({ repo, id, canSuggest }: {
             <SwitchRow first label="New cards join it" hint={languageName ? `${languageName} cards you add before the day get this cram's tag.` : "Cards you add before the day get this cram's tag."} value={addNew} onValueChange={setAddNew} />
           </Group>
         ) : null}
-        <Help>Until the day, a review of these words is due no later than that day. Afterwards they keep their usual schedule.</Help>
+        <Help>These words come up for review by the cram's day. After that, they go back to their usual schedule.</Help>
         {editing ? <Button variant="destructive" label="Delete cram" onPress={remove} disabled={busy} /> : null}
       </ScrollView>
     </Screen>

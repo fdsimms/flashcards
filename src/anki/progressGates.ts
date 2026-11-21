@@ -68,7 +68,7 @@ export function withCollectionGates(
 
 /** Sets or, with no cap, removes a deck's gate in the kept collection. False when Anki has no deck by that name. */
 export async function setAnkiProgressGate(db: SyncDb, deck: string, cap: number | undefined, now: Date): Promise<boolean> {
-  if (cap !== undefined && !isCap(cap)) throw new RangeError(`A gate's cap is a whole number from 1 to ${MAX_GATE_CAP}.`);
+  if (cap !== undefined && !isCap(cap)) throw new RangeError(`Enter a whole number from 1 to ${MAX_GATE_CAP}.`);
   const native = deck.split('::').join('\x1f');
   const row = (await db.all<{ id: number; name: string }>('SELECT id, name FROM decks NOT INDEXED')).find((r) => r.name === native);
   if (!row) return false;

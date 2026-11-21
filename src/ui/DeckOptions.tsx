@@ -113,7 +113,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
           <SwitchRow
             first
             label="Limit cards in progress"
-            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit, and its subdecks' own daily new card limits don't apply.`}
+            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
             value={on}
             onValueChange={toggle}
           />

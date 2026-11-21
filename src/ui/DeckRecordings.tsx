@@ -60,10 +60,10 @@ export function DeckRecordings({ repo, deck, recorder }: { repo: Repo; deck: str
       ) : null}
       {plan.ready.length ? (
         !recorder ? (
-          <Help>{`${notes(plan.ready.length)} here could be recorded with an Azure voice. Turn on Read & Listen (Settings, Read & Listen) to record them.`}</Help>
+          <Help>{`${notes(plan.ready.length)} here could be recorded with an Azure voice. Recording uses Read & Listen. Turn it on in Settings, Read & Listen.`}</Help>
         ) : (
           <>
-            <Help>{`${notes(plan.ready.length)} here ${plan.ready.length === 1 ? 'has' : 'have'} no recording. Each is recorded from its Entry in the voice chosen for its language, and goes to Anki with the note at the next sync.`}</Help>
+            <Help>{`${notes(plan.ready.length)} here ${plan.ready.length === 1 ? 'has' : 'have'} no recording. Each is read from its Entry in its language's voice and reaches Anki at the next sync.`}</Help>
             <Button
               label={done !== undefined ? `Recording ${Math.min(done + 1, plan.ready.length)} of ${plan.ready.length}…` : `Record audio for ${notes(plan.ready.length)}`}
               variant="secondary"

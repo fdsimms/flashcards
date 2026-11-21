@@ -135,8 +135,8 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
           <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${DRILL_QUESTIONS}`}</Text>
           <Dots results={skill.results} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {skill.suggested === 3 ? 'All right. Good is outlined.'
-              : skill.suggested === 2 && skill.slow ? `All right, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
+            {skill.suggested === 3 ? 'All correct. Good is outlined.'
+              : skill.suggested === 2 && skill.slow ? `All correct, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
                 : skill.suggested === 2 ? 'One miss. Hard is outlined.' : 'More than one miss. Again is outlined.'}
             {'\n'}Tap the rating that fits.
           </Text>

@@ -34,7 +34,7 @@ export function sayGreekDate(d: CalendarDate, parts: DateParts): DateSaying {
   const everyday = say(`${weekday}${day} ${MONTHS[d.month - 1]}${year}`);
   const also = [
     say(`${weekday}${day} του ${SPOKEN_MONTHS[d.month - 1]}${year}`, 'The month by its everyday name'),
-    say(`${weekday}${d.day === 1 ? 'την' : 'στις'} ${day} ${MONTHS[d.month - 1]}${year}`, 'Saying on which day'),
+    say(`${weekday}${d.day === 1 ? 'την' : 'στις'} ${day} ${MONTHS[d.month - 1]}${year}`, 'As in "on the 12th"'),
   ];
   const written = say(`${parts.weekday ? `${WEEKDAYS[weekdayOf(d)]} ` : ''}${d.day} ${MONTHS[d.month - 1]}${parts.year ? ` ${d.year}` : ''}`);
   return { everyday, also: distinct([everyday, ...also]).slice(1), written, spellings: FORMAL_SPELLINGS };

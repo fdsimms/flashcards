@@ -112,14 +112,13 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
             ))}
           </Group>
         ) : languages ? (
-          <Help>None of your decks are read aloud yet. Omnilanguage notes with a Language, and note types whose templates use Anki's tts filter, show up here.</Help>
+          <Help>None of your decks are read aloud yet. A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter.</Help>
         ) : error ? (
           <ErrorNote message={error} onRetry={retry} />
         ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
         <Help>
-          Each language has an Azure voice and an iPhone voice. A card with a recording plays it. A card without one
-          is read by the iPhone voice, and the Azure voice is used to record it. If an Anki template's tts filter
-          names a voice or speed, that is used instead of the iPhone's.
+          Each language has an Azure voice and an iPhone voice. Cards with a recording play it. Cards without one
+          are read by the iPhone voice, and new notes are recorded with the Azure voice.
         </Help>
         <Help>{DOWNLOAD_HELP}</Help>
       </ScrollView>
@@ -168,7 +167,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <SectionTitle>Recordings</SectionTitle>
         {!api ? (
-          <Help>Recording cards with Azure's voices needs Read & Listen turned on (Settings, Read & Listen), since its server holds the Azure key.</Help>
+          <Help>Recording cards with Azure voices uses Read & Listen. Turn it on in Settings, Read & Listen.</Help>
         ) : azure.error ? (
           <ErrorNote message={azure.error} onRetry={azure.retry} />
         ) : !azure.voices ? (
@@ -190,7 +189,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
             {sample.error ? <ErrorNote message={sample.error} /> : null}
             <AzureVoiceTerms voices={azure.voices} />
             <Help>
-              {`${lang.name} notes without a recording get one in this voice: when a note is added, from Record audio in the note editor, and for a whole deck from its options. Read & Listen's server records it, and it goes to Anki with the note at the next sync. Only Omnilanguage notes are recorded, from their Entry.`}
+              {`New ${lang.name} notes are recorded in this voice. To record existing ones, use Record audio in the note editor or the deck's options. Only Omnilanguage notes are recorded.`}
             </Help>
           </>
         )}
@@ -223,7 +222,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
           ))}
         </Group>
         {inLanguage.length ? null : <Help>{`This iPhone has no ${lang.name} voice yet.`}</Help>}
-        <Help>{`Choosing a voice or speed reads ${lang.sample ? `"${lang.sample}"` : 'a sample'} with it. ${DOWNLOAD_HELP}`}</Help>
+        <Help>{`Choosing a voice or speed plays a sample. ${DOWNLOAD_HELP}`}</Help>
       </ScrollView>
     </Screen>
   );

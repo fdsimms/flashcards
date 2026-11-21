@@ -72,7 +72,7 @@ export function CramPage(props: {
   useEffect(() => {
     capCramCards(repo).then(
       () => setCapProblem(undefined),
-      (e) => setCapProblem(failureText(e, { what: "Couldn't move these words' reviews to the cram's day.", next: 'Sync, then open the cram again.' })),
+      (e) => setCapProblem(failureText(e, { what: "Couldn't make these words due by the cram's day.", next: 'Sync, then open the cram again.' })),
     );
   }, [repo, notes.length]);
 
@@ -115,7 +115,7 @@ export function CramPage(props: {
   const requestMenu = (text: string) => {
     haptic.tap();
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text, message: "Claude is writing this card. When it's ready, approve it from the card on Today and it joins the cram.", options: ['Stop showing it here', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
+      { title: text, message: "Claude is writing a card for this. Approve it from the card on Today when it's ready and it joins the cram.", options: ['Stop showing it here', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
       (i) => { if (i === 0) void keep(withoutRequest(cram, text), "Couldn't change the cram."); },
     );
   };
@@ -130,7 +130,7 @@ export function CramPage(props: {
     );
   };
 
-  const readerOff = 'Off. Turn on Read & Listen in Settings to use it.';
+  const readerOff = 'Uses Read & Listen. Turn it on in Settings, Read & Listen.';
   return (
     <Screen
       title={cram.name}
@@ -156,9 +156,9 @@ export function CramPage(props: {
           ) : (
             <>
               <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
-              {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Words solid" /> : null}
+              {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Solid words" /> : null}
               {ids.length ? <Button label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
-              <Help>{ids.length ? 'Missed ones first. A word is solid once you get it right the first time in two passes in a row. Practice any time; it never changes your reviews.' : 'Add words below to practice them.'}</Help>
+              <Help>{ids.length ? 'Words you missed come first. A word is solid after you get it right first try in two rounds in a row. Practicing here doesn\'t change your cards.' : 'Add words below to practice them.'}</Help>
             </>
           )}
         </Box>
@@ -217,7 +217,7 @@ export function CramPage(props: {
                 first
                 icon={{ name: 'sparkles', color: c.accent }}
                 label={cram.theme ? 'More ideas' : 'Suggest talking points'}
-                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Angles on "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
+                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The cram is named after the one you pick.'}
                 disabled={!props.readerApi || !language}
                 onPress={() => go('/cram-themes')}
               />
@@ -229,21 +229,21 @@ export function CramPage(props: {
               <NavRow
                 icon={{ name: 'book', color: c.teal }}
                 label="Read a text"
-                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen writes in.' : !words.length ? "Needs words you've studied at least once." : 'A short text using some of these words.'}
+                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : !words.length ? "Needs words you've studied at least once." : 'A short text using some of these words.'}
                 disabled={!props.readerApi || !language || !words.length}
                 onPress={() => { if (language) { haptic.tap(); props.onRead(language, words); } }}
               />
               <NavRow
                 icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}
                 label="Rehearse"
-                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen plays.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
+                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
                 disabled={!props.readerApi || !language}
                 onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords, cram.register) }); } }}
               />
             </Group>
             {props.readerApi ? (
               <Box>
-                <RegisterPicker own={cram.register} settings={props.serverRegister} onChange={(register) => keep({ ...cram, register }, "Couldn't save the register.")} />
+                <RegisterPicker own={cram.register} settings={props.serverRegister} onChange={(register) => keep({ ...cram, register }, "Couldn't save how formal to be.")} />
               </Box>
             ) : null}
 
@@ -253,8 +253,8 @@ export function CramPage(props: {
         ) : null}
 
         {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
-        {running ? <Help>{`Until ${fullDate(cram).split(',')[0]}, reviews of these words are due no later than that day. Afterwards they keep their usual schedule.`}</Help> : null}
-        {!cram.finishedAt ? <Help>{`In Anki, and for Claude, these words carry the tag ${cramTag(cram)}.`}</Help> : null}
+        {running ? <Help>{`These words come up for review by ${fullDate(cram).split(',')[0]}. After that, they go back to their usual schedule.`}</Help> : null}
+        {!cram.finishedAt ? <Help>{`These words have the tag ${cramTag(cram)} in Anki, so Claude can find them too.`}</Help> : null}
       </ScrollView>
     </Screen>
   );

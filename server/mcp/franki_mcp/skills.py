@@ -153,7 +153,7 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
     nt = col.models.by_name(NOTE_TYPE)
     if not nt or not {"Front", "Back"} <= {f["name"] for f in nt["flds"]}:
         raise ToolError(
-            f"The collection has no {NOTE_TYPE} note type with Front and Back fields, which skill cards are made of. "
+            f"Skill cards need a {NOTE_TYPE} note type with Front and Back fields, and the collection doesn't have one. "
             "In Anki on the computer, add one (Tools, Manage Note Types, Add, then Add: Basic), sync, and try again."
         )
     subdeck = f"{deck_name}::{SUBDECK}"

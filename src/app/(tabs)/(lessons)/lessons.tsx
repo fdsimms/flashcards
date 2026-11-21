@@ -36,7 +36,7 @@ export default function LessonsRoute() {
     return (
       <Screen title="Audio lessons" toolbar={toolbar}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-          <Help>{`Audio lessons aren't made in ${LANGUAGES[language].name}. Pick a language they're made in from the flag at the top, and its lessons show here.`}</Help>
+          <Help>{`There are no audio lessons in ${LANGUAGES[language].name}. Choose another language from the flag at the top.`}</Help>
         </ScrollView>
       </Screen>
     );

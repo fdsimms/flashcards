@@ -1032,19 +1032,19 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{glossFor(text, w) ?? ''}</Text>
                   </View>
                 ))}
-                <View style={{ paddingTop: space.s }}><Help>These are kept in Marked words, where the ones not in your deck can be added to it.</Help></View>
+                <View style={{ paddingTop: space.s }}><Help>You'll find these in Marked words, where you can add the ones not in your deck.</Help></View>
               </Card>
             ) : null}
             {problem && source.kind === 'shelf' && !review ? (
               <Help>{problem === 'offline'
-                ? "Offline. This reading is saved on this iPhone and sent when you're back online."
-                : "Your server isn't answering. This reading is saved on this iPhone and sent once it does."}</Help>
+                ? "You're offline. This reading is saved on this iPhone and sent when you're back online."
+                : "Couldn't reach your server. This reading is saved on this iPhone and sent once it answers."}</Help>
             ) : null}
             {source.kind === 'shelf' && !problem ? (
               <Card style={{ gap: space.m }}>
                 <View style={{ gap: 2 }}>
                   <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
-                  <Help>Changes the texts written from now on. Texts already written stay as they are.</Help>
+                  <Help>Applies to texts written from now on.</Help>
                 </View>
                 <View style={{ gap: space.xs }}>
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>Length</Text>

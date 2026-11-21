@@ -67,10 +67,10 @@ function Content({ stats }: { stats: PracticeStats }) {
           {shown.map((w, i) => <WeakRow key={`${w.noteId}:${w.key}`} form={w} first={!i} />)}
         </Card>
       ) : (
-        <Card><Help>Nothing right now. Every form you missed has been put right.</Help></Card>
+        <Card><Help>Nothing right now. You've cleared every form you missed.</Help></Card>
       )}
       {hidden > 0 ? <Help>{hidden === 1 ? 'And 1 more form.' : `And ${hidden} more forms.`}</Help> : null}
-      <Help>{`Each miss needs ${FORM_CLEARED_AFTER} right answers to clear, and the first right answer after a miss doesn't count on the same day. These are asked first in practice.`}</Help>
+      <Help>{`Each miss takes ${FORM_CLEARED_AFTER} right answers to clear. The retry right after a miss, on the same day, doesn't count. These come first in practice.`}</Help>
 
       <SectionTitle>Mixed up</SectionTitle>
       {stats.mixedUp.length ? (
@@ -87,7 +87,7 @@ function Content({ stats }: { stats: PracticeStats }) {
         </Card>
       ) : null}
       <Help>
-        {`A mix-up is the same wrong answer, or the same other form of the word, given ${CONFUSION_MISSES} times across ${CONFUSION_WORDS} or more words. Only answers kept from now on can show one. Forms mixed up like this come up sooner in practice.`}
+        {`Shown when you give the same wrong answer ${CONFUSION_MISSES} times across ${CONFUSION_WORDS} or more words. These come up sooner in practice.`}
       </Help>
 
       <SectionTitle>By kind of form</SectionTitle>

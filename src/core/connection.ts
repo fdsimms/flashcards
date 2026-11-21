@@ -97,7 +97,7 @@ export function recheckDelayMs(checks: number): number {
 
 /** A request given up because the servers can't be reached: shown as it is (a Refusal). */
 export class OfflineError extends Refusal {
-  constructor(message = "Couldn't reach the server. Check your connection, then try again.") {
+  constructor(message = "Couldn't reach the server. Check your connection and try again.") {
     super(message);
   }
 }

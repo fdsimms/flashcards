@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Alert } from 'react-native';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { cardHomeDeck, untiered } from '../core/deckTree';
-import { failureText, Refusal } from '../core/failure';
+import { failureText, NOTE_GONE, Refusal } from '../core/failure';
 import { notesStillThere } from '../core/noteEditing';
 import { SENSE_CONTRAST_FIELD, contrastRows, contrastWords, withoutContrastWord, type ContrastRow } from '../core/senseContrast';
 import type { Card, Note } from '../core/types';
@@ -69,7 +69,7 @@ export function useSenseContrast({ repo, writes, card, note, decks, addWord, onO
       // The answer's own writes finish first, then the note as it is now (as useFieldEdit does).
       await reviewWrites.idle();
       const now = await repo.getNote(id);
-      if (!now) throw new Refusal("This note isn't in Franki anymore. Go back to the deck and open the card again.");
+      if (!now) throw new Refusal(NOTE_GONE);
       const fields = change(now.fields);
       if (fields === now.fields) return;
       onSaved(await saveNote(repo as NoteStore, { id: now.id, deck: now.deck, model: now.model, fields, tags: now.tags }));

@@ -98,7 +98,7 @@ export function NoteTypeEditor({ repo, name, onClose }: { repo: NoteStore; name:
             {error ? <ErrorNote message={error} /> : null}
             <Help>
               {drawnByFranki(edited)
-                ? 'Franki draws these cards itself, so these templates change how they look in Anki, not here. Changes reach Anki at the next sync.'
+                ? 'These templates only change how the cards look in Anki. Franki shows them its own way. Changes reach Anki at the next sync.'
                 : 'Changes show on these cards here at once, and reach Anki at the next sync.'}
             </Help>
             <SectionTitle>Fields</SectionTitle>

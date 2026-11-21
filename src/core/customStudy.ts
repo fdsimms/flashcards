@@ -49,10 +49,7 @@ const wholeNumber = (n: number) => Number.isInteger(n) && n >= 1 && n <= CUSTOM_
 /** Why a request can't be run (in the words to show), or undefined when it can. */
 export function customStudyProblem(c: CustomStudy): string | undefined {
   const amount = c.kind === 'moreNew' || c.kind === 'moreReviews' || c.kind === 'cram' ? c.count : c.days;
-  if (!wholeNumber(amount)) {
-    const what = c.kind === 'moreNew' || c.kind === 'moreReviews' || c.kind === 'cram' ? 'cards' : 'days';
-    return `Enter a whole number of ${what} from 1 to ${CUSTOM_STUDY_MAX}.`;
-  }
+  if (!wholeNumber(amount)) return `Enter a whole number from 1 to ${CUSTOM_STUDY_MAX}.`;
   return undefined;
 }
 
@@ -110,9 +107,9 @@ export const CUSTOM_STUDY_OPTIONS: CustomStudyOption[] = [
   { kind: 'moreNew', title: "Increase today's new card limit", detail: "Study more new cards today. Tomorrow the deck's usual limit applies again.", field: { label: 'Extra new cards', start: 10 } },
   { kind: 'moreReviews', title: "Increase today's review limit", detail: "Study more reviews today. Tomorrow the deck's usual limit applies again.", field: { label: 'Extra reviews', start: 10 } },
   { kind: 'forgotten', title: "Review forgotten cards", detail: "Go over the cards you answered Again on recently. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
-  { kind: 'ahead', title: "Review ahead", detail: "Study reviews that are due in the next few days. Answers reschedule them as usual.", field: { label: 'Days ahead', start: 1 } },
+  { kind: 'ahead', title: "Review ahead", detail: "Study reviews that are due in the next few days. Answers reschedule them.", field: { label: 'Days ahead', start: 1 } },
   { kind: 'previewNew', title: "Preview new cards", detail: "Look at new cards added recently without starting them. Their schedules stay as they are.", field: { label: 'Days back', start: 1 } },
-  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by their state or tags, e.g. to cram before a test. New, due and review cards are rescheduled by your answers, as usual. All cards only previews them.", field: { label: 'Cards', start: 100 }, cram: true },
+  { kind: 'cram', title: "Study by card state or tag", detail: "Pick cards by state or tag, e.g. to cram before a test. Your answers reschedule new, due and review cards. All cards shows them without changing their schedules.", field: { label: 'Cards', start: 100 }, cram: true },
 ];
 
 export const CRAM_CHOICES: { select: CramSelect; label: string }[] = [

@@ -3,7 +3,7 @@ import { Refusal } from '../core/failure';
 import { newCardOrderOf } from '../core/newCardOrder';
 import type { DeckOwnValues, PresetOptions } from '../core/presetOptions';
 import type { DeckParams } from '../core/types';
-import type { NoteStore } from './noteService';
+import { NO_COLLECTION, type NoteStore } from './noteService';
 import { readAnkiPreset, setAnkiPresetOptions, type AnkiPreset } from './presetWrites';
 
 /** Why a preset's options can't be read or changed, with what to do, to show as it is. */
@@ -25,7 +25,7 @@ export interface PresetView {
 async function presetIdOf(store: NoteStore, deck: string): Promise<number> {
   const id = newCardOrderOf(deck, await store.listDeckParams())?.presetId;
   if (id === undefined) throw new PresetRefused("This deck has no Anki options to change. Its cards are studied with the options of the decks they came from.");
-  if (!(await store.keptCollection())) throw new PresetRefused('This needs your Anki collection in Franki. Set up Anki first, from the Decks screen.');
+  if (!(await store.keptCollection())) throw new PresetRefused(NO_COLLECTION);
   return id;
 }
 

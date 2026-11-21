@@ -63,7 +63,7 @@ export async function registerFont(id: AppFont): Promise<void> {
 export async function downloadFont(id: AppFont, onProgress: (done: number) => void, signal?: AbortSignal): Promise<void> {
   const files = FONT_DOWNLOADS[id];
   if (!files) throw new Error(`${id} has no download`);
-  if (connection.get().path === 'none') throw new Refusal("Can't download the font while offline. Connect to the internet and try again.");
+  if (connection.get().path === 'none') throw new Refusal("You're offline. Connect to the internet and try again.");
   const dir = folder();
   dir.create({ idempotent: true, intermediates: true });
   const total = files.reduce((sum, f) => sum + f.bytes, 0);

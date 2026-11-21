@@ -24,7 +24,7 @@ describe('a date in Russian', () => {
   it('gives the "on" form, the day in the genitive and the weekday after в', () => {
     const on = sayRussianDate(nov12, all).also[0];
     expect(on.text).toBe('в четверг, двенадцатого ноября две тысячи двадцать шестого года');
-    expect(on.note).toBe('Saying on which day');
+    expect(on.note).toBe('As in "on the 12th"');
     expect(sayRussianDate({ year: 2026, month: 11, day: 10 }, all).also[0].text).toMatch(/^во вторник, десятого ноября/);
     expect(sayRussianDate({ year: 2026, month: 11, day: 11 }, all).also[0].text).toMatch(/^в среду/);
   });

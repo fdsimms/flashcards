@@ -94,7 +94,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           <KindTile tintKey="story:new" icon="book" title="Series" detail="Episodes that pick up where the last one ended, with the same people and places." onPress={() => setKind('series')} />
           <KindTile tintKey="quick:new" icon="bubble.left.and.bubble.right" title="Dialogue" detail="A short conversation between two people." onPress={() => setKind('dialogue')} />
           <KindTile tintKey="story:alone" icon="doc.text" title="Story" detail="A short story that stands on its own." onPress={() => setKind('story')} />
-          <Help>Each one takes about half a minute and shows on the home when it's ready.</Help>
+          <Help>Each one takes about half a minute and shows on your shelf when it's ready.</Help>
         </ScrollView>
       </Screen>
     );
@@ -114,7 +114,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           keyboardShouldPersistTaps="handled"
           {...scrollProps}
         >
-          <Help>A story told in episodes. Each one picks up where the last ended, with the same people and places, and is written from the words in your deck. Its next episode is written once you've read the last. The series pinned to the top of the home stays there.</Help>
+          <Help>A story told in episodes, with the same people and places, written from the words in your deck. Each new episode is written after you read the last one. Your pinned series stays pinned.</Help>
           <Field label="What should it be about?" placeholder="e.g. a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startSeries} />
           <Help>Leave it empty and Claude picks what the series is about.</Help>
           {error ? <ErrorNote message={error} /> : null}
@@ -170,7 +170,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}
-        <Help>Takes about half a minute. It shows up under Texts when it's ready.</Help>
+        <Help>Takes about half a minute. It shows under Texts when it's ready.</Help>
       </ScrollView>
     </Screen>
   );

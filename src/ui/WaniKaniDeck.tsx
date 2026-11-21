@@ -13,7 +13,7 @@ import type { WaniKaniState } from './useWaniKani';
 const PROBLEM_LINE: Record<WaniKaniProblem, string> = {
   unauthorized: "WaniKani didn't accept the token",
   forbidden: "This token can't send answers",
-  rateLimited: 'WaniKani asked to slow down',
+  rateLimited: 'Too many requests to WaniKani. Try again in a minute.',
   rejected: "WaniKani didn't take an answer",
   unavailable: "Couldn't reach WaniKani",
 };

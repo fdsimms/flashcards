@@ -33,8 +33,8 @@ export function ThaiTextSettings({ repo }: { repo: Repo }) {
         </Group>
         <Text accessibilityLanguage="th-TH" style={{ ...thaiTextStyle(size ?? 'large'), color: c.text, paddingHorizontal: space.l }}>วันแรกผมหลงทาง</Text>
         <Help>
-          How large Thai is on a card: a word's example sentence and any field with Thai in it. The word itself
-          on the front and back of a card keeps its own size.
+          Size of Thai example sentences and other Thai text on a card. The word on the front and back keeps its
+          own size.
         </Help>
       </ScrollView>
     </Screen>

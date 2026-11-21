@@ -470,10 +470,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const text = typed.trim();
     const canSave = canSaveMeaning(question) && !!text;
     // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
-    const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
+    const options = ['Count as right', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
     showSheet({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
-      if (picked === 'Mark as correct') answer(true);
+      if (picked === 'Count as right') answer(true);
       if (picked === 'Ask later') {
         if (studyRef.current !== study) return;
         later();
@@ -761,7 +761,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <RateButton label="Again" detail={againDetail} color={c.again} onPress={() => answer(false)} />
         <RateButton
           label="Good"
-          detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Reading to come' : 'Meaning to come'}
+          detail={finishes ? outcomeText(nextStage(item.srsStage, wrong, system), system) : question.kind === 'meaning' ? 'Then the reading' : 'Then the meaning'}
           color={c.good}
           onPress={() => answer(true)}
         />

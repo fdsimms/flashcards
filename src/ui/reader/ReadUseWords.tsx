@@ -73,7 +73,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
             <Text style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{written}</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>{written === 1 ? 'sentence written' : 'sentences written'}</Text>
           </Card>
-          <Help>Writing a word into a sentence of your own is one of the best ways to keep it. Nothing here changes when its cards come back.</Help>
+          <Help>Write a sentence with each word you studied today. This doesn't change when its cards are due.</Help>
         </ScrollView>
       </Screen>
     );

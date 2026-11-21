@@ -94,7 +94,7 @@ async function prepare(db: SyncDb, ctx: { now: Date; dayStartsAtHour: number }):
   // Note types, decks and tags are kept under Anki's collation: they can't be read reliably or
   // added to without it.
   if (!(await hasUnicase(db))) {
-    throw new DeckPackageRefused("This build of Franki can't add decks or note types to the Anki collection. Build the app again, then import it.");
+    throw new DeckPackageRefused("This build of Franki can't add decks or note types to the Anki collection. Rebuild the app, then try again.");
   }
   const all = <T = Row>(sql: string) => db.all<T>(sql);
   const nowSecs = Math.floor(ctx.now.getTime() / 1000);
@@ -295,7 +295,7 @@ export function deckPackagePreviewText(plan: DeckPackagePlan, media: number, syn
   const adds = [
     plan.newDecks.length ? `${plan.newDecks.length === 1 ? 'New deck' : 'New decks'}: ${list(plan.newDecks)}.` : '',
     plan.newNoteTypes.length ? `${plan.newNoteTypes.length === 1 ? 'New note type' : 'New note types'}: ${list(plan.newNoteTypes)}.` : '',
-    media ? `${count(media, 'image or sound', 'images and sounds')}.` : '',
+    media ? `Also adds ${count(media, 'image or sound', 'images and sounds')}.` : '',
   ].filter(Boolean);
   if (adds.length) paras.push(adds.join(' '));
   if (syncOn && plan.newNoteTypes.length) {

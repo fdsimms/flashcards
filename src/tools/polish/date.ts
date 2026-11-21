@@ -15,7 +15,7 @@ const MONTHS_GEN = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca'
 const WEEKDAYS = ['niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota'];
 const ON_WEEKDAYS = ['w niedzielę', 'w poniedziałek', 'we wtorek', 'w środę', 'w czwartek', 'w piątek', 'w sobotę'];
 
-const ON = 'Saying on which day';
+const ON = 'As in "on the 12th"';
 
 const pl = (text: string, note?: string): Phrase => ({ text, ...(note ? { note } : {}) });
 

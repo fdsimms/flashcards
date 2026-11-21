@@ -70,9 +70,9 @@ export function CramListen({ repo, api, cram, notes, language, first }: { repo: 
   };
 
   const icon = { name: 'headphones' as const, color: c.violet };
-  if (!api) return <NavRow first={first} icon={icon} label="Listen" detail="Off. Turn on Read & Listen in Settings to use it." disabled onPress={() => undefined} />;
+  if (!api) return <NavRow first={first} icon={icon} label="Listen" detail="Uses Read & Listen. Turn it on in Settings, Read & Listen." disabled onPress={() => undefined} />;
   if (!language || !lessonsOffered(language)) {
-    return <NavRow first={first} icon={icon} label="Listen" detail={language ? `Audio lessons aren't made in ${LANGUAGES[language].name} yet.` : 'Needs words in a language Read & Listen teaches.'} disabled onPress={() => undefined} />;
+    return <NavRow first={first} icon={icon} label="Listen" detail={language ? `Audio lessons aren't made in ${LANGUAGES[language].name} yet.` : 'Needs words in a language Read & Listen supports.'} disabled onPress={() => undefined} />;
   }
   if (!phrases.length) return <NavRow first={first} icon={icon} label="Listen" detail="Add words with their meanings first." disabled onPress={() => undefined} />;
   const more = notes.length > LESSON_MAX_WORDS ? ` The first ${LESSON_MAX_WORDS} words.` : '';

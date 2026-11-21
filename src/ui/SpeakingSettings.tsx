@@ -43,8 +43,8 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
           />
         </Group>
         <Help>
-          Off until you turn it on. What you say is turned into text on the iPhone where iOS can for the language,
-          otherwise by Apple's servers. Your answer is still yours to rate.
+          Speech is turned into text on this iPhone when iOS supports the language, and by Apple's servers otherwise.
+          You still rate each card yourself.
         </Help>
         <SectionTitle>On this iPhone</SectionTitle>
         <Group>
@@ -66,7 +66,7 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
           })}
         </Group>
         <Help>
-          {"A language that can't be heard has no microphone; type it instead. One heard only when online has no microphone while you're offline. Adding it in the iPhone's Settings, General, Keyboard, Dictation may keep it on the phone."}
+          {"Languages iOS can't recognize have no microphone. Ones that need Apple's servers have none while you're offline. Adding the language in the iPhone's Settings, General, Keyboard, Dictation may let this iPhone recognize it offline."}
         </Help>
       </ScrollView>
     </Screen>

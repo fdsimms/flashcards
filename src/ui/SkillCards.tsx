@@ -103,7 +103,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
 
   const confirmDelete = () => Alert.alert(
     `Delete ${skillCount} skill ${skillCount === 1 ? 'card' : 'cards'}?`,
-    'They are removed from Anki too, with their review history. Adding automatically turns off so they do not come back. Add now brings them back as new cards. The words added for them stay in your deck.',
+    "They're removed from Anki too, with their review history, and automatic adding turns off. The words added for them stay in your deck.",
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -141,9 +141,9 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       haptic.success();
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
       if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you've studied them.`);
-      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} could not be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that need them come in once you have studied them yourself.`);
+      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} couldn't be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that use them start once you've added and studied those words yourself.`);
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
-      parts.push('Later drill steps wait, suspended, until the step before has a review a week or more out.');
+      parts.push('Later steps start once you know the earlier ones.');
       setLoads((n) => n + 1);
       Alert.alert('Skill cards added', parts.join(' '), [{ text: 'OK', onPress: onDone }]);
     } catch (e) {
@@ -169,7 +169,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {!found ? (
-          <Card><Help>{"This deck's name doesn't say which language it's in, so there are no skill cards to offer. Skill cards come for a deck named after its language, such as Thai or Polski."}</Help></Card>
+          <Card><Help>{"This deck's name doesn't say which language it's in. Skill cards need a deck named after its language, e.g. Thai or Polski."}</Help></Card>
         ) : !groups.length ? (
           <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
         ) : (
@@ -194,23 +194,23 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 </Card>
               </View>
             ))}
-            {sections.length ? <Help>The bar is FSRS's chance you'd get it right now. For a set of single cards, it's how many have a review a week or more out.</Help> : null}
+            {sections.length ? <Help>The bar shows how well you know each skill.</Help> : null}
             <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Skill cards</Text>
             <Group>
               <SwitchRow
                 first
                 label="Skill cards"
-                hint={`Off suspends every skill card in ${subdeck} and stops adding more. On resumes them, with later drill steps still waiting on the step before, and Saying dates on its words.`}
+                hint={`Turn off to suspend every skill card in ${subdeck} and stop adding more. Turning it back on resumes them.`}
                 value={settings.on}
                 onValueChange={(on) => void setOn(on)}
               />
             </Group>
             <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: space.m }}>Skills in this deck</Text>
-            <Help>{`Skills that are on go into ${subdeck}, made if it isn't there. They come up in your reviews like any card, and FSRS spaces them. A drill card asks a few questions, then you rate it. Later steps are added suspended and come in as the step before settles. Turning a skill off stops adding its cards. Cards already added stay.`}</Help>
+            <Help>{`Skill cards go into ${subdeck} and come up in your reviews like any other card. A drill card asks a few questions, then you rate it. Each step starts once you know the one before. Turning a skill off stops new cards. Ones already added stay.`}</Help>
             {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
               <Help>{canWords
-                ? `A drill is only useful once you know the words it is said in (the months, the numbers, half past, the currency). So these skills also add the words this deck doesn't have to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}. Some of them come up in your new cards every day until you've studied them. A drill step waits until its words are studied, and date drills ask only about months you've studied.`
-                : `A drill is only useful once you know the words it is said in, but your collection has no ${SKILL_WORD_NOTE_TYPE} note type to add them in${unwritable ? ` (${unwritable} words)` : ''}. A drill step waits until you've studied its words yourself.`}</Help>
+                ? `These skills also add the words their drills use (months, numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you've studied its words.`
+                : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added and studied its words yourself.`}</Help>
             ) : null}
             <Group>
               {groups.map((g, i) => (
@@ -228,7 +228,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
               <SwitchRow
                 first
                 label="Add new skill cards automatically"
-                hint="Your server adds the cards of the skills that are on, and the words they need, including ones from later app updates, after your next sync. Off: only Add now adds them."
+                hint="After each sync, your server adds new cards for the skills that are on. When this is off, add them with the button below."
                 value={settings.auto}
                 onValueChange={(auto) => void save({ ...settings, auto })}
               />

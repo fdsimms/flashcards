@@ -190,8 +190,8 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
     const notes = ready.filter((x) => !needsChoice(x));
     const left = ready.length - notes.length;
     const leftLine = left === 1
-      ? '1 word could be more than one word, so it stays queued until you open it and choose.'
-      : `${left} words could each be more than one word, so they stay queued until you open each and choose.`;
+      ? '1 word matches more than one entry, so it stays here until you open it and pick one.'
+      : `${left} words each match more than one entry, so they stay here until you open each one and pick.`;
     if (!notes.length) {
       if (left) Alert.alert(left === 1 ? 'This word needs a choice' : 'These words need a choice', leftLine);
       return;
@@ -261,7 +261,7 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         {queue && !queue.available ? (
-          <ErrorNote message="Claude isn't set up on the server, so notes can't be filled in. Add Claude's key to your Read & Listen server, then try again." onRetry={onRefresh} />
+          <ErrorNote message="Your Read & Listen server has no Claude key, so it can't fill in notes. Add the key to the server's settings, then try again." onRetry={onRefresh} />
         ) : null}
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
@@ -269,7 +269,7 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
         {held.map((group, g) => (
           <View key={`held-${g}`} style={{ gap: space.s }}>
             <SectionTitle>{`${group.problem ? "Couldn't send to Claude" : 'Waiting to send'} (${group.entries.length})`}</SectionTitle>
-            {group.problem ? <ErrorNote message={group.problem} /> : <Help>{"Your server couldn't be reached when these were added. They go to Claude once it can."}</Help>}
+            {group.problem ? <ErrorNote message={group.problem} /> : <Help>{"Couldn't reach your server when these were added. They go to Claude once it answers."}</Help>}
             <Group accessibilityRole="list">
               {group.entries.map((e, i) => (
                 <HeldRow key={e.entry} entry={e.entry} meaning={e.meaning} deck={group.deck} first={i === 0} onRemove={() => onRemoveHeld(group.deck, e.entry)} />

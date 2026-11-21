@@ -6,7 +6,7 @@ import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { runningCramTags } from '../core/cram';
 import { readerLanguageOf } from '../core/leechHint';
 import { untiered } from '../core/deckTree';
-import { failureText } from '../core/failure';
+import { failureText, NOT_IN_ANKI } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
@@ -364,9 +364,9 @@ export function NoteEditor(props: {
           <Help>
             {cardNames.length
               ? `Makes ${cardNames.length === 1 ? '1 card' : `${cardNames.length} cards`}: ${cardNames.join(', ')}.`
-              : 'Makes no cards yet. Fill in the fields the card fronts show.'}
-            {' '}Select text in a field to make it bold, italic or underlined, {isCloze ? 'take its formatting away, or make it a cloze' : 'or take its formatting away'}. A field with
-            formatting shows how it will look underneath.
+              : 'No cards yet. Fill in the fields shown on the front.'}
+            {' '}Select text in a field to make it bold, italic or underlined, {isCloze ? 'take its formatting away, or make it a cloze' : 'or take its formatting away'}. A formatted
+            field shows a preview below it.
           </Help>
           {addAnother ? <Button label="Save and add another" variant="secondary" onPress={() => save(true)} disabled={busy} /> : null}
           {editing ? (
@@ -385,7 +385,7 @@ export function NoteEditor(props: {
                 const { cards, ankiError } = result;
                 props.onCardsChanged?.();
                 setNoteCardList((list) => list.map((x) => (x.id === card.id ? cards[0] : x)));
-                if (ankiError) setError(failureText(ankiError, { next: "Changed in Franki, but it won't reach Anki." }));
+                if (ankiError) setError(failureText(ankiError, { next: NOT_IN_ANKI }));
               }}
             />
           ) : null}

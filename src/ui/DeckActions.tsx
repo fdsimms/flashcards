@@ -13,7 +13,7 @@ import { useApp } from './AppContext';
 import type { DeckAction } from './DeckList';
 import { shareDeckNotes } from './exportDeck';
 import { haptic } from './haptics';
-import { failureText } from '../core/failure';
+import { failureText, NOT_IN_ANKI } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
@@ -105,7 +105,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
         text: verb, style: suspend ? 'destructive' : 'default',
         onPress: () => run(`Couldn't ${verb.toLowerCase()} the cards`, async () => {
           const { ankiError } = await setCardStates(repo, targets, (s) => ({ ...s, suspended: suspend }), new Date(), dayStartsAtHour);
-          if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+          if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: NOT_IN_ANKI }));
         }),
       },
     ]);

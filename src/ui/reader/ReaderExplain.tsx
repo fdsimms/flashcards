@@ -168,7 +168,7 @@ function GrammarInLine({ api, grammar, chosen, onChosen, onOpen }: {
             value={stateOf(shown)}
             onChange={(state) => { if (state !== 'unset') choose(shown, state); }}
           />
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>Applies from the next text written.</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>Applies to texts written from now on.</Text>
           <View style={{ alignSelf: 'flex-start' }}>
             <HeaderAction label={`More about ${shown.name}`} onPress={() => onOpen(shown.id)} />
           </View>

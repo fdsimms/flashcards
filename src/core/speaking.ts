@@ -57,7 +57,7 @@ export function bestHeard(guesses: readonly string[], expected?: string | readon
  * accent, which the recognizer doesn't check at all.
  */
 export function spokenAnswerNote(speechTag: string | undefined): string {
-  const base = 'The phone hears what you say, not how you say it.';
+  const base = 'It checks the words, not your pronunciation.';
   const tag = speechTag?.toLowerCase() ?? '';
   const tones = tag.startsWith('th') ? ' It also guesses tones from context, so it can miss a wrong one.'
     : tag.startsWith('ja') ? " It doesn't check pitch accent, so it can miss a wrong one." : '';
@@ -91,8 +91,8 @@ export function canListen(o: { on: boolean; locale: string | undefined; offline:
 /** Settings, Speaking: whether a language can be heard, and whether with no connection too. */
 export function hearingText(heard: boolean | null, onDevice: boolean | null): string {
   if (heard === null) return '';
-  if (!heard) return "Can't be heard";
-  if (onDevice === true) return 'Can be heard, also offline';
-  if (onDevice === false) return 'Can be heard when online';
-  return 'Can be heard';
+  if (!heard) return 'Not supported';
+  if (onDevice === true) return 'Works offline too';
+  if (onDevice === false) return 'Works only when online';
+  return 'Supported';
 }

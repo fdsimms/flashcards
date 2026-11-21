@@ -58,7 +58,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
     try {
       setIdeas(await suggest());
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't suggest hints.", next: 'Try again, or write your own.' }));
+      setError(failureText(e, { what: "Couldn't suggest mnemonics.", next: 'Try again, or write your own.' }));
     } finally {
       setAsking(false);
     }
@@ -71,7 +71,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
     try {
       await onSave(hint);
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't save the hint.", next: 'Try again, or skip it.' }));
+      setError(failureText(e, { what: "Couldn't save the mnemonic.", next: 'Try again, or skip it.' }));
       setSaving(false);
     }
   };
@@ -103,20 +103,20 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
         </View>
         {suspended ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            This card is now suspended, as this deck's options say for a leech. Save a hint to see on the back of this card, and the card goes back into your reviews. The hint is saved on the note and synced to Anki. If you skip, the card stays suspended.
+            This card is suspended because you keep missing it. Save a mnemonic for its back and it goes back into your reviews. Skip, and it stays suspended.
           </Text>
         ) : (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
-            Write a hint to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
+            Write a mnemonic to see on the back of this card next time. It's saved on the note and synced to Anki. Swipe down to skip.
           </Text>
         )}
-        <Field label="Hint" value={hint} onChangeText={setHint} placeholder="A sound-alike, a picture, anything that sticks" multiline autoFocus />
+        <Field label="Mnemonic" value={hint} onChangeText={setHint} placeholder="e.g. a word it sounds like, or a picture to imagine" multiline autoFocus />
         {suggest ? (
-          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest hints" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
+          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="Suggest mnemonics" accessibilityState={{ busy: asking, disabled: asking }} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
             <Icon name="sparkles" size={18} color={c.accent} />
             {asking
               ? <AskingText style={{ ...type.callout, fontWeight: '600', color: c.accent }} />
-              : <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{ideas.length ? 'Suggest more hints' : 'Suggest hints'}</Text>}
+              : <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>{ideas.length ? 'Suggest more mnemonics' : 'Suggest mnemonics'}</Text>}
           </Tappable>
         ) : null}
         {ideas.map((idea) => (
@@ -124,7 +124,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
             key={idea}
             onPress={() => { haptic.select(); setHint(idea); }}
             accessibilityRole="button"
-            accessibilityLabel={`Use this hint: ${idea}`}
+            accessibilityLabel={`Use this mnemonic: ${idea}`}
             style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}
           >
             <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
@@ -139,13 +139,13 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
         {suspended ? (
           // The longer label gets the whole width, the main action on top.
           <View style={{ gap: space.s }}>
-            <Button label={step && step.n < step.of ? 'Save hint and next' : 'Save hint and keep studying'} onPress={save} busy={saving} disabled={!hint.trim()} />
+            <Button label={step && step.n < step.of ? 'Save mnemonic and next' : 'Save mnemonic and keep studying'} onPress={save} busy={saving} disabled={!hint.trim()} />
             <Button label="Skip" variant="secondary" onPress={onSkip} disabled={saving} />
           </View>
         ) : (
           <View style={{ flexDirection: 'row', gap: space.m }}>
             <Button label={misses === undefined ? 'Cancel' : 'Skip'} variant="secondary" onPress={onSkip} style={{ flex: 1 }} disabled={saving} />
-            <Button label={step && step.n < step.of ? 'Save and next' : 'Save hint'} onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
+            <Button label={step && step.n < step.of ? 'Save and next' : 'Save mnemonic'} onPress={save} style={{ flex: 1 }} busy={saving} disabled={!hint.trim()} />
           </View>
         )}
       </ScrollView>

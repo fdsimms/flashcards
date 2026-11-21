@@ -64,14 +64,14 @@ export function DeckFontOptions({ deck, all, scripts, onChange }: {
       ) : null}
       <Help>
         {mode === 'random'
-          ? `Each card gets one of the checked fonts, and keeps it until you start another review session. These cards ignore the app font. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
+          ? `Each card gets one of the checked fonts instead of the app font, and keeps it until you start another review session. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
           : mode === 'deck'
-          ? `Every card in this deck uses the selected font. These cards ignore the app font. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
+          ? `Every card in this deck uses the selected font instead of the app font. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
           : covering.length === 0
             ? coveringNotDownloaded
-              ? `Download a font that covers ${need} in Settings, Font to set this deck's font. Until then it uses the app font, or the font the deck's own template sets.`
-              : `No font covers ${need}, so this deck can't use its own font. It uses the app font (Settings, Font), or the font the deck's own template sets.`
-            : "Cards in this deck use the app font (Settings, Font), or the font the deck's own template sets."}
+              ? `Download a font that covers ${need} in Settings, Font to set this deck's font. Until then it uses the app font, unless its card template sets one.`
+              : `No font covers ${need}, so this deck can't use its own font. It uses the app font (Settings, Font), unless its card template sets one.`
+            : "Cards in this deck use the app font (Settings, Font), unless their card template sets one."}
       </Help>
     </>
   );

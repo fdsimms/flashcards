@@ -28,7 +28,7 @@ export function CommonWords({ settings, onChange }: { settings: Settings; onChan
       <Help>
         {count === 0
           ? `Only words from ${deck} count as known. Choose a number if texts feel too hard to write from the deck alone.`
-          : `Texts can use the ${commonLabel(count)} most common ${name} words, in all their forms, as well as ${deck}. Choose fewer if texts feel too hard. Applies from the next text written.`}
+          : `Texts can use the ${commonLabel(count)} most common ${name} words, in all their forms, as well as ${deck}. Choose fewer if texts feel too hard. Applies to texts written from now on.`}
       </Help>
     </>
   );

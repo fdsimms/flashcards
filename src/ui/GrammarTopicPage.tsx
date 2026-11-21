@@ -71,7 +71,7 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
 
   const rewrite = () => Alert.alert('Write this page again?', 'The page and its examples are replaced.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Write again', onPress: () => start(() => api.rewriteTopic(id), "Couldn't start the page again.") },
+    { text: 'Write again', onPress: () => start(() => api.rewriteTopic(id), "Couldn't start rewriting the page.") },
   ]);
   const remove = () => Alert.alert('Delete this topic?', topic ? `"${topic.title}" and its page are deleted.` : '', [
     { text: 'Cancel', style: 'cancel' },
@@ -96,9 +96,9 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
 
         {topic && !hasPage && topic.status === 'failed' ? (
           <Card>
-            <Text style={{ ...type.headline, color: c.text }}>The page couldn't be written</Text>
+            <Text style={{ ...type.headline, color: c.text }}>Couldn't write the page</Text>
             <Help>{topic.note ?? 'Try again, or name the topic another way.'}</Help>
-            <Button label="Write the page" onPress={() => start(() => api.rewriteTopic(id), "Couldn't start the page again.")} busy={busy} />
+            <Button label="Write the page" onPress={() => start(() => api.rewriteTopic(id), "Couldn't start writing the page.")} busy={busy} />
             <Button label="Delete topic" variant="destructive" onPress={remove} />
           </Card>
         ) : null}
@@ -106,7 +106,7 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
         {topic && hasPage ? (
           <>
             <View style={{ backgroundColor: c.accentFill, borderRadius: radius.l, ...smooth, padding: space.l, gap: space.xs }}>
-              <Text style={{ ...type.subhead, color: c.text }}>{`Written by Claude on ${written}. It isn't checked against a grammar book, so check it against what you hear and read.`}</Text>
+              <Text style={{ ...type.subhead, color: c.text }}>{`Written by Claude on ${written}, and not checked against a grammar book. Trust what you hear and read over it.`}</Text>
               {topic.note ? <Text style={{ ...type.subhead, color: c.danger }}>{topic.note}</Text> : null}
             </View>
 

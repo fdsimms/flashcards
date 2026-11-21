@@ -53,7 +53,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
     try {
       onWriting(await api.createTopic(language, wanted));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't start the page.", next: 'Try again.' }));
+      setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't start writing the page.", next: 'Try again.' }));
       starting.current = false;
       setBusy(false);
     }
@@ -129,7 +129,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
           </View>
         ) : null}
         {error ? <ErrorNote message={error} /> : null}
-        <Help>Takes about 20 seconds. The examples use only words you know, and each page is one Claude call.{fromImage ? ' An image is sent to Claude to read the topic and isn\'t saved.' : ''}</Help>
+        <Help>Takes about 20 seconds and one request to Claude. The examples use only words you know.{fromImage ? ' An image is sent to Claude to read the topic and isn\'t saved.' : ''}</Help>
       </ScrollView>
     </Screen>
   );

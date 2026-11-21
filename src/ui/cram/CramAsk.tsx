@@ -83,9 +83,9 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
             {approved === sent.word
               ? `The card for ${sent.word} is added to the cram.`
               : ready
-                ? `Claude wrote a card for ${sent.word}. Review it and it joins the cram.`
+                ? `Claude wrote a card for ${sent.word}. Approve it here and it joins the cram.`
                 : sent.held
-                  ? `${sent.word} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.`
+                  ? `Couldn't reach your server. ${sent.word} goes to Claude once it answers. Approve the card when it's ready and it joins the cram.`
                   : `Claude is writing a card for ${sent.word}. Approve it here when it's ready and it joins the cram.`}
           </Text>
         </View>
@@ -101,7 +101,7 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
           <Icon name="plus.circle.fill" size={26} color={c.accent} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={{ ...type.headline, color: c.text }}>{`Make a card for "${typed}"`}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : `Claude finds the ${name} and writes the card. It joins this cram once you approve it.`}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : `Claude finds the ${name} and writes a card. Approve it and it joins the cram.`}</Text>
           </View>
         </Tappable>
       ) : (

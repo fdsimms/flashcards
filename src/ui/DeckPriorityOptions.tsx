@@ -27,9 +27,9 @@ export function DeckPriorityOptions({ deck, all, notes, onChange }: {
   const [percent, setPercent] = useState(String(p.percent));
   const [errors, setErrors] = useState<{ days?: string; percent?: string }>({});
 
-  const number = (key: 'days' | 'percent', text: string, min: number, max: number, what: string) => {
+  const number = (key: 'days' | 'percent', text: string, min: number, max: number) => {
     (key === 'days' ? setDays : setPercent)(text);
-    const parsed = parsePriorityNumber(text, min, max, what);
+    const parsed = parsePriorityNumber(text, min, max);
     setErrors((e) => ({ ...e, [key]: 'error' in parsed ? parsed.error : undefined }));
     if ('value' in parsed) onChange(key === 'days' ? { priorityDays: parsed.value } : { priorityPercent: parsed.value });
   };
@@ -41,10 +41,8 @@ export function DeckPriorityOptions({ deck, all, notes, onChange }: {
         <SwitchRow first label="Study tagged cards first" value={p.on} onValueChange={(v) => onChange({ priorityFirst: v })} />
       </Group>
       <Help>
-        New cards with any of these tags come before the rest of the deck's new cards. A card stops coming first once you've studied it,
-        or {p.days === 1 ? '1 day' : `${p.days} days`} after Franki first saw a tag on it, whichever happens first. They never
-        take more than {p.percent}% of the day's new cards (rounded up, so at least 1), and they count against the same daily
-        limit. Reviews are never moved.
+        New cards with any of these tags come before the deck's other new cards, until you've studied them or for the days
+        set below. They take up to the share of new cards set below, within the same daily limit. Reviews keep their order.
       </Help>
       {p.on ? (
         <Card>
@@ -54,9 +52,9 @@ export function DeckPriorityOptions({ deck, all, notes, onChange }: {
               : matched ? `${matched} ${matched === 1 ? 'note' : 'notes'} in this deck ${matched === 1 ? 'has' : 'have'} ${p.tags.length === 1 ? 'this tag' : 'these tags'}.`
               : `No notes in this deck have ${p.tags.length === 1 ? 'this tag' : 'these tags'}. Nothing comes first until some do.`}
           </Text>
-          <Field label="First for (days)" value={days} onChangeText={(v) => number('days', v, 1, MAX_PRIORITY_DAYS, 'Days')} keyboardType="number-pad" error={!!errors.days} placeholder={String(DEFAULT_PRIORITY_DAYS)} />
+          <Field label="First for (days)" value={days} onChangeText={(v) => number('days', v, 1, MAX_PRIORITY_DAYS)} keyboardType="number-pad" error={!!errors.days} placeholder={String(DEFAULT_PRIORITY_DAYS)} />
           {errors.days ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.days}</Text> : null}
-          <Field label="At most (% of new cards)" value={percent} onChangeText={(v) => number('percent', v, 1, 100, 'The percentage')} keyboardType="number-pad" error={!!errors.percent} placeholder={String(DEFAULT_PRIORITY_PERCENT)} />
+          <Field label="At most (% of new cards)" value={percent} onChangeText={(v) => number('percent', v, 1, 100)} keyboardType="number-pad" error={!!errors.percent} placeholder={String(DEFAULT_PRIORITY_PERCENT)} />
           {errors.percent ? <Text style={{ ...type.subhead, color: c.danger }}>{errors.percent}</Text> : null}
         </Card>
       ) : null}
