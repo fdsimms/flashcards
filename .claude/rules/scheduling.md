@@ -95,11 +95,13 @@ Anything that leaves cards out goes in through `queueInput` too, for both: looka
 seen (`heldCards`, `src/core/lookalikes.ts`) are loaded by `loadHeld` for the deck list and by
 `useReviewForms` in Review, and a card held in one but not the other shows a count the deck can't open with.
 
-**Skill cards sit outside the limits** (`isSkillNote`, `src/core/skillTag.ts`): a note tagged `skill` uses no new or
+**Skill cards sit outside the words' limits** (`isSkillNote`, `src/core/skillTag.ts`): a note tagged `skill` uses no new or
 review room, is offered whatever room is left, adds nothing to today's studied counts (`studiedToday`,
 `answerCounts`), isn't counted or held back by a progress gate (`inProgressCount`), and isn't in a
 deck's `unstudied` count. They are practice for a skill, so 20 new skills must not use up the words'
-20. Every one of those reads `TreeQueueInput.skillCards` (`skillCardIds`), which is required so a new
+20. **New skill cards have a count of their own against the same daily new limit** (`LimitNode.skillNew`,
+`StudiedToday.skillIntroduced`, answer kind `skillNew`), checked down the whole path, so a skills subdeck
+can't offer a language deck more new cards than that deck's limit. Every one of those reads `TreeQueueInput.skillCards` (`skillCardIds`), which is required so a new
 caller has to decide.
 
 **A progress gate limits a deck's new cards by what's in progress** (`DeckSettings.gateCap`, set on

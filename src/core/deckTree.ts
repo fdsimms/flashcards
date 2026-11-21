@@ -155,12 +155,14 @@ export interface TreeQueueInput {
 function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedToday {
   let introduced = 0;
   let reviewed = 0;
+  let skillIntroduced = 0;
   for (const [deck, s] of studied) {
     if (!isInDeck(deck, root)) continue;
     introduced += s.introduced;
     reviewed += s.reviewed;
+    skillIntroduced += s.skillIntroduced ?? 0;
   }
-  return { introduced, reviewed };
+  return { introduced, reviewed, skillIntroduced };
 }
 
 /** Cards still in progress in the deck and its subdecks: what a progress gate counts. */
@@ -185,7 +187,8 @@ function gateBudget(deck: string, input: TreeQueueInput): number | undefined {
   return Math.max(0, Math.min(cap - inProgressCount(deck, input.cardsByDeck, input.skillCards), daily));
 }
 
-interface LimitNode { review: number; new: number; capNewToReview: boolean }
+/** `skillNew` is the room for new skill cards: its own count against the deck's daily new limit, apart from `new` (`isSkillNote`). */
+interface LimitNode { review: number; new: number; skillNew: number; capNewToReview: boolean }
 
 /**
  * What studying `root` shows, in the order it comes up, as Anki's v3 scheduler builds it
@@ -226,7 +229,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   for (const d of [...nodeDecks].sort((a, b) => a.split('::').length - b.split('::').length)) {
     let node: LimitNode;
     if (paramsFor(d)?.filtered) {
-      node = { review: 9999, new: 9999, capNewToReview: false };
+      node = { review: 9999, new: 9999, skillNew: 9999, capNewToReview: false };
     } else {
       const limits = input.limitsFor(d);
       const done = sumStudied(d, input.studiedByDeck);
@@ -238,10 +241,12 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
         review -= done.introduced;
         fresh = Math.min(fresh, review);
       }
-      node = { review: Math.max(0, review), new: Math.max(0, fresh), capNewToReview: cap };
+      // New skill cards have a count of their own against the same daily limit, so they can't use the words' room or pass the limit.
+      const skillNew = Math.max(0, limits.newPerDay - (done.skillIntroduced ?? 0));
+      node = { review: Math.max(0, review), new: Math.max(0, fresh), skillNew, capNewToReview: cap };
     }
     const parent = d === top ? undefined : nodes.get(deckLineage(d).at(-2)!);
-    if (parent) node = { ...node, review: Math.min(node.review, parent.review), new: Math.min(node.new, parent.new) };
+    if (parent) node = { ...node, review: Math.min(node.review, parent.review), new: Math.min(node.new, parent.new), skillNew: Math.min(node.skillNew, parent.skillNew) };
     nodes.set(d, node);
   }
   // A gate above the root still applies when the root's parents' limits don't.
@@ -301,8 +306,15 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const intraday = [...previewing, ...(previewDeck ? [] : rest.filter((c) => isLearning(c) && !isInterdayLearning(c, h)))]
     .filter((c) => shownAt(c) < nextDay);
   for (const c of intraday) heldBack(c, null);
-  // A skill card is taken whatever room is left, and uses none (`isSkillNote`); it still buries its siblings as any card does.
+  // A skill card uses none of the words' room (`isSkillNote`) and is taken whatever room is left, except that new skill
+  // cards are held to the daily new limit by their own count; it still buries its siblings as any card does.
   const skill = (c: Card) => input.skillCards.has(c.id);
+  const admitSkillNew = (c: Card): boolean => {
+    const path = pathOf(deckOfCard.get(c.id)!);
+    if (!path.every((d) => nodes.get(d)!.skillNew > 0)) return false;
+    for (const d of path) nodes.get(d)!.skillNew--;
+    return true;
+  };
   const gatherDue = (cards: Card[], kind: keyof BurySettings) =>
     // Room first, as Anki checks the limit before a card is gathered: one the limits leave out buries nothing.
     sortReviews(cards, order.reviewOrder, ctx).filter((c) => skill(c) ? !heldBack(c, kind) : hasRoom(c, 'review') && !heldBack(c, kind) && admit(c, 'review'));
@@ -314,7 +326,7 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const gatherFresh = (cards: Card[], limit = Number.POSITIVE_INFINITY) => {
     let n = 0;
     return sortNew(
-      gatherNew(cards, order.newGatherPriority, ctx, (c) => skill(c) ? !heldBack(c, 'new') : n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
+      gatherNew(cards, order.newGatherPriority, ctx, (c) => skill(c) ? !heldBack(c, 'new') && admitSkillNew(c) : n < limit && hasRoom(c, 'new') && !heldBack(c, 'new') && admit(c, 'new') && ++n > 0),
       order.newSortOrder, ctx,
     );
   };

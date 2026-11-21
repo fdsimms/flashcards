@@ -198,12 +198,23 @@ describe('skill cards', () => {
     skillCards: asSkill(skills),
   });
 
-  it('are offered past the daily new limit, and leave its room for words', () => {
+  it("are held to the daily new limit by a count of their own, and leave the words' room alone", () => {
     const words = newCards(10);
     const skills = newCards(30);
     const q = treeQueue('Thai', withSkills(words, skills));
-    expect(q.fresh.filter((c) => asSkill(skills).has(c.id))).toHaveLength(30);
+    expect(q.fresh.filter((c) => asSkill(skills).has(c.id))).toHaveLength(5);
     expect(q.fresh.filter((c) => asSkill(words).has(c.id))).toHaveLength(5);
+  });
+
+  it("can't pass a parent deck's limit through a subdeck, and today's first answers use it", () => {
+    const skills = newCards(30);
+    const base = withSkills([], []);
+    const q = (studied: Map<string, { introduced: number; reviewed: number; skillIntroduced?: number }>) => treeQueue('Thai', {
+      ...base, cardsByDeck: new Map([['Thai::Skills', skills]]), skillCards: asSkill(skills), studiedByDeck: studied,
+      limitsFor: (d) => (d === 'Thai' ? { newPerDay: 5, reviewsPerDay: 200 } : { newPerDay: 20, reviewsPerDay: 200 }),
+    });
+    expect(q(new Map()).fresh).toHaveLength(5);
+    expect(q(new Map([['Thai::Skills', { introduced: 0, reviewed: 0, skillIntroduced: 3 }]])).fresh).toHaveLength(2);
   });
 
   it('are offered with the review limit spent, and use none of it', () => {
