@@ -1,0 +1,7 @@
+{
+  "platforms": ["apple"],
+  "apple": {
+    "modules": ["HomeShortcutsModule"],
+    "appDelegateSubscribers": ["HomeShortcutsAppDelegate"]
+  }
+}

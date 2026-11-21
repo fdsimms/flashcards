@@ -3,7 +3,6 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { syncLine } from '../../../anki/sync/runSync';
 import { useConnectionProblem } from '../../../ui/connection';
-import { quickAddDecks } from '../../../reader/noteQueue';
 import { useApp } from '../../../ui/AppContext';
 import { useDeckActions } from '../../../ui/DeckActions';
 import { DeckList } from '../../../ui/DeckList';
@@ -13,7 +12,7 @@ import { useReadWhileShown } from '../../../ui/useReadWhileShown';
 /** The Decks tab: every deck, to study, organize and edit. What's for today is on Today. */
 export default function DecksRoute() {
   const router = useRouter();
-  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani, reader } = useApp();
+  const { decks, backup, ankiUnsent, syncSettings, syncing, sync, refresh, loadProblem, collapse, wanikani } = useApp();
   const problem = useConnectionProblem();
   // Counts change while studying, so load them again each time this screen comes back into view.
   // `decks` starts empty until the first load from the database finishes, which is not the same as
@@ -38,7 +37,7 @@ export default function DecksRoute() {
       onStats={() => router.push('/stats')}
       onOptions={openOptions}
       onNewDeck={deckActions.create}
-      onQuickAdd={reader.api && quickAddDecks(reader.settings?.decks, decks.map((d) => d.deck)).length ? () => router.push('/read-quick-add') : undefined}
+      onQuickAdd={() => router.push('/quick-add')}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}
       onMoveDeck={deckActions.move}

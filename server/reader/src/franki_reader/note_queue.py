@@ -11,6 +11,10 @@ saves the note, as it does for any note (src/core/recording.ts). Nothing here cr
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
 
+The owner can type a word the way it sounds (in Latin letters for Russian or Thai, or misspelled):
+Claude gives the word it most likely stands for as its `spelling`, which the fields are written for, and
+the other words it could be as `alternatives`, so the app can ask which one was meant (`Spelled`).
+
 Generate, then verify: a word is kept only if it was asked for and its fields pass the checks below.
 Anything else is marked failed with the reason, never repaired. Words go to Claude a batch at a time,
 never one call per word.
@@ -40,6 +44,8 @@ BATCH = 10  # words in one call to Claude
 MAX_ATTEMPTS = 3  # tries a word gets before it stays failed until the owner asks again
 RETRY_AFTER = timedelta(minutes=10)  # between one try of a word and the next
 MAX_TOKENS = 6000
+# Other words a romanized or misspelled entry could be, at most.
+MAX_ALTERNATIVES = 3
 MAX_MEANING = 80  # characters
 MAX_SENTENCE = 200
 MAX_REGISTER = 24
@@ -286,9 +292,17 @@ than a plain one."""
 _REQUEST = """\
 For each entry below, give:
 - entry: the entry exactly as listed
-- meaning: its most common meaning in English, in as few words as will do (a verb as "to go"). If the \
-entry came with a meaning from the learner, repeat it unchanged
-- context: one natural {language} sentence of 5 to 12 words using the entry, with the entry as it is \
+- spelling: the word as it's written in {language}, in its own alphabet or script. The learner may type \
+a word the way it sounds: in Latin letters, romanized loosely, or misspelled. Then give the word it most \
+likely stands for (the one that matches the learner's meaning, when there is one). Otherwise the entry \
+exactly as listed
+- alternatives: when the entry is romanized or misspelled and could stand for more than one word, the \
+other words it could be, most likely first, at most three, each with its spelling and its most common \
+meaning in English. An empty list otherwise, and always when the entry came with a meaning from the \
+learner
+- meaning: the spelling's most common meaning in English, in as few words as will do (a verb as "to \
+go"). If the entry came with a meaning from the learner, repeat it unchanged
+- context: one natural {language} sentence of 5 to 12 words using the spelling, with the word as it is \
 spelled in the sentence in <b></b> tags (both parts of a split verb), and no other markup
 - translation: the sentence in natural English
 - romanization: {romanization}
@@ -318,6 +332,19 @@ SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "entry": {"type": "string"},
+                    "spelling": {"type": "string"},
+                    "alternatives": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "spelling": {"type": "string"},
+                                "meaning": {"type": "string"},
+                            },
+                            "required": ["spelling", "meaning"],
+                            "additionalProperties": False,
+                        },
+                    },
                     "meaning": {"type": "string"},
                     "context": {"type": "string"},
                     "translation": {"type": "string"},
@@ -330,6 +357,8 @@ SCHEMA: dict[str, Any] = {
                 },
                 "required": [
                     "entry",
+                    "spelling",
+                    "alternatives",
                     "meaning",
                     "context",
                     "translation",
@@ -366,11 +395,11 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     name = LANGUAGES[language].name
     romanized = language in ROMANIZED
     if romanized:
-        transliteration = "the entry alone in Latin letters, the same system"
+        transliteration = "the spelling alone in Latin letters, the same system"
     elif language == "ja":
         # The owner's Japanese notes keep a reading in kana, not a romanization.
         transliteration = (
-            "the entry's reading in hiragana (a word written in katakana as it's written), with "
+            "the spelling's reading in hiragana (a word written in katakana as it's written), with "
             "no kanji, Latin letters or spaces"
         )
     else:
@@ -460,6 +489,37 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
     return entry, fields
 
 
+@dataclass(frozen=True)
+class Spelled:
+    """What a typed entry stands for: its spelling when that isn't the entry as typed (a word typed in
+    Latin letters, romanized or misspelled), else empty, and the other words it could be, as
+    {"spelling", "meaning"}. The app shows both when the note opens, and asks which word was meant."""
+
+    spelling: str
+    alternatives: list[dict[str, str]]
+
+
+def spelled(raw: dict[str, Any], entry: str) -> Spelled:
+    """The spelling and alternatives in one checked answer. One that doesn't pass is left out rather
+    than failing the word: the entry as typed is still a word to check in the editor."""
+    spelling = _plain(raw.get("spelling"), MAX_MEANING) or entry
+    seen = {spelling, entry}
+    alternatives: list[dict[str, str]] = []
+    others = raw.get("alternatives")
+    for other in others if isinstance(others, list) else []:
+        if not isinstance(other, dict):
+            continue
+        word = _plain(other.get("spelling"), MAX_MEANING)
+        meaning = _plain(other.get("meaning"), MAX_MEANING)
+        if not word or not meaning or word in seen:
+            continue
+        seen.add(word)
+        alternatives.append({"spelling": word, "meaning": meaning})
+        if len(alternatives) == MAX_ALTERNATIVES:
+            break
+    return Spelled("" if spelling == entry else spelling, alternatives)
+
+
 def due(note: store.QueuedNote, now: datetime) -> bool:
     """Whether a word should be sent to Claude now: waiting, or failed with tries left and the wait
     since the last one over."""
@@ -505,11 +565,14 @@ async def fill_pending(
             for n in batch:
                 store.save_queue_result(conn, n.id, language, None, str(e), now(), failed_cost)
             continue
-        results = dict(r for r in (check(x, asked, language) for x in raw) if r is not None)
+        results: dict[str, tuple[dict[str, str], Spelled]] = {}
+        for x in raw:
+            if (r := check(x, asked, language)) is not None:
+                results[r[0]] = (r[1], spelled(x, r[0]))
         cost = used.cost_usd() / len(batch)
         for n in batch:
-            fields = results.get(n.entry)
-            if fields is None:
+            result = results.get(n.entry)
+            if result is None:
                 store.save_queue_result(
                     conn,
                     n.id,
@@ -520,9 +583,14 @@ async def fill_pending(
                     cost,
                 )
             else:
+                fields, found = result
                 # The owner's meaning for this copy of the word, when two were queued with different ones.
                 fields = {**fields, "Meaning": n.meaning or fields["Meaning"]}
-                store.save_queue_result(conn, n.id, language, fields, "", now(), cost)
+                # A meaning of the owner's says which word they meant, so there's nothing to choose.
+                others = [] if n.meaning else found.alternatives
+                store.save_queue_result(
+                    conn, n.id, language, fields, "", now(), cost, found.spelling, others
+                )
                 filled += 1
 
 

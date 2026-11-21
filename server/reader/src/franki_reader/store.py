@@ -599,6 +599,12 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
+    queue_columns = {r[1] for r in conn.execute("PRAGMA table_info(note_queue)")}
+    if "spelling" not in queue_columns:
+        # How a word typed the way it sounds is really written, and the other words it could be
+        # (JSON), when Claude filled it in (note_queue.Spelled); empty before 21 November 2026.
+        conn.execute("ALTER TABLE note_queue ADD COLUMN spelling TEXT NOT NULL DEFAULT ''")
+        conn.execute("ALTER TABLE note_queue ADD COLUMN alternatives TEXT NOT NULL DEFAULT '[]'")
     if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # Where a story's season is heading, in a few sentences; empty until an episode gives one.
         conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
@@ -1821,6 +1827,7 @@ CallFeature = Literal[
     "lesson_words",
     "topic_image",
     "rare_words",
+    "word_lookup",
 ]
 
 
@@ -2706,9 +2713,16 @@ class QueuedNote:
     error: str
     attempts: int
     tried_at: datetime | None
+    # How the entry is really written, when it was typed some other way, else empty; and the other
+    # words it could be, as {"spelling", "meaning"} (note_queue.Spelled).
+    spelling: str = ""
+    alternatives: list[dict[str, str]] = field(default_factory=list)
 
 
-_QUEUE_COLUMNS = "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at"
+_QUEUE_COLUMNS = (
+    "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at, spelling,"
+    " alternatives"
+)
 
 
 def _queued(row: tuple[Any, ...]) -> QueuedNote:
@@ -2723,6 +2737,8 @@ def _queued(row: tuple[Any, ...]) -> QueuedNote:
         row[7],
         row[8],
         datetime.fromisoformat(row[9]) if row[9] else None,
+        row[10],
+        json.loads(row[11]),
     )
 
 
@@ -2808,6 +2824,8 @@ def save_queue_result(
     error: str,
     now: datetime,
     cost_usd: float,
+    spelling: str = "",
+    alternatives: list[dict[str, str]] | None = None,
 ) -> None:
     """What came of one word's turn: its filled fields (ready), or why not (failed). A word still waiting
     or failed only: one the owner removed meanwhile is gone, and a ready one stays as it is. The
@@ -2815,13 +2833,16 @@ def save_queue_result(
     with conn:
         updated = conn.execute(
             "UPDATE note_queue SET state = ?, fields = ?, error = ?, attempts = attempts + 1,"
-            " tried_at = ?, cost_usd = cost_usd + ? WHERE id = ? AND state IN ('waiting', 'failed')",
+            " tried_at = ?, cost_usd = cost_usd + ?, spelling = ?, alternatives = ?"
+            " WHERE id = ? AND state IN ('waiting', 'failed')",
             (
                 "ready" if fields is not None else "failed",
                 json.dumps(fields or {}, ensure_ascii=False),
                 "" if fields is not None else error,
                 now.isoformat(),
                 cost_usd,
+                spelling,
+                json.dumps(alternatives or [], ensure_ascii=False),
                 note_id,
             ),
         ).rowcount

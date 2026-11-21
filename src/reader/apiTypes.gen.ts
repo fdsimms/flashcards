@@ -1577,6 +1577,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/word-lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look Up
+         * @description Words for a meaning typed in English (Quick add's "Don't know the word?"). Only returns
+         *     words: a picked one is queued like any other.
+         */
+        post: operations["look_up_api_word_lookup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/word-suggestions": {
         parameters: {
             query?: never;
@@ -1838,6 +1859,15 @@ export interface components {
              * @default
              */
             helper: string;
+        };
+        /** FoundWordOut */
+        FoundWordOut: {
+            /** Entry */
+            entry: string;
+            /** Meaning */
+            meaning: string;
+            /** Note */
+            note: string;
         };
         /** FrankiCountsIn */
         FrankiCountsIn: {
@@ -2377,6 +2407,21 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+        };
+        /** WordLookupIn */
+        WordLookupIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Meaning */
+            meaning: string;
+        };
+        /** WordLookupOut */
+        WordLookupOut: {
+            /** Words */
+            words: components["schemas"]["FoundWordOut"][];
         };
         /** WordMeaningIn */
         WordMeaningIn: {
@@ -5793,6 +5838,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    look_up_api_word_lookup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordLookupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WordLookupOut"];
+                };
             };
             /** @description Validation Error */
             422: {

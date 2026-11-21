@@ -2017,6 +2017,30 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   Polish verbs, a check that
   the sentence uses only known words (it's one sentence, not a text), and a note that says it was
   filled in by Claude in the editor.
+- **Quick add is a sheet of its own, for every deck** (`src/ui/QuickAdd.tsx`, the `quick-add` route; 21
+  November 2026, mocked first, the owner picked all of it: "do it all"). It opens from a + in the Decks
+  header (on the deck last added to), from a deck's long-press menu and ⋯ sheet
+  ("Quick add to", that deck), and from the Home Screen's quick actions ("Add words", "Add to" the last
+  deck, and "Study" the deck last studied, which opens Review; `src/ui/lastDeck.ts`, `modules/home-shortcuts`, which keeps a tap that launched the app until JS takes it, since
+  expo-quick-actions loses that one under the scene lifecycle). Words go in one per Return, or pasted as a
+  list. A Read & Listen language's deck, while it's on, queues them as before; any other deck saves a word
+  and its meaning as a note of the deck's usual type when Add is tapped (`useQuickAddNotes`, the type the
+  note editor would start with, `startModelFor`), and that tap is the approval, since only what the owner
+  typed is saved. A word the deck already has says so on its row before Add, by the key `saveNote`
+  refuses it by (`duplicateKey`), with Add anyway.
+- **A word typed the way it sounds** (in Latin letters for a language with its own script, romanized
+  loosely, or misspelled) is queued as typed, and Claude gives its `spelling` and the other words it could
+  be (`alternatives`, at most three; none when the owner gave a meaning, which says which word was meant).
+  The ready note opens on the spelling with "You typed ..." under the Entry, or, when there are
+  alternatives, asks which word was meant above the fields (`WordChoice.tsx`): another choice queues that
+  word in its place, and Neither takes it off the queue. Approve all leaves such a word queued
+  (`needsChoice`). Without Claude a word in Latin letters for such a language is refused on its row,
+  saying why, except Japanese, where romaji turns into kana as it's typed (`asTyped`).
+- **Don't know the word?** (Quick add, with Claude): a meaning typed in English is sent to
+  `POST /api/word-lookup` (`word_lookup.py`, Haiku, one call per lookup, its cost kept as `word_lookup`),
+  and a word picked from what comes back is queued like a typed one. **Say it**: the field's microphone,
+  when Settings, Speaking is on, puts what was heard in the field, through the same recognizer as
+  Answer by speaking (`useSpokenAnswer`).
 
 ## Suggested words
 
