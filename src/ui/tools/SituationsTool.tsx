@@ -21,6 +21,7 @@ import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Ta
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useTrackedPlayer } from '../useSoundingButton';
+import { useHeaderInset } from '../useHeaderInset';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
@@ -313,6 +314,8 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   };
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
+  // The cards sit in a fixed layout, which the native header would otherwise cover (see useHeaderInset).
+  const header = useHeaderInset();
   // scrollToEnd on content shorter than the view scrolls past the top inset, leaving the first line
   // under the header, so it's only called once the conversation overflows.
   const sizes = useRef({ view: 0, content: 0 });
@@ -417,7 +420,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <View style={{ flex: 1 }}>
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
           <CardSurface>
             <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.m }}>
               <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
@@ -509,7 +512,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <View style={{ flex: 1 }}>
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
           <CardSurface>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.l, gap: space.m }} {...scrollProps}
               onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
