@@ -88,7 +88,7 @@ export async function downloadFont(id: AppFont, onProgress: (done: number) => vo
     } catch (e) {
       try { if (part.exists) part.delete(); } catch { /* already gone */ }
       if (signal?.aborted) throw e;
-      if (abort.signal.aborted) throw new Refusal("The download stopped. Check your connection and try again.");
+      if (abort.signal.aborted) throw new Refusal("The download stopped. Check your connection, then try again.");
       throw e;
     } finally {
       clearTimeout(timer);

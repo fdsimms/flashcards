@@ -57,7 +57,7 @@ export function problemText(problem: WaniKaniProblem): string {
     case 'forbidden': return 'This token can only read. Make one on wanikani.com with "reviews:create" and "assignments:start" checked, and enter it in Settings, WaniKani.';
     case 'rateLimited': return 'WaniKani asked Franki to slow down. Try again in a minute.';
     case 'rejected': return "WaniKani didn't take this answer: the item may have been reviewed somewhere else.";
-    case 'unavailable': return "Couldn't reach WaniKani. Check your connection and try again.";
+    case 'unavailable': return "Couldn't reach WaniKani. Check your connection, then try again.";
   }
 }
 

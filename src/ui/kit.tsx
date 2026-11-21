@@ -12,6 +12,7 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useConnectionProblem } from './connection';
+import { splitFailure } from '../core/failure';
 import { haptic } from './haptics';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useReduceMotion } from './motion';
@@ -104,6 +105,8 @@ export function Screen(props: {
   footer?: React.ReactNode;
   /** Extra style for the footer's box, to set it apart from the content (a surface fill, an edge). */
   footerStyle?: StyleProp<ViewStyle>;
+  /** The footer's height once laid out, for a screen whose content must clear it (pad the scroll content by this). */
+  onFooterLayout?: (height: number) => void;
   /** Floats over the content's bottom edge, just above the footer, without moving anything. Needs a footer. */
   floating?: React.ReactNode;
   /** Turns off swiping the screen away: a sheet with changes that would be lost, or a screen with its own sideways swipe. */
@@ -142,7 +145,7 @@ export function Screen(props: {
         {props.children}
         {props.floating ? <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{props.floating}</View> : null}
       </View>
-      <View style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
+      <View onLayout={props.onFooterLayout ? (e) => props.onFooterLayout?.(e.nativeEvent.layout.height) : undefined} style={[{ paddingHorizontal: space.l, paddingTop: space.m, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }, props.footerStyle]}>
         {props.footer}
       </View>
     </View>
@@ -759,18 +762,48 @@ export function Loading({ error, onRetry }: { error?: string | null; onRetry?: (
   const c = useTheme();
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl, minHeight: 160 }}>
-      {error ? <ErrorNote message={error} onRetry={onRetry} /> : <ActivityIndicator color={c.accent} accessibilityLabel="Loading" />}
+      {error ? <ErrorNote centered message={error} onRetry={onRetry} /> : <ActivityIndicator color={c.accent} accessibilityLabel="Loading" />}
     </View>
   );
 }
 
-/** Something that failed, said as it is, with Try again when there's something to retry. */
-export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
+/**
+ * Something that failed, with Try again when there's something to retry. A message that opens with
+ * "Couldn't <what>." shows that sentence as the title and the rest under it (`splitFailure`). The
+ * card is for an error inside a screen; `centered` is for a screen with nothing else to show
+ * (`Loading` uses it).
+ */
+export function ErrorNote({ message, onRetry, centered }: { message: string; onRetry?: () => void; centered?: boolean }) {
   const c = useTheme();
+  const { title, reason } = splitFailure(message);
+  const words = (
+    <>
+      {title ? <Text style={{ ...type.headline, color: c.text, textAlign: centered ? 'center' : 'left' }}>{title}</Text> : null}
+      <Text style={{ ...type.subhead, color: title ? c.textSecondary : c.danger, textAlign: centered ? 'center' : 'left' }}>{reason}</Text>
+    </>
+  );
+  if (centered) {
+    return (
+      <View accessibilityRole="alert" style={{ alignItems: 'center', gap: space.xs, maxWidth: 320 }}>
+        <Icon name="exclamationmark.triangle" size={40} color={c.danger} weight="regular" />
+        <View style={{ gap: space.xs, alignItems: 'center', paddingTop: space.xs }}>{words}</View>
+        {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} style={{ marginTop: space.m, alignSelf: 'stretch' }} /> : null}
+      </View>
+    );
+  }
   return (
-    <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
-      <Text style={{ ...type.subhead, color: c.danger }}>{message}</Text>
-      {onRetry ? <HeaderAction label="Try again" onPress={onRetry} /> : null}
+    <View
+      accessibilityRole="alert"
+      style={{
+        flexDirection: 'row', alignItems: 'flex-start', gap: space.m, alignSelf: 'stretch', padding: space.m,
+        borderRadius: radius.l, ...smooth, backgroundColor: c.dangerFill, borderWidth: hairline, borderColor: c.dangerEdge,
+      }}
+    >
+      <View style={{ paddingTop: 2 }}><Icon name="exclamationmark.triangle" size={20} color={c.danger} /></View>
+      <View style={{ flex: 1, gap: space.xs }}>
+        {words}
+        {onRetry ? <Button label="Try again" variant="secondary" onPress={onRetry} style={{ marginTop: space.s }} /> : null}
+      </View>
     </View>
   );
 }

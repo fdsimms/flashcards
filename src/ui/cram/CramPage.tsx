@@ -136,7 +136,7 @@ export function CramPage(props: {
       title={cram.name}
       toolbar={(
         <Stack.Toolbar placement="right">
-          {!cram.finishedAt && (cram.theme || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
+          {!cram.finishedAt && (cram.themes?.length || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
           <Stack.Toolbar.Button accessibilityLabel="Edit the cram" onPress={() => go('/cram-edit')}>Edit</Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
@@ -211,13 +211,13 @@ export function CramPage(props: {
         {!cram.finishedAt ? (
           <>
             <SectionTitle>Talking points</SectionTitle>
-            {cram.theme ? <CramTalk repo={repo} talk={cram.theme} language={language} size={talkSize} /> : null}
+            {cram.themes?.map((talk) => <CramTalk key={talk.title} repo={repo} talk={talk} language={language} size={talkSize} />)}
             <Group>
               <NavRow
                 first
                 icon={{ name: 'sparkles', color: c.accent }}
-                label={cram.theme ? 'More ideas' : 'Suggest talking points'}
-                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The cram is named after the one you pick.'}
+                label={cram.themes?.length ? 'More ideas' : 'Suggest talking points'}
+                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
                 disabled={!props.readerApi || !language}
                 onPress={() => go('/cram-themes')}
               />
@@ -238,7 +238,7 @@ export function CramPage(props: {
                 label="Rehearse"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
                 disabled={!props.readerApi || !language}
-                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.theme?.title ?? cram.name, rehearsalWords, cram.register) }); } }}
+                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.themes?.length === 1 ? cram.themes[0].title : cram.name, rehearsalWords, cram.register) }); } }}
               />
             </Group>
             {props.readerApi ? (

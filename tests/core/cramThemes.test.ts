@@ -91,7 +91,7 @@ describe('themesToAvoid', () => {
   it('lists what is on screen, then every cram name and theme newest first, once each, ignoring case', () => {
     const crams = [
       cram({ id: 'a', name: 'At the bank', createdAt: new Date(2026, 10, 1).toISOString() }),
-      cram({ id: 'b', name: 'Lesson 4', createdAt: new Date(2026, 10, 5).toISOString(), theme: { title: 'At the BANK', questions: [] } }),
+      cram({ id: 'b', name: 'Lesson 4', createdAt: new Date(2026, 10, 5).toISOString(), themes: [{ title: 'At the BANK', questions: [] }] }),
     ];
     expect(themesToAvoid(crams, ['Taxis', '  Taxis '])).toEqual(['Taxis', 'At the BANK', 'Lesson 4']);
   });

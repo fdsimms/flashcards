@@ -26,7 +26,7 @@ const ANY_LANGUAGE = 'Any language';
  * starts with (the ones not used last time; the ones missed lately, unchecked to start, since they're
  * seldom about the topic), then Start cram opens its page, where everything else is planned. With
  * nothing to talk about in mind, "Not sure yet? Get ideas" starts it under a stand-in name and opens
- * its talking points; the theme used names it (`withTheme`). Editing one changes its name, day and
+ * its talking points; the theme used names it (`withThemes`). Editing one changes its name, day and
  * language, whether new cards join it, and can delete it.
  */
 export function CramEditor({ repo, id, canSuggest }: {
@@ -51,6 +51,8 @@ export function CramEditor({ repo, id, canSuggest }: {
   const [carry, setCarry] = useState(true);
   const [missed, setMissed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The footer's height: the scroll content is padded by it so Delete cram can scroll clear of Save.
+  const [footerHeight, setFooterHeight] = useState(0);
   const [problem, setProblem] = useState<string>();
   const newId = useRef<string | undefined>(undefined);
   const picked = useRef(false);
@@ -78,7 +80,7 @@ export function CramEditor({ repo, id, canSuggest }: {
 
   const save = async (ideas = false) => {
     if (busy) return;
-    // No name yet: a stand-in the theme used replaces (`withTheme`).
+    // No name yet: a stand-in the theme used replaces (`withThemes`).
     const title = ideas ? standInName(languageName) : name;
     // A cram's own day, unchanged, can be kept when it's past (renaming a finished cram).
     const keptDay = !!editing && date === editing.date;
@@ -150,6 +152,7 @@ export function CramEditor({ repo, id, canSuggest }: {
     <Screen
       title={editing ? 'Edit cram' : 'New cram'}
       largeTitle={false}
+      onFooterLayout={setFooterHeight}
       toolbar={(
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
@@ -162,7 +165,7 @@ export function CramEditor({ repo, id, canSuggest }: {
         </>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + footerHeight, gap: space.l }}>
         <Card>
           <Field label="What's it for?" value={name} onChangeText={setName} placeholder="e.g. Talking about my weekend" autoFocus={!id} returnKeyType="done" />
           {!editing && canSuggest && !name.trim() ? (

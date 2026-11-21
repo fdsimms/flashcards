@@ -6,7 +6,7 @@ import { quickAddDecks } from '../reader/noteQueue';
 import { rehearsalParams } from '../reader/situations';
 import { useApp } from '../ui/AppContext';
 import { CramThemeDetail } from '../ui/cram/CramThemeDetail';
-import { applyTheme, capCramCards, cramsNow, saveCram } from '../ui/useCrams';
+import { applyThemes, capCramCards, cramsNow, saveCram } from '../ui/useCrams';
 import { useNoteQueue } from '../ui/useNoteQueue';
 
 /**
@@ -39,7 +39,7 @@ export default function CramThemeRoute() {
       onUse={async (theme, words) => {
         const now = cram();
         if (!now) return;
-        await applyTheme(repo, now, talkOf(theme), themeDeckWords(theme, words).map((w) => w.noteId));
+        await applyThemes(repo, now, [talkOf(theme)], themeDeckWords(theme, words).map((w) => w.noteId));
         capCramCards(repo).catch(() => undefined);
         router.dismissTo({ pathname: '/cram', params: { id } });
       }}

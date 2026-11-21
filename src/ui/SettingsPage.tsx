@@ -19,11 +19,13 @@ import { space, readable } from './theme';
  * here because each keeps its own state and its own "Couldn't save" alert. A setting that has a screen
  * of its own is a row that opens it.
  */
-export function SettingsPage({ page, repo, readerOn, lessonRows, onOpen }: {
+export function SettingsPage({ page, repo, readerOn, dailySummary, lessonRows, onOpen }: {
   page: SettingsPageId;
   repo: Repo;
   /** Whether Read & Listen is turned on. */
   readerOn: boolean;
+  /** What the Daily reading tasks row says (`dailyTasksSummary`), null from a server older than the setting. */
+  dailySummary: string | null;
   /** The Lessons page's rows (`LessonSettingsRows`), made by the route: they come from Read & Listen's side of the app, which this file doesn't import. */
   lessonRows: React.ReactNode;
   /** Opens a screen by its route. */
@@ -34,7 +36,7 @@ export function SettingsPage({ page, repo, readerOn, lessonRows, onOpen }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {page === 'today' ? <TodayRows onOpen={onOpen} /> : null}
         {page === 'decks' ? <DeckRows repo={repo} onOpen={onOpen} /> : null}
-        {page === 'read' ? <ReadRows readerOn={readerOn} onOpen={onOpen} /> : null}
+        {page === 'read' ? <ReadRows readerOn={readerOn} dailySummary={dailySummary} onOpen={onOpen} /> : null}
         {page === 'lessons' ? lessonRows : null}
         {page === 'practice' ? (
           <Group>
@@ -127,11 +129,17 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
   );
 }
 
-function ReadRows({ readerOn, onOpen }: { readerOn: boolean; onOpen: (route: string) => void }) {
+function ReadRows({ readerOn, dailySummary, onOpen }: { readerOn: boolean; dailySummary: string | null; onOpen: (route: string) => void }) {
   return (
     <Group>
-      <NavRow first label="Read & Listen" detail={readerOn ? 'On' : 'Off. Texts to read and listen to, written from your decks'} onPress={() => onOpen('/read-settings')} />
-      {readerOn ? <NavRow label="Language settings" detail="Grammar, vocabulary and voices for the language you're reading" onPress={() => onOpen('/read-language')} /> : null}
+      <NavRow first label="Server" detail={readerOn ? 'On. Turn off, or share counts with dundundun' : 'Off. Texts to read and listen to, written from your decks'} onPress={() => onOpen('/read-settings')} />
+      {readerOn ? (
+        <>
+          <NavRow label="Reading and listening" detail="Voices, highlighting, slow speed, meanings, word forms" onPress={() => onOpen('/read-listening')} />
+          <NavRow label="Daily reading tasks" detail={dailySummary ?? 'Which languages get a task each day'} onPress={() => onOpen('/read-daily-tasks')} />
+          <NavRow label="Language settings" detail="Grammar, vocabulary and voices for the language you're reading" onPress={() => onOpen('/read-language')} />
+        </>
+      ) : null}
     </Group>
   );
 }

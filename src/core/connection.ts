@@ -95,9 +95,13 @@ export function recheckDelayMs(checks: number): number {
   return Math.min(60_000, 10_000 * 2 ** Math.max(0, checks));
 }
 
-/** A request given up because the servers can't be reached: shown as it is (a Refusal). */
+/**
+ * A request given up because the servers can't be reached: shown as it is (a Refusal). The message
+ * doesn't start with "Couldn't": screens put their own "Couldn't <do the thing>." in front of it,
+ * and two of those in a row read as a stutter.
+ */
 export class OfflineError extends Refusal {
-  constructor(message = "Couldn't reach the server. Check your connection and try again.") {
+  constructor(message = "The server can't be reached. Check your connection, then try again.") {
     super(message);
   }
 }

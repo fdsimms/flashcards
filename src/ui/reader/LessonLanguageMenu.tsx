@@ -33,7 +33,7 @@ export function useLessonLanguage(api: Api | null, setSettings: (s: Settings) =>
         await api.updateSettings({ language });
         setSettings(await api.settings());
       } catch (e) {
-        Alert.alert("Couldn't switch the language", e instanceof ApiError ? e.message : 'Check your connection and try again.');
+        Alert.alert("Couldn't switch the language", e instanceof ApiError ? e.message : 'Check your connection, then try again.');
       }
     });
     queue.current = run;
