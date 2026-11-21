@@ -13,7 +13,7 @@ import { canSkip, withoutSkipped } from '../wanikani/skipped';
 import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
-  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
+  buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type QuestionKind, type Session, type TypedKinds,
   canCredit, dropItem, missedItems, studyAnswer, studyCredit, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
@@ -30,6 +30,7 @@ import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
+import { useMiniCram } from './useMiniCram';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { WaniKaniMissList } from './WaniKaniMisses';
@@ -116,6 +117,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [typed, setTyped] = useState('');
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
+  // An item marked to come back a few more times this session, by assignment id (src/core/miniCram.ts), and the
+  // question it was last asked, which its returns ask again. Practice: nothing is sent to WaniKani or kept for undo.
+  const cram = useMiniCram();
+  const cramKind = useRef(new Map<string, QuestionKind>());
   // When the offline copy this session was built from was made; null when it came from WaniKani.
   const [copySavedAt, setCopySavedAt] = useState<Date | null>(null);
   // How many refused answers this screen has said were dropped: marked seen as it closes.
@@ -310,6 +315,25 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     }
     if (!currentQuestion(r.study.session)) haptic.success();
     else if (change) change.burned ? haptic.success() : haptic.select();
+    // A marked item whose return is due comes up before the next question.
+    const id = String(question.assignmentId);
+    cramKind.current.set(id, question.kind);
+    cram.answered(id, correct ? 3 : 1, !currentQuestion(r.study.session), cramUsable(r.study.session));
+  };
+
+  /** Whether a return may show this item: it's still in the session and its word is loaded. */
+  const cramUsable = (sess: Session) => (id: string) => {
+    const it = sess.items[Number(id)];
+    return !!it && subjects.has(it.subjectId);
+  };
+
+  /** Missed it or Got it on a return: nothing is sent or scheduled, and it isn't in undo. */
+  const answerReturn = (id: string, got: boolean) => {
+    if (!study) return;
+    haptic.answer();
+    answerFlash.flash(got ? 3 : 1);
+    cram.returned(id, got, !currentQuestion(study.session), cramUsable(study.session));
+    resetQuestion();
   };
 
   const undo = () => {
@@ -328,6 +352,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       setSynonyms((m) => new Map(m).set(saved.subjectId, withPending(saved.subjectId, m.get(saved.subjectId) ?? [], [{ subjectId: saved.subjectId, synonym: saved.synonym, remove: true }])));
     }
     haptic.tap();
+    cram.clearShowing();
     answeredFrom.current = null;
     setStudy(back);
     resetQuestion();
@@ -461,19 +486,26 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
     const skippable = canSkip(subject) && !!question;
-    const options = [...(askable ? ['Ask later'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+    const id = question && !lesson ? String(question.assignmentId) : undefined;
+    const marked = id ? !!cram.entry(id) : false;
+    const options = [...(askable ? ['Ask later'] : []), ...(id ? [marked ? 'Stop cramming this word' : 'Cram this word'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Ask later') later();
+      if (picked === 'Cram this word' || picked === 'Stop cramming this word') {
+        if (!id || !question || !progress) return;
+        cramKind.current.set(id, question.kind);
+        cram.toggle(id, progress.meaning || progress.reading || progress.wrongMeaning > 0 || progress.wrongReading > 0);
+      }
       if (picked === 'Skip this word for good') confirmSkip();
       if (picked === 'Open on wanikani.com' && subject.url) Linking.openURL(subject.url).catch(() => undefined);
       if (picked === 'WaniKani options') onOptions();
     });
-  } : undefined), [subject, onOptions, askable, study, lesson, question]); // eslint-disable-line react-hooks/exhaustive-deps
+  } : undefined), [subject, onOptions, askable, study, lesson, question, cram.entry]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolbar = (
     <Stack.Toolbar placement="right">
       {study && canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
-      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, skip this word, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
+      {menu ? <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: ask later, cram this word, skip this word, open on wanikani.com or WaniKani's options" onPress={menu} /> : null}
     </Stack.Toolbar>
   );
 
@@ -501,6 +533,72 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : <ActivityIndicator color={c.accent} />}
         </View>
       </Screen>
+    );
+  }
+
+  // A mini cram return takes the screen before the next question, or the end of the session.
+  const returnItem = cram.showing ? study.session.items[Number(cram.showing)] : undefined;
+  const returnSubject = returnItem ? subjects.get(returnItem.subjectId) : undefined;
+  if (cram.showing && returnItem && returnSubject) {
+    const id = cram.showing;
+    const asked = cramKind.current.get(id) ?? 'meaning';
+    const showM = revealed && (asked === 'meaning' || asked === 'both');
+    const showR = revealed && (asked === 'reading' || asked === 'both');
+    const returnMenu = () => {
+      const options = ['Stop cramming this word', 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
+        const picked = options[i];
+        if (picked === 'Stop cramming this word') { cram.toggle(id, true); resetQuestion(); }
+        if (picked === 'Open on wanikani.com' && returnSubject.url) Linking.openURL(returnSubject.url).catch(() => undefined);
+        if (picked === 'WaniKani options') onOptions();
+      });
+    };
+    const returnToolbar = (
+      <Stack.Toolbar placement="right">
+        {canUndo(study) ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={undo} /> : null}
+        <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: stop cramming this word, open on wanikani.com or WaniKani's options" onPress={returnMenu} />
+      </Stack.Toolbar>
+    );
+    const returnFooter = revealed ? (
+      <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+        <RateButton label="Missed it" detail="Extra pass" color={c.again} onPress={() => answerReturn(id, false)} />
+        <RateButton label="Got it" detail="Extra pass" color={c.good} onPress={() => answerReturn(id, true)} />
+      </Reveal>
+    ) : <Button label="Show answer" onPress={() => { Keyboard.dismiss(); setRevealed(true); if (prefs.autoplay && (asked === 'reading' || asked === 'both')) play(audioUrl(returnSubject)); }} />;
+    return (
+      <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
+        <Screen title={title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
+            {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
+          </View>
+          <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+          <CardSurface color={subjectColor(c, returnSubject.type)}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+            >
+              <View key={`${id}:${cram.returnsAnswered}`} style={{ gap: space.xl }}>
+                <SubjectFront subject={returnSubject} label={`${SUBJECT_TYPE_NAMES[returnSubject.type]} · Level ${returnSubject.level}`} />
+                {showM || showR ? (
+                  <>
+                    <View style={{ height: hairline, backgroundColor: c.wkLine }} />
+                    <SubjectDetails
+                      subject={returnSubject}
+                      parts={madeOf(returnSubject, subjects)}
+                      showMeaning={showM}
+                      showReading={showR}
+                      synonyms={synonyms.get(returnSubject.id) ?? []}
+                      lesson={false}
+                    />
+                  </>
+                ) : null}
+              </View>
+            </ScrollView>
+            <QuestionBand kind={asked === 'lesson' ? 'both' : asked} />
+            {answerFlash.overlay}
+          </CardSurface>
+        </Screen>
+      </View>
     );
   }
 

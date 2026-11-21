@@ -82,9 +82,9 @@ describe('bannerOf', () => {
 
   it('offers a review as soon as one word is ready, whatever else is waiting', () => {
     expect(bannerOf(queue(note({ id: 1 }), note({ id: 2, state: 'waiting' })))).toEqual({
-      tone: 'ready', message: '1 note ready to review', hint: 'Tap to start',
+      tone: 'ready', message: '1 new note written by Claude', hint: 'Tap to review and add',
     });
-    expect(bannerOf(queue(note({ id: 1 }), note({ id: 2 })))?.message).toBe('2 notes ready to review');
+    expect(bannerOf(queue(note({ id: 1 }), note({ id: 2 })))?.message).toBe('2 new notes written by Claude');
   });
 
   it('says it is filling in while nothing is ready yet', () => {

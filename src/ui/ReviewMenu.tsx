@@ -4,7 +4,7 @@ import { FLAG_NAMES } from '../core/cardState';
 
 /**
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
- * in groups (hold back, ask Claude, mnemonic and a confusing word to link, flag, reschedule, info). Flag is a submenu with the card's current
+ * in groups (hold back, ask Claude and cram, mnemonic and a confusing word to link, flag, reschedule, info). Flag is a submenu with the card's current
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
  * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
  * Show answer timing, last, times each answer on this phone (useAnswerTiming.ts).
@@ -13,9 +13,13 @@ import { FLAG_NAMES } from '../core/cardState';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
   /** The card's flag, 0 for none. */
   flag: number;
+  /** Whether the card is marked to come back a few more times this session (src/core/miniCram.ts). */
+  cramOn: boolean;
+  /** Marks or unmarks the card for a mini cram; missing for a card that can't (a skill card, which has its own drill). */
+  onCram?: () => void;
   /** Opens Ask Claude for the card on screen. */
   onAskClaude: () => void;
   /** Write a mnemonic for the word; missing when the card's note can't take one (`canAddMnemonic`). */
@@ -37,7 +41,7 @@ export function reviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
   onSettings: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, mnemonic, a confusing word to link, flag, reschedule, card info or card settings">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, reschedule, card info or card settings">
       {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended. First, since they're the most used. */}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryCard}>Bury card</Stack.Toolbar.MenuAction>
@@ -46,6 +50,7 @@ export function reviewMenu({ flag, onAskClaude, onMnemonic, onLinkConfused, onFl
       </Stack.Toolbar.Menu>
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAskClaude}>Ask Claude</Stack.Toolbar.MenuAction>
+        {onCram ? <Stack.Toolbar.MenuAction icon="repeat" isOn={cramOn} onPress={onCram}>Cram this card</Stack.Toolbar.MenuAction> : null}
       </Stack.Toolbar.Menu>
       {/* Offered for the hard words, not every card, so it lives here and not in the header, which stays at four buttons. */}
       {onMnemonic || onLinkConfused ? (

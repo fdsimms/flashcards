@@ -144,6 +144,15 @@ schedules, `tests/core/cramRound.test.ts`). **A new note joins only running cram
 language** (`runningCramTags`, the note editor and Approve all), or a batch approved in one
 language lands in every running cram.
 
+**A mini cram is practice, never a rating** (`src/core/miniCram.ts`, `useMiniCram`, Review's "Cram this card"):
+a card marked during a review comes back three more times in that session (after about 3, 7 and 12
+other cards, held in memory only). Its own answer reaches FSRS once, as always; a return is Missed it /
+Got it, which write no review row, change no counts and aren't in undo, and a real answer to a marked
+card (a learning step coming due) counts as a return unless it was Again. Nothing in the module may
+import what schedules (`tests/core/miniCram.test.ts`).
+WaniKani's review has the same toggle (`WaniKaniReview.tsx`, keyed by assignment): a return asks the
+question the item was last asked, nothing is sent to WaniKani, and it isn't in undo.
+
 **Undo restores the card as it was and deletes the review row** (`AnswerRecord` in
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced

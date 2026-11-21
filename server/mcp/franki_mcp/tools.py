@@ -192,6 +192,29 @@ def _deck_id(col: Collection, name: str) -> int:
     return did
 
 
+def _repeats_in_language(col: Collection, nt: dict[str, Any], note: Note) -> bool:
+    """Whether Anki's duplicate flag on `note` is a real one. One Omnilanguage note type holds every
+    language, so there a word repeats only a word of its own language (German "in" and Norwegian
+    "in" are two notes, as lint_notes and the app's own check count them); a note with no Language
+    on either side is compared with all, as Anki does. Any other note type: Anki's flag stands."""
+    if nt["name"] != omnilanguage.NOTE_TYPE:
+        return True
+    names = [f["name"] for f in nt["flds"]]
+    if "Language" not in names:
+        return True
+    mine = omnilanguage.plain(note["Language"]).lower()
+    first = omnilanguage.plain(note[names[0]]).lower()
+    rows = col.db.all("select flds from notes where mid = ? and lower(sfld) = ?", nt["id"], first)
+    if not rows:
+        return True  # Anki saw a match this lookup can't, so its flag stands
+    for (flds,) in rows:
+        theirs = omnilanguage.plain(flds.split("\x1f")[names.index("Language")]).lower()
+        if not mine or not theirs or mine == theirs:
+            return True
+    return False
+
+
+
 def _note_type(col: Collection, name: str) -> dict[str, Any]:
     nt = col.models.by_name(name)
     if not nt:
@@ -442,7 +465,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     state = note.fields_check()
                     if state == NoteFieldsCheckResult.EMPTY:
                         raise ToolError(f'The first field ("{nt["flds"][0]["name"]}") is empty.')
-                    if state == NoteFieldsCheckResult.DUPLICATE and not allow_duplicates:
+                    if (state == NoteFieldsCheckResult.DUPLICATE and not allow_duplicates
+                            and _repeats_in_language(col, nt, note)):
                         raise ToolError("Another note of this type has the same first field. Pass allow_duplicates to add it anyway.")
                     col.add_note(note, did)
                     results.append({"index": i, "note_id": note.id, "cards": len(note.cards()), **said})

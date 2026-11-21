@@ -5,7 +5,7 @@ import { runningCramTags } from '../core/cram';
 import { untiered } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import { readerLanguageOf } from '../core/leechHint';
-import { duplicateKey, editTextToField, notesStillThere, startModelFor } from '../core/noteEditing';
+import { duplicateKey, duplicateOf, editTextToField, notesStillThere, startModelFor } from '../core/noteEditing';
 import type { QuickWord } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -21,10 +21,11 @@ export interface QuickCollection {
   /** The note type a word saved without Claude goes in as, as the note editor would start it, and its first two fields. */
   plainType(deck: string): { model: string; word: string; meaning: string };
   /**
-   * The deck that already has `entry` as the first field of a `model` note, else undefined: the same
-   * check `saveNote` refuses a duplicate by (`duplicateOf`), so the row says so before Add is tapped.
+   * The deck that already has `entry` as the first field of a `model` note (in the same language, for a
+   * word), else undefined: the check `saveNote` refuses a duplicate by (`duplicateOf`), asked of the notes
+   * whose first field matches, so the row says so before Add is tapped.
    */
-  inDeck(model: string, entry: string): string | undefined;
+  inDeck(deck: string, model: string, word: QuickWord): string | undefined;
 }
 
 export interface QuickSaved {
@@ -67,9 +68,9 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
   const collection = useMemo<QuickCollection | null>(() => {
     if (!notes) return null;
     const fieldsOf = (model: string) => types.get(model)?.fields ?? Object.keys(notes.find((n) => n.model === model)?.fields ?? { Front: '', Back: '' });
-    // Each note type's first fields, by `duplicateKey`, built on first ask: the rows check every word
-    // on each keystroke, and `duplicateOf` reads every note each time.
-    const keys = new Map<string, Map<string, string>>();
+    // Each note type's notes by their first field's `duplicateKey`, built on first ask: the rows check
+    // every word on each keystroke, and `duplicateOf` reads every note it's given.
+    const keys = new Map<string, Map<string, Note[]>>();
     const keysOf = (model: string) => {
       let index = keys.get(model);
       if (!index) {
@@ -78,7 +79,7 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
         for (const n of notes) {
           if (n.model !== model || !first) continue;
           const key = duplicateKey(n.fields[first]);
-          if (key && !index.has(key)) index.set(key, untiered(n.deck));
+          if (key) index.set(key, [...(index.get(key) ?? []), n]);
         }
         keys.set(model, index);
       }
@@ -97,9 +98,12 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
         }
         return found;
       },
-      inDeck: (model, entry) => {
-        const key = duplicateKey(editTextToField(entry));
-        return key ? keysOf(model).get(key) : undefined;
+      inDeck: (deck, model, word) => {
+        const [first, second] = fieldsOf(model);
+        const fields = { [first]: editTextToField(word.entry), ...(second ? { [second]: editTextToField(word.meaning) } : {}) };
+        const key = duplicateKey(fields[first]);
+        const there = key ? duplicateOf(keysOf(model).get(key) ?? [], { deck, model, fields }, first) : undefined;
+        return there ? untiered(there.deck) : undefined;
       },
     };
   }, [notes, types, filtered, rows]);

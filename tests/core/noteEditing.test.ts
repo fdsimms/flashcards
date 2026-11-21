@@ -97,9 +97,21 @@ describe('finding notes', () => {
   });
 
   it('warns of another note of the same type with the same first field', () => {
-    expect(duplicateOf(notes, { model: 'Basic', fields: { Front: ' capital OF <i>peru</i>? ' } }, 'Front')?.id).toBe('1');
-    expect(duplicateOf(notes, { id: '1', model: 'Basic', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
-    expect(duplicateOf(notes, { model: 'Other', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+    expect(duplicateOf(notes, { deck: 'Trivia', model: 'Basic', fields: { Front: ' capital OF <i>peru</i>? ' } }, 'Front')?.id).toBe('1');
+    expect(duplicateOf(notes, { id: '1', deck: 'Trivia', model: 'Basic', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+    expect(duplicateOf(notes, { deck: 'Trivia', model: 'Other', fields: { Front: 'Capital of Peru?' } }, 'Front')).toBeUndefined();
+  });
+
+  it('compares an Omnilanguage note only with notes of its own language', () => {
+    const omni = (id: string, deck: string, Entry: string, Language = ''): Note =>
+      ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'm', Language }, tags: [] }) as Note;
+    const existing = [omni('de', 'Languages::Deutsch', 'in'), omni('th', 'Languages::Thai', 'in', 'Thai')];
+    expect(duplicateOf(existing, { deck: 'Languages::Norsk', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')).toBeUndefined();
+    expect(duplicateOf(existing, { deck: 'Languages::Deutsch', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')?.id).toBe('de');
+    // The Language field wins over the deck name.
+    expect(duplicateOf(existing, { deck: 'Misc', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm', Language: 'Thai' } }, 'Entry')?.id).toBe('th');
+    // No language to go by: compared with all, as Anki does.
+    expect(duplicateOf(existing, { deck: 'Misc', model: 'Omnilanguage', fields: { Entry: 'in', Meaning: 'm' } }, 'Entry')?.id).toBe('de');
   });
 });
 

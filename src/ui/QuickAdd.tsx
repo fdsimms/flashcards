@@ -87,7 +87,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
 
   const listed = useMemo(() => parseWordList(listText), [listText]);
   const shown = mode === 'one' ? words : listed.words;
-  const states = shown.map((w) => wordState(w, { filled, speechTag, inDeck: collection.inDeck(model, w.entry) }));
+  const states = shown.map((w) => wordState(w, { filled, speechTag, inDeck: collection.inDeck(deck, model, w) }));
   const toAdd = shown.filter((_, i) => counts(states[i]));
   const tooMany = filled && toAdd.length > MAX_QUEUED;
   const changed = words.length > 0 || listText.trim() !== '' || text.trim() !== '';
@@ -311,7 +311,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
                 state={states[i]}
                 filled={filled}
                 language={language}
-                inDeck={collection.inDeck(model, w.entry)}
+                inDeck={collection.inDeck(deck, model, w)}
                 refusal={refused[w.entry]}
                 onRemove={() => remove(w.entry)}
                 onAnyway={() => addAnyway(w.entry)}
@@ -320,7 +320,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
           </Group>
         ) : null}
 
-        {mode === 'list' ? <ListNotes words={shown} states={states} repeated={listed.repeated} language={language} inDeck={(e) => collection.inDeck(model, e)} /> : null}
+        {mode === 'list' ? <ListNotes words={shown} states={states} repeated={listed.repeated} language={language} inDeck={(e) => collection.inDeck(deck, model, { entry: e, meaning: '' })} /> : null}
         {tooMany ? <ErrorNote message={`That's ${toAdd.length} words. Add up to ${MAX_QUEUED} at a time.`} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
 

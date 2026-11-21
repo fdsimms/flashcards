@@ -15,7 +15,7 @@ import { failureText, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { isSkillNote } from '../core/skillTag';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
-import { answerCounts, countKind, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
+import { answerCounts, countKind, isBuried, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
 import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS, paramsForDeck, previewIntervals, previewLog, review, type AnswerContext, type RatingValue } from '../core/scheduler';
 import { fuzzSeed } from '../core/ankiFuzz';
@@ -111,6 +111,7 @@ import { TypedDiff } from './TypedDiff';
 import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
 import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
+import { useMiniCram } from './useMiniCram';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
 import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
 import { compareTypedAnswer } from '../core/typedCompare';
@@ -263,6 +264,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
+  // A card marked to come back a few more times this session (src/core/miniCram.ts): practice, never a rating.
+  const cram = useMiniCram();
   const undone = useRef(new WeakSet<AnswerRecord>());
   // How many answer writes have failed, and the count the "answers after it" alert was last shown for.
   const failedWrites = useRef(0);
@@ -372,12 +375,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   if (queue && !settle) progressRef.current = sessionProgress(history.length, queue.due.length + queue.fresh.length);
   useEffect(() => { timing.flush(); }, [rebuilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const current = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
+  const queueCurrent = settle ? settle.next : queue ? currentCard(queue, preferId) : undefined;
+  // A mini cram return takes the screen until it's answered; the card is the one in `cards`, as its answer left it.
+  const returned = cram.showing ? cards?.find((cd) => cd.id === cram.showing && !cd.suspended && !cd.retired && !isBuried(cd, now, H)) : undefined;
+  const current = returned ?? queueCurrent;
+  // Part of every showing's key: a return adds no answer to `history`, so the same card shown twice running would keep its WebView.
+  const turn = history.length + cram.returnsAnswered;
   // The count the card on screen is in, underlined in the header's counts.
   const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
-  const showing = current ? `${current.id}:${history.length}` : undefined;
+  const showing = current ? `${current.id}:${turn}` : undefined;
   const revealed = !!showing && revealedAt === showing;
   // The back is committed: time the flip to the frames after it (a no-op unless timing is on).
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -464,7 +472,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
-  const senseMarks = useSenseMarks(current ? `${current.id}:${history.length}` : undefined, rendered, current ? misses.log.get(current.id) : undefined);
+  const senseMarks = useSenseMarks(current ? `${current.id}:${turn}` : undefined, rendered, current ? misses.log.get(current.id) : undefined);
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
   const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
@@ -611,6 +619,20 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (rendered) speak(autoplayFor(rendered, false));
   }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Whether a mini cram return may show this card: it's still there and not held back, as `changed` left it. */
+  const usableAfter = (changed: Map<string, Card>, pool: Card[]) => (id: string) => {
+    const cd = changed.get(id) ?? pool.find((x) => x.id === id);
+    return !!cd && !cd.suspended && !cd.retired && !isBuried(cd, new Date(), H);
+  };
+
+  /** Missed it or Got it on a mini cram return: nothing is scheduled or written, and it isn't in undo. */
+  const answerReturn = (card: Card, got: boolean) => {
+    haptic.answer();
+    cardMotion.current?.flash(got ? 3 : 1);
+    cram.returned(card.id, got, !queueCurrent, usableAfter(new Map(), cards ?? []));
+    setRevealedAt(undefined);
+  };
+
   /**
    * Answers the card on screen. `redo` answers a card that isn't on screen instead: Change to Good or Again
    * answers the card it just undid, in the same step as the undo, so that card never comes back
@@ -618,6 +640,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    * card (and the siblings its first answer buried) put back as they were.
    */
   const answer = async (rating: RatingValue, miss?: string, redo?: { card: Card; note: Note; cards: Card[]; takenMs: number }) => {
+    // A mini cram return is practice: Missed it or Got it, with nothing written and nothing scheduled.
+    if (!redo && returned && current === returned) { answerReturn(returned, rating > 1); return; }
     const cur = redo ? redo.card : current;
     const nt = redo ? redo.note : note;
     const params = redo ? paramsForDeck(cardHomeDeck(redo.card, redo.note.deck), allParams) : cardParams;
@@ -630,7 +654,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     // With a sense marked and no reason chosen, the marks are the reason, for a button and a swipe alike.
     const said = miss ?? (redo ? undefined : senseMarks.miss);
     const keptMiss = said && (rating === 1 || isSenseMiss(said)) ? said : undefined;
-    const timed = redo ? null : timing.pressed(`${cur.id}:${history.length}`);
+    const timed = redo ? null : timing.pressed(`${cur.id}:${turn}`);
     if (!redo) haptic.answer();
     if (!redo) cardMotion.current?.flash(rating);
     try {
@@ -700,7 +724,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const buriedIds = new Set(siblings.map((sb) => sb.id));
       const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when);
       const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
-      setSettling(next && queue && cards ? { at: history.length + 1, next, queue, cards, now } : null);
+      // A marked card whose return is due comes up before the queue's next card (the queue is rebuilt as usual).
+      const comesBack = !redo && !preview ? cram.answered(cur.id, rating, !next, usableAfter(new Map([updated, ...buried].map((cd) => [cd.id, cd])), pool)) : undefined;
+      setSettling(next && !comesBack && queue && cards ? { at: history.length + 1, next, queue, cards, now } : null);
       setPreferId(next?.id);
       setRevealedAt(undefined);
       setNow(when);
@@ -853,6 +879,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     // record as the last, and would take that card back again while the newer list lost another.
     if (!last || busy.current || undone.current.has(last)) return false;
     busy.current = true;
+    cram.clearShowing();
     writes.current++;
     buttonHaptic(to);
     try {
@@ -1237,7 +1264,23 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
 
   // With a sense marked as missed, Again is outlined as the rating that fits; the tap still decides.
   const suggested = suggestedRating ?? (senseMarks.miss ? 1 : undefined);
-  const footer = revealed ? (
+  const footer = revealed && returned ? (
+    <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+      {([{ r: 1, label: 'Missed it', color: c.again }, { r: 3, label: 'Got it', color: c.good }] as const).map((b) => (
+        <Tappable
+          key={b.r}
+          onPress={() => rate(b.r)}
+          accessibilityRole="button"
+          accessibilityLabel={`${b.label}. Extra pass, nothing is scheduled`}
+          scaleTo={0.95}
+          dimTo={0.85}
+          style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', backgroundColor: b.color }}
+        >
+          <Text style={{ ...type.headline, color: c.onRating }}>{b.label}</Text>
+        </Tappable>
+      ))}
+    </Reveal>
+  ) : revealed ? (
     <>
     <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
@@ -1472,6 +1515,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             flag: current.flag ?? 0,
             onMnemonic: canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined,
             onLinkConfused: canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined,
+            cramOn: !!cram.entry(current.id),
+            onCram: isSkillNote(note) ? undefined : () => { haptic.select(); cram.toggle(current.id, history.some((h) => h.before.id === current.id)); },
             onAskClaude: () => {
               const card = cardForClaude(note, noteTypes.get(note.model), current.kind);
               if (card) sheets.request({ key: 'ask', kind: 'ask', card });
@@ -1505,21 +1550,21 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
       {drill && skill.question ? (
-        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           <SkillDrillCard skill={skill} revealed={revealed} />
         </SwipeCard>
       ) : null}
       {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={isLeechNote(note)} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
       {page && !drill ? (
-        <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
               again (after Again, or an undo) starts fresh instead of showing its back while its front loads.
               The second, hidden, is keyed as the next card will be once this one is answered: when that card comes
               up, React keeps that WebView, already loaded, and shows it. */}
           {[
-            <CardWebView key={`${current.id}:${history.length}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${history.length}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
-            ahead && aheadPage ? <CardWebView key={`${ahead.id}:${history.length + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
+            <CardWebView key={`${current.id}:${turn}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${turn}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
+            ahead && aheadPage ? <CardWebView key={`${ahead.id}:${turn + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
           ]}
         </SwipeCard>
       ) : null}
@@ -1530,7 +1575,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <View style={{ flex: 1 }}>
         {/* Lays the back's faces out while the front shows, so the flip doesn't pay for loading them (src/core/faceWarmup.ts). */}
         {revealed ? null : <FaceWarmup font={cardFont} text={warmupText(rendered.back.blocks)} />}
-        <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${history.length}`} shown={shown} motion={cardMotion} onRate={answer}>
+        <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
           <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>

@@ -97,7 +97,7 @@ export function bannerOf(
   serverDown = false,
 ): { tone: 'ready' | 'waiting' | 'failed'; message: string; hint: string } | null {
   const { ready, waiting, failed } = counts(queue?.items ?? []);
-  if (ready) return { tone: 'ready', message: `${notes(ready)} ready to review`, hint: 'Tap to start' };
+  if (ready) return { tone: 'ready', message: `${ready === 1 ? '1 new note' : `${ready} new notes`} written by Claude`, hint: 'Tap to review and add' };
   if (held.refused) return { tone: 'failed', message: `Couldn't send ${words(held.refused)} to Claude`, hint: 'Tap to see why' };
   if (held.waiting) return { tone: 'waiting', message: `${words(held.waiting)} waiting for Claude`, hint: serverDown ? "They'll be sent once your server answers" : "They'll be sent when you're back online" };
   if (waiting) return { tone: 'waiting', message: `Filling in ${notes(waiting)}`, hint: 'Usually ready in a few minutes' };
