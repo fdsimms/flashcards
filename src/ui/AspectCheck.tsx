@@ -8,6 +8,9 @@ import { radius, smooth, space, type, useTheme } from './theme';
 /**
  * Review's aspect check (src/core/aspectCheck.ts): the question above Show answer on a verb's
  * front, and its result above the rating buttons. Optional: Show answer works without a pick.
+ *
+ * Rule for any check run inside a Review card (this, a skill card's drill): it may only outline a
+ * rating (`suggested`), never rate. Nothing feeds FSRS but the answer button the learner presses.
  * `showing` is Review's key for the card on screen, so a card shown again starts unanswered.
  */
 export function useAspectCheck(showing: string | undefined, aspect: Aspect | undefined) {
