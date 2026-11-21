@@ -2223,6 +2223,8 @@ export interface components {
             speak: boolean;
             /** Register */
             register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** SituationLine */
         SituationLine: {
