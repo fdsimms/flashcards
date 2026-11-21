@@ -1124,8 +1124,8 @@ class Engine:
         return [by_id[i] for i in due(candidates, today, listens)]
 
     def record_reading(self, text_id: int, reading: Reading) -> None:
-        """Logs a session and, after a poor check, switches the text's language to Easier
-        (difficulty.after_reading). A second reading of a text that's already been read is ignored, so
+        """Logs a session and, after a poor or a high check, moves the text's language a level easier
+        or harder (difficulty.after_reading). A second reading of a text that's already been read is ignored, so
         a retried request can't log twice or move difficulty twice."""
         status = store.text_status(self.conn, text_id)
         if status is None:
@@ -1143,7 +1143,7 @@ class Engine:
                 ),
             )
         # The check steers on this text's answers and the last text's together (difficulty.py), read
-        # before this reading is logged, so one bad text can't make the next easier by itself.
+        # before this reading is logged, so one text can't move the next ones by itself.
         right, asked = reading.check_right, reading.check_asked
         if text is not None and asked:
             before = store.previous_check(self.conn, text.language, self.clock() - CHECK_WINDOW)

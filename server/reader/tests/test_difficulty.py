@@ -1,4 +1,5 @@
 from franki_reader.difficulty import (
+    CHECK_HIGH,
     CHECK_LOW,
     CHECK_MIN_ASKED,
     DEFAULT_FLOOR,
@@ -46,12 +47,20 @@ def test_easier_stays_easier_after_another_poor_check() -> None:
     assert after_reading(Difficulty(EASIER_FLOOR), 0, 8) == Difficulty(EASIER_FLOOR)
 
 
+def test_a_high_check_steps_one_level_harder() -> None:
+    assert after_reading(Difficulty(EASIER_FLOOR), 8, 8) == Difficulty(STANDARD_FLOOR)
+    assert after_reading(Difficulty(), 9, 10) == Difficulty(HARDER_FLOOR)
+    assert after_reading(Difficulty(HARDER_FLOOR), 8, 8) == Difficulty(HARDER_FLOOR)
+    assert 9 / 10 >= CHECK_HIGH > 7 / 8
+    # Too few answers say nothing, however right.
+    assert after_reading(Difficulty(), CHECK_MIN_ASKED - 1, CHECK_MIN_ASKED - 1) == Difficulty()
+
+
 def test_a_fair_check_or_too_few_answers_change_nothing() -> None:
     assert after_reading(Difficulty(), 5, 8) == Difficulty()
+    assert after_reading(Difficulty(), 7, 8) == Difficulty()
     assert after_reading(Difficulty(), 0, CHECK_MIN_ASKED - 1) == Difficulty()
     assert after_reading(Difficulty(), None, None) == Difficulty()
-    # A good score never takes Easier away: only the setting does.
-    assert after_reading(Difficulty(EASIER_FLOOR), 8, 8) == Difficulty(EASIER_FLOOR)
 
 
 def test_a_check_leaves_the_practice_word_count_and_the_grammar_allowance_alone() -> None:
