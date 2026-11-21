@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import {
-  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, standInName, type Cram,
+  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, MISSED_MAX, standInName, type Cram,
 } from '../../core/cram';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
@@ -19,8 +19,6 @@ import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
 
 const ANY_LANGUAGE = 'Any language';
-/** The most words "missed lately" brings into a new cram. */
-const MISSED_MAX = 10;
 
 /**
  * A cram's sheet. A new one is one step: what it's for, the day (a chip for each of the next five
