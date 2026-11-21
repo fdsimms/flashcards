@@ -520,7 +520,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
                 <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
               ) : null}
               {chat.lines.map((l, i) => (l.speaker === 'them'
-                ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
+                ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} lookup={(word, english) => api.wordMeaning(chat.language, word, english)} />
                 : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
               {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
