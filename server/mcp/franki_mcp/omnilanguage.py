@@ -156,6 +156,7 @@ RULES: dict[str, str] = {
     "gender-unknown": "Gender is not a value this language uses",
     "romanization-missing": "A Thai note without its romanization",
     "romanization-letters": "A romanization outside the deck's scheme",
+    "romanization-toneless": "A Thai example romanization with no tone marks",
     "romanization-unneeded": "A romanization in a language that is not romanized",
     "kana-missing": "A word with kanji and no KanaReading",
     "kana-format": "KanaReading is not one reading in kana",
@@ -642,6 +643,11 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
                 add("romanization-letters", name, "format",
                     "Use the deck's scheme: dt and bp for ต and ป, th ph kh for the aspirated letters, g for ก; "
                     "aw / aaw, ae / aae, ue / uue, əə for the vowels; lowercase.")  # fmt: skip
+        # A sentence of four or more syllables with every one mid tone does not happen: the tones were left off.
+        sentence = txt("ContextRomanized")
+        if len(re.findall(r"[^\s-]+", sentence)) >= 4 and not _TONE_MARKS.search(unicodedata.normalize("NFD", sentence)):
+            add("romanization-toneless", "ContextRomanized", "review",
+                "Add the tone marks (low à, falling â, high á, rising ǎ; mid none), derived from the Thai spelling by the tone rules.")  # fmt: skip
     elif lang and lang.name in ("russian", "greek"):
         for name in ("Transliteration", "ContextRomanized"):
             if txt(name):

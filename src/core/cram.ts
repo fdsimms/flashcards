@@ -507,6 +507,9 @@ export function lastCramLanguage(crams: Cram[], notes: Iterable<Note>): Language
   return undefined;
 }
 
+/** The most words "missed lately" brings into a cram at once: the cram's sheet and its page both stop here. */
+export const MISSED_MAX = 10;
+
 /** The words missed lately (Trouble's "Missed lately", most missed first) in `language`, as note ids, leaving out `except`. */
 export function missedLately(rows: { note: Note; misses: number }[], language: Language, except: Iterable<string> = []): string[] {
   const skip = new Set(except);
