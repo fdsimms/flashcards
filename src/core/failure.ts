@@ -30,3 +30,9 @@ export function failureText(e: unknown, { what, next }: { what?: string; next: s
   const said = [what, next].filter(Boolean).join(' ');
   return detail ? `${said} (${detail})` : said;
 }
+
+/** The refusal when a note or card was deleted (or replaced by an import or sync) while a screen still showed it. */
+export const NOTE_GONE = "This note isn't in Franki anymore. Go back to the deck and open the card again.";
+
+/** `failureText`'s `next` when a change was saved in Franki but writing it into the kept Anki collection failed. */
+export const NOT_IN_ANKI = "It's saved in Franki but won't reach Anki.";
