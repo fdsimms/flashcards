@@ -81,7 +81,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomWord(script.words.length, index), (i) => script.patterns(i));
+    const draw = () => marks.pick(() => randomWord(script.words.length, index), (i) => script.patterns(i), String);
     setHeld({ language, word: retries.next(language, index === undefined ? undefined : String(index), draw) });
   };
 

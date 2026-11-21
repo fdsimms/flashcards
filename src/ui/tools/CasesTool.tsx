@@ -63,7 +63,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
 
   const ask = () => {
     if (!cases) return;
-    const governor = marks.pick(() => drawGovernor(cases, previous.current), casePatterns);
+    const governor = marks.pick(() => drawGovernor(cases, previous.current), casePatterns, governorId);
     previous.current = governorId(governor);
     answer.hide();
     setQuestion({ governor, noun: nounFor(governor, nouns) });

@@ -72,7 +72,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomWord(count, index), patternsOf);
+    const draw = () => marks.pick(() => randomWord(count, index), patternsOf, (i) => `${mode}|${i}`);
     setHeld({ mode, index: retries.next(scope, index === undefined ? undefined : String(index), draw) });
   };
   /** A pick, or null for Show answer, which counts as a miss. */

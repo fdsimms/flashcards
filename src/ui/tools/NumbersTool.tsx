@@ -83,7 +83,7 @@ export function NumbersTool({ tool, repo }: ToolScreenProps) {
     // A missed question handed back later is asked afresh: nothing typed, unchecked.
     setTyped({ key: '', text: '' });
     listen.reset();
-    const draw = () => marks.pick(() => randomQuestion(k, language, question), numberPatterns);
+    const draw = () => marks.pick(() => randomQuestion(k, language, question), numberPatterns, questionKey);
     setQuestion(retries.next(`${language}|${k}`, key, draw));
   };
 

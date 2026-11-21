@@ -57,7 +57,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
     answer.hide();
     listen.reset();
     setTyped({ key: '', text: '' });
-    const draw = () => marks.pick(() => randomAmount(currency, m, amount), (a) => moneyPatterns(a, currency));
+    const draw = () => marks.pick(() => randomAmount(currency, m, amount), (a) => moneyPatterns(a, currency), String);
     setHeld({ code: currency.code, amount: retries.next(scope(m), amount === undefined ? undefined : String(amount), draw) });
   };
   // Another language's money (chosen, or the saved language once it's read): a new amount in it.
