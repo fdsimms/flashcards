@@ -767,7 +767,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
           <View>
             {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
-            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
+            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
           </View>
           {/* In the card's corner, not in its flow, so the answer keeps the height. Play is the reading's, as before. */}
           {showMeaning || showReading ? (

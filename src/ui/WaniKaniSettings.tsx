@@ -161,7 +161,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
           />
           <SwitchRow
             label="Animate level ups"
-            hint="The popup that shows when an answer moves a word to a new stage swoops in with a burst. Off, it just appears. Reduce Motion in iOS Settings turns it off too."
+            hint="The popup that shows when an answer moves a word to a new stage fades in and moves up into place. Off, it just appears. Reduce Motion in iOS Settings turns it off too."
             value={prefs.stageAnimation}
             onValueChange={(stageAnimation) => setPrefs({ stageAnimation })}
           />
