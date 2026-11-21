@@ -1,5 +1,7 @@
 """Themes to talk about for a cram (cram_themes.py)."""
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -33,6 +35,9 @@ class ThemesIn(BaseModel):
     # How casual or formal the questions and the story sound; the Settings default when left out.
     # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
     register_level: Register | None = Field(default=None, alias="register")
+    # Thai only: the learner's polite ending, khrap (a man's) or kha (a woman's), the same choice
+    # audio lessons use. The story is the learner's own words, so it is written for their gender.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 class LineOut(BaseModel):
@@ -101,6 +106,7 @@ def router(ctx: AppContext) -> APIRouter:
             stretch=body.stretch,
             topic=" ".join(body.topic.split()),
             register=body.register_level or store.load_settings(engine.conn).register,
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
         )
         try:
             raw, used = await write_cram_themes(body.language, seeds)

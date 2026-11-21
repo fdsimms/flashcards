@@ -516,3 +516,13 @@ def test_the_endpoints_pass_a_focus_on_and_keep_working_without_one() -> None:
         headers=AUTH,
     )
     assert seen_feedback[0].focus is None and seen_feedback[1].focus is not None
+
+
+def test_thai_feedback_judges_the_learners_lines_as_their_own_gender() -> None:
+    from franki_reader.situations import Conversation, feedback_system
+
+    man = feedback_system(Conversation("th", "Dinner", None, (), learner="male"))
+    woman = feedback_system(Conversation("th", "Dinner", None, (), learner="female"))
+    assert "The learner is a man" in man and "The learner is a woman" not in man
+    assert "The learner is a woman" in woman
+    assert "learner is a" not in feedback_system(Conversation("fr", "Dinner", None, ()))

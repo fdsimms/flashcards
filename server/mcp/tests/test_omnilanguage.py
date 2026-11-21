@@ -142,6 +142,8 @@ def test_thai_romanization_is_held_to_one_scheme():
     for wrong in ("dəən-taang", "dɤɤn-thaang", "Dəən-thaang", "dəən-thɯang", "pai", "kin"):
         assert "romanization-letters" in rules({**note, "Transliteration": wrong}), wrong
     assert "romanization-missing" in rules({**note, "ContextRomanized": ""})
+    # A sentence with no tone mark at all was romanized without tones.
+    assert "romanization-toneless" in rules({**note, "ContextRomanized": "khao dəən-thaang bawi"})
     # Russian and Greek notes carry none.
     assert "romanization-unneeded" in rules({"Entry": "дом", "Language": "russian", "Transliteration": "dom"})
 

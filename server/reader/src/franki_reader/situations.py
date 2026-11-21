@@ -27,6 +27,7 @@ from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
+from franki_reader.lesson import Learner
 from franki_reader.lexicon import Entry
 from franki_reader.production import MAX_CHARS, VERDICTS
 from franki_reader.register import DEFAULT, Register, instruction
@@ -188,6 +189,8 @@ class Conversation:
     words: tuple[str, ...] = ()
     # How casual or formal the other person's lines are, and what the feedback judges them against.
     register: Register = DEFAULT
+    # Whether the learner is a man or a woman, which Thai's "I" and polite ending follow.
+    learner: Learner = "male"
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
@@ -227,6 +230,21 @@ def play_intro(conversation: Conversation) -> str:
     return f"{head}{chr(10).join(notes)}\n\nThe word list{words}"
 
 
+# The learner's lines are said as themselves, so they are judged and corrected as a man's or a
+# woman's Thai (lesson_writer.thai_problems has the same rule for a lesson's phrases).
+_THAI_LEARNER: dict[Learner, str] = {
+    "male": (
+        " The learner is a man: ผม and ครับ are right for him, and ฉัน, ดิฉัน, ค่ะ and คะ are not."
+        " In `corrected`, change those to ผม and ครับ, and never add them to a line that is right."
+    ),
+    "female": (
+        " The learner is a woman: ดิฉัน or ฉัน, ค่ะ (statements) and คะ (questions) are right for"
+        " her, and ผม and ครับ are not. In `corrected`, change those, and never add them to a line"
+        " that is right."
+    ),
+}
+
+
 def feedback_system(conversation: Conversation) -> str:
     """The feedback prompt, with a sentence about the structure being practiced when there is one,
     and one about the register when it isn't the default."""
@@ -242,6 +260,8 @@ def feedback_system(conversation: Conversation) -> str:
             f" The learner chose a {conversation.register} register for this scene, so judge"
             " how natural each line is for that register, not for everyday speech."
         )
+    if conversation.language == "th":
+        text += _THAI_LEARNER[conversation.learner]
     return text
 
 
