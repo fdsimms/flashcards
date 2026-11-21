@@ -31,7 +31,9 @@ that plural under (but, rodzic), or from the word itself for a noun with no sing
 UniMorph is an extract of Wiktionary made years ago, and misses pages Wiktionary has had since
 (czas, koń, woda). A noun it lacks is looked up in kaikki.org's weekly extract of Wiktionary
 (Wiktextract, also CC BY-SA), one page per word, kept for `KAIKKI_FRESH` so the daily fill doesn't
-ask again each day. Only nouns: kaikki's Polish verb tables leave out the person (czekam and czekasz
+ask again each day. Russian, German and Greek nouns have the same fallback (Russian's stress marks are
+taken off; a table UniMorph filled by half or more is left as UniMorph has it, never completed from
+kaikki). Only nouns: kaikki's Polish verb tables leave out the person (czekam and czekasz
 are both "present, singular"), so a verb's table can't be read from them.
 """
 
@@ -72,11 +74,13 @@ KAIKKI_URL = "https://kaikki.org/dictionary/{language}/meaning/{a}/{ab}/{word}.j
 KAIKKI_FRESH = 30 * 24 * 60 * 60
 # Wiktextract's tags for a case and a number, as UniMorph's features (`Row`s are written in them).
 KAIKKI_FEATURES = {"nominative": "NOM", "genitive": "GEN", "dative": "DAT", "accusative": "ACC", "instrumental": "INS",
-                   "locative": "ESS", "vocative": "VOC", "singular": "SG", "plural": "PL"}
+                   "locative": "ESS", "prepositional": "ESS", "vocative": "VOC", "singular": "SG", "plural": "PL"}
 KAIKKI_CASES = frozenset({"NOM", "GEN", "DAT", "ACC", "INS", "ESS", "VOC"})
 # Forms a table lists that aren't the word's own standard ones (a diminutive, a dialect's).
-KAIKKI_SKIP = frozenset({"dialectal", "obsolete", "archaic", "rare", "diminutive", "augmentative", "alternative",
+KAIKKI_SKIP = frozenset({"dialectal", "obsolete", "archaic", "dated", "rare", "diminutive", "augmentative", "alternative",
                          "adjective", "romanization", "table-tags", "inflection-template"})
+# Russian pages mark the stress with a combining acute (молоко́); Franki's answers are written without it.
+STRESS_MARK = "\u0301"
 
 
 @dataclass(frozen=True)
@@ -110,6 +114,12 @@ PLURAL = "plural"
 # UniMorph tags the locative ESS.
 POLISH_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC"),
                 ("instrumental", "INS"), ("locative", "ESS"), ("vocative", "VOC")]
+# Russian's prepositional is UniMorph's ESS too; its vocative isn't tabulated.
+RUSSIAN_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC"),
+                 ("instrumental", "INS"), ("prepositional", "ESS")]
+GERMAN_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC")]
+# Greek has no dative.
+GREEK_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("accusative", "ACC"), ("vocative", "VOC")]
 
 
 SPANISH_PERSONS = [("yo", "1;SG"), ("tú", "2;SG;INFM"), ("él", "3;SG"), ("nosotros", "1;PL"), ("vosotros", "2;PL"), ("ellos", "3;PL")]
@@ -157,6 +167,8 @@ class Language:
     plural_determiners: frozenset[str] = frozenset()
     # The language as kaikki.org names it, for nouns UniMorph lacks; none for no fallback.
     kaikki: str = ""
+    # Whether kaikki's forms for it carry stress marks to take off (Russian; Greek's accents are letters).
+    kaikki_unstress: bool = False
 
     def lemma(self, entry: str) -> str:
         """The verb an Entry names: without a bracketed note or a trailing preposition."""
@@ -191,7 +203,14 @@ TABLES: dict[str, Language] = {
             Row.of("он", "V;PST;SG;MASC"), Row.of("она", "V;PST;SG;FEM"), Row.of("оно", "V;PST;SG;NEUT"), Row.of("они", "V;PST;PL"),
         )),
         _persons("future", "FUT", SLAVIC_PERSONS_RU),
-    )),
+    ), noun_tables=_cases(RUSSIAN_CASES), kaikki="Russian", kaikki_unstress=True),
+    # No verb tables yet: only nouns are filled, and German and Greek verbs are reported as unsupported.
+    # "die" is left out of the plural determiners (it is also the feminine singular); a plural-only
+    # noun ("die Eltern") still gets the plural lines it has.
+    "german": Language("deu", tables=(), noun_tables=_cases(GERMAN_CASES), determiners=frozenset({"der", "die", "das"}),
+                      kaikki="German"),
+    "greek": Language("ell", tables=(), noun_tables=_cases(GREEK_CASES), determiners=frozenset({"ο", "η", "το", "οι", "τα"}),
+                      plural_determiners=frozenset({"οι", "τα"}), kaikki="Greek"),
 }
 # Japanese verbs are conjugated by Read & Listen's server, not read from UniMorph (`japanese_lines`).
 JAPANESE = "japanese"
@@ -202,7 +221,8 @@ JAPANESE_TABLE = ["polite · present", "polite · past", "polite · negative", "
                   "imperative · plain", "desire · plain"]
 # What the Language field may say for each (Omnilanguage's own names, as `speechLangFor` reads them).
 LANGUAGE_NAMES = {"spanish": "spanish", "español": "spanish", "espanol": "spanish", "polish": "polish", "polski": "polish",
-                  "russian": "russian", "русский": "russian", "japanese": JAPANESE, "日本語": JAPANESE}
+                  "russian": "russian", "русский": "russian", "german": "german", "deutsch": "german",
+                  "greek": "greek", "ελληνικά": "greek", "japanese": JAPANESE, "日本語": JAPANESE}
 
 
 def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same,
@@ -319,11 +339,11 @@ class UniMorph:
                 out[form] = lemma
         return out
 
-    def kaikki_nouns(self, language: str, words: Iterable[str]) -> dict[str, list[tuple[str, frozenset[str]]]]:
+    def kaikki_nouns(self, language: str, words: Iterable[str], unstress: bool = False) -> dict[str, list[tuple[str, frozenset[str]]]]:
         """Each word's noun forms from kaikki.org (`language` as it names it), for the words it has a table for."""
         out: dict[str, list[tuple[str, frozenset[str]]]] = {}
         for word in words:
-            found = kaikki_noun_forms(self._kaikki_page(language, word))
+            found = kaikki_noun_forms(self._kaikki_page(language, word), unstress)
             if found:
                 out[word] = found
         return out
@@ -359,13 +379,14 @@ class UniMorph:
                     yield parts[0], parts[1], frozenset(parts[2].split(";"))
 
 
-def kaikki_noun_forms(page: str) -> list[tuple[str, frozenset[str]]]:
+def kaikki_noun_forms(page: str, unstress: bool = False) -> list[tuple[str, frozenset[str]]]:
     """
     The noun on a kaikki.org page with the fullest declension table, as UniMorph-style forms
     (`czasu`, {N, GEN, SG}), in the table's order, so `form_lines` reads them as it reads UniMorph's.
     The fullest, as a page can hold several nouns spelled alike: para is "steam" (no plural) before
     "couple". A form with one case and one number is kept, unless it's tagged as something other
-    than the word's standard form (`KAIKKI_SKIP`).
+    than the word's standard form (`KAIKKI_SKIP`). With `unstress`, stress marks come off the forms
+    (ё stays: it is a letter). A form with a ⟐ is Russian's romanized twin of the line before it.
     """
     best: list[tuple[str, frozenset[str]]] = []
     for line in page.splitlines():
@@ -379,8 +400,10 @@ def kaikki_noun_forms(page: str) -> list[tuple[str, frozenset[str]]]:
         for f in entry.get("forms", []):
             tags = set(f.get("tags") or [])
             form = str(f.get("form", "")).strip()
-            if not form or tags & KAIKKI_SKIP:
+            if not form or tags & KAIKKI_SKIP or "⟐" in form:
                 continue
+            if unstress:
+                form = form.replace(STRESS_MARK, "")
             features = {KAIKKI_FEATURES[t] for t in tags if t in KAIKKI_FEATURES}
             if len(features & KAIKKI_CASES) == 1 and len(features - KAIKKI_CASES) == 1:
                 out.append((form, frozenset({"N", *features})))
@@ -454,7 +477,7 @@ def survey(col: Collection, query: str = "") -> Survey:
         if lang == JAPANESE and pos == VERB:
             reading = _plain(note["KanaReading"]) if "KanaReading" in note else ""
             candidates.append(Candidate(nid, word, lang, pos, reading))
-        elif lang in TABLES and (pos == VERB or TABLES[lang].noun_tables):
+        elif lang in TABLES and (TABLES[lang].tables if pos == VERB else TABLES[lang].noun_tables):
             candidates.append(Candidate(nid, word, lang, pos))
         else:
             name = (_plain(note["Language"]).lower() if "Language" in note else "") or "(no language)"
@@ -513,7 +536,7 @@ def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
         # Nouns UniMorph lacks, from kaikki.org: a plural Entry as the word itself (drzwi's page is its plural).
         missing = [c for c in cs if c.pos == NOUN and not lines[c.note_id]]
         if missing and language.kaikki:
-            pages = unimorph.kaikki_nouns(language.kaikki, {noun_of(language, c.word)[0] for c in missing})
+            pages = unimorph.kaikki_nouns(language.kaikki, {noun_of(language, c.word)[0] for c in missing}, language.kaikki_unstress)
             for c in missing:
                 lines[c.note_id] = noun_lines_for(language, c.word, pages, {})
         for c in cs:
@@ -616,7 +639,7 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph, reade
         """Fills the Forms field of Omnilanguage verbs and nouns that have it empty, from Wiktionary's
         inflection tables (UniMorph), for Franki's forms practice: one line per form, like
         "present · yo: espero" or "accusative · singular: ptaka". Verbs in Spanish, Polish and Russian
-        so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). Japanese
+        so far, nouns in Polish, Russian, German and Greek (a plural Entry like "te buty" gets the plural lines only). Japanese
         verbs are conjugated by Read & Listen's server from their type as Sudachi gives it, each form
         with its reading ("past · plain: 帰った / かえった"); without Read & Listen they're left empty
         and japanese_skipped says so. `query` narrows the notes (Anki's search syntax, e.g.
@@ -650,7 +673,8 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph, reade
             "source": "Wiktionary via UniMorph and kaikki.org, CC BY-SA; Japanese conjugated from Sudachi's verb types",
             # The lines a Forms field holds, per language: for writing a not_found word's by hand.
             "table": {
-                **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted(TABLES)},
+                **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows]
+                   for lang in sorted(TABLES) if TABLES[lang].tables},
                 **{f"{lang} nouns": [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].noun_tables for r in t.rows]
                    for lang in sorted(TABLES) if TABLES[lang].noun_tables},
                 JAPANESE: [f"{row}: <form> / <reading>" for row in JAPANESE_TABLE],
