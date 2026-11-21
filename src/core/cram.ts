@@ -481,3 +481,15 @@ export function missedLately(rows: { note: Note; misses: number }[], language: L
   }
   return [...misses.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
 }
+
+/**
+ * The cram once cards were asked of Claude for words jotted down in the lesson (Make cards for all):
+ * each word asked for is shown as being written (`withRequest`) and its jotting is taken off the
+ * list. Given the cram as it is now, after the request came back, so a word jotted or a question
+ * checked meanwhile is kept, and a jotting already taken off stays off.
+ */
+export function afterCardsAsked(cram: Cram, asked: { capture: string; word: CramRequest }[]): Cram {
+  let next = cram;
+  for (const { capture, word } of asked) next = withoutCapture(withRequest(next, word), capture);
+  return next;
+}

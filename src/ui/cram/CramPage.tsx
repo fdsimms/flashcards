@@ -193,6 +193,9 @@ export function CramPage(props: {
             <Group>
               {cram.captured.map((text, i) => <NavRow key={text} first={i === 0} label={text} detail="Tap to make a card." onPress={() => captureMenu(text)} />)}
             </Group>
+            {props.readerApi && language && cram.captured.length > 1 ? (
+              <Button variant="secondary" label={`Make cards for all ${cram.captured.length}`} onPress={() => go('/cram-cards')} />
+            ) : null}
           </>
         ) : null}
 

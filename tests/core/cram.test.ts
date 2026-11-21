@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
-  dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
+  afterCardsAsked, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -107,6 +107,14 @@ describe('planning', () => {
     expect(one.captured).toEqual(['ประหม่า']);
     expect(withCapture(one, 'ประหม่า')).toBeUndefined();
     expect(withoutCapture(one, 'ประหม่า').captured).toEqual([]);
+  });
+  it("turns the lesson's jottings into cards being written, keeping what changed meanwhile", () => {
+    const sent = withCapture(withCapture(cram(), 'encore')!, 'bow')!;
+    // Jotted after the request went out, while it was on its way.
+    const now = withCapture(sent, 'ประหม่า')!;
+    const next = afterCardsAsked(now, [{ capture: 'encore', word: { text: 'อังกอร์', english: 'encore' } }]);
+    expect(next.captured).toEqual(['bow', 'ประหม่า']);
+    expect(next.requested).toEqual([{ text: 'อังกอร์', english: 'encore' }]);
   });
   it('shows a card asked of Claude until a note with the word is in the cram', () => {
     const asked = withRequest(withRequest(cram(), { text: 'เวที', english: 'stage' }), { text: 'ปรบมือ', english: 'to clap' });
