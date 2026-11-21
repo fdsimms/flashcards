@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
 import {
-  CASE_CUES, CASE_LANGUAGES, caseNouns, caseRows, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorNote, inDeck,
+  CASE_LANGUAGES, caseNouns, caseRows, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorNote, inDeck,
   languageDeck, nounFor, type Governor,
 } from '../../src/tools/cases';
 import { omniNote } from '../support/fixtures';
@@ -129,12 +129,6 @@ describe('inDeck, languageDeck and governorNote', () => {
 });
 
 describe('the case choices', () => {
-  it('has a cue for every case any language asks', () => {
-    for (const language of Object.values(CASE_LANGUAGES)) {
-      for (const k of language!.cases) expect(CASE_CUES[k], k).toBeTruthy();
-    }
-  });
-
   it('lays the choices out in rows of at most three', () => {
     expect(caseRows(2)).toEqual([2]);
     expect(caseRows(3)).toEqual([3]);

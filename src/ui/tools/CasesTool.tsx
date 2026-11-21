@@ -4,7 +4,7 @@ import { failureText } from '../../core/failure';
 import type { Note } from '../../core/types';
 import { LANGUAGES } from '../../reader/languages';
 import {
-  CASE_CUES, CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRows, caseRule, checkCaseForm, drawGovernor, governorId,
+  CASE_LANGUAGES, caseName, caseNouns, casePatterns, caseRows, caseRule, checkCaseForm, drawGovernor, governorId,
   governorNote, inDeck, languageDeck, nounFor, type CaseNoun, type GovernedCase, type Governor,
 } from '../../tools/cases';
 import { useApp } from '../AppContext';
@@ -241,7 +241,7 @@ function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k:
                 key={k}
                 onPress={() => onChoose(k)}
                 accessibilityRole="button"
-                accessibilityLabel={`${caseName(k)}, ${CASE_CUES[k]}`}
+                accessibilityLabel={caseName(k)}
                 scaleTo={0.97}
                 style={{
                   flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 1, paddingHorizontal: space.xs, paddingVertical: space.xs + 2,
@@ -249,7 +249,6 @@ function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k:
                 }}
               >
                 <Text maxFontSizeMultiplier={1.3} style={{ ...type.headline, fontSize: 16, color: c.text }}>{caseName(k)}</Text>
-                <Text maxFontSizeMultiplier={1.3} style={{ ...type.caption, color: c.textSecondary }}>{CASE_CUES[k]}</Text>
               </Tappable>
             ))}
           </View>
