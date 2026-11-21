@@ -18,6 +18,7 @@ import type { ToolScreenProps } from './index';
 import { useListenCheck, useSpeakEach } from './Listen';
 import { ListenBack, ListenFooter, ListenPrompt, PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -48,7 +49,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
   /** The amount, with the currency it's in, so one from another language's money is never shown. */
   const [held, setHeld] = useState(() => {
     const code = CURRENCY_OF[toolLanguage(tool, toolPrefs().language)]!;
-    return { code, amount: randomAmount(CURRENCIES[code], toolPrefs().moneyMax) };
+    return { code, amount: drawFromBag(language, tool.id, () => randomAmount(CURRENCIES[code], toolPrefs().moneyMax), String) };
   });
   const amount = held.code === currency.code ? held.amount : undefined;
   // A missed amount comes back only in the same money and size.
@@ -62,7 +63,7 @@ export function MoneyTool({ tool, repo }: ToolScreenProps) {
   };
   // Another language's money (chosen, or the saved language once it's read): a new amount in it.
   useEffect(() => {
-    if (held.code !== currency.code) setHeld({ code: currency.code, amount: randomAmount(currency, max) });
+    if (held.code !== currency.code) setHeld({ code: currency.code, amount: marks.pick(() => randomAmount(currency, max), (a) => moneyPatterns(a, currency), String) });
   }, [held.code, currency, max]);
 
   const saying = useMemo(() => (amount === undefined ? undefined : MONEY_SAYERS[language]?.(amount)), [language, amount]);
