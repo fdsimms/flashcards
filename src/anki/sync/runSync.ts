@@ -120,15 +120,16 @@ async function syncTheCollection(deps: SyncDeps): Promise<{ report: SyncReport; 
  * the sign-in was refused, the phone's clock is off, or the counts differ and a full sync is needed.
  */
 export function isRetryable(e: unknown): boolean {
-  return !(e instanceof SyncError && (e.kind === 'auth' || e.kind === 'clock' || e.kind === 'sanity'));
+  return !(e instanceof SyncError && (e.kind === 'auth' || e.kind === 'signedOut' || e.kind === 'clock' || e.kind === 'sanity'));
 }
 
 /** A sync failure as one line for the person: what went wrong, and what to do about it. */
 export function syncErrorText(e: unknown): string {
   if (e instanceof SyncError) {
     switch (e.kind) {
-      case 'auth': return 'The server didn\'t accept the sign-in. Sign in again in Sync settings.';
-      case 'network': return `Couldn't reach the server. Check the connection and the server address. (${e.message})`;
+      case 'auth': return 'The server didn\'t accept the sign-in. Sign in again in Settings, Anki.';
+      case 'signedOut': return 'This iPhone isn\'t signed in to your sync server. Sign in again in Settings, Anki.';
+      case 'network': return `Couldn't reach the server. Check your connection and the server address, then try again. (${e.message})`;
       case 'clock': return e.message;
       case 'server': return `The server reported a problem: ${e.message}`;
       case 'sanity': return e.message;
