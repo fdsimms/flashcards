@@ -1,28 +1,39 @@
 import React, { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
-import { noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
+import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
 import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Icon, Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
+import { CandidateChips } from './CramBits';
+
+/** What the card says once the words are sent: where they are, one sentence for one word or for several. */
+function sentText(words: string[], held: boolean, approved: string[], ready: number): string {
+  const one = words.length === 1;
+  const added = words.filter((w) => approved.includes(w)).length;
+  if (added === words.length) return one ? `The card for ${words[0]} is added to the cram.` : `All ${words.length} cards are added to the cram.`;
+  if (ready) return one ? `Claude wrote a card for ${words[0]}. Approve it here and it joins the cram.` : `Claude wrote ${ready === 1 ? 'a card' : `${ready} cards`}. Approve ${ready === 1 ? 'it' : 'them'} here and ${ready === 1 ? 'it joins' : 'they join'} the cram.`;
+  if (held) return one ? `Couldn't reach your server. ${words[0]} goes to Claude once it answers. Approve the card when it's ready and it joins the cram.` : `Couldn't reach your server. ${words.length} words go to Claude once it answers. Approve the cards when they're ready and they join the cram.`;
+  return one ? `Claude is writing a card for ${words[0]}. Approve it here when it's ready and it joins the cram.` : `Claude is writing ${words.length} cards. Approve them here when they're ready and they join the cram.`;
+}
 
 /**
  * Make a card, in a cram's Add: what was typed (English, romanization or the language) is looked up
- * as Find word does for an audio lesson (`findWords`, which writes nothing), the word picked is sent
- * to the note queue for Claude to write (`ask`), and the note joins the cram once it's approved,
- * since a new note in the cram's language gets its tag. Once Claude has written it, the card here
- * opens it in the note editor (`approve`), so it's approved without leaving the cram. A second tap
- * while one is on its way does nothing, so a word isn't queued twice.
+ * as Find word does for an audio lesson (`findWords`, which writes nothing), the words checked (any
+ * number of them) are sent to the note queue for Claude to write (`ask`), and each note joins the
+ * cram once it's approved, since a new note in the cram's language gets its tag. Once Claude has
+ * written one, the card here opens it in the note editor (`approve`), so it's approved without
+ * leaving the cram. A second tap while they are on their way does nothing, so a word isn't queued twice.
  */
 export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   text: string;
   language: Language;
   findWords: (text: string) => Promise<LessonWordCandidate[]>;
-  /** Queues the word and keeps it on the cram as being written; says 'held' when it waits for a connection. */
-  ask: (word: LessonWordCandidate) => Promise<'queued' | 'held' | undefined>;
-  /** The note queue as the server last said it: the card shows a Review button here once Claude has written it. */
+  /** Queues the words and keeps them on the cram as being written; says 'held' when they wait for a connection. */
+  ask: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
+  /** The note queue as the server last said it: the card shows a Review button here once Claude has written a word's card. */
   queued?: QueuedNote[];
   /** Opens the written card in the note editor; saving there is the approval. True when it was saved. */
   approve?: (note: QueuedNote) => Promise<boolean>;
@@ -31,15 +42,25 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   const name = LANGUAGES[language].name;
   const [candidates, setCandidates] = useState<{ for: string; list: LessonWordCandidate[] }>();
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ for: string; word: string; held: boolean }>();
+  const [done, setDone] = useState<{ for: string; words: string[]; held: boolean }>();
+  // The words checked, by their text.
+  const [checked, setChecked] = useState<{ for: string; texts: string[] }>();
   const [problem, setProblem] = useState<{ for: string; text: string }>();
-  const [approved, setApproved] = useState<string>();
+  const [approved, setApproved] = useState<string[]>([]);
   const working = useRef(false);
   const typed = text.trim();
   // What's shown belongs to what's typed now: an answer for an earlier search isn't.
   const list = candidates?.for === typed && candidates.list.length ? candidates.list : undefined;
   const sent = done?.for === typed ? done : undefined;
   const wrong = problem?.for === typed ? problem.text : undefined;
+  const picked = list && checked?.for === typed ? list.filter((w) => checked.texts.includes(w.text)) : [];
+  const toggle = (word: LessonWordCandidate) => {
+    haptic.select();
+    setChecked((p) => {
+      const have = p?.for === typed ? p.texts : [];
+      return { for: typed, texts: have.includes(word.text) ? have.filter((t) => t !== word.text) : [...have, word.text] };
+    });
+  };
 
   const run = async (fn: () => Promise<void>) => {
     if (working.current) return;
@@ -61,17 +82,17 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
     setCandidates({ for: typed, list: found });
     if (!found.length) setProblem({ for: typed, text: noCandidatesText(typed, name) });
   });
-  const pick = (word: LessonWordCandidate) => run(async () => {
+  const make = () => run(async () => {
     haptic.tap();
-    const how = await ask(word);
-    if (how) { haptic.success(); setDone({ for: typed, word: word.text, held: how === 'held' }); }
+    const how = await ask(picked);
+    if (how) { haptic.success(); setDone({ for: typed, words: picked.map((w) => w.text), held: how === 'held' }); }
   });
 
-  // The word's card once Claude has written it. The queue holds it until it's saved in the note editor.
-  const ready = sent && !approved ? queued?.find((n) => n.state === 'ready' && n.entry === sent.word) : undefined;
+  // The cards Claude has written for the words sent, until each is saved in the note editor (the queue holds it till then).
+  const ready = sent ? sent.words.flatMap((w) => (approved.includes(w) ? [] : queued?.filter((n) => n.state === 'ready' && n.entry === w).slice(0, 1) ?? [])) : [];
   const review = (note: QueuedNote) => run(async () => {
     haptic.tap();
-    if (await approve?.(note)) { haptic.success(); setApproved(sent?.word); }
+    if (await approve?.(note)) { haptic.success(); setApproved((p) => [...p, note.entry]); }
   });
 
   if (sent) {
@@ -79,17 +100,9 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
       <Card style={{ gap: space.m }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
           <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
-          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>
-            {approved === sent.word
-              ? `The card for ${sent.word} is added to the cram.`
-              : ready
-                ? `Claude wrote a card for ${sent.word}. Approve it here and it joins the cram.`
-                : sent.held
-                  ? `Couldn't reach your server. ${sent.word} goes to Claude once it answers. Approve the card when it's ready and it joins the cram.`
-                  : `Claude is writing a card for ${sent.word}. Approve it here when it's ready and it joins the cram.`}
-          </Text>
+          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sentText(sent.words, sent.held, approved, ready.length)}</Text>
         </View>
-        {ready && approve ? <Button label="Review and add" onPress={() => void review(ready)} disabled={busy} /> : null}
+        {approve ? ready.map((n) => <Button key={n.entry} label={ready.length === 1 ? 'Review and add' : `Review and add ${n.entry}`} onPress={() => void review(n)} disabled={busy} />) : null}
         {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
       </Card>
     );
@@ -106,22 +119,33 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
         </Tappable>
       ) : (
         <>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>{list.length === 1 ? 'Is this the one?' : 'Which one?'}</Text>
-          {list.map((cand) => (
-            <Tappable
-              key={cand.text}
-              onPress={() => void pick(cand)}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={`Make a card for ${[cand.text, cand.reading, cand.english].filter(Boolean).join(', ')}`}
-              scaleTo={0.98}
-              style={{ gap: 2, backgroundColor: c.fill, borderRadius: radius.m, padding: space.m }}
-            >
-              <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
-              <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
-            </Tappable>
-          ))}
-          {busy ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Sending it to Claude</Text> : null}
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{list.length === 1 ? 'Is this the one?' : 'Which ones? Check all you want.'}</Text>
+          {list.map((cand) => {
+            const on = picked.includes(cand);
+            return (
+              <Tappable
+                key={cand.text}
+                onPress={() => toggle(cand)}
+                disabled={busy}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on, disabled: busy }}
+                accessibilityLabel={[cand.text, cand.reading, cand.english, ...candidateChips(cand).map((x) => x.label)].filter(Boolean).join(', ')}
+                scaleTo={0.98}
+                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+              >
+                <View style={{ paddingTop: 4 }}>
+                  <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
+                  <CandidateChips word={cand} />
+                </View>
+              </Tappable>
+            );
+          })}
+          <Button label={picked.length === 1 ? 'Make 1 card' : `Make ${picked.length} cards`} onPress={() => void make()} busy={busy} disabled={!picked.length} />
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>How common a word is and how it is said are Claude's judgment, not a dictionary's.</Text>
         </>
       )}
       {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}

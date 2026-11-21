@@ -19,12 +19,16 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
 
 MAX_TOKENS = 1500
 MAX_CANDIDATES = 5
+
+# How common a word is in everyday speech, as Claude judges it (not a frequency list). "" when it is
+# not sure. The app shows each as a chip (`commonnessLabel`, src/core/lessonWords.ts).
+COMMONNESS = ("very_common", "common", "less_common", "rare")
 
 # What a word of each language is written with. A candidate whose text has none of it is dropped, and
 # in a language not written in Latin letters one with a Latin letter is too: that is the romanization
@@ -64,7 +68,9 @@ A learner of {language} typed a word or phrase to be taught in an audio lesson. 
 or English. List the {language} words or phrases it could be, most likely first, so the learner can \
 pick the one they mean. For each: text, written the way {language} is written (never romanization, \
 never English); reading, {reading}; english, the meaning in a few plain words. Give different \
-words, not spellings of one word. Words that are written differently but sound alike, or differ \
+words, not spellings of one word. Also give commonness, how common the word is in everyday \
+speech ({commonness}), and register, how it is said ({registers}), each an empty string when you \
+are not confident. Words that are written differently but sound alike, or differ \
 only in tone or accent, are separate candidates, each with its own meaning. Prefer common everyday \
 words, and never invent a word: when nothing real fits, return no candidates. If the input is \
 already a {language} word, return it first (with its spelling corrected if it was a typo), and add \
@@ -83,8 +89,10 @@ SCHEMA: dict[str, Any] = {
                     "text": {"type": "string"},
                     "reading": {"type": "string"},
                     "english": {"type": "string"},
+                    "commonness": {"type": "string", "enum": [*COMMONNESS, ""]},
+                    "register": {"type": "string", "enum": [*REGISTERS, ""]},
                 },
-                "required": ["text", "reading", "english"],
+                "required": ["text", "reading", "english", "commonness", "register"],
                 "additionalProperties": False,
             },
         }
@@ -110,6 +118,10 @@ class Candidate:
     # Its romanization with tone marks, to show beside it.
     reading: str
     english: str
+    # One of COMMONNESS, or "" when Claude wasn't sure.
+    commonness: str = ""
+    # One of REGISTERS, or "" when Claude wasn't sure.
+    register: str = ""
 
 
 # The candidates for what was typed in a language, and what asking cost.
@@ -135,7 +147,16 @@ def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
         if not is_written(text, language) or text in seen:
             continue
         seen.add(text)
-        out.append(Candidate(text, reading[:MAX_CHARS], english))
+        commonness, register = (str(item.get(k) or "") for k in ("commonness", "register"))
+        out.append(
+            Candidate(
+                text,
+                reading[:MAX_CHARS],
+                english,
+                commonness if commonness in COMMONNESS else "",
+                register if register in REGISTERS else "",
+            )
+        )
     return out[:MAX_CANDIDATES]
 
 
@@ -149,6 +170,8 @@ def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:
         system = SYSTEM.format(
             language=LANGUAGES[language].name,
             reading=READINGS.get(language, "left empty (the spelling already shows the sound)"),
+            commonness=", ".join(COMMONNESS),
+            registers=", ".join(REGISTERS),
         )
         messages = [{"role": "user", "content": f"Typed by the learner: {typed}"}]
         try:

@@ -35,7 +35,8 @@ def test_a_text_is_only_told_a_register_that_isnt_the_default() -> None:
 
 
 def test_a_scene_adds_its_register_to_the_other_persons_lines_and_the_feedback() -> None:
-    plain = Conversation("th", "A cafe", None, ())
+    # Not Thai: a Thai scene adds the learner's gender to the feedback prompt (`_THAI_LEARNER`).
+    plain = Conversation("pl", "A cafe", None, ())
     casual = Conversation("th", "A cafe", None, (), register="casual")
     assert "Register for your lines" not in play_intro(plain)
     assert instruction("casual") in play_intro(casual)

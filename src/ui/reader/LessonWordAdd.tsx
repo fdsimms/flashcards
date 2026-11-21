@@ -7,6 +7,7 @@ import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Field, Help, Icon, Screen, Tappable } from '../kit';
+import { CandidateChips } from '../cram/CramBits';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
 import { leaveScreen } from '../leaveScreen';
@@ -103,6 +104,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
                   >
                     <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
+                    <CandidateChips word={cand} />
                   </Tappable>
                 );
               })}

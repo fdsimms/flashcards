@@ -233,7 +233,14 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return {
             "candidates": [
-                {"text": c.text, "reading": c.reading, "english": c.english} for c in candidates
+                {
+                    "text": c.text,
+                    "reading": c.reading,
+                    "english": c.english,
+                    "commonness": c.commonness,
+                    "register": c.register,
+                }
+                for c in candidates
             ]
         }
 
