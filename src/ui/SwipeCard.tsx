@@ -11,8 +11,10 @@ import { LanguagePill, type CardLanguage } from './LanguagePill';
 import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
 
 /** The card itself: a raised sheet that fills the space between the header and the buttons. */
-export function CardSurface({ children, color, language }: {
+export function CardSurface({ children, color, language, top = space.xxl }: {
   children: React.ReactNode;
+  /** The gap above the card (under a progress bar, say). */
+  top?: number;
   /** Fills the card instead of the theme's surface (WaniKani's subject colors). */
   color?: string;
   /** The language a card in a mixed deck belongs to: a wash of its deck's tint behind the card's content, and its name at the top. */
@@ -22,7 +24,7 @@ export function CardSurface({ children, color, language }: {
   return (
     <View
       style={{
-        flex: 1, marginHorizontal: space.l, marginTop: space.xxl, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
+        flex: 1, marginHorizontal: space.l, marginTop: top, marginBottom: space.xs, borderRadius: radius.xl, ...smooth,
         backgroundColor: color ? undefined : c.surface, borderWidth: hairline, borderColor: color ? 'transparent' : c.border, ...lift(c),
       }}
     >

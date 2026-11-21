@@ -34,7 +34,7 @@ import { useMiniCram } from './useMiniCram';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { WaniKaniMissList } from './WaniKaniMisses';
-import { CardTools, hasMnemonicPanel, MnemonicsPanel, QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
+import { CardContent, CardTools, hasMnemonicPanel, MnemonicsPanel, QuestionBand, subjectColor } from './WaniKaniCard';
 
 /** The longest the card's resize after the keyboard may take (ms). */
 const KEYBOARD_SLIDE_MS = 150;
@@ -482,6 +482,16 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   };
 
   const title = 'WaniKani';
+  // With the keyboard up the card has about 230pt for its content, so the screen gives it the room the
+  // count takes: the count moves into the title and the progress bar sits right over the card.
+  const compact = keyboardPad > 0;
+  const countTitle = `${title} · ${kind === 'reviews' ? `${left.reviews} left` : `${left.lessons} new`}`;
+  const countRow = compact ? null : (
+    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
+      {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
+    </View>
+  );
+  const cardTop = compact ? space.l : space.xxl;
   // Only before the question is answered or its answer is shown, so it can't be used to dodge a miss.
   const askable = !!session && canAskLater(session) && !verdict && !revealed;
   const menu = useMemo(() => (subject ? () => {
@@ -567,33 +577,21 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     ) : <Button label="Show answer" onPress={() => { Keyboard.dismiss(); setRevealed(true); if (prefs.autoplay && (asked === 'reading' || asked === 'both')) play(audioUrl(returnSubject)); }} />;
     return (
       <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
-        <Screen title={title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-            {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
-          </View>
+        <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
+          {countRow}
           <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
-          <CardSurface color={subjectColor(c, returnSubject.type)}>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
-            >
-              <View key={`${id}:${cram.returnsAnswered}`} style={{ gap: space.xl }}>
-                <SubjectFront subject={returnSubject} label={`${SUBJECT_TYPE_NAMES[returnSubject.type]} · Level ${returnSubject.level}`} />
-                {showM || showR ? (
-                  <>
-                    <View style={{ height: hairline, backgroundColor: c.wkLine }} />
-                    <SubjectDetails
-                      subject={returnSubject}
-                      parts={madeOf(returnSubject, subjects)}
-                      showMeaning={showM}
-                      showReading={showR}
-                      synonyms={synonyms.get(returnSubject.id) ?? []}
-                      lesson={false}
-                    />
-                  </>
-                ) : null}
-              </View>
-            </ScrollView>
+          <CardSurface color={subjectColor(c, returnSubject.type)} top={cardTop}>
+            <CardContent
+              subject={returnSubject}
+              label={`${SUBJECT_TYPE_NAMES[returnSubject.type]} · Level ${returnSubject.level}`}
+              parts={madeOf(returnSubject, subjects)}
+              showMeaning={showM}
+              showReading={showR}
+              synonyms={synonyms.get(returnSubject.id) ?? []}
+              lesson={false}
+              compact={compact}
+              contentKey={`${id}:${cram.returnsAnswered}`}
+            />
             <QuestionBand kind={asked === 'lesson' ? 'both' : asked} />
             {answerFlash.overlay}
           </CardSurface>
@@ -728,10 +726,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const slots = stackSlots(popups.stack);
   return (
     <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
-      <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
-          {kind === 'reviews' ? <Count value={left.reviews} label="remaining" color={c.countDue} /> : <Count value={left.lessons} label="new" color={c.countNew} />}
-        </View>
+      <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={toolbar} footer={footer}>
+        {countRow}
         {copySavedAt || wanikani.offline ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
             {`${copySavedAt ? `${offlineText(copySavedAt, new Date(), wanikani.dayStartsAtHour)}.` : 'Offline.'} Answers are sent when WaniKani can be reached.`}
@@ -739,30 +735,18 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
-        <CardSurface color={subjectColor(c, subject.type)}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
-          >
-            {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
-            <View style={{ gap: space.xl }}>
-              <SubjectFront subject={subject} label={label} />
-              {showMeaning || showReading ? (
-                <>
-                  <View style={{ height: hairline, backgroundColor: c.wkLine }} />
-                  <SubjectDetails
-                    key={`${subject.id}:${question.kind}`}
-                    subject={subject}
-                    parts={madeOf(subject, subjects)}
-                    showMeaning={showMeaning}
-                    showReading={showReading}
-                    synonyms={synonyms.get(subject.id) ?? []}
-                    lesson={lesson}
-                  />
-                </>
-              ) : null}
-            </View>
-          </ScrollView>
+        <CardSurface color={subjectColor(c, subject.type)} top={cardTop}>
+          <CardContent
+            subject={subject}
+            label={label}
+            parts={madeOf(subject, subjects)}
+            showMeaning={showMeaning}
+            showReading={showReading}
+            synonyms={synonyms.get(subject.id) ?? []}
+            lesson={lesson}
+            compact={compact}
+            contentKey={`${subject.id}:${question.kind}`}
+          />
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
           {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
           <View>
