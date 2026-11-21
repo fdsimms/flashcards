@@ -869,6 +869,9 @@ Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
   conjunction, particle, classifier, interjection, prefix, suffix, phrase. Always filled. Not repeated in tags.
 Language: the language's English name in lowercase. GenerateReverse, GenerateAudioCard, SuppressFrontCard: "y" or empty.
+  GenerateReverse (meaning to word) only for a word the learner would say or write themselves; GenerateAudioCard
+  (hear it, recall the meaning) only for one they would hear in everyday speech. A word to recognize only
+  (literary, technical, rare, met on signs or in the news) gets neither. Never change either on an existing note unasked.
 KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>). First "pattern:", a short
   sentence or two on what kind of word it is and what is unusual about it (pattern: Masculine inanimate.
   Genitive in -u. The e drops out.). Then the forms the rest can be worked out from, each under what it is

@@ -6,7 +6,7 @@ its English translation, the romanization of the sentence and word where the lan
 Japanese word's reading in kana instead, its KanaReading), the Register, PartOfSpeech, a Notes line
 (usage, compounds, a contrast with a near word), plus what each language's finished notes carry
 (`EXTRAS`: genders, German plurals and verb classes, Russian aspect partners, the forms and the pattern
-line of an inflecting word's KeyForms, Thai classifiers, Japanese kanji), and the Language and GenerateReverse every note carries. The Audio field isn't written here: the app records it when the owner
+line of an inflecting word's KeyForms, Thai classifiers, Japanese kanji), and the Language every note carries. Which cards the note makes beside its word-to-meaning one is judged per word (the owner's rule, 21 November 2026: production and listening practice only for a word they'd actually say or hear): GenerateReverse for a word they'd say, GenerateAudioCard for one they'd hear. The Audio field isn't written here: the app records it when the owner
 saves the note, as it does for any note (src/core/recording.ts). Nothing here creates an Anki note or
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
@@ -314,6 +314,11 @@ classifier, numeral, interjection, phrase
 - notes: one short line of what helps remember or use the entry: how it differs from a near word, a \
 common compound or collocation with its meaning, a usage restriction. An empty string when there is \
 nothing worth saying; never filler
+- say: "yes" if the learner would plausibly say or write this themselves, in everyday conversation, \
+travel or their own messages; "no" if it is a word to recognize only: literary, technical, dated or \
+rare, or met on signs, menus, forms and in the news
+- hear: "yes" if they would plausibly hear it said to them or around them in everyday speech; "no" if \
+it is met almost only in writing
 {extras}
 Leave any field not described for {language} as an empty string. Plain text apart from the <b> tags: \
 no `|`, no asterisks, no em dashes. Entries:
@@ -353,6 +358,8 @@ SCHEMA: dict[str, Any] = {
                     "register": {"type": "string"},
                     "part_of_speech": {"type": "string"},
                     "notes": {"type": "string"},
+                    "say": {"type": "string", "enum": ["yes", "no"]},
+                    "hear": {"type": "string", "enum": ["yes", "no"]},
                     **{key: {"type": "string"} for key in _EXTRA_KEYS},
                 },
                 "required": [
@@ -367,6 +374,8 @@ SCHEMA: dict[str, Any] = {
                     "register",
                     "part_of_speech",
                     "notes",
+                    "say",
+                    "hear",
                     *_EXTRA_KEYS,
                 ],
                 "additionalProperties": False,
@@ -465,7 +474,12 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
     # The owner's notes spell a plain word's register "neutral", not an empty field.
     fields["Register"] = (_plain(raw.get("register"), MAX_REGISTER) or "neutral").casefold()
     fields["Language"] = LANGUAGES[language].name.casefold()
-    fields["GenerateReverse"] = "y"
+    # Production and listening cards only for a word the learner would say or hear. With no answer,
+    # the reverse card is made as before, and no audio card.
+    if raw.get("say") != "no":
+        fields["GenerateReverse"] = "y"
+    if raw.get("hear") == "yes":
+        fields["GenerateAudioCard"] = "y"
     # What follows is a nice-to-have: one that doesn't pass is left out, never repaired or a reason to
     # fail the word.
     part = _plain(raw.get("part_of_speech"), MAX_REGISTER)
