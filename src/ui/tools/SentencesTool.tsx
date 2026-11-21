@@ -232,6 +232,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
         ) : null}
         {check ? <WritingResult check={check} attempt={typed.trim()} lang={LANGUAGES[language].speech} /> : null}
         {checkError ? <ErrorNote message={checkError} onRetry={checkMine} /> : null}
+        {prompt.grammar ? <Help>{`Grammar you're practicing: ${prompt.grammar.name}.`}</Help> : null}
         <Help>A sentence you miss comes back at the end of the round.</Help>
       </View>
     ) : undefined;

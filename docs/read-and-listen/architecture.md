@@ -355,6 +355,7 @@ answers aren't kept.
   view's "Use the lines yourself". The same check, with the text's lines and English sent, plus up to
   four words from the text the retelling could have used (each kept only if it is in the text and not
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
+- **Sentences work in the grammar being practiced** (21 November 2026, the owner; `sentences.py`). A grammar point was only ever recognized: its drills are multiple choice, and Forms practice is typed forms. The request for a batch of sentences now names the points set to Practice and asks for about a third of the sentences to be built on one, where the word allows it. Prompt only: no sentence is dropped for using none. Which point a sentence uses is found in code when it's served (`grammar_of`, the texts' finders), so the tool can say "Grammar you're practicing: ..." on the answer side, and a sentence written before the point was chosen counts too. A point the finders can't see (docs/grammar.md lists what they skip) is asked for but never named.
 - **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
   English sentence built around a word, to say or type, then compared with the sentence written for
   it; Check mine asks the check above when one's own wording differs. The words are a text's stretch

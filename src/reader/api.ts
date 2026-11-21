@@ -197,7 +197,8 @@ export type WritingRequest =
   | { kind: 'sentence'; language: Language; attempt: string; word: string; meaning: string }
   | { kind: 'translate'; language: Language; attempt: string; english: string; reference: string };
 // A sentence to say (server/reader sentences.py), built around a word reviewed today or still young.
-export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean };
+// `grammar`: the grammar point set to Practice that the sentence uses, when it uses one (absent from an older server).
+export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean; grammar?: { id: string; name: string } | null };
 
 // Situations (server/reader situations.py): a scene talked through with Claude. The app holds the conversation
 // and sends it with each turn; the server keeps nothing. `roles` come with the first turn and go back with every
