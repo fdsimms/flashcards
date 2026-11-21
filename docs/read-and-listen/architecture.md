@@ -345,6 +345,7 @@ answers aren't kept.
   `effort: medium` (raised from low on 15 November 2026, since a wrong verdict teaches the wrong
   thing); the cost is `production` in `/api/costs`, failed calls included. The app draws the
   correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
+- **A try before the correction** (21 November 2026, the owner, from a mock with and without hints; `asksAnotherTry` in `src/reader/production.ts`). The first check of a sentence or retelling with mistakes shows the verdict, the writing with its mistakes picked out, and `hints`: where each mistake is and what kind, never the fix. The buttons are Show the correction and Try again; the second check, or Show the correction, gives the whole result as before, and a right answer goes straight to it. Fixing a mistake oneself is what a correction read off the screen doesn't ask for. The server drops a hint holding a word that is in `corrected` and not in the writing (`_hints`, `production.py`), so a hint can't hand over the fix; in a language written without spaces only the prompt keeps that. Sentences' Check mine is left as it was: its own sentence is already on screen when the check is asked for.
 - **Use today's words** (`src/ui/reader/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
   of a review session of a language's deck while Read & Listen is on, with the notes answered while
   new in it (`wordsToUse`), one at a time, to write a sentence with. Placed after the session rather
