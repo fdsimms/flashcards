@@ -309,7 +309,7 @@ instructions off, so each tool's own description holds its details.
   saying what to change. lint_notes checks the notes already there.
 - For any other note type, check its field names with list_note_types first. add_notes refuses a
   duplicate first field unless allow_duplicates is true; tell the user about any it refused.
-- A tool that changes many notes or cards at once previews first (fill_forms, fill_pronunciation,
+- A tool that changes many notes or cards at once previews first (fill_forms, fill_pronunciation, fill_stress,
   order_new_by_frequency, the tier tools, normalize_audio, lint_notes, empty_cards): show the user
   the preview and write only once they agree. Turn a daily fill on only after they've checked a batch.
 - FSRS settings and limits belong to a deck's options preset, which several decks can share:

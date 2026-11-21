@@ -45,7 +45,7 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
 SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral"})
@@ -878,6 +878,7 @@ KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>).
   (or "genitive plural" and so on), feminine, neuter, comparative, superlative, I, you, "he, she", we, they,
   present, past, perfect, participle, future, imperative, perfective, imperfective. Never a form with no label.
 Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
+Stress: Russian only, the Entry with its stress mark (говори́ть). fill_stress fills it; write it only when sure.
 Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".
