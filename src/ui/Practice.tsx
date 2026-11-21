@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { ScrollView } from 'react-native';
 import type { Repo } from '../db/repo';
 import type { Api, Language } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
-import { TOOLS, TOOL_LANGUAGES, type ToolInfo } from '../tools/tools';
+import { TOOLS, TOOL_LANGUAGES, listLanguage, type ToolInfo } from '../tools/tools';
 import { FLAG_IMAGES } from './flagImages';
 import { useConnectionProblem } from './connection';
 import { Group, NavRow, Screen } from './kit';
@@ -12,7 +12,7 @@ import { Reveal } from './motion';
 import { space, useTheme, readable } from './theme';
 import { TOOL_SCREENS } from './tools';
 import { useGrammarDue } from './useGrammarDue';
-import { usePracticeLanguage } from './usePracticeLanguage';
+import { useAppLanguage } from './useAppLanguage';
 
 /** The Practice tab: small drills outside the decks (src/tools/tools.ts), one row each. */
 export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied }: {
@@ -23,7 +23,11 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
   const c = useTheme();
   const grammarDue = useGrammarDue(readerApi, repo);
   const problem = useConnectionProblem();
-  const [language, setLanguage] = usePracticeLanguage(studied);
+  const [saved, setLanguage] = useAppLanguage();
+  const language = listLanguage(saved, studied);
+  // Before a language is chosen, the one with the most cards is the app's from here on, so the tools and the other tabs open in it too.
+  const first = studied[0];
+  useEffect(() => { if (!saved && first) setLanguage(language); }, [saved, first]); // eslint-disable-line react-hooks/exhaustive-deps -- the decks' first language is what decides
   const menu = [...studied, ...TOOL_LANGUAGES.filter((l) => !studied.includes(l))];
   const name = LANGUAGES[language].name;
   // The list is in one language, so its Grammar row counts that language's due points only.

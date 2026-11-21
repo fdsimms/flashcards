@@ -22,6 +22,7 @@ import { loadHeld } from './lookalikeHold';
 import { useCramCap } from './useCrams';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useConnection } from './connection';
+import { useAppLanguageSync } from './useAppLanguage';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
 import { useAutoBackup } from './autoBackup';
@@ -170,6 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useConnection(syncSettings?.enabled ? normalizeEndpoint(syncSettings.server) : undefined);
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
+  useAppLanguageSync(reader);
   useCountsReport(reader, decks, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);
   useBackupReminder(repo ?? undefined, decks, dayStartsAtHour);
