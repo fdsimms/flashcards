@@ -108,6 +108,40 @@ def test_production_and_listening_cards_follow_whether_the_word_is_said_or_heard
     assert switches() == (True, False)
 
 
+def test_a_picture_is_kept_only_when_it_is_one_emoji() -> None:
+    def icon(value: object) -> str | None:
+        got = check(filled("ricane", icon=value), {"ricane": ""}, "fr")
+        assert got is not None
+        return got[1].get("Icon")
+
+    assert icon("☂️") == "☂️"
+    assert icon(" 🐘 ") == "🐘"
+    assert icon("👨‍⚕️") == "👨‍⚕️"
+    for not_one in ("", "umbrella", "☂️ umbrella", "🐘🐘🐘🐘🐘🐘🐘🐘🐘", "\ufe0f", None):
+        assert icon(not_one) is None
+
+
+def test_a_drawing_is_kept_when_there_is_no_emoji_and_only_as_path_data() -> None:
+    def icon(**over: object) -> str | None:
+        got = check(filled("ricane", **over), {"ricane": ""}, "fr")
+        assert got is not None
+        return got[1].get("Icon")
+
+    umbrella = "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0"
+    assert icon(icon="", drawing=umbrella) == umbrella
+    # The emoji wins when both come back.
+    assert icon(icon="☂️", drawing=umbrella) == "☂️"
+    for bad in (
+        '<svg><path d="M0 0"/></svg>',
+        'M0 0" onload="x',
+        "L3 4",
+        "umbrella",
+        "M0 0|" * 9,
+        "",
+    ):
+        assert icon(icon="", drawing=bad) is None
+
+
 def test_the_owners_meaning_is_kept() -> None:
     got = check(filled("ricane"), {"ricane": "sniggers"}, "fr")
     assert got is not None and got[1]["Meaning"] == "sniggers"

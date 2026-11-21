@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Text, View, type TextStyle } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
-import { GENDER_WORDS } from '../core/cards';
+import { GENDER_WORDS, SHOW_MEANING } from '../core/cards';
+import { NoteIcon } from './NoteIcon';
 import { NOT_PREFIX } from '../core/synonyms';
 import { leadingArticle, withArticle, type Gender } from '../core/gender';
 import type { Segment } from '../core/highlight';
@@ -34,6 +35,8 @@ const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRoman
 function hintButton(b: Block): { label: string; icon: SFSymbol } {
   if (b.role === 'exampleRomanized') return { label: 'Romanization', icon: 'textformat' };
   if (b.role === 'exampleTranslation') return { label: 'Translation', icon: 'globe' };
+  // A meaning waiting behind its picture, on a reverse card's front (the Icon field, cards.ts).
+  if (b.tapLabel === SHOW_MEANING) return { label: 'Meaning', icon: 'globe' };
   const word = (b.tapLabel ?? '').replace(/^Show /, '');
   return { label: word.charAt(0).toUpperCase() + word.slice(1), icon: b.role === 'transliteration' || b.role === 'reading' ? 'textformat' : 'waveform' };
 }
@@ -337,6 +340,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             </Text>
           );
         }
+        if (b.role === 'picture' && b.picture) return <NoteIcon key={i} picture={b.picture} label={b.text} />;
         if (b.role === 'contrast') {
           return <SenseContrastBox key={i} pairs={b.rows ?? []} actions={contrast} thaiSize={thaiSize} />;
         }
