@@ -4710,6 +4710,55 @@
         }
       }
     },
+    "/api/input-time": {
+      "get": {
+        "summary": "Input Time",
+        "description": "Time spent reading and listening in each language over the last week, most first, for\nthe home's This week card. It reports only: it sets no goal and nothing reads it.",
+        "operationId": "input_time_api_input_time_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Input Time Api Input Time Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exposure-effect": {
       "get": {
         "summary": "Stretch Exposure Effect",

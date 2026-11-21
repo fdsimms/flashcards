@@ -928,6 +928,30 @@ def test_a_word_looked_up_outside_the_deck_is_offered_to_a_later_days_text() -> 
     assert e._request("Food stall", ENTRIES, Difficulty(), "es").met == ()
 
 
+def test_input_time_totals_reading_and_listening_by_language() -> None:
+    clock = Clock()
+    e = engine(ScriptedModel(IN_RANGE), clock=clock)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    assert store.input_time(e.conn, NOW - timedelta(days=7)) == []
+    first = run(lambda: fetch(e, topic.id))
+    e.record_reading(first.id, Reading(None, True, (), (), 1.0, False, 120))
+    second = run(lambda: fetch(e, topic.id))
+    e.record_reading(second.id, Reading(None, True, (), (), 1.0, True, 60))  # words hidden
+    # A lesson played to the end counts by its length; one never played doesn't.
+    for heard in (True, False):
+        lesson_id = store.add_lesson(e.conn, "th", "a café", NOW)
+        with e.conn:
+            e.conn.execute("UPDATE lessons SET duration_ms = 90500 WHERE id = ?", (lesson_id,))
+        if heard:
+            store.mark_lesson_heard(e.conn, lesson_id, NOW)
+
+    assert store.input_time(e.conn, NOW - timedelta(days=7)) == [
+        store.InputTime("th", 120, 150, NOW)
+    ]
+    # Past the window nothing is counted, and the last reading is still known.
+    assert store.input_time(e.conn, NOW + timedelta(days=1)) == [store.InputTime("th", 0, 0, NOW)]
+
+
 # ==== Stretch words setting ====
 
 

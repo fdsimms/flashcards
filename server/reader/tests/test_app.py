@@ -544,6 +544,18 @@ def test_progress_counts_finished_texts_and_says_how_hard_the_next_is() -> None:
     assert c.get("/api/progress").status_code == 401
 
 
+def test_input_time_lists_each_language_read_with_its_week() -> None:
+    c = client()
+    assert c.get("/api/input-time").status_code == 401
+    assert c.get("/api/input-time", headers=AUTH).json() == {"days": 7, "languages": []}
+    read(c, None, [])
+    got = c.get("/api/input-time", headers=AUTH).json()["languages"]
+    assert [g["language"] for g in got] == ["th"]
+    # The helper logs no time; the totals themselves are tested with the store (test_engine.py).
+    assert got[0]["reading_seconds"] == 0 and got[0]["listening_seconds"] == 0
+    assert got[0]["last_read_at"].endswith("+00:00")
+
+
 def test_progress_reports_how_well_the_known_words_were_recognized() -> None:
     c = client()
     assert c.get("/api/progress", headers=AUTH).json()["recognition"] is None
