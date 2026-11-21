@@ -74,6 +74,7 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
   const [hook, setHook] = useState<boolean>();
+  const [senseCount, setSenseCount] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
   const [furigana, setFurigana] = useState<FuriganaMode>();
   // Read each time the page shows: they're changed on screens over this one.
@@ -82,7 +83,7 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
     repo.thaiTextSize().then(setThaiSize).catch(() => undefined);
     repo.furiganaMode().then(setFurigana).catch(() => undefined);
   }, [repo]));
-  useEffect(() => { repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); }, [repo]);
+  useEffect(() => { repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); repo.showSenseCount().then(setSenseCount); }, [repo]);
 
   // Saved first, then shown, so the screen never shows a setting that isn't stored.
   const save = async (write: () => Promise<void>, show: () => void) => {
@@ -117,6 +118,12 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
           hint="The first time you see a new word, ask for a mnemonic of your own. It's shown on the back after that."
           value={!!hook}
           onValueChange={(on) => save(() => repo.saveAskOwnHook(on), () => setHook(on))}
+        />
+        <SwitchRow
+          label="Show number of meanings"
+          hint="On the front of a card, show how many meanings the answer has (e.g. 2 meanings)."
+          value={!!senseCount}
+          onValueChange={(on) => save(() => repo.saveShowSenseCount(on), () => setSenseCount(on))}
         />
         <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={() => onOpen('/thai-text-size')} />
         <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
