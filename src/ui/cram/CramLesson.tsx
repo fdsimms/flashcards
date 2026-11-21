@@ -8,7 +8,7 @@ import { headword } from '../../core/forms';
 import { talkTextStyle } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { cramsNow, finishCram, saveCram, useCollection, useCrams } from '../useCrams';
@@ -149,33 +149,35 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
         ) : <Help>This cram has no words yet.</Help>}
 
         <SectionTitle>New from the lesson</SectionTitle>
-        {captured.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            {captured.map((text) => (
-              <Tappable
-                key={text}
-                onPress={() => { haptic.tap(); keep((now) => withoutCapture(now, text), "Couldn't change the cram."); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${text}`}
-                scaleTo={0.95}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
-              >
-                <Text style={{ ...type.subhead, ...(language ? talkTextStyle(LANGUAGES[language], size, 0.8) : {}), color: c.text }}>{text}</Text>
-                <Icon name="xmark" size={11} color={c.textSecondary} />
-              </Tappable>
-            ))}
-          </View>
-        ) : null}
-        <Field
-          label="A word or phrase your tutor used"
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={jot}
-          submitBehavior="submit"
-          returnKeyType="done"
-          autoCapitalize="none"
-          placeholder="Type it, or use the keyboard's microphone"
-        />
+        <Card>
+          {captured.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+              {captured.map((text) => (
+                <Tappable
+                  key={text}
+                  onPress={() => { haptic.tap(); keep((now) => withoutCapture(now, text), "Couldn't change the cram."); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${text}`}
+                  scaleTo={0.95}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
+                >
+                  <Text style={{ ...type.subhead, ...(language ? talkTextStyle(LANGUAGES[language], size, 0.8) : {}), color: c.text }}>{text}</Text>
+                  <Icon name="xmark" size={11} color={c.textSecondary} />
+                </Tappable>
+              ))}
+            </View>
+          ) : null}
+          <Field
+            label="A word or phrase your tutor used"
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={jot}
+            submitBehavior="submit"
+            returnKeyType="done"
+            autoCapitalize="none"
+            placeholder="Type it, or use the keyboard's microphone"
+          />
+        </Card>
         <Help>Kept on the cram. Make cards from them on its page afterwards.</Help>
       </ScrollView>
     </Screen>
