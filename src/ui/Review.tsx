@@ -66,11 +66,12 @@ import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, useReviewForms } from './ReviewForms';
-import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
+import { SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
 import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
-import { drillOfTags, skillOffer } from '../tools/skills';
+import { drillOfTags, skillLanguageDeck, skillOffer, studiedHeadwords } from '../tools/skills';
+import { knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
@@ -375,7 +376,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
   const note = current ? notes.get(current.noteId) : undefined;
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
-  const drill = useMemo(() => (note ? drillOfTags(note.tags) : undefined), [note]);
+  // A dates drill asks only about the months whose words the deck has studied (src/tools/skillWords.ts).
+  const drill = useMemo((): Drill | undefined => {
+    const found = note ? drillOfTags(note.tags) : undefined;
+    if (!found || found.step.group !== 'dates' || !cards) return found;
+    return { ...found, months: knownMonths(found.language, studiedHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck))) };
+  }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
   useSkillRelease(repo, cards, notes, H);
   // The aspect check on a Russian or Polish verb's front (AspectCheck.tsx): optional, and only outlines a rating.
