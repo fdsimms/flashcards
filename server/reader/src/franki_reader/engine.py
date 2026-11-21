@@ -59,6 +59,7 @@ from franki_reader.generator import (
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
+from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
 from franki_reader.once import Once
 from franki_reader.reader import lemma_for
 from franki_reader.recognition import measure
@@ -578,6 +579,19 @@ class Engine:
         avoid = tuple(p for p in mine if chosen.get(p) == "avoid")
         review = self.review_points(language)
         unset = exposure.unset_points(chosen, language)
+        # Words looked up in earlier texts and still outside the deck come back (met.py).
+        met = tuple(
+            pick_met(
+                (
+                    PastReading(study_day(at, rollover, self.zone), lines, looked_up, glosses)
+                    for at, lines, looked_up, glosses in store.finished_readings(
+                        self.conn, self.clock() - timedelta(days=MET_WINDOW_DAYS), language
+                    )
+                ),
+                self.snapshot(language)[1],
+                study_day(self.clock(), rollover, self.zone),
+            )
+        )
 
         def request(stretch: list[Entry], choose: int | None = None) -> TextRequest:
             return TextRequest(
@@ -597,6 +611,7 @@ class Engine:
                 unset_uses=difficulty.unset_uses,
                 story=story,
                 register=settings.register,
+                met=met,
             )
 
         if focus:

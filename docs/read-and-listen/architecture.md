@@ -1326,6 +1326,16 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be reviewed today
   or young, and not waiting for its review, so a word that has matured since is left alone. In "Fit
   the topic" it's offered first, and the model may still pass it over if it doesn't fit.
+- **Words looked up outside the deck come back too** (`met.py`). A word outside the deck was met
+  once, in the text that needed it, and picking a word up from reading takes several meetings. A
+  word tapped or marked in a text read to the end, and still not known to the deck, is offered to
+  later texts (3 at most, `MET_OFFERED`) until it has been met on 4 different study days
+  (`MET_DAYS`, the day it was looked up included), counted from the texts read in the last 30 days,
+  whichever text brought the word, and never twice in a day. It stays a word outside the list: it
+  counts against the coverage target and takes the place of another unfamiliar word. Prompt only:
+  the model uses one where it fits, and no draft is sent back for leaving them out. A meeting is
+  counted by the word as written, so a word that comes back in another form isn't counted and is
+  offered again until its lookup is 30 days old. Nothing here touches a card.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
   applying from the next text written. A story is told by a narrator (speaker `N`), one or two plain
   sentences a line, and is spoken in voice A. The brief's feasibility test found narrative drops
