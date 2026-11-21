@@ -121,3 +121,19 @@ def quote_gender_problems(
         extra = len(problems) - MAX_PROBLEMS
         problems = [*problems[:MAX_PROBLEMS], f"{extra} more quotations have the same problem."]
     return problems
+
+
+# A first-person word each gender isn't taught in Thai: a man says ผม (ฉัน is only a woman's word in
+# polite speech), and a woman says ดิฉัน or ฉัน.
+_NOT_FIRST_PERSON: dict[Gender, frozenset[str]] = {
+    "male": frozenset({"ฉัน", "ดิฉัน"}),
+    "female": frozenset({"ผม", "กระผม"}),
+}
+
+
+def thai_fits(words: Sequence[str], gender: Gender) -> bool:
+    """Whether Thai a learner of `gender` would say uses none of the other gender's words, for
+    something the learner says as themselves (a story, an answer), not a speaker in a scene.
+    `words` is the text cut into words (`lesson.tokens`), since Thai is written without spaces."""
+    other: Gender = "female" if gender == "male" else "male"
+    return not _thai_markers(" ".join(words))[other] and not set(words) & _NOT_FIRST_PERSON[gender]
