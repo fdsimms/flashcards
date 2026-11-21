@@ -48,7 +48,7 @@ LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "A
 NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
-SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral"})
+SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral", "Source"})
 NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, never counted, no aspect partner)
 
 MAX_SENSES = 3  # distinct senses a Meaning numbers
@@ -145,12 +145,16 @@ RULES: dict[str, str] = {
     "context-end-punctuation": "A Japanese example with no 。",
     "translation-missing": "No translation of the example",
     "literal-redundant": "ContextLiteral says the same as ContextTranslation",
+    "source-markup": "Source has markup other than <b> and <br>",
+    "source-lines": "Source is not the line, its translation and where it was met, one to a line",
+    "source-no-bold": "The word isn't in <b></b> in Source's line",
     "switch-value": "A card switch holds something other than y",
     "register-missing": "Register is empty",
     "register-unknown": "Register is not one of the list",
     "pos-missing": "PartOfSpeech is empty",
     "pos-unknown": "PartOfSpeech is not one of the list",
     "pos-in-tags": "A tag repeats the part of speech",
+    "source-tag": "A source:: tag is not the title in lowercase words joined by hyphens",
     "language-missing": "Language is empty",
     "gender-missing": "A noun without Gender",
     "gender-unknown": "Gender is not a value this language uses",
@@ -200,6 +204,12 @@ def plain(value: str) -> str:
     text = _TAG.sub("", _BREAK.sub("\n", value or ""))
     text = re.sub(r"[ \t]*\n\s*", "\n", html.unescape(text).replace("\xa0", " "))
     return text.strip()
+
+
+def source_tag(title: str) -> str:
+    """The tag for words met in `title` (a game, a show, a book), as the house style writes it: lowercase, words joined by hyphens."""
+    words = re.split(r"[\s_\-]+|::", title.strip().lower())
+    return "source::" + "-".join(w for w in words if w)
 
 
 def _escape(text: str) -> str:
@@ -443,6 +453,15 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
     elif any(t in TAG_POS for t in tags):
         add("pos-in-tags", "tags", "format", "PartOfSpeech holds the part of speech; tags are for topics and sources.",
             {"tags": " ".join(t for t in tags if t not in TAG_POS)})  # fmt: skip
+    # Where a word was met (a game, a show, a book): one tag a title, so check_words and find_notes
+    # "tag:source::*" can group its words. Anki compares tags without case, so "Source::Elden_Ring"
+    # would quietly be a second spelling of the same tag in the tag list.
+    for tag in tags:
+        prefix, sep, title = tag.partition("::")
+        if sep and prefix.lower() == "source" and tag != source_tag(title):
+            add("source-tag", "tags", "format", f'Write the source tag "{source_tag(title)}": the title in lowercase words joined by hyphens.',
+                {"tags": " ".join(source_tag(t.partition("::")[2]) if t == tag else t for t in tags)})  # fmt: skip
+            break
 
     # -- Entry --
     if entry != raw("Entry"):
@@ -622,6 +641,27 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
         if not (lang and lang.definition) and not txt("ContextTranslation"):
             add("translation-missing", "ContextTranslation", "required", "Translate the example into natural American English.")
 
+    # -- Source: the line the word was met in (a game, a show), its translation, and where --
+    source = raw("Source")
+    source_lines = _lines(source)
+    if source_lines:
+        if re.search(r"<\s*/?\s*(?!b\s*>|/b\s*>|br\b)[a-z]", source, re.IGNORECASE) or "&nbsp;" in source:
+            fixed = re.sub(r"(?i)<(/?)strong\b[^>]*>", r"<\1b>", source)
+            fixed = re.sub(r"(?i)</(?:div|p)>\s*<(?:div|p)\b[^>]*>", "<br>", fixed)
+            fixed = re.sub(r"(?i)</?(?:i|em|div|p|span|font|u)\b[^>]*>", "", fixed).replace("&nbsp;", " ")
+            fixed = re.sub(r"(?i)(?:\s*<br\s*/?>\s*)+", "<br>", fixed)
+            fixed = re.sub(r"(?:<br>)+$", "", fixed).strip()
+            add("source-markup", "Source", "format", "Source takes only <b> and <br>.", {"Source": fixed})
+        # The app reads the last line as the title and a line between as the translation (sourceOf, src/core/examples.ts).
+        wanted = (2,) if lang and lang.definition else (3,) if lang else (2, 3)
+        if len(source_lines) not in wanted:
+            add("source-lines", "Source", "format",
+                "Source is the line as it was shown or said, " + ("" if wanted == (2,) else "its translation, ")
+                + "and where it was met (the title), one to a line (<br>).")  # fmt: skip
+        first = re.split(r"(?i)<\s*br\s*/?>|</(?:div|p)>", source, maxsplit=1)[0]
+        if not re.search(r"(?i)<(?:b|strong)\b", first):
+            add("source-no-bold", "Source", "format", "Put the word in <b></b> in Source's first line, as the line spells it.")
+
     # -- gender --
     if lang:
         if gender and not lang.genders:
@@ -722,10 +762,10 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
 WARN_ON_WRITE = frozenset({"sense-restates-meaning"})
 
 FIXABLE = frozenset(
-    {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "entry-markup", "entry-article",
+    {"switch-value", "register-unknown", "pos-missing", "pos-unknown", "pos-in-tags", "source-tag", "entry-markup", "entry-article",
      "entry-infinitive-marker", "entry-aspect-pair", "meaning-markup", "meaning-numbered", "meaning-lines",
      "meaning-slashes", "meaning-commas", "meaning-article", "meaning-title-case", "context-markup",
-     "context-end-punctuation", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian", "keyforms-unlabeled"}
+     "context-end-punctuation", "source-markup", "kanji-breakdown", "genitive-feminine", "pronunciation-castilian", "keyforms-unlabeled"}
 )  # fmt: skip
 
 
@@ -864,6 +904,10 @@ ContextLiteral: only when the word-for-word reading differs from ContextTranslat
   something about the sentence's structure ("Even though tired, still working." under "I keep working even
   though I'm tired."). Empty when the two say about the same thing (quiero comida: "I want food" needs no
   "want food"). Numbered examples: one line each, as above.
+Source: only for a word met somewhere in particular (a game, a show, a book, a song). Three lines (<br>): the
+  line exactly as it was shown or said, with the word in <b></b> as the line spells it; that line in natural
+  American English; and where it was met, the title with the chapter or episode when known (The Last Train,
+  chapter 4). Empty for any other word. Context is still an example sentence of its own, written as above.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
@@ -882,7 +926,9 @@ Notes: at most two short lines of what helps use the word: what it takes ("Takes
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".
 Etymology: the real origin, or a cognate or false friend in a language the learner knows. Mnemonic: a sound
-  or image hook only. Tags: topic, source and status. No em dashes in what is written about a word (Meaning,
+  or image hook only. Tags: topic, source and status. A word met in a game, a show, a book or a song gets
+  that title's tag, "source::" then the title in lowercase words joined by hyphens (source::the-last-train),
+  the same tag for every word from it: find_notes "tag:source::*" lists them, and check_words shows it. No em dashes in what is written about a word (Meaning,
   Notes, Etymology, Mnemonic); an example sentence keeps its language's own punctuation.
 A grammar field of a word that has no such form holds "-": Plural of a noun with no plural in normal
   use, Classifier of a noun that is never counted, AspectPartner of a verb with no partner. The card
@@ -917,7 +963,7 @@ _PER_LANGUAGE = {
                 "kun, katakana for on) and a keyword, joined by \"; \": 割(わ)divide; 込(こ)go into.\n"
                 "VerbClass: godan, ichidan, suru or irregular. Context ends with 。",
     "english": "Rare English words for a native speaker: Meaning is a one-sentence definition and there is no\n"
-               "ContextTranslation. Etymology is expected.",
+               "ContextTranslation, and Source has no translation line. Etymology is expected.",
 }  # fmt: skip
 
 EXAMPLES: dict[str, dict[str, str]] = {

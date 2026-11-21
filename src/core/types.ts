@@ -232,6 +232,11 @@ export interface RenderedSide {
     literal?: string;
     /** An `example` block's tag, what that sentence shows ("skill", "event"), from ContextLabels. */
     tag?: string;
+    /**
+     * Set on an `example` block that is the line the word was met in (the Source field) rather than an
+     * example sentence: where it was met (the title), which may be empty. The box is headed "From" and this.
+     */
+    source?: string;
     /** A Thai romanization: the screen colors each syllable by its tone (src/core/toneColors.ts). Display only. */
     tones?: boolean;
     /**

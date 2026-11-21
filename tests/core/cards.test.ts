@@ -121,6 +121,26 @@ describe('cards', () => {
     });
     expect(back.find((b) => b.role === 'example')?.segments?.find((s) => s.marked)?.text).toBe('Einstellungen');
   });
+  it('puts the line the word was met in right after the tags, headed by where, with its translation behind a tap', () => {
+    const note = omniNote({
+      Entry: 'abwerfen', Meaning: 'to throw off', Language: 'german', PartOfSpeech: 'verb', Transliteration: '',
+      KeyForms: 'past: warf ab', Context: 'Er <b>warf</b> seinen Mantel <b>ab</b>.', ContextTranslation: 'He threw off his coat.',
+      Source: '<b>Wirf</b> die Rüstung <b>ab</b>!<br>Throw off the armor!<br>The Last Train',
+    });
+    for (const kind of ['forward', 'reverse'] as const) {
+      const back = renderCard({ ...note, fields: { ...note.fields, GenerateReverse: 'y' } }, kind).back.blocks;
+      const roles = back.map((b) => b.role);
+      const at = roles.indexOf('chips');
+      expect(roles.slice(at, at + 4)).toEqual(['chips', 'example', 'exampleTranslation', 'grammar']);
+      expect(back[at + 1]).toMatchObject({ text: 'Wirf die Rüstung ab!', source: 'The Last Train' });
+      expect(back[at + 1].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['Wirf', 'ab']);
+      expect(back[at + 2]).toMatchObject({ text: 'Throw off the armor!', tapLabel: 'Show translation' });
+      // The note's own example is still there, as an example.
+      expect(back.filter((b) => b.role === 'example').map((b) => b.source)).toEqual(['The Last Train', undefined]);
+    }
+    // A note without a Source shows as it always has.
+    expect(renderCard({ ...note, fields: { ...note.fields, Source: '' } }, 'forward').back.blocks.some((b) => b.source !== undefined)).toBe(false);
+  });
   it('shows labeled key forms, the counting word, the auxiliary and the aspect pair as cells, and the verb class as the top line', () => {
     const box = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'grammar');
     const cells = (over: Record<string, string>) => box(over)?.cells?.map((c) => [c.label, c.value]);
