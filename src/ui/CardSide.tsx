@@ -20,6 +20,7 @@ import { EDIT_ICON_ROOM, EditableField } from './EditableField';
 import type { EditableField as FieldName } from '../core/editField';
 import type { SentenceGloss } from './useCardGlosses';
 import { SenseContrastBox, type ContrastActions } from './SenseContrastBox';
+import { MarkableSenses, type SenseMarking } from './SenseMarks';
 
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
@@ -82,7 +83,7 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * its kanji, and the sentence's words with theirs; the "Show reading" line goes, as it says the same.
  * With `contrast`, the "not this word" box under the Sense has its Add, remove and open (SenseContrastBox).
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing, contrast }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing, contrast, senseMarking }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss[] | null;
   speakSentence?: (text: string) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
@@ -97,6 +98,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   onEditing?: (editing: boolean) => void;
   /** Given on the back in Review: what the "not this word" box's rows do (useSenseContrast). */
   contrast?: ContrastActions;
+  /** Given on the back in Review: a numbered Meaning's senses can be tapped as missed (useSenseMarks). */
+  senseMarking?: SenseMarking;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -299,6 +302,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               </View>
             </View>
           );
+        }
+        if (b.senses && senseMarking && which === 'back') {
+          return <MarkableSenses key={i} senses={b.senses} marking={senseMarking} size={b.role === 'gloss' ? { fontSize: type.title.fontSize, lineHeight: 28 } : type.reading} />;
         }
         if (b.role === 'gloss') {
           return (

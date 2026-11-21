@@ -4,6 +4,7 @@ import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
 import { SENSE_CONTRAST_FIELD, contrastWords } from './senseContrast';
+import { numberedSenses } from './senseMarks';
 import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { fieldIsEmpty, templateOrdinals } from './template';
@@ -206,6 +207,9 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // isn't given away while its reading is still hidden; any other card shows it plainly.
   const pronunciationTap = translit || kana ? 'Show pronunciation' : undefined;
   const meaning = t(note, 'Meaning');
+  // A Meaning that numbers its senses: an answer that shows it lets each be marked as missed (senseMarks.ts).
+  const senses = numberedSenses(meaning);
+  const sensed = senses.length ? { senses } : {};
   const front: Block[] = [];
   const back: Block[] = [];
 
@@ -257,7 +261,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     // The word is already on screen, so its meaning is set smaller than a headline to save room.
-    pushIf(back, meaning, undefined, true, undefined, { role: 'meaning' });
+    pushIf(back, meaning, undefined, true, undefined, { role: 'meaning', ...sensed });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     pushContrast(back);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
@@ -294,7 +298,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   }
   pushEntry(back);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
-  pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
+  pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss', ...sensed });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
   pushContrast(back);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });

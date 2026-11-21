@@ -180,7 +180,7 @@ export interface ReviewLogEntry {
    * kept it hold only a filtered deck.
    */
   deck?: string;
-  /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts). Franki's own: never sent to Anki. */
+  /** What was wrong, when the answer was Again with a reason chosen (`MissReason.key`, src/core/misses.ts), or the senses marked as missed with any rating (`sense:2`, src/core/senseMarks.ts). Franki's own: never sent to Anki. */
   miss?: string;
 }
 
@@ -211,6 +211,8 @@ export interface RenderedSide {
     pattern?: string;
     /** A `grammar` block's forms, each under the name of what it is ("genitive", "past", "takes"). */
     cells?: GrammarCell[];
+    /** A `meaning` or `gloss` block's senses, each without its number, when the Meaning numbers two or more and this side is an answer (senseMarks.ts). */
+    senses?: string[];
     /** A `counting` block's lines, or a `contrast` block's pairs. */
     rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];
     /** Shown dimmed before an emphasized word: этот / эта / это before a Russian noun, as Anki's template does. */
