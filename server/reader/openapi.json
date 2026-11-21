@@ -4603,6 +4603,65 @@
         }
       }
     },
+    "/api/reading-lines": {
+      "post": {
+        "summary": "Reading Lines Route",
+        "description": "Lines from texts read that use each word, for a card's answer side. Never writes to Anki\nor grades a card: it only reads the snapshot of the deck and the texts read.",
+        "operationId": "reading_lines_route_api_reading_lines_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingLinesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reading Lines Route Api Reading Lines Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/glosses": {
       "post": {
         "summary": "Glosses",
@@ -7176,6 +7235,40 @@
           "phrases"
         ],
         "title": "RanksOut"
+      },
+      "ReadingLinesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "ReadingLinesIn"
       },
       "ReadingsIn": {
         "properties": {

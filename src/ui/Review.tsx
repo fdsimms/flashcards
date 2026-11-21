@@ -58,6 +58,8 @@ import { stateChip } from '../core/stateChip';
 import { isLeechNote } from '../core/trouble';
 import { leechRecovered, withoutLeechTag } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
+import { useReadingLines } from './useReadingLines';
+import { withReadingLine } from '../reader/readingLines';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
 import { useCrams } from './useCrams';
@@ -485,7 +487,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   );
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
-  const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
+  const readingLineFor = useReadingLines(glossing, queue?.order, notes);
+  // The card as drawn, its answer side with a line from a text read under the note's own example (reader/readingLines.ts).
+  const rendered = useMemo(() => {
+    const drawn = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
+    return drawn ? { ...drawn, back: { ...drawn.back, blocks: withReadingLine(drawn.back.blocks, readingLineFor(current!, note!)) } } : undefined;
+  }, [current, note, page, wanted, readingLineFor]);
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
   const senseMarks = useSenseMarks(showing, rendered, current ? misses.log.get(current.id) : undefined);
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.

@@ -78,6 +78,9 @@ marked words, ideas) is in the current language, the `language` setting.
     GET   /api/relisten?listens=3     finished texts due to be heard again (relisten.py); 3, 1 or 0
                                       listens wanted per text
     POST  /api/texts/{id}/listen      counts a finished text heard again (204; 404 if never read)
+    POST  /api/reading-lines          {language, words: [str]} lines from texts read that use each word,
+                                      up to 5 a word, one a text, the latest read first: {lines: {word:
+                                      [{text_id, title, line, english}]}}, for a card's answer side
     GET   /api/input-time             {days, languages: [{language, reading_seconds, listening_seconds,
                                       last_read_at}]} time read and listened to in each language over
                                       the last 7 days, most first; it only reports
