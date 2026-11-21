@@ -180,6 +180,54 @@ def test_kaikki_takes_the_noun_with_the_fullest_table():
     assert "genitive · plural: par" in lines and len(lines) == 14
 
 
+def kaikki_lines(language: str, entry: str, word: str, unstress: bool = False) -> list[str]:
+    page = (KAIKKI / f"{word}.jsonl").read_text(encoding="utf-8")
+    return forms.noun_lines_for(forms.TABLES[language], entry, {word: forms.kaikki_noun_forms(page, unstress)}, {})
+
+
+def test_russian_nouns_from_kaikki_have_no_stress_marks_and_keep_the_accusative_plural():
+    # воздух's page has a romanized twin of each form (marked with a diamond), the dated spellings, and a partitive.
+    lines = kaikki_lines("russian", "воздух", "воздух", unstress=True)
+    assert len(lines) == 12
+    assert lines[:2] == ["nominative · singular: воздух", "nominative · plural: воздухи"]
+    assert "prepositional · plural: воздухах" in lines and "accusative · plural: воздухи" in lines
+    assert not any("\u0301" in line or "⟐" in line or "ъ" in line for line in lines)
+    # Without unstress the marks are kept, which is what Polish and Greek get (their accents are letters).
+    assert "nominative · singular: во\u0301здух" in kaikki_lines("russian", "воздух", "воздух")
+    # ё is a letter: it stays. And the page's dated block (тьма́мъ, тьмѣ́) is not the word's own.
+    assert forms.kaikki_noun_forms('{"pos": "noun", "forms": [{"form": "ёлка\u0301", "tags": ["nominative", "singular"]}]}', True) == [
+        ("ёлка", frozenset({"N", "NOM", "SG"}))]
+    lines = kaikki_lines("russian", "тьма", "тьма", unstress=True)
+    assert "prepositional · singular: тьме" in lines and "dative · plural: тьмам" in lines and "genitive · plural: тем" in lines
+    assert not any("ѣ" in line or "мъ" in line for line in lines)
+
+
+def test_german_nouns_from_kaikki_take_the_first_form_of_a_case():
+    lines = kaikki_lines("german", "das Haus", "Haus")
+    assert len(lines) == 8 and "dative · singular: Haus" in lines and "nominative · plural: Häuser" in lines
+    assert "dative · plural: Häusern" in lines
+    assert not any("Häuschen" in line or "Hauß" in line for line in lines)
+
+
+def test_greek_nouns_from_kaikki_have_a_vocative_and_keep_their_accents():
+    lines = kaikki_lines("greek", "η χώρα", "χώρα")
+    assert len(lines) == 8 and "genitive · plural: χωρών" in lines and "vocative · singular: χώρα" in lines
+    assert "genitive · singular: παιδιού" in kaikki_lines("greek", "το παιδί", "παιδί")
+    assert "accusative · plural: δρόμους" in kaikki_lines("greek", "ο δρόμος", "δρόμος")
+
+
+def test_a_table_unimorph_filled_is_not_completed_from_kaikki(tmp_path):
+    files = Files()
+    survey = forms.Survey([forms.Candidate(1, "собака", "russian", forms.NOUN), forms.Candidate(2, "воздух", "russian", forms.NOUN)], {})
+    result = forms.plan(survey, forms.UniMorph(tmp_path, fetch=files), None)
+    by_word = {p.word: p.lines for p in result.filled}
+    # UniMorph's 11 of 12 lines are kept as they are; the missing accusative plural isn't filled in.
+    assert len(by_word["собака"]) == 11 and not any("accusative · plural" in line for line in by_word["собака"])
+    # воздух isn't in UniMorph's file: kaikki's table is used, unstressed.
+    assert len(by_word["воздух"]) == 12 and "genitive · singular: воздуха" in by_word["воздух"]
+    assert [u for u in files.fetched if "kaikki.org" in u] == ["https://kaikki.org/dictionary/Russian/meaning/%D0%B2/%D0%B2%D0%BE/%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%85.jsonl"]
+
+
 def test_kaikki_pages_are_kept_and_a_missing_one_is_asked_for_once(tmp_path):
     files = Files()
     u = forms.UniMorph(tmp_path, fetch=files)
