@@ -14,6 +14,7 @@ import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
+import { countEnding, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
@@ -24,7 +25,7 @@ import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_S
  * outline (src/ui/tools/SkillDrill.tsx), and the learner's tap is what reaches FSRS.
  */
 
-export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money';
+export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money' | 'counting';
 
 export interface DrillStep {
   /** Stable across versions: it's written into the card (`SkillId`) and read back to find the drill. */
@@ -41,6 +42,8 @@ interface TimeStep extends DrillStep { group: 'time'; minutes: 'hours' | 'quarte
 interface NumberStep extends DrillStep { group: 'numbers'; min: number; max: number }
 interface DateStep extends DrillStep { group: 'dates'; parts: DateParts }
 interface MoneyStep extends DrillStep { group: 'money'; max: MoneyMax }
+/** `ending` is which numbers the step draws: one noun form each, or any number to 100 (the last digits then decide the form). */
+interface CountStep extends DrillStep { group: 'counting'; ending: 'one' | 'few' | 'many' | 'any' }
 
 export const TIME_STEPS: TimeStep[] = [
   { id: 'time-hours', group: 'time', title: "O'clock and half past", minutes: 'hours', selfCheck: 'Say three times aloud: one on the hour, one at half past, one in the evening.' },
@@ -68,17 +71,29 @@ export const MONEY_STEPS: MoneyStep[] = [
   { id: 'money-10000', group: 'money', title: 'Prices up to 10,000', max: 10000, after: 'money-1000', selfCheck: 'Say three prices up to 10,000 aloud, such as a phone, a flight and a month\'s rent.' },
 ];
 
-export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS];
+/** Polish and Russian: the noun's form follows the number (dwa koty, pięć kotów; два кота, пять котов), one form per step. */
+export const COUNT_STEPS: CountStep[] = [
+  { id: 'counting-one', group: 'counting', title: '1 with the noun', ending: 'one', selfCheck: 'Say 1 with three nouns aloud, one of each gender, such as a cat, a book and an apple.' },
+  { id: 'counting-few', group: 'counting', title: '2 to 4', ending: 'few', after: 'counting-one', selfCheck: 'Say 2, 3 and 4 with a noun aloud, and 2 with a feminine noun.' },
+  { id: 'counting-many', group: 'counting', title: '5 and up', ending: 'many', after: 'counting-few', selfCheck: 'Say 5, 11 and 20 with a noun aloud.' },
+  { id: 'counting-any', group: 'counting', title: 'Any number to 100', ending: 'any', after: 'counting-many', selfCheck: 'Say 21, 22 and 25 with a noun aloud, then any other number to 100.' },
+];
 
-export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money' };
+export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS, ...COUNT_STEPS];
+
+export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money', counting: 'Counting things' };
 
 export const drillStep = (id: string): DrillStep | undefined => DRILL_STEPS.find((s) => s.id === id);
 
 /** Whether the language has the drills of a group (a saying for each question). */
+/** The languages whose noun changes form with the number: the others' counting is a classifier or a plural to know, not a ladder. */
+const COUNT_LADDER_LANGUAGES: readonly Language[] = ['pl', 'ru'];
+
 export function hasDrills(group: DrillGroup, language: Language): boolean {
   if (group === 'time') return !!TIME_SAYERS[language];
   if (group === 'numbers') return !!NUMBER_SAYERS[language];
   if (group === 'dates') return !!DATE_SAYERS[language];
+  if (group === 'counting') return COUNT_LADDER_LANGUAGES.includes(language) && !!COUNTING[language];
   return !!MONEY_SAYERS[language] && !!CURRENCY_OF[language];
 }
 
@@ -89,7 +104,8 @@ export type DrillQuestion =
   | { kind: 'time'; time: ClockTime }
   | { kind: 'number'; question: NumberQuestion }
   | { kind: 'date'; date: CalendarDate; parts: DateParts }
-  | { kind: 'money'; amount: number };
+  | { kind: 'money'; amount: number }
+  | { kind: 'count'; question: CountQuestion };
 
 /** A question's key, so the same one isn't asked twice in a row. */
 export function questionKey(q: DrillQuestion): string {
@@ -98,7 +114,25 @@ export function questionKey(q: DrillQuestion): string {
     case 'number': return String(q.question.kind === 'phone' ? q.question.written : q.question.n);
     case 'date': return `${q.date.year}-${q.date.month}-${q.date.day}`;
     case 'money': return String(q.amount);
+    case 'count': return `${q.question.noun}:${q.question.n}`;
   }
+}
+
+/** Whether `n` is in a counting step's range: 1 alone (21 and 31 are in Any number), 2 to 4 (and 22 to 24...), or the rest (5 to 20, 25 to 30...). */
+const countStepFits = (ending: CountStep['ending'], n: number): boolean => {
+  if (ending === 'any') return true;
+  if (ending === 'one') return n === 1;
+  const e = countEnding(n);
+  return ending === 'few' ? e === '2-4' : e === 'many' || e === 'teen';
+};
+
+/** A count for a counting step: a noun and a number from its range, never `previous` again. */
+function drawCount(step: CountStep, previous: CountQuestion | undefined, random: () => number, language: Language | undefined): CountQuestion {
+  const nouns = COUNTING[language && COUNT_LADDER_LANGUAGES.includes(language) ? language : 'pl']?.nouns.length ?? 1;
+  const pool = Array.from({ length: 100 }, (_, i) => i + 1).filter((n) => countStepFits(step.ending, n));
+  const at = previous && previous.noun < nouns ? pool.indexOf(previous.n) : -1;
+  const i = pickOther(nouns * pool.length, at >= 0 ? previous!.noun * pool.length + at : undefined, random);
+  return { noun: Math.floor(i / pool.length), n: pool[i % pool.length] };
 }
 
 /** A question for `step` in `language`, never `previous` again. `months` limits a date to the months the learner has studied. */
@@ -111,6 +145,10 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
     const s = step as MoneyStep;
     const currency = CURRENCIES[(language && CURRENCY_OF[language]) || 'EUR'];
     return { kind: 'money', amount: randomAmount(currency, s.max, previous?.kind === 'money' ? previous.amount : undefined, random) };
+  }
+  if (step.group === 'counting') {
+    const s = step as CountStep;
+    return { kind: 'count', question: drawCount(s, previous?.kind === 'count' ? previous.question : undefined, random, language) };
   }
   if (step.group === 'time') {
     const s = step as TimeStep;
@@ -158,7 +196,15 @@ export function questionText(q: DrillQuestion, language?: Language): string {
       return q.parts.year ? `${withDay}, ${q.date.year}` : withDay;
     }
     case 'money': return (language && MONEY_SAYERS[language]?.(q.amount).written.text) ?? String(q.amount);
+    case 'count': return `${q.question.n} ${(language && COUNTING[language]?.nouns[q.question.noun]?.cue.text) ?? ''}`.trim();
   }
+}
+
+/** What goes under a count question: its noun's reading where the language has one, and its meaning in English. Nothing for the other questions. */
+export function questionNote(q: DrillQuestion, language?: Language): string | undefined {
+  if (q.kind !== 'count') return undefined;
+  const noun = language && COUNTING[language]?.nouns[q.question.noun];
+  return noun ? [noun.cue.roman, noun.meaning].filter(Boolean).join(' · ') : undefined;
 }
 
 /** A question's answer in `language`: the usual way to say it, the other ways heard, and a formal or written form where there is one. */
@@ -174,6 +220,13 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
   if (q.kind === 'money') {
     const s = MONEY_SAYERS[language]?.(q.amount);
     return s && { everyday: s.everyday, also: s.also };
+  }
+  if (q.kind === 'count') {
+    const counting = COUNTING[language];
+    if (!counting) return undefined;
+    const said = counting.say(q.question.noun, q.question.n);
+    const rule = counting.rule(q.question.noun, q.question.n);
+    return { everyday: said.everyday, also: said.also, ...(rule ? { last: { title: 'Rule', phrase: { text: rule } } } : {}) };
   }
   const s: NumberSaying | undefined = NUMBER_SAYERS[language]?.(q.question);
   return s && { everyday: s.everyday, also: s.also };
@@ -195,7 +248,7 @@ export function suggestedRating(results: readonly boolean[], thinkMs: readonly n
  * time or a price is about speed as much as being right, so a right answer worked out slowly is Hard.
  * The time is from the question coming up to Show answer, or to the end of speaking it.
  */
-export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000 };
+export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000, counting: 6000 };
 
 /** The middle of the times taken: one long pause (a distraction) doesn't make a drill slow. */
 export function medianMs(times: readonly number[]): number | undefined {
@@ -229,6 +282,8 @@ function questionDigits(q: DrillQuestion): string[] {
       return minor ? [`${major}${String(minor).padStart(2, '0')}`] : [String(major), `${major}00`];
     }
     case 'date': return [];
+    // A count is said with its noun; the recognizer may write the number as digits before it (see `heardRight`).
+    case 'count': return [];
   }
 }
 
@@ -243,6 +298,8 @@ export function heardRight(q: DrillQuestion, heard: string, language: Language):
   const answer = drillAnswer(q, language);
   const ways = answer ? [answer.everyday, ...answer.also, ...(answer.last ? [answer.last.phrase] : [])] : [];
   if (ways.some((p) => squeezed(p.text) === said)) return true;
+  // "5 kotów": the number as digits, then the noun as the answer ends with it.
+  if (q.kind === 'count' && answer && squeezed(`${q.question.n}${answer.everyday.text.split(' ').pop()}`) === said) return true;
   const digits = heard.replace(/\D/g, '');
   return !!digits && digits === heard.replace(/[^\d\p{L}]/gu, '') && questionDigits(q).includes(digits);
 }
@@ -268,7 +325,7 @@ export const SKILLS_SUBDECK = 'Skills';
 export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
 
 /** Every skill group, for reading a saved list of them back (src/anki/skillSettings.ts) without trusting it. */
-export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'cases', 'classifiers'];
+export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'counting', 'consonants', 'vowels', 'cases', 'classifiers'];
 
 /** The languages that count with a classifier or counter, and what it's called. */
 const CLASSIFIER_NAMES: Partial<Record<Language, { one: string; title: string }>> = { th: { one: 'classifier', title: 'Classifiers' }, ja: { one: 'counter', title: 'Counters' } };
@@ -297,6 +354,7 @@ export function skillGroups(language: Language): SkillGroupInfo[] {
   if (hasDrills('numbers', language)) out.push({ id: 'numbers', title: GROUP_TITLES.numbers, detail: `${NUMBER_STEPS.length} drill cards: ${steps(NUMBER_STEPS)}`, count: NUMBER_STEPS.length });
   if (hasDrills('dates', language)) out.push({ id: 'dates', title: GROUP_TITLES.dates, detail: `${DATE_STEPS.length} drill cards: ${steps(DATE_STEPS)}`, count: DATE_STEPS.length });
   if (hasDrills('money', language)) out.push({ id: 'money', title: GROUP_TITLES.money, detail: `${MONEY_STEPS.length} drill cards: ${steps(MONEY_STEPS)}`, count: MONEY_STEPS.length });
+  if (hasDrills('counting', language)) out.push({ id: 'counting', title: GROUP_TITLES.counting, detail: `${COUNT_STEPS.length} drill cards: ${steps(COUNT_STEPS)}`, count: COUNT_STEPS.length });
   if (language === 'th') {
     out.push({ id: 'consonants', title: 'Consonant classes', detail: `${CONSONANTS.length} cards, one per consonant`, count: CONSONANTS.length });
     out.push({ id: 'vowels', title: 'Vowel length', detail: `${VOWELS.length} cards, one per vowel`, count: VOWELS.length });
@@ -403,7 +461,7 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
 
 /** The notes for the words the drill groups in `groups` need that the deck may lack (the months for dates, the number words for numbers...). The caller leaves out the ones it has. */
 export function skillWordDrafts(language: Language, groups: SkillGroup[]): SkillWordDraft[] {
-  return wordDrafts(language, groups.filter((g): g is DrillGroup => (g === 'time' || g === 'numbers' || g === 'dates' || g === 'money') && hasDrills(g, language)));
+  return wordDrafts(language, groups.filter((g): g is DrillGroup => (g === 'time' || g === 'numbers' || g === 'dates' || g === 'money' || g === 'counting') && hasDrills(g, language)));
 }
 
 /** The drill a note's tags make it, with its language; undefined for any other note. */
@@ -483,7 +541,7 @@ const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomor
 /** What Skills shows for a deck's skill cards: each drill step in ladder order, and a set of single cards as how many have settled. */
 export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sections: SkillSection[] = [];
-  for (const group of ['time', 'numbers', 'dates', 'money'] as DrillGroup[]) {
+  for (const group of ['time', 'numbers', 'dates', 'money', 'counting'] as DrillGroup[]) {
     const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
       const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
       if (!card) return [];
