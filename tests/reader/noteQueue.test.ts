@@ -1,47 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { approvalDraft, bannerOf, counts, firstReady, parseWords, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
+import { approvalDraft, bannerOf, counts, firstReady, needsChoice, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
   id: 1, language: 'fr', deck: 'Languages::Français', entry: 'ricane', meaning: '', state: 'ready', fields: {}, error: '', ...over,
-});
-
-describe('parseWords', () => {
-  it('takes one word or phrase per line and skips blank lines', () => {
-    expect(parseWords('ricane\n\n  se méfier  \n').entries).toEqual([
-      { entry: 'ricane', meaning: '' },
-      { entry: 'se méfier', meaning: '' },
-    ]);
-  });
-
-  it("takes the owner's meaning after a spaced dash or a tab", () => {
-    expect(parseWords('bouder - to sulk\nricane – sniggers\nse méfier — to distrust\nodpuścić\tto let go').entries).toEqual([
-      { entry: 'bouder', meaning: 'to sulk' },
-      { entry: 'ricane', meaning: 'sniggers' },
-      { entry: 'se méfier', meaning: 'to distrust' },
-      { entry: 'odpuścić', meaning: 'to let go' },
-    ]);
-  });
-
-  it('keeps a hyphen inside a word', () => {
-    expect(parseWords('peut-être').entries).toEqual([{ entry: 'peut-être', meaning: '' }]);
-  });
-
-  it('keeps a dash inside the meaning', () => {
-    expect(parseWords('bouder - to sulk - pout').entries[0].meaning).toBe('to sulk - pout');
-  });
-
-  it('counts a repeated line instead of dropping it silently', () => {
-    const { entries, repeated } = parseWords('ricane\nbouder\nricane - sniggers\n');
-    expect(entries.map((e) => e.entry)).toEqual(['ricane', 'bouder']);
-    expect(repeated).toBe(1);
-  });
-
-  it('reads Windows line endings and an empty box', () => {
-    expect(parseWords('a\r\nb').entries).toHaveLength(2);
-    expect(parseWords('  \n ')).toEqual({ entries: [], repeated: 0 });
-  });
 });
 
 describe('the queue', () => {
@@ -175,5 +138,39 @@ describe('quickAddDecks', () => {
 
   it('puts the language being read first', () => {
     expect(quickAddDecks(decks, ['Polski', 'Languages::Français', 'ภาษาไทย'], 'pl').map((d) => d.language)).toEqual(['pl', 'th', 'fr']);
+  });
+});
+
+describe('a word typed the way it sounds', () => {
+  const typed = (over: Partial<QueuedNote>) => note({ language: 'ru', deck: 'Languages::Русский', entry: 'ogurets', fields: { Meaning: 'cucumber' }, ...over });
+
+  it('opens on how the word is really written, saying what was typed', () => {
+    expect(reviewTarget(typed({ spelling: 'огурец' }))).toEqual({
+      deck: 'Languages::Русский',
+      model: 'Omnilanguage',
+      fields: { Entry: 'огурец', Meaning: 'cucumber' },
+      fieldNotes: { Entry: 'You typed ogurets.' },
+    });
+  });
+
+  it('asks which word was meant when it could be more than one, the filled-in one first', () => {
+    const bit = typed({ entry: 'bit', spelling: 'быть', fields: { Meaning: 'to be' }, alternatives: [{ spelling: 'бить', meaning: 'to beat' }] });
+    expect(needsChoice(bit)).toBe(true);
+    expect(reviewTarget(bit).choice).toEqual({
+      typed: 'bit',
+      words: [{ entry: 'быть', meaning: 'to be' }, { entry: 'бить', meaning: 'to beat' }],
+    });
+    expect(reviewTarget(bit).fields.Entry).toBe('быть');
+  });
+
+  it('has nothing to choose or say for a word typed as it is written, or from an older server', () => {
+    expect(needsChoice(note())).toBe(false);
+    expect(needsChoice(note({ alternatives: [] }))).toBe(false);
+    expect(needsChoice(note({ state: 'failed', alternatives: [{ spelling: 'x', meaning: 'y' }] }))).toBe(false);
+    expect(reviewTarget(note({ spelling: '' }))).not.toHaveProperty('fieldNotes');
+  });
+
+  it('is approved under its spelling', () => {
+    expect(approvalDraft(typed({ spelling: 'огурец' }), ['Entry', 'Meaning'], []).fields).toEqual({ Entry: 'огурец', Meaning: 'cucumber' });
   });
 });

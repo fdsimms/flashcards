@@ -34,6 +34,18 @@ export function asEdited(html: string): string {
 }
 
 /** Tags typed as text, separated by spaces: each once, whatever its case (the first spelling wins). */
+/**
+ * The note type a new note in `deck` starts as: the one its notes (subdecks included) use most, else
+ * the collection's most used, else the first of `typeNames`. The note editor and Quick add both start
+ * here, so a word added either way is the same kind of note.
+ */
+export function startModelFor(notes: readonly Note[], typeNames: readonly string[], deck: string): string {
+  const inDeck = notes.filter((n) => n.deck === deck || n.deck.startsWith(`${deck}::`));
+  const counts = new Map<string, number>();
+  for (const n of inDeck.length ? inDeck : notes) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? typeNames[0] ?? '';
+}
+
 export function parseTags(text: string): string[] {
   const seen = new Map<string, string>();
   for (const t of text.split(/\s+/)) if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t);
@@ -194,13 +206,20 @@ export function deckChipRows(notes: Note[], scope: string | null): DeckChip[][] 
  * its Language field nor its deck names one) is compared with all of them, as Anki would.
  */
 export function duplicateOf(notes: Note[], draft: { id?: string; deck: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
-  const text = (html: string | undefined) => fold(htmlToText(html ?? '').trim());
-  const mine = text(draft.fields[firstField]);
+  const mine = duplicateKey(draft.fields[firstField]);
   if (!mine) return undefined;
   const myLanguage = isOmnilanguage(draft as Note) ? speechLangFor({ deck: draft.deck, fields: draft.fields } as Note) : undefined;
   return notes.find((n) => {
-    if (n.id === draft.id || n.model !== draft.model || text(n.fields[firstField]) !== mine) return false;
+    if (n.id === draft.id || n.model !== draft.model || duplicateKey(n.fields[firstField]) !== mine) return false;
     const theirs = myLanguage ? speechLangFor(n) : undefined;
     return !theirs || theirs === myLanguage;
   });
+}
+
+/**
+ * What `duplicateOf` compares a first field by: its text, case aside. Exported for a check that indexes
+ * many notes by it first (Quick add's), then asks `duplicateOf` about the few that match.
+ */
+export function duplicateKey(html: string | undefined): string {
+  return fold(htmlToText(html ?? '').trim());
 }

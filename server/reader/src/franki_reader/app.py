@@ -129,7 +129,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       by Anki field name, for a ready word. Starts filling any that are
                                       due; the app asks again every few seconds while some are waiting
     POST  /api/note-queue             {language, deck, entries: [{entry, meaning?}]} queues words for
-                                      Claude to fill in; 503 without a Claude key
+                                      Claude to fill in; 503 without a Claude key. A ready word also
+                                      has `spelling`, how it's really written when it was typed the
+                                      way it sounds (else empty), and `alternatives`, the other words
+                                      it could be ([{spelling, meaning}])
+    POST  /api/word-lookup            {language, meaning}: words for a meaning typed in English
+                                      (word_lookup.py, Quick add's "Don't know the word?"): {words:
+                                      [{entry, meaning, note}]}; 503 without a Claude key
     POST  /api/note-queue/{id}/retry  a failed word waiting to be filled again
     DELETE /api/note-queue/{id}       takes a word off the queue (after the app saves it, or on remove)
     GET   /api/word-suggestions       ?language=: words to add when the deck's new cards run low
@@ -357,6 +363,7 @@ from franki_reader import (
     store,
     topic_image,
     vocab_check,
+    word_lookup,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.cram_themes import WriteThemes
@@ -461,6 +468,7 @@ def create_app(
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
     write_rare_words: rare_words.WriteRareWords | None = None,
+    look_up_words: word_lookup.LookUpWords | None = None,
 ) -> FastAPI:
     # No /docs, /redoc or /openapi.json: FastAPI serves those without the passphrase. The schema the
     # app's types are generated from comes from app.openapi() (openapi.py), which needs no route.
@@ -553,6 +561,7 @@ def create_app(
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         write_rare_words=write_rare_words,
+        look_up_words=look_up_words,
         authed=[Depends(require_passphrase)],
         status_auth=[Depends(require_status_key)],
     )
@@ -598,6 +607,7 @@ def production_app() -> FastAPI:
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
     write_rare_words: rare_words.WriteRareWords | None = None
+    look_up_words: word_lookup.LookUpWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
         client = anthropic.AsyncAnthropic(api_key=key)
         mnemonics = claude_mnemonics(client)
@@ -615,6 +625,7 @@ def production_app() -> FastAPI:
         read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
+        look_up_words = word_lookup.claude_word_lookup(client)
         write_meanings = meanings.claude_meanings(client)
         write_questions = comprehension.claude_questions(client)
         write_forms = forms.claude_forms(client)
@@ -722,4 +733,5 @@ def production_app() -> FastAPI:
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         write_rare_words=write_rare_words,
+        look_up_words=look_up_words,
     )

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes } from '../../src/core/noteEditing';
+import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor } from '../../src/core/noteEditing';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -183,5 +183,21 @@ describe('a note being added', () => {
     expect(addDraftChanged(start, { fields: { ...start.fields, Meaning: 'to rule' }, tags: start.tags })).toBe(true);
     expect(addDraftChanged(start, { fields: start.fields, tags: '' })).toBe(true);
     expect(addDraftChanged({ fields: {}, tags: '' }, { fields: { Front: 'a' }, tags: '' })).toBe(true);
+  });
+});
+
+describe('startModelFor', () => {
+  const note = (deck: string, model: string, id: string): Note => ({ id, deck, model, fields: {}, tags: [] });
+  const notes = [note('Trivia', 'Basic', '1'), note('Languages::Polski', 'Omnilanguage', '2'), note('Languages::Polski::Odmiana', 'Omnilanguage', '3'), note('Languages::Polski', 'Basic', '4'), note('Languages::Español', 'Omnilanguage', '5')];
+
+  it("starts with the type the deck's notes use most, its subdecks included", () => {
+    expect(startModelFor(notes, ['Basic', 'Omnilanguage'], 'Languages::Polski')).toBe('Omnilanguage');
+    expect(startModelFor(notes, ['Basic', 'Omnilanguage'], 'Trivia')).toBe('Basic');
+  });
+
+  it("falls back to the collection's most used type, then the first type", () => {
+    expect(startModelFor(notes, ['Cloze'], 'Empty deck')).toBe('Omnilanguage');
+    expect(startModelFor([], ['Cloze', 'Basic'], 'Empty deck')).toBe('Cloze');
+    expect(startModelFor([], [], 'Empty deck')).toBe('');
   });
 });

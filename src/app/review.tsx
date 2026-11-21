@@ -5,6 +5,7 @@ import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { useApp } from '../ui/AppContext';
+import { lastStudiedDeck } from '../ui/lastDeck';
 import { ExtraCard } from '../ui/DailyExtras';
 import { backToDecks } from '../ui/leaveScreen';
 import { Review } from '../ui/Review';
@@ -18,6 +19,8 @@ export default function ReviewRoute() {
   const router = useRouter();
   const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
+  // The Home Screen's "Study" quick action opens the deck studied last (useHomeShortcuts).
+  useEffect(() => { if (deck) lastStudiedDeck.save(deck); }, [deck]);
   // Sync when leaving, however it's left: the Back button, the swipe, or "Back to decks".
   const syncRef = useRef(sync);
   syncRef.current = sync;

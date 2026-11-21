@@ -10,7 +10,8 @@ import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
-import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags } from '../core/noteEditing';
+import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startModelFor } from '../core/noteEditing';
+import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult } from './AppContext';
@@ -21,6 +22,7 @@ import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { cramsNow, loadCrams } from './useCrams';
+import { WordChoiceCard } from './WordChoice';
 
 const OMNI_CARD_NAMES: Record<string, string> = { forward: 'Front', reverse: 'Reverse', audio: 'Audio' };
 const MARK_LABELS: Record<Mark, string> = { b: 'Bold', i: 'Italic', u: 'Underline' };
@@ -36,9 +38,10 @@ export function NoteEditor(props: {
   /**
    * Edit this note, or add one (starting in `deck`, and with `model` and `fields` filled in when
    * given, as Read & Listen's marked words do). `fieldNotes` is a line under a field to check
-   * before saving ("Written by AI"), by field name. `tags` start the new note's Tags field.
+   * before saving ("Written by AI"), by field name. `tags` start the new note's Tags field. `choice`:
+   * a queued word that could be more than one word, asked above the fields (WordChoice.tsx).
    */
-  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[] };
+  target: { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[]; choice?: WordChoice };
   onClose: (result?: NoteEditorResult) => void;
   /** A card was unsuspended, unburied or unflagged here, which stands whether or not the note is saved. */
   onCardsChanged?: () => void;
@@ -114,10 +117,7 @@ export function NoteEditor(props: {
       } else {
         // Start in the deck asked for, with the note type its notes use most.
         const startDeck = props.target.deck ?? all[0]?.deck ?? '';
-        const inDeck = all.filter((n) => n.deck === startDeck || n.deck.startsWith(`${startDeck}::`));
-        const counts = new Map<string, number>();
-        for (const n of inDeck.length ? inDeck : all) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
-        const startModel = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? [...types.keys()][0] ?? '';
+        const startModel = startModelFor(all, [...types.keys()], startDeck);
         setDeck(startDeck);
         const asked = props.target.model;
         setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
@@ -251,6 +251,13 @@ export function NoteEditor(props: {
             <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
               <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>
             </View>
+          ) : null}
+          {'choice' in props.target && props.target.choice ? (
+            <WordChoiceCard
+              choice={props.target.choice}
+              onChoose={(word) => { stopAsking(); props.onClose({ chose: word }); }}
+              onRemove={() => { stopAsking(); props.onClose({ dropped: true }); }}
+            />
           ) : null}
           <Card>
             {/* A note in a frequency tier shows as its language's deck, and choosing that deck again leaves it where it is. */}
