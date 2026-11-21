@@ -3,13 +3,14 @@ import type { ThemeWord } from '../../core/cramThemes';
 import type { CramTheme, Language } from '../../reader/api';
 
 /**
- * The theme ideas last asked for and the theme picked, held in memory for the screens that share
- * them (the list, one theme, the cram's sheet). Nothing here is saved: the ideas were written for the
- * words as they were, and a picked theme becomes part of a cram only when the cram is saved.
+ * The theme ideas last asked for, held in memory for the screens that share them (the list and one
+ * theme). Nothing here is saved: the ideas were written for the words as they were, and a theme
+ * becomes part of a cram only when Use theme is tapped.
  */
 
-/** What the server last wrote for `language`, with the words it was written from. */
+/** What the server last wrote for the cram `cramId`, in `language`, with the words it was written from. */
 export interface Suggested {
+  cramId: string;
   language: Language;
   words: ThemeWord[];
   themes: CramTheme[];
@@ -18,14 +19,7 @@ export interface Suggested {
   stretch: boolean;
 }
 
-/** The theme picked, its story as the owner left it. The cram's sheet makes a cram from it. */
-export interface Chosen {
-  language: Language;
-  theme: CramTheme;
-  words: ThemeWord[];
-}
-
-interface State { suggested?: Suggested; chosen?: Chosen }
+interface State { suggested?: Suggested }
 
 let state: State = {};
 const listeners = new Set<() => void>();

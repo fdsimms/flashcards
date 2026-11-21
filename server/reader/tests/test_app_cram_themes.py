@@ -79,6 +79,7 @@ def test_sends_the_words_what_was_missed_and_what_is_taken() -> None:
             "weak_spots": ["Telling time: minutes:to"],
             "avoid": ["At the bank", "  At   the   park "],
             "stretch": True,
+            "topic": "  My violin   recital ",
         }
         assert c.post("/api/cram/themes", json=body, headers=AUTH).status_code == 200
     seeds = asked[0]
@@ -86,6 +87,7 @@ def test_sends_the_words_what_was_missed_and_what_is_taken() -> None:
     assert seeds.weak_spots == ("Telling time: minutes:to",)
     assert seeds.avoid == ("At the bank", "At the park")
     assert seeds.stretch is True
+    assert seeds.topic == "My violin recital"
 
 
 def test_a_failed_call_still_counts_what_it_cost() -> None:

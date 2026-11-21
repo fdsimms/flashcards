@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { WaniKaniError } from '../../src/wanikani/api';
 import {
-  asksReading, madeOf, missingComponentIds, mnemonicParts, otherMeanings, parseAssignment, parseSubject, primaryMeaning, primaryReading, readingGroups,
-  withComponents, type Subject,
+  asksReading, madeOf, missingComponentIds, mnemonicParts, mnemonicSections, otherMeanings, parseAssignment, parseSubject, primaryMeaning, primaryReading, readingGroups,
+  shownSentences, withComponents, type Subject,
 } from '../../src/wanikani/subjects';
 import { assignmentResource, kanaVocabResource, kanjiResource, partResource, radicalResource, vocabResource } from './fixtures';
 
@@ -70,6 +70,28 @@ describe('mnemonics', () => {
 
   it('drops tags it does not know', () => {
     expect(mnemonicParts('<i>Very</i> <reading>おとな</reading>')).toEqual([{ text: 'Very ' }, { text: 'おとな', mark: 'reading' }]);
+  });
+});
+
+describe('what the answer side offers beside the answer', () => {
+  const vocab = parseSubject(vocabResource)!;
+  const kanji = parseSubject(kanjiResource)!; // meaning hint, no reading hint
+
+  it("gives each question's own mnemonic and never the other's", () => {
+    expect(mnemonicSections(vocab, true, false).map((x) => x.title)).toEqual(['Meaning mnemonic']);
+    expect(mnemonicSections(vocab, false, true).map((x) => x.title)).toEqual(['Reading mnemonic']);
+    expect(mnemonicSections(vocab, true, true).map((x) => x.title)).toEqual(['Meaning mnemonic', 'Reading mnemonic']);
+    expect(mnemonicSections(vocab, false, false)).toEqual([]);
+  });
+
+  it('puts a hint after the mnemonic it belongs to', () => {
+    expect(mnemonicSections(kanji, true, true).map((x) => x.title)).toEqual(['Meaning mnemonic', 'Hint', 'Reading mnemonic']);
+  });
+
+  it('shows example sentences only with the whole answer, at most two', () => {
+    expect(shownSentences(vocab, true, false)).toEqual([]);
+    expect(shownSentences(vocab, false, true)).toEqual([]);
+    expect(shownSentences(vocab, true, true)).toEqual(vocab.contextSentences.slice(0, 2));
   });
 });
 

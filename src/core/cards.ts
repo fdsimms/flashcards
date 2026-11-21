@@ -195,7 +195,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // A noun's article from its Gender, or a Norwegian verb's å (gender.ts), unless the Entry already starts with one.
   const lang2 = speechLang?.slice(0, 2) ?? '';
   const prefix = genderArticle(lang2, genderOf(t(note, 'Gender')), entry) ?? pluralWord(lang2, t(note, 'Gender'), entry) ?? verbMarker(lang2, t(note, 'PartOfSpeech'), entry);
-  const say = speechLang ? spokenEntry(lang2, genderOf(t(note, 'Gender')), t(note, 'PartOfSpeech'), entry) : undefined;
+  const say = speechLang ? spokenEntry(lang2, t(note, 'Gender'), t(note, 'PartOfSpeech'), entry) : undefined;
   const translit = t(note, 'Transliteration');
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');

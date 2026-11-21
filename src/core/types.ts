@@ -310,6 +310,8 @@ export interface DeckSettings {
   lookalikeDays?: number;
   /** Offer to show a card sooner when a lookalike may have given it away (default on). */
   offerSooner?: boolean;
+  /** Ask "imperfective or perfective?" on a Russian or Polish verb's front (default on). */
+  aspectCheck?: boolean;
   /** Tagged cards first (`prioritySettings`): the switch. Set on a subdeck, it overrides the deck above. */
   priorityFirst?: boolean;
   /** The tags whose notes' new cards come first, separated by spaces as Anki writes them (one tag is all an older version saved). */

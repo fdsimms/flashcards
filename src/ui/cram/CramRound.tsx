@@ -4,7 +4,7 @@ import { Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { typeItAnswers } from '../../core/activeRecall';
 import { isOmnilanguage, renderCard } from '../../core/cards';
-import { cramNotes, lastMissed, withRound } from '../../core/cram';
+import { cramNotes, lastMissed, practiceWords, withRound } from '../../core/cram';
 import { answerWord, currentWord, isRoundDone, roundRecord, startRound, wordsLeft, type RoundState } from '../../core/cramRound';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
@@ -26,11 +26,12 @@ import { useSpokenAnswer } from '../useSpokenAnswer';
 import { useWordAudio } from '../useWordAudio';
 
 /**
- * One cram round (src/core/cramRound.ts): each word's meaning is asked and the word answered, typed
- * or spoken where the card is a word (Omnilanguage), then shown; Missed it brings it back a few
- * words later, Got it takes it out. Practice, never a rating: nothing here answers a card or
- * changes its schedule (tests/core/cramRound.test.ts), and the round is kept in the cram only once
- * every word is got. Leaving before that asks first.
+ * Practicing a cram (src/core/cramRound.ts), any time: the words not solid yet (every word once all
+ * are, `practiceWords`), each word's meaning asked and the word answered, typed or spoken where the
+ * card is a word (Omnilanguage), then shown; Missed it brings it back a few words later, Got it takes
+ * it out. Practice, never a rating: nothing here answers a card or changes its schedule
+ * (tests/core/cramRound.test.ts), and the pass is kept in the cram only once every word is got.
+ * Leaving before that asks first.
  */
 export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; onDone: () => void }) {
   const c = useTheme();
@@ -38,7 +39,6 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
   const [round, setRound] = useState<RoundState | null>(null);
-  const [number, setNumber] = useState(1);
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState('');
   const [spokenIn, setSpokenIn] = useState(false);
@@ -56,8 +56,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   // The round is made once, from the words as they are when it opens.
   useEffect(() => {
     if (round || !cram || !collection.loaded) return;
-    setRound(startRound(cramNotes(cram, collection.notes).map((n) => n.id), lastMissed(cram)));
-    setNumber(cram.rounds.length + 1);
+    setRound(startRound(practiceWords(cram, cramNotes(cram, collection.notes).map((n) => n.id)), lastMissed(cram)));
   }, [cram, collection.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const byId = useMemo(() => new Map(collection.notes.map((n) => [n.id, n])), [collection.notes]);
@@ -83,9 +82,9 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const empty = !!round && round.noteIds.length === 0;
   const done = !!round && !empty && isRoundDone(round);
   usePreventRemove(!!round && !done && answered.current > 0, ({ repeat }) => {
-    Alert.alert('End this round?', "It's kept only once every word is done.", [
+    Alert.alert('Stop practicing?', 'Your answers count only once every word is done.', [
       { text: 'Keep going', style: 'cancel' },
-      { text: 'End round', style: 'destructive', onPress: repeat },
+      { text: 'Stop', style: 'destructive', onPress: repeat },
     ]);
   });
 
@@ -114,28 +113,27 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     setRound(answerWord(round, got));
   };
 
-  if (!cram || !round) return <Screen title="Round" largeTitle={false}><Loading /></Screen>;
+  if (!cram || !round) return <Screen title="Practice" largeTitle={false}><Loading /></Screen>;
   if (empty) {
     return (
-      <Screen title="Round" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
+      <Screen title="Practice" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-          <Help>{`${cram.name} has no words yet. Add some from its page, then start a round.`}</Help>
+          <Help>{`${cram.name} has no words yet. Add some from its page, then practice them.`}</Help>
         </ScrollView>
       </Screen>
     );
   }
-  const n = number;
   const total = round.noteIds.length;
 
   if (done) {
     const missed = round.missed.map((id) => byId.get(id)).filter((x): x is Note => !!x);
     return (
-      <Screen title={`Round ${n}`} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
+      <Screen title="Practice" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <Text style={{ ...type.title, color: c.text }}>Round done</Text>
+          <Text style={{ ...type.title, color: c.text }}>Done</Text>
           <Help>
             {missed.length
-              ? `You missed ${missed.length === 1 ? '1 word' : `${missed.length} words`} at first. The next round asks ${missed.length === 1 ? 'it' : 'them'} first.`
+              ? `You missed ${missed.length === 1 ? '1 word' : `${missed.length} words`} at first. Practice again any time: ${missed.length === 1 ? "it's" : "they're"} asked first.`
               : `You got all ${total === 1 ? 'of it' : `${total} words`} the first time.`}
           </Help>
           {missed.length ? <Help>{missed.map(headword).join(', ')}</Help> : null}
@@ -153,7 +151,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const comparison = revealed && typed.trim() && answers.length ? compareTypedAnswer(answers, typed, rendered?.speechLang) : undefined;
   return (
     <Screen
-      title={`Round ${n}`}
+      title="Practice"
       largeTitle={false}
       footer={revealed ? (
         <View style={{ flexDirection: 'row', gap: space.s }}>
@@ -168,7 +166,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words got this round" />
+        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words got so far" />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {!note ? (
           <Help>This word isn't in your decks anymore.</Help>

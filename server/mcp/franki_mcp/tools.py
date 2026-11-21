@@ -295,11 +295,11 @@ instructions off, so each tool's own description holds its details.
   first, and only then pass every_device_synced=true.
 - Audio: add_tts_audio records a field's text with an Azure voice (list_voices names them). Record
   a noun from `Entry`: its article is read with it, from Gender.
-- Crams: Franki's Practice, Cram is a set of words to know by a day (a lesson, a trip). Its words
+- Crams: Franki's Practice, Cram is the plan for a day coming up (a lesson, a trip). Its words
   are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
-  date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes;
-  find_notes "tag:cram::*" lists the words of every cram. The date and the practice rounds are
-  kept in Franki only.
+  date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes, only
+  for notes in the cram's language; find_notes "tag:cram::*" lists the words of every cram. The
+  date, practice, questions for the tutor and talking points are kept in Franki only.
 """
 
 
@@ -1295,9 +1295,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         - The text is `source_fields`' text (formatting and media left out) joined by `join`, then
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
-        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume), as Franki says
-          it: when `Entry` is the first source field and the note's Gender and Language give one
-          (Spanish, Norwegian, German, French, Greek). An Entry that already starts with its article
+        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume, ten wrzesień), as
+          Franki says it: when `Entry` is the first source field and the note's Gender and Language give
+          one (Spanish, Norwegian, German, French, Greek, and Polish's and Russian's ten/ta/to and
+          этот/эта/это, te/ci for a plural). An Entry that already starts with its article
           (el agua) is read as it is. A Norwegian verb is read with its å (å huske), from
           PartOfSpeech. `article=false` reads the Entry alone.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).

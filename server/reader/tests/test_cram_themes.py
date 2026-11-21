@@ -185,3 +185,11 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "French" in system_message("fr", False)
     assert "within the learner's level" in system_message("fr", False)
     assert "stretch" in system_message("fr", True)
+
+
+def test_a_topic_leads_the_request_and_asks_for_angles_on_it() -> None:
+    text = request_message(seeds(topic="My violin recital"))
+    assert text.startswith("What the lesson is for: My violin recital\n\nThe learner's words:")
+    assert "angle on that" in system_message("fr", False, topic=True)
+    assert "angle on that" not in system_message("fr", False)
+    assert not request_message(seeds()).startswith("What the lesson")

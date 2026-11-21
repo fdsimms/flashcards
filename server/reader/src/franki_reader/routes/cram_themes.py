@@ -27,6 +27,8 @@ class ThemesIn(BaseModel):
     avoid: list[str] = Field(default_factory=list, max_length=cram_themes.MAX_AVOID)
     # Questions and a story a little above the learner's level.
     stretch: bool = False
+    # What the lesson is for, as the learner named the cram: every theme is an angle on it.
+    topic: str = Field(default="", max_length=cram_themes.MAX_TITLE * 2)
 
 
 class LineOut(BaseModel):
@@ -93,6 +95,7 @@ def router(ctx: AppContext) -> APIRouter:
             ),
             avoid=tuple(" ".join(a.split())[: cram_themes.MAX_TITLE * 2] for a in body.avoid),
             stretch=body.stretch,
+            topic=" ".join(body.topic.split()),
         )
         try:
             raw, used = await write_cram_themes(body.language, seeds)

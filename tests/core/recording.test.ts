@@ -9,7 +9,7 @@ describe('recording a card with an Azure voice', () => {
     expect(recordingText(omniNote({ Entry: 'Einstellung', Language: 'german', Gender: 'f' }))).toBe('die Einstellung');
     expect(recordingText(omniNote({ Entry: 'amertume', Language: 'french', Gender: 'f' }))).toBe("l'amertume");
     expect(recordingText(omniNote({ Entry: 'el agua', Language: 'spanish', Gender: 'f' }))).toBe('el agua');
-    expect(recordingText(omniNote({ Entry: 'кошка', Language: 'russian', Gender: 'f' }))).toBe('кошка');
+    expect(recordingText(omniNote({ Entry: 'кошка', Language: 'russian', Gender: 'f' }))).toBe('эта кошка');
     expect(needsRecording(omniNote())).toBe(true);
     expect(needsRecording(omniNote({ Audio: '[sound:book.mp3]' }))).toBe(false);
     expect(needsRecording(omniNote({ Entry: '' }))).toBe(false);

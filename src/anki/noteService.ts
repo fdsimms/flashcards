@@ -37,6 +37,12 @@ export interface NoteDraft {
   model: string;
   fields: Record<string, string>;
   tags: string[];
+  /**
+   * Save it though another note of the type has the same first field: a word two languages spell
+   * the same ("mars" in French and Norwegian), which Anki allows and only warns about. Only for a
+   * caller that has already settled the word isn't in this note's own language deck.
+   */
+  allowDuplicate?: boolean;
 }
 
 /** A note that can't be saved, with the reason to show beside it. */
@@ -68,7 +74,7 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   // check would flag it. An edit is checked only when it changes that field, so a note that was
   // already a duplicate can still have its tags or deck changed.
   const firstField = noteType?.fields[0] ?? Object.keys(draft.fields)[0];
-  if (firstField && (!existing || duplicateOf([existing], { model: note.model, fields: draft.fields }, firstField) === undefined)) {
+  if (firstField && !draft.allowDuplicate && (!existing || duplicateOf([existing], { model: note.model, fields: draft.fields }, firstField) === undefined)) {
     const [all, cards] = await Promise.all([store.listNotes(), store.listCards()]);
     const other = duplicateOf(notesStillThere(all, cards), { id: existing?.id, model: note.model, fields: draft.fields }, firstField);
     if (other) throw new NoteRefused(`${untiered(other.deck)} already has a note with this ${firstField}, so this one wasn't saved.`);

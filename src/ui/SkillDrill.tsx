@@ -22,7 +22,8 @@ import { AnswerContent, Status } from './tools/ToolScreen';
  * the drill's state, the card's face and the footer while the drill runs.
  */
 
-export interface Drill { step: DrillStep; language: Language }
+/** A drill's step and language, and for dates the months (1 to 12) whose words the deck has studied: only those are asked about. */
+export interface Drill { step: DrillStep; language: Language; months?: number[] }
 
 /** The chip's symbol for each kind of drill. */
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote' };
@@ -53,7 +54,7 @@ interface DrillState {
 export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
-    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language);
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months);
     return { ...next, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
@@ -87,7 +88,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
       const missed = right ? live.missed : [...live.missed, live.question];
-      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language);
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months);
       setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
     },
@@ -122,8 +123,9 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
   const answer = skill.shown ? drillAnswer(question, drill.language) : undefined;
   const right = skill.results.filter(Boolean).length;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
-      <View style={{ position: 'absolute', top: space.m, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
+    // The top padding clears the language pill CardSurface draws at the card's top edge in a mixed deck; the chip sits in the flow below it, never pinned to the same spot.
+    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+      <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
         <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
         <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>{`Skill · ${GROUP_TITLES[drill.step.group]}`}</Text>
       </View>

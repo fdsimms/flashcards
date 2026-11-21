@@ -18,6 +18,8 @@ export const THEME_WORDS_MAX = 60;
 export const THEME_AVOID_MAX = 30;
 export const THEME_WEAK_MAX = 8;
 export const THEME_WEAK_CHARS = 120;
+/** The server's `MAX_TITLE * 2`: the longest topic it takes. */
+export const THEME_TOPIC_CHARS = 120;
 /** A note added in this many days counts as lately added. */
 export const FRESH_DAYS = 14;
 /** A note tagged as a leech counts as missed too. */
@@ -108,14 +110,15 @@ export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
   return out.slice(0, THEME_AVOID_MAX);
 }
 
-/** The request for the server's themes. */
-export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean): CramThemesRequest {
+/** The request for the server's themes. `topic` is what the lesson is for (the cram's name): every theme is an angle on it. */
+export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string): CramThemesRequest {
   return {
     language,
     words: words.map((w) => ({ id: w.noteId, text: w.text, english: w.english, kind: w.kind })),
     weak_spots: weak,
     avoid,
     stretch,
+    topic: topic.replace(/\s+/g, ' ').trim().slice(0, THEME_TOPIC_CHARS),
   };
 }
 
