@@ -48,6 +48,12 @@ people know, proper nouns, abbreviations, slang, phrases and inflected forms (gi
 the singular noun, the infinitive verb). Do not repeat a word in the deck or in the list of \
 words to avoid, which the learner has already added or turned down, and do not suggest several \
 forms of one word. Vary the fields: do not cluster on one subject or one source language. \
+Prefer words a writer reaches for because they say something exactly, in the prose of good essays, \
+histories, science and criticism: apodictic, epigone, tendentious. Avoid the words that appear on \
+lists of beautiful, funny or obscure English words (widdershins, mellifluous, defenestrate, \
+serendipity), words whose main appeal is how they sound or that they are long, whimsical or \
+quaint, and words that exist mostly to be quoted in a list or used to show off. If a word is \
+more often mentioned than used, leave it out. \
 For each word give word, lowercase, and meaning, a short plain definition in American English \
 without em dashes."""
 

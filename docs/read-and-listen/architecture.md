@@ -2049,6 +2049,9 @@ suggest words to add, so the deck keeps going without the owner having to think 
   then one call asks for 40, told the words to avoid (kept and dismissed ones). The x teaches it: a
   dismissed word is never suggested again and is listed as one to avoid. A call that fails is said on
   the screen (`written_error`), not dropped. Its cost is kept in `call_costs` (feature "rare_words").
+  The prompt asks for words writers use for their precision (apodictic, epigone) and rules out the
+  cute ones from "beautiful words" lists (widdershins, sesquipedalian), words more mentioned than used
+  (21 November 2026, the owner). This is only the prompt: words already kept stay until shown or dismissed.
   The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
   of the deck has (`entryKeys`, an entry with or without its article) and words held for Claude.
 - **The screen** groups the words by source, each with its meaning when one is known (a text's gloss,
