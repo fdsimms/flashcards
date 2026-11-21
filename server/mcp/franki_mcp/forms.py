@@ -110,6 +110,12 @@ PLURAL = "plural"
 # UniMorph tags the locative ESS.
 POLISH_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC"),
                 ("instrumental", "INS"), ("locative", "ESS"), ("vocative", "VOC")]
+# Russian's prepositional is UniMorph's ESS too; its vocative isn't tabulated.
+RUSSIAN_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC"),
+                 ("instrumental", "INS"), ("prepositional", "ESS")]
+GERMAN_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("dative", "DAT"), ("accusative", "ACC")]
+# Greek has no dative.
+GREEK_CASES = [("nominative", "NOM"), ("genitive", "GEN"), ("accusative", "ACC"), ("vocative", "VOC")]
 
 
 SPANISH_PERSONS = [("yo", "1;SG"), ("tú", "2;SG;INFM"), ("él", "3;SG"), ("nosotros", "1;PL"), ("vosotros", "2;PL"), ("ellos", "3;PL")]
@@ -191,7 +197,13 @@ TABLES: dict[str, Language] = {
             Row.of("он", "V;PST;SG;MASC"), Row.of("она", "V;PST;SG;FEM"), Row.of("оно", "V;PST;SG;NEUT"), Row.of("они", "V;PST;PL"),
         )),
         _persons("future", "FUT", SLAVIC_PERSONS_RU),
-    )),
+    ), noun_tables=_cases(RUSSIAN_CASES)),
+    # No verb tables yet: only nouns are filled, and German and Greek verbs are reported as unsupported.
+    # "die" is left out of the plural determiners (it is also the feminine singular); a plural-only
+    # noun ("die Eltern") still gets the plural lines it has.
+    "german": Language("deu", tables=(), noun_tables=_cases(GERMAN_CASES), determiners=frozenset({"der", "die", "das"})),
+    "greek": Language("ell", tables=(), noun_tables=_cases(GREEK_CASES), determiners=frozenset({"ο", "η", "το", "οι", "τα"}),
+                      plural_determiners=frozenset({"οι", "τα"})),
 }
 # Japanese verbs are conjugated by Read & Listen's server, not read from UniMorph (`japanese_lines`).
 JAPANESE = "japanese"
@@ -202,7 +214,8 @@ JAPANESE_TABLE = ["polite · present", "polite · past", "polite · negative", "
                   "imperative · plain", "desire · plain"]
 # What the Language field may say for each (Omnilanguage's own names, as `speechLangFor` reads them).
 LANGUAGE_NAMES = {"spanish": "spanish", "español": "spanish", "espanol": "spanish", "polish": "polish", "polski": "polish",
-                  "russian": "russian", "русский": "russian", "japanese": JAPANESE, "日本語": JAPANESE}
+                  "russian": "russian", "русский": "russian", "german": "german", "deutsch": "german",
+                  "greek": "greek", "ελληνικά": "greek", "japanese": JAPANESE, "日本語": JAPANESE}
 
 
 def form_lines(language: Language, forms: list[tuple[str, frozenset[str]]], transform: Transform = _same,
@@ -454,7 +467,7 @@ def survey(col: Collection, query: str = "") -> Survey:
         if lang == JAPANESE and pos == VERB:
             reading = _plain(note["KanaReading"]) if "KanaReading" in note else ""
             candidates.append(Candidate(nid, word, lang, pos, reading))
-        elif lang in TABLES and (pos == VERB or TABLES[lang].noun_tables):
+        elif lang in TABLES and (TABLES[lang].tables if pos == VERB else TABLES[lang].noun_tables):
             candidates.append(Candidate(nid, word, lang, pos))
         else:
             name = (_plain(note["Language"]).lower() if "Language" in note else "") or "(no language)"
@@ -616,7 +629,7 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph, reade
         """Fills the Forms field of Omnilanguage verbs and nouns that have it empty, from Wiktionary's
         inflection tables (UniMorph), for Franki's forms practice: one line per form, like
         "present · yo: espero" or "accusative · singular: ptaka". Verbs in Spanish, Polish and Russian
-        so far, nouns in Polish (a plural Entry like "te buty" gets the plural lines only). Japanese
+        so far, nouns in Polish, Russian, German and Greek (a plural Entry like "te buty" gets the plural lines only). Japanese
         verbs are conjugated by Read & Listen's server from their type as Sudachi gives it, each form
         with its reading ("past · plain: 帰った / かえった"); without Read & Listen they're left empty
         and japanese_skipped says so. `query` narrows the notes (Anki's search syntax, e.g.
@@ -650,7 +663,8 @@ def register(server: MCPServer, cm: CollectionManager, unimorph: UniMorph, reade
             "source": "Wiktionary via UniMorph and kaikki.org, CC BY-SA; Japanese conjugated from Sudachi's verb types",
             # The lines a Forms field holds, per language: for writing a not_found word's by hand.
             "table": {
-                **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows] for lang in sorted(TABLES)},
+                **{lang: [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].tables for r in t.rows]
+                   for lang in sorted(TABLES) if TABLES[lang].tables},
                 **{f"{lang} nouns": [f"{t.group} · {r.label}: <form>" for t in TABLES[lang].noun_tables for r in t.rows]
                    for lang in sorted(TABLES) if TABLES[lang].noun_tables},
                 JAPANESE: [f"{row}: <form> / <reading>" for row in JAPANESE_TABLE],

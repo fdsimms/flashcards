@@ -21,7 +21,7 @@ from mcp import Client
 
 pytestmark = pytest.mark.anyio
 
-# Real excerpts of UniMorph's files (tests/unimorph): esperar, vengar and querer (only the noun,
+# Real excerpts of UniMorph's files (tests/unimorph; Russian, German and Greek nouns too): esperar, vengar and querer (only the noun,
 # in UniMorph) in Spanish; czekać and uczyć, and the nouns ptak, stół, but and rodzic, in Polish.
 EXCERPTS = Path(__file__).parent / "unimorph"
 # kaikki.org's pages for czas (which UniMorph lacks) and para, cut down (tests/kaikki).
@@ -109,6 +109,51 @@ def test_a_plural_entry_gets_the_plural_lines_of_the_noun_it_is_the_plural_of():
     assert "accusative · plural: rodziców" in lines
     # A plural UniMorph doesn't list (spodnie has no entry) isn't found, rather than guessed.
     assert forms.noun_lines_for(polish(), "te spodnie", found, {"rodzice": "rodzic"}) == []
+
+
+def test_russian_nouns_have_six_cases_with_the_prepositional_for_ESS():
+    ru = forms.TABLES["russian"]
+    lines = forms.noun_lines_for(ru, "собака", {"собака": rows("rus", "собака")}, {})
+    # UniMorph has no accusative plural for собака: the row is left out, not guessed.
+    assert len(lines) == forms.rows_in(ru, ru.noun_tables) - 1 == 11
+    assert lines[:2] == ["nominative · singular: собака", "nominative · plural: собаки"]
+    assert "prepositional · singular: собаке" in lines and "accusative · singular: собаку" in lines
+    assert not any("accusative · plural" in line for line in lines)
+    # No determiners: a first word is part of the Entry.
+    assert forms.noun_of(ru, "мальчик") == ("мальчик", False)
+    # UniMorph's Russian forms carry no stress marks, so what is written is what checkAnswer compares.
+    assert not any("\u0301" in form for form, _ in rows("rus", "мальчик") + rows("rus", "собака"))
+
+
+def test_german_nouns_take_the_first_form_of_a_case_and_drop_the_article():
+    de = forms.TABLES["german"]
+    assert forms.noun_of(de, "der Hund") == ("Hund", False)
+    lines = forms.noun_lines_for(de, "der Hund", {"Hund": rows("deu", "Hund")}, {})
+    assert len(lines) == forms.rows_in(de, de.noun_tables) == 8
+    assert "genitive · singular: Hundes" in lines and "dative · plural: Hunden" in lines
+    assert not any(line.startswith("vocative") for line in lines)
+    # "die" is also the plural article, so a feminine Entry is read as singular.
+    assert forms.noun_of(de, "die Frau") == ("Frau", False)
+    assert "nominative · plural: Frauen" in forms.noun_lines_for(de, "die Frau", {"Frau": rows("deu", "Frau")}, {})
+    # A noun with no singular gets the plural lines it has.
+    assert forms.noun_lines_for(de, "die Eltern", {"Eltern": rows("deu", "Eltern")}, {}) == [
+        "nominative · plural: Eltern", "genitive · plural: Eltern", "dative · plural: Eltern", "accusative · plural: Eltern"]
+
+
+def test_greek_nouns_have_no_dative_and_plural_articles_mark_a_plural():
+    el = forms.TABLES["greek"]
+    assert [t.group for t in el.noun_tables] == ["nominative", "genitive", "accusative", "vocative"]
+    assert forms.noun_of(el, "η γυναίκα") == ("γυναίκα", False)
+    assert forms.noun_of(el, "τα βιβλία") == ("βιβλία", True)
+    lines = forms.noun_lines_for(el, "η γυναίκα", {"γυναίκα": rows("ell", "γυναίκα")}, {})
+    assert len(lines) == 8 and "genitive · plural: γυναικών" in lines
+    lines = forms.noun_lines_for(el, "τα βιβλία", {"βιβλίο": rows("ell", "βιβλίο")}, {"βιβλία": "βιβλίο"})
+    assert len(lines) == 4 and all("· plural:" in line for line in lines)
+
+
+def test_german_and_greek_verbs_are_still_reported_as_other_languages():
+    assert forms.TABLES["german"].tables == () and forms.TABLES["greek"].tables == ()
+    assert forms.LANGUAGE_NAMES["deutsch"] == "german" and forms.LANGUAGE_NAMES["ελληνικά"] == "greek"
 
 
 def test_plurals_and_nouns_are_read_from_the_file(tmp_path):
