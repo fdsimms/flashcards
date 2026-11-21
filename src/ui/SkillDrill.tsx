@@ -3,8 +3,9 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
+import { drillSeenFor, loadDrillSeen, noteDrillAsked } from '../tools/drillSeenStorage';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
@@ -54,7 +55,8 @@ interface DrillState {
 export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
-    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months);
+    void loadDrillSeen();
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
     return { ...next, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
@@ -88,7 +90,9 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
       const missed = right ? live.missed : [...live.missed, live.question];
-      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months);
+      // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
+      noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
       setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
     },
