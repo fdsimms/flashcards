@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   heardRight, holdable, questionNote, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, studiedHeadwords, studiedIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 import { stepNeeds } from '../../src/tools/skillWords';
@@ -66,6 +66,15 @@ describe('skill drills', () => {
     expect(second.question).toBe(b);
     expect(second.retry).toEqual([]);
     expect(questionKey(nextDrillQuestion(step, b, second.retry).question)).not.toBe(questionKey(b));
+  });
+
+  it('carries misses over after Again or Hard only', () => {
+    const q = drawQuestion(DATE_STEPS[0]);
+    expect(missesToCarry(1, [q])).toEqual([q]);
+    expect(missesToCarry(2, [q])).toEqual([q]);
+    expect(missesToCarry(3, [q])).toEqual([]);
+    expect(missesToCarry(4, [q])).toEqual([]);
+    expect(missesToCarry(1, [])).toEqual([]);
   });
 
   it('answers in the language, with the formal form for a time', () => {

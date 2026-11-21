@@ -182,6 +182,11 @@ export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | und
   return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
 }
 
+/** The questions to ask again when a card returns: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
+export function missesToCarry(rating: number, missed: readonly DrillQuestion[]): DrillQuestion[] {
+  return rating <= 2 ? [...missed] : [];
+}
+
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
