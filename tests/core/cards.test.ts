@@ -142,6 +142,8 @@ describe('cards', () => {
     expect(counting).toMatchObject({ label: 'Counting', rows: [{ label: 'แห่ง', value: 'โรงพยาบาลสองแห่ง', counts: { roman: 'hèng', what: expect.stringContaining('hospitals') } }] });
     // A counting word with no description still shows counted.
     expect(back({ Classifier: 'ซอง' }).find((b) => b.role === 'counting')?.rows).toEqual([{ label: 'ซอง', value: 'หนังสือสองซอง' }]);
+    // A word that counts itself is shown as "two times", not with its own noun in front.
+    expect(back({ Entry: 'ครั้ง', Classifier: 'ครั้ง' }).find((b) => b.role === 'counting')?.rows?.map((r) => r.value)).toEqual(['สองครั้ง']);
     expect(back({ Entry: 'โรงพยาบาล', Classifier: 'แห่ง' }).some((b) => b.role === 'grammar')).toBe(false);
     // Several counting words each get a line; the other forms stay in the Grammar box.
     const several = back({ Classifier: 'ตัว, คัน', Plural: 'x' });
