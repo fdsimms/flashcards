@@ -4,11 +4,11 @@ import type { Card, Note } from './types';
 export const SKILL_TAG = 'skill';
 
 /**
- * Skill cards are practice for a skill, not words, so they sit outside the words' daily limits: they use no
- * new or review room, add nothing to today's studied counts, aren't counted by a progress gate or as
- * unstudied words, and a gate or a full limit never holds one back. The one limit that does hold new
- * skill cards is a count of their own against each deck's daily new limit (`StudiedToday.skillIntroduced`),
- * so a skills subdeck can't offer its parent more new cards than the parent's limit. Every one of those reads this.
+ * Skill cards are practice for a skill, not words, so their reviews sit outside the daily limits: a review
+ * uses no room and adds nothing to today's studied counts, and a progress gate doesn't count them as in
+ * progress or as unstudied words. A new skill card is the exception: it shares the deck's new-card limit
+ * and counts as introduced, so a skills subdeck can't offer its parent more new cards than that limit.
+ * Every one of those reads this.
  */
 export const isSkillNote = (note: Pick<Note, 'tags'>): boolean => note.tags.includes(SKILL_TAG);
 

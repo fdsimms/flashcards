@@ -95,10 +95,10 @@ export function studiedKind(card: Card, dayStartsAtHour: number): 'new' | 'revie
  * one; Anki logs it as filtered, type 3, writeback.ts's `revlogEntry`, and counts it in the
  * filtered deck alone, which has no limits), else `studiedKind`.
  */
-export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, preview: boolean, skill = false): 'new' | 'review' | 'skillNew' | null {
-  // A skill card uses none of the words' room (`isSkillNote`); only its first answer is counted, apart, against its own new count.
+export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, preview: boolean, skill = false): 'new' | 'review' | null {
+  // A skill card's review uses no room (`isSkillNote`); its first answer uses new room like any new card's.
   if (preview) return null;
-  if (skill) return studiedKind(card, dayStartsAtHour) === 'new' ? 'skillNew' : null;
+  if (skill) return studiedKind(card, dayStartsAtHour) === 'new' ? 'new' : null;
   if (card.sched.state === 2 && studyDayKey(new Date(card.sched.due), dayStartsAtHour) > studyDayKey(now, dayStartsAtHour)) return null;
   return studiedKind(card, dayStartsAtHour);
 }
@@ -170,8 +170,6 @@ export interface StudiedToday {
   introduced: number;
   /** Answers given to cards in the Review state. */
   reviewed: number;
-  /** New skill cards answered for the first time: counted apart, against the same daily new limit (`isSkillNote`). Absent when none. */
-  skillIntroduced?: number;
 }
 
 /**
@@ -189,7 +187,7 @@ export function studiedToday(input: {
   const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
   // The deck each card is studied in (deckTree.ts's cardDeck): an answer in a filtered deck counts there, as in Anki.
   const deckOf = new Map(input.cards.map((c) => [c.id, c.filteredDeck ?? c.deck ?? deckOfNote.get(c.noteId)]));
-  // Skill cards use no limits (`isSkillNote`).
+  // A skill card's reviews use no limits; its first answer counts as introduced (`isSkillNote`).
   const skillCards = skillCardIds(input.notes, input.cards);
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
@@ -201,11 +199,8 @@ export function studiedToday(input: {
     const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
-    if (skillCards.has(a.cardId)) {
-      // A skill card uses none of the words' room; its first answers have a count of their own.
-      if (!a.wasNew) continue;
-      s.skillIntroduced = (s.skillIntroduced ?? 0) + 1;
-    } else if (a.wasNew) {
+    if (skillCards.has(a.cardId) && !a.wasNew) continue; // a skill card's reviews use no room (`isSkillNote`)
+    if (a.wasNew) {
       // Each time, as Anki's deck counter goes up: a card reset to new (Forget) and studied again
       // the same day is introduced twice, as the session counted it.
       s.introduced++;

@@ -29,17 +29,15 @@ export function answerTimeMs(shownForMs: number, params: Pick<DeckParams, 'maxAn
 export function bumpStudied(
   studied: Map<string, StudiedToday>,
   deck: string,
-  kind: 'new' | 'review' | 'skillNew' | null,
+  kind: 'new' | 'review' | null,
   delta: 1 | -1,
 ): Map<string, StudiedToday> {
   if (!kind) return studied;
   const out = new Map(studied);
   const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
-  const skillIntroduced = Math.max(0, (s.skillIntroduced ?? 0) + (kind === 'skillNew' ? delta : 0));
   out.set(deck, {
     introduced: Math.max(0, s.introduced + (kind === 'new' ? delta : 0)),
     reviewed: Math.max(0, s.reviewed + (kind === 'review' ? delta : 0)),
-    ...(skillIntroduced ? { skillIntroduced } : {}),
   });
   return out;
 }
@@ -66,7 +64,7 @@ export interface AnswerRecord {
   /** An answer in a filtered deck that only previews. */
   preview?: boolean;
   /** What the answer used of today's limits (`answerCounts`), worked out once, so undo takes back the same. */
-  counts: 'new' | 'review' | 'skillNew' | null;
+  counts: 'new' | 'review' | null;
   /** What went wrong, chosen from Again's menu (misses.ts), for the session end's list of misses. */
   miss?: string;
 }
