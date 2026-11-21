@@ -441,6 +441,10 @@ export type DifficultyLevel = 'harder' | 'standard' | 'easier';
 
 // Finished texts over the last `days` days (what the Milestone 1 exit check reads), and the
 // difficulty new texts are written at.
+// Time spent in each language over the last `days` (server store.input_time), most first: texts read, texts played with
+// their words hidden, and lessons played to the end. It only reports.
+export type InputTime = { days: number; languages: { language: Language; reading_seconds: number; listening_seconds: number; last_read_at: string | null }[] };
+
 export type Progress = {
   days: number;
   finished: number;
@@ -615,6 +619,7 @@ export function createApi(
     addTopic: (name: string) => call<Topic>('POST', '/api/topics', { name }),
     suggestions: () => call<Suggestion[]>('GET', '/api/suggestions'),
     progress: () => call<Progress>('GET', '/api/progress'),
+    inputTime: () => call<InputTime>('GET', '/api/input-time'),
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
     drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),

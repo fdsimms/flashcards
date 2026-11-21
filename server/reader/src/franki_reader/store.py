@@ -1595,6 +1595,46 @@ def progress(conn: sqlite3.Connection, since: datetime, language: Code = "th") -
 
 
 @dataclass(frozen=True)
+class InputTime:
+    """How long one language was read and listened to since a date, in seconds, and when a text of
+    it was last read to the end (naive UTC), ever."""
+
+    language: str
+    reading_seconds: int
+    listening_seconds: int
+    last_read_at: datetime | None
+
+
+def input_time(conn: sqlite3.Connection, since: datetime) -> list[InputTime]:
+    """Each language's time since `since`, for every language with a text ever read: reading is the
+    time logged on texts read (`readings.seconds`), listening the time on texts played with their
+    words hidden (`listen_only`) plus the length of each audio lesson played to the end
+    (`lessons.heard_at`). A text heard again (`listens`) has no time kept, so it isn't counted.
+    Only reports: nothing reads it to steer a text or grade a card."""
+    times: dict[str, list[int]] = {}
+    last: dict[str, datetime] = {}
+    for language, seconds, listen_only, logged_at, finished in conn.execute(
+        """SELECT x.language, r.seconds, r.listen_only, r.logged_at, r.finished
+           FROM readings r JOIN texts x ON x.id = r.text_id"""
+    ):
+        at = datetime.fromisoformat(logged_at)
+        entry = times.setdefault(language, [0, 0])
+        if at >= since:
+            entry[1 if listen_only else 0] += int(seconds)
+        if finished and (language not in last or at > last[language]):
+            last[language] = at
+    for language, duration_ms in conn.execute(
+        "SELECT language, duration_ms FROM lessons WHERE heard_at IS NOT NULL AND heard_at >= ?",
+        (since.isoformat(),),
+    ):
+        times.setdefault(language, [0, 0])[1] += int(duration_ms) // 1000
+    return [
+        InputTime(language, reading, listening, last.get(language))
+        for language, (reading, listening) in times.items()
+    ]
+
+
+@dataclass(frozen=True)
 class Spending:
     """What texts cost Claude since a date. Every text written counts: a dropped one (it missed the
     floor and was never served) cost as much as any other."""
