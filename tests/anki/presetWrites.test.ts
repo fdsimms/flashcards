@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readDeckConfig } from '../../src/anki/collection';
 import { decodeMessage, uint } from '../../src/anki/protobuf';
-import { setAnkiNewMix } from '../../src/anki/presetWrites';
+import { readAnkiPreset, setAnkiNewMix, setAnkiPresetOptions } from '../../src/anki/presetWrites';
+import { deckConfigJson } from '../../src/anki/sync/deckConfigRow';
 import { nodeSyncDb } from '../support/syncDb';
 
 const FIXTURE = join(__dirname, '..', 'fixtures', 'anki', 'collection.anki2');
@@ -56,6 +57,51 @@ describe("a preset's new card order in the kept collection", () => {
   it('is false for a preset Anki does not have', async () => {
     const db = await kept();
     expect(await setAnkiNewMix(db, 12345, 1, NOW)).toBe(false);
+    db.close();
+  });
+});
+
+describe("a preset's limits, steps, maximum interval and retention in the kept collection", () => {
+  const THAI = 1794408857993;
+
+  it('reads the options and every deck on the preset, with the values a deck keeps for itself', async () => {
+    const db = await kept();
+    const def = (await readAnkiPreset(db, 1))!;
+    expect(def.name).toBe('Default');
+    expect(def.options).toMatchObject({ learnSteps: [1, 10], relearnSteps: [10], maxInterval: 36500, desiredRetention: 0.9 });
+    expect(def.decks.map((d) => d.name)).toEqual(['👅 Languages', '🧠 Trivia']);
+    expect(def.decks.find((d) => d.name === '🧠 Trivia')!.own).toEqual({ newPerDay: 3 });
+    expect((await readAnkiPreset(db, THAI))!.decks.map((d) => d.name)).toEqual(['👅 Languages::🐘 ภาษาไทย']);
+    expect(await readAnkiPreset(db, 12345)).toBeNull();
+    db.close();
+  });
+
+  it('writes what changed as Anki keeps it, marks the preset unsent, and keeps every other setting', async () => {
+    const db = await kept();
+    const before = await preset(db);
+    const options = { newPerDay: 15, reviewsPerDay: 150, learnSteps: [1, 10, 60], relearnSteps: [], maxInterval: 365, desiredRetention: 0.85 };
+    expect(await setAnkiPresetOptions(db, before.id, options, NOW)).toBe(true);
+    const after = await preset(db);
+    expect(readDeckConfig(after.config)).toEqual({ ...readDeckConfig(before.config), ...options });
+    expect(after).toMatchObject({ usn: -1, mtime_secs: Math.floor(NOW.getTime() / 1000) });
+    expect((await readAnkiPreset(db, before.id))!.options).toEqual(options);
+    // What sync sends (Anki's own JSON) carries the new values.
+    const json = deckConfigJson({ id: after.id, name: 'Default', mtime: after.mtime_secs, usn: -1, config: after.config });
+    expect(json).toMatchObject({ new: { perDay: 15, delays: [1, 10, 60] }, rev: { perDay: 150, maxIvl: 365 }, lapse: { delays: [] } });
+    expect(json.desiredRetention).toBeCloseTo(0.85, 5);
+    // Fields Franki didn't change are as Anki wrote them, in the same order.
+    const changed = new Set([1, 2, 9, 10, 16, 37]);
+    const fields = (b: Uint8Array) => [...decodeMessage(b)].filter(([n]) => !changed.has(n)).map(([n, f]) => [n, f.map((x) => String(x.value))]);
+    expect(fields(after.config)).toEqual(fields(before.config));
+    db.close();
+  });
+
+  it('changes nothing when the options are already set, and is false for a preset Anki does not have', async () => {
+    const db = await kept();
+    const { id } = await preset(db);
+    expect(await setAnkiPresetOptions(db, id, (await readAnkiPreset(db, id))!.options, NOW)).toBe(true);
+    expect(await preset(db)).toMatchObject({ usn: 0 });
+    expect(await setAnkiPresetOptions(db, 12345, (await readAnkiPreset(db, id))!.options, NOW)).toBe(false);
     db.close();
   });
 });

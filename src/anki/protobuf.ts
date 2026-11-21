@@ -181,12 +181,21 @@ export function withField(bytes: Uint8Array, num: number, value: Uint8Array | nu
  * message.
  */
 export function withUint(bytes: Uint8Array, num: number, value: number): Uint8Array {
+  return withFields(bytes, { [num]: value ? [{ wire: 0, value: BigInt(value) }] : [] });
+}
+
+/**
+ * A message with the given fields replaced (an empty list removes one, as proto3 leaves a default
+ * out) and every other field kept as it was, written in field-number order as prost writes a
+ * message.
+ */
+export function withFields(bytes: Uint8Array, set: Record<number, Field[]>): Uint8Array {
   const fields: [number, Field][] = [];
   for (const [n, list] of decodeMessage(bytes)) {
-    if (n === num) continue;
+    if (n in set) continue;
     for (const f of list) fields.push([n, f]);
   }
-  if (value) fields.push([num, { wire: 0, value: BigInt(value) }]);
+  for (const [n, list] of Object.entries(set)) for (const f of list) fields.push([Number(n), f]);
   fields.sort((a, b) => a[0] - b[0]);
   const w = new MessageWriter();
   for (const [n, f] of fields) {
@@ -195,6 +204,16 @@ export function withUint(bytes: Uint8Array, num: number, value: number): Uint8Ar
     else w.fixed(n, f.wire, f.value);
   }
   return w.finish();
+}
+
+/** A float field's value, as `withFields` takes it (wire 5, little-endian float32). */
+export function floatField(value: number): Field {
+  return { wire: 5, value: Uint8Array.from(f32Bytes(value)) };
+}
+
+/** A repeated float's values, packed as proto3 writes them, as `withFields` takes it. */
+export function packedFloatsField(values: number[]): Field {
+  return { wire: 2, value: Uint8Array.from(values.flatMap(f32Bytes)) };
 }
 
 // fflate's pure-JS UTF-8 rather than TextDecoder, which Hermes may not have.

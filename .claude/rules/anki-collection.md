@@ -82,7 +82,8 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   when the collation is registered. Without it (a build made before the module) a sync still updates
   an existing deck in place and otherwise finishes, so Franki's answers reach the server, then
   downloads the whole collection (`downloadNeeded`). The live test runs both ways.
-- **A preset changed in Franki (`presetWrites.ts`: the new card order) is written into the kept collection
+- **A preset changed in Franki (`presetWrites.ts`: the new card order, and Anki options' limits, steps,
+  maximum interval and retention) is written into the kept collection
   as Anki writes one** (`config` edited in place, `mtime_secs`, usn -1, the collection's modified stamp)
   and sent in `applyChanges` as the JSON Anki's own client sends (`deckConfigJson`, the inverse of
   `deckConfigRow`, checked against presets Anki wrote). Franki changes no note type, so a note type
