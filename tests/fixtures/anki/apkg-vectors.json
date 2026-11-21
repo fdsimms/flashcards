@@ -1,0 +1,75 @@
+{
+ "notes": 10,
+ "cards": 13,
+ "newGuids": [
+  "CP5&=sNVBU",
+  "k3+?c^qIO8",
+  "wnyp]pLbWI"
+ ],
+ "cards_of_new_notes": [
+  {
+   "guid": "CP5&=sNVBU",
+   "ord": 0,
+   "deck": "🧠 Trivia",
+   "type": 0,
+   "queue": 0,
+   "due": 10,
+   "ivl": 0,
+   "reps": 0,
+   "lapses": 0,
+   "left": 0,
+   "revlog": 0
+  },
+  {
+   "guid": "k3+?c^qIO8",
+   "ord": 0,
+   "deck": "🧠 Trivia::Geography",
+   "type": 2,
+   "queue": 2,
+   "due": 12,
+   "ivl": 2,
+   "reps": 2,
+   "lapses": 0,
+   "left": 0,
+   "revlog": 2
+  },
+  {
+   "guid": "wnyp]pLbWI",
+   "ord": 0,
+   "deck": "🧠 Trivia::Geography",
+   "type": 1,
+   "queue": 1,
+   "due": 1795234168,
+   "ivl": 0,
+   "reps": 1,
+   "lapses": 0,
+   "left": 2,
+   "revlog": 1
+  }
+ ],
+ "media": [
+  "flag.svg",
+  "hello.mp3",
+  "lima.jpg",
+  "unused.png"
+ ],
+ "revlog": 9,
+ "decks": [
+  "Default",
+  "Filtered Deck 1",
+  "👅 Languages",
+  "👅 Languages::🐘 ภาษาไทย",
+  "🧠 Trivia",
+  "🧠 Trivia::Geography"
+ ],
+ "noteTypes": [
+  "Basic",
+  "Basic (and reversed card)",
+  "Basic (optional reversed card)",
+  "Basic (type in the answer)",
+  "Cloze",
+  "Image Occlusion",
+  "Vocab"
+ ],
+ "nextPos": 8
+}

@@ -142,8 +142,8 @@ effort:low.
 **Plain, literal terms.** Say what a setting or button does, the way the rest of the app talks. No
 jokey metaphors or cutesy voice. Read each line aloud and rewrite it if nobody would say it that way.
 
-**An error says what happened, then what to do.** "Couldn't import deck.apkg. Anki package files
-can't be read yet. In Anki, export as..." rather than "failed: <exception>". Buttons name the action.
+**An error says what happened, then what to do.** "Couldn't import deck.apkg. It was exported with
+"Support older Anki versions" turned on. Export it again..." rather than "failed: <exception>". Buttons name the action.
 Screens build it with `failureText` (`src/core/failure.ts`): an error written for a person extends
 `Refusal` and is shown as it is; any other error's text goes last, in parentheses.
 `tests/noRawErrors.test.ts` fails the build on a screen showing an error's text another way.

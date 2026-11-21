@@ -69,7 +69,7 @@ async function nextId(db: SyncDb, table: 'notes' | 'cards', ms: number): Promise
  * space at each end. With the collation, a tag the collection already has takes its case there,
  * and a new one is registered (unsent).
  */
-async function canonicalTags(db: SyncDb, tags: string[], collated: boolean): Promise<string> {
+export async function canonicalTags(db: SyncDb, tags: string[], collated: boolean): Promise<string> {
   const seen = new Map<string, string>();
   for (const raw of tags) {
     const tag = raw.trim().replace(/\s+/g, '_');

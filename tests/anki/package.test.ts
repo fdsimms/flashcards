@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
 import { readPackage, writePackage } from '../../src/anki/package';
-import { decodeMediaList, encodeMediaList, encodeMeta, packageVersion } from '../../src/anki/packageFormat';
+import { decodeMediaEntries, encodeMediaList, encodeMeta, packageVersion } from '../../src/anki/packageFormat';
 import { readCollectionRows } from '../support/ankiRows';
 import { bytesSource, fileSource, memorySink, writeBytes } from '../support/bytes';
 
@@ -28,10 +28,10 @@ describe('package format', () => {
     expect(packageVersion(encodeMeta(), [])).toBe(3);
     expect(packageVersion(undefined, ['collection.anki21', 'media'])).toBe(2);
   });
-  it('round-trips the media list', () => {
+  it('round-trips the media list, with each file\'s SHA-1', () => {
     const sha1 = new Uint8Array(20).fill(7);
     const raw = encodeMediaList([{ name: 'flag.svg', size: 3, sha1 }, { name: 'ä.mp3', size: 1, sha1 }]);
-    expect(decodeMediaList(raw, 3)).toEqual(['flag.svg', 'ä.mp3']);
+    expect(decodeMediaEntries(raw, 3)).toEqual([{ name: 'flag.svg', sha1: '07'.repeat(20) }, { name: 'ä.mp3', sha1: '07'.repeat(20) }]);
   });
 });
 
