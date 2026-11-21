@@ -337,6 +337,28 @@ export function studyAnswer(study: Study, correct: boolean, at: Date, random: ()
 }
 
 /**
+ * Whether the item of the current question has its other question (`credit`) still waiting, as a
+ * separate question further back in the queue.
+ */
+export function canCredit(s: Session, credit: 'meaning' | 'reading'): boolean {
+  const q = s.queue[0];
+  return !!q && q.kind !== 'lesson' && q.kind !== 'both' && q.kind !== credit && s.queue.some((x, i) => i > 0 && x.assignmentId === q.assignmentId && x.kind === credit);
+}
+
+/**
+ * Counts the item's other question as answered right, for a learner who typed its answer into this
+ * question's box. The current question stays up. It isn't an answer, so nothing is sent or kept for undo.
+ */
+export function studyCredit(study: Study, credit: 'meaning' | 'reading'): Study {
+  const s = study.session;
+  if (!canCredit(s, credit)) return study;
+  const id = s.queue[0].assignmentId;
+  const at = s.queue.findIndex((x, i) => i > 0 && x.assignmentId === id && x.kind === credit);
+  const queue = s.queue.filter((_, i) => i !== at);
+  return { ...study, session: { ...s, queue, progress: { ...s.progress, [id]: { ...s.progress[id], [credit]: true } } } };
+}
+
+/**
  * Asks the current question later. It isn't an answer, so nothing is sent and it isn't kept for
  * undo: undo goes back to before the last answer, which also puts the question back where it was.
  */

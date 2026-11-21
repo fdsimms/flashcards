@@ -14,7 +14,7 @@ import { droppedText, lessonsToday } from '../wanikani/prefs';
 import { audioFileName, audioFor } from '../wanikani/production';
 import {
   buildSession, canAskLater, canMarkCorrect, canSaveMeaning, canUndo, currentQuestion, isTyped, questionMode, remaining, sessionItems, sessionProgress, startStudy, type TypedKinds,
-  dropItem, missedItems, studyAnswer, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
+  canCredit, dropItem, missedItems, studyAnswer, studyCredit, studyAskLater, studyFlush, studyUndo, wrongSoFar, type Study,
 } from '../wanikani/session';
 import { nextStage, outcomeText, stageChange, type StageChange } from '../wanikani/srs';
 import { stackSlots } from '../wanikani/stagePopups';
@@ -364,8 +364,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       setRetry(question.kind === 'reading' ? 'Type the reading, then press Check.' : 'Type the meaning, then press Check.');
       return;
     }
-    const v = question.kind === 'reading' ? checkReading(subject, typed) : checkMeaning(subject, synonyms.get(subject.id) ?? [], typed);
+    const own = synonyms.get(subject.id) ?? [];
+    const v = question.kind === 'reading' ? checkReading(subject, typed, own) : checkMeaning(subject, own, typed);
     if (v.result === 'retry') {
+      // The right answer to the item's other question, typed in this box: that question counts as answered
+      // when it is still waiting, and this one stays up.
+      if (study && v.credit && canCredit(study.session, v.credit)) {
+        setStudy(studyCredit(study, v.credit));
+        setTyped('');
+        setRetry(v.credit === 'reading' ? 'Counted as the reading. Now type the meaning.' : 'Counted as the meaning. Now type the reading.');
+        return;
+      }
       setRetry(v.message);
       return;
     }

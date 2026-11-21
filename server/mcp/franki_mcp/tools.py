@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
+from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
 from .speech import (
@@ -58,6 +59,12 @@ MATURE_DAYS = 21
 # value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
 PROGRESS_GATES_KEY = "frankiProgressGates"
 MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
+# The Azure voice each language's new notes are recorded with: a collection config value mapping a
+# language code ("th") to {voice, rate, locale}. The app writes it when an Azure voice is chosen in
+# Settings > Voices (`AUDIO_VOICES_KEY` in src/anki/audioVoices.ts), and `set_audio_voice` writes it too,
+# so a new note is recorded the same wherever it's added. Kept in the collection because the phone's own
+# Voices choice is stored on the phone, where the MCP can't read it.
+AUDIO_VOICES_KEY = "frankiAudioVoices"
 # Franki's "Flag for an agent" (src/core/agentFlag.ts): the purple flag on a card, a flag::<reason> tag on its
 # note and, when the user typed one, a flagnote::<hex> tag with their note (its UTF-8 bytes in lowercase hex,
 # since a tag can't hold a space and Anki merges tags that differ only by case).
@@ -391,7 +398,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.read(run)
 
     @server.tool(annotations=WRITE)
-    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False, allow_nonstandard: bool = False) -> dict[str, Any]:
+    async def add_notes(notes: list[NewNote], allow_duplicates: bool = False, allow_nonstandard: bool = False,
+                        record_audio: bool = True) -> dict[str, Any]:
         """Adds notes (up to 100 a call) with their cards, as Anki's Add window would. A note whose
         first field matches another note of its type is refused unless allow_duplicates is true;
         one that would make no cards is refused too. Each result has the new note id or the reason
@@ -402,7 +410,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         note carries and this one lacks is listed in `still_to_fill`, and a note that breaks a rule
         is refused with what to change. A Sense that only repeats the Meaning is saved, with the reason
         in `to_review`. allow_nonstandard skips that check, for a deliberate
-        exception the user asked for."""
+        exception the user asked for.
+
+        An Omnilanguage note with an empty Audio is recorded as it's added, as Franki does for a note
+        saved on the phone, when a voice is saved for its Language (set_audio_voice). Each result
+        then has `audio` (the file) or `audio_error`; the note is added either way. Pass
+        record_audio=false to add notes with no recording."""
         if len(notes) > MAX_NOTES_PER_CALL:
             raise ToolError(f"Up to {MAX_NOTES_PER_CALL} notes a call; send the rest in another.")
 
@@ -439,7 +452,60 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     results.append({"index": i, "error": f"Anki refused it: {e}"})
             return {"added": sum(1 for r in results if "note_id" in r), "results": results}
 
-        return await cm.write(run)
+        added = await cm.write(run)
+        if record_audio:
+            await record_new_audio(added["results"])
+        return added
+
+    async def record_new_audio(results: list[dict[str, Any]]) -> None:
+        """Records the Entry of each note just added that has no Audio, with the voice saved for its
+        Language, by the same path as add_tts_audio. A failure is set on the note's result as
+        `audio_error`: the note is already added, and a missing recording is fixed by recording it."""
+        rows = [r for r in results if "note_id" in r]
+        if not rows:
+            return
+
+        def survey(col: Collection) -> tuple[dict[str, Any], dict[int, str]]:
+            voices = col.get_config(AUDIO_VOICES_KEY, {}) or {}
+            languages: dict[int, str] = {}
+            for r in rows:
+                note = _get_note(col, r["note_id"])
+                if note.note_type()["name"] != omnilanguage.NOTE_TYPE or "Audio" not in note or "Language" not in note:
+                    continue
+                if SOUND.search(note["Audio"]):
+                    continue
+                languages[r["note_id"]] = LANGUAGE_CODES.get(_text(col, note["Language"]).strip().lower(), "")
+            return voices, languages
+
+        voices, languages = await cm.read(survey)
+        groups: dict[tuple[str, float, str | None], list[dict[str, Any]]] = {}
+        for r in rows:
+            setting = voices.get(languages.get(r["note_id"], ""))
+            if not isinstance(setting, dict) or not setting.get("voice"):
+                continue
+            key = (str(setting["voice"]), float(setting.get("rate", 1.0)), setting.get("locale"))
+            groups.setdefault(key, []).append(r)
+        for (voice, rate, locale), group in groups.items():
+            for i in range(0, len(group), MAX_AUDIO_NOTES_PER_CALL):
+                chunk = group[i : i + MAX_AUDIO_NOTES_PER_CALL]
+                try:
+                    done = await add_tts_audio(
+                        note_ids=[r["note_id"] for r in chunk], source_fields=["Entry"], target_field="Audio",
+                        voice=voice, rate=rate, language=locale,
+                    )
+                except Exception as e:  # noqa: BLE001 - Azure or the sync out of reach: the notes stay added
+                    for r in chunk:
+                        r["audio_error"] = str(e) or "Recording failed."
+                    continue
+                by_id = {x["note_id"]: x for x in done["results"]}
+                for r in chunk:
+                    x = by_id.get(r["note_id"], {})
+                    if "audio" in x:
+                        r["audio"] = x["audio"]
+                    elif "error" in x:
+                        r["audio_error"] = x["error"]
+                    if "warning" in x:
+                        r["audio_warning"] = x["warning"]
 
     @server.tool(annotations=WRITE)
     async def update_notes(updates: list[NoteUpdate], allow_nonstandard: bool = False) -> dict[str, Any]:
@@ -1365,6 +1431,47 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
         results = await cm.write(save, media=True)
         return {"added": sum(1 for r in results if "audio" in r), "results": results}
+
+    @server.tool(annotations=READ)
+    async def audio_voices() -> dict[str, Any]:
+        """The voice saved for each language (set_audio_voice): add_notes records a new Omnilanguage
+        note's Entry with it. Empty when none is set."""
+        return {"audio_voices": await cm.read(lambda col: col.get_config(AUDIO_VOICES_KEY, {}) or {})}
+
+    @server.tool(annotations=WRITE)
+    async def set_audio_voice(language: str, voice: str | None = None, rate: float = 1.0, locale: str | None = None) -> dict[str, Any]:
+        """Saves the Azure voice that add_notes records a language's new notes with (`language` is the
+        notes' Language field, e.g. "thai", or its code, "th"). Pass no voice to remove it, so that language's new
+        notes get no recording. `rate` is the speed (0.5 to 2.0, 1 is normal); `locale` ("th-TH") only
+        for a Multilingual voice, as in add_tts_audio. Choose the voice with list_voices, and use the
+        one Franki's Settings, Voices has for the language so its cards sound alike. It applies to
+        notes added from now on; record the older ones with add_tts_audio."""
+        named = language.strip().lower()
+        key = LANGUAGE_CODES.get(named) or (named if named in LANGUAGE_CODES.values() else "")
+        if not key:
+            raise ToolError("Say which language: the notes' Language field (thai) or its code (th).")
+        setting: dict[str, Any] | None = None
+        if voice is not None:
+            if not 0.5 <= rate <= 2.0:
+                raise ToolError("rate must be between 0.5 and 2.0.")
+            try:
+                locale_of(voice)
+                setting = {"voice": voice, "rate": rate}
+                if locale is not None:
+                    setting["locale"] = text_locale(locale)
+            except SpeechError as e:
+                raise ToolError(str(e)) from e
+
+        def save(col: Collection) -> dict[str, Any]:
+            voices = dict(col.get_config(AUDIO_VOICES_KEY, {}) or {})
+            if setting is None:
+                voices.pop(key, None)
+            else:
+                voices[key] = setting
+            col.set_config(AUDIO_VOICES_KEY, voices)
+            return voices
+
+        return {"audio_voices": await cm.write(save)}
 
     @server.tool(annotations=WRITE)
     async def normalize_audio(

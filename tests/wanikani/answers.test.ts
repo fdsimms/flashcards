@@ -75,6 +75,15 @@ describe('meanings', () => {
     expect(checkMeaning(vocab, [], '  ').result).toBe('retry');
   });
 
+  it('asks again for the reading typed in romaji as a meaning, but not for an English word', () => {
+    expect(checkMeaning(vocab, [], 'otona')).toMatchObject({ result: 'retry', credit: 'reading' });
+    expect(checkMeaning(vocab, [], 'おとな')).toMatchObject({ result: 'retry', credit: 'reading' });
+    expect(checkMeaning(vocab, [], 'ねこ')).toEqual({ result: 'retry', message: expect.any(String) });
+    expect(checkMeaning(vocab, [], ' Otona ').result).toBe('retry');
+    expect(checkMeaning(vocab, [], 'adult')).toEqual({ result: 'correct' });
+    expect(checkMeaning(vocab, [], 'child')).toEqual({ result: 'wrong' });
+  });
+
   it('measures typos', () => {
     expect(levenshtein('kitten', 'sitting')).toBe(3);
     expect(levenshtein('', 'abc')).toBe(3);
@@ -111,5 +120,13 @@ describe('readings', () => {
   it('asks again for something that is not kana', () => {
     expect(checkReading(vocab, 'adult').result).toBe('retry');
     expect(checkReading(vocab, '').result).toBe('retry');
+  });
+
+  it('says when the meaning was typed for the reading, but only for a right, accepted one', () => {
+    expect(checkReading(vocab, 'adult')).toMatchObject({ result: 'retry', credit: 'meaning' });
+    expect(checkReading(vocab, 'Grown-up')).toMatchObject({ result: 'retry', credit: 'meaning' });
+    expect(checkReading(vocab, 'big kid', ['big kid'])).toMatchObject({ credit: 'meaning' });
+    expect(checkReading(vocab, 'adlt')).not.toHaveProperty('credit');
+    expect(checkReading(vocab, 'child')).not.toHaveProperty('credit');
   });
 });

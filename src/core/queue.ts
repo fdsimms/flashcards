@@ -1,4 +1,5 @@
 import { nextStudyDayStart, studyDayKey, studyDayStart } from './day';
+import { skillCardIds } from './skillTag';
 import { answersFrom, type RevlogRow } from './stats';
 import type { BurySettings, Card, Note, ReviewLogEntry } from './types';
 
@@ -94,8 +95,9 @@ export function studiedKind(card: Card, dayStartsAtHour: number): 'new' | 'revie
  * one; Anki logs it as filtered, type 3, writeback.ts's `revlogEntry`, and counts it in the
  * filtered deck alone, which has no limits), else `studiedKind`.
  */
-export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, preview: boolean): 'new' | 'review' | null {
-  if (preview) return null;
+export function answerCounts(card: Card, now: Date, dayStartsAtHour: number, preview: boolean, skill = false): 'new' | 'review' | null {
+  // A skill card is outside the limits (`isSkillNote`), as `studiedToday` leaves its answers out.
+  if (preview || skill) return null;
   if (card.sched.state === 2 && studyDayKey(new Date(card.sched.due), dayStartsAtHour) > studyDayKey(now, dayStartsAtHour)) return null;
   return studiedKind(card, dayStartsAtHour);
 }
@@ -184,12 +186,14 @@ export function studiedToday(input: {
   const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
   // The deck each card is studied in (deckTree.ts's cardDeck): an answer in a filtered deck counts there, as in Anki.
   const deckOf = new Map(input.cards.map((c) => [c.id, c.filteredDeck ?? c.deck ?? deckOfNote.get(c.noteId)]));
+  // Skill cards use no limits (`isSkillNote`).
+  const skillCards = skillCardIds(input.notes, input.cards);
   const out = new Map<string, StudiedToday>();
   for (const a of answersFrom(input)) {
     if (a.at.getTime() < start) continue;
     // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
     // is, 50 previews took 50 off the home deck's review room.
-    if (a.preview) continue;
+    if (a.preview || skillCards.has(a.cardId)) continue;
     // Where it was answered, when that was a filtered deck the card has since left (`Answer.deck`).
     const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
