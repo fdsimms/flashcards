@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { approvalDraft, bannerOf, counts, firstReady, needsChoice, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
+import { approvalDraft, bannerOf, counts, firstReady, needsChoice, queuedFor, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
@@ -45,6 +45,15 @@ describe('the queue', () => {
 
   it('never lets a written field replace the entry', () => {
     expect(reviewTarget(note({ fields: { Entry: 'other' } })).fields.Entry).toBe('other');
+  });
+});
+
+describe('queuedFor', () => {
+  it("finds a cram request's note by the text sent, a ready one first, and nothing for a word not queued", () => {
+    const items = [note({ id: 1, entry: 'เนิน', state: 'waiting' }), note({ id: 2, entry: 'เขา', state: 'failed' }), note({ id: 3, entry: 'เขา' })];
+    expect(queuedFor(items, 'เขา')?.id).toBe(3);
+    expect(queuedFor(items, 'เนิน')?.state).toBe('waiting');
+    expect(queuedFor(items, 'ภูเขา')).toBeUndefined();
   });
 });
 

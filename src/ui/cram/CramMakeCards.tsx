@@ -114,7 +114,7 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
           <Button label={chosen.length === 1 ? 'Make 1 card' : `Make ${chosen.length} cards`} onPress={make} busy={busy} disabled={!chosen.length || looking} />
-          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Claude writes them. Approve them from the card on Today and they join the cram.</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Claude writes them. Approve them on the cram's page and they join it.</Text>
         </>
       )}
     >
