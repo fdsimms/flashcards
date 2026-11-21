@@ -1,4 +1,4 @@
-import { examplesOf } from './examples';
+import { examplesOf, sourceOf } from './examples';
 import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './gender';
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
@@ -232,6 +232,13 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     const meta = [t(note, 'PartOfSpeech'), GENDER_WORDS[gender.toLowerCase()] ?? gender, register.toLowerCase() === 'neutral' ? '' : register, t(note, 'Dialect')]
       .filter(Boolean);
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta, gender: genderOf(gender) });
+    // The line the word was met in (a game, a show), first after the chips: the strongest hook for the word. It is laid
+    // out as an example is, its translation behind the same tap, under "From" and the title instead of "Example".
+    const source = sourceOf(note);
+    if (source) {
+      pushIf(b, htmlToText(source.line), undefined, undefined, undefined, { role: 'example', segments: fieldSegments(source.line, entry), source: source.where });
+      pushIf(b, htmlToText(source.translation), undefined, undefined, 'Show translation', { role: 'exampleTranslation' });
+    }
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
     pushIf(b, counting.map((w) => countedExample(t(note, 'Entry'), w)).join('\n'), 'Counting', undefined, undefined,

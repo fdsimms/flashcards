@@ -1,6 +1,25 @@
 import { htmlToText } from './html';
 import type { Note } from './types';
 
+/**
+ * Where the learner met the word (a game, a show, a book), from the Source field: the line as it was
+ * shown or said, its translation, and the title, one to a line. The title is always the last line and
+ * the translation the one between, so a note of a language with no translation (the English deck) is
+ * two lines. Null when the field is empty.
+ */
+export interface Source {
+  line: string;
+  translation: string;
+  where: string;
+}
+
+export function sourceOf(note: Note): Source | null {
+  const lines = fieldLines(note.fields.Source).filter((l) => htmlToText(l));
+  if (!lines.length) return null;
+  if (lines.length === 1) return { line: lines[0], translation: '', where: '' };
+  return { line: lines[0], translation: lines.length > 2 ? lines.slice(1, -1).join(' ') : '', where: htmlToText(lines[lines.length - 1]) };
+}
+
 /** One example sentence of a note, each part as the note's HTML (the caller turns it into text or segments). */
 export interface Example {
   context: string;

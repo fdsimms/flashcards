@@ -229,6 +229,36 @@ def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
     assert {p.field for p in o.problems(masculine) if p.level == "gap"} == {"Genitive"}
 
 
+def test_a_source_tag_is_the_title_in_lowercase_words_joined_by_hyphens():
+    assert o.source_tag("The Last_Train") == "source::the-last-train"
+    assert o.source_tag("deep::down  -- here") == "source::deep-down-here"
+    assert rules(GERMAN_NOUN, ["source::the-last-train", "travel"]) == set()
+    assert rules(GERMAN_NOUN, ["Source::The_Last_Train"]) == {"source-tag"}
+    # Each one is fixed and the other tags kept, in order.
+    fixed = o.fix(GERMAN_NOUN, ["travel", "source::Night_Bus", "SOURCE::Big-Game"])
+    assert fixed.tags == ["travel", "source::night-bus", "source::big-game"]
+    # A tag that only starts with the word isn't one.
+    assert rules(GERMAN_NOUN, ["sourcebook::Rare_Words"]) == set()
+
+
+def test_a_source_is_the_line_its_translation_and_where_with_the_word_in_bold():
+    line = "Hast du die <b>Einstellungen</b> gesehen? — Nein!"
+    good = {**GERMAN_NOUN, "Source": f"{line}<br>Did you see the settings? No!<br>The Last Train, chapter 4"}
+    # The line keeps its own punctuation, a dash included.
+    assert rules(good) == set()
+    assert rules({**good, "Source": f"{line}<br>The Last Train"}) == {"source-lines"}
+    assert rules({**good, "Source": "Hast du die Einstellungen gesehen?<br>Did you see them?<br>The Last Train"}) == {"source-no-bold"}
+    # The English deck's notes have no translation line.
+    english = {"Entry": "lugubrious", "Meaning": "Looking or sounding sad and dismal.", "Language": "english", "Register": "literary",
+               "PartOfSpeech": "adjective", "Context": "A <b>lugubrious</b> tune.", "Source": "A <b>lugubrious</b> silence fell.<br>Night Bus"}  # fmt: skip
+    assert "source-lines" not in rules(english)
+    assert "source-lines" in rules({**english, "Source": "A <b>lugubrious</b> silence fell.<br>A sad silence.<br>Night Bus"})
+    # Stray markup is tidied; a note with no Source is fine.
+    fixed = o.fix({**good, "Source": f"<div><i>{line}</i></div><div>Did you see the settings? No!</div><div>The Last Train</div>"})
+    assert fixed.fields["Source"] == f"{line}<br>Did you see the settings? No!<br>The Last Train"
+    assert rules({**GERMAN_NOUN, "Source": ""}) == set()
+
+
 def test_a_new_note_is_tidied_and_refused_for_what_only_its_writer_can_fix():
     ready = o.prepare({"Entry": "la ficha", "Meaning": "a token / an index card", "Language": "Spanish", "Gender": "F",
                        "PartOfSpeech": "noun", "Register": "Neutral", "Context": "Dame <strong>la ficha</strong>.",
