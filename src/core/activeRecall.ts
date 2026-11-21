@@ -2,6 +2,7 @@ import { isOmnilanguage, speechLangFor } from './cards';
 import { headword } from './forms';
 import { spokenEntry } from './gender';
 import { htmlToText } from './html';
+import type { TypedComparison } from './typedCompare';
 import type { Card, Note } from './types';
 
 /**
@@ -49,4 +50,15 @@ export function typeItAnswers(note: Note, card: Card): string[] {
 export function asksOwnHook(note: Note, card: Card, noteCards: readonly Card[]): boolean {
   if (!isOmnilanguage(note) || htmlToText(note.fields.Mnemonic ?? '').trim()) return false;
   return [card, ...noteCards].every((c) => c.sched.state === 0 && !c.sched.reps);
+}
+
+/**
+ * Whether what was typed was a miss: something typed, and letters wrong (a missing accent or mark
+ * is a near miss, as the comparison's own line says it). Review outlines Again then, since Hard on
+ * a word that wasn't produced tells FSRS it was remembered and stretches its interval; the tap
+ * still decides. Not asked of a spoken answer: the recognizer mishears, and a word said right
+ * mustn't be outlined as missed.
+ */
+export function typedMiss(comparison: TypedComparison): boolean {
+  return comparison.typed.length > 0 && !comparison.sameLetters;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   answerButtons, answerCalendar, answersByHour, answersFrom, answerStreaks, CALENDAR_DAYS, calendarStart, computeStats,
-  INTERVAL_GROUPS, intervalGroups, intervalText, MATURE_DAYS, percent, STATS_RANGES, subdeckLevels, trueRetention, type Answer, type Calendar,
+  INTERVAL_GROUPS, intervalGroups, intervalText, MATURE_DAYS, percent, retentionGap, retentionGapLine, retentionTarget, STATS_RANGES, subdeckLevels, trueRetention, type Answer, type Calendar,
 } from '../../src/core/stats';
 import type { Card, ReviewLogEntry } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
@@ -274,6 +274,39 @@ describe('true retention', () => {
     ]);
     expect(percent(rows[4].all)).toBe(60);
     expect(percent({ passed: 0, total: 0 })).toBeNull();
+  });
+});
+
+describe('retention against its target', () => {
+  const since = new Date(2026, 9, 12, 4);
+  const many = (cardId: string, total: number, passed: number) =>
+    Array.from({ length: total }, (_, i) => answer(cardId, new Date(2026, 10, 10, 9), { rating: i < passed ? 3 : 1 }));
+
+  it("counts each review with its own deck's target, and leaves out steps, previews, older answers and cards with no target", () => {
+    const answers = [
+      ...many('a', 3, 3), ...many('b', 1, 0),
+      answer('a', new Date(2026, 10, 10, 9), { kind: 'learn', rating: 1 }),
+      answer('a', new Date(2026, 10, 10, 9), { rating: 1, preview: true }),
+      answer('a', new Date(2026, 8, 1, 9), { rating: 1 }),
+      answer('c', new Date(2026, 10, 10, 9), { rating: 1 }),
+    ];
+    const got = retentionTarget({ answers, since, targetOf: (id) => ({ a: 0.9, b: 0.8 } as Record<string, number>)[id] });
+    expect(got?.rate).toEqual({ passed: 3, total: 4 });
+    expect(got?.target).toBeCloseTo(0.875);
+    expect(got?.mixed).toBe(true);
+    expect(retentionTarget({ answers, since, targetOf: () => undefined })).toBeNull();
+  });
+
+  it('says nothing on too few reviews or a small difference, and names the side otherwise', () => {
+    const at = (total: number, passed: number, target = 0.9) => ({ target, rate: { passed, total }, mixed: false });
+    expect(retentionGap(at(100, 70))).toBeNull();
+    expect(retentionGap(at(1000, 880))).toBeNull(); // 2 points under
+    expect(retentionGap(at(250, 216))).toBeNull(); // 3.6 points under, within chance for 250 reviews
+    expect(retentionGap(at(1000, 860))).toBe('under');
+    expect(retentionGap(at(1000, 860, 0.8))).toBe('over');
+    expect(retentionGapLine(at(1000, 880))).toBeNull();
+    expect(retentionGapLine(at(1000, 860))).toContain('you remembered 86% of reviews, under the 90% aimed for');
+    expect(retentionGapLine(at(1000, 860, 0.8))).toContain('over the 80% aimed for');
   });
 });
 

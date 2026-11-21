@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canAddMnemonic, hasMnemonic, mnemonicQuestion, withMnemonic } from '../../src/core/leechHint';
-import { omniNote } from '../support/fixtures';
+import { asksEarlyHint, canAddMnemonic, EARLY_HINT_LAPSES, hasMnemonic, mnemonicQuestion, withMnemonic } from '../../src/core/leechHint';
+import { newSchedState } from '../../src/core/scheduler';
+import { NOW, omniNote } from '../support/fixtures';
 
 describe('canAddMnemonic', () => {
   it('is true for an Omnilanguage note and false for another note type', () => {
@@ -66,5 +67,26 @@ describe('withMnemonic', () => {
     const fields = { Entry: 'x', Mnemonic: 'm' };
     expect(withMnemonic(fields, '  ')).toBe(fields);
     expect(withMnemonic(fields, 'n').Entry).toBe('x');
+  });
+});
+
+describe('asksEarlyHint', () => {
+  const sched = (lapses: number, state = 2) => ({ ...newSchedState(NOW), state, lapses }) as ReturnType<typeof newSchedState>;
+  const missed = (n: number) => [sched(n - 1), sched(n, 3)] as const;
+
+  it('asks on the fourth forgotten review of a note with no mnemonic', () => {
+    expect(asksEarlyHint(omniNote(), ...missed(EARLY_HINT_LAPSES), 8)).toBe(true);
+  });
+  it("doesn't ask on another miss, a remembered review or a missed learning step", () => {
+    expect(asksEarlyHint(omniNote(), ...missed(3), 8)).toBe(false);
+    expect(asksEarlyHint(omniNote(), ...missed(5), 8)).toBe(false);
+    expect(asksEarlyHint(omniNote(), sched(4), sched(4), 8)).toBe(false);
+    expect(asksEarlyHint(omniNote(), sched(3, 1), sched(4, 1), 8)).toBe(false);
+  });
+  it("doesn't ask with a mnemonic written, on another note type, or when the leech threshold asks by then", () => {
+    expect(asksEarlyHint(omniNote({ Mnemonic: 'a ring' }), ...missed(4), 8)).toBe(false);
+    expect(asksEarlyHint({ id: 'b', deck: 'Trivia', model: 'Basic', fields: { Front: 'a', Back: 'b' }, tags: [] }, ...missed(4), 8)).toBe(false);
+    expect(asksEarlyHint(omniNote(), ...missed(4), 4)).toBe(false);
+    expect(asksEarlyHint(omniNote(), ...missed(4), 0)).toBe(true);
   });
 });

@@ -14,10 +14,12 @@ const CHEVRON_WIDTH = 44;
  * tap is a plain Again, and the chevron, or pressing and holding the button, asks what went wrong
  * and answers Again with that reason. The reason never changes the rating.
  */
-export function AgainSplit({ interval, reasons, onAnswer }: {
+export function AgainSplit({ interval, reasons, suggested, onAnswer }: {
   /** When the card is next due after Again, as the other buttons show it. */
   interval: string | undefined;
   reasons: MissReason[];
+  /** Again is the rating that fits (a typed answer was wrong): outlined, as the other buttons outline theirs. */
+  suggested?: boolean;
   /** Answers Again; `miss` is the reason's key, absent for a plain Again. */
   onAnswer: (miss?: string) => void;
 }) {
@@ -31,12 +33,12 @@ export function AgainSplit({ interval, reasons, onAnswer }: {
     );
   };
   return (
-    <View style={{ flex: 1, flexDirection: 'row', minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again }}>
+    <View style={{ flex: 1, flexDirection: 'row', minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again, ...(suggested ? { borderWidth: 3, borderColor: c.text } : null) }}>
       <Tappable
         onPress={() => onAnswer()}
         onLongPress={choose}
         accessibilityRole="button"
-        accessibilityLabel={`Again, next in ${interval ?? ''}`}
+        accessibilityLabel={`Again, next in ${interval ?? ''}${suggested ? ', suggested' : ''}`}
         accessibilityHint="Touch and hold to say what went wrong"
         scaleTo={0.95}
         dimTo={0.85}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { asksOwnHook, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
+import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
+import { compareTyped } from '../../src/core/typedCompare';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -57,5 +58,18 @@ describe('asksOwnHook', () => {
     expect(asksOwnHook(omniNote({ Mnemonic: 'a book on a bed' }), card('forward'), [])).toBe(false);
     expect(asksOwnHook(omniNote({ Mnemonic: '<br>' }), card('forward'), [])).toBe(true);
     expect(asksOwnHook(basic, { ...card('forward'), noteId: 'b1' }, [])).toBe(false);
+  });
+});
+
+describe('typedMiss', () => {
+  it('is a miss when letters are wrong', () => {
+    expect(typedMiss(compareTyped('esperar', 'aguardar'))).toBe(true);
+    expect(typedMiss(compareTyped('esperar', 'esperer'))).toBe(true);
+  });
+  it("isn't one when it's right, only an accent or the kana is off, or nothing was typed", () => {
+    expect(typedMiss(compareTyped('esperar', 'Esperar'))).toBe(false);
+    expect(typedMiss(compareTyped('canción', 'cancion'))).toBe(false);
+    expect(typedMiss(compareTyped('ラーメン', 'らーめん'))).toBe(false);
+    expect(typedMiss(compareTyped('esperar', ''))).toBe(false);
   });
 });

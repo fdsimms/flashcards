@@ -40,7 +40,8 @@ review limit. **Leeches** follow the preset (`becameLeech`): tagged, suspended i
 tag comes off once the word has recovered** (`leechRecovered`, `src/core/leechRecovery.ts`): every
 studied card of the note is an unsuspended review scheduled `LEECH_RECOVERED_DAYS` (21) or more out.
 Anki never removes it; Franki does because its Leeches filter, Trouble and cram read the tag as a
-live signal. Undo puts the tag back (`leechClearedNoteId`).
+live signal. Undo puts the tag back (`leechClearedNoteId`). **The mnemonic is asked for at the fourth
+miss too** (`asksEarlyHint`, `src/core/leechHint.ts`), once, with no tag: the threshold comes many failed reviews late.
 
 **Fuzz and the load balancer are Anki's, bit for bit** (`src/core/ankiFuzz.ts`, `loadBalance.ts`):
 the ts-fsrs engines don't fuzz; intervals get Anki's fuzz from Rust's StdRng (ChaCha12) seeded by
@@ -172,7 +173,8 @@ Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations
 (`src/core/typedCompare.ts`) or correct it, but leave the rating to the learner: nothing feeds FSRS
 but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
 to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
-hears what was said, not how.
+hears what was said, not how. A word typed with letters wrong outlines Again (`typedMiss`), as a skill
+drill outlines its rating: Hard on a word that wasn't produced counts as remembered. A spoken one never does.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
