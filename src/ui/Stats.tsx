@@ -1,22 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { cardHomeDeck, isInDeck } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import { paramsForDeck } from '../core/scheduler';
 import {
-  answerCalendar, answersFrom, calendarStart, computeStats, durationText, intervalGroups, intervalText, MATURE_DAYS, percent,
-  type Answer, type Rate,
+  answerButtons, answerCalendar, answersByHour, answersFrom, calendarStart, computeStats, durationText, intervalGroups, intervalText,
+  MATURE_DAYS, STATS_RANGES, subdeckLevels, trueRetention, type Answer,
 } from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { WANIKANI_SCOPE } from '../wanikani/log';
-import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen } from './kit';
-import { haptic } from './haptics';
-import { Grow } from './motion';
+import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen, Segments } from './kit';
+import { AnswerButtonsBox, HoursBox, RetentionTable } from './StatsAnswers';
+import { Bars } from './StatsBars';
 import { AnswerCalendar } from './StatsCalendar';
-import { hairline, space, type, useTheme, readable } from './theme';
+import { space, type, useTheme, readable } from './theme';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -25,9 +25,10 @@ const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} 
 const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
 /**
- * Study statistics for the whole collection or one top-level deck with its subdecks: today, the
- * next 30 days' reviews, the last 30 days' answers, a year's calendar of answers, cards by stage
- * and by interval, and retention. The numbers come from src/core/stats.ts; this screen only
+ * Study statistics for the whole collection or one deck with its subdecks (a top-level deck, then
+ * a row of chips per level of subdecks under it): today, the next 30 days' reviews, the last 30
+ * days' answers, a year's calendar of answers with the streak, cards by stage and by interval, the
+ * answer buttons and the hours of the day over a range chosen, and retention by period. The numbers come from src/core/stats.ts; this screen only
  * gathers and shows them, and opens Trouble cards. WaniKani's answers given here (`wanikani`, src/wanikani/log.ts) count
  * with the rest and have a chip of their own; its items aren't cards, so the charts about cards
  * leave them out.
@@ -36,6 +37,7 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
   const c = useTheme();
   const [data, setData] = useState<{ notes: Note[]; cards: Card[]; answers: Answer[]; params: Map<string, DeckParams>; now: Date; dayStartsAtHour: number }>();
   const [scope, setScope] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState(STATS_RANGES[0].days);
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
 
@@ -56,11 +58,14 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
     })().catch((e) => setError(failureText(e, { what: "Couldn't load the stats.", next: 'Try again.' })));
   }, [repo, attempt]);
 
+  const decks = useMemo(() => [...new Set((data?.notes ?? []).map((n) => n.deck))], [data]);
   const tops = useMemo(() => [
-    ...[...new Set((data?.notes ?? []).map((n) => n.deck.split('::')[0]))].sort((a, b) => a.localeCompare(b)),
+    ...[...new Set(decks.map((d) => d.split('::')[0]))].sort((a, b) => a.localeCompare(b)),
     ...(wanikani.length ? [WANIKANI_SCOPE] : []),
-  ], [data, wanikani.length]);
+  ], [decks, wanikani.length]);
   const onWaniKani = scope === WANIKANI_SCOPE;
+  const levels = useMemo(() => (onWaniKani ? [] : subdeckLevels(decks, scope)), [decks, scope, onWaniKani]);
+  const range = STATS_RANGES.find((r) => r.days === rangeDays) ?? STATS_RANGES[0];
 
   const stats = useMemo(() => {
     if (!data) return undefined;
@@ -69,12 +74,17 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
     const ids = new Set(cards.map((card) => card.id));
     const answers = scope === null ? [...data.answers, ...wanikani] : scope === WANIKANI_SCOPE ? wanikani : data.answers.filter((a) => ids.has(a.cardId));
     const { now, dayStartsAtHour } = data;
+    // Within the year of answers loaded (`calendarStart`), which no range goes past.
+    const since = calendarStart(now, dayStartsAtHour, rangeDays);
     return {
       ...computeStats({ cards, answers, now, dayStartsAtHour, days: DAYS }),
       calendar: answerCalendar({ answers, now, dayStartsAtHour }),
       intervals: intervalGroups(cards),
+      buttons: answerButtons({ answers, since }),
+      hours: answersByHour({ answers, since, dayStartsAtHour }),
+      retention: trueRetention({ answers, now, dayStartsAtHour }),
     };
-  }, [data, scope, wanikani]);
+  }, [data, scope, wanikani, rangeDays]);
 
   const target = scope !== null && data ? paramsForDeck(scope, data.params)?.desiredRetention : undefined;
 
@@ -90,10 +100,18 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
           {tops.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }}>
               {[null, ...tops].map((d) => (
-                <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={scope === d} onPress={() => setScope(d)} />
+                <Chip key={d ?? '*'} label={d ?? 'All decks'} selected={d === null ? scope === null : scope !== null && (scope === d || (d !== WANIKANI_SCOPE && isInDeck(scope, d)))} onPress={() => setScope(d)} />
               ))}
             </ScrollView>
           ) : null}
+          {levels.map(({ parent, children }) => (
+            <ScrollView key={parent} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.s }}>
+              <Chip label={`All of ${parent.split('::').pop()}`} selected={scope === parent} onPress={() => setScope(parent)} />
+              {children.map((d) => (
+                <Chip key={d} label={d.split('::').pop()!} selected={scope !== null && isInDeck(scope, d)} onPress={() => setScope(d)} />
+              ))}
+            </ScrollView>
+          ))}
 
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Today</Text>
@@ -137,6 +155,14 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
 
           <AnswerCalendar calendar={stats.calendar} />
 
+          <Segments
+            options={STATS_RANGES.map((r) => ({ value: r.days, label: r.label }))}
+            value={range.days}
+            onChange={setRangeDays}
+          />
+          {onWaniKani ? null : <AnswerButtonsBox buttons={stats.buttons} range={range.label.replace(/^1 /, '')} />}
+          <HoursBox hours={stats.hours} range={range.label.replace(/^1 /, '')} />
+
           {onWaniKani ? null : (
           <>
           <Box>
@@ -172,9 +198,7 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
                 ? 'Reviews answered right the first time, meaning and reading. Lessons aren\'t counted.'
                 : "Reviews not answered Again. Learning and relearning steps aren't counted."}
             </Help>
-            <Rated label="Last 7 days" rate={stats.retention.week} />
-            <Rated label={`Last ${DAYS} days`} rate={stats.retention.month} />
-            {onWaniKani ? null : <Rated label={`Mature cards, last ${DAYS} days`} rate={stats.retention.matureMonth} />}
+            <RetentionTable rows={stats.retention} splitByAge={!onWaniKani} />
             {target ? <Help>This deck aims for {Math.round(target * 100)}% (its desired retention in Anki).</Help> : null}
           </Box>
 
@@ -187,12 +211,6 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
       )}
     </Screen>
   );
-}
-
-/** Under a chart: the bar tapped, or else the highest one. */
-function caption(picked: number | null, peakValue: number, [when, what]: [string, string], peak: string): string {
-  if (picked !== null) return `${when}: ${what}`;
-  return peakValue === 0 ? 'Nothing yet.' : `${peak}: ${when} (${what})`;
 }
 
 function pastSummary(past: { learn: number; review: number; relearn: number; takenMs: number }[]): string {
@@ -225,76 +243,6 @@ function Row({ label, hint, value }: { label: string; hint?: string; value: numb
         {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
       </View>
       <Text style={{ ...type.body, color: c.text, fontVariant: ['tabular-nums'] }}>{value.toLocaleString()}</Text>
-    </View>
-  );
-}
-
-function Rated({ label, rate }: { label: string; rate: Rate }) {
-  const c = useTheme();
-  const p = percent(rate);
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.m }}>
-      <Text style={{ ...type.body, color: c.text, flex: 1 }}>{label}</Text>
-      <Text style={{ ...type.body, color: c.text, fontVariant: ['tabular-nums'] }}>
-        {p === null ? 'No reviews' : `${p}%`}
-      </Text>
-      {p === null ? null : <Text style={{ ...type.footnote, color: c.textSecondary }}>of {rate.total.toLocaleString()}</Text>}
-    </View>
-  );
-}
-
-const CHART_HEIGHT = 120;
-
-/**
- * One value per day (or per group) as columns from a shared baseline. Tap a column (or move
- * VoiceOver to it) to read its day and value; until then the line under the chart reads the peak.
- */
-function Bars<T extends { value: number }>({ bars, describe, first, last, peak: peakLabel = 'Busiest day' }: {
-  bars: T[];
-  /** The day (or group), and what it holds. */
-  describe: (d: T, index: number, count: number) => [when: string, what: string];
-  first: string;
-  last: string;
-  /** What the line under the chart calls the highest column. */
-  peak?: string;
-}) {
-  const c = useTheme();
-  const [picked, setPicked] = useState<number | null>(null);
-  const max = Math.max(1, ...bars.map((d) => d.value));
-  const peak = bars.reduce((best, d, i) => (d.value > bars[best].value ? i : best), 0);
-  const shown = picked ?? peak;
-  return (
-    <View style={{ gap: space.xs }}>
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>{max.toLocaleString()}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: CHART_HEIGHT, gap: 2, borderBottomWidth: hairline, borderColor: c.border }}>
-        {bars.map((d, i) => (
-          <Pressable
-            key={i}
-            onPress={() => { haptic.select(); setPicked(i === picked ? null : i); }}
-            accessibilityRole="button"
-            accessibilityState={{ selected: picked === i }}
-            accessibilityLabel={describe(d, i, bars.length).join(': ')}
-            style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}
-          >
-            {d.value > 0 ? (
-              <Grow
-                // Grows from the baseline, left to right, the first time the chart is drawn.
-                delay={Math.min(i, 30) * 12}
-                style={{
-                  width: '100%', maxWidth: 24, height: Math.max(2, (d.value / max) * CHART_HEIGHT),
-                  backgroundColor: c.chart, borderTopLeftRadius: 5, borderTopRightRadius: 5,
-                  opacity: picked === null || picked === i ? 1 : 0.35,
-                }}
-              />
-            ) : null}
-          </Pressable>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ ...type.caption, color: c.textSecondary }}>{first}</Text>
-        <Text style={{ ...type.caption, color: c.textSecondary }}>{last}</Text>
-      </View>
-      <Text style={{ ...type.subhead, color: c.text }}>{caption(picked, bars[peak].value, describe(bars[shown], shown, bars.length), peakLabel)}</Text>
     </View>
   );
 }
