@@ -8,6 +8,7 @@ the owner marks a sentence Missed it or Got it themselves, or nothing at all.
 """
 
 import json
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, cast
@@ -40,7 +41,12 @@ _JUDGE = (
     f"`notes`: at most {MAX_NOTES} short notes in plain English, each naming one thing that changed "
     f"and why (under {MAX_CHARS} characters, the language's words written as they are), most "
     "important first; for a right answer, one note at most, only when a different wording is "
-    "clearly more usual. Never mark the learner down for wording that differs from what you would "
+    f"clearly more usual. Give `hints`: for a verdict other than right, at most {MAX_NOTES} short "
+    "hints in plain English, one for each mistake, most important first. The learner sees them "
+    "before the correction and tries again, so a hint says where the mistake is and what kind it "
+    "is (a verb ending that doesn't match its subject, a word that isn't needed, the wrong case "
+    "after a preposition) and never gives the fix: it contains no word of the language that is in "
+    "`corrected` and not in their writing. For a right answer, no hints. Never mark the learner down for wording that differs from what you would "
     "have written, as long as it is correct and natural. Do not use em dashes."
 )
 
@@ -65,9 +71,10 @@ SCHEMA: dict[str, Any] = {
         "corrected": {"type": "string"},
         "english": {"type": "string"},
         "notes": {"type": "array", "items": {"type": "string"}},
+        "hints": {"type": "array", "items": {"type": "string"}},
         "used_word": {"type": "boolean"},
     },
-    "required": ["verdict", "corrected", "english", "notes", "used_word"],
+    "required": ["verdict", "corrected", "english", "notes", "hints", "used_word"],
     "additionalProperties": False,
 }
 
@@ -89,6 +96,7 @@ RETELL_SCHEMA: dict[str, Any] = {
         "corrected": {"type": "string"},
         "english": {"type": "string"},
         "notes": {"type": "array", "items": {"type": "string"}},
+        "hints": {"type": "array", "items": {"type": "string"}},
         "words": {
             "type": "array",
             "items": {
@@ -100,7 +108,7 @@ RETELL_SCHEMA: dict[str, Any] = {
         },
         "left_out": {"type": "string"},
     },
-    "required": ["verdict", "corrected", "english", "notes", "words", "left_out"],
+    "required": ["verdict", "corrected", "english", "notes", "hints", "words", "left_out"],
     "additionalProperties": False,
 }
 
@@ -162,9 +170,26 @@ def _notes(raw: object, most: int) -> list[str]:
     return out[:most]
 
 
+_WORD = re.compile(r"[^\W\d_]+")
+
+
+def _hints(raw: object, most: int, attempt: str, corrected: str) -> list[str]:
+    """The hints shown before the correction, each kept only if it doesn't give a fix away: none
+    holds a word that is in `corrected` and not in the learner's `attempt`. (A language written
+    without spaces has its fix inside a longer run, which this can't see: the prompt is all that
+    keeps those.) One that does is dropped, never trimmed."""
+    wrote = {w.casefold() for w in _WORD.findall(attempt)}
+    fixes = {w.casefold() for w in _WORD.findall(corrected)} - wrote
+    return [
+        hint
+        for hint in _notes(raw, most)
+        if not ({w.casefold() for w in _WORD.findall(hint)} & fixes)
+    ][:most]
+
+
 def _judged(answer: dict[str, Any], attempt: str, most: int) -> dict[str, Any] | None:
-    """The verdict, corrected writing, its English and notes, trimmed; None without a verdict from
-    the list. A right answer's corrected writing is the learner's own, whatever came back."""
+    """The verdict, corrected writing, its English, notes and hints, trimmed; None without a verdict
+    from the list. A right answer's corrected writing is the learner's own, whatever came back."""
     verdict = answer.get("verdict")
     corrected = answer.get("corrected")
     english = answer.get("english")
@@ -178,6 +203,9 @@ def _judged(answer: dict[str, Any], attempt: str, most: int) -> dict[str, Any] |
         "corrected": fixed,
         "english": english.strip()[:MAX_CHARS],
         "notes": _notes(answer.get("notes"), most),
+        "hints": []
+        if verdict == "right"
+        else _hints(answer.get("hints"), most, attempt.strip(), fixed),
     }
 
 

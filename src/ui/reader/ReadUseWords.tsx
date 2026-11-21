@@ -7,7 +7,8 @@ import { LANGUAGES } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import type { WordToUse } from '../../reader/production';
 import { Button, Card, ErrorNote, Help, Screen } from '../kit';
-import { WritingResult } from './ReadWritingResult';
+import { asksAnotherTry } from '../../reader/production';
+import { WritingFirstTry, WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
@@ -34,6 +35,9 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [written, setWritten] = useState(0);
+  // How many times this word's sentence was checked, and whether the correction was asked for: the first check of a sentence with mistakes holds it back (`asksAnotherTry`).
+  const [tries, setTries] = useState(0);
+  const [revealed, setRevealed] = useState(false);
   // Which word a check was asked for: one that comes back after Skip or Next was tapped isn't shown on the next word.
   const asking = useRef(0);
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
@@ -47,6 +51,8 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
     setCheck(null);
     setError(null);
     setChecking(false);
+    setTries(0);
+    setRevealed(false);
   };
   const ask = async () => {
     if (!word || checking || !attempt.trim()) return;
@@ -57,6 +63,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
       const answer = await api.checkWriting({ kind: 'sentence', language, attempt: attempt.trim(), word: word.word, meaning: word.meaning });
       if (asking.current !== mine) return;
       setCheck(answer);
+      setTries((n) => n + 1);
       setWritten((n) => n + 1);
     } catch (e) {
       if (asking.current === mine) setError(failureText(e, { what: "Couldn't check your sentence.", next: 'Try again.' }));
@@ -79,7 +86,13 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
     );
   }
 
-  const footer = check ? (
+  const firstTry = !!check && !revealed && asksAnotherTry(check, tries);
+  const footer = firstTry ? (
+    <View style={{ flexDirection: 'row', gap: space.s }}>
+      <Button variant="secondary" label="Show the correction" style={{ flex: 1 }} onPress={() => setRevealed(true)} />
+      <Button label="Try again" style={{ flex: 1 }} onPress={() => { asking.current++; setCheck(null); }} />
+    </View>
+  ) : check ? (
     <View style={{ flexDirection: 'row', gap: space.s }}>
       <Button variant="secondary" label="Try again" style={{ flex: 1 }} onPress={() => { asking.current++; setCheck(null); }} />
       <Button label={at + 1 < words.length ? 'Next word' : 'Done'} style={{ flex: 1 }} onPress={next} />
@@ -100,7 +113,9 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
             <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{word.word}</Text>
             <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>{word.meaning}</Text>
           </Card>
-          {check ? (
+          {check && firstTry ? (
+            <Card><WritingFirstTry check={check} attempt={attempt} lang={LANGUAGES[language].speech} /></Card>
+          ) : check ? (
             <Card><WritingResult check={check} attempt={attempt} lang={LANGUAGES[language].speech} onPlay={() => onPlay(check.corrected)} /></Card>
           ) : (
             <>
