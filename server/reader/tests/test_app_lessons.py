@@ -481,6 +481,16 @@ def test_marks_a_phrase_only_in_a_lesson_that_is_there(tmp_path: Path) -> None:
     assert mark(c, 99, "Un café.") == 404
 
 
+def test_notes_a_lesson_played_to_the_end(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    lesson_id = store.add_lesson(conn, "fr", "a café", NOW)
+    c = lesson_client(tmp_path, conn=conn)
+    assert c.post(f"/api/lessons/{lesson_id}/heard").status_code == 401
+    assert c.post(f"/api/lessons/{lesson_id}/heard", headers=AUTH).status_code == 204
+    assert c.post("/api/lessons/99/heard", headers=AUTH).status_code == 404
+    assert conn.execute("SELECT heard_at FROM lessons WHERE id = ?", (lesson_id,)).fetchone()[0]
+
+
 TOPICS_USED = Usage(input_tokens=200, output_tokens=60, model="claude-sonnet-5-5")
 
 

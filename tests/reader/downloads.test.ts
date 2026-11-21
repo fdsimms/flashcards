@@ -154,6 +154,7 @@ describe('reading back', () => {
     expect(parseIndex({ version: 1, texts: [saved(1), { id: 'x' }], lessons: [], shelves: {} }).texts).toHaveLength(1);
     expect(parseIndex(null)).toEqual(EMPTY_INDEX);
     expect(parseHeldReader([{ kind: 'choice', textId: 1, choice: 2 }, { kind: 'reading', textId: 1 }, { kind: 'listen', textId: 3 }, { kind: 'language', language: 'th' }])).toHaveLength(3);
+    expect(parseHeldReader([{ kind: 'lessonHeard', lessonId: 4 }, { kind: 'lessonHeard' }])).toEqual([{ kind: 'lessonHeard', lessonId: 4 }]);
   });
 
   it('knows which texts were read offline', () => {

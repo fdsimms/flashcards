@@ -103,6 +103,32 @@ def run(conn: Any, fakes: Fakes, tmp_path: Path, **over: Any) -> int:
     return lesson_id
 
 
+def test_a_lesson_opens_with_a_phrase_of_a_lesson_played_to_the_end(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    first = run(conn, Fakes(), tmp_path)
+    # Made but never played: nothing of it is asked for.
+    fakes = Fakes()
+    run(conn, fakes, tmp_path)
+    assert "First, some phrases from earlier lessons." not in [t for t, _, _ in fakes.spoken]
+    with conn:
+        conn.execute(
+            "UPDATE lessons SET plan = ? WHERE id = ?",
+            ('{"phrases": [{"text": "Merci.", "english": "Thank you."}]}', first),
+        )
+    assert store.mark_lesson_heard(conn, first, NOW)
+    assert not store.mark_lesson_heard(conn, 999, NOW)
+    fakes = Fakes()
+    run(conn, fakes, tmp_path)
+    spoken = [t for t, _, _ in fakes.spoken]
+    assert spoken[:3] == [
+        "First, some phrases from earlier lessons.",
+        "How do you say: Thank you.",
+        "Merci.",
+    ]
+    assert store.heard_lesson_phrases(conn, "fr", 0) == [[("Merci.", "Thank you.")]]
+    assert store.heard_lesson_phrases(conn, "th", 0) == []
+
+
 def test_makes_a_lesson_and_keeps_it(tmp_path: Path) -> None:
     conn = store.connect(":memory:")
     fakes = Fakes()
