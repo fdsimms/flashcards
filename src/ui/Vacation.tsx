@@ -65,7 +65,7 @@ export function Vacation() {
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{endText}</Text>
                 </Card>
                 <Help>
-                  When it ends, reviews that came due while you were away come back weakest first, until they're done. Your decks' own limits and order return.
+                  When it ends, your decks' own limits return. Until you've caught up, reviews you're likeliest to remember come first, then your decks' own order returns.
                 </Help>
               </>
             ) : null}
