@@ -40,7 +40,7 @@ export function Pill({ label, selected, onPress, ink, fill, icon, accessibilityL
 }
 
 /** A row in a `Group` with a check circle: tapping it checks it or takes the check off. `big` is lesson mode's, for a glance mid-conversation. */
-export function CheckRow({ label, detail, checked, onPress, first, big, color, trailing, disabled }: {
+export function CheckRow({ label, detail, checked, onPress, first, big, color, trailing, disabled, labelSize }: {
   label: string;
   detail?: string;
   checked: boolean;
@@ -52,6 +52,8 @@ export function CheckRow({ label, detail, checked, onPress, first, big, color, t
   /** Something small after the text ("Saving"). */
   trailing?: React.ReactNode;
   disabled?: boolean;
+  /** Replaces the label's size and line height (a cram's text size, for a label in the cram's language). */
+  labelSize?: { fontSize: number; lineHeight: number };
 }) {
   const c = useTheme();
   return (
@@ -69,7 +71,7 @@ export function CheckRow({ label, detail, checked, onPress, first, big, color, t
       {first ? null : <Divider inset={space.l} />}
       <Icon name={checked ? 'checkmark.circle.fill' : 'circle'} size={big ? 26 : 22} color={checked ? color ?? c.accent : c.textTertiary} weight="regular" />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ ...(big ? type.headline : type.body), color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
+        <Text style={{ ...(big ? type.headline : type.body), ...labelSize, color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
         {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
       </View>
       {trailing}
