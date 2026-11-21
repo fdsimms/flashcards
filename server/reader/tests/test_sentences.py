@@ -10,7 +10,7 @@ from scripted import ENTRIES, IN_RANGE, ScriptedModel
 from test_app import AUTH, NOW, started
 from test_generator import FakeClient, finish, response
 
-from franki_reader import sentences, store
+from franki_reader import grammar, sentences, store
 from franki_reader.app import create_app
 from franki_reader.engine import Engine
 from franki_reader.generator import Usage
@@ -105,7 +105,7 @@ def test_writes_for_a_word_short_of_stock_then_serves_it_least_recently_served_f
     asked: list[list[str]] = []
 
     async def write(
-        entries: list[Entry], language: str, words: list[Entry]
+        entries: list[Entry], language: str, words: list[Entry], practice: tuple[str, ...] = ()
     ) -> tuple[list[Any], Usage]:
         asked.append([w.text for w in words])
         return [
@@ -135,7 +135,7 @@ def test_stops_at_the_days_calls_and_keeps_a_failed_calls_cost() -> None:
     calls = 0
 
     async def write(
-        entries: list[Entry], language: str, words: list[Entry]
+        entries: list[Entry], language: str, words: list[Entry], practice: tuple[str, ...] = ()
     ) -> tuple[list[Any], Usage]:
         nonlocal calls
         calls += 1
@@ -151,7 +151,7 @@ def test_skips_a_language_already_being_written() -> None:
     conn = store.connect(":memory:")
 
     async def write(
-        entries: list[Entry], language: str, words: list[Entry]
+        entries: list[Entry], language: str, words: list[Entry], practice: tuple[str, ...] = ()
     ) -> tuple[list[Any], Usage]:
         raise AssertionError("not asked")
 
@@ -160,7 +160,7 @@ def test_skips_a_language_already_being_written() -> None:
 
 def test_claude_writes_a_batch() -> None:
     fake = FakeClient(response("end_turn", json.dumps({"sentences": [raw("x")]})))
-    got, used = finish(claude_sentences(fake)(ENTRIES, "th", [MANGO]))  # type: ignore[arg-type]
+    got, used = finish(claude_sentences(fake)(ENTRIES, "th", [MANGO], ()))  # type: ignore[arg-type]
     assert got == [raw("x")] and used.cost_usd() > 0
 
 
@@ -176,7 +176,7 @@ def client(write: Any = None) -> TestClient:
 
 def test_serves_nothing_at_first_then_what_was_written() -> None:
     async def write(
-        entries: list[Entry], language: str, words: list[Entry]
+        entries: list[Entry], language: str, words: list[Entry], practice: tuple[str, ...] = ()
     ) -> tuple[list[Any], Usage]:
         return [raw("ฉันอยากกินข้าวเหนียวมะม่วงครับ")], COST
 
@@ -202,3 +202,48 @@ def test_a_word_due_and_not_reviewed_is_never_served() -> None:
 
 def test_needs_the_passphrase() -> None:
     assert client().post("/api/sentences", json={"language": "th"}).status_code == 401
+
+
+# ==== Grammar the owner practices ====
+
+
+def test_the_request_names_the_practiced_points_and_says_nothing_with_none() -> None:
+    plain = sentences.request_message("th", [EAT])
+    assert "practicing this grammar" not in plain
+    asked = sentences.request_message("th", [EAT], ("th.ongoing", "gone.point"))
+    assert "practicing this grammar" in asked
+    assert grammar.POINTS["th.ongoing"].name in asked
+
+
+def test_a_served_sentence_says_which_practiced_point_it_uses() -> None:
+    found = sentences.grammar_of("ฉันกำลังกินครับ", FULL, ("th.future", "th.ongoing"))
+    assert found == {"id": "th.ongoing", "name": grammar.POINTS["th.ongoing"].name}
+    assert sentences.grammar_of("ฉันอยากกินครับ", FULL, ("th.ongoing",)) is None
+    assert sentences.grammar_of("ฉันกำลังกินครับ", FULL, ()) is None
+
+
+def test_the_practiced_points_go_to_the_writer() -> None:
+    conn = store.connect(":memory:")
+    got: list[tuple[str, ...]] = []
+
+    async def write(
+        entries: list[Entry], language: str, words: list[Entry], practice: tuple[str, ...] = ()
+    ) -> tuple[list[Any], Usage]:
+        got.append(practice)
+        return [], COST
+
+    asyncio.run(
+        sentences.top_up(
+            conn,
+            "th",
+            [MANGO],
+            lambda code, keep: (ENTRIES, FULL),
+            FULL,
+            frozenset(),
+            write,
+            lambda: NOW,
+            set(),
+            ("th.ongoing",),
+        )
+    )
+    assert got == [("th.ongoing",)]

@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from franki_reader import (
+    grammar,
     production,
     sentences,
     store,
@@ -106,6 +107,11 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return answer
 
+    def practiced(language: Code) -> tuple[str, ...]:
+        """The language's grammar points the owner set to Practice, in the catalog's order."""
+        chosen = store.load_grammar(engine.conn)
+        return tuple(p.id for p in grammar.points_for(language) if chosen.get(p.id) == "practice")
+
     async def top_up_sentences(language: Code, words: list[Entry]) -> None:
         if write_sentences is None:
             return
@@ -129,17 +135,25 @@ def router(ctx: AppContext) -> APIRouter:
             write_sentences,
             engine.clock,
             sentences_writing,
+            practiced(language),
         )
 
     @routes.post("/api/sentences", dependencies=authed)
     async def sentences_route(body: SentencesIn, background: BackgroundTasks) -> dict[str, Any]:
         """Never writes to Anki or grades a card: it only reads the snapshot of the deck."""
-        entries, _ = engine.snapshot(body.language)
+        entries, full = engine.snapshot(body.language)
         days = engine.snapshot_days(body.language)
         words = sentences.candidates(entries, days, engine.rng)
         reviewed = frozenset(e.text for e in reviewed_words(entries, days))
         served = sentences.serve(
-            engine.conn, body.language, words, body.count, engine.clock(), reviewed
+            engine.conn,
+            body.language,
+            words,
+            body.count,
+            engine.clock(),
+            reviewed,
+            full,
+            practiced(body.language),
         )
         background.add_task(top_up_sentences, body.language, words)
         return {"sentences": served, "writing": write_sentences is not None}
