@@ -7,6 +7,7 @@
 // the routes not converted yet: converting one means a response model on the server, rerunning
 // that, and an alias here in place of the hand-written type.
 
+import { OfflineError } from '../core/connection';
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
@@ -600,7 +601,7 @@ export function createApi(
       });
     } catch (e) {
       // The guard's own reason (offline, or a server too slow) says more than a bare failure.
-      throw new ApiError(e instanceof Refusal ? e.message : "Couldn't reach the server. Check your connection and try again.", 0);
+      throw new ApiError(e instanceof Refusal ? e.message : new OfflineError().message, 0);
     }
     if (response.status === 401) onUnauthorized?.();
     if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
