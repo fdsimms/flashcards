@@ -16,6 +16,7 @@ import type { ToolScreenProps } from './index';
 import { useListenCheck, useSpeakEach } from './Listen';
 import { ListenBack, ListenFooter, ListenPrompt, PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -50,18 +51,19 @@ export function NumbersTool({ tool, repo }: ToolScreenProps) {
   const [mode, setMode] = useToolPref('numberMode');
   const [question, setQuestion] = useState<NumberQuestion>(() => {
     const prefs = toolPrefs();
-    return randomQuestion(prefs.numberKind, toolLanguage(tool, prefs.language));
+    const l = toolLanguage(tool, prefs.language);
+    return drawFromBag(language, tool.id, () => randomQuestion(prefs.numberKind, l), questionKey);
   });
   // A question of the kind chosen: the saved kind once it's read, or one just picked.
   useEffect(() => {
-    if (question.kind !== kind) setQuestion(randomQuestion(kind, language));
+    if (question.kind !== kind) setQuestion(marks.pick(() => randomQuestion(kind, language), numberPatterns, questionKey));
   }, [question.kind, kind, language]);
   // A phone number is the language's own format, so another language needs another one.
   const [phoneLanguage, setPhoneLanguage] = useState(language);
   useEffect(() => {
     if (phoneLanguage === language) return;
     setPhoneLanguage(language);
-    if (question.kind === 'phone') setQuestion(randomQuestion('phone', language));
+    if (question.kind === 'phone') setQuestion(marks.pick(() => randomQuestion('phone', language), numberPatterns, questionKey));
   }, [language, phoneLanguage, question.kind]);
 
   const saying = useMemo(() => NUMBER_SAYERS[language]?.(question), [language, question]);

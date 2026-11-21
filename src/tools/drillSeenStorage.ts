@@ -1,6 +1,6 @@
 import { Paths } from 'expo-file-system';
 import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
-import { mergeSeen, parseSeen, recordSeen, seenList, type DrillSeen } from './drillSeen';
+import { drawUnseen, mergeSeen, parseSeen, recordSeen, seenList, type DrillSeen } from './drillSeen';
 
 /**
  * The questions skill drills have asked lately (drillSeen.ts), kept in the documents folder: read
@@ -32,3 +32,16 @@ export function noteDrillAsked(language: string, stepId: string, key: string): v
     try { writeJsonSafely(Paths.document, FILE, seen); } catch { /* Still held for this run. */ }
   });
 }
+
+/**
+ * A question from `draw` that the tool or drill hasn't asked lately, remembered as asked: for the
+ * draws that don't go through a tool's `pick` (useMarks.ts), such as the first question on opening.
+ */
+export function drawFromBag<T>(language: string, list: string, draw: () => T, keyOf: (q: T) => string): T {
+  const picked = drawUnseen(draw, keyOf, drillSeenFor(language, list));
+  noteDrillAsked(language, list, keyOf(picked));
+  return picked;
+}
+
+// Read at launch, so the first question of a tool or drill already knows what was asked lately.
+void loadDrillSeen();
