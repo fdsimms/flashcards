@@ -1,6 +1,5 @@
 import { dayKeyOf, studyDayKey } from './day';
 import type { DeckLimits } from './deckTree';
-import type { Card } from './types';
 
 /**
  * Vacation mode (Franki's own, never written to Anki): a lighter load while away, so a trip doesn't
