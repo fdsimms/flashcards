@@ -8,6 +8,8 @@ import { failureText } from '../core/failure';
 import { backupCardText, backupFileName, backupProgress, BACKUP_REMINDER_DAYS, fileUriToPath, type BackupInfo } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
+import { autoBackupPath, makeAutoBackup } from './autoBackup';
+import { AutoBackups } from './AutoBackups';
 import { saveBackupReminder, useBackupReminderOn } from './backupReminder';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, MessageList, ProgressBar, Screen, SwitchRow } from './kit';
@@ -142,6 +144,31 @@ export function Backup({ store, syncOn, onBackedUp }: {
     );
   };
 
+  // A copy of what's here now is made first (never pruned by this restore, so the one picked
+  // stays), which makes the restore something that can be gone back on from the same list.
+  const restoreAutomatic = (name: string, label: string) => {
+    Alert.alert(
+      `Restore the backup from ${label}?`,
+      "Your decks, cards and review history on this iPhone will be replaced by the ones in this backup. Images and sounds stay as they are. A backup of what's here now is made first, so you can go back to it.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: () => run('restore', async () => {
+            try {
+              await makeAutoBackup(store, {});
+              const { notes, cards } = await store.restoreFrom(autoBackupPath(name));
+              say(`Restored the backup from ${label}: ${plural(notes, 'note', 'notes')}, ${plural(cards, 'card', 'cards')}.`);
+            } catch (e: any) {
+              say(failureText(e, { what: `Couldn't restore the backup from ${label}.`, next: 'Try again.' }));
+            }
+          }),
+        },
+      ],
+    );
+  };
+
   return (
     <Screen title="Backup">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
@@ -178,6 +205,7 @@ export function Backup({ store, syncOn, onBackedUp }: {
             onValueChange={turnReminder}
           />
         </Group>
+        <AutoBackups dayStartsAtHour={dayStartsAtHour} onRestore={restoreAutomatic} disabled={busy !== null} />
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Restore</Text>
           <Help>Replace everything on this iPhone with a backup, e.g. after reinstalling the app or on a new phone.</Help>

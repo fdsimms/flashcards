@@ -21,6 +21,11 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
 - **The kept Anki collection travels in the backup too** (`anki_collection`, in 1 MB pieces), with
   the settings that say what of it was already sent (`ANKI_SETTING_KEYS`). Without it, a restore
   would bring back answers that could never reach Anki.
+- **Automatic backups are `backupTo` without the media table** (`autoBackupTo`; rules in
+  `src/db/autoBackup.ts`, files in `src/ui/autoBackup.ts`), kept in the documents folder's
+  `backups`. They don't set `last_backup_at`: a copy on the phone is lost with the phone, so the
+  reminder and the deck list still ask for one kept elsewhere. Restoring one makes another first and
+  doesn't prune, so the one picked can't be removed by it.
 
 ## Database
 
