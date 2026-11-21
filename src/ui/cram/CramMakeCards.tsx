@@ -9,6 +9,7 @@ import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import { CandidateChips } from './CramBits';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
@@ -156,6 +157,7 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
                         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
+                        <CandidateChips word={cand} />
                       </View>
                       {on ? <Icon name="checkmark.circle.fill" size={20} color={c.accent} /> : null}
                     </Tappable>

@@ -101,12 +101,12 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
       setProblem(failureText(e, { what: "Couldn't add the words.", next: 'Try again.' }));
     }
   };
-  const ask = async (word: LessonWordCandidate) => {
+  const ask = async (words: LessonWordCandidate[]) => {
     if (!queue || !language) return undefined;
-    const how = await queue(language, [{ entry: word.text, meaning: word.english }]);
+    const how = await queue(language, words.map((w) => ({ entry: w.text, meaning: w.english })));
     // The cram as it is now: a word asked for while another save was in flight isn't lost.
     const now = cramsNow().find((x) => x.id === cram.id);
-    if (how && now) await saveCram(repo, withRequest(now, { text: word.text, english: word.english }));
+    if (how && now) await saveCram(repo, words.reduce((next, w) => withRequest(next, { text: w.text, english: w.english }), now));
     return how;
   };
 
