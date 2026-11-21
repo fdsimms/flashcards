@@ -3,6 +3,7 @@ import { isOmnilanguage, speechLangFor } from './cards';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
+import { matchesSearch, parseSearch, rankedWords, type Glob } from './ankiSearch';
 import { searchPlace, searchQuery, searchRank, type SearchPlace } from './searchRank';
 import type { Card, Note } from './types';
 
@@ -98,24 +99,53 @@ function searchPlacesOf(note: Note): SearchPlace[] {
 }
 
 /**
- * Notes matching every word of a search, case and accents aside, in any field (as text), a tag or
- * the deck's name; within a deck and its subdecks when one is given. With a search, the closest
- * matches come first (`searchRank`): the search on the front before it in the meaning, before it
- * in another field, before a tag or the deck; and within each, the search as a whole entry
- * ("performance" in "performance; show") before a whole word, the start of a word, then anywhere.
- * Ties, and every note when nothing is typed, are sorted by what they show first, as Anki's
- * browser sorts by the sort field.
+ * Whether a note holds a plain word of a search, case and accents aside, in any field (as text), a
+ * tag or the deck's name: anywhere in it, or matching its `*` and `_` wildcards.
  */
-export function searchNotes(notes: Note[], query: string, deck?: string | null): Note[] {
-  const search = searchQuery(query);
+function textMatches(note: Note, text: Glob): boolean {
+  const places = searchPlacesOf(note);
+  if (text.wild) {
+    const re = new RegExp(text.source, 'isu');
+    const loose = new RegExp(searchQuery(text.source).phrase.loose, 'isu');
+    return places.some((p) => re.test(p.exact) || loose.test(p.loose));
+  }
+  const { phrase } = searchQuery(text.text);
+  return places.some((p) => p.exact.includes(phrase.exact) || p.loose.includes(phrase.loose));
+}
+
+/** Where a note found without holding any plain word of the search ranks: after every one that holds one. */
+const NOT_RANKED = 1e6;
+
+/** A note's cards, and the moment and study day Browse's search reads them at. */
+export type SearchCards = { byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number };
+
+/**
+ * Notes matching a search in Anki's syntax (src/core/ankiSearch.ts), within a deck and its
+ * subdecks when one is given; none when the search can't be read (`parseSearch` says why). A plain
+ * word matches case and accents aside, in any field (as text), a tag or the deck's name. The
+ * closest matches to the plain words come first (`searchRank`): the search on the front before it
+ * in the meaning, before it in another field, before a tag or the deck; and within each, the search
+ * as a whole entry ("performance" in "performance; show") before a whole word, the start of a
+ * word, then anywhere. Ties, and every note when no plain word is typed, are sorted by what they
+ * show first, as Anki's browser sorts by the sort field.
+ */
+export function searchNotes(notes: Note[], query: string, deck: string | null | undefined, cards: SearchCards): Note[] {
+  const parsed = parseSearch(query);
+  if (!parsed.ok) return [];
+  const { node } = parsed;
+  const words = rankedWords(node);
+  const search = searchQuery(words.join(' '));
+  const ctx = { now: cards.now, dayStartsAtHour: cards.dayStartsAtHour, textMatches };
   const inDeck = (d: string) => !deck || d === deck || d.startsWith(`${deck}::`);
   const rank = new Map<string, number>();
   const out = notes.filter((n) => {
     if (!inDeck(n.deck)) return false;
-    if (!search.words.length) return true;
-    const r = searchRank(searchPlacesOf(n), search);
-    if (r === undefined) return false;
-    rank.set(n.id, r);
+    if (node && !matchesSearch(node, n, cards.byNote.get(n.id) ?? [], ctx)) return false;
+    if (!words.length) return true;
+    const places = searchPlacesOf(n);
+    // A note found through an `or` may not hold every plain word: it ranks by the best one it holds.
+    const best = Math.min(...words.map((w) => searchRank(places, searchQuery(w)) ?? NOT_RANKED));
+    rank.set(n.id, searchRank(places, search) ?? best + 0.75);
     return true;
   });
   const key = new Map(out.map((n) => [n.id, notePreview(n).front]));
