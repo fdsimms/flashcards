@@ -289,6 +289,8 @@ marked words, ideas) is in the current language, the `language` setting.
                                       without Claude. Its cost is kept in `call_costs` (feature
                                       "cram_themes") and counts under `cram_themes` in /api/costs
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
+    POST  /api/lessons/{id}/heard     the lesson was played to the end, so a later lesson may open by
+                                      asking for its phrases (204; 404 with no such lesson)
     DELETE /api/lessons/{id}          forgets the lesson and its audio
     POST  /api/mnemonics              {language, entry, meaning, transliteration?, context?} three
                                       memory hints for a word the owner keeps forgetting: {hints: [...]}

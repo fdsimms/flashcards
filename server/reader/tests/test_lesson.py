@@ -259,7 +259,51 @@ def said(steps: list[lesson.Step], voice: str) -> list[str]:
     return [s.text for s in steps if isinstance(s, Say) and s.voice == voice]
 
 
+HEARD = [[(f"p{n}a", f"e{n}a"), (f"p{n}b", f"e{n}b"), (f"p{n}c", f"e{n}c")] for n in range(1, 7)]
+
+
+class TestEarlierPhrases:
+    def test_takes_one_from_the_lessons_one_three_and_six_back(self) -> None:
+        got = lesson.earlier_phrases(HEARD, set())
+        # A different phrase each time a lesson comes back: its last, then the one before, and so on.
+        assert [(p.text, p.english, p.parts) for p in got] == [
+            ("p1c", "e1c", ("p1c",)),
+            ("p3b", "e3b", ("p3b",)),
+            ("p6a", "e6a", ("p6a",)),
+        ]
+
+    def test_takes_what_there_is_with_fewer_lessons_heard(self) -> None:
+        assert [p.text for p in lesson.earlier_phrases(HEARD[:2], set())] == ["p1c"]
+        assert lesson.earlier_phrases([], set()) == ()
+        assert lesson.earlier_phrases([[]], set()) == ()
+
+    def test_a_short_lesson_gives_its_last_phrase(self) -> None:
+        heard = [[("a", "A")], [], [("c", "C")]]
+        assert [p.text for p in lesson.earlier_phrases(heard, set())] == ["a", "c"]
+
+    def test_never_a_phrase_this_lesson_teaches_or_the_same_one_twice(self) -> None:
+        assert [p.text for p in lesson.earlier_phrases(HEARD, {"p1c"})] == ["p3b", "p6a"]
+        same = [[("x", "X")], [], [("x", "X")]]
+        assert [p.text for p in lesson.earlier_phrases(same, set())] == ["x"]
+
+
 class TestBuildScript:
+    def test_asks_for_earlier_phrases_before_the_dialogue(self) -> None:
+        from dataclasses import replace
+
+        steps = lesson.build_script(replace(PLAN, earlier=(phrase("Merci.", "Thank you."),)))
+        assert steps[:3] == [
+            Say("narrator", "First, some phrases from earlier lessons."),
+            Say("narrator", "How do you say: Thank you."),
+            lesson.answer("Merci."),
+        ]
+        assert steps[3] == Say("male", "Merci.")
+        assert Say("narrator", "At the café. Listen to this conversation.") in steps
+        # With none, the lesson opens on its dialogue as before.
+        assert "First, some phrases from earlier lessons." not in said(
+            lesson.build_script(PLAN), "narrator"
+        )
+
     def test_opens_on_the_dialogue_and_ends_the_lesson(self) -> None:
         steps = lesson.build_script(PLAN)
         assert steps[0] == Say("narrator", "At the café. Listen to this conversation.")

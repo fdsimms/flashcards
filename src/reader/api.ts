@@ -704,6 +704,8 @@ export function createApi(
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
       call<void>('POST', `/api/lessons/${id}/marks`, mark),
+    // A lesson played to the end, so a later lesson may open by asking for its phrases (server lesson.earlier_phrases). Never a rating.
+    lessonHeard: (id: number) => call<void>('POST', `/api/lessons/${id}/heard`),
     // Makes the review on offer from the phrases noted (no Claude call); returns its id, made in the background like a lesson.
     makeReview: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha') => {
       const response = await send('POST', '/api/lessons/review', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) });

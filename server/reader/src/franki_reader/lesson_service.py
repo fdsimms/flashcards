@@ -10,6 +10,7 @@ import logging
 import os
 import sqlite3
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -103,6 +104,13 @@ async def make_lesson(
         _keep_cost(conn, language, e.usage.cost_usd(), 0, now)
         store.fail_lesson(conn, lesson_id, str(e))
         return
+    # Phrases of lessons played to the end come back at the start (lesson.earlier_phrases).
+    plan = replace(
+        plan,
+        earlier=lesson.earlier_phrases(
+            store.heard_lesson_phrases(conn, language, lesson_id), {p.text for p in plan.phrases}
+        ),
+    )
     await _speak_and_keep(
         conn,
         lesson_id,
