@@ -81,6 +81,7 @@ def test_the_request_names_the_point_and_how_to_write_it() -> None:
     assert "12 practice questions" in spanish and "Spanish" in spanish and "Preterite" in spanish
     assert "spaces included" in spanish
     assert "no spaces between words" in request_message("th", POINTS["th.ever"], 3)
+    assert "the way an ordinary person talks, not the way a textbook puts it" in spanish
 
 
 class Writer:

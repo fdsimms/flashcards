@@ -161,6 +161,13 @@ what the learner asks the tutor to steer the conversation, so they open the subj
 - story: two or three short sentences in {language} that the learner could say about the theme, \
 in the first person, using several of the learner's words, with the English.
 
+The questions and the story are for speaking aloud with a tutor, so write them the way an \
+ordinary person talks in everyday conversation, not the way a textbook or a written text puts \
+it: the spoken form of a word where it differs from the written one (like "how"), the subject \
+left out when it is clear, and no formal written words or constructions. Aim for plain, natural \
+and polite enough for a tutor, not for very casual speech, slang or the shortenings used only \
+between close friends.
+
 Everything in {language} is written in {language}'s own writing, never romanization, with no \
 translations in brackets. Write the English in American English, without em dashes. The themes \
 must differ from each other and from any listed as taken.{topic}{level}"""

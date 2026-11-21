@@ -187,6 +187,12 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "stretch" in system_message("fr", True)
 
 
+def test_the_system_message_asks_for_spoken_not_written_register() -> None:
+    text = system_message("th", False)
+    assert "ordinary person talks in everyday conversation" in text
+    assert "not the way a textbook or a written text puts it" in text
+
+
 def test_a_topic_leads_the_request_and_asks_for_angles_on_it() -> None:
     text = request_message(seeds(topic="My violin recital"))
     assert text.startswith("What the lesson is for: My violin recital\n\nThe learner's words:")
