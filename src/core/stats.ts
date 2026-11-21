@@ -435,6 +435,64 @@ export function trueRetention(input: { answers: Answer[]; now: Date; dayStartsAt
   return rows;
 }
 
+/** Fewer reviews than this say too little about retention to compare it with a target. */
+export const RETENTION_GAP_MIN_REVIEWS = 200;
+
+export interface RetentionTarget {
+  /** The desired retention the counted reviews were aiming for, averaged over them. */
+  target: number;
+  /** Those reviews, and how many were remembered. */
+  rate: Rate;
+  /** The reviews came from decks with different desired retentions. */
+  mixed: boolean;
+}
+
+/**
+ * What the reviews since `since` were aiming for against what was remembered: each review counts
+ * with its own deck's desired retention (`targetOf`), since a deck's subdecks can each have their
+ * own (frequency tiers do), and the parent's alone would be compared with reviews it didn't
+ * schedule. Counts what True Retention counts. Null when no review has a target.
+ */
+export function retentionTarget(input: { answers: Answer[]; since: Date; targetOf: (cardId: string) => number | undefined }): RetentionTarget | null {
+  const rate: Rate = { passed: 0, total: 0 };
+  const seen = new Set<number>();
+  let sum = 0;
+  for (const a of input.answers) {
+    if (a.kind !== 'review' || !counted(a) || a.at < input.since) continue;
+    const t = input.targetOf(a.cardId);
+    if (t === undefined) continue;
+    rate.total++;
+    if (a.rating > 1) rate.passed++;
+    sum += t;
+    seen.add(t);
+  }
+  return rate.total ? { target: sum / rate.total, rate, mixed: seen.size > 1 } : null;
+}
+
+/**
+ * Which side of its target retention fell on, or null when it's close enough or there are too few
+ * reviews to say: at least 3 points off, and more than twice what chance alone would give that many reviews.
+ */
+export function retentionGap(t: RetentionTarget): 'under' | 'over' | null {
+  if (t.rate.total < RETENTION_GAP_MIN_REVIEWS) return null;
+  const got = t.rate.passed / t.rate.total;
+  const margin = Math.max(0.03, 2 * Math.sqrt((t.target * (1 - t.target)) / t.rate.total));
+  if (got < t.target - margin) return 'under';
+  if (got > t.target + margin) return 'over';
+  return null;
+}
+
+/** What Stats says under the Remembered table about a gap, or null with none. */
+export function retentionGapLine(t: RetentionTarget): string | null {
+  const gap = retentionGap(t);
+  if (!gap) return null;
+  const got = Math.round((t.rate.passed / t.rate.total) * 100);
+  const aim = Math.round(t.target * 100);
+  return gap === 'under'
+    ? `Over the last 30 days you remembered ${got}% of reviews, under the ${aim}% aimed for. Running Optimize in the deck's options in Anki usually closes a gap like this. So does pressing Again, not Hard, on a card you forgot.`
+    : `Over the last 30 days you remembered ${got}% of reviews, over the ${aim}% aimed for. Running Optimize in the deck's options in Anki would space these cards further apart.`;
+}
+
 export interface Streaks {
   /**
    * Study days in a row with an answer, up to today. Today not studied yet doesn't end it: it

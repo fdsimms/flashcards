@@ -84,7 +84,7 @@ import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
 import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
-import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { asksEarlyHint, canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
@@ -114,8 +114,8 @@ import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
 import { useMiniCram } from './useMiniCram';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
-import { compareTypedAnswer } from '../core/typedCompare';
+import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { compareTyped, compareTypedAnswer } from '../core/typedCompare';
 import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
@@ -855,7 +855,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               // The answer stands; the tag just stays.
             }
           }
-          if (isLeech && canAddMnemonic(noteBefore)) {
+          // The fourth miss asks for a mnemonic too, well before the leech threshold, and tags nothing (`asksEarlyHint`).
+          if ((isLeech && canAddMnemonic(noteBefore)) || (!preview && asksEarlyHint(noteBefore, cur.sched, res.sched, leech.threshold))) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
         }).finally(() => { writes.current++; });
@@ -1272,8 +1273,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     { r: 4, label: 'Easy', color: c.easy },
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
-  // With a sense marked as missed, Again is outlined as the rating that fits; the tap still decides.
-  const suggested = suggestedRating ?? (senseMarks.miss ? 1 : undefined);
+  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`). Not a spoken one.
+  const typedWrong = revealed && !spokenIn && !!typed.trim() && (
+    typing && typeItWord ? typedMiss(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
+      : typeInExpected ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
+  // With a sense marked as missed, or the word typed wrong, Again is outlined as the rating that fits; the tap still decides.
+  const suggested = suggestedRating ?? (senseMarks.miss || typedWrong ? 1 : undefined);
   const footer = revealed && returned ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {([{ r: 1, label: 'Missed it', color: c.again }, { r: 3, label: 'Got it', color: c.good }] as const).map((b) => (
@@ -1295,7 +1300,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
-        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => rate(1, miss)} />
+        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} suggested={suggested === 1} onAnswer={(miss) => rate(1, miss)} />
       ) : (
         <Tappable
           key={b.r}

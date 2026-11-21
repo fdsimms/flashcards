@@ -1,7 +1,7 @@
 /**
  * Leeches made during a review session, waiting for a hint. The answer that makes a card a leech
  * tags its note straight away, but asking for the hint waits for the session's summary, so a leech
- * doesn't stop the review. Pure so the list's rules are tested (tests/core/pendingHints.test.ts).
+ * doesn't stop the review. A word missed for the fourth time waits here too, untagged (`asksEarlyHint`). Pure so the list's rules are tested (tests/core/pendingHints.test.ts).
  */
 export type PendingHint = {
   noteId: string;
