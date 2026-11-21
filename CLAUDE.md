@@ -142,6 +142,10 @@ effort:low.
 **Plain, literal terms.** Say what a setting or button does, the way the rest of the app talks. No
 jokey metaphors or cutesy voice. Read each line aloud and rewrite it if nobody would say it that way.
 
+**Before writing a new message, grep `src` for how the app already says it** and reuse that wording,
+or the shared constant where there is one (`NOTE_GONE` and `NOT_IN_ANKI` in `src/core/failure.ts`,
+`NO_COLLECTION` in `src/anki/noteService.ts`).
+
 **An error says what happened, then what to do.** "Couldn't import deck.apkg. It was exported with
 "Support older Anki versions" turned on. Export it again..." rather than "failed: <exception>". Buttons name the action.
 Screens build it with `failureText` (`src/core/failure.ts`): an error written for a person extends
