@@ -20,6 +20,7 @@ from franki_reader.languages import (
     VoiceSlot,
     with_deck,
 )
+from franki_reader.register import Register
 from franki_reader.routes.context import AppContext
 from franki_reader.routes.voice_check import check_voice
 from franki_reader.store import Length, Settings, StretchWords
@@ -52,6 +53,9 @@ class SettingsUpdate(BaseModel):
     voices: dict[Code, dict[VoiceSlot, Annotated[str, Field(max_length=100)]]] | None = None
     # A voice and pitch for each kind of story character (cast.py); null goes back to the default.
     cast: dict[Code, dict[CastType, CastChoice | None]] | None = None
+    # How casual or formal the text Claude writes sounds (register.py).
+    # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
+    register_level: Register | None = Field(default=None, alias="register")
 
 
 async def _check_voice_gender(speech: Speech | None, name: str, slot: VoiceSlot) -> None:
@@ -183,6 +187,7 @@ def router(ctx: AppContext) -> APIRouter:
             common=common,
             daily_tasks=daily_tasks,
             daily_rotate_count=body.daily_rotate_count or current.daily_rotate_count,
+            register=body.register_level or current.register,
         )
         store.save_settings(engine.conn, updated)
         for code in changed_decks:

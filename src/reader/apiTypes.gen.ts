@@ -1954,6 +1954,8 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
         };
@@ -2186,6 +2188,8 @@ export interface components {
                     [key: string]: components["schemas"]["CastChoice"] | null;
                 };
             } | null;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
         };
         /** SituationFocus */
         SituationFocus: {
@@ -2217,6 +2221,8 @@ export interface components {
              * @default true
              */
             speak: boolean;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
         };
         /** SituationLine */
         SituationLine: {
@@ -2325,6 +2331,8 @@ export interface components {
              * @default
              */
             topic: string;
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
         };
         /** ThemesOut */
         ThemesOut: {

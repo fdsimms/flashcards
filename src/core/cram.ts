@@ -4,6 +4,7 @@ import { addCalendarDays, dayKeyOf, nextStudyDayStart, studyDayKey, studyDayStar
 import { headword } from './forms';
 import { htmlToText } from './html';
 import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
+import { isRegisterLevel, type RegisterLevel } from '../reader/registerLevel';
 import { isReaderLanguage, readerLanguageOf } from './leechHint';
 import { noteHasTag } from './priority';
 import type { Card, Note } from './types';
@@ -83,6 +84,8 @@ export interface Cram {
   language?: Language;
   /** The theme it was made from, when it was made from one. */
   theme?: CramTalk;
+  /** How casual or formal its talking points, lesson and rehearsals are written. Unset, it follows Settings (`registerLevel.ts`). */
+  register?: RegisterLevel;
   /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
   lesson?: { id: number; noteIds: string[] };
   /** Questions to ask the tutor. */
@@ -333,7 +336,7 @@ export function parseCram(json: string): Cram | undefined {
   try {
     const c = JSON.parse(json) as Partial<Cram>;
     if (typeof c.id !== 'string' || typeof c.name !== 'string' || typeof c.date !== 'string' || typeof c.createdAt !== 'string') return undefined;
-    return { ...c, language: isReaderLanguage(c.language) ? c.language : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
+    return { ...c, language: isReaderLanguage(c.language) ? c.language : undefined, register: isRegisterLevel(c.register) ? c.register : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
   } catch {
     return undefined;
   }

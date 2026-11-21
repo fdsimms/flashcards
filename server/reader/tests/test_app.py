@@ -434,6 +434,15 @@ CAST = {
 }
 
 
+def test_the_register_setting_defaults_to_everyday_and_can_be_changed() -> None:
+    c = client()
+    assert c.get("/api/settings", headers=AUTH).json()["register"] == "everyday"
+    changed = c.patch("/api/settings", headers=AUTH, json={"register": "formal"})
+    assert changed.json()["register"] == "formal"
+    assert c.get("/api/settings", headers=AUTH).json()["register"] == "formal"
+    assert c.patch("/api/settings", headers=AUTH, json={"register": "slang"}).status_code == 422
+
+
 def test_the_stretch_setting_can_be_read_and_changed() -> None:
     c = client()
     assert c.get("/api/settings", headers=AUTH).json() == {
@@ -447,6 +456,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     changed = c.patch("/api/settings", headers=AUTH, json={"stretch_words": "any"})
     assert changed.json() == {
@@ -460,6 +470,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert c.get("/api/settings", headers=AUTH).json() == {
         "stretch_words": "any",
@@ -472,6 +483,7 @@ def test_the_stretch_setting_can_be_read_and_changed() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert (
         c.patch("/api/settings", headers=AUTH, json={"stretch_words": "loose"}).status_code == 422
@@ -622,6 +634,7 @@ def test_the_length_setting_can_be_changed_to_a_length_offered() -> None:
         "common": COMMON,
         "daily_tasks": DAILY_TASKS,
         "daily_rotate_count": 1,
+        "register": "everyday",
     }
     assert c.patch("/api/settings", headers=AUTH, json={"lines": 30}).status_code == 422
 

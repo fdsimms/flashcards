@@ -35,7 +35,7 @@ export default function CramThemeRoute() {
         return sent;
       }}
       onStory={() => router.push({ pathname: '/cram-theme', params: { id, index, view: 'story' } })}
-      onRehearse={(language, scene, words) => router.push({ pathname: '/tool', params: rehearsalParams(language, scene, words) })}
+      onRehearse={(language, scene, words) => router.push({ pathname: '/tool', params: rehearsalParams(language, scene, words, cram()?.register) })}
       onUse={async (theme, words) => {
         const now = cram();
         if (!now) return;

@@ -18,6 +18,7 @@ from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
+from franki_reader.register import DEFAULT, Register, instruction
 
 MAX_TOKENS = 4000
 MAX_ATTEMPTS = 2
@@ -53,8 +54,7 @@ Rules for the phrases:
   learner can build it up from its end (the last piece first). Put back together, the parts must be
   the phrase exactly: the same words in the same order, nothing added or left out. A short phrase
   can be one part.
-- Polite, everyday register (use the formal "you" where the language has one), unless the situation
-  is between friends.
+- {register_rule}
 {gender_rule}- Each phrase does a different job in the situation, so the lesson covers it rather than repeating
   one thing: for example asking, answering, asking back, reacting, thanking, saying you didn't
   understand. Never two phrases that say nearly the same thing with a word added or changed ("How
@@ -97,6 +97,9 @@ Rules for the parts: the phrase split in order into 1 to {parts} pieces at natur
 the learner can build it up from its end (the last piece first). Put back together, the parts must
 be the phrase exactly. A single word or a short phrase is one part.
 
+The dialogue and the new sentences are what you write, and the words and phrases above stay as
+given. {register_rule}
+
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
 
 _NEUTRAL = "- The learner may be a man or a woman, so use no form that changes with the speaker's gender.\n"
@@ -131,12 +134,15 @@ def _thai_note(learner: lesson.Learner) -> str:
 
 
 # Japanese has no spaces either, and its script and politeness are worth saying: a lesson teaches
-# what a learner says to a stranger (a shop, a station), which is the polite です/ます form.
+# what a learner says to a stranger (a shop, a station), which is the polite です/ます form, unless
+# the lesson is casual, for friends, which is the plain form.
 _JAPANESE_NOTE = (
     "\n\nJapanese: write standard Japanese in kanji and kana as a native speaker would, never"
     " romaji, with no spaces between words, and cut `parts` where a person would pause. Phrases"
-    " taught and the new sentences in `mixes` use the polite です/ます form."
+    " taught and the new sentences in `mixes` use "
 )
+_JAPANESE_POLITE = "the polite です/ます form."
+_JAPANESE_PLAIN = "the plain form friends use, not です/ます."
 
 
 def _thai_given_note(learner: lesson.Learner) -> str:
@@ -152,12 +158,14 @@ def _thai_given_note(learner: lesson.Learner) -> str:
     )
 
 
-def _language_note(language: Code, learner: lesson.Learner) -> str:
+def _language_note(language: Code, learner: lesson.Learner, register: Register = DEFAULT) -> str:
     """What the request adds for one language: Thai's script and gendered particles, Japanese's
     script and politeness, nothing for the rest."""
     if language == "th":
         return _thai_note(learner)
-    return _JAPANESE_NOTE if language == "ja" else ""
+    if language == "ja":
+        return _JAPANESE_NOTE + (_JAPANESE_PLAIN if register == "casual" else _JAPANESE_POLITE)
+    return ""
 
 
 def _speakers(language: Code, learner: lesson.Learner) -> tuple[str, str]:
@@ -266,11 +274,12 @@ class LessonFailed(Exception):
 # Asks Claude for a lesson's content: the language, the scene, what to say about the last attempt
 # (empty the first time) and whose part the learner plays. Returns Claude's raw answer and what the
 # call cost.
-WritePlan = Callable[[Code, str, str, lesson.Learner], Awaitable[tuple[Any, Usage]]]
+WritePlan = Callable[[Code, str, str, lesson.Learner, Register], Awaitable[tuple[Any, Usage]]]
 # The same, for a lesson around the learner's own words and phrases (the language, the scene, the
-# phrases, the feedback, the learner).
+# phrases, the feedback, the learner, the register).
 WriteGiven = Callable[
-    [Code, str, tuple[lesson.Phrase, ...], str, lesson.Learner], Awaitable[tuple[Any, Usage]]
+    [Code, str, tuple[lesson.Phrase, ...], str, lesson.Learner, Register],
+    Awaitable[tuple[Any, Usage]],
 ]
 
 _RETRY = (
@@ -287,7 +296,9 @@ _RETRY_WORDS = (
 )
 
 
-def request_message(language: Code, scene: str, learner: lesson.Learner = "male") -> str:
+def request_message(
+    language: Code, scene: str, learner: lesson.Learner = "male", register: Register = DEFAULT
+) -> str:
     a, b = _speakers(language, learner)
     return _REQUEST.format(
         a=a,
@@ -301,15 +312,24 @@ def request_message(language: Code, scene: str, learner: lesson.Learner = "male"
         many=lesson.MAX_PHRASES,
         mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
-        note=_language_note(language, learner),
+        note=_language_note(language, learner, register),
+        register_rule=instruction(register),
     )
 
 
 def given_request_message(
-    language: Code, scene: str, given: tuple[lesson.Phrase, ...], learner: lesson.Learner = "male"
+    language: Code,
+    scene: str,
+    given: tuple[lesson.Phrase, ...],
+    learner: lesson.Learner = "male",
+    register: Register = DEFAULT,
 ) -> str:
     a, b = _speakers(language, learner)
-    note = _thai_given_note(learner) if language == "th" else _language_note(language, learner)
+    note = (
+        _thai_given_note(learner)
+        if language == "th"
+        else _language_note(language, learner, register)
+    )
     return _GIVEN_REQUEST.format(
         a=a,
         b=b,
@@ -321,6 +341,7 @@ def given_request_message(
         mixes=lesson.MAX_MIXES,
         parts=lesson.MAX_PARTS,
         note=note,
+        register_rule=instruction(register),
     )
 
 
@@ -370,13 +391,14 @@ async def write_given_plan(
     given: tuple[lesson.Phrase, ...],
     learner: lesson.Learner = "male",
     lexicon: Checker | None = None,
+    register: Register = DEFAULT,
 ) -> tuple[lesson.Plan, Usage]:
     """The plan for a lesson teaching the learner's own `given` words and phrases in `scene`, asked
     for as `write_plan` asks (`lesson.clean_given_plan` keeps every given phrase). A Thai plan is
     checked for its speakers' particles and "I", never the phrases', which are the learner's."""
 
     async def ask(feedback: str) -> tuple[Any, Usage]:
-        return await write(language, scene, given, feedback, learner)
+        return await write(language, scene, given, feedback, learner, register)
 
     return await _first_usable(
         ask,
@@ -393,6 +415,7 @@ async def write_plan(
     scene: str,
     learner: lesson.Learner = "male",
     lexicon: Checker | None = None,
+    register: Register = DEFAULT,
 ) -> tuple[lesson.Plan, Usage]:
     """The plan for a lesson on `scene`, asked for up to `MAX_ATTEMPTS` times; what the calls cost
     comes back with it, or on the failure. A Thai plan whose phrases lack the learner's polite
@@ -402,7 +425,7 @@ async def write_plan(
     fewest is kept rather than no lesson."""
 
     async def ask(feedback: str) -> tuple[Any, Usage]:
-        return await write(language, scene, feedback, learner)
+        return await write(language, scene, feedback, learner, register)
 
     return await _first_usable(
         ask,
@@ -444,9 +467,10 @@ async def _ask_claude(
 
 def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
     async def write(
-        language: Code, scene: str, feedback: str, learner: lesson.Learner
+        language: Code, scene: str, feedback: str, learner: lesson.Learner, register: Register
     ) -> tuple[Any, Usage]:
-        return await _ask_claude(client, request_message(language, scene, learner), feedback)
+        request = request_message(language, scene, learner, register)
+        return await _ask_claude(client, request, feedback)
 
     return write
 
@@ -458,8 +482,9 @@ def claude_given_plan(client: anthropic.AsyncAnthropic) -> WriteGiven:
         given: tuple[lesson.Phrase, ...],
         feedback: str,
         learner: lesson.Learner,
+        register: Register,
     ) -> tuple[Any, Usage]:
-        request = given_request_message(language, scene, given, learner)
+        request = given_request_message(language, scene, given, learner, register)
         return await _ask_claude(client, request, feedback)
 
     return write

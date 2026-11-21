@@ -193,6 +193,14 @@ def test_the_system_message_asks_for_spoken_not_written_register() -> None:
     assert "not the way a textbook or a written text puts it" in text
 
 
+def test_each_register_changes_what_the_system_message_asks_for() -> None:
+    casual = system_message("th", False, register="casual")
+    formal = system_message("th", False, register="formal")
+    assert "with friends or family" in casual
+    assert "stranger, a boss or an interviewer" in formal
+    assert "with friends or family" not in system_message("th", False)
+
+
 def test_a_topic_leads_the_request_and_asks_for_angles_on_it() -> None:
     text = request_message(seeds(topic="My violin recital"))
     assert text.startswith("What the lesson is for: My violin recital\n\nThe learner's words:")

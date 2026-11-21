@@ -25,6 +25,7 @@ from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
 from franki_reader.lesson_words import is_written
+from franki_reader.register import DEFAULT, Register, instruction
 
 MAX_TOKENS = 4000
 # How many themes are offered at once, and the most each one carries.
@@ -81,6 +82,8 @@ class Seeds:
     stretch: bool
     # What the learner said the lesson is for (the cram's name): every theme is an angle on it.
     topic: str = ""
+    # How casual or formal the questions and the story sound.
+    register: Register = DEFAULT
 
 
 @dataclass(frozen=True)
@@ -161,12 +164,7 @@ what the learner asks the tutor to steer the conversation, so they open the subj
 - story: two or three short sentences in {language} that the learner could say about the theme, \
 in the first person, using several of the learner's words, with the English.
 
-The questions and the story are for speaking aloud with a tutor, so write them the way an \
-ordinary person talks in everyday conversation, not the way a textbook or a written text puts \
-it: the spoken form of a word where it differs from the written one (like "how"), the subject \
-left out when it is clear, and no formal written words or constructions. Aim for plain, natural \
-and polite enough for a tutor, not for very casual speech, slang or the shortenings used only \
-between close friends.
+The questions and the story are for speaking aloud with a tutor. {register}
 
 Everything in {language} is written in {language}'s own writing, never romanization, with no \
 translations in brackets. Write the English in American English, without em dashes. The themes \
@@ -220,7 +218,9 @@ def request_message(seeds: Seeds) -> str:
     return "\n".join(parts)
 
 
-def system_message(language: Code, stretch: bool, topic: bool = False) -> str:
+def system_message(
+    language: Code, stretch: bool, topic: bool = False, register: Register = DEFAULT
+) -> str:
     return SYSTEM.format(
         language=LANGUAGES[language].name,
         count=COUNT,
@@ -230,6 +230,7 @@ def system_message(language: Code, stretch: bool, topic: bool = False) -> str:
         max_questions=MAX_QUESTIONS,
         level=STRETCH if stretch else COMFORTABLE,
         topic=TOPIC if topic else "",
+        register=instruction(register),
     )
 
 
@@ -321,7 +322,7 @@ def claude_themes(client: anthropic.AsyncAnthropic) -> WriteThemes:
             response = await client.beta.messages.create(
                 model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
-                system=system_message(language, seeds.stretch, bool(seeds.topic)),
+                system=system_message(language, seeds.stretch, bool(seeds.topic), seeds.register),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
             )
