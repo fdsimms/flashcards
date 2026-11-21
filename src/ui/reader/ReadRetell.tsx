@@ -13,7 +13,8 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Help, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
-import { WritingResult } from './ReadWritingResult';
+import { asksAnotherTry } from '../../reader/production';
+import { WritingFirstTry, WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -39,6 +40,9 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opened, setOpened] = useState<number | null>(null);
+  // The first check of a retelling with mistakes holds its correction back for another try (`asksAnotherTry`).
+  const [tries, setTries] = useState(0);
+  const [revealed, setRevealed] = useState(false);
   const asking = useRef(0);
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
@@ -58,7 +62,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
     setError(null);
     try {
       const answer = await api.retell(text.id, attempt.trim());
-      if (asking.current === mine) setCheck(answer);
+      if (asking.current === mine) { setCheck(answer); setTries((n) => n + 1); }
     } catch (e) {
       if (asking.current === mine) setError(failureText(e, { what: "Couldn't check your retelling.", next: 'Try again.' }));
     } finally {
@@ -66,10 +70,13 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
     }
   };
 
+  const firstTry = !!check && !revealed && asksAnotherTry(check, tries);
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} {...scrollProps}>
-        {check ? (
+        {check && firstTry ? (
+          <Reveal><Card><WritingFirstTry check={check} attempt={attempt} lang={LANGUAGES[text.language].speech} /></Card></Reveal>
+        ) : check ? (
           <Reveal style={{ gap: space.m }}>
             <Card><WritingResult check={check} attempt={attempt} lang={LANGUAGES[text.language].speech} /></Card>
             {check.words.length ? (
@@ -139,7 +146,12 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
         {error ? <ErrorNote message={error} onRetry={ask} /> : null}
       </ScrollView>
       <View style={{ flexDirection: 'row', gap: space.s, paddingHorizontal: space.l, paddingTop: space.s, paddingBottom: space.l }}>
-        {check ? (
+        {check && firstTry ? (
+          <>
+            <Button variant="secondary" label="Show the correction" style={{ flex: 1 }} onPress={() => setRevealed(true)} />
+            <Button label="Try again" style={{ flex: 1 }} onPress={() => { asking.current++; setCheck(null); }} />
+          </>
+        ) : check ? (
           <>
             <Button variant="secondary" label="Try again" style={{ flex: 1 }} onPress={() => { asking.current++; setCheck(null); setOpened(null); }} />
             <Button label="Done" style={{ flex: 1 }} onPress={onDone} />

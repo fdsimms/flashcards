@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { paramsForDeck } from '../core/scheduler';
 import {
   answerButtons, answerCalendar, answersByHour, answersFrom, calendarStart, computeStats, durationText, intervalGroups, intervalText,
-  MATURE_DAYS, STATS_RANGES, subdeckLevels, trueRetention, type Answer,
+  MATURE_DAYS, retentionGapLine, retentionTarget, STATS_RANGES, subdeckLevels, trueRetention, type Answer,
 } from '../core/stats';
 import type { Card, DeckParams, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -83,6 +83,14 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
       buttons: answerButtons({ answers, since }),
       hours: answersByHour({ answers, since, dayStartsAtHour }),
       retention: trueRetention({ answers, now, dayStartsAtHour }),
+      // Each review against its own deck's desired retention: a deck's subdecks can each have their own.
+      aim: scope === WANIKANI_SCOPE ? null : retentionTarget({
+        answers, since: calendarStart(now, dayStartsAtHour, 30),
+        targetOf: (() => {
+          const home = new Map(cards.map((card) => [card.id, cardHomeDeck(card, deckOf.get(card.noteId) ?? '')]));
+          return (cardId: string) => { const d = home.get(cardId); return d === undefined ? undefined : paramsForDeck(d, data.params)?.desiredRetention; };
+        })(),
+      }),
     };
   }, [data, scope, wanikani, rangeDays]);
 
@@ -199,7 +207,10 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
                 : "Reviews not answered Again. Learning and relearning steps aren't counted."}
             </Help>
             <RetentionTable rows={stats.retention} splitByAge={!onWaniKani} />
-            {target ? <Help>This deck aims for {Math.round(target * 100)}% (its desired retention in Anki).</Help> : null}
+            {stats.aim?.mixed
+              ? <Help>The decks here aim for {Math.round(stats.aim.target * 100)}% on average over the last 30 days (their desired retention in Anki).</Help>
+              : target ? <Help>This deck aims for {Math.round(target * 100)}% (its desired retention in Anki).</Help> : null}
+            {stats.aim && retentionGapLine(stats.aim) ? <Help>{retentionGapLine(stats.aim)}</Help> : null}
           </Box>
 
           {onWaniKani ? null : (

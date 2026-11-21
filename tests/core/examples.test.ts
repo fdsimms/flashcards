@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { examplesOf, fieldLines } from '../../src/core/examples';
+import { examplesOf, fieldLines, sourceOf } from '../../src/core/examples';
 import { omniNote } from '../support/fixtures';
 
 describe('fieldLines', () => {
@@ -45,5 +45,21 @@ describe('examplesOf', () => {
   });
   it('falls back to the fields as written when ContextLabels is set but Context is empty', () => {
     expect(examplesOf(omniNote({ Context: '', ContextLabels: 'skill' }))).toEqual([{ context: '', romanized: '', translation: '', literal: '', tag: '' }]);
+  });
+});
+
+describe('sourceOf', () => {
+  it('is the line, its translation and the title, the title always last', () => {
+    const note = omniNote({ Source: '<b>Wirf</b> die Rüstung <b>ab</b>!<br>Throw off the armor!<br>The Last Train, chapter 4' });
+    expect(sourceOf(note)).toEqual({ line: '<b>Wirf</b> die Rüstung <b>ab</b>!', translation: 'Throw off the armor!', where: 'The Last Train, chapter 4' });
+  });
+  it('has no translation when the field is two lines (the English deck), and no title when it is one', () => {
+    expect(sourceOf(omniNote({ Source: 'A <b>lugubrious</b> tune.<br>Night Bus' }))).toEqual({ line: 'A <b>lugubrious</b> tune.', translation: '', where: 'Night Bus' });
+    expect(sourceOf(omniNote({ Source: 'Just the line' }))).toEqual({ line: 'Just the line', translation: '', where: '' });
+  });
+  it('skips blank lines and is null for an empty field', () => {
+    expect(sourceOf(omniNote({ Source: 'line<br><br>translation<br>Title<br>' }))?.where).toBe('Title');
+    expect(sourceOf(omniNote({ Source: '<br>' }))).toBeNull();
+    expect(sourceOf(omniNote())).toBeNull();
   });
 });

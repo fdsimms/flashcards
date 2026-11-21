@@ -124,6 +124,30 @@ describe('withOffline: what is sent', () => {
   });
 });
 
+describe('withOffline: a lesson heard', () => {
+  it('is sent when the server answers, and held when it cannot be reached or the request is lost', async () => {
+    const on = setup();
+    await on.api.lessonHeard(7);
+    expect(on.calls).toEqual(['POST /api/lessons/7/heard']);
+    expect(on.held).toEqual([]);
+
+    const off = setup({ unreachable: true });
+    await off.api.lessonHeard(7);
+    expect(off.held).toEqual([{ kind: 'lessonHeard', lessonId: 7 }]);
+    expect(off.calls).toEqual([]);
+
+    const down = setup({ server: 'down' });
+    await down.api.lessonHeard(7);
+    expect(down.held).toEqual([{ kind: 'lessonHeard', lessonId: 7 }]);
+  });
+
+  it("doesn't hold a text's reading back", async () => {
+    const { api, calls } = setup({ held: [{ kind: 'lessonHeard', lessonId: 2 }] });
+    await api.logListen(2, 'k');
+    expect(calls).toEqual(['POST /api/texts/2/listen']);
+  });
+});
+
 describe('withOffline: a listen', () => {
   it('is held with an id of its own, and sent with that id', async () => {
     const off = setup({ unreachable: true });

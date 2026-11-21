@@ -206,13 +206,19 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           return (
             <View key={first.i} style={{ gap: space.xs }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ ...type.overline, color: c.accent }}>
-                  Example{sentenceBlock?.tag ? <Text style={{ color: c.textDim }}>{`  ${sentenceBlock.tag}`}</Text> : null}
-                </Text>
+                {sentenceBlock?.source !== undefined ? (
+                  <Text style={{ ...type.overline, color: c.accent }}>
+                    From{sentenceBlock.source ? <Text style={{ color: c.textDim, textTransform: 'none' }}>{`  ${sentenceBlock.source}`}</Text> : null}
+                  </Text>
+                ) : (
+                  <Text style={{ ...type.overline, color: c.accent }}>
+                    Example{sentenceBlock?.tag ? <Text style={{ color: c.textDim }}>{`  ${sentenceBlock.tag}`}</Text> : null}
+                  </Text>
+                )}
                 {sentence && speakSentence ? (
                   <Tappable
                     accessibilityRole="button"
-                    accessibilityLabel="Read the example sentence aloud"
+                    accessibilityLabel={sentenceBlock?.source !== undefined ? 'Read the line aloud' : 'Read the example sentence aloud'}
                     onPress={() => { haptic.tap(); speakSentence(sentence); }}
                     hitSlop={space.m}
                     scaleTo={0.9}

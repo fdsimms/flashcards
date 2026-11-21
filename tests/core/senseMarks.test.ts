@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { activeMisses, missReasonsFor, missReminder } from '../../src/core/misses';
-import { isSenseMiss, lastMissedSenses, numberedSenses, senseMissKey, senseReminder, sensesGot } from '../../src/core/senseMarks';
+import { isSenseMiss, lastMissedSenses, numberedSenses, senseCountLabel, senseMissKey, senseReminder, sensesGot } from '../../src/core/senseMarks';
 import { omniNote } from '../support/fixtures';
 
 describe('senseMarks', () => {
@@ -59,5 +59,16 @@ describe('senseMarks', () => {
       expect(readFileSync(join(root, file), 'utf8'), file).not.toMatch(/senseMarks|isSenseMiss/);
     }
     expect(readFileSync(join(root, 'senseMarks.ts'), 'utf8')).not.toMatch(/from '\.\/(scheduler|queue|deckTree|order|session)'/);
+  });
+});
+
+describe('senseCountLabel', () => {
+  it('says how many meanings there are, from two', () => {
+    expect(senseCountLabel(2)).toBe('2 meanings');
+    expect(senseCountLabel(4)).toBe('4 meanings');
+  });
+  it('says nothing where there is nothing to count', () => {
+    expect(senseCountLabel(1)).toBeNull();
+    expect(senseCountLabel(0)).toBeNull();
   });
 });

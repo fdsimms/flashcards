@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WritingCheck } from '../../src/reader/api';
-import { verdictLine, wordsToUse } from '../../src/reader/production';
+import { asksAnotherTry, verdictLine, wordsToUse } from '../../src/reader/production';
 
 const check = (over: Partial<WritingCheck>): WritingCheck => ({ verdict: 'almost', corrected: 'x', english: 'x', notes: ['one'], ...over });
 
@@ -32,5 +32,18 @@ describe('wordsToUse', () => {
       { noteId: 'gone', wasNew: true },
     ];
     expect(wordsToUse(answers, (id) => words[id]).map((w) => w.word)).toEqual(['kot', 'narzędzie']);
+  });
+});
+
+describe('asksAnotherTry', () => {
+  it('holds the correction back on the first check of writing with mistakes', () => {
+    expect(asksAnotherTry(check({ verdict: 'almost' }), 1)).toBe(true);
+    expect(asksAnotherTry(check({ verdict: 'wrong' }), 1)).toBe(true);
+    expect(asksAnotherTry(check({ verdict: 'almost', used_word: false }), 1)).toBe(true);
+  });
+  it("doesn't for a right answer, or once it has been tried again", () => {
+    expect(asksAnotherTry(check({ verdict: 'right', notes: [] }), 1)).toBe(false);
+    expect(asksAnotherTry(check({ verdict: 'almost' }), 2)).toBe(false);
+    expect(asksAnotherTry(check({ verdict: 'wrong' }), 3)).toBe(false);
   });
 });

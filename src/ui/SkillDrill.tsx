@@ -3,8 +3,9 @@ import { ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, nextDrillQuestion, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, missesToCarry, nextDrillQuestion, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
+import { drillSeenFor, loadDrillSeen, noteDrillAsked } from '../tools/drillSeenStorage';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
@@ -29,9 +30,9 @@ export interface Drill { step: DrillStep; language: Language; months?: number[] 
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
 
 /**
- * The questions missed the last time a card was answered Again, by card id. When the card comes
+ * The questions missed the last time a card was answered Again or Hard, by card id. When the card comes
  * back they're asked again before any new one, as a failed card in Anki comes back unchanged. Kept
- * in memory only, and dropped as soon as the card is answered with anything but Again.
+ * in memory only, and dropped as soon as the card is answered Good or Easy.
  */
 const carriedMisses = new Map<string, DrillQuestion[]>();
 
@@ -54,7 +55,8 @@ interface DrillState {
 export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
-    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months);
+    void loadDrillSeen();
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
     return { ...next, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
@@ -88,14 +90,17 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       const results = [...live.results, right];
       const last = results.length >= DRILL_QUESTIONS;
       const missed = right ? live.missed : [...live.missed, live.question];
-      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months);
+      // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
+      noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
       setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
       return last;
     },
-    /** The card was answered: after Again, what was missed comes back with it; any other rating lets it go. */
+    /** The card was answered: after Again or Hard, what was missed comes back with it; Good and Easy let it go. */
     rated: (rating: number) => {
       if (!cardId) return;
-      if (rating === 1 && live?.missed.length) carriedMisses.set(cardId, live.missed);
+      const carry = missesToCarry(rating, live?.missed ?? []);
+      if (carry.length) carriedMisses.set(cardId, carry);
       else carriedMisses.delete(cardId);
     },
   };

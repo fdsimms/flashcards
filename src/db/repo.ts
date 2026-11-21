@@ -76,6 +76,9 @@ export interface Repo {
   /** Whether a new word's first answer side asks for the learner's own hook (`asksOwnHook`). On unless turned off. */
   askOwnHook(): Promise<boolean>;
   saveAskOwnHook(on: boolean): Promise<void>;
+  /** Whether a card's front says how many meanings the answer has (`senseCountLabel`). On unless turned off; this phone's own. */
+  showSenseCount(): Promise<boolean>;
+  saveShowSenseCount(on: boolean): Promise<void>;
   /** Whether answers can be spoken (src/core/speaking.ts). Off until turned on: speech may go to Apple. */
   answerBySpeaking(): Promise<boolean>;
   saveAnswerBySpeaking(on: boolean): Promise<void>;
@@ -132,6 +135,7 @@ export class MemoryRepo implements Repo {
   swipeToRateSetting = false;
   showCardHintsSetting = false;
   askOwnHookSetting = true;
+  showSenseCountSetting = true;
   answerBySpeakingSetting = false;
   thaiTextSizeSetting: ThaiTextSize = DEFAULT_THAI_TEXT_SIZE;
   furiganaSetting: FuriganaMode = DEFAULT_FURIGANA_MODE;
@@ -230,6 +234,8 @@ export class MemoryRepo implements Repo {
   async saveShowCardHints(on: boolean) { this.showCardHintsSetting = on; }
   async askOwnHook() { return this.askOwnHookSetting; }
   async saveAskOwnHook(on: boolean) { this.askOwnHookSetting = on; }
+  async showSenseCount() { return this.showSenseCountSetting; }
+  async saveShowSenseCount(on: boolean) { this.showSenseCountSetting = on; }
   async answerBySpeaking() { return this.answerBySpeakingSetting; }
   async saveAnswerBySpeaking(on: boolean) { this.answerBySpeakingSetting = on; }
   async thaiTextSize() { return this.thaiTextSizeSetting; }

@@ -56,6 +56,21 @@ describe('cards', () => {
     expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
     expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
   });
+  it("shows a Russian word's stress mark on answers only: a line on the forward back, the headword where the word is the answer", () => {
+    const note = omniNote({ Entry: 'говорить', Meaning: 'to speak', Transliteration: '', Language: 'russian', GenerateReverse: 'y', GenerateAudioCard: 'y', Stress: 'говори\u0301ть' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks.map((b) => b.text)).toEqual(['говорить']);
+    expect(forward.back.blocks.map((b) => b.text)).toContain('говори\u0301ть');
+    for (const kind of ['reverse', 'audio'] as const) {
+      const side = renderCard(note, kind);
+      expect(side.front.blocks.map((b) => b.text)).not.toContain('говори\u0301ть');
+      expect(side.back.blocks[0].text).toBe('говори\u0301ть');
+      expect(side.back.blocks.map((b) => b.text)).not.toContain('говорить');
+    }
+    // With none, the word is shown as it's written.
+    expect(renderCard({ ...note, fields: { ...note.fields, Stress: '' } }, 'reverse').back.blocks[0].text).toBe('говорить');
+  });
+
   it("keeps the Pronunciation behind a tap when the card already hides a transliteration or a reading, after it", () => {
     const thai = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk', Pronunciation: '/kʰwaːm˧.sùk/' });
     const japanese = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese', Pronunciation: '/otona/' });
@@ -120,6 +135,26 @@ describe('cards', () => {
       cells: [{ label: 'plural', value: 'Einstellungen', segments: [{ text: 'Einstellung', marked: false }, { text: 'en', marked: true }] }, { label: 'genitive', value: 'der Einstellung' }],
     });
     expect(back.find((b) => b.role === 'example')?.segments?.find((s) => s.marked)?.text).toBe('Einstellungen');
+  });
+  it('puts the line the word was met in right after the tags, headed by where, with its translation behind a tap', () => {
+    const note = omniNote({
+      Entry: 'abwerfen', Meaning: 'to throw off', Language: 'german', PartOfSpeech: 'verb', Transliteration: '',
+      KeyForms: 'past: warf ab', Context: 'Er <b>warf</b> seinen Mantel <b>ab</b>.', ContextTranslation: 'He threw off his coat.',
+      Source: '<b>Wirf</b> die Rüstung <b>ab</b>!<br>Throw off the armor!<br>The Last Train',
+    });
+    for (const kind of ['forward', 'reverse'] as const) {
+      const back = renderCard({ ...note, fields: { ...note.fields, GenerateReverse: 'y' } }, kind).back.blocks;
+      const roles = back.map((b) => b.role);
+      const at = roles.indexOf('chips');
+      expect(roles.slice(at, at + 4)).toEqual(['chips', 'example', 'exampleTranslation', 'grammar']);
+      expect(back[at + 1]).toMatchObject({ text: 'Wirf die Rüstung ab!', source: 'The Last Train' });
+      expect(back[at + 1].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['Wirf', 'ab']);
+      expect(back[at + 2]).toMatchObject({ text: 'Throw off the armor!', tapLabel: 'Show translation' });
+      // The note's own example is still there, as an example.
+      expect(back.filter((b) => b.role === 'example').map((b) => b.source)).toEqual(['The Last Train', undefined]);
+    }
+    // A note without a Source shows as it always has.
+    expect(renderCard({ ...note, fields: { ...note.fields, Source: '' } }, 'forward').back.blocks.some((b) => b.source !== undefined)).toBe(false);
   });
   it('shows labeled key forms, the counting word, the auxiliary and the aspect pair as cells, and the verb class as the top line', () => {
     const box = (over: Record<string, string>) => renderCard(omniNote(over), 'forward').back.blocks.find((b) => b.role === 'grammar');

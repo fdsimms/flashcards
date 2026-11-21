@@ -18,6 +18,7 @@ import { AnswerContent, Status, ToolScreen, useAnswer, useToolLanguage, useToolP
 import { LetterDrill } from './LetterDrill';
 import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { ToneContour, ToneContours } from './ToneContour';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -54,11 +55,11 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
   const script = SCRIPTS[language];
   const [held, setHeld] = useState(() => {
     const l = toolLanguage(tool, toolPrefs().language);
-    return { language: l, word: randomWord(SCRIPTS[l]?.words.length ?? 1) };
+    return { language: l, word: drawFromBag(language, tool.id, () => randomWord(SCRIPTS[l]?.words.length ?? 1), String) };
   });
   const index = held.language === language ? held.word : undefined;
   useEffect(() => {
-    if (held.language !== language && script) setHeld({ language, word: randomWord(script.words.length) });
+    if (held.language !== language && script) setHeld({ language, word: marks.pick(() => randomWord(script.words.length), (i) => script.patterns(i), String) });
   }, [held.language, language, script]);
 
   const word = index !== undefined ? script?.words[index] : undefined;
@@ -81,7 +82,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomWord(script.words.length, index), (i) => script.patterns(i));
+    const draw = () => marks.pick(() => randomWord(script.words.length, index), (i) => script.patterns(i), String);
     setHeld({ language, word: retries.next(language, index === undefined ? undefined : String(index), draw) });
   };
 

@@ -13,6 +13,7 @@ import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
 import { countEnding, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
@@ -135,8 +136,15 @@ function drawCount(step: CountStep, previous: CountQuestion | undefined, random:
   return { noun: Math.floor(i / pool.length), n: pool[i % pool.length] };
 }
 
-/** A question for `step` in `language`, never `previous` again. `months` limits a date to the months the learner has studied. */
-export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, months?: readonly number[]): DrillQuestion {
+/**
+ * A question for `step` in `language`, never `previous` again, and one not in `recent` (the keys the step
+ * asked lately, drillSeen.ts) while the step has others. `months` limits a date to the months the learner has studied.
+ */
+export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): DrillQuestion {
+  return drawUnseen(() => drawOnce(step, previous, random, language, months), questionKey, recent);
+}
+
+function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: () => number, language: Language | undefined, months: readonly number[] | undefined): DrillQuestion {
   if (step.group === 'dates') {
     const s = step as DateStep;
     return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, months), parts: s.parts };
@@ -176,10 +184,15 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
  * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
  * Returns what's left of `retry` too.
  */
-export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, months?: readonly number[]): { question: DrillQuestion; retry: DrillQuestion[] } {
+export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): { question: DrillQuestion; retry: DrillQuestion[] } {
   const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
-  if (at < 0) return { question: drawQuestion(step, previous, random, language, months), retry: [...retry] };
+  if (at < 0) return { question: drawQuestion(step, previous, random, language, months, recent), retry: [...retry] };
   return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
+}
+
+/** The questions to ask again when a card returns: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
+export function missesToCarry(rating: number, missed: readonly DrillQuestion[]): DrillQuestion[] {
+  return rating <= 2 ? [...missed] : [];
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

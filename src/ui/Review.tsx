@@ -83,7 +83,7 @@ import { AskCardSheet } from './AskCardSheet';
 import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
 import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
-import { canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
+import { asksEarlyHint, canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
@@ -97,8 +97,8 @@ import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { useFieldEdit } from './useFieldEdit';
 import { useSenseContrast } from './useSenseContrast';
 import { useSenseMarks } from './useSenseMarks';
-import { SenseReminder } from './SenseMarks';
-import { isSenseMiss } from '../core/senseMarks';
+import { SenseCount, SenseReminder } from './SenseMarks';
+import { isSenseMiss, senseCountLabel } from '../core/senseMarks';
 import type { AddWord } from './useAddMinedWord';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
@@ -113,8 +113,8 @@ import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
 import { useMiniCram } from './useMiniCram';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typeItAnswer, typeItAnswers } from '../core/activeRecall';
-import { compareTypedAnswer } from '../core/typedCompare';
+import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { compareTyped, compareTypedAnswer } from '../core/typedCompare';
 import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
@@ -255,6 +255,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [answerButtons, setAnswerButtons] = useState<AnswerButtons>('all');
   const [swipeOn, setSwipeOn] = useState(false);
   const [showHints, setShowHints] = useState(false);
+  const [senseCountOn, setSenseCountOn] = useState(true);
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   const furigana = useFurigana(repo, collection.dayStartsAtHour);
   // Bumped after the note editor saves or deletes, to load the cards and notes again.
@@ -317,10 +318,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const now = new Date();
       const cs = await repo.collectionSettings();
       const dayStart = studyDayStart(now, cs.dayStartsAtHour);
-      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints, thai] = await Promise.all([
+      const [c, n, reviews, revlog, params, types, settings, buttons, swipe, hints, thai, senseCount] = await Promise.all([
         // Every card, not only this deck's: a gate on a deck above this one counts its whole subtree.
         repo.listCards(), repo.listNotes(), repo.listReviews(dayStart), repo.ankiReviewLog(dayStart),
-        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(), repo.thaiTextSize(),
+        repo.listDeckParams(), repo.listNoteTypes(), repo.listDeckSettings(), repo.answerButtons(), repo.swipeToRate(), repo.showCardHints(), repo.thaiTextSize(), repo.showSenseCount(),
       ]);
       if (stale) return;
       if (writes.current !== seen) { setReloads((k) => k + 1); return; }
@@ -332,6 +333,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setAnswerButtons(buttons);
       setSwipeOn(swipe);
       setShowHints(hints);
+      setSenseCountOn(senseCount);
       setThaiSize(thai);
       setDeckSettings(settings);
       setAllParams(params);
@@ -393,7 +395,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
-  const showing = current ? `${current.id}:${turn}` : undefined;
+  // `history.length` goes back down on an undo, so card:turn alone repeats an earlier showing's key (answer A, undo, A is "A:5" again)
+  // and whatever was keyed to that one came back with it: a drill already marked three of three, with buttons that mark nothing.
+  // A count of key changes makes every showing's key new.
+  const turnKey = current ? `${current.id}:${turn}` : undefined;
+  const showingSeq = useRef({ key: turnKey, n: 0 });
+  if (showingSeq.current.key !== turnKey) showingSeq.current = { key: turnKey, n: showingSeq.current.n + 1 };
+  const showing = turnKey && `${turnKey}#${showingSeq.current.n}`;
   const revealed = !!showing && revealedAt === showing;
   // The back is committed: time the flip to the frames after it (a no-op unless timing is on).
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -482,7 +490,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
-  const senseMarks = useSenseMarks(current ? `${current.id}:${turn}` : undefined, rendered, current ? misses.log.get(current.id) : undefined);
+  const senseMarks = useSenseMarks(showing, rendered, current ? misses.log.get(current.id) : undefined);
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
   const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
@@ -842,7 +850,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               // The answer stands; the tag just isn't added.
             }
           }
-          if (isLeech && canAddMnemonic(noteBefore)) {
+          // The fourth miss asks for a mnemonic too, well before the leech threshold, and tags nothing (`asksEarlyHint`).
+          if ((isLeech && canAddMnemonic(noteBefore)) || (!preview && asksEarlyHint(noteBefore, cur.sched, res.sched, leech.threshold))) {
             setPendingHints((list) => addPendingHint(list, { noteId: noteBefore.id, cardId: record.before.id, misses: res.sched.lapses, ...(updated.suspended && !record.before.suspended ? { suspendedCardId: record.before.id } : {}) }));
           }
         }).finally(() => { writes.current++; });
@@ -956,7 +965,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Out of cards with a learning card still to come: wake when it's within the learn-ahead limit
   // instead of declaring the deck done, which left it waiting until the deck was reopened.
   // Not while vacation mode is paused: the queue offers nothing then, so the card would never come.
-  const waitingFor = !current && cards && !vacationPlan(vacation, cards, now, H)?.paused
+  const waitingFor = !current && cards && !vacationPlan(vacation, now, H)?.paused
     ? nextLearningDue(cards.filter((c) => isInDeck(cardDeck(c, deckOf.get(c.noteId) ?? ''), deck)), { dayStartsAtHour: H })
     : undefined;
   useEffect(() => {
@@ -1256,8 +1265,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     { r: 4, label: 'Easy', color: c.easy },
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
-  // With a sense marked as missed, Again is outlined as the rating that fits; the tap still decides.
-  const suggested = suggestedRating ?? (senseMarks.miss ? 1 : undefined);
+  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`). Not a spoken one.
+  const typedWrong = revealed && !spokenIn && !!typed.trim() && (
+    typing && typeItWord ? typedMiss(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
+      : typeInExpected ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
+  // With a sense marked as missed, or the word typed wrong, Again is outlined as the rating that fits; the tap still decides.
+  const suggested = suggestedRating ?? (senseMarks.miss || typedWrong ? 1 : undefined);
   const footer = revealed && returned ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {([{ r: 1, label: 'Missed it', color: c.again }, { r: 3, label: 'Got it', color: c.good }] as const).map((b) => (
@@ -1279,7 +1292,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
-        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => rate(1, miss)} />
+        <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} suggested={suggested === 1} onAnswer={(miss) => rate(1, miss)} />
       ) : (
         <Tappable
           key={b.r}
@@ -1590,6 +1603,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
+              {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
               {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} text={senseMarks.reminder.text} got={senseMarks.reminder.got} /> : null}
               {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>

@@ -16,6 +16,7 @@ import { DateFront, PickBack, PickChoices, TapBack, TapFront, today, TypeBack, T
 import type { ToolScreenProps } from './index';
 import { ListenFooter, PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -41,7 +42,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const [weekday, setWeekday] = useToolPref('dateWeekday');
   const [year, setYear] = useToolPref('dateYear');
   const [mode, setMode] = useToolPref('dateMode');
-  const [drawn, setDrawn] = useState<CalendarDate>(() => randomDate());
+  const [drawn, setDrawn] = useState<CalendarDate>(() => drawFromBag(language, tool.id, () => randomDate(), (x) => `${x.year}-${x.month}-${x.day}`));
   const now = today();
   // The date asked about: the one drawn, or its day and month this year when it's tapped with the year unsaid.
   const date = useMemo(() => quizDate(drawn, mode, { weekday, year }, now), [drawn, mode, year, now.year]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -54,7 +55,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const scope = `${language}|${mode}|${weekday}|${year}`;
   const asked = (d: CalendarDate) => { const a = quizDate(d, mode, parts, now); return `${a.year}-${a.month}-${a.day}`; };
   // Weighed by the date it would ask, which is what's marked.
-  const draw = () => marks.pick(() => nextQuizDraw(drawn, mode, parts, now), (d) => datePatterns(quizDate(d, mode, parts, now), parts));
+  const draw = () => marks.pick(() => nextQuizDraw(drawn, mode, parts, now), (d) => datePatterns(quizDate(d, mode, parts, now), parts), asked);
   const next = () => change(retries.next(scope, asked(drawn), draw));
   const mark = (right: boolean) => {
     marks.mark(datePatterns(date, parts), right);
@@ -79,7 +80,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const showAnswer = () => answer.show(saying?.everyday);
   /** Explore: a new date on the calendar, said aloud. Never marked. */
   const newDate = () => {
-    const d = randomDate(drawn);
+    const d = drawFromBag(language, tool.id, () => randomDate(drawn), (x) => `${x.year}-${x.month}-${x.day}`);
     change(d);
     const s = DATE_SAYERS[language]?.(d, parts);
     if (s) answer.speak(s.everyday);

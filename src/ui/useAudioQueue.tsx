@@ -173,10 +173,17 @@ function useAudioQueueHost(): AudioQueueHost {
     });
   }, [host, keepWhilePlaying]);
 
-  /** Logs a text played through, once per time it's started: as read by listening, or heard again. */
+  /** Logs a text played through, once per time it's started: as read by listening, or heard again. A lesson is noted as heard. */
   const logPlayed = useCallback((item: QueueItem, what: Carried) => {
     const server = apiRef.current;
-    if (!server || item.kind !== 'text' || what.kind !== 'text' || began.current?.logged) return;
+    if (!server || began.current?.logged) return;
+    // A lesson played to the end is only noted as heard, so a later lesson can ask for its phrases; withOffline holds it when the server can't be reached.
+    if (item.kind === 'lesson' && what.kind === 'lesson') {
+      if (began.current) began.current.logged = true;
+      server.lessonHeard(item.lesson.id).catch(() => undefined);
+      return;
+    }
+    if (item.kind !== 'text' || what.kind !== 'text') return;
     const from = what.handoff.from === undefined ? item.from : what.handoff.from;
     const text = playingText.current?.id === item.textId ? playingText.current : null;
     const seconds = began.current?.key === keyOf(item) ? (Date.now() - began.current.at) / 1000 : 0;

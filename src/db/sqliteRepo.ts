@@ -480,6 +480,13 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
     async saveAskOwnHook(on) {
       await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('ask_own_hook', ?)", on ? '1' : '0');
     },
+    async showSenseCount() {
+      const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'show_sense_count'");
+      return r?.value !== '0';
+    },
+    async saveShowSenseCount(on) {
+      await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('show_sense_count', ?)", on ? '1' : '0');
+    },
     async answerBySpeaking() {
       const r = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'answer_by_speaking'");
       return r?.value === '1';

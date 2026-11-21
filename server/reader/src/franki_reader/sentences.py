@@ -14,6 +14,12 @@ never waits on Claude, and at most `BATCHES_PER_DAY` calls a language a day. Gen
 a sentence is kept only if it uses its word (in any form the checker knows), has at most
 `MAX_UNKNOWN` other words outside the known ones, and none that's waiting for its review. Anything
 else is dropped, never repaired.
+
+Grammar the owner set to Practice (docs/grammar.md) is asked for too: the request names those
+points and asks for some of the sentences to be built on one, so a point is produced, not only
+recognized in a drill. Nothing is dropped for not using one. Which point a sentence uses is found
+in code when it's served (`grammar_of`, with the texts' finders), so a sentence written before a
+point was chosen counts as well, and the tool can say which point a sentence practiced.
 """
 
 import json
@@ -28,7 +34,7 @@ from typing import Any, cast
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTextBlockParam
 
-from franki_reader import store
+from franki_reader import grammar, store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word
 from franki_reader.generator import MODEL, Usage, system_prompt, usage_of
@@ -58,9 +64,15 @@ One word off the list is fine when grammar needs it. Give:
 
 Write plain text: no `|`, no asterisks, no tildes. Vary the situations, and don't repeat a sentence.
 Do not use em dashes.
-
+{grammar}
 The words:
 {words}"""
+
+_GRAMMAR = """
+The learner is practicing this grammar. Build about a third of the sentences on one of these points, \
+where the word allows it naturally, and never force one:
+{points}
+"""
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -93,8 +105,11 @@ class SentencesFailed(Exception):
         self.usage = usage or Usage()
 
 
-# Writes raw sentences for `words` from the language's entries, and what that cost.
-WriteSentences = Callable[[list[Entry], Code, list[Entry]], Awaitable[tuple[list[Any], Usage]]]
+# Writes raw sentences for `words` from the language's entries, working in the grammar points
+# given (ids the owner practices), and what that cost.
+WriteSentences = Callable[
+    [list[Entry], Code, list[Entry], tuple[str, ...]], Awaitable[tuple[list[Any], Usage]]
+]
 
 
 @dataclass(frozen=True)
@@ -105,8 +120,14 @@ class Sentence:
     english: str
 
 
-def request_message(language: Code, words: list[Entry]) -> str:
+def request_message(language: Code, words: list[Entry], practice: tuple[str, ...] = ()) -> str:
+    points = "\n".join(
+        f"- {grammar.POINTS[p].name} ({grammar.POINTS[p].note}, e.g. {grammar.POINTS[p].example})"
+        for p in practice
+        if p in grammar.POINTS
+    )
     return _REQUEST.format(
+        grammar=_GRAMMAR.format(points=points) if points else "",
         language=LANGUAGES[language].name,
         low=MIN_WORDS,
         high=MAX_WORDS - 2,
@@ -164,6 +185,7 @@ async def top_up(
     write: WriteSentences,
     now: Callable[[], datetime],
     writing: set[Code],
+    practice: tuple[str, ...] = (),
 ) -> None:
     """Writes sentences for the first `BATCH` of `words` with fewer than `STOCK`, unless the language
     is being written (`writing`, shared between requests) or made `BATCHES_PER_DAY` calls today. A
@@ -179,7 +201,7 @@ async def top_up(
     writing.add(language)
     try:
         entries, checker = writing_lexicon(language, short)
-        raw, used = await write(entries, language, short)
+        raw, used = await write(entries, language, short, practice)
         by_text = {e.text: e for e in short}
         kept = [s for s in (check(r, by_text, checker, full, held) for r in raw) if s is not None]
         store.save_sentence_batch(conn, language, kept, len(raw), now(), used.cost_usd())
@@ -191,6 +213,15 @@ async def top_up(
         writing.discard(language)
 
 
+def grammar_of(sentence: str, lexicon: Checker, practice: tuple[str, ...]) -> dict[str, str] | None:
+    """The first of the practiced points the sentence uses, as the app names it; None with none."""
+    known = tuple(p for p in practice if p in grammar.POINTS)
+    found = grammar.find_in_lines([sentence], lexicon, known)
+    return next(
+        ({"id": pid, "name": grammar.POINTS[pid].name} for pid in known if found[pid]), None
+    )
+
+
 def serve(
     conn: sqlite3.Connection,
     language: Code,
@@ -198,9 +229,12 @@ def serve(
     count: int,
     now: datetime,
     reviewed: frozenset[str],
+    lexicon: Checker | None = None,
+    practice: tuple[str, ...] = (),
 ) -> list[dict[str, Any]]:
     """Up to `count` sentences, one a word, in the order of `words`, each the word's least recently
-    served, marked served now. `reviewed`: the words reviewed today, which the app says so of."""
+    served, marked served now. `reviewed`: the words reviewed today, which the app says so of.
+    `grammar` is the practiced point a sentence uses (`grammar_of`), or None."""
     meanings = {e.text: e.meaning for e in words}
     out: list[dict[str, Any]] = []
     for s in store.take_sentences(conn, language, [e.text for e in words], count, now):
@@ -212,6 +246,7 @@ def serve(
                 "sentence": s.sentence,
                 "english": s.english,
                 "reviewed_today": s.word in reviewed,
+                "grammar": grammar_of(s.sentence, lexicon, practice) if lexicon else None,
             }
         )
     return out
@@ -224,7 +259,7 @@ def claude_sentences(client: anthropic.AsyncAnthropic) -> WriteSentences:
     }
 
     async def write(
-        entries: list[Entry], language: Code, words: list[Entry]
+        entries: list[Entry], language: Code, words: list[Entry], practice: tuple[str, ...] = ()
     ) -> tuple[list[Any], Usage]:
         # The texts' own word list, cached, so a batch after a text reads it from the cache.
         system: list[BetaTextBlockParam] = [
@@ -234,7 +269,7 @@ def claude_sentences(client: anthropic.AsyncAnthropic) -> WriteSentences:
                 "cache_control": {"type": "ephemeral"},
             }
         ]
-        messages = [{"role": "user", "content": request_message(language, words)}]
+        messages = [{"role": "user", "content": request_message(language, words, practice)}]
         try:
             response = await client.beta.messages.create(
                 model=MODEL,

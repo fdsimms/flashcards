@@ -47,7 +47,7 @@ export function HeldWork() {
       if (server && actions.length) {
         const result = await sendHeld(actions, (a: HeldReaderAction) => (
           a.kind === 'reading' ? server.logReading(a.textId, a.log) : a.kind === 'listen' ? server.logListen(a.textId, a.key)
-            : a.kind === 'choice' ? server.chooseNext(a.textId, a.choice) : server.updateSettings({ language: a.language }).then(() => undefined)
+            : a.kind === 'choice' ? server.chooseNext(a.textId, a.choice) : a.kind === 'lessonHeard' ? server.lessonHeard(a.lessonId) : server.updateSettings({ language: a.language }).then(() => undefined)
         ));
         // One the server refuses has nothing left to do: the text was deleted (404), or its episode
         // was read before the choice arrived (409). Held while this ran are kept as they are.

@@ -13,6 +13,7 @@ import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
 import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -39,11 +40,11 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   /** The question, with the language its noun is from, so another language's noun is never shown. */
   const [held, setHeld] = useState(() => {
     const l = toolLanguage(tool, toolPrefs().language);
-    return { language: l, question: randomCount(COUNTING[l]?.nouns.length ?? 1, toolPrefs().countMax) };
+    return { language: l, question: drawFromBag(language, tool.id, () => randomCount(COUNTING[l]?.nouns.length ?? 1, toolPrefs().countMax), countKey) };
   });
   const question = held.language === language ? held.question : undefined;
   useEffect(() => {
-    if (held.language !== language && counting) setHeld({ language, question: randomCount(counting.nouns.length, max) });
+    if (held.language !== language && counting) setHeld({ language, question: marks.pick(() => randomCount(counting.nouns.length, max), (q) => counting.patterns(q.noun, q.n), countKey) });
   }, [held.language, language, counting, max]);
 
   const saying = useMemo(() => (question && counting ? counting.say(question.noun, question.n) : undefined), [counting, question]);
@@ -73,7 +74,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question), (q) => counting.patterns(q.noun, q.n));
+    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question), (q) => counting.patterns(q.noun, q.n), countKey);
     // A missed question comes back only in the same language and range.
     setHeld({ language, question: retries.next(`${language}|${m}`, question && countKey(question), draw) });
   };

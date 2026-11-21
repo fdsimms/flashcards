@@ -66,10 +66,10 @@ describe('the vacation setting', () => {
     expect(chooseLength(DEFAULT_VACATION, 7, TODAY)).toEqual({ ...DEFAULT_VACATION, length: 7 });
   });
 
-  it('ending by hand ends it today, so the catch-up still applies', () => {
+  it('ending by hand ends it today', () => {
     const off = chooseMode(chooseMode(DEFAULT_VACATION, 'light', '2026-11-01'), 'off', TODAY);
     expect(off).toMatchObject({ mode: 'off', from: '2026-11-01', until: TODAY });
-    expect(vacationPlan(off, [review(2).card], NOW, H)).toMatchObject({ weakestFirst: true });
+    expect(vacationPlan(off, NOW, H)).toBeUndefined();
     // Off before any vacation is just off.
     expect(chooseMode(DEFAULT_VACATION, 'off', TODAY)).toEqual(DEFAULT_VACATION);
   });
@@ -97,29 +97,19 @@ describe('what a plan does to limits', () => {
 
 describe('the plan from the setting and the cards', () => {
   it('is light or paused while it applies', () => {
-    expect(vacationPlan(light, [], NOW, H)).toEqual({ paused: false, newPerDeck: 1, reviewShare: 0.5, weakestFirst: true });
-    expect(vacationPlan({ ...light, mode: 'paused' }, [], NOW, H)).toEqual({ paused: true, weakestFirst: true });
-    expect(vacationPlan(undefined, [], NOW, H)).toBeUndefined();
+    expect(vacationPlan(light, NOW, H)).toEqual({ paused: false, newPerDeck: 1, reviewShare: 0.5, weakestFirst: true });
+    expect(vacationPlan({ ...light, mode: 'paused' }, NOW, H)).toEqual({ paused: true, weakestFirst: true });
+    expect(vacationPlan(undefined, NOW, H)).toBeUndefined();
   });
 
-  it('keeps the weakest-first order after the end while a review from before it still waits', () => {
-    const over = { ...light, until: '2026-11-10' };
-    expect(vacationPlan(over, [review(8).card], NOW, H)).toEqual({ paused: false, weakestFirst: true });
-    // Nothing left from before the end (this one came due the day it ended): the deck's own order is back.
-    expect(vacationPlan(over, [review(10).card, review(11).card, fresh().card], NOW, H)).toBeUndefined();
-    // A suspended card isn't a backlog.
-    expect(vacationPlan(over, [{ ...review(8).card, suspended: true }], NOW, H)).toBeUndefined();
-  });
-
-  it('stops after the catch-up window, whatever is left', () => {
-    expect(vacationPlan({ ...light, until: '2026-10-28' }, [review(-8).card], NOW, H)).toBeDefined();
-    expect(vacationPlan({ ...light, until: '2026-10-27' }, [review(-8).card], NOW, H)).toBeUndefined();
+  it('leaves catching up to the queue once it has ended', () => {
+    expect(vacationPlan({ ...light, until: '2026-11-10' }, NOW, H)).toBeUndefined();
   });
 
   it('counts the study day, so 1 AM still belongs to the day before', () => {
     const early = new Date(2026, 10, 15, 1);
-    expect(vacationPlan(light, [], early, H)?.reviewShare).toBe(0.5);
-    expect(vacationPlan(light, [], new Date(2026, 10, 15, 5), H)).toBeUndefined();
+    expect(vacationPlan(light, early, H)?.reviewShare).toBe(0.5);
+    expect(vacationPlan(light, new Date(2026, 10, 15, 5), H)).toBeUndefined();
   });
 });
 
@@ -143,6 +133,17 @@ describe('a deck under vacation mode', () => {
     short.card = { ...short.card, sched: { ...short.card.sched, scheduledDays: 2, stability: 2, lastReview: new Date(2026, 10, 8).toISOString() } };
     const q = queueFor([long, short], light, params({ reviewsPerDay: 1 }));
     expect(q.due.map((c) => c.id)).toEqual([short.card.id]);
+  });
+
+  it('with no vacation, catching up puts the review likeliest to be remembered first', () => {
+    // The same two cards as above, both from earlier days: the 300-day card is barely past its interval.
+    const long = review(9);
+    long.card = { ...long.card, sched: { ...long.card.sched, scheduledDays: 300, stability: 300, lastReview: new Date(2026, 10, 9 - 300).toISOString() } };
+    const short = review(10);
+    short.card = { ...short.card, sched: { ...short.card.sched, scheduledDays: 2, stability: 2, lastReview: new Date(2026, 10, 8).toISOString() } };
+    expect(queueFor([long, short], undefined, params({ reviewsPerDay: 1 })).due.map((c) => c.id)).toEqual([long.card.id]);
+    // The same once a vacation has ended.
+    expect(queueFor([short, long], { ...light, until: '2026-11-10' }, params({ reviewsPerDay: 1 })).due.map((c) => c.id)).toEqual([long.card.id]);
   });
 
   it('shows nothing while paused, but a Custom Study limit still stands under Light', () => {

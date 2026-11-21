@@ -16,6 +16,9 @@ exact and the same every time:
    out before reaching is dropped, not made up in a closing pass.
 5. A few new sentences, never taught whole, are asked for in English: built only from words the
    phrases already used, so the learner puts the pieces together (`Plan.mixes`).
+   Phrases from lessons heard on earlier occasions come back too, at the very start, before the
+   dialogue (`earlier_phrases`): the same gaps counted in lessons, so memory is asked across days
+   and not only inside one sitting.
 6. The learner then takes speaker A's part in the dialogue (the narrator says whether that is the
    first or the second speaker, as the dialogue really runs): the narrator gives each line in
    English; a line made of words the phrases taught is then asked cold (a silence, then the native
@@ -35,6 +38,7 @@ a card or writes a note: what the learner says aloud is never heard by the phone
 """
 
 import re
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -134,6 +138,9 @@ class Plan:
     # New sentences made only of words the phrases used, asked for after all are taught. Each is a
     # one-part Phrase.
     mixes: tuple[Phrase, ...] = ()
+    # Phrases from lessons heard before, asked for at the start (`earlier_phrases`). Each is a
+    # one-part Phrase; not Claude's choice, and not shown as part of the lesson (`describe`).
+    earlier: tuple[Phrase, ...] = ()
 
 
 # A word's letters. Thai's vowel and tone marks aren't `\w` (they're combining marks), so they're
@@ -460,10 +467,34 @@ def _role_play(
     return steps
 
 
+def earlier_phrases(
+    heard: Sequence[Sequence[tuple[str, str]]], taught: Collection[str]
+) -> tuple[Phrase, ...]:
+    """The phrases a lesson opens by asking for: one from each of the lessons 1, 3 and 6 back
+    (`RECALL_GAPS`, counted in lessons heard, `heard` being the one heard last first), so a lesson
+    comes back three times at widening gaps. Each time it's a different phrase of the lesson where
+    it has them, from its last (the top of its ladder) backward. Never a phrase this lesson teaches
+    (`taught`), or the same phrase twice."""
+    picked: dict[str, Phrase] = {}
+    for turn, gap in enumerate(RECALL_GAPS):
+        if gap > len(heard) or not heard[gap - 1]:
+            continue
+        phrases = heard[gap - 1]
+        text, english = phrases[-1 - turn] if turn < len(phrases) else phrases[-1]
+        if text not in taught and text not in picked:
+            picked[text] = Phrase(text, english, (text,))
+    return tuple(picked.values())
+
+
 def build_script(plan: Plan, learner: Learner = "male") -> list[Step]:
     """The lesson, step by step (see the module's docstring for its shape). The native voice the
     learner repeats after, and speaker A, is `learner`'s; speaker B is the other."""
-    steps = _dialogue(plan.dialogue, f"{plan.title}. Listen to this conversation.", learner)
+    steps: list[Step] = []
+    if plan.earlier:
+        steps.append(Say("narrator", "First, some phrases from earlier lessons."))
+        for phrase in plan.earlier:
+            steps += _ask(phrase, learner)
+    steps += _dialogue(plan.dialogue, f"{plan.title}. Listen to this conversation.", learner)
     # Recalls waiting: (phrase index, taught count at which it's asked).
     due: list[tuple[int, int]] = []
     steps.append(Say("narrator", "Now let's learn how to say some of it."))
@@ -547,7 +578,7 @@ def script_of(plan: Plan, placed: list[Placed]) -> dict[str, Any]:
     phrase's, mix's or dialogue line's meaning, and none for a part being built up. `replay` is where
     its prompt starts (the run of things said with no silence between, before the turn), for Again.
     """
-    meanings = {p.text: p.english for p in (*plan.phrases, *plan.mixes)}
+    meanings = {p.text: p.english for p in (*plan.earlier, *plan.phrases, *plan.mixes)}
     meanings.update({line.text: line.english for line in plan.dialogue})
     entries: list[dict[str, Any]] = []
     for i, here in enumerate(placed):

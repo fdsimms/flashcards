@@ -158,8 +158,8 @@ constraints.
 10. **Let Frankie pick the topic.** Scenario and topic choice stay in the user's hands, since
     interest raises learning.
 11. **Choose the text difficulty.** The coverage target is Standard (95%), Easier (97%) or, as a
-    deliberate choice, Harder (93%) known words, chosen in Settings, and a poor score on the check
-    after reading steps a level easier.
+    deliberate choice, Harder (93%) known words, chosen in Settings; a poor score on the check
+    after reading steps a level easier, and a high one a level harder.
 
     > **Changed on 15 November 2026 by the owner.** This was "Adapt from the passage rating": a
     > rating moved the coverage target and cut or added stretch words. A rating is a feeling, which
@@ -274,7 +274,7 @@ lemma matching for inflected forms.
 > Milestone 1 exit check; mining wasn't. See `architecture.md`, Languages.
 
 > **Changed on 12 November 2026 by the owner.** Mining was built early too, in Franki: a marked
-> word opens Franki's note editor, saving it is the approval, and at most 10 are added a day. See
+> word opens Franki's note editor, saving it is the approval, and at most 10 are added a day (the cap was later removed). See
 > `architecture.md`, Client.
 
 **Out of scope for milestone 1:** grade write-back, adding anything to Anki, languages other than

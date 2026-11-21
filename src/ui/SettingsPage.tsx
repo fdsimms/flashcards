@@ -5,7 +5,7 @@ import { ANSWER_BUTTON_CHOICES, type AnswerButtons } from '../core/answerButtons
 import { failureText } from '../core/failure';
 import { THAI_TEXT_CHOICES, type ThaiTextSize } from '../core/script';
 import type { FuriganaMode } from '../core/furigana';
-import { settingsPage, type SettingsPageId } from '../core/settingsPages';
+import { DECK_OPTIONS_LIST, settingsPage, type SettingsPageId } from '../core/settingsPages';
 import type { Repo } from '../db/repo';
 import { Group, Help, NavRow, Screen, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
@@ -74,6 +74,7 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
   const [swipe, setSwipe] = useState<boolean>();
   const [hints, setHints] = useState<boolean>();
   const [hook, setHook] = useState<boolean>();
+  const [senseCount, setSenseCount] = useState<boolean>();
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>();
   const [furigana, setFurigana] = useState<FuriganaMode>();
   // Read each time the page shows: they're changed on screens over this one.
@@ -82,7 +83,7 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
     repo.thaiTextSize().then(setThaiSize).catch(() => undefined);
     repo.furiganaMode().then(setFurigana).catch(() => undefined);
   }, [repo]));
-  useEffect(() => { repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); }, [repo]);
+  useEffect(() => { repo.swipeToRate().then(setSwipe); repo.showCardHints().then(setHints); repo.askOwnHook().then(setHook); repo.showSenseCount().then(setSenseCount); }, [repo]);
 
   // Saved first, then shown, so the screen never shows a setting that isn't stored.
   const save = async (write: () => Promise<void>, show: () => void) => {
@@ -118,12 +119,19 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
           value={!!hook}
           onValueChange={(on) => save(() => repo.saveAskOwnHook(on), () => setHook(on))}
         />
+        <SwitchRow
+          label="Show number of meanings"
+          hint="On the front of a card, show how many meanings the answer has (e.g. 2 meanings)."
+          value={!!senseCount}
+          onValueChange={(on) => save(() => repo.saveShowSenseCount(on), () => setSenseCount(on))}
+        />
         <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={() => onOpen('/thai-text-size')} />
         <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
       </Group>
       <Help>These apply to Omnilanguage cards. Other note types use the answer buttons and their own templates.</Help>
       <Group>
         <NavRow first label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
+        <NavRow label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
       </Group>
     </>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { ankiDayStart, ankiToday, cardOrd, fnvHash, gatherNew, intersperse, mix, relativeRetrievability, sortNew, sortReviews, type SortContext } from '../../src/core/order';
+import { ankiDayStart, ankiToday, cardOrd, fnvHash, gatherNew, intersperse, isBehind, mix, relativeRetrievability, sortNew, sortReviews, type SortContext } from '../../src/core/order';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -115,6 +115,20 @@ describe("Anki's study order", () => {
     const later = { ...ctx(), now: new Date(2027, 4, 20, 12) };
     expect(ids(sortReviews(own, 8, later))).toEqual(ids(sortReviews(own.map((c) => ({ ...c })), 8, later)));
     expect(ids(sortReviews(own, 8, ctx()))).not.toEqual(ids(sortReviews(own, 8, later)));
+  });
+});
+
+describe('catching up', () => {
+  const due = (d: Date, state = 2) => card('a', {}, { state, due: d.toISOString() });
+  it('is on while a review from an earlier study day waits', () => {
+    expect(isBehind([due(new Date(2026, 10, 10, 12))], NOW, H)).toBe(true);
+    // 3 AM today is still yesterday's study day.
+    expect(isBehind([due(new Date(2026, 10, 11, 3))], NOW, H)).toBe(true);
+  });
+  it("isn't for reviews due today or later, learning cards, or a filtered deck's cards", () => {
+    expect(isBehind([due(new Date(2026, 10, 11, 5)), due(new Date(2026, 10, 12, 12))], NOW, H)).toBe(false);
+    expect(isBehind([due(new Date(2026, 10, 10, 12), 1), due(new Date(2026, 10, 10, 12), 0)], NOW, H)).toBe(false);
+    expect(isBehind([card('f', { filteredDeck: 'F', filteredDue: -100000 }, { state: 2, due: new Date(2026, 10, 1, 12).toISOString() })], NOW, H)).toBe(false);
   });
 });
 

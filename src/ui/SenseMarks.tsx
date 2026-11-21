@@ -54,6 +54,12 @@ export function MarkableSenses({ senses, marking, size }: { senses: string[]; ma
   );
 }
 
+/** Under the card's front: how many meanings the answer has (senseCountLabel). Not shown with a missed-sense reminder, which says the count itself. */
+export function SenseCount({ text }: { text: string }) {
+  const c = useTheme();
+  return <Text accessibilityLabel={text} style={{ ...type.footnote, fontWeight: '600', color: c.accentInk, textAlign: 'center' }}>{text}</Text>;
+}
+
 /**
  * Under the card's front when its last answer marked a sense: how many senses there are and how many
  * were missed, never which. "Show the ones you got" lists the others, for when it's not clear which

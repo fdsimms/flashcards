@@ -189,14 +189,16 @@ export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
 // way of saying a Sentences prompt, or a retelling of a text. `corrected` is theirs with only the mistakes
 // fixed, and theirs as written when it's right. Never kept, never graded.
 export type WritingVerdict = 'right' | 'almost' | 'wrong';
-export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; used_word?: boolean };
+// `hints` say where each mistake is and what kind, never the fix: shown before the correction, for another try (absent from an older server).
+export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; hints?: string[]; used_word?: boolean };
 // A retelling's check adds words from the text it could have used (each with the line it's in) and what it left out.
 export type RetellCheck = WritingCheck & { words: { word: string; english: string; line: number }[]; left_out: string };
 export type WritingRequest =
   | { kind: 'sentence'; language: Language; attempt: string; word: string; meaning: string }
   | { kind: 'translate'; language: Language; attempt: string; english: string; reference: string };
 // A sentence to say (server/reader sentences.py), built around a word reviewed today or still young.
-export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean };
+// `grammar`: the grammar point set to Practice that the sentence uses, when it uses one (absent from an older server).
+export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean; grammar?: { id: string; name: string } | null };
 
 // Situations (server/reader situations.py): a scene talked through with Claude. The app holds the conversation
 // and sends it with each turn; the server keeps nothing. `roles` come with the first turn and go back with every
@@ -704,6 +706,8 @@ export function createApi(
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
       call<void>('POST', `/api/lessons/${id}/marks`, mark),
+    // A lesson played to the end, so a later lesson may open by asking for its phrases (server lesson.earlier_phrases). Never a rating.
+    lessonHeard: (id: number) => call<void>('POST', `/api/lessons/${id}/heard`),
     // Makes the review on offer from the phrases noted (no Claude call); returns its id, made in the background like a lesson.
     makeReview: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha') => {
       const response = await send('POST', '/api/lessons/review', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) });

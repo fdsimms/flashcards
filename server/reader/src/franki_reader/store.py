@@ -601,6 +601,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # Where the learner speaks in a lesson's MP3 (lesson_audio.Pause), as JSON; NULL for a lesson
         # made before they were kept, until lesson_service.find_old_pauses has listened for them.
         conn.execute("ALTER TABLE lessons ADD COLUMN pauses TEXT")
+    if "heard_at" not in {r[1] for r in conn.execute("PRAGMA table_info(lessons)")}:
+        # When the app last said the lesson was played to the end; NULL until it has. A later
+        # lesson opens by asking for phrases of the lessons heard (lesson.earlier_phrases).
+        conn.execute("ALTER TABLE lessons ADD COLUMN heard_at TEXT")
     if "removed" not in {r[1] for r in conn.execute("PRAGMA table_info(topics)")}:
         # A removed topic is hidden, not deleted, since its texts and readings point at it.
         conn.execute("ALTER TABLE topics ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
@@ -1984,6 +1988,28 @@ def stretch_readings(
     return [(datetime.fromisoformat(logged_at), json.loads(stretch)) for logged_at, stretch in rows]
 
 
+def finished_readings(
+    conn: sqlite3.Connection, since: datetime, language: Code = "th"
+) -> list[tuple[datetime, tuple[str, ...], tuple[str, ...], dict[str, str]]]:
+    """Each text read to the end since `since`, oldest first: when (naive UTC, the engine's clock),
+    its lines as stored, the words tapped or marked in it, and its glosses (met.py)."""
+    rows = conn.execute(
+        """SELECT r.logged_at, x.lines, r.words_glossed, r.words_flagged, x.glosses FROM readings r
+           JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ? ORDER BY r.logged_at""",
+        (since.isoformat(), language),
+    )
+    return [
+        (
+            datetime.fromisoformat(logged_at),
+            tuple(ln["text"] for ln in json.loads(lines)),
+            (*json.loads(glossed), *json.loads(flagged)),
+            json.loads(glosses),
+        )
+        for logged_at, lines, glossed, flagged, glosses in rows
+    ]
+
+
 def practiced_since(conn: sqlite3.Connection, since: datetime, language: Code = "th") -> set[str]:
     """The words that were a stretch word in a text read at or after `since` (the start of the
     study day), so the next text can leave them for later (stretch.py, `today`)."""
@@ -3043,6 +3069,42 @@ def lessons(conn: sqlite3.Connection, language: Code | None = None) -> list[Stor
         (language,) if language else (),
     ).fetchall()
     return [_lesson(r) for r in rows]
+
+
+def mark_lesson_heard(conn: sqlite3.Connection, lesson_id: int, now: datetime) -> bool:
+    """Notes that the lesson was played to the end; False when there's no such lesson. Heard again,
+    it takes the newer time, so it counts as the lesson heard last."""
+    with conn:
+        changed = conn.execute(
+            "UPDATE lessons SET heard_at = ? WHERE id = ?", (now.isoformat(), lesson_id)
+        ).rowcount
+    return changed > 0
+
+
+def heard_lesson_phrases(
+    conn: sqlite3.Connection, language: Code, apart_from: int
+) -> list[list[tuple[str, str]]]:
+    """The phrases (text, English) of each lesson of `language` played to the end, the one heard
+    last first, leaving out lesson `apart_from` (the one being made)."""
+    rows = conn.execute(
+        "SELECT plan FROM lessons WHERE language = ? AND id != ? AND state = 'ready'"
+        " AND heard_at IS NOT NULL ORDER BY heard_at DESC, id DESC",
+        (language, apart_from),
+    ).fetchall()
+    found: list[list[tuple[str, str]]] = []
+    for (plan,) in rows:
+        try:
+            phrases = json.loads(plan).get("phrases") or []
+        except (ValueError, AttributeError):
+            continue
+        found.append(
+            [
+                (p["text"], p["english"])
+                for p in phrases
+                if isinstance(p, dict) and p.get("text") and p.get("english")
+            ]
+        )
+    return found
 
 
 def delete_lesson(conn: sqlite3.Connection, lesson_id: int) -> bool:

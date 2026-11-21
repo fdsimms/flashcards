@@ -13,6 +13,7 @@ import type { ToolScreenProps } from './index';
 import { OptionChoices } from './OptionChoices';
 import { PracticeCard } from './PracticeCard';
 import { Status, ToolScreen, useAnswer } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 
@@ -45,11 +46,11 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
   const patternsOf = (i: number) => (consonants ? consonantPatterns(CONSONANTS[i]) : vowelPatterns(VOWELS[i]));
   const scope = `${language}|${mode}`;
 
-  const [held, setHeld] = useState(() => ({ mode, index: randomWord(count) }));
+  const [held, setHeld] = useState(() => ({ mode, index: drawFromBag(language, tool.id, () => randomWord(count), (i) => `${mode}|${i}`) }));
   // The mode changed under this screen: a letter of the new one.
   const index = held.mode === mode ? held.index : undefined;
   useEffect(() => {
-    if (held.mode !== mode) setHeld({ mode, index: randomWord(count) });
+    if (held.mode !== mode) setHeld({ mode, index: marks.pick(() => randomWord(count), patternsOf, (i) => `${mode}|${i}`) });
   }, [held.mode, mode, count]);
 
   const consonant = consonants && index !== undefined ? CONSONANTS[index] : undefined;
@@ -72,7 +73,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomWord(count, index), patternsOf);
+    const draw = () => marks.pick(() => randomWord(count, index), patternsOf, (i) => `${mode}|${i}`);
     setHeld({ mode, index: retries.next(scope, index === undefined ? undefined : String(index), draw) });
   };
   /** A pick, or null for Show answer, which counts as a miss. */

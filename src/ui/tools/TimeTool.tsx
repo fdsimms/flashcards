@@ -17,6 +17,7 @@ import type { ToolScreenProps } from './index';
 import { useListenCheck, useSpeakEach } from './Listen';
 import { ListenBack, ListenFooter, ListenPrompt, PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
 import { useWheelRow, Wheel, WheelBand, wheelScale } from './Wheel';
@@ -47,9 +48,9 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
   const [step, setStep] = useToolPref('minuteStep');
   const [mode, setMode] = useToolPref('timeMode');
   /** The clock: the time to say, or in Listen, the time set. */
-  const [time, setTime] = useState<ClockTime>(() => randomTime(toolPrefs().minuteStep));
+  const [time, setTime] = useState<ClockTime>(() => drawFromBag(language, tool.id, () => randomTime(toolPrefs().minuteStep), clockText));
   /** Listen's question: the time read aloud. */
-  const [heard, setHeard] = useState<ClockTime>(() => randomTime(toolPrefs().minuteStep, time));
+  const [heard, setHeard] = useState<ClockTime>(() => drawFromBag(language, tool.id, () => randomTime(toolPrefs().minuteStep, time), clockText));
   const listening = mode === 'listen';
   /** What's asked: the clock's time, or the one heard. */
   const asked = listening ? heard : time;
@@ -63,7 +64,7 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
     if (!right) retries.missed(scope, clockText(asked), asked);
   };
   const listen = useListenCheck(`${language}|${clockText(heard)}`, mark);
-  const draw = (previous: ClockTime) => retries.next(scope, clockText(previous), () => marks.pick(() => randomTime(step, previous), (t) => timePatterns(t, language)));
+  const draw = (previous: ClockTime) => retries.next(scope, clockText(previous), () => marks.pick(() => randomTime(step, previous), (t) => timePatterns(t, language), clockText));
 
   const change = (t: ClockTime) => { if (!listening) answer.hide(); setTime(t); };
   const next = () => {
@@ -91,7 +92,7 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
   const showAnswer = () => answer.show(saying?.everyday);
   /** Explore: a new time on the clock, said aloud. Never marked. */
   const newTime = () => {
-    const t = randomTime(step, time);
+    const t = drawFromBag(language, tool.id, () => randomTime(step, time), clockText);
     setTime(t);
     const s = sayer?.(t);
     if (s) answer.speak(s.everyday);

@@ -165,6 +165,17 @@ const dayMs = 86400000;
  */
 export const inFilteredOrder = (c: Card) => c.filteredDeck !== undefined && c.filteredDue !== undefined && c.filteredDue < 0;
 
+/**
+ * Whether a review that came due on an earlier study day is still waiting among `cards`: the learner
+ * is catching up. `treeQueue` then puts the reviews likeliest to be remembered first, so the ones
+ * a short session doesn't reach are the ones already slipping, and fewer are lost in all. The deck's
+ * own review order returns the day nothing older than today waits.
+ */
+export function isBehind(cards: readonly Card[], now: Date, dayStartsAtHour: number): boolean {
+  const today = studyDayStart(now, dayStartsAtHour).getTime();
+  return cards.some((c) => c.sched.state === 2 && !inFilteredOrder(c) && dueMs(c) < today);
+}
+
 /** The day a card is due on, as a number to sort by: its filtered-deck place, else its study day. */
 function dueDay(c: Card, h: number): number {
   if (inFilteredOrder(c)) return c.filteredDue!;

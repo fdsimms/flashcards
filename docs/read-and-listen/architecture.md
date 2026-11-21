@@ -157,7 +157,7 @@ Franki's (Client, below).
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
   of at least six between them steps the language's text difficulty one level easier (Harder to
   Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
-  one's check too. A good score changes nothing, and nothing steps back: only the Text difficulty
+  one's check too. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
   setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -345,6 +345,7 @@ answers aren't kept.
   `effort: medium` (raised from low on 15 November 2026, since a wrong verdict teaches the wrong
   thing); the cost is `production` in `/api/costs`, failed calls included. The app draws the
   correction against what was typed with Review's own comparison (`src/core/typedCompare.ts`).
+- **A try before the correction** (21 November 2026, the owner, from a mock with and without hints; `asksAnotherTry` in `src/reader/production.ts`). The first check of a sentence or retelling with mistakes shows the verdict, the writing with its mistakes picked out, and `hints`: where each mistake is and what kind, never the fix. The buttons are Show the correction and Try again; the second check, or Show the correction, gives the whole result as before, and a right answer goes straight to it. Fixing a mistake oneself is what a correction read off the screen doesn't ask for. The server drops a hint holding a word that is in `corrected` and not in the writing (`_hints`, `production.py`), so a hint can't hand over the fix; in a language written without spaces only the prompt keeps that. Sentences' Check mine is left as it was: its own sentence is already on screen when the check is asked for.
 - **Use today's words** (`src/ui/reader/ReadUseWords.tsx`, the `read-use-words` route): offered at the end
   of a review session of a language's deck while Read & Listen is on, with the notes answered while
   new in it (`wordsToUse`), one at a time, to write a sentence with. Placed after the session rather
@@ -354,6 +355,7 @@ answers aren't kept.
   view's "Use the lines yourself". The same check, with the text's lines and English sent, plus up to
   four words from the text the retelling could have used (each kept only if it is in the text and not
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
+- **Sentences work in the grammar being practiced** (21 November 2026, the owner; `sentences.py`). A grammar point was only ever recognized: its drills are multiple choice, and Forms practice is typed forms. The request for a batch of sentences now names the points set to Practice and asks for about a third of the sentences to be built on one, where the word allows it. Prompt only: no sentence is dropped for using none. Which point a sentence uses is found in code when it's served (`grammar_of`, the texts' finders), so the tool can say "Grammar you're practicing: ..." on the answer side, and a sentence written before the point was chosen counts too. A point the finders can't see (docs/grammar.md lists what they skip) is asked for but never named.
 - **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
   English sentence built around a word, to say or type, then compared with the sentence written for
   it; Check mine asks the check above when one's own wording differs. The words are a text's stretch
@@ -435,6 +437,7 @@ aloud is never heard by the phone.
   dialogue: the learner is the first speaker, the narrator gives each of their lines in English,
   a silence follows and the native voice answers; the other speaker's lines are played.
 - **The role-play never asks for what wasn't taught** (18 November 2026, the owner, after a lesson on "can you say that again", "soon" and "don't forget"): the narrator said "first speaker" while speaker B opened the conversation, a "put them together" sentence was just "soon, don't forget", and the role-play asked for A's lines the lesson never taught. Now the request has A speak first, and the narrator says "first" or "second" as the dialogue really runs (`_role_play`). A line of A's made only of words the phrases taught is asked cold; any other is said by the native voice first and then repeated in a silence, with one narrator line saying so. A lesson on the learner's own words drops a mix that is only whole phrases in a row (`_is_phrases_end_to_end`; not applied to written lessons, whose phrases can make a sentence), and both requests say a mix is one complete sentence a person would say. The request also keeps A's lines short and built from the phrases.
+- **A lesson opens by asking for phrases of earlier lessons** (21 November 2026, the owner; `earlier_phrases` in `lesson.py`). Inside one lesson a phrase is recalled minutes apart; this asks across days. Before the dialogue the narrator says "First, some phrases from earlier lessons." and asks for one phrase from each of the lessons 1, 3 and 6 back (`RECALL_GAPS`, counted in lessons heard), a different phrase each time a lesson comes back, never one this lesson teaches. Only a lesson played to the end counts: the app says so when one finishes (`POST /api/lessons/{id}/heard`, `lessons.heard_at`; held on the phone while the server can't be reached, `heldReader`), since the server otherwise knows only when a lesson was made, and a learner is never asked for what they weren't given. A lesson played before this was kept has no `heard_at` and isn't asked for until it's played again. Not the closing pass that was removed: that asked the lesson's own phrases once more in the same sitting.
 - **Each phrase does a different job** (18 November 2026, the owner: "How Are You?" came out as "how are you" said over and over). A narrow scene gave four phrases that were one question with a word added, and every phrase is heard many times (taught, built up, asked, recalled), so the repeats filled the lesson. The request now asks for different jobs (ask, answer, ask back, react, thank), reaching to what comes before and after a narrow scene, and the ladder rule asks for at least two words the earlier phrases lack. Prompt only: a code check on word overlap was tried and flagged real ladders ("Please" then "The check, please"), so it was dropped.
 - **A lesson can teach the learner's own words instead** (18 November 2026, the owner's cram: words
   from a tutor lesson, to use at the next one). `POST /api/lessons` takes `phrases` (each a card's
@@ -1078,7 +1081,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   speech can't be reread, for listening; below it comprehension varied widely). **Standard is 95%,
   Easier is 97%, Harder is 93%** (`STANDARD_FLOOR`, `EASIER_FLOOR` and `HARDER_FLOOR`,
   `difficulty.py`), chosen per language in Settings (Text difficulty) or stepped easier by a poor
-  check after reading. **Harder is below the research's least** and the setting says so: the
+  check after reading and harder by a high one. **Harder is below the research's least** and the setting says so: the
   evidence is that coverage helps gradually, not as a cliff, and the reader has a gloss on every
   word, but at about 7 new words in 100 expect more lookups. It is only ever a deliberate choice: a
   floor saved by an older server never reads as Harder, and the spread-out rule (`crowding.py`)
@@ -1326,6 +1329,16 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   (`RETURN_DAYS` in `server/reader/src/franki_reader/stretch.py`). It still has to be reviewed today
   or young, and not waiting for its review, so a word that has matured since is left alone. In "Fit
   the topic" it's offered first, and the model may still pass it over if it doesn't fit.
+- **Words looked up outside the deck come back too** (`met.py`). A word outside the deck was met
+  once, in the text that needed it, and picking a word up from reading takes several meetings. A
+  word tapped or marked in a text read to the end, and still not known to the deck, is offered to
+  later texts (3 at most, `MET_OFFERED`) until it has been met on 4 different study days
+  (`MET_DAYS`, the day it was looked up included), counted from the texts read in the last 30 days,
+  whichever text brought the word, and never twice in a day. It stays a word outside the list: it
+  counts against the coverage target and takes the place of another unfamiliar word. Prompt only:
+  the model uses one where it fits, and no draft is sent back for leaving them out. A meeting is
+  counted by the word as written, so a word that comes back in another form isn't counted and is
+  offered again until its lookup is 30 days old. Nothing here touches a card.
 - **Short stories** as well as dialogues: a "Text type" setting (`form` in `/api/settings`),
   applying from the next text written. A story is told by a narrator (speaker `N`), one or two plain
   sentences a line, and is spoken in voice A. The brief's feasibility test found narrative drops
@@ -1879,7 +1892,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   coverage target is one of three for each language, **Harder (93% known words)**, **Standard
   (95%)** or **Easier (97%)**, chosen on the language's settings page (`PUT /api/difficulty`),
   applying from the next text written, or stepped one level easier by a poor score on the check after
-  reading (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  reading and one harder by a high score (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
   written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
   exit check reads the log. The level is saved as `difficulty_v3`; a floor saved by an older server
   (`difficulty_v2`) is read as Standard or Easier by `store.load_difficulty` (96% or more is Easier).
@@ -1995,7 +2008,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
   `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
-  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  (also the new note's tag), a Notes line, the `Language` every note carries, `GenerateReverse` when the word is one the learner would say and `GenerateAudioCard` when it's one they'd hear (the owner's rule, 21 November 2026: production and listening practice only for a word they'd actually say or hear; Claude answers `say` and `hear` for each word, and the switches can be changed in the editor before saving), and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
   KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and
@@ -2077,6 +2090,9 @@ suggest words to add, so the deck keeps going without the owner having to think 
   then one call asks for 40, told the words to avoid (kept and dismissed ones). The x teaches it: a
   dismissed word is never suggested again and is listed as one to avoid. A call that fails is said on
   the screen (`written_error`), not dropped. Its cost is kept in `call_costs` (feature "rare_words").
+  The prompt asks for words writers use for their precision (apodictic, epigone) and rules out the
+  cute ones from "beautiful words" lists (widdershins, sesquipedalian), words more mentioned than used
+  (21 November 2026, the owner). This is only the prompt: words already kept stay until shown or dismissed.
   The server's snapshot of the deck can be a day old, so the phone also leaves out what its own copy
   of the deck has (`entryKeys`, an entry with or without its article) and words held for Claude.
 - **The screen** groups the words by source, each with its meaning when one is known (a text's gloss,
