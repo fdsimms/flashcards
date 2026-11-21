@@ -392,7 +392,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const shownCount = current ? countKind(current) : undefined;
   // Each showing of a card: the same card back again (after Again, with nothing else left, or an undo)
   // is a new showing, timed, spoken and faded in afresh, as the WebView's key below does for a template card.
-  const showing = current ? `${current.id}:${turn}` : undefined;
+  // `history.length` goes back down on an undo, so card:turn alone repeats an earlier showing's key (answer A, undo, A is "A:5" again)
+  // and whatever was keyed to that one came back with it: a drill already marked three of three, with buttons that mark nothing.
+  // A count of key changes makes every showing's key new.
+  const turnKey = current ? `${current.id}:${turn}` : undefined;
+  const showingSeq = useRef({ key: turnKey, n: 0 });
+  if (showingSeq.current.key !== turnKey) showingSeq.current = { key: turnKey, n: showingSeq.current.n + 1 };
+  const showing = turnKey && `${turnKey}#${showingSeq.current.n}`;
   const revealed = !!showing && revealedAt === showing;
   // The back is committed: time the flip to the frames after it (a no-op unless timing is on).
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -479,7 +485,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
-  const senseMarks = useSenseMarks(current ? `${current.id}:${turn}` : undefined, rendered, current ? misses.log.get(current.id) : undefined);
+  const senseMarks = useSenseMarks(showing, rendered, current ? misses.log.get(current.id) : undefined);
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
   const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
