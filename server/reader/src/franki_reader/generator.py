@@ -49,6 +49,7 @@ from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
+from franki_reader.met import MetWord
 from franki_reader.register import DEFAULT as DEFAULT_REGISTER
 from franki_reader.register import Register, instruction
 
@@ -246,6 +247,9 @@ class TextRequest:
     # The Settings register (register.py). Each line still carries its own register label, chosen
     # by who is talking to whom, so this sets the baseline and the default asks for nothing extra.
     register: Register = DEFAULT_REGISTER
+    # Words outside the deck the learner looked up in earlier texts, to bring back where one fits
+    # (met.py). Still unfamiliar words: they count against the coverage target.
+    met: tuple[MetWord, ...] = ()
 
     def __post_init__(self) -> None:
         used = len(self.stretch) if self.choose is None else self.choose
@@ -664,6 +668,15 @@ def request_message(request: TextRequest) -> str:
         )
     else:
         parts.append("No stretch words this time.")
+    if request.met:
+        parts.append(
+            "Words met before: the learner looked these up in earlier texts, and they are not on "
+            "the list. Where one fits the topic naturally, use it once in place of another word "
+            "that is not on the list, in any of its forms, and gloss it. They count as words "
+            "outside the list, so the coverage target stays the same. Don't wrap them in asterisks, "
+            "and use none that doesn't fit:\n"
+            + "\n".join(f"- {w.text} ({w.meaning})" for w in request.met)
+        )
     if request.register != DEFAULT_REGISTER:
         parts.append(
             f"Register: the learner wants {request.register} speech. {instruction(request.register)}"
