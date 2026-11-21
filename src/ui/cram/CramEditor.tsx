@@ -26,7 +26,7 @@ const ANY_LANGUAGE = 'Any language';
  * starts with (the ones not used last time; the ones missed lately, unchecked to start, since they're
  * seldom about the topic), then Start cram opens its page, where everything else is planned. With
  * nothing to talk about in mind, "Not sure yet? Get ideas" starts it under a stand-in name and opens
- * its talking points; the theme used names it (`withTheme`). Editing one changes its name, day and
+ * its talking points; the theme used names it (`withThemes`). Editing one changes its name, day and
  * language, whether new cards join it, and can delete it.
  */
 export function CramEditor({ repo, id, canSuggest }: {
@@ -80,7 +80,7 @@ export function CramEditor({ repo, id, canSuggest }: {
 
   const save = async (ideas = false) => {
     if (busy) return;
-    // No name yet: a stand-in the theme used replaces (`withTheme`).
+    // No name yet: a stand-in the theme used replaces (`withThemes`).
     const title = ideas ? standInName(languageName) : name;
     // A cram's own day, unchanged, can be kept when it's past (renaming a finished cram).
     const keptDay = !!editing && date === editing.date;

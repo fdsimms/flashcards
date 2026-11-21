@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { cramLanguageOf, themeTopic } from '../../core/cram';
-import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind } from '../../core/cramThemes';
+import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind, type ThemeWord } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Api, CramTheme, Language } from '../../reader/api';
 import { flaggedName, LANGUAGES } from '../../reader/languages';
@@ -12,7 +12,7 @@ import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Card, ErrorNote, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
 import { readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
@@ -52,14 +52,16 @@ export function themeChips(theme: CramTheme, words: Parameters<typeof themeCount
  * Talking points for a cram: Claude writes a few angles on what the cram is for (its name) from the
  * words you have (the ones not used last time, missed, added lately), and what Practice has been
  * missing. Asked for when the screen opens, and again with Show different themes; a theme is opened
- * to see its words and questions, and Use theme there adds them to the cram. Nothing is added to the
- * deck here.
+ * to see its words and questions, and Use theme there adds them to the cram. Several can be checked
+ * and added together with Use themes. Nothing is added to the deck here.
  */
-export function CramThemes({ repo, api, cramId, onOpen }: {
+export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
   repo: NoteStore;
   api: Api;
   cramId: string;
   onOpen: (index: number) => void;
+  /** Keeps the checked themes on the cram and adds their deck words; the screen says so if this throws. */
+  onUse: (themes: CramTheme[], words: ThemeWord[]) => Promise<void>;
 }) {
   const c = useTheme();
   const { suggested } = useThemeState();
@@ -72,6 +74,8 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
   const [asking, setAsking] = useState(false);
   const [problem, setProblem] = useState<string>();
   const asked = useRef(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [using, setUsing] = useState(false);
 
   const words = useMemo(
     () => (collection.loaded && language ? themeWords({ notes: collection.notes, cards: collection.cards, language, crams, now: new Date() }) : []),
@@ -114,9 +118,32 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
     void ask(false, on);
   };
 
+  // Only themes still on screen count: asking for different ones replaces the list.
+  const chosen = shown ? shown.themes.filter((t) => picked.has(t.title)) : [];
+  const toggle = (title: string) => {
+    haptic.select();
+    setPicked((prev) => { const next = new Set(prev); if (!next.delete(title)) next.add(title); return next; });
+  };
+  const use = async () => {
+    if (!shown || !chosen.length || using) return;
+    haptic.tap();
+    setUsing(true);
+    try {
+      await onUse(chosen, shown.words);
+    } catch (e) {
+      Alert.alert("Couldn't use the themes", failureText(e, { next: 'Try again.' }));
+    } finally {
+      setUsing(false);
+    }
+  };
+
   const noWords = collection.loaded && !!language && !words.length;
   return (
-    <Screen title="Talking points" largeTitle={false}>
+    <Screen
+      title="Talking points"
+      largeTitle={false}
+      footer={chosen.length ? <Button label={`Use ${chosen.length} ${plural(chosen.length, 'theme', 'themes')}`} busy={using} onPress={() => { void use(); }} /> : undefined}
+    >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
         {cram && language ? <Help>{topic ? `Angles on "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. Use theme names the cram after it.`}</Help> : null}
@@ -136,8 +163,19 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
         ) : null}
         {shown?.themes.map((theme, i) => (
           <Tappable key={theme.title} onPress={() => { haptic.tap(); onOpen(i); }} accessibilityRole="button" accessibilityLabel={`Open ${theme.title}`} scaleTo={0.98}>
-            <Card>
-              <Text style={{ ...type.headline, color: c.text }}>{theme.title}</Text>
+            <Card style={picked.has(theme.title) ? { borderColor: c.accent, borderWidth: 2 } : undefined}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+                <Text style={{ ...type.headline, color: c.text, flex: 1 }}>{theme.title}</Text>
+                <Tappable
+                  onPress={() => toggle(theme.title)}
+                  hitSlop={space.s}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: picked.has(theme.title) }}
+                  accessibilityLabel={`Select ${theme.title}`}
+                >
+                  <Icon name={picked.has(theme.title) ? 'checkmark.circle.fill' : 'circle'} size={24} color={picked.has(theme.title) ? c.accent : c.textTertiary} />
+                </Tappable>
+              </View>
               {theme.why ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{theme.why}</Text> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s - 2 }}>
                 {themeChips(theme, shown.words).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}

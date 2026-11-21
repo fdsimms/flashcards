@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
-  afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withTheme, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
+  afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withThemes, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -108,13 +108,27 @@ describe('practice', () => {
     expect(untitled.name).toBe('Thai lesson');
     expect(standInName(undefined)).toBe('Lesson');
     expect(themeTopic(untitled)).toBe('');
-    const named = withTheme(untitled, talk);
-    expect(named).toMatchObject({ name: 'My weekend at the beach', theme: talk, id: untitled.id });
+    const named = withThemes(untitled, [talk]);
+    expect(named).toMatchObject({ name: 'My weekend at the beach', themes: [talk], id: untitled.id });
     expect(named.untitled).toBeUndefined();
     expect(themeTopic(named)).toBe('My weekend at the beach');
     // A cram named by its owner keeps its name.
-    expect(withTheme(cram(), talk)).toMatchObject({ name: 'Thai lesson', theme: talk });
+    expect(withThemes(cram(), [talk])).toMatchObject({ name: 'Thai lesson', themes: [talk] });
     expect(themeTopic(cram())).toBe('Thai lesson');
+  });
+  it('keeps several themes in order, replacing one with the same title, and names an untitled cram after the first', () => {
+    const a = { title: 'A', questions: [] };
+    const b = { title: 'B', questions: [] };
+    const b2 = { title: 'B', questions: [{ text: 'q', english: '' }] };
+    expect(withThemes(cram({ untitled: true, name: 'Thai lesson' }), [a, b])).toMatchObject({ name: 'A', themes: [a, b] });
+    expect(withThemes(cram({ themes: [a, b] }), [b2]).themes).toEqual([a, b2]);
+    expect(withThemes(cram(), [])).toEqual(cram());
+  });
+  it('reads a cram saved with its one theme as a list of one', () => {
+    const talk = { title: 'A', questions: [] };
+    const json = JSON.stringify({ ...cram(), theme: talk });
+    expect(parseCram(json)?.themes).toEqual([talk]);
+    expect(parseCram(json)).not.toHaveProperty('theme');
   });
 });
 

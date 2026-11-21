@@ -99,7 +99,7 @@ export function combineWeakSpots(practice: string[], kept: string[]): string[] {
   return [...first, ...kept.slice(0, THEME_WEAK_MAX - first.length)];
 }
 
-/** The titles not to suggest again: those already on screen, then every cram's name and theme, newest first. */
+/** The titles not to suggest again: those already on screen, then every cram's name and themes, newest first. */
 export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -108,7 +108,7 @@ export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
     if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); }
   };
   shown.forEach(add);
-  for (const c of [...crams].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) { add(c.theme?.title); add(c.name); }
+  for (const c of [...crams].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) { for (const t of c.themes ?? []) add(t.title); add(c.name); }
   return out.slice(0, THEME_AVOID_MAX);
 }
 
