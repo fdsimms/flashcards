@@ -197,8 +197,27 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
   // name and file on this connection: the second one's attach or detach failed with "database
   // scratch is locked". So reads wait for each other.
   let scratchQueue: Promise<unknown> = Promise.resolve();
+  // A DETACH can fail ("database scratch is locked") while a write transaction on this shared
+  // connection is open, since the scratch reads enrolled in it. The failed detach left `scratch`
+  // attached for the rest of the app's run, so every later sync failed on its ATTACH with
+  // "database scratch is already in use". So the detach waits out a busy moment, and a read
+  // starts by detaching whatever an earlier one left behind.
+  const detachScratch = async () => {
+    for (let attempt = 0; ; attempt++) {
+      const open = await db.getAllAsync<{ name: string }>('PRAGMA database_list');
+      if (!open.some((d) => d.name === 'scratch')) return;
+      try {
+        await db.execAsync('DETACH DATABASE scratch');
+        return;
+      } catch (e) {
+        if (attempt >= 5) throw e;
+        await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+      }
+    }
+  };
   const readRows = async (collection: File): Promise<CollectionRows> => {
     const scratch = new File(workFolder('anki-read'), 'scratch.anki2');
+    await detachScratch();
     await collection.copy(scratch);
     const p = pathOf(scratch);
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
@@ -210,14 +229,14 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await db.execAsync(stripUnicaseIn('scratch'));
       await db.execAsync('PRAGMA writable_schema = OFF');
     } finally {
-      await db.execAsync('DETACH DATABASE scratch');
+      await detachScratch();
     }
     // Attached again so SQLite reads the edited schema.
     await db.runAsync('ATTACH DATABASE ? AS scratch', p);
     try {
       return await queryCollectionRows((sql) => db.getAllAsync(inSchema(sql, 'scratch')));
     } finally {
-      await db.execAsync('DETACH DATABASE scratch');
+      await detachScratch();
       scratch.delete();
     }
   };
