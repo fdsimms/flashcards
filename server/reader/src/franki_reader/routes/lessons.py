@@ -283,6 +283,14 @@ def router(ctx: AppContext) -> APIRouter:
             raise HTTPException(404, "No such lesson.")
         return Response(status_code=204)
 
+    @routes.post("/api/lessons/{lesson_id}/heard", status_code=204, dependencies=authed)
+    async def heard_route(lesson_id: int) -> Response:
+        """Notes that the lesson was played to the end, so a later lesson may ask for its phrases.
+        Never grades a card."""
+        if not store.mark_lesson_heard(engine.conn, lesson_id, engine.clock()):
+            raise HTTPException(404, "No such lesson.")
+        return Response(status_code=204)
+
     @routes.post("/api/lessons/review", status_code=202, dependencies=authed)
     async def make_review_route(body: ReviewIn, background: BackgroundTasks) -> dict[str, Any]:
         if engine.synthesize is None:

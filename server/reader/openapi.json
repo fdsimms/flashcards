@@ -3820,6 +3820,55 @@
         }
       }
     },
+    "/api/lessons/{lesson_id}/heard": {
+      "post": {
+        "summary": "Heard Route",
+        "description": "Notes that the lesson was played to the end, so a later lesson may ask for its phrases.\nNever grades a card.",
+        "operationId": "heard_route_api_lessons__lesson_id__heard_post",
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/review": {
       "post": {
         "summary": "Make Review Route",

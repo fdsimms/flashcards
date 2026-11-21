@@ -1054,6 +1054,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{lesson_id}/heard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Heard Route
+         * @description Notes that the lesson was played to the end, so a later lesson may ask for its phrases.
+         *     Never grades a card.
+         */
+        post: operations["heard_route_api_lessons__lesson_id__heard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/review": {
         parameters: {
             query?: never;
@@ -4775,6 +4796,37 @@ export interface operations {
                 "application/json": components["schemas"]["MarkIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    heard_route_api_lessons__lesson_id__heard_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {
