@@ -1,6 +1,6 @@
 import { isOmnilanguage, speechLangFor } from './cards';
 import { headword } from './forms';
-import { genderOf, spokenEntry } from './gender';
+import { spokenEntry } from './gender';
 import { htmlToText } from './html';
 import type { Card, Note } from './types';
 
@@ -34,7 +34,7 @@ export function typeItAnswers(note: Note, card: Card): string[] {
   if (!word) return [];
   const lang = speechLangFor(note);
   if (!lang?.startsWith('ja')) {
-    const said = spokenEntry(lang?.slice(0, 2) ?? '', genderOf(htmlToText(note.fields.Gender ?? '')), htmlToText(note.fields.PartOfSpeech ?? ''), word);
+    const said = spokenEntry(lang?.slice(0, 2) ?? '', htmlToText(note.fields.Gender ?? ''), htmlToText(note.fields.PartOfSpeech ?? ''), word);
     return said === word ? [word] : [word, said];
   }
   const readings = htmlToText(note.fields.KanaReading ?? '').split(/[,、/;]/).map((r) => r.trim()).filter(Boolean);

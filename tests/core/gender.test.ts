@@ -68,9 +68,9 @@ describe('the article shown before a bare Entry', () => {
     expect(elidesBefore('de', 'Apfel')).toBe(false);
   });
 
-  it('is said with the word only where it is a real article', () => {
-    for (const l of ['es', 'nb', 'de', 'fr', 'el']) expect(articleIsSpoken(l)).toBe(true);
-    for (const l of ['ru', 'pl']) expect(articleIsSpoken(l)).toBe(false);
+  it('is said with the word wherever the card shows one before it', () => {
+    for (const l of ['es', 'nb', 'de', 'fr', 'el', 'ru', 'pl']) expect(articleIsSpoken(l)).toBe(true);
+    expect(articleIsSpoken('th')).toBe(false);
   });
 });
 
@@ -103,11 +103,17 @@ describe("a Norwegian verb's å", () => {
     expect(verbMarker('de', 'verb', 'werfen')).toBeUndefined();
   });
   it('is said with the verb, as an article is with its noun', () => {
-    expect(spokenEntry('nb', undefined, 'verb', 'huske')).toBe('å huske');
+    expect(spokenEntry('nb', '', 'verb', 'huske')).toBe('å huske');
     expect(spokenEntry('nb', 'f', 'noun', 'huske')).toBe('ei huske');
     expect(spokenEntry('de', 'f', 'noun', 'Einstellung')).toBe('die Einstellung');
-    expect(spokenEntry('pl', 'm', 'noun', 'stół')).toBe('stół');
-    expect(spokenEntry('de', undefined, 'verb', 'werfen')).toBe('werfen');
+    expect(spokenEntry('pl', 'm', 'noun', 'stół')).toBe('ten stół');
+    expect(spokenEntry('pl', 'pl', 'noun', 'spodnie')).toBe('te spodnie');
+    expect(spokenEntry('pl', 'mpl', 'noun', 'ludzie')).toBe('ci ludzie');
+    expect(spokenEntry('pl', 'm', 'noun', 'ten stół')).toBe('ten stół');
+    expect(spokenEntry('ru', 'f', 'noun', 'кошка')).toBe('эта кошка');
+    expect(spokenEntry('pl', '', 'noun', 'stół')).toBe('stół');
+    expect(spokenEntry('th', 'm', 'noun', 'x')).toBe('x');
+    expect(spokenEntry('de', '', 'verb', 'werfen')).toBe('werfen');
   });
   it('comes off a verb when the word is added', () => {
     expect(bareVerb('nb', 'verb', 'å huske')).toBe('huske');
