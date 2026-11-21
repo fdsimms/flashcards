@@ -445,6 +445,9 @@ export type DifficultyLevel = 'harder' | 'standard' | 'easier';
 // their words hidden, and lessons played to the end. It only reports.
 export type InputTime = { days: number; languages: { language: Language; reading_seconds: number; listening_seconds: number; last_read_at: string | null }[] };
 
+// A line from a text read that uses a card's word (server reading_lines.py), for the card's answer side.
+export type ReadingLine = { text_id: number; title: string; line: string; english: string };
+
 export type Progress = {
   days: number;
   finished: number;
@@ -801,6 +804,9 @@ export function createApi(
     // Cards' example sentences split and glossed as a text's lines are, for the word popovers on a card
     // (reader/cardGlosses.ts): asked once for a whole study session. `ready` is false until the
     // language's deck has been read on the server. A card's headword is asked with `parts`, and comes back split into the words it is made of.
+    // Lines from texts read that use each word, up to 5 a word, the latest read first: asked once for a whole study session.
+    readingLines: async (language: Language, words: string[]) =>
+      (await call<{ lines: Record<string, ReadingLine[]> }>('POST', '/api/reading-lines', { language, words })).lines,
     glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // The meaning of a tapped word nothing glosses, from Claude on the server (kept there, so a second tap is free): asked

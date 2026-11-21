@@ -1300,6 +1300,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reading-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reading Lines Route
+         * @description Lines from texts read that use each word, for a card's answer side. Never writes to Anki
+         *     or grades a card: it only reads the snapshot of the deck and the texts read.
+         */
+        post: operations["reading_lines_route_api_reading_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/glosses": {
         parameters: {
             query?: never;
@@ -2158,6 +2179,16 @@ export interface components {
             };
             /** Phrases */
             phrases: string[];
+        };
+        /** ReadingLinesIn */
+        ReadingLinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /** Words */
+            words: string[];
         };
         /** ReadingsIn */
         ReadingsIn: {
@@ -5284,6 +5315,43 @@ export interface operations {
                         [key: string]: ({
                             [key: string]: string;
                         } | null)[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reading_lines_route_api_reading_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadingLinesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
                     };
                 };
             };

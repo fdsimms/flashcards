@@ -12,6 +12,7 @@ from franki_reader import (
     conjugation,
     fix_card,
     meanings,
+    reading_lines,
     store,
 )
 from franki_reader.coverage import Checker
@@ -71,6 +72,12 @@ class GlossSentence(BaseModel):
 class GlossesIn(BaseModel):
     language: Code
     sentences: list[GlossSentence] = Field(max_length=MAX_GLOSS_SENTENCES)
+
+
+class ReadingLinesIn(BaseModel):
+    language: Code
+    # Deck entries as written (a card's headword), a study session's worth.
+    words: list[str] = Field(max_length=reading_lines.MAX_WORDS)
 
 
 class WordMeaningIn(BaseModel):
@@ -274,6 +281,29 @@ def router(ctx: AppContext) -> APIRouter:
             result = ipa_of_entry(e.entry, e.language, e.reading, engine.ai_ipa(e.language))
             found.append({"ipa": result[0], "source": result[1]} if result else None)
         return {"pronunciations": found}
+
+    @routes.post("/api/reading-lines", dependencies=authed)
+    async def reading_lines_route(body: ReadingLinesIn) -> dict[str, Any]:
+        """Lines from texts read that use each word, for a card's answer side. Never writes to Anki
+        or grades a card: it only reads the snapshot of the deck and the texts read."""
+        _, lexicon = engine.snapshot(body.language)
+        found = reading_lines.find(
+            body.words, store.finished_texts(engine.conn, body.language), lexicon
+        )
+        return {
+            "lines": {
+                word: [
+                    {
+                        "text_id": ln.text_id,
+                        "title": ln.title,
+                        "line": ln.line,
+                        "english": ln.english,
+                    }
+                    for ln in lines
+                ]
+                for word, lines in found.items()
+            }
+        }
 
     @routes.post("/api/glosses", dependencies=authed)
     async def glosses(body: GlossesIn, background: BackgroundTasks) -> dict[str, Any]:
