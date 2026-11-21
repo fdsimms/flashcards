@@ -4,6 +4,7 @@ import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../anki/noteService';
 import { failureText } from '../core/failure';
 import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
+import { markerText, noteMarkers, type NoteMarker } from '../core/noteMarkers';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
@@ -15,7 +16,8 @@ import { useKeyboardScroll } from './useKeyboardScroll';
  * Every note, searchable and narrowed to a deck or any of its subdecks, and to a state its cards
  * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one.
  * Search matches every word in any field, a tag or the deck name, closest matches first (a word
- * on the front, then in the meaning, then elsewhere; src/core/noteEditing.ts).
+ * on the front, then in the meaning, then elsewhere; src/core/noteEditing.ts). A row says when its
+ * cards are suspended, buried, flagged or the note is a leech (src/core/noteMarkers.ts).
  */
 export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
   const { bottomPadding } = useKeyboardScroll();
@@ -94,7 +96,15 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
             {query.trim() ? `No notes match "${query.trim()}".` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}
           </Text>
         ) : <Loading error={error} onRetry={load} />}
-        renderItem={({ item, index }) => <NoteRow note={item} first={index === 0} last={index === found.length - 1} onPress={() => edit({ noteId: item.id })} />}
+        renderItem={({ item, index }) => (
+          <NoteRow
+            note={item}
+            markers={cards ? noteMarkers(item, cards.byNote.get(item.id) ?? [], cards.now, cards.dayStartsAtHour) : []}
+            first={index === 0}
+            last={index === found.length - 1}
+            onPress={() => edit({ noteId: item.id })}
+          />
+        )}
       />
     </Screen>
   );
@@ -105,14 +115,14 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
  * can't be one view): the first and last round its corners, and every row but the first draws the
  * divider above it, as a `Group`'s rows do.
  */
-function NoteRow({ note, first, last, onPress }: { note: Note; first: boolean; last: boolean; onPress: () => void }) {
+function NoteRow({ note, markers, first, last, onPress }: { note: Note; markers: NoteMarker[]; first: boolean; last: boolean; onPress: () => void }) {
   const c = useTheme();
   const { front, back } = notePreview(note);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[front || 'Empty note', back, note.deck].filter(Boolean).join(', ')}
+      accessibilityLabel={[front || 'Empty note', back, note.deck, ...markers.map(markerText)].filter(Boolean).join(', ')}
       accessibilityHint="Opens the note to edit"
       style={({ pressed }) => ({
         paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: pressed ? c.fill : c.surface, ...smooth,
@@ -126,6 +136,27 @@ function NoteRow({ note, first, last, onPress }: { note: Note; first: boolean; l
       <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
       {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
       <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
+      {markers.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.xs, paddingTop: space.xs }}>
+          {markers.map((m) => <MarkerChip key={`${m.kind}${m.flag ?? ''}`} marker={m} />)}
+        </View>
+      ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * One state marker: a colored dot and its word, so color is never the only signal (the same
+ * pill shape as the card state chips on the review screen). Suspended is gray, a bury violet, a
+ * leech amber, and a flag the flag's own color.
+ */
+function MarkerChip({ marker }: { marker: NoteMarker }) {
+  const c = useTheme();
+  const dot = marker.kind === 'suspended' ? c.textTertiary : marker.kind === 'buried' ? c.violet : marker.kind === 'leech' ? c.warning : c.flags[marker.flag ?? 0];
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
+      <Text style={{ ...type.footnote, color: c.textSecondary }}>{markerText(marker)}</Text>
+    </View>
   );
 }
