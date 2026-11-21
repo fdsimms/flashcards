@@ -197,7 +197,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action }: {
+export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -217,9 +217,12 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
   disabled?: boolean;
   /** A round button before the chevron, for a second thing the row can do (Past texts' listen). */
   action?: { icon: SFSymbol; label: string; onPress: () => void };
+  /** How many steps in from the group's edge the row starts: a subdeck under its parent deck. */
+  indent?: number;
 }) {
   const c = useTheme();
   const tile = 30;
+  const start = space.l + indent * space.xl;
   return (
     <Pressable
       onPress={onPress}
@@ -230,10 +233,10 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
       accessibilityLabel={[label, ...(badge ? [badge.text] : []), ...(facts ? facts.map((f) => `${f.label}: ${f.value}`) : making ? [makingSpoken(making)] : detail ? [detail] : [])].join('. ')}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m,
-        paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
+        paddingVertical: space.m, paddingLeft: start, paddingRight: space.l, backgroundColor: pressed ? c.fill : 'transparent',
       })}
     >
-      {first ? null : <Divider inset={space.l + (icon ? tile + space.m : 0)} />}
+      {first ? null : <Divider inset={start + (icon ? tile + space.m : 0)} />}
       {icon ? (
         <View style={{ opacity: disabled ? 0.45 : 1, width: tile, height: tile, borderRadius: 7, ...smooth, backgroundColor: icon.color, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon.name} size={17} color={c.onRating} />
