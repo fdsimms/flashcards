@@ -39,6 +39,7 @@ export default function NoteEditorRoute() {
       decks={decks.map((d) => d.deck)}
       recorder={recorder}
       onCardsChanged={() => { result.current ??= { cardsChanged: true }; }}
+      onSaved={(note) => { result.current = { saved: note }; }}
       onClose={(r) => { if (r) result.current = r; leaveScreen(router, DECKS_PATH); }}
     />
   );
