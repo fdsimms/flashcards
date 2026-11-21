@@ -7,6 +7,8 @@ import {
   type DeckLanguage, type PhoneVoice, type VoiceChoice, type VoiceSettings,
 } from '../core/voices';
 import { failureText } from '../core/failure';
+import { RECORDING_RATE } from '../core/recording';
+import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { searchVoices } from '../reader/voiceSlots';
@@ -23,7 +25,10 @@ const DOWNLOAD_HELP =
  * The phone's voices are read again whenever the screen comes back into view or the app comes
  * back from the background, so a voice just downloaded in iOS Settings shows up.
  */
-function useVoiceChoices(repo: Repo) {
+/** The repo these screens use: the voice choices live in SQLite, and an Azure voice is copied to the Anki collection for the MCP. */
+type VoicesRepo = Repo & Pick<AnkiLink, 'setAnkiAudioVoice'>;
+
+function useVoiceChoices(repo: VoicesRepo) {
   const [languages, setLanguages] = useState<DeckLanguage[]>();
   const [voices, setVoices] = useState<PhoneVoice[]>([]);
   const [settings, setSettings] = useState<VoiceSettings>({});
@@ -64,6 +69,18 @@ function useVoiceChoices(repo: Repo) {
       return;
     }
     setSettings(next);
+    // The Azure voice is also kept in the Anki collection, where the MCP reads it, so a note it adds is
+    // recorded with this voice too. The phone's choice stands either way, so a failure is said, not undone.
+    if ('azureVoice' in change) {
+      try {
+        await repo.setAnkiAudioVoice(key, change.azureVoice ? { voice: change.azureVoice, rate: RECORDING_RATE } : null);
+      } catch (e) {
+        Alert.alert('Voice saved on this phone only', failureText(e, {
+          what: "Couldn't copy it to your Anki collection, so notes Claude adds may be recorded with another voice.",
+          next: 'Choose the voice again to retry.',
+        }));
+      }
+    }
   }, [repo]);
 
   return { languages, voices, settings, choose, error, retry: () => setAttempt((n) => n + 1) };
@@ -82,7 +99,7 @@ function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettin
 }
 
 /** Settings > Voices: each language the decks are read aloud in, with its voice and speed. */
-export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: string) => void }) {
+export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (key: string) => void }) {
   const c = useTheme();
   const { languages, voices, settings, error, retry } = useVoiceChoices(repo);
   return (
@@ -115,7 +132,7 @@ export function Voices({ repo, onLanguage }: { repo: Repo; onLanguage: (key: str
  * since its server holds the Azure key), and the iPhone voice and speed. Choosing any of them
  * reads a word from the decks with it.
  */
-export function VoiceLanguage({ repo, api, languageKey }: { repo: Repo; api: Api | null; languageKey: string }) {
+export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; api: Api | null; languageKey: string }) {
   const c = useTheme();
   const { languages, voices, settings, choose, error, retry } = useVoiceChoices(repo);
   const lang = languages?.find((l) => l.key === languageKey);

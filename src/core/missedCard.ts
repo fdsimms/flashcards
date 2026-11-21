@@ -1,4 +1,5 @@
 import { htmlToText } from './html';
+import { isSkillNote } from './skillTag';
 import { renderTemplateCard } from './template';
 import { withoutTts } from './tts';
 import type { CardKind, Note, NoteType } from './types';
@@ -24,10 +25,11 @@ function sideText(html: string): string {
  * rows show the word and its meaning instead), as its template renders them. A back that repeats
  * the front ({{FrontSide}}) is cut at Anki's answer line so only the answer is left. Undefined when
  * the card has no template to render or a side comes out empty or the same as the other, so the
- * caller falls back.
+ * caller falls back. Undefined for a skill drill too: its back is the same line on every drill, so
+ * it would read as the answer (the drill's own title and instruction are the front).
  */
 export function missedCardText(note: Note, noteType: NoteType | undefined, kind: CardKind): MissedCardText | undefined {
-  if (!noteType || !kind.startsWith('t')) return undefined;
+  if (!noteType || !kind.startsWith('t') || isSkillNote(note)) return undefined;
   const ord = Number(kind.slice(1));
   const { front, back } = renderTemplateCard(note, noteType, ord);
   const question = sideText(front);

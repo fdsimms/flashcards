@@ -2,6 +2,7 @@ import { isOmnilanguage } from './cards';
 import { htmlToText, textToHtml } from './html';
 import { readerLanguageOf } from './leechHint';
 import { missedCardText } from './missedCard';
+import { drillOfTags } from '../tools/skills';
 import type { CardKind, Note, NoteType } from './types';
 import type { Language } from '../reader/api';
 
@@ -51,6 +52,11 @@ export function cardForClaude(note: Note, noteType: NoteType | undefined, kind: 
       back: meaning,
       details: [LINE('Example: ', note.fields.Context), LINE('Mnemonic: ', note.fields.Mnemonic)].filter(Boolean).join('\n'),
     };
+  }
+  // A skill drill is all in its front (language, step, what to do); its back is shared boilerplate.
+  if (drillOfTags(note.tags)) {
+    const front = htmlToText((note.fields.Front ?? '').replace(/<\/div>/gi, '\n')).split('\n').map((l) => l.trim()).filter(Boolean).join('\n');
+    return front ? { language: readerLanguageOf(note), front, back: 'Rated by how it went.', details: '' } : undefined;
   }
   const text = missedCardText(note, noteType, kind);
   return text ? { language: readerLanguageOf(note), front: text.question, back: text.answer, details: '' } : undefined;
