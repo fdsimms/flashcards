@@ -209,6 +209,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // A Thai romanization's tone marks are colored by tone (toneColors.ts).
   const isThai = !!speechLang?.startsWith('th');
   const pronunciation = t(note, 'Pronunciation');
+  // A Russian word with its stress mark (the Stress field, filled by the MCP's fill_stress): on an answer only, since text is never written with it.
+  const stressed = t(note, 'Stress');
   // A Japanese word's kana, shown on the back after the word as Anki's template does ({{hint:KanaReading}}).
   const kana = t(note, 'KanaReading');
   // The IPA (the note type may not have the field yet: then it's empty). A card that already keeps a
@@ -257,7 +259,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   };
 
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
-  const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
+  const pushEntry = (blocks: Block[], shown = entry) => pushIf(blocks, shown, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
 
   // "Not this word" (senseContrast.ts): the words for the senses the Sense rules out. On an answer only,
   // never a front: on the reverse card it would stand beside the meaning that asks for the word.
@@ -273,6 +275,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(back, meaning, undefined, true, undefined, { role: 'meaning', ...sensed });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     pushContrast(back);
+    // The word is on the front unmarked, so its stress is a line of its own here.
+    pushIf(back, stressed, undefined);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
@@ -287,7 +291,8 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
     pushIf(front, t(note, 'LeechHint'), undefined);
-    pushEntry(back);
+    // The word is the answer, so it's shown with its stress mark where the note has one.
+    pushEntry(back, stressed || entry);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
@@ -305,7 +310,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
       role: 'note',
     });
   }
-  pushEntry(back);
+  pushEntry(back, stressed || entry);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss', ...sensed });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
