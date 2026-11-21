@@ -21,9 +21,10 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
+from franki_reader.gender import thai_fits
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
-from franki_reader.lesson import MAX_CHARS
+from franki_reader.lesson import MAX_CHARS, Learner, tokens
 from franki_reader.lesson_words import is_written
 from franki_reader.register import DEFAULT, Register, instruction
 
@@ -84,6 +85,8 @@ class Seeds:
     topic: str = ""
     # How casual or formal the questions and the story sound.
     register: Register = DEFAULT
+    # Who says the story and the learner's side of the talk: Thai's "I" and polite ending change with it.
+    learner: Learner = "male"
 
 
 @dataclass(frozen=True)
@@ -162,13 +165,24 @@ practice). Do not give counts.
 written in {language} at the learner's level (short, common words) with the English. They are \
 what the learner asks the tutor to steer the conversation, so they open the subject up.
 - story: two or three short sentences in {language} that the learner could say about the theme, \
-in the first person, using several of the learner's words, with the English.
+in the first person, using several of the learner's words, with the English.{thai}
 
 The questions and the story are for speaking aloud with a tutor. {register}
 
 Everything in {language} is written in {language}'s own writing, never romanization, with no \
 translations in brackets. Write the English in American English, without em dashes. The themes \
 must differ from each other and from any listed as taken.{topic}{level}"""
+
+# The learner says the story, so it is written as they would say it (the same rule as a lesson's
+# phrases, lesson_writer.thai_problems).
+THAI_MAN = (
+    ' The learner is a man: write the story with ผม for "I" and end its polite sentences with '
+    "ครับ, never ฉัน, ดิฉัน, ค่ะ or คะ."
+)
+THAI_WOMAN = (
+    ' The learner is a woman: write the story with ดิฉัน or ฉัน for "I" and end its statements '
+    "with ค่ะ and its questions with คะ, never ผม or ครับ."
+)
 
 STRETCH = """ The learner wants a stretch: questions and a story a little above their level, \
 while still built mostly from their own words."""
@@ -219,7 +233,11 @@ def request_message(seeds: Seeds) -> str:
 
 
 def system_message(
-    language: Code, stretch: bool, topic: bool = False, register: Register = DEFAULT
+    language: Code,
+    stretch: bool,
+    topic: bool = False,
+    register: Register = DEFAULT,
+    learner: Learner = "male",
 ) -> str:
     return SYSTEM.format(
         language=LANGUAGES[language].name,
@@ -231,6 +249,7 @@ def system_message(
         level=STRETCH if stretch else COMFORTABLE,
         topic=TOPIC if topic else "",
         register=instruction(register),
+        thai=(THAI_MAN if learner == "male" else THAI_WOMAN) if language == "th" else "",
     )
 
 
@@ -296,6 +315,9 @@ def clean_themes(raw: Any, seeds: Seeds, language: Code) -> list[Theme]:
         questions = [q for q in (_line(x, language) for x in asked) if q is not None]
         if (not word_ids and not new) or len(questions) < MIN_QUESTIONS:
             continue
+        story = _line(item.get("story"), language)
+        if story and language == "th" and not thai_fits(tokens(story.text), seeds.learner):
+            story = None  # the learner's own words, said as the other gender: dropped, not repaired
         seen.add(title.casefold())
         out.append(
             Theme(
@@ -304,7 +326,7 @@ def clean_themes(raw: Any, seeds: Seeds, language: Code) -> list[Theme]:
                 word_ids,
                 tuple(new[:MAX_NEW]),
                 tuple(questions[:MAX_QUESTIONS]),
-                _line(item.get("story"), language),
+                story,
             )
         )
     return out[:COUNT]
@@ -322,7 +344,9 @@ def claude_themes(client: anthropic.AsyncAnthropic) -> WriteThemes:
             response = await client.beta.messages.create(
                 model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
-                system=system_message(language, seeds.stretch, bool(seeds.topic), seeds.register),
+                system=system_message(
+                    language, seeds.stretch, bool(seeds.topic), seeds.register, seeds.learner
+                ),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
             )

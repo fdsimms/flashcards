@@ -207,3 +207,30 @@ def test_a_topic_leads_the_request_and_asks_for_angles_on_it() -> None:
     assert "angle on that" in system_message("fr", False, topic=True)
     assert "angle on that" not in system_message("fr", False)
     assert not request_message(seeds()).startswith("What the lesson")
+
+
+def test_a_thai_story_is_asked_for_in_the_learners_gender() -> None:
+    assert "ผม" in system_message("th", False, learner="male")
+    assert "never ฉัน" in system_message("th", False, learner="male")
+    assert "ค่ะ" in system_message("th", False, learner="female")
+    assert "ครับ" not in system_message("fr", False, learner="male")
+
+
+def test_a_thai_story_in_the_other_genders_words_is_dropped_but_the_theme_stays() -> None:
+    def thai(story: str, learner: str) -> object:
+        raw = {
+            "themes": [
+                theme(
+                    questions=[{"text": "คุณวิ่งบ่อยไหม", "english": "Do you run often?"}] * 2,
+                    story={"text": story, "english": "I ran."},
+                )
+            ]
+        }
+        got = clean_themes(raw, seeds(learner=learner), "th")
+        assert len(got) == 1
+        return got[0].story
+
+    assert thai("ฉันวิ่งเสร็จในสามสิบนาที", "male") is None
+    assert thai("ผมวิ่งเสร็จในสามสิบนาทีครับ", "male") is not None
+    assert thai("ผมวิ่งเสร็จในสามสิบนาทีครับ", "female") is None
+    assert thai("ฉันวิ่งเสร็จในสามสิบนาทีค่ะ", "female") is not None
