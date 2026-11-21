@@ -66,8 +66,8 @@ one gap where the {name} goes. Give:
   tenses or moods, or for a particle, other particles), each wrong in this sentence{rivals}
 - hint: for a verb, its infinitive and person, like "ir, nosotros"; empty otherwise
 
-Write the sentences the way people really talk, not the way a textbook puts it, unless the {name}
-is itself a formal or written form.
+Write the sentences the way an ordinary person talks, not the way a textbook puts it, and not
+slangy or very casual either, unless the {name} is itself a formal or written form.
 
 before + answer + after must read as the whole sentence{spacing}. Write plain text: no `|`, no
 asterisks, no tildes. Vary the verbs, people and situations, and don't repeat a sentence. Do not

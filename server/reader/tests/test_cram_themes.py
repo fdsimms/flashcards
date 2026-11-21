@@ -189,7 +189,7 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
 
 def test_the_system_message_asks_for_spoken_not_written_register() -> None:
     text = system_message("th", False)
-    assert "really talk in everyday conversation" in text
+    assert "ordinary person talks in everyday conversation" in text
     assert "not the way a textbook or a written text puts it" in text
 
 
