@@ -95,6 +95,8 @@ import { canLinkConfused, ConfusedLinkSheet, ConfusedRow } from './ConfusedLink'
 import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { useFieldEdit } from './useFieldEdit';
+import { useSenseContrast } from './useSenseContrast';
+import type { AddWord } from './useAddMinedWord';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
 import { keyboardLanguageForText } from '../core/keyboardLanguage';
@@ -174,7 +176,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onCardInfo, onSettings }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, onAddWord, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onCardInfo, onSettings }: {
   repo: Repo & AnkiLink;
   deck: string;
   /**
@@ -192,6 +194,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   fixFlaggedCard?: (request: FixRequest) => Promise<FixResponse>;
   /** Present while Read & Listen is signed in: an example sentence's words can be tapped for their meanings (useCardGlosses). */
   glossing?: CardGlossing;
+  /** Add to deck, as every screen offers it (useAddMinedWord): what Add does in a card's "not this word" box. */
+  onAddWord?: (add: AddWord) => Promise<boolean>;
   /** Changes when something outside this screen may have changed the deck (custom study): loads the cards again. */
   reloadKey?: number;
   /** Leaves the screen: the deck is done. */
@@ -588,6 +592,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
   const fieldEdit = useFieldEdit(repo, writes, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
+  // The "not this word" box under an answer's Sense (useSenseContrast.ts).
+  const contrast = useSenseContrast({
+    repo, writes, card: current, note, decks: glossing?.decks, addWord: onAddWord,
+    onOpenNote: (noteId, closed) => onEditNote({ noteId }, (result) => { if (result) closed(); }),
+    onSaved: useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []),
+  });
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
   const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
   const newWordsStep = useNewWordsStep(deck, c.teal);
@@ -1517,7 +1527,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
@@ -1575,7 +1585,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               <Reveal rise={14} style={{ gap: space.xl }}>
                 {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
                 <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

@@ -3,6 +3,7 @@ import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './
 import { fieldSegments } from './highlight';
 import { htmlToText, soundFiles } from './html';
 import { hasThai } from './script';
+import { SENSE_CONTRAST_FIELD, contrastWords } from './senseContrast';
 import { THAI_COUNTING_WORDS } from './thaiCounting';
 import { newSchedState } from './scheduler';
 import { fieldIsEmpty, templateOrdinals } from './template';
@@ -245,12 +246,20 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
   const pushEntry = (blocks: Block[]) => pushIf(blocks, entry, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
 
+  // "Not this word" (senseContrast.ts): the words for the senses the Sense rules out. On an answer only,
+  // never a front: on the reverse card it would stand beside the meaning that asks for the word.
+  const pushContrast = (blocks: Block[]) => {
+    const rows = contrastWords(note.fields[SENSE_CONTRAST_FIELD] ?? '');
+    pushIf(blocks, rows.map((r) => `${r.sense}: ${r.word}`).join('\n'), undefined, undefined, undefined, { role: 'contrast', rows: rows.map((r) => ({ label: r.sense, value: r.word })) });
+  };
+
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
     // The word is already on screen, so its meaning is set smaller than a headline to save room.
     pushIf(back, meaning, undefined, true, undefined, { role: 'meaning' });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+    pushContrast(back);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
@@ -269,6 +278,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
     pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
+    pushContrast(back);
     back.push(...detail());
     return { front: { blocks: front }, back: { blocks: back, speak: say }, speechLang };
   }
@@ -286,6 +296,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss' });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
+  pushContrast(back);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
   pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });

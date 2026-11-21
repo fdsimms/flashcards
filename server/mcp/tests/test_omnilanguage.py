@@ -200,6 +200,20 @@ def test_a_sense_never_holds_the_word_the_reverse_card_asks_for():
     assert o.prepare({"Sense": "a framed picture, not a photo"}, existing=greek).refused == []
 
 
+def test_a_sense_contrast_is_one_english_sense_and_its_word_per_line():
+    noun = {"Entry": "ducha", "Meaning": "shower", "Sense": "a bathroom shower, not rain", "Language": "spanish", "Register": "neutral",
+            "PartOfSpeech": "noun", "Gender": "f", "Context": "La <b>ducha</b> está fría.", "ContextTranslation": "The shower is cold."}  # fmt: skip
+    found = lambda value: [(p.rule, p.level) for p in o.problems({**noun, "SenseContrast": value}) if p.field == "SenseContrast"]  # noqa: E731
+    refused = [("contrast-format", "format")]
+    assert found("rain shower = aguacero") == []
+    assert found("rain shower = aguacero; chubasco<br>baby shower = fiesta de bebé") == []
+    # No "=", a side left empty, three words, or the note's own word.
+    for bad in ("aguacero", "rain shower =", "= aguacero", "rain shower = aguacero; ", "rain = aguacero; chubasco; lluvia", "shower = Ducha"):
+        assert found(bad) == refused, bad
+    assert "One pair per line" in " ".join(o.prepare({"SenseContrast": "aguacero"}, existing=noun).refused)
+    assert "SenseContrast: only beside a Sense" in o.guide("spanish")["every_note"]
+
+
 def test_grammar_a_finished_note_carries_is_a_gap_not_a_refusal():
     verb = {"Entry": "werfen", "Meaning": "to throw", "Language": "german", "Register": "neutral", "PartOfSpeech": "verb",
             "Context": "Er <b>wirft</b> den Ball.", "ContextTranslation": "He throws the ball."}  # fmt: skip

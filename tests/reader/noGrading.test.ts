@@ -57,6 +57,11 @@ const EXEMPT: Record<string, string[]> = {
   // the alert that names how many; the screen itself imports no writer, and an Approve all never runs
   // without that alert.
   'approved by an alert': ['src/ui/useAddMinedWord.ts', 'src/ui/useApproveQueued.ts'],
+  // The review screen's "not this word" box (src/core/senseContrast.ts). It reads Read & Listen's
+  // language decks and note queue to say where Add sends a word and whether one is already waiting,
+  // and Add itself goes through useAddMinedWord. The one thing it saves is the card's own note with
+  // a word taken out of SenseContrast, on the x's tap, with Undo. It never answers or adds a card.
+  'the review screen\'s box of words a Sense rules out': ['src/ui/useSenseContrast.ts'],
 };
 const ALL_EXEMPT = Object.values(EXEMPT).flat();
 

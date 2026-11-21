@@ -199,9 +199,9 @@ export interface RenderedSide {
      * under a reverse card's meaning that says which of the words with that meaning is asked for
      * (`wantedLine` in synonyms.ts), `counting` is a Thai noun counted with its counting word (`rows`: label the counting word, value the counted phrase), a `gloss` is a meaning shown under the word it translates,
      * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
-     * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), and a `transliteration` is the word's romanization, set larger than an example's. A block with no role is plain labeled text.
+     * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), a `transliteration` is the word's romanization, set larger than an example's, and `contrast` is the "not this word" box under an answer's Sense (`rows`: label the English sense the word doesn't cover, value the word that does; senseContrast.ts). A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration' | 'contrast';
     /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
     field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */
@@ -211,7 +211,7 @@ export interface RenderedSide {
     pattern?: string;
     /** A `grammar` block's forms, each under the name of what it is ("genitive", "past", "takes"). */
     cells?: GrammarCell[];
-    /** A `counting` block's lines. */
+    /** A `counting` block's lines, or a `contrast` block's pairs. */
     rows?: { label: string; value: string; /** A `counting` row's note on what its counting word counts: "hèng" and "places and institutions". */ counts?: { roman: string; what: string } }[];
     /** Shown dimmed before an emphasized word: этот / эта / это before a Russian noun, as Anki's template does. */
     prefix?: string;

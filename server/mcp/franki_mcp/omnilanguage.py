@@ -54,6 +54,7 @@ NO_FORM = "-"  # a grammar field of a word that has no such form (no plural, nev
 MAX_SENSES = 3  # distinct senses a Meaning numbers
 MAX_GLOSSES = 3  # glosses to one sense
 MAX_MEANING = 80
+MAX_CONTRAST_WORDS = 2  # words SenseContrast gives for one excluded sense
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,7 @@ RULES: dict[str, str] = {
     "meaning-long": f"A sense is longer than {MAX_MEANING} characters",
     "sense-names-gloss": "Sense says which gloss it is about, so Meaning may hold two senses on one line",
     "sense-has-entry": "Sense contains the Entry, which the reverse card shows on its front",
+    "contrast-format": 'SenseContrast is not one "english sense = word" pair per line',
     "sense-restates-meaning": "Sense restates the Meaning's glosses instead of saying what the word does not cover",
     "context-missing": "No example sentence",
     "context-markup": "Context has markup other than <b> and <br>",
@@ -557,6 +559,20 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
         add("sense-restates-meaning", "Sense", "review",
             "Sense repeats the Meaning. Say what the word does not cover (\"hot in temperature, not spicy\"), or leave Sense empty.")  # fmt: skip
 
+    # -- SenseContrast: the same reading as src/core/senseContrast.ts, which draws the card's box from it --
+    for line in _lines(raw("SenseContrast")):
+        left, eq, right = line.partition("=")
+        words = [w.strip() for w in right.split(";")]
+        if not eq or not left.strip() or not all(words) or len(words) > MAX_CONTRAST_WORDS:
+            add("contrast-format", "SenseContrast", "format",
+                'One pair per line (<br>): the English sense the word does not cover, " = ", then the word for it '
+                f'as an Entry is written ("rain shower = aguacero"). At most {MAX_CONTRAST_WORDS} words, joined by "; ".')  # fmt: skip
+            break
+        if entry and any(w.lower() == entry.lower() for w in words):
+            add("contrast-format", "SenseContrast", "format",
+                "SenseContrast names the word for a sense this word does not cover, never the Entry itself.")
+            break
+
     # -- Context --
     context = raw("Context")
     context_lines = _lines(context)
@@ -829,6 +845,11 @@ Sense: only when the word covers some, not all, of its English gloss's most comm
   its front. If a Sense would have to say which gloss it is about ("move as in relocate"), the Meaning holds
   two senses: number them and leave Sense empty. Never beside a numbered Meaning: the numbers and
   ContextLabels already say which sense.
+SenseContrast: only beside a Sense that rules out an English sense, and only when the word for that sense is
+  one worth knowing: "rain shower = aguacero" for ducha (Sense "a bathroom shower, not rain"). One pair per
+  line (<br>): the excluded sense in English, " = ", then the word as an Entry is written (no article), two
+  at most joined by "; ". The card's answer shows it under the Sense, with a button that adds the word as a
+  note of its own. Empty when no single word covers the excluded sense.
 Context: one full sentence of 5 to 12 words in an everyday setting, at or below the word's level, with end
   punctuation. The word in <b></b> as the sentence spells it, both parts of a split verb (Franki highlights
   what's bold). It should stop making sense if another word were swapped in.
