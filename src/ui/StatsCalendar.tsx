@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
-import type { Calendar, CalendarDay } from '../core/stats';
+import { answerStreaks, type Calendar, type CalendarDay } from '../core/stats';
 import { Card as Box, Help } from './kit';
 import { haptic } from './haptics';
 import { type, space, useTheme } from './theme';
@@ -12,9 +12,17 @@ const GAP = 3;
 const answersText = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'answer' : 'answers'}`;
 const dayLabel = (d: Date) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
+const daysText = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'day' : 'days'}`;
+
+/** The streak line, as Anki puts it under its calendar: the run now, then the longest in the year. */
+function streakText(current: number, longest: number): string {
+  const now = current ? `Studied ${daysText(current)} in a row.` : 'No streak right now.';
+  return longest > current ? `${now} The longest run this year was ${daysText(longest)}.` : now;
+}
+
 /**
  * Answers per study day over the last year, as Anki's Calendar shows them: a column per week,
- * Sunday at the top, a darker square for more answers. Wider than the screen, so it scrolls
+ * Sunday at the top, a darker square for more answers, and the days studied in a row under it. Wider than the screen, so it scrolls
  * sideways and opens at today. Tap a square (or move VoiceOver to it) to read its day.
  */
 export function AnswerCalendar({ calendar }: { calendar: Calendar }) {
@@ -37,6 +45,7 @@ export function AnswerCalendar({ calendar }: { calendar: Calendar }) {
   const days = calendar.weeks.flat();
   const pickedDay = picked === null ? undefined : days.find((d) => d?.key === picked);
   const { busiest } = calendar;
+  const streaks = useMemo(() => answerStreaks(calendar), [calendar]);
   const caption = pickedDay ? `${dayLabel(pickedDay.start)}: ${answersText(pickedDay.answers)}`
     : busiest ? `Busiest day: ${dayLabel(busiest.start)} (${answersText(busiest.answers)})` : 'Nothing yet.';
 
@@ -80,6 +89,7 @@ export function AnswerCalendar({ calendar }: { calendar: Calendar }) {
         {calendar.total
           ? `Studied on ${calendar.studied.toLocaleString()} of ${calendar.days.toLocaleString()} days: ${answersText(calendar.total)}, `
             + `${Math.round(calendar.total / calendar.studied).toLocaleString()} a day on the days studied.`
+            + `${streakText(streaks.current, streaks.longest)}`
           : 'Nothing answered in this time.'}
       </Help>
     </Box>

@@ -7,6 +7,10 @@ import type { Card, ReviewLogEntry } from './types';
  * cards by stage and by interval, and how often reviews were remembered. Pure: the screen gathers
  * the inputs.
  *
+ * Young and mature answers are told apart by the interval before the answer (`lastIntervalDays`,
+ * from 21 days on), as Anki's graphs do. Franki's own table doesn't keep it, so a review of a card
+ * only Franki has counts as young.
+ *
  * Answers come from two places. For a card from Anki, the kept collection's review log, which
  * holds its whole Anki history plus every answer given here (writeback.ts writes each one there).
  * For a card that exists only in Franki (a TSV import), Franki's own reviews table. Using both for
@@ -121,8 +125,6 @@ export interface Stats {
   /** Today and the study days after it. Today counts what's due later today too. */
   forecast: DayDue[];
   counts: { new: number; learning: number; young: number; mature: number; suspended: number };
-  /** Reviews remembered (anything but Again), over the last 7 and 30 study days. */
-  retention: { week: Rate; month: Rate; matureMonth: Rate };
 }
 
 export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Date; dayStartsAtHour: number; days: number }): Stats {
@@ -145,8 +147,6 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
   const dayOf = (t: Date) => dayKeyOf(studyDayStart(t, h));
 
   const today = { answered: 0, takenMs: 0, again: 0, newCards: 0 };
-  const weekStart = past[Math.max(0, past.length - 7)].start;
-  const retention = { week: { passed: 0, total: 0 }, month: { passed: 0, total: 0 }, matureMonth: { passed: 0, total: 0 } };
   const answeredBefore = new Set<string>();
   const newToday = new Set<string>();
   const sorted = [...input.answers].sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -164,12 +164,6 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
       if (a.wasNew && !answeredBefore.has(a.cardId)) newToday.add(a.cardId);
     }
     answeredBefore.add(a.cardId);
-    if (a.kind === 'review') {
-      const passed = a.rating > 1 ? 1 : 0;
-      retention.month.total++; retention.month.passed += passed;
-      if (a.at >= weekStart) { retention.week.total++; retention.week.passed += passed; }
-      if ((a.lastIntervalDays ?? 0) >= MATURE_DAYS) { retention.matureMonth.total++; retention.matureMonth.passed += passed; }
-    }
   }
   today.newCards = newToday.size;
 
@@ -188,7 +182,7 @@ export function computeStats(input: { cards: Card[]; answers: Answer[]; now: Dat
     if (fi !== undefined) forecast[fi].due++;
   }
 
-  return { today, past, overdue, forecast, counts, retention };
+  return { today, past, overdue, forecast, counts };
 }
 
 /** How many study days the calendar covers, ending today: a year, as Anki's Calendar shows. */
@@ -342,4 +336,146 @@ export function durationText(ms: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return nb(m ? `${h} h ${m} min` : `${h} h`);
+}
+
+/** How far back the answer buttons and the hours of the day look, in study days ending today. */
+export const STATS_RANGES: readonly { days: number; label: string }[] = [
+  { days: 30, label: '1 month' },
+  { days: 91, label: '3 months' },
+  { days: CALENDAR_DAYS, label: '1 year' },
+];
+
+/** Answered while in a review (not a learning step), the interval before it 21 days or more. */
+const isMature = (a: Answer) => (a.lastIntervalDays ?? 0) >= MATURE_DAYS;
+
+/**
+ * Answers a graph about remembering counts: every one but a filtered deck's preview, which only
+ * shows the card (Anki's graphs leave its review log type out too).
+ */
+const counted = (a: Answer) => !a.preview;
+
+export interface ButtonCounts {
+  /** Again, Hard, Good, Easy. */
+  pressed: [number, number, number, number];
+  total: number;
+  /** Anything but Again. */
+  passed: number;
+}
+
+export interface AnswerButtons { learning: ButtonCounts; young: ButtonCounts; mature: ButtonCounts }
+
+/**
+ * How often each answer button was pressed since `since`, as Anki's Answer Buttons graph splits
+ * them: learning and relearning steps (a step crossed into a later day included), then reviews of
+ * young and of mature cards.
+ */
+export function answerButtons(input: { answers: Answer[]; since: Date }): AnswerButtons {
+  const blank = (): ButtonCounts => ({ pressed: [0, 0, 0, 0], total: 0, passed: 0 });
+  const out: AnswerButtons = { learning: blank(), young: blank(), mature: blank() };
+  for (const a of input.answers) {
+    if (a.at < input.since || !counted(a)) continue;
+    const group = out[a.kind !== 'review' ? 'learning' : isMature(a) ? 'mature' : 'young'];
+    group.pressed[a.rating - 1]++;
+    group.total++;
+    if (a.rating > 1) group.passed++;
+  }
+  return out;
+}
+
+export interface HourAnswers {
+  /** The hour of the day on the clock, 0 to 23. */
+  hour: number;
+  total: number;
+  /** Anything but Again. */
+  passed: number;
+}
+
+/**
+ * Answers since `since` by the hour of the day they were given, with how many weren't Again, as
+ * Anki's Hourly Breakdown shows. Every kind of answer counts. The 24 hours run from the hour the
+ * study day starts, so a late night sits at the end of the day it belongs to.
+ */
+export function answersByHour(input: { answers: Answer[]; since: Date; dayStartsAtHour: number }): HourAnswers[] {
+  const out: HourAnswers[] = Array.from({ length: 24 }, (_, i) => ({ hour: (input.dayStartsAtHour + i) % 24, total: 0, passed: 0 }));
+  for (const a of input.answers) {
+    if (a.at < input.since || !counted(a)) continue;
+    const h = out[(a.at.getHours() - input.dayStartsAtHour + 24) % 24];
+    h.total++;
+    if (a.rating > 1) h.passed++;
+  }
+  return out;
+}
+
+export interface RetentionRow { label: string; young: Rate; mature: Rate; all: Rate }
+
+/**
+ * Anki's True Retention table: reviews not answered Again, young and mature apart, today,
+ * yesterday, and over the last week, month and year of study days. Learning and relearning steps
+ * aren't counted, nor are previews.
+ */
+export function trueRetention(input: { answers: Answer[]; now: Date; dayStartsAtHour: number }): RetentionRow[] {
+  const { now, dayStartsAtHour: h } = input;
+  const today = studyDayStart(now, h);
+  const periods: { label: string; from: Date; to?: Date }[] = [
+    { label: 'Today', from: today },
+    { label: 'Yesterday', from: calendarStart(now, h, 2), to: today },
+    { label: 'Last 7 days', from: calendarStart(now, h, 7) },
+    { label: 'Last 30 days', from: calendarStart(now, h, 30) },
+    { label: 'Last year', from: calendarStart(now, h, CALENDAR_DAYS) },
+  ];
+  const rows = periods.map((p) => ({ label: p.label, young: { passed: 0, total: 0 }, mature: { passed: 0, total: 0 }, all: { passed: 0, total: 0 } }));
+  for (const a of input.answers) {
+    if (a.kind !== 'review' || !counted(a)) continue;
+    const passed = a.rating > 1 ? 1 : 0;
+    periods.forEach((p, i) => {
+      if (a.at < p.from || (p.to && a.at >= p.to)) return;
+      for (const r of [rows[i][isMature(a) ? 'mature' : 'young'], rows[i].all]) { r.total++; r.passed += passed; }
+    });
+  }
+  return rows;
+}
+
+export interface Streaks {
+  /**
+   * Study days in a row with an answer, up to today. Today not studied yet doesn't end it: it
+   * then counts up to yesterday.
+   */
+  current: number;
+  /** The longest run in the calendar's days. */
+  longest: number;
+}
+
+/** Days studied in a row, from the calendar's days (so no further back than it reaches). */
+export function answerStreaks(calendar: Calendar): Streaks {
+  const days = calendar.weeks.flat().filter((d): d is CalendarDay => d !== null);
+  let longest = 0;
+  let run = 0;
+  for (const d of days) {
+    run = d.answers ? run + 1 : 0;
+    longest = Math.max(longest, run);
+  }
+  let current = 0;
+  for (let i = days.length - 1 - (days.at(-1)?.answers ? 0 : 1); i >= 0 && days[i].answers; i--) current++;
+  return { current, longest };
+}
+
+/**
+ * The subdecks Stats offers under a chosen scope: for the scope and each deck above it, its own
+ * subdecks (full names, sorted), so the screen shows a row per level down to the deck chosen. A
+ * level with no subdecks has no row; with no scope, there's none.
+ */
+export function subdeckLevels(decks: string[], scope: string | null): { parent: string; children: string[] }[] {
+  if (scope === null) return [];
+  const parts = scope.split('::');
+  const out: { parent: string; children: string[] }[] = [];
+  for (let i = 1; i <= parts.length; i++) {
+    const parent = parts.slice(0, i).join('::');
+    const children = new Set<string>();
+    for (const d of decks) {
+      if (!d.startsWith(`${parent}::`)) continue;
+      children.add(`${parent}::${d.slice(parent.length + 2).split('::')[0]}`);
+    }
+    if (children.size) out.push({ parent, children: [...children].sort((a, b) => a.localeCompare(b)) });
+  }
+  return out;
 }
