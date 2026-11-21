@@ -3,6 +3,9 @@ import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, 
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
+/** Search with no cards: plain words and note searches only. */
+const NO_CARDS = { byNote: new Map<string, Card[]>(), now: NOW, dayStartsAtHour: 4 };
+
 const basic = (id: string, front: string, back: string, deck = 'Trivia', tags: string[] = []): Note =>
   ({ id, deck, model: 'Basic', fields: { Front: front, Back: back }, tags });
 
@@ -38,11 +41,11 @@ describe('finding notes', () => {
   ];
 
   it('matches every word, case aside, in fields, tags or deck, sorted by what shows first', () => {
-    expect(searchNotes(notes, 'capital').map((n) => n.id)).toEqual(['2', '1']);
-    expect(searchNotes(notes, 'CAPITAL lima').map((n) => n.id)).toEqual(['1']);
-    expect(searchNotes(notes, 'geo').map((n) => n.id)).toEqual(['1']);
-    expect(searchNotes(notes, 'polski').map((n) => n.id)).toEqual(['3']);
-    expect(searchNotes(notes, 'book').map((n) => n.id)).toEqual(['n1']);
+    expect(searchNotes(notes, 'capital', null, NO_CARDS).map((n) => n.id)).toEqual(['2', '1']);
+    expect(searchNotes(notes, 'CAPITAL lima', null, NO_CARDS).map((n) => n.id)).toEqual(['1']);
+    expect(searchNotes(notes, 'geo', null, NO_CARDS).map((n) => n.id)).toEqual(['1']);
+    expect(searchNotes(notes, 'polski', null, NO_CARDS).map((n) => n.id)).toEqual(['3']);
+    expect(searchNotes(notes, 'book', null, NO_CARDS).map((n) => n.id)).toEqual(['n1']);
   });
 
   it('puts the closest matches first: the meaning itself before a mention in another field', () => {
@@ -57,7 +60,7 @@ describe('finding notes', () => {
       omni('leistung', 'Leistung', 'performance; achievement', 'Deutsch'),
       omni('gaansadaeng', 'การแสดง', 'performance; show', 'ไทย'),
     ];
-    const ids = (q: string) => searchNotes(found, q).map((n) => n.id);
+    const ids = (q: string) => searchNotes(found, q, null, NO_CARDS).map((n) => n.id);
     // As a listed meaning, then a word in a meaning, then in another field (ties by what shows first).
     expect(ids('performance')).toEqual(['leistung', 'gaansadaeng', 'desultory', 'enso', 'henry', 'hervorragend', 'sadaeng']);
     // "to perform" lists as "perform"; the start of "performance" comes after it.
@@ -71,13 +74,36 @@ describe('finding notes', () => {
 
   it('finds a word typed without its accents', () => {
     const polish = [basic('z', 'żółw', 'turtle', 'Polski'), basic('w', 'zołza', 'shrew', 'Polski')];
-    expect(searchNotes(polish, 'zolw').map((n) => n.id)).toEqual(['z']);
-    expect(searchNotes(polish, 'zo').map((n) => n.id)).toEqual(['w', 'z']);
+    expect(searchNotes(polish, 'zolw', null, NO_CARDS).map((n) => n.id)).toEqual(['z']);
+    expect(searchNotes(polish, 'zo', null, NO_CARDS).map((n) => n.id)).toEqual(['w', 'z']);
   });
 
   it('keeps to a deck and its subdecks when one is picked', () => {
-    expect(searchNotes(notes, '', 'Trivia').map((n) => n.id)).toEqual(['2', '1']);
-    expect(searchNotes(notes, 'capital', 'Trivia::South America').map((n) => n.id)).toEqual(['2']);
+    expect(searchNotes(notes, '', 'Trivia', NO_CARDS).map((n) => n.id)).toEqual(['2', '1']);
+    expect(searchNotes(notes, 'capital', 'Trivia::South America', NO_CARDS).map((n) => n.id)).toEqual(['2']);
+  });
+
+  it("reads Anki's search syntax, its cards' state included, and finds nothing in a search it can't read", () => {
+    const sched = { due: NOW.toISOString(), stability: 1, difficulty: 5, elapsedDays: 0, scheduledDays: 1, learningSteps: 0, reps: 0, lapses: 0, lastReview: null };
+    const cards = {
+      ...NO_CARDS,
+      byNote: new Map<string, Card[]>([
+        ['1', [{ id: 'c1', noteId: '1', kind: 't0', suspended: false, retired: false, flag: 1, sched: { ...sched, state: 0 } }]],
+        ['2', [{ id: 'c2', noteId: '2', kind: 't0', suspended: true, retired: false, sched: { ...sched, state: 2 } }]],
+      ]),
+    };
+    const ids = (q: string) => searchNotes(notes, q, null, cards).map((n) => n.id);
+    expect(ids('deck:Trivia is:new')).toEqual(['1']);
+    expect(ids('capital -is:suspended')).toEqual(['1']);
+    expect(ids('flag:1 or deck:Polski')).toEqual(['1', '3']);
+    expect(ids('note:Omnilanguage')).toEqual(['n1']);
+    expect(ids('(capital')).toEqual([]);
+  });
+
+  it('ranks a note found through "or" by where the best plain word it holds is, then by what it shows first', () => {
+    const found = [basic('a', 'lima', 'x'), basic('b', 'peru', 'capital of peru is lima'), basic('c', 'capital', 'y'), basic('d', 'lima capital', 'z')];
+    // Both words on the front, then one word on the front, then both only in the meaning.
+    expect(searchNotes(found, 'lima or capital', null, NO_CARDS).map((n) => n.id)).toEqual(['d', 'c', 'a', 'b']);
   });
 
   it('offers a row of chips per level of the picked deck', () => {
