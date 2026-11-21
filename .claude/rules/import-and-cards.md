@@ -41,8 +41,14 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   `model_field_names`): a TSV without `#columns` is mapped by position, so a field added in Anki
   and missing here shifts every field after it.
 - **An unreadable file is refused with the reason and what to export instead**, never parsed as
-  something else and left to fail with an unrelated message (`.apkg`, and a backup `.db`, on the
-  Import screen).
+  something else and left to fail with an unrelated message (a package exported for older Anki
+  versions, and a backup `.db`, on the Import screen).
+- **A deck package (.apkg) is merged into the kept collection, never swapped for it**
+  (`src/anki/apkgMerge.ts`, as Anki's own import does): notes match by guid, and one already here
+  is left exactly as it is, so a re-import changes nothing. The rest come in with their scheduling
+  and review log, unsent, so they sync and go back to Anki like notes added here. It needs a kept
+  collection and Anki's collation, and is refused without either. The screen previews what it adds
+  before writing anything; `make-apkg.py` checks the merge against Anki's import of the same file.
 
 ## Card rendering
 

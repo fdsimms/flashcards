@@ -5,9 +5,11 @@ import type { Repo } from '../db/repo';
 import type { AnkiLink } from '../db/ankiLink';
 import { importAnkiJson } from '../import/ankiJson';
 import { reconcileIds } from '../import/reconcile';
-import { clearMedia, listMedia, moveIntoMedia } from '../media/mediaFiles';
+import { clearMedia, hasMedia, listMedia, moveIntoMedia, readMedia } from '../media/mediaFiles';
+import { mergeDeckPackage, packageMediaPlan, planDeckPackage, type DeckPackagePlan, type PackageMediaFile } from './apkgMerge';
 import { buildExport } from './collection';
-import { fileSink, fileSource, workFolder } from './files';
+import { fileSink, fileSource, pathOf, workFolder } from './files';
+import { sha1Hex } from './sha1';
 import { readPackage, writePackage } from './package';
 import { LATEST_VERSION } from './packageFormat';
 
@@ -16,6 +18,10 @@ import { LATEST_VERSION } from './packageFormat';
  * a collection package (.colpkg), which Franki takes in whole and keeps. Out: "Send to Anki"
  * packs that kept collection, with every answer given in Franki written into it, for AnkiMobile
  * to import. One app holds the collection at a time; whatever is imported replaces the other's.
+ *
+ * A deck package (.apkg) is the exception: it's merged into the kept collection rather than
+ * replacing it (`apkgMerge.ts`), so what it adds syncs and goes back to Anki like any note added
+ * in Franki.
  */
 
 /** A package that can't be taken in, with what to do about it. */
@@ -99,4 +105,85 @@ export async function buildPackageForAnki(repo: AnkiLink, now = new Date()): Pro
     listMedia().map((f) => ({ name: f.name, open: async () => fileSource(f) })),
   );
   return out;
+}
+
+/** A deck package unpacked and looked over, waiting for the person to import it or not. */
+export interface OpenedDeckPackage {
+  plan: DeckPackagePlan;
+  /** Media files it would add, and those it keeps because a different file here has the name. */
+  media: { add: number; kept: string[] };
+  /** Merges it into the kept collection. Call inside `lockAnki`. The work files are gone after. */
+  merge(): Promise<{ plan: DeckPackagePlan; media: number; kept: string[] }>;
+  /** Removes the work files without importing. */
+  discard(): void;
+}
+
+/**
+ * Unpacks a deck package and works out what merging it would add, writing nothing. Call inside
+ * `lockAnki`. The caller merges or discards it.
+ */
+export async function openDeckPackage(repo: Repo & AnkiLink, picked: File): Promise<OpenedDeckPackage> {
+  if (!(await repo.keptCollection())) {
+    throw new PackageRefused("A deck package is added to an Anki collection, and Franki doesn't have one yet. Bring your collection in or set up sync first, then import it.");
+  }
+  const work = workFolder('apkg-import');
+  const mediaDir = workFolder('apkg-import-media');
+  const discard = () => {
+    if (work.exists) work.delete();
+    if (mediaDir.exists) mediaDir.delete();
+  };
+  try {
+    const collection = new File(work, 'package.anki2');
+    const unpacked = await readPackage(fileSource(picked), {
+      collection: async () => fileSink(collection),
+      media: async (i) => fileSink(new File(mediaDir, i)),
+    });
+    if (!unpacked.hasCollection) {
+      // An older package (collection.anki2 or .anki21) keeps note types and decks as JSON in an
+      // older schema; it's refused with what to change rather than half-read.
+      throw new PackageRefused(unpacked.version > 0 && unpacked.version < LATEST_VERSION
+        ? 'It was exported with "Support older Anki versions" turned on. Export it again from Anki with that turned off.'
+        : "It isn't an Anki deck package. In Anki, use Export and choose Anki Deck Package (.apkg).");
+    }
+    const dayStartsAtHour = (await repo.collectionSettings()).dayStartsAtHour;
+    const path = pathOf(collection);
+    const plan = await repo.withSyncConnection((db) => planDeckPackage(db, path, { now: new Date(), dayStartsAtHour }));
+    const files: PackageMediaFile[] = unpacked.mediaNames.map((name, index) => ({ index, name, sha1: unpacked.mediaSha1[index] }));
+    const existing = new Map<string, string>();
+    for (const f of files) {
+      const bytes = f.name && hasMedia(f.name) ? await readMedia(f.name) : undefined;
+      if (bytes) existing.set(f.name, sha1Hex(bytes));
+    }
+    const media = packageMediaPlan(files, (name) => existing.get(name));
+
+    return {
+      plan,
+      media: { add: media.add.length, kept: media.kept },
+      discard,
+      async merge() {
+        try {
+          // Worked out again in the write's own transaction: the collection may have changed since the preview.
+          const merged = await repo.withSyncConnection((db) => mergeDeckPackage(db, path, { now: new Date(), dayStartsAtHour }));
+          const state = repo.mediaSyncState();
+          let added = 0;
+          for (const f of media.add) {
+            const src = new File(mediaDir, String(f.index));
+            // A file that turned up here since the preview (a sync's media pull) is left as it is.
+            if (!src.exists || hasMedia(f.name)) continue;
+            await moveIntoMedia(src, f.name);
+            added++;
+            // Joins the files the next media sync sends, as a recording made here does.
+            if (f.sha1 && (await state.recorded(f.name)) !== f.sha1) await state.setPending(f.name, f.sha1);
+          }
+          if (merged.newNotes) await refreshFromKeptCollection(repo);
+          return { plan: merged, media: added, kept: media.kept };
+        } finally {
+          discard();
+        }
+      },
+    };
+  } catch (e) {
+    discard();
+    throw e;
+  }
 }

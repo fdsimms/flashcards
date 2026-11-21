@@ -1,5 +1,5 @@
 import { Unzip, UnzipInflate, UnzipPassThrough, Zip, ZipPassThrough } from 'fflate';
-import { decodeMediaList, encodeMediaList, encodeMeta, packageVersion, type MediaEntry } from './packageFormat';
+import { decodeMediaEntries, encodeMediaList, encodeMeta, packageVersion, type MediaEntry } from './packageFormat';
 import { Sha1 } from './sha1';
 import { concat, RawZstdEncoder, zstdDecoder } from './zstd';
 
@@ -26,6 +26,8 @@ export interface ReadPackageResult {
   version: number;
   /** Media file names, in package order: entry i went to `mediaSink(String(i))`. */
   mediaNames: string[];
+  /** Each media file's SHA-1 as hex, by the same index, where the media list gives one (the current format does). */
+  mediaSha1: (string | undefined)[];
   /** Whether a current-format collection (collection.anki21b) was found and written. */
   hasCollection: boolean;
 }
@@ -102,8 +104,8 @@ export async function readPackage(
 
   const meta = small.has('meta') ? concat(small.get('meta')!) : undefined;
   const version = packageVersion(meta, names);
-  const media = small.has('media') ? decodeMediaList(concat(small.get('media')!), version) : [];
-  return { version, mediaNames: media, hasCollection };
+  const media = small.has('media') ? decodeMediaEntries(concat(small.get('media')!), version) : [];
+  return { version, mediaNames: media.map((e) => e?.name ?? ''), mediaSha1: media.map((e) => e?.sha1), hasCollection };
 }
 
 export interface MediaFileSource {
