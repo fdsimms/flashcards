@@ -87,10 +87,3 @@ export function nextReturn(s: MiniCram, opts: { ignoreWait: boolean; justShown?:
     .sort((a, b) => a[1].at - b[1].at);
   return (ready.find(([id]) => id !== opts.justShown) ?? ready[0])?.[0];
 }
-
-/** "3 more" or "2 of 3" for the chip on a card. */
-export function cramLabel(e: MiniCramEntry | undefined, returning: boolean): string | undefined {
-  if (!e) return undefined;
-  if (returning) return `Cram, ${CRAM_RETURNS - e.left + 1} of ${CRAM_RETURNS}`;
-  return `Cram, ${e.left} more`;
-}

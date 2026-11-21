@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { afterAnswer, afterReturn, cramLabel, CRAM_RETURNS, emptyMiniCram, markCram, MISSED_GAP, nextReturn, RETURN_GAPS, unmarkCram } from '../../src/core/miniCram';
+import { afterAnswer, afterReturn, CRAM_RETURNS, emptyMiniCram, markCram, MISSED_GAP, nextReturn, RETURN_GAPS, unmarkCram } from '../../src/core/miniCram';
 
 const run = (s: ReturnType<typeof emptyMiniCram>, n: number, id = 'other') => { for (let i = 0; i < n; i++) s = afterAnswer(s, id, 3); return s; };
 
@@ -58,13 +58,6 @@ describe('mini cram', () => {
   it('skips cards that are no longer usable', () => {
     const s = afterAnswer(markCram(emptyMiniCram(), 'a', false), 'a', 3);
     expect(nextReturn(s, { ignoreWait: true, usable: () => false })).toBeUndefined();
-  });
-
-  it('labels the chip', () => {
-    const s = markCram(emptyMiniCram(), 'a', true);
-    expect(cramLabel(s.cards.a, false)).toBe('Cram, 3 more');
-    expect(cramLabel(s.cards.a, true)).toBe('Cram, 1 of 3');
-    expect(cramLabel(undefined, false)).toBeUndefined();
   });
 
   it('imports nothing that answers, schedules or writes cards', () => {

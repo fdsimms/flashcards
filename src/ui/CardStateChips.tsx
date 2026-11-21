@@ -13,9 +13,9 @@ const NAMES = { new: 'New', learning: 'Learning', relearning: 'Relearning' } as 
  * a leech is the warning amber. A leech whose note has a mnemonic also says so in the accent gold (the
  * mnemonic itself shows on the back; it may name the answer). A Review card shows none. The card's state is read from its schedule.
  */
-export function CardStateChips({ chip, leech, mnemonic = false, cram, style }: { chip?: StateChip; leech: boolean; mnemonic?: boolean; cram?: string; style?: ViewStyle }) {
+export function CardStateChips({ chip, leech, mnemonic = false, style }: { chip?: StateChip; leech: boolean; mnemonic?: boolean; style?: ViewStyle }) {
   const c = useTheme();
-  if (!chip && !leech && !cram) return null;
+  if (!chip && !leech) return null;
   const pill = { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, borderRadius: radius.pill, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs } as const;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s, ...style }}>
@@ -39,12 +39,6 @@ export function CardStateChips({ chip, leech, mnemonic = false, cram, style }: {
         <View accessible accessibilityLabel="Leech: this card keeps being forgotten" style={{ ...pill, backgroundColor: c.warningFill }}>
           <Icon name="exclamationmark.triangle.fill" size={12} color={c.warning} />
           <Text style={{ ...type.overline, color: c.warningInk }}>Leech</Text>
-        </View>
-      ) : null}
-      {cram ? (
-        <View accessible accessibilityLabel={`${cram}. This card comes back a few more times in this session, and doesn't change its schedule.`} style={{ ...pill, backgroundColor: c.accentFill }}>
-          <Icon name="repeat" size={12} color={c.accentInk} />
-          <Text style={{ ...type.overline, color: c.accentInk }}>{cram}</Text>
         </View>
       ) : null}
       {leech && mnemonic ? (
