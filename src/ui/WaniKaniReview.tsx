@@ -33,7 +33,7 @@ import { useHeaderInset } from './useHeaderInset';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { WaniKaniMissList } from './WaniKaniMisses';
-import { QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
+import { CardTools, hasMnemonicPanel, MnemonicsPanel, QuestionBand, SubjectDetails, SubjectFront, subjectColor } from './WaniKaniCard';
 
 /** The longest the card's resize after the keyboard may take (ms). */
 const KEYBOARD_SLIDE_MS = 150;
@@ -237,9 +237,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const showMeaning = lesson || (revealed && asksMeaning);
   const showReading = lesson || (revealed && asksReading);
 
-  // The keyboard is dismissed once an answer is judged and comes back with the next typed question. The new
-  // card is laid out before it does, so the card was tall, then shrank under the keyboard and its centered
-  // content jumped up. For the moment before the keyboard shows, hold the height it had last time.
+  // A typed question keeps the keyboard up through its verdict and into the next typed question. It is
+  // dismissed only by a question that isn't typed (Show answer), and comes back with the next typed one. The
+  // new card is laid out before it does, so the card was tall, then shrank under the keyboard and its
+  // centered content jumped up. For the moment before the keyboard shows, hold the height it had last time.
   const lastKeyboard = useRef(0);
   if (keyboard > 0) lastKeyboard.current = keyboard;
   const typedQuestion = !!question && !lesson && isTyped(study!.typed, question.kind);
@@ -258,7 +259,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const holding = keyboard === 0 && typedQuestion && !revealed && Date.now() < holdUntil.current;
   const keyboardPad = Math.max(0, (keyboard > 0 ? keyboard : holding ? lastKeyboard.current : 0) - insets.bottom);
 
+  // The mnemonics panel over the card; it belongs to one question, so every move to another closes it.
+  const [panel, setPanel] = useState(false);
   const resetQuestion = () => {
+    setPanel(false);
     setRevealed(false);
     setTyped('');
     setVerdict(null);
@@ -368,8 +372,6 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     setRetry(null);
     setVerdict(v);
     setRevealed(true);
-    // The keyboard comes down once the answer is judged so the whole card shows; the next question brings it back (autoFocus).
-    Keyboard.dismiss();
     if (v.result === 'correct') {
       haptic.select();
       // The stage popup comes with the right answer, not with the Next press after it.
@@ -556,8 +558,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
-          // Not editable once judged, so a tap on the box doesn't bring the keyboard back over the answer.
-          editable={!verdict}
+          // Still editable once judged so the keyboard stays up for the whole session: the text is held
+          // (onChangeText ignores it) and the caret hidden, and return goes to the next question.
+          caretHidden={!!verdict}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
@@ -648,7 +651,6 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
                     showReading={showReading}
                     synonyms={synonyms.get(subject.id) ?? []}
                     lesson={lesson}
-                    onPlay={audioUrl(subject) ? () => { haptic.tap(); play(audioUrl(subject)); } : undefined}
                   />
                 </>
               ) : null}
@@ -660,6 +662,14 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
             {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} side={e.side} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
           </View>
+          {/* In the card's corner, not in its flow, so the answer keeps the height. Play is the reading's, as before. */}
+          {showMeaning || showReading ? (
+            <CardTools
+              onPlay={showReading && audioUrl(subject) ? () => { haptic.tap(); play(audioUrl(subject)); } : undefined}
+              onMnemonics={!lesson && hasMnemonicPanel(subject, showMeaning, showReading) ? () => { haptic.tap(); setPanel(true); } : undefined}
+            />
+          ) : null}
+          {panel ? <MnemonicsPanel subject={subject} showMeaning={showMeaning} showReading={showReading} onClose={() => setPanel(false)} /> : null}
           {answerFlash.overlay}
         </CardSurface>
       </Screen>
