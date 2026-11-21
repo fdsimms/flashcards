@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -264,6 +264,44 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const holding = keyboard === 0 && typedQuestion && !revealed && Date.now() < holdUntil.current;
   const keyboardPad = Math.max(0, (keyboard > 0 ? keyboard : holding ? lastKeyboard.current : 0) - insets.bottom);
 
+  // ==== keeping the keyboard up ====
+  // One answer box serves every typed question, and anything that takes focus from it is undone: iOS drops the
+  // keyboard when a box unmounts, when a sheet or alert opens over it, and when the screen is left and come back to.
+  const answerBox = useRef<TextInputInstance>(null);
+  // True while one of this screen's own sheets or alerts is open: focus is not pulled back until it closes.
+  const modalOpen = useRef(false);
+  const screenFocused = useRef(true);
+  const wantsKeyboard = useRef(false);
+  wantsKeyboard.current = typedQuestion;
+  const refocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (wantsKeyboard.current && screenFocused.current && !modalOpen.current) answerBox.current?.focus();
+    });
+  }, []);
+  // A sheet that gives focus back when it closes, whichever button closed it. `onPick` returns false when the
+  // pick leaves the screen or the app, which has nothing to focus.
+  const showSheet = (config: Parameters<typeof ActionSheetIOS.showActionSheetWithOptions>[0], onPick: (i: number) => boolean | void) => {
+    modalOpen.current = true;
+    ActionSheetIOS.showActionSheetWithOptions(config, (i) => {
+      modalOpen.current = false;
+      if (onPick(i) !== false) refocus();
+    });
+  };
+  useFocusEffect(useCallback(() => {
+    screenFocused.current = true;
+    refocus();
+    return () => { screenFocused.current = false; };
+  }, [refocus]));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') refocus(); });
+    return () => sub.remove();
+  }, [refocus]);
+  // The next typed question starts empty in the same box, so any text the keyboard is still holding back goes too.
+  useEffect(() => {
+    answerBox.current?.clear();
+    refocus();
+  }, [questionKey, refocus]);
+
   // The mnemonics panel over the card; it belongs to one question, so every move to another closes it.
   const [panel, setPanel] = useState(false);
   const resetQuestion = () => {
@@ -433,7 +471,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const canSave = canSaveMeaning(question) && !!text;
     // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
     const options = ['Mark as correct', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
+    showSheet({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Mark as correct') answer(true);
       if (picked === 'Ask later') {
@@ -459,11 +497,13 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const isLesson = !!study.session.items[assignmentId]?.lesson;
     const word = subject;
     const name = word.characters ?? word.meanings[0]?.meaning ?? 'this word';
+    modalOpen.current = true;
+    const closeAlert = () => { modalOpen.current = false; refocus(); };
     Alert.alert(
       `Skip ${name} for good?`,
       "It won't come up in lessons or reviews on this iPhone again. WaniKani still lists it, so it stays on wanikani.com. You can bring it back in WaniKani's options.",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel', onPress: closeAlert },
         {
           text: 'Skip',
           style: 'destructive',
@@ -475,9 +515,11 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             if (onIt) resetQuestion();
             checkPopup.current = null;
             popups.hideAll();
+            closeAlert();
           },
         },
       ],
+      { onDismiss: closeAlert },
     );
   };
 
@@ -489,7 +531,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     const id = question && !lesson ? String(question.assignmentId) : undefined;
     const marked = id ? !!cram.entry(id) : false;
     const options = [...(askable ? ['Ask later'] : []), ...(id ? [marked ? 'Stop cramming this word' : 'Cram this word'] : []), ...(skippable ? ['Skip this word for good'] : []), 'Open on wanikani.com', 'WaniKani options', 'Cancel'];
-    ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (i) => {
+    showSheet({ options, cancelButtonIndex: options.length - 1 }, (i) => {
       const picked = options[i];
       if (picked === 'Ask later') later();
       if (picked === 'Cram this word' || picked === 'Stop cramming this word') {
@@ -500,6 +542,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       if (picked === 'Skip this word for good') confirmSkip();
       if (picked === 'Open on wanikani.com' && subject.url) Linking.openURL(subject.url).catch(() => undefined);
       if (picked === 'WaniKani options') onOptions();
+      return picked !== 'Open on wanikani.com' && picked !== 'WaniKani options';
     });
   } : undefined), [subject, onOptions, askable, study, lesson, question, cram.entry]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolbar = (
@@ -662,12 +705,15 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
         <View>
         <TextInput
-          key={`${item.assignmentId}:${question.kind}:${session!.finished.length}`}
+          ref={answerBox}
           value={typed}
           onChangeText={(t) => { if (!verdict) setTyped(question.kind === 'reading' ? toKana(t) : t); }}
           // Still editable once judged so the keyboard stays up for the whole session: the text is held
-          // (onChangeText ignores it) and the caret hidden, and return goes to the next question.
+          // (onChangeText ignores it) and the caret hidden, and return goes to the next question. The same
+          // box serves every typed question (no `key`, which unmounted it and dropped the keyboard on each
+          // answer), and a blur that isn't one of our own sheets opening takes focus straight back.
           caretHidden={!!verdict}
+          onBlur={() => { if (!modalOpen.current) refocus(); }}
           onSubmitEditing={check}
           submitBehavior="submit"
           autoFocus
