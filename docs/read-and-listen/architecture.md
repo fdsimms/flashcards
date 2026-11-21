@@ -157,7 +157,7 @@ Franki's (Client, below).
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
   of at least six between them steps the language's text difficulty one level easier (Harder to
   Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
-  one's check too. A good score changes nothing, and nothing steps back: only the Text difficulty
+  one's check too. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
   setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -1080,7 +1080,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   speech can't be reread, for listening; below it comprehension varied widely). **Standard is 95%,
   Easier is 97%, Harder is 93%** (`STANDARD_FLOOR`, `EASIER_FLOOR` and `HARDER_FLOOR`,
   `difficulty.py`), chosen per language in Settings (Text difficulty) or stepped easier by a poor
-  check after reading. **Harder is below the research's least** and the setting says so: the
+  check after reading and harder by a high one. **Harder is below the research's least** and the setting says so: the
   evidence is that coverage helps gradually, not as a cliff, and the reader has a gloss on every
   word, but at about 7 new words in 100 expect more lookups. It is only ever a deliberate choice: a
   floor saved by an older server never reads as Harder, and the spread-out rule (`crowding.py`)
@@ -1891,7 +1891,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   coverage target is one of three for each language, **Harder (93% known words)**, **Standard
   (95%)** or **Easier (97%)**, chosen on the language's settings page (`PUT /api/difficulty`),
   applying from the next text written, or stepped one level easier by a poor score on the check after
-  reading (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  reading and one harder by a high score (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
   written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
   exit check reads the log. The level is saved as `difficulty_v3`; a floor saved by an older server
   (`difficulty_v2`) is read as Standard or Easier by `store.load_difficulty` (96% or more is Easier).
@@ -2007,7 +2007,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (unless the owner gave one), a Context sentence with the word in `<b>`, its translation, the
   romanization of the sentence and word in Thai, Russian and Greek (`ContextRomanized`,
   `Transliteration`), the Register ("neutral" when plain, as the finished notes have it), PartOfSpeech
-  (also the new note's tag), a Notes line, the `Language` and `GenerateReverse` every note carries, and
+  (also the new note's tag), a Notes line, the `Language` every note carries, `GenerateReverse` when the word is one the learner would say and `GenerateAudioCard` when it's one they'd hear (the owner's rule, 21 November 2026: production and listening practice only for a word they'd actually say or hear; Claude answers `say` and `hear` for each word, and the switches can be changed in the editor before saving), and
   what each language's finished notes carry (`EXTRAS` in `note_queue.py`, read off the deck on 16 November
   2026): Thai noun Classifier; German noun Gender, Plural and Genitive, verb VerbClass, Auxiliary and
   KeyForms; French noun Gender; Russian noun Gender (м, ж, с), verb AspectPartner, KeyForms for nouns and

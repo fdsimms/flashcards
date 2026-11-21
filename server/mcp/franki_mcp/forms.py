@@ -339,6 +339,10 @@ class UniMorph:
                 out[form] = lemma
         return out
 
+    def kaikki_page(self, language: str, word: str) -> str:
+        """A word's kaikki.org page (`language` as it names it), from the cache while it's fresh; empty with none."""
+        return self._kaikki_page(language, word)
+
     def kaikki_nouns(self, language: str, words: Iterable[str], unstress: bool = False) -> dict[str, list[tuple[str, frozenset[str]]]]:
         """Each word's noun forms from kaikki.org (`language` as it names it), for the words it has a table for."""
         out: dict[str, list[tuple[str, frozenset[str]]]] = {}

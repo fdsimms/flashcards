@@ -45,7 +45,7 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", *SWITCHES})
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
 SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral", "Source"})
@@ -913,6 +913,9 @@ Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,
   conjunction, particle, classifier, interjection, prefix, suffix, phrase. Always filled. Not repeated in tags.
 Language: the language's English name in lowercase. GenerateReverse, GenerateAudioCard, SuppressFrontCard: "y" or empty.
+  GenerateReverse (meaning to word) only for a word the learner would say or write themselves; GenerateAudioCard
+  (hear it, recall the meaning) only for one they would hear in everyday speech. A word to recognize only
+  (literary, technical, rare, met on signs or in the news) gets neither. Never change either on an existing note unasked.
 KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>). First "pattern:", a short
   sentence or two on what kind of word it is and what is unusual about it (pattern: Masculine inanimate.
   Genitive in -u. The e drops out.). Then the forms the rest can be worked out from, each under what it is
@@ -922,6 +925,7 @@ KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>).
   (or "genitive plural" and so on), feminine, neuter, comparative, superlative, I, you, "he, she", we, they,
   present, past, perfect, participle, future, imperative, perfective, imperfective. Never a form with no label.
 Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
+Stress: Russian only, the Entry with its stress mark (говори́ть). fill_stress fills it; write it only when sure.
 Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".

@@ -56,6 +56,21 @@ describe('cards', () => {
     expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
     expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
   });
+  it("shows a Russian word's stress mark on answers only: a line on the forward back, the headword where the word is the answer", () => {
+    const note = omniNote({ Entry: 'говорить', Meaning: 'to speak', Transliteration: '', Language: 'russian', GenerateReverse: 'y', GenerateAudioCard: 'y', Stress: 'говори\u0301ть' });
+    const forward = renderCard(note, 'forward');
+    expect(forward.front.blocks.map((b) => b.text)).toEqual(['говорить']);
+    expect(forward.back.blocks.map((b) => b.text)).toContain('говори\u0301ть');
+    for (const kind of ['reverse', 'audio'] as const) {
+      const side = renderCard(note, kind);
+      expect(side.front.blocks.map((b) => b.text)).not.toContain('говори\u0301ть');
+      expect(side.back.blocks[0].text).toBe('говори\u0301ть');
+      expect(side.back.blocks.map((b) => b.text)).not.toContain('говорить');
+    }
+    // With none, the word is shown as it's written.
+    expect(renderCard({ ...note, fields: { ...note.fields, Stress: '' } }, 'reverse').back.blocks[0].text).toBe('говорить');
+  });
+
   it("keeps the Pronunciation behind a tap when the card already hides a transliteration or a reading, after it", () => {
     const thai = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk', Pronunciation: '/kʰwaːm˧.sùk/' });
     const japanese = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese', Pronunciation: '/otona/' });

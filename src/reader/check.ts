@@ -6,7 +6,7 @@
 // - word: what a word looked up, marked unknown or practiced means, from four of the text's glosses.
 // The last two are built here from what the text already has, so they cost nothing. Nothing is
 // graded: the score on the first two kinds goes with the reading's log (loggedScore), where poor
-// scores on two texts in a row make new texts a level easier (Harder to Standard, Standard to Easier).
+// scores on two texts in a row make new texts a level easier (Harder to Standard, Standard to Easier), and high ones a level harder.
 // Pure, so it's tested; ReaderCheck.tsx shows it.
 import type { ReaderText, TextLine, Word } from './api';
 import type { Session } from './session';

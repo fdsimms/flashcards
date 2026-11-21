@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, frequency, known_words, lint, pronunciation, skills, tiers, tools
+from . import forms, frequency, known_words, lint, pronunciation, skills, stress, tiers, tools
 from . import reader as reader_tools
 from .collection import CollectionManager
 from .reader import ReaderClient, ReaderSettings
@@ -19,12 +19,15 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     client = reader or ReaderClient(reader_settings)
     tools.register(server, cm, speech, client)
     # Wiktionary's inflection tables, kept beside the collection's folder.
-    forms.register(server, cm, unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph"), client)
+    tables = unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph")
+    forms.register(server, cm, tables, client)
     reader_tools.register(server, client)
     # The Omnilanguage house style: its guide, its lint and the cards a note no longer makes.
     lint.register(server, cm)
     # IPA for the Pronunciation field, from the same server.
     pronunciation.register(server, cm, client)
+    # A Russian word's stress mark for the Stress field, from the same Wiktionary pages as the tables.
+    stress.register(server, cm, tables)
     # Ordering new cards by how common the word is, with the ranks from the same server.
     frequency.register(server, cm, client)
     # Skill cards: the app's drills and single cards, added by the hourly job where a deck's switch is on.
