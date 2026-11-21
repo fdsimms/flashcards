@@ -155,7 +155,7 @@ export function NoteEditor(props: {
     return cardsFor(draftNote, noteTypes, new Date()).map((card) =>
       isOmnilanguage(draftNote) ? OMNI_CARD_NAMES[card.kind] ?? card.kind : nt?.templates.find((t) => `t${t.ord}` === card.kind)?.name ?? 'Card');
   }, [stored, model, noteTypes]); // eslint-disable-line react-hooks/exhaustive-deps
-  const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, model, fields: stored }, fieldNames[0]) : undefined;
+  const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, deck, model, fields: stored }, fieldNames[0]) : undefined;
   const changed = editing
     ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, asEdited(original.fields[f] ?? '')])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))

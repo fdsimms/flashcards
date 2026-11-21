@@ -1,4 +1,5 @@
 import { nextStudyDayStart } from './day';
+import { isOmnilanguage, speechLangFor } from './cards';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
@@ -188,10 +189,18 @@ export function deckChipRows(notes: Note[], scope: string | null): DeckChip[][] 
 /**
  * Another note of the same type whose first field reads the same, as Anki's duplicate check
  * compares them (as text, case aside). The editor warns as you type; `saveNote` refuses.
+ * One Omnilanguage note type holds every language, so there a word only repeats a word of its own
+ * language: Norwegian "in" and German "in" are two notes. A note with no known language (neither
+ * its Language field nor its deck names one) is compared with all of them, as Anki would.
  */
-export function duplicateOf(notes: Note[], draft: { id?: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
+export function duplicateOf(notes: Note[], draft: { id?: string; deck: string; model: string; fields: Record<string, string> }, firstField: string): Note | undefined {
   const text = (html: string | undefined) => fold(htmlToText(html ?? '').trim());
   const mine = text(draft.fields[firstField]);
   if (!mine) return undefined;
-  return notes.find((n) => n.id !== draft.id && n.model === draft.model && text(n.fields[firstField]) === mine);
+  const myLanguage = isOmnilanguage(draft as Note) ? speechLangFor({ deck: draft.deck, fields: draft.fields } as Note) : undefined;
+  return notes.find((n) => {
+    if (n.id === draft.id || n.model !== draft.model || text(n.fields[firstField]) !== mine) return false;
+    const theirs = myLanguage ? speechLangFor(n) : undefined;
+    return !theirs || theirs === myLanguage;
+  });
 }
