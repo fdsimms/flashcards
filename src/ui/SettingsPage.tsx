@@ -135,7 +135,7 @@ function ReadRows({ readerOn, dailySummary, onOpen }: { readerOn: boolean; daily
       <NavRow first label="Server" detail={readerOn ? 'On. Turn off, or share counts with dundundun' : 'Off. Texts to read and listen to, written from your decks'} onPress={() => onOpen('/read-settings')} />
       {readerOn ? (
         <>
-          <NavRow label="Listening and voices" detail="Voices, highlighting, slow speed, lock screen controls" onPress={() => onOpen('/read-listening')} />
+          <NavRow label="Reading and listening" detail="Voices, highlighting, slow speed, meanings, word forms" onPress={() => onOpen('/read-listening')} />
           <NavRow label="Daily reading tasks" detail={dailySummary ?? 'Which languages get a task each day'} onPress={() => onOpen('/read-daily-tasks')} />
           <NavRow label="Language settings" detail="Grammar, vocabulary and voices for the language you're reading" onPress={() => onOpen('/read-language')} />
         </>

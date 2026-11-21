@@ -14,7 +14,7 @@ import { space, readable } from '../theme';
 /**
  * Everything Read & Listen does once it's on, apart from turning it on (`ReadSettings`): each
  * language's voices, listening, slow speed, situations, topics, hearing texts again, meanings, word
- * forms, explain and Thai pronunciation. Read from Settings, Read & Listen, Listening and voices.
+ * forms, explain and Thai pronunciation. Read from Settings, Read & Listen, Reading and listening.
  */
 export function ReadListening({ voices, onVoices }: {
   /** Each language's speaker voices, once the server's settings are loaded. */
@@ -38,7 +38,7 @@ export function ReadListening({ voices, onVoices }: {
   const [thaiToneMarks, setThaiToneMarks] = useState(prefs().thaiToneMarks);
 
   return (
-    <Screen title="Listening and voices">
+    <Screen title="Reading and listening">
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
         <SectionTitle>Voices</SectionTitle>
         <Group>
