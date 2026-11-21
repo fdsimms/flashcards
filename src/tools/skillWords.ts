@@ -80,8 +80,10 @@ export const DIGIT_WORDS: Partial<Record<Language, readonly string[]>> = {
 /** The words for a hundred and a thousand, which the hundreds and thousands steps can't be said without. */
 const HUNDRED: Partial<Record<Language, string>> = { th: 'ร้อย', pl: 'sto', ru: 'сто', de: 'hundert', es: 'cien', fr: 'cent', el: 'εκατό', nb: 'hundre', ja: '百' };
 const THOUSAND: Partial<Record<Language, string>> = { th: 'พัน', pl: 'tysiąc', ru: 'тысяча', de: 'tausend', es: 'mil', fr: 'mille', el: 'χίλια', nb: 'tusen', ja: '千' };
-/** "Half" for the half-past step, and "quarter" for the quarter-past step (Thai and Japanese say the minutes instead). */
-const HALF: Partial<Record<Language, string>> = { th: 'ครึ่ง', es: 'media', fr: 'demi', de: 'halb', el: 'μισή', ja: '半', nb: 'halv', pl: 'pół', ru: 'половина' };
+/** "Half" for the half-past step (Polish says "wpół do", so the word is wpół), and "quarter" for the quarter-past step (Thai and Japanese say the minutes instead). */
+const HALF: Partial<Record<Language, string>> = { th: 'ครึ่ง', es: 'media', fr: 'demi', de: 'halb', el: 'μισή', ja: '半', nb: 'halv', pl: 'wpół', ru: 'половина' };
+/** The word the hour is said with, which Thai (เก้าโมง) can't tell the time without. */
+const OCLOCK: Partial<Record<Language, string>> = { th: 'โมง' };
 const QUARTER: Partial<Record<Language, string>> = { es: 'cuarto', fr: 'quart', de: 'Viertel', el: 'τέταρτο', nb: 'kvart', pl: 'kwadrans', ru: 'четверть' };
 /** The currency each language's Counting money drills are in (`CURRENCY_OF`), by the name it's said with. */
 const CURRENCY: Partial<Record<Language, [string, string]>> = {
@@ -102,6 +104,7 @@ const WORD_SETS: readonly WordSet[] = [
   { label: 'hundred', min: 'all', steps: ['numbers-999', 'money-1000'], words: single(HUNDRED, 'hundred', 'numeral') },
   { label: 'thousand', min: 'all', steps: ['numbers-big', 'money-10000'], words: single(THOUSAND, 'thousand', 'numeral') },
   { label: 'half', min: 'all', steps: ['time-hours'], words: single(HALF, 'half', 'adjective') },
+  { label: "o'clock", min: 'all', steps: ['time-hours'], words: single(OCLOCK, "o'clock") },
   { label: 'quarter', min: 'all', steps: ['time-quarters'], words: single(QUARTER, 'quarter') },
   { label: 'currency', min: 'all', steps: ['money-100'], words: Object.fromEntries(Object.entries(CURRENCY).map(([l, [entry, meaning]]) => [l, one(entry, meaning)])) },
 ];

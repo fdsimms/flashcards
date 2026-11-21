@@ -81,7 +81,7 @@ describe('writing the words as notes', () => {
   });
 
   it('writes nothing for a group with no words in the language', () => {
-    expect(groupWords('time', 'th').map((w) => w.entry)).toEqual(['ครึ่ง']);
+    expect(groupWords('time', 'th').map((w) => w.entry)).toEqual(['ครึ่ง', 'โมง']);
     expect(wordDrafts('nb', ['consonants'])).toEqual([]);
   });
 });
@@ -101,6 +101,8 @@ describe('what a drill step waits for', () => {
     expect(stepNeeds('money-100', 'nb').map((n) => n.words)).toEqual([['krone']]);
     expect(stepNeeds('time-hours', 'nb').map((n) => n.words)).toEqual([['halv']]);
     expect(stepNeeds('time-quarters', 'pl').map((n) => n.words)).toEqual([['kwadrans']]);
+    expect(stepNeeds('time-hours', 'pl').map((n) => n.words)).toEqual([['wpół']]);
+    expect(stepNeeds('time-hours', 'th').map((n) => n.words)).toEqual([['ครึ่ง'], ['โมง']]);
     expect(stepNeeds('time-quarters', 'th')).toEqual([]);
     expect(stepNeeds('time-five', 'nb')).toEqual([]);
     expect(stepNeeds('numbers-99', 'nb')).toEqual([]);
