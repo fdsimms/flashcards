@@ -493,32 +493,43 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
     """One word Claude filled, as (entry, fields by Anki field name), or None unless it was asked for
     and its fields are usable. The owner's own meaning is always kept; a field that doesn't apply (a
     romanization in Latin-letter languages) is left out rather than written empty."""
+    return checked(raw, asked, language)[0]
+
+
+def checked(
+    raw: object, asked: dict[str, str], language: Code
+) -> tuple[tuple[str, dict[str, str]] | None, str]:
+    """`check`'s answer and, when it is None, which check failed in words the owner can read."""
     if not isinstance(raw, dict):
-        return None
+        return None, "it wasn't a note"
     entry = raw.get("entry")
     if not isinstance(entry, str) or entry not in asked:
-        return None
+        return None, "it named a different word"
     meaning = asked[entry] or _plain(raw.get("meaning"), MAX_MEANING)
+    if not meaning:
+        return None, "the meaning was missing or too long"
     context = _plain(raw.get("context"), MAX_SENTENCE, markup=True)
+    if not context:
+        return None, "the example sentence was missing, too long or had stray markup"
     translation = _plain(raw.get("translation"), MAX_SENTENCE)
-    if not meaning or not context or not translation:
-        return None
+    if not translation:
+        return None, "the translation was missing, too long or had markup in it"
     # The entry is shown in bold, balanced, once or more (a split verb has two).
     opens, closes = context.count("<b>"), context.count("</b>")
     if opens == 0 or opens != closes:
-        return None
+        return None, "the word wasn't in bold in the example sentence"
     fields = {"Meaning": meaning, "Context": context, "ContextTranslation": translation}
     if language in ROMANIZED:
         romanization = _plain(raw.get("romanization"), MAX_SENTENCE)
         transliteration = _plain(raw.get("transliteration"), MAX_MEANING)
         if not romanization or not transliteration:
-            return None
+            return None, "the romanization was missing or had stray characters"
         fields["ContextRomanized"] = romanization
         fields["Transliteration"] = transliteration
     elif language == "ja":
         reading = _plain(raw.get("transliteration"), MAX_MEANING)
         if not reading or not _KANA.match(reading):
-            return None
+            return None, "the reading wasn't in kana"
         fields[LANGUAGES[language].translit_field] = reading
     # The owner's notes spell a plain word's register "neutral", not an empty field.
     fields["Register"] = (_plain(raw.get("register"), MAX_REGISTER) or "neutral").casefold()
@@ -555,7 +566,7 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
             fields[extra.field] = value.casefold() if extra.allowed else value
     for name, labeled in lines.items():
         fields[name] = "<br>".join(labeled)
-    return entry, fields
+    return (entry, fields), ""
 
 
 @dataclass(frozen=True)
@@ -635,9 +646,14 @@ async def fill_pending(
                 store.save_queue_result(conn, n.id, language, None, str(e), now(), failed_cost)
             continue
         results: dict[str, tuple[dict[str, str], Spelled]] = {}
+        why: dict[str, str] = {}
         for x in raw:
-            if (r := check(x, asked, language)) is not None:
+            r, reason = checked(x, asked, language)
+            if r is not None:
                 results[r[0]] = (r[1], spelled(x, r[0]))
+            elif isinstance(x, dict) and isinstance(x.get("entry"), str):
+                why[x["entry"]] = reason
+                log.warning("Rejected %s note %r: %s", language, x["entry"], reason)
         cost = used.cost_usd() / len(batch)
         for n in batch:
             result = results.get(n.entry)
@@ -647,7 +663,7 @@ async def fill_pending(
                     n.id,
                     language,
                     None,
-                    "Claude's answer for this one didn't pass the checks.",
+                    _rejected(why.get(n.entry)),
                     now(),
                     cost,
                 )
@@ -661,6 +677,12 @@ async def fill_pending(
                     conn, n.id, language, fields, "", now(), cost, found.spelling, others
                 )
                 filled += 1
+
+
+def _rejected(reason: str | None) -> str:
+    if reason is None:
+        return "Claude's answer didn't include this word. Try again."
+    return f"Claude's answer didn't pass the checks: {reason}. Try again."
 
 
 def claude_notes(client: anthropic.AsyncAnthropic) -> WriteNotes:

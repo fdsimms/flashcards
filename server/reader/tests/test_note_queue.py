@@ -420,6 +420,7 @@ def test_a_word_that_fails_the_checks_is_failed_with_a_reason_and_the_rest_are_k
     ricane, bouder = store.queued_notes(conn)
     assert ricane.state == "ready"
     assert bouder.state == "failed" and "didn't pass the checks" in bouder.error
+    assert "bold" in bouder.error
 
 
 def test_a_failed_call_fails_its_words_without_ending_the_pass() -> None:
