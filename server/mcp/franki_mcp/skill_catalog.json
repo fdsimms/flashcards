@@ -361,6 +361,18 @@
        "tags": [
         "skill::words"
        ]
+      },
+      {
+       "fields": {
+        "Entry": "โมง",
+        "Meaning": "o'clock",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -5943,7 +5955,7 @@
      "words": [
       {
        "fields": {
-        "Entry": "pół",
+        "Entry": "wpół",
         "Meaning": "half",
         "Language": "polish",
         "PartOfSpeech": "adjective",

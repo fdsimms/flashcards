@@ -42,8 +42,8 @@ describe('adding skill cards', () => {
   it('adds Basic notes in the deck\'s Skills subdeck, in Anki too, every step suspended until it can start', async () => {
     const { store, anki } = await franki();
     const got = await addSkillCards(store, { ...add, groups: ['time'] });
-    // The collection has no Omnilanguage note type, so the one word telling the time needs (half, ครึ่ง) is reported, not added.
-    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, wordsSkipped: 1, skipped: 0 });
+    // The collection has no Omnilanguage note type, so the two words telling the time needs (half, ครึ่ง, and o'clock, โมง) are reported, not added.
+    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, wordsSkipped: 2, skipped: 0 });
     const notes = [...store.notes.values()].filter((n) => n.tags.includes('skill'));
     expect(notes).toHaveLength(4);
     expect(notes.every((n) => n.deck === 'Thai::Skills' && n.model === 'Basic' && /^\d+$/.test(n.id))).toBe(true);
@@ -149,7 +149,7 @@ describe('the words a skill needs', () => {
 
   it('are none for a skill that needs no words, and the number words, half, hundred, thousand and currency for the others', () => {
     expect(missingWordDrafts([], 'Thai', 'th', ['consonants', 'vowels', 'classifiers'])).toEqual([]);
-    expect(missingWordDrafts([], 'Thai', 'th', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(['ครึ่ง', ...'หนึ่ง สอง สาม สี่ ห้า หก เจ็ด แปด เก้า สิบ ร้อย พัน บาท'.split(' ')]);
+    expect(missingWordDrafts([], 'Thai', 'th', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(['ครึ่ง', 'โมง', ...'หนึ่ง สอง สาม สี่ ห้า หก เจ็ด แปด เก้า สิบ ร้อย พัน บาท'.split(' ')]);
   });
 
   it('are not counted as skill cards', () => {
