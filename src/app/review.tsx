@@ -22,7 +22,7 @@ import { useWordAudio } from '../ui/useWordAudio';
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
 export default function ReviewRoute() {
   const router = useRouter();
-  const { repo, sync, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
+  const { repo, sync, syncSettings, decks, collapse, openNoteEditor, reader: { settings: readerSettings, api: readerApi } } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
   // The Home Screen's "Study" quick action opens the deck studied last (useHomeShortcuts).
   useEffect(() => { if (deck) lastStudiedDeck.save(deck); }, [deck]);
@@ -90,7 +90,7 @@ export default function ReviewRoute() {
   }
   return (
     <Review
-      repo={repo} deck={deck} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} onAddWord={addWord} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey + changed} onDone={() => backToDecks(router)} onEditNote={openNoteEditor}
+      repo={repo} deck={deck} agentFlags={!!syncSettings?.enabled} practice={practice} extraCard={language ? <ExtraCard extras={extras} language={language} /> : undefined} glossing={glossing} onAddWord={addWord} suggestHints={readerApi ? (q) => readerApi.mnemonics(q) : undefined} askAboutCard={readerApi ? (card, turns) => readerApi.askCard(card, turns) : undefined} fixFlaggedCard={readerApi ? (request) => readerApi.fixCard(request) : undefined} reloadKey={reloadKey + changed} onDone={() => backToDecks(router)} onEditNote={openNoteEditor}
       nextDeck={nextDeck?.split('::').pop()}
       onNextDeck={nextDeck ? () => router.replace({ pathname: '/review', params: { deck: nextDeck } }) : undefined}
       earlierDeck={earlierDeck?.split('::').pop()}

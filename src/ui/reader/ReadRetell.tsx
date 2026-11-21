@@ -18,6 +18,7 @@ import { WritingFirstTry, WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 /**
  * Retell it (reader/production.ts), in place of the end view until it's done or stopped: the text
@@ -141,6 +142,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                 borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 4,
               }}
             />
+            <MissingKeyboardNote speechTag={LANGUAGES[text.language].speech} />
           </>
         )}
         {error ? <ErrorNote message={error} onRetry={ask} /> : null}

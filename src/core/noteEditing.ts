@@ -1,5 +1,5 @@
 import { nextStudyDayStart } from './day';
-import { isOmnilanguage, noteLanguageOfDeck, speechLangFor } from './cards';
+import { isOmnilanguage, NO_LANGUAGE, noteLanguageOfDeck, speechLangFor } from './cards';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
@@ -67,7 +67,9 @@ export function startNoteFor(
   if (!inDeck && language && omni) {
     return { model: OMNILANGUAGE, fields: { Language: language, ...(own?.askBothWays ? { GenerateReverse: 'y' } : {}) } };
   }
-  return { model: startModelFor(notes, typeNames, deck), fields: {} };
+  const model = startModelFor(notes, typeNames, deck);
+  // A plain note (no note type) in a deck set to no language says so, so it isn't read aloud by the deck's name.
+  return { model, fields: own?.noteLanguage === '' && !model ? { Language: NO_LANGUAGE } : {} };
 }
 
 const OMNILANGUAGE = 'Omnilanguage';

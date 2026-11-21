@@ -55,6 +55,9 @@ export const NOTE_LANGUAGES: { name: string; tag: string }[] = Object.entries(LA
   .filter(([key, tag], i, all) => all.findIndex(([, t]) => t === tag) === i && /^[a-z ]+$/.test(key))
   .map(([key, tag]) => ({ name: key.replace(/\b[a-z]/g, (ch) => ch.toUpperCase()), tag }));
 
+/** The Language field of a plain note in a deck set to no language: never read aloud, whatever its deck is called. */
+export const NO_LANGUAGE = 'None';
+
 /** The English name a deck's name gives (`deckNameLanguage`), as a Language field holds it. */
 export function noteLanguageOfDeck(deck: string): string | undefined {
   const tag = deckNameLanguage(deck);
@@ -68,6 +71,8 @@ export function noteLanguageOfDeck(deck: string): string | undefined {
  */
 export function speechLangFor(note: Note): string | undefined {
   const raw = htmlToText(note.fields.Language ?? '').normalize('NFC').trim().toLowerCase();
+  // A note in a deck set to no language (trivia named after a place) says so, over its deck's name.
+  if (raw === NO_LANGUAGE.toLowerCase()) return undefined;
   return (raw ? LANG_TAGS[raw] ?? languageOfCode(raw) : undefined) ?? deckNameLanguage(note.deck);
 }
 
@@ -401,7 +406,8 @@ function renderGeneric(note: Note): RenderedCard {
   const back: Block[] = [];
   if (backName) back.push({ text: t(note, backName), emphasis: true });
   for (const n of names) {
-    if (n === frontName || n === backName) continue;
+    // Language is what the note is spoken in (`speechLangFor`), not something to learn.
+    if (n === frontName || n === backName || n === 'Language') continue;
     pushIf(back, t(note, n), n);
   }
   return { front: { blocks: front, speak: say }, back: { blocks: back }, ...(speechLang ? { speechLang } : {}) };

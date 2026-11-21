@@ -24,6 +24,7 @@ import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording } from '../useSelfRecording';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 const AUDIO_MODE = LISTENING_MODE;
 
@@ -216,6 +217,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
             />
             {kind === 'say' ? <SpeakButton spoken={spoken} /> : null}
             </View>
+            <MissingKeyboardNote speechTag={LANGUAGES[text.language].speech} />
             {kind === 'say' ? <ListeningNote spoken={spoken} language={LANGUAGES[text.language].name} /> : null}
             </View>
           )}

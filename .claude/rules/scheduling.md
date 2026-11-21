@@ -80,9 +80,12 @@ card ahead of it in the rebuilt order. Learning steps around the mixed stretch (
 and always come from the rebuild.
 
 **Today's counts include answers given on every device** (`studiedToday` in `src/core/queue.ts`):
-Anki's cards are counted from the kept collection's review log, which holds answers synced from
-AnkiMobile and Anki as well as Franki's own, and only Franki-only cards from Franki's table.
-Counting Franki's table alone offered new cards already studied in Anki that day. **A card Anki
+Anki's cards are counted from the kept collection's own per-deck "studied today" counts (`ankiDeckStudied`,
+`Deck.Common`), which every device's answers add to (Franki's too, `deckStats.ts`) on the deck they were
+given in and every deck above it, so an answer given in a filtered deck on the desktop counts there, as
+Anki's limits count it, and not against the card's home deck, which the review log can't tell. Without a
+collection, the review log, and Franki-only cards from Franki's table. Counting Franki's table alone
+offered new cards already studied in Anki that day. **A card Anki
 buried today is held back until the next study day** (`isBuried`, from the card's `mod` when it
 was imported); one buried on an earlier day is studied, as Anki unburies at each new day. **Answering
 in Franki buries siblings as Anki does** (`siblingsToBury`, by the answered card's own preset's

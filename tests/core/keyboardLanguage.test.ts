@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keyboardLanguageFor, keyboardLanguageForText, keyboardRequest } from '../../src/core/keyboardLanguage';
+import { answerKeyboard, keyboardLanguageFor, keyboardLanguageForText, keyboardRequest } from '../../src/core/keyboardLanguage';
 
 describe('keyboardLanguageFor', () => {
   it('asks for the language when it has its own alphabet', () => {
@@ -59,5 +59,14 @@ describe('keyboardLanguageForText', () => {
     expect(keyboardLanguageForText('Größe')).toBe('en');
     expect(keyboardLanguageForText('1984')).toBeUndefined();
     expect(keyboardLanguageForText('')).toBeUndefined();
+  });
+});
+
+describe('answerKeyboard', () => {
+  it('takes kanji alone as Japanese in a Japanese note, and as Chinese otherwise', () => {
+    expect(answerKeyboard('今日', 'ja-JP')).toBe('ja');
+    expect(answerKeyboard('今日', undefined)).toBe('zh');
+    expect(answerKeyboard('今日', 'zh-CN')).toBe('zh');
+    expect(answerKeyboard('kot', 'ja-JP')).toBe('en');
   });
 });

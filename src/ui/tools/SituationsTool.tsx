@@ -34,6 +34,7 @@ import { SituationKeep, type KeepState } from './SituationKeep';
 import { SituationRehearse } from './SituationRehearse';
 import { ToolScreen, useToolLanguage } from './ToolScreen';
 import { CardSurface } from '../SwipeCard';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 /**
  * Situations (server/reader situations.py), as Review's card (PracticeCard.tsx): a scene on a card, Another for the next
@@ -514,6 +515,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
                 </Tappable>
               ) : null}
             </View>
+            <MissingKeyboardNote speechTag={info.speech} />
             <Text style={{ ...type.caption, color: c.textSecondary }}>{"Don't know a word? Write it in English in [brackets]. Tap a highlighted word for its meaning."}</Text>
             </>
             )}

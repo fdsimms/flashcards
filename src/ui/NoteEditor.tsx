@@ -168,8 +168,10 @@ export function NoteEditor(props: {
     if (nt?.fields.length) return nt.fields;
     const like = (original?.model === model ? original : notes.find((n) => n.model === model))?.fields;
     // An Omnilanguage note in a collection with no copy of the type (a deck made in Franki): its fields as Anki's type has them.
-    return like ? Object.keys(like) : model === 'Omnilanguage' ? omnilanguageFieldNames : ['Front', 'Back'];
-  }, [model, noteTypes, notes, original]);
+    const base = like ? Object.keys(like) : model === 'Omnilanguage' ? omnilanguageFieldNames : ['Front', 'Back'];
+    // And any field it started with (a plain note's Language in a deck set to no language, `startNoteFor`).
+    return [...base, ...Object.keys(start?.fields ?? {}).filter((f) => !base.includes(f))];
+  }, [model, noteTypes, notes, original, start]);
 
   const stored = useMemo(() => Object.fromEntries(fieldNames.map((f) => [f, editTextToField(fields[f] ?? '')])), [fieldNames, fields]);
   const draftNote: Note = { id: original?.id ?? '', deck, model, fields: stored, tags: parseTags(tags) };

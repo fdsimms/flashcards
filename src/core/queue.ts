@@ -182,6 +182,13 @@ export interface StudiedToday {
  */
 export function studiedToday(input: {
   notes: Note[]; cards: Card[]; reviews: ReviewLogEntry[]; revlog: RevlogRow[]; now: Date; dayStartsAtHour: number;
+  /**
+   * The kept collection's own counts for each of its decks (`ankiDeckStudied`), or undefined without
+   * one. Required, so every caller decides. They're what Anki's limits read, and they know where an
+   * answer was given: one given in a filtered deck on another device counts there, not against the
+   * card's home deck, which the review log can't tell. Anki's cards are counted from them.
+   */
+  ankiCounters: AnkiDeckStudied[] | undefined;
 }): Map<string, StudiedToday> {
   const start = studyDayStart(input.now, input.dayStartsAtHour).getTime();
   const deckOfNote = new Map(input.notes.map((n) => [n.id, n.deck]));
@@ -190,6 +197,10 @@ export function studiedToday(input: {
   // A skill card's reviews use no limits; its first answer counts as introduced (`isSkillNote`).
   const skillCards = skillCardIds(input.notes, input.cards);
   const out = new Map<string, StudiedToday>();
+  // With Anki's counts, an Anki card's answers are counted from them below; a skill card's review is
+  // in them too, and comes off its deck's, as it uses no room.
+  const counted = input.ankiCounters ? new Set(input.cards.filter((c) => c.ankiId).map((c) => c.id)) : new Set<string>();
+  const skillReviews = new Map<string, number>();
   for (const a of answersFrom(input)) {
     if (a.at.getTime() < start) continue;
     // A preview uses no limits, as in Anki, and its card is back home by now: counted by where it
@@ -198,6 +209,10 @@ export function studiedToday(input: {
     // Where it was answered, when that was a filtered deck the card has since left (`Answer.deck`).
     const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
+    if (counted.has(a.cardId)) {
+      if (skillCards.has(a.cardId) && !a.wasNew && (a.kind === 'review' || a.interday)) skillReviews.set(deck, (skillReviews.get(deck) ?? 0) + 1);
+      continue;
+    }
     const s = out.get(deck) ?? { introduced: 0, reviewed: 0 };
     if (skillCards.has(a.cardId) && !a.wasNew) continue; // a skill card's reviews use no room (`isSkillNote`)
     if (a.wasNew) {
@@ -212,5 +227,25 @@ export function studiedToday(input: {
     }
     out.set(deck, s);
   }
+  if (input.ankiCounters) {
+    // Anki counts an answer on its deck and every deck above; this map is by each deck's own cards
+    // (`treeQueue` adds subdecks up), so a deck's own is its count less its direct subdecks'.
+    const counts = new Map(input.ankiCounters.map((d) => [d.deck.toLowerCase(), d]));
+    for (const d of input.ankiCounters) {
+      const prefix = `${d.deck.toLowerCase()}::`;
+      let introduced = d.introduced;
+      let reviewed = d.reviewed;
+      for (const [name, child] of counts) {
+        if (name.startsWith(prefix) && !name.slice(prefix.length).includes('::')) { introduced -= child.introduced; reviewed -= child.reviewed; }
+      }
+      reviewed -= skillReviews.get(d.deck) ?? 0;
+      if (introduced <= 0 && reviewed <= 0) continue;
+      const s = out.get(d.deck) ?? { introduced: 0, reviewed: 0 };
+      out.set(d.deck, { introduced: s.introduced + Math.max(0, introduced), reviewed: s.reviewed + Math.max(0, reviewed) });
+    }
+  }
   return out;
 }
+
+/** A deck in the kept collection with its "studied today" counts, its subdecks' included, as Anki keeps them. */
+export interface AnkiDeckStudied { deck: string; introduced: number; reviewed: number }

@@ -106,6 +106,11 @@ export interface Vowel {
   /** An English word with the sound, where there is a close one. */
   hint?: string;
   example: { text: string; roman: string; meaning: string };
+  /**
+   * For a short vowel written with its own ending sound (ำ -am, ไ and ใ -ai, เ-า -ao): that ending.
+   * It makes the syllable live, though the vowel is short, which is what trips a beginner's tones.
+   */
+  endsIn?: string;
 }
 
 export const VOWELS: Vowel[] = [
@@ -122,13 +127,18 @@ export const VOWELS: Vowel[] = [
   { shown: 'กือ', sound: 'uue', long: true, example: { text: 'ซื้อ', roman: 'súue', meaning: 'buy' } },
   { shown: 'กู', sound: 'uu', long: true, hint: 'oo, as in "moon"', example: { text: 'ดู', roman: 'duu', meaning: 'watch' } },
   { shown: 'เก', sound: 'ee', long: true, hint: 'ay, as in "say", held steady', example: { text: 'เพลง', roman: 'phleeng', meaning: 'song' } },
-  { shown: 'แก', sound: 'aae', long: true, hint: 'a, as in "cat", held longer', example: { text: 'แม่', roman: 'mâe', meaning: 'mother' } },
+  { shown: 'แก', sound: 'aae', long: true, hint: 'a, as in "cat", held longer', example: { text: 'แม่', roman: 'mâae', meaning: 'mother' } },
   { shown: 'โก', sound: 'oo', long: true, hint: 'o, as in "go", held steady', example: { text: 'โทร', roman: 'thoo', meaning: 'phone, call' } },
   { shown: 'กอ', sound: 'aaw', long: true, hint: 'aw, as in "saw"', example: { text: 'พ่อ', roman: 'phâaw', meaning: 'father' } },
   { shown: 'เกอ', sound: 'əə', long: true, hint: 'er, as in "her"', example: { text: 'เธอ', roman: 'thəə', meaning: 'she, you' } },
   { shown: 'กัว', sound: 'uua', long: true, example: { text: 'ตัว', roman: 'dtuua', meaning: 'body, classifier for animals' } },
   { shown: 'เกีย', sound: 'iia', long: true, example: { text: 'เรียน', roman: 'riian', meaning: 'study' } },
   { shown: 'เกือ', sound: 'uea', long: true, example: { text: 'เรือ', roman: 'ruea', meaning: 'boat' } },
+  // Short vowels that carry their own ending, so the syllable is live: among the first a beginner meets.
+  { shown: 'กำ', sound: 'am', long: false, hint: 'um, as in "drum"', endsIn: 'm', example: { text: 'ทำ', roman: 'tham', meaning: 'do, make' } },
+  { shown: 'ไก', sound: 'ai', long: false, hint: 'i, as in "Thai"', endsIn: 'i', example: { text: 'ไม่', roman: 'mâi', meaning: 'not' } },
+  { shown: 'ใก', sound: 'ai', long: false, hint: 'i, as in "Thai", the same sound as ไ', endsIn: 'i', example: { text: 'ใช่', roman: 'châi', meaning: 'yes, that\'s right' } },
+  { shown: 'เกา', sound: 'ao', long: false, hint: 'ow, as in "now"', endsIn: 'o', example: { text: 'เขา', roman: 'khǎo', meaning: 'he, she, they' } },
 ];
 
 /** The vowel said with ก, as a syllable without its tone: gaa, gii. */
@@ -139,7 +149,9 @@ export function vowelSteps(v: Vowel): string[] {
   const steps = [`${v.hint ? `${v.hint[0].toUpperCase()}${v.hint.slice(1)}. ` : ''}Example: ${v.example.text} (${v.example.roman}), ${v.example.meaning}.`];
   steps.push(v.long
     ? 'A long vowel makes the syllable live, so with no tone mark it keeps its class\'s own tone.'
-    : 'A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.');
+    : v.endsIn
+      ? `A short vowel, but it ends in ${v.endsIn}, which makes the syllable live: with no tone mark it keeps its class's own tone.`
+      : 'A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.');
   return steps;
 }
 

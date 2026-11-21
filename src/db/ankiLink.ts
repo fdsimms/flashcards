@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
-import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
+import { deckAndParents, studiedDelta, studiedOn, withStudied, type DeckStatsRow } from '../anki/deckStats';
+import type { AnkiDeckStudied } from '../core/queue';
 import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { setAnkiAudioVoice, type AudioVoice } from '../anki/audioVoices';
@@ -92,6 +93,12 @@ export interface AnkiLink {
   ankiReviewLog(since: Date): Promise<RevlogRow[]>;
   /** Every deck in the kept collection, named as Franki names them ("A::B"); none without one. */
   ankiDecks(): Promise<{ id: number; name: string }[]>;
+  /**
+   * Each of the kept collection's decks with its "studied today" counts on Anki's day `today`, as Anki
+   * keeps them (deckStats.ts): every device's answers, each counted on the deck it was given in and
+   * every deck above it. None without a collection.
+   */
+  ankiDeckStudied(today: number): Promise<AnkiDeckStudied[]>;
   /**
    * The progress gates kept in the collection, by deck name (`src/anki/progressGates.ts`); none
    * without one. Read from the attached collection, so it doesn't wait for a sync.
@@ -382,6 +389,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
       await attach();
       if (!attached) return [];
       return db.getAllAsync<RevlogRow>(SQL.revlogSince, since.getTime());
+    },
+
+    async ankiDeckStudied(today) {
+      await attach();
+      if (!attached) return [];
+      const rows = await db.getAllAsync<DeckStatsRow>(SQL.deckStats);
+      return rows.map((r) => {
+        const s = studiedOn(r.common, today);
+        return { deck: r.name.split('\x1f').join('::'), introduced: s.new, reviewed: s.review };
+      });
     },
 
     async ankiDecks() {

@@ -11,6 +11,7 @@ import { asksAnotherTry } from '../../reader/production';
 import { WritingFirstTry, WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 /**
  * Use today's words (reader/production.ts): after a review session, each word learned in it, one at a
@@ -136,6 +137,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
                   borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 2,
                 }}
               />
+              <MissingKeyboardNote speechTag={LANGUAGES[language].speech} />
               <Help>Any form of the word counts. Claude checks it on Read & Listen's server.</Help>
             </>
           )}

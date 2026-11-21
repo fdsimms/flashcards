@@ -7,6 +7,7 @@ import { failureText } from '../core/failure';
 import { readerLanguageOf } from '../core/leechHint';
 import { duplicateKey, duplicateOf, editTextToField, notesStillThere, startNoteFor } from '../core/noteEditing';
 import { omnilanguageFieldNames } from '../import/models';
+import { speechLangFor } from '../core/cards';
 import type { QuickWord } from '../core/quickAdd';
 import type { DeckSettings, Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -24,6 +25,8 @@ export interface QuickCollection {
    * (`startNoteFor`), its first two fields, and the fields it starts with (a new deck's Language).
    */
   plainType(deck: string): { model: string; word: string; meaning: string; start: Record<string, string> };
+  /** The language a word added to `deck` is spoken in: the deck's own from Deck options, else its name's (`speechLangFor`). */
+  speechTagOf(deck: string): string | undefined;
   /**
    * The deck that already has `entry` as the first field of a `model` note (in the same language, for a
    * word), else undefined: the check `saveNote` refuses a duplicate by (`duplicateOf`), asked of the notes
@@ -104,6 +107,10 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
           plain.set(deck, found);
         }
         return found;
+      },
+      speechTagOf(deck) {
+        const { model, start } = this.plainType(deck);
+        return speechLangFor({ id: '', deck, model, fields: start, tags: [] });
       },
       inDeck: (deck, model, word) => {
         const [first, second] = fieldsOf(model);

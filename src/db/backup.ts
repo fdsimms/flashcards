@@ -61,15 +61,25 @@ export const BACKUP_REMINDER_DAYS = 7;
 /**
  * The deck list's backup line: when the last backup was made, and whether it's time for another.
  * Nothing while there's nothing to lose. "Backed up" means a backup file was made and the share
- * sheet opened; whether it was then saved anywhere, the app can't see.
+ * sheet opened; whether it was then saved anywhere, the app can't see. `firstAddedAt` is when the
+ * oldest note was added (ms; 0 when that can't be told, null with no cards): never backed up, it's
+ * time once that's `BACKUP_REMINDER_DAYS` back, so a first day's few words don't open with a warning.
  */
-export function backupStatus(lastBackupAt: string | null, now: Date, hasCards: boolean, dayStartsAtHour: number): { text: string; overdue: boolean } | undefined {
-  if (!hasCards) return undefined;
-  if (!lastBackupAt) return { text: 'Not backed up yet', overdue: true };
+export function backupStatus(lastBackupAt: string | null, now: Date, firstAddedAt: number | null, dayStartsAtHour: number): { text: string; overdue: boolean } | undefined {
+  if (firstAddedAt === null) return undefined;
+  if (!lastBackupAt) {
+    const age = firstAddedAt ? daysBetween(studyDayKey(new Date(firstAddedAt), dayStartsAtHour), studyDayKey(now, dayStartsAtHour)) : Infinity;
+    return { text: 'Not backed up yet', overdue: age >= BACKUP_REMINDER_DAYS };
+  }
   // By study day, not by 24 hours: one made at 11 PM was yesterday's by the next morning.
   const days = daysBetween(studyDayKey(new Date(lastBackupAt), dayStartsAtHour), studyDayKey(now, dayStartsAtHour));
   const text = days <= 0 ? 'Backed up today' : days === 1 ? 'Backed up yesterday' : `Backed up ${days} days ago`;
   return { text, overdue: days >= BACKUP_REMINDER_DAYS };
+}
+
+/** The oldest of the notes' added times (`noteAddedAt`) that are known, else 0 (can't be told). */
+export function oldestAdded(times: number[]): number {
+  return times.reduce((m, t) => (t > 0 && (m === 0 || t < m) ? t : m), 0);
 }
 
 /** What the last backup held, kept beside when it was made. Null counts: a backup made before they were kept. */
@@ -120,11 +130,13 @@ export const BACKUP_REMINDER_COUNT = 4;
  * apart. Nothing while there's nothing to lose. Every recount and every backup rewrites them, so
  * a backup made in between clears the ones that no longer apply.
  */
-export function backupReminderPlan(input: { lastBackupAt: string | null; hasCards: boolean; now: Date; dayStartsAtHour: number }): { at: Date; title: string; body: string }[] {
-  const { lastBackupAt, hasCards, now, dayStartsAtHour } = input;
-  if (!hasCards) return [];
+export function backupReminderPlan(input: { lastBackupAt: string | null; firstAddedAt: number | null; now: Date; dayStartsAtHour: number }): { at: Date; title: string; body: string }[] {
+  const { lastBackupAt, firstAddedAt, now, dayStartsAtHour } = input;
+  if (firstAddedAt === null) return [];
   const evening = (base: Date, plusDays: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + plusDays, BACKUP_REMINDER_HOUR, 0);
-  let first = lastBackupAt ? evening(studyDayStart(new Date(lastBackupAt), dayStartsAtHour), BACKUP_REMINDER_DAYS) : evening(now, 0);
+  // Never backed up: a week after the oldest note was added, as the deck list's line (`backupStatus`), not on day one.
+  const since = lastBackupAt ? new Date(lastBackupAt) : firstAddedAt ? new Date(firstAddedAt) : undefined;
+  let first = since ? evening(studyDayStart(since, dayStartsAtHour), BACKUP_REMINDER_DAYS) : evening(now, 0);
   if (first.getTime() <= now.getTime()) first = evening(now, evening(now, 0).getTime() > now.getTime() ? 0 : 1);
   const out: { at: Date; title: string; body: string }[] = [];
   for (let i = 0; i < BACKUP_REMINDER_COUNT; i++) {

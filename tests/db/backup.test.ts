@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backupFileName, NotABackupError, restorePlan } from '../../src/db/backup';
+import { backupFileName, NotABackupError, restorePlan, oldestAdded } from '../../src/db/backup';
 
 const current = new Map([
   ['notes', ['id', 'deck', 'model', 'fields', 'tags']],
@@ -54,21 +54,24 @@ describe('backupStatus', () => {
   it('stays quiet with nothing to lose, and reminds after a week', async () => {
     const { backupStatus } = await import('../../src/db/backup');
     const now = new Date(2026, 10, 11, 12);
-    expect(backupStatus(null, now, false, 4)).toBeUndefined();
-    expect(backupStatus(null, now, true, 4)).toEqual({ text: 'Not backed up yet', overdue: true });
-    expect(backupStatus(new Date(2026, 10, 11, 8).toISOString(), now, true, 4)).toEqual({ text: 'Backed up today', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, true, 4)).toEqual({ text: 'Backed up yesterday', overdue: false });
-    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, true, 4)).toEqual({ text: 'Backed up 7 days ago', overdue: true });
+    expect(backupStatus(null, now, null, 4)).toBeUndefined();
+    expect(backupStatus(null, now, 0, 4)).toEqual({ text: 'Not backed up yet', overdue: true });
+    // A first week of words isn't nagged about; a week on it is.
+    expect(backupStatus(null, now, new Date(2026, 10, 10, 12).getTime(), 4)).toEqual({ text: 'Not backed up yet', overdue: false });
+    expect(backupStatus(null, now, new Date(2026, 10, 4, 12).getTime(), 4)).toEqual({ text: 'Not backed up yet', overdue: true });
+    expect(backupStatus(new Date(2026, 10, 11, 8).toISOString(), now, 0, 4)).toEqual({ text: 'Backed up today', overdue: false });
+    expect(backupStatus(new Date(2026, 10, 10, 8).toISOString(), now, 0, 4)).toEqual({ text: 'Backed up yesterday', overdue: false });
+    expect(backupStatus(new Date(2026, 10, 4, 12).toISOString(), now, 0, 4)).toEqual({ text: 'Backed up 7 days ago', overdue: true });
   });
 
   it('counts study days, not 24 hours', async () => {
     const { backupStatus } = await import('../../src/db/backup');
     // 11 PM, then 9 AM the next morning: yesterday, though under 24 hours ago.
-    expect(backupStatus(new Date(2026, 10, 10, 23).toISOString(), new Date(2026, 10, 11, 9), true, 4)?.text).toBe('Backed up yesterday');
+    expect(backupStatus(new Date(2026, 10, 10, 23).toISOString(), new Date(2026, 10, 11, 9), 0, 4)?.text).toBe('Backed up yesterday');
     // 11 PM Monday, then 10 PM Wednesday: two days, though under 48 hours ago.
-    expect(backupStatus(new Date(2026, 10, 9, 23).toISOString(), new Date(2026, 10, 11, 22), true, 4)?.text).toBe('Backed up 2 days ago');
+    expect(backupStatus(new Date(2026, 10, 9, 23).toISOString(), new Date(2026, 10, 11, 22), 0, 4)?.text).toBe('Backed up 2 days ago');
     // 2 AM still belongs to the day before.
-    expect(backupStatus(new Date(2026, 10, 10, 22).toISOString(), new Date(2026, 10, 11, 2), true, 4)?.text).toBe('Backed up today');
+    expect(backupStatus(new Date(2026, 10, 10, 22).toISOString(), new Date(2026, 10, 11, 2), 0, 4)?.text).toBe('Backed up today');
   });
 });
 
@@ -113,7 +116,7 @@ describe('backupProgress', () => {
 describe('backupReminderPlan', () => {
   it('first reminds on the evening the backup is a week old, then weekly', async () => {
     const { backupReminderPlan } = await import('../../src/db/backup');
-    const plan = backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 9).toISOString(), hasCards: true, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 });
+    const plan = backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 9).toISOString(), firstAddedAt: 0, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 });
     expect(plan.map((p) => p.at)).toEqual([new Date(2026, 10, 18, 20), new Date(2026, 10, 25, 20), new Date(2026, 11, 2, 20), new Date(2026, 11, 9, 20)]);
     expect(plan[0].body).toBe('Your last backup was 7 days ago. Open Backup to make a new one.');
     expect(plan[1].body).toContain('14 days');
@@ -121,15 +124,25 @@ describe('backupReminderPlan', () => {
   it('is tonight or tomorrow evening once already overdue, and counts study days', async () => {
     const { backupReminderPlan } = await import('../../src/db/backup');
     const last = new Date(2026, 10, 1, 9).toISOString();
-    expect(backupReminderPlan({ lastBackupAt: last, hasCards: true, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
-    expect(backupReminderPlan({ lastBackupAt: last, hasCards: true, now: new Date(2026, 10, 17, 21), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 18, 20));
+    expect(backupReminderPlan({ lastBackupAt: last, firstAddedAt: 0, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
+    expect(backupReminderPlan({ lastBackupAt: last, firstAddedAt: 0, now: new Date(2026, 10, 17, 21), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 18, 20));
     // Made at 2 AM on the 11th: still the 10th's study day, so a week is the 17th.
-    expect(backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 2).toISOString(), hasCards: true, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
+    expect(backupReminderPlan({ lastBackupAt: new Date(2026, 10, 11, 2).toISOString(), firstAddedAt: 0, now: new Date(2026, 10, 12, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 17, 20));
   });
   it('never backed up asks tonight, and nothing is sent with nothing to lose', async () => {
     const { backupReminderPlan } = await import('../../src/db/backup');
-    const plan = backupReminderPlan({ lastBackupAt: null, hasCards: true, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 });
+    const plan = backupReminderPlan({ lastBackupAt: null, firstAddedAt: 0, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 });
     expect(plan[0]).toMatchObject({ at: new Date(2026, 10, 17, 20), body: "Your decks aren't backed up yet. Open Backup to make one." });
-    expect(backupReminderPlan({ lastBackupAt: null, hasCards: false, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })).toEqual([]);
+    expect(backupReminderPlan({ lastBackupAt: null, firstAddedAt: null, now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })).toEqual([]);
+    // Never backed up, with words first added today: the first evening reminder is a week on.
+    expect(backupReminderPlan({ lastBackupAt: null, firstAddedAt: new Date(2026, 10, 17, 9).getTime(), now: new Date(2026, 10, 17, 12), dayStartsAtHour: 4 })[0].at).toEqual(new Date(2026, 10, 24, 20));
+  });
+});
+
+describe('oldestAdded', () => {
+  it('takes the oldest known time, and 0 when none is known', () => {
+    expect(oldestAdded([0, 300, 100, 0])).toBe(100);
+    expect(oldestAdded([0, 0])).toBe(0);
+    expect(oldestAdded([])).toBe(0);
   });
 });

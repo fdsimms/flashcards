@@ -58,6 +58,15 @@ public class KeyboardLanguageModule: Module {
   public func definition() -> ModuleDefinition {
     Name("KeyboardLanguage")
 
+    /// Whether the person has a keyboard enabled for `language` (a primary subtag, "th"), so a field
+    /// that expects it can say how to add one.
+    AsyncFunction("enabled") { (language: String) -> Bool in
+      let wanted = language.lowercased()
+      return UITextInputMode.activeInputModes.contains { mode in
+        mode.primaryLanguage?.split(separator: "-").first.map(String.init)?.lowercased() == wanted
+      }
+    }.runOnQueue(.main)
+
     /// `language` is primary subtags in order, joined with commas ("ru", "pl,en"), or nil to stop asking.
     AsyncFunction("set") { (language: String?) in
       KeyboardLanguage.install()

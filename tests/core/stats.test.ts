@@ -94,9 +94,12 @@ describe('stats', () => {
       card('far', { state: 2, scheduledDays: 90, due: new Date(2027, 2, 1).toISOString() }),
       card('suspended', { state: 2, suspended: true }),
       card('retired', { state: 2, retired: true }),
+      card('relearning', { state: 3, due: new Date(2027, 0, 1).toISOString() }),
+      { ...card('buried', { state: 2, scheduledDays: 4, due: new Date(2027, 0, 1).toISOString() }), buriedAt: NOW.toISOString() },
     ];
     const s = computeStats({ cards, answers: [], now: NOW, dayStartsAtHour: H, days: 7 });
-    expect(s.counts).toEqual({ new: 1, learning: 1, young: 2, mature: 2, suspended: 1 });
+    // Relearning and buried apart, as Anki's Card Counts has them.
+    expect(s.counts).toEqual({ new: 1, learning: 1, relearning: 1, young: 2, mature: 2, suspended: 1, buried: 1 });
     expect(s.overdue).toBe(1);
     expect(s.forecast.map((d) => [d.key, d.due])).toEqual([
       ['2026-11-11', 2], ['2026-11-12', 0], ['2026-11-13', 1], ['2026-11-14', 0], ['2026-11-15', 0], ['2026-11-16', 0], ['2026-11-17', 0],

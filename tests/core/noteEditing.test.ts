@@ -237,7 +237,7 @@ describe('startNoteFor', () => {
     expect(startNoteFor([], ['Basic', 'Omnilanguage'], '🌮 Español', undefined).model).toBe('Omnilanguage');
   });
   it('starts as before with no language, notes already in the deck, or no Omnilanguage type', () => {
-    expect(startNoteFor([], [], 'Spanish', { noteLanguage: '' })).toEqual({ model: '', fields: {} });
+    expect(startNoteFor([], [], 'Greek mythology', { noteLanguage: '' })).toEqual({ model: '', fields: { Language: 'None' } });
     expect(startNoteFor([basic('Spanish')], ['Basic', 'Omnilanguage'], 'Spanish', undefined)).toEqual({ model: 'Basic', fields: {} });
     expect(startNoteFor([], ['Basic'], 'Spanish', undefined)).toEqual({ model: 'Basic', fields: {} });
     expect(startNoteFor([], [], 'Trivia', undefined)).toEqual({ model: '', fields: {} });

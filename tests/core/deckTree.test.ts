@@ -614,7 +614,7 @@ describe(`a deck's queue as Anki ${queueVectors.anki} builds it (tests/fixtures/
       const data = importAnkiJson(buildExport({ ...rows, deckConfigs: v.deckConfigs.map((c) => ({ ...c, config: unhex(c.config) })), config: v.config }), { now });
       const cards = data.cards.map((c) => ({ ...c, ankiMod: ankiMod.get(c.ankiId!) }));
       const collection = data.collectionSettings!;
-      const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
+      const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour, ankiCounters: undefined });
       // Without Franki's own catch-up order (`catchUp`), which Anki doesn't have: these are Anki's queues.
       const input = { ...queueInput({ ownLimitsFor: () => undefined, notes: data.notes, cards, params: data.deckParams!, studied, collection, now }), catchUp: false };
       for (const [deck, anki] of Object.entries(v.queues)) {

@@ -9,6 +9,7 @@ import { usePrimers } from './ReadFormSheet';
 import { Button, HeaderAction, Icon, Tappable } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { MissingKeyboardNote } from '../useMissingKeyboard';
 
 /**
  * The sheet a fill-in slot opens (reader/formQuiz.ts): the line with a blank where the word is, the
@@ -129,6 +130,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
           />
           {checked ? <Icon name={right ? 'checkmark' : 'xmark'} size={18} color={tint} weight="bold" /> : null}
         </View>
+        <MissingKeyboardNote speechTag={LANGUAGES[language].speech} />
 
         {checked ? (
           <View accessibilityLiveRegion="polite" style={{ gap: space.xs }}>

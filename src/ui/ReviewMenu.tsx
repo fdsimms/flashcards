@@ -28,7 +28,8 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
   /** Link the word to one it's mixed up with (src/core/confusedPairs.ts); missing when the note can't be linked (`canLinkConfused`). */
   onLinkConfused?: () => void;
   onFlag: (flag: number) => void;
-  onAgentFlag: () => void;
+  /** Missing while nothing could check the card: Claude reaches the collection only through the sync server. */
+  onAgentFlag?: () => void;
   onBuryCard: () => void;
   onBuryNote: () => void;
   onSuspend: () => void;
@@ -70,7 +71,7 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
           ))}
           {flag ? <Stack.Toolbar.MenuAction icon="flag.slash" onPress={() => onFlag(0)}>Remove flag</Stack.Toolbar.MenuAction> : null}
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAgentFlag}>Flag for Claude to check</Stack.Toolbar.MenuAction>
+        {onAgentFlag ? <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAgentFlag}>Flag for Claude to check</Stack.Toolbar.MenuAction> : null}
       </Stack.Toolbar.Menu>
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="calendar" onPress={onDueDate}>Set due date</Stack.Toolbar.MenuAction>

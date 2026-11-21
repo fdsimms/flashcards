@@ -63,3 +63,12 @@ export function keyboardLanguageForText(text: string): string | undefined {
   if (best.language === 'ja' || count(/[぀-ヿ]/g) > 0) return 'ja';
   return best.language;
 }
+
+/**
+ * The keyboard for a typed answer whose language the note gives (`speechLangFor`): its script's, but
+ * kanji alone in a Japanese note is Japanese, not Chinese (今日, 直接), as a template page marks it.
+ */
+export function answerKeyboard(text: string, noteLanguage: string | undefined): string | undefined {
+  const script = keyboardLanguageForText(text);
+  return script === 'zh' && noteLanguage?.toLowerCase().startsWith('ja') ? 'ja' : script;
+}

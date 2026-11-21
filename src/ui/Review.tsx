@@ -6,7 +6,7 @@ import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput
 import { FLAG_NAMES, flagLabel, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
-import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
+import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, speechLangFor, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
@@ -24,7 +24,7 @@ import { ankiToday, fnvHash } from '../core/order';
 import { saveLeechHint, saveNote, type NoteStore } from '../anki/noteService';
 import { forgetCards, setDueDates, type Rescheduled } from '../anki/rescheduleService';
 import { dueDateLabel, parseDueDate } from '../core/reschedule';
-import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, thaiTextStyle, type ThaiTextSize } from '../core/script';
 import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, nextUndo, sessionProgress, sessionSummary, upNext, type AnswerRecord, type CardAction } from '../core/session';
 import { setCardStatesUndoable, undoCardAction } from '../anki/cardUndo';
 import { ankiWrites, reviewWrites } from '../core/writeQueue';
@@ -102,7 +102,7 @@ import { isSenseMiss, senseCountLabel } from '../core/senseMarks';
 import type { AddWord } from './useAddMinedWord';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
-import { keyboardLanguageForText } from '../core/keyboardLanguage';
+import { answerKeyboard } from '../core/keyboardLanguage';
 import { stripExpected } from '../core/typeAnswer';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useSpokenAnswer } from './useSpokenAnswer';
@@ -133,6 +133,7 @@ import { CardSurface, SwipeCard, type CardMotion } from './SwipeCard';
 import { ReviewFooter, FOOTER_BUTTON_HEIGHT } from './ReviewFooter';
 import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
+import { MissingKeyboardNote } from './useMissingKeyboard';
 export { CardSurface };
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
@@ -181,9 +182,11 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, onAddWord, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onCardInfo, onSettings }: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, onAddWord, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onCardInfo, onSettings , agentFlags}: {
   repo: Repo & AnkiLink;
   deck: string;
+  /** Whether a card can be flagged for Claude to check: only with sync on, which is how the MCP reaches the collection. */
+  agentFlags: boolean;
   /**
    * Present when the deck is a Read & Listen language's (src/reader/practice.ts): once the session
    * ends, it offers a text that practices the words just studied.
@@ -325,7 +328,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ]);
       if (stale) return;
       if (writes.current !== seen) { setReloads((k) => k + 1); return; }
-      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour });
+      // Anki's own counts of what each deck has studied today, which know where an answer was given (`studiedToday`).
+      const ankiDay = ankiToday(now, cs.dayStartsAtHour, cs.collectionCreated, cs.creationOffset);
+      const ankiCounters = ankiDay === undefined ? undefined : await repo.ankiDeckStudied(ankiDay);
+      if (stale) return;
+      const today = studiedToday({ notes: n, cards: c, reviews, revlog, now, dayStartsAtHour: cs.dayStartsAtHour, ankiCounters: ankiCounters?.length ? ankiCounters : undefined });
       loadedDay.current = studyDayKey(now, cs.dayStartsAtHour);
       setCollection(cs);
       // The queue reads the day from `now`: a reload after a while away (or past the day's start) needs it fresh too.
@@ -474,17 +481,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
       font: font === 'system' ? undefined : { id: font, base: isBundled(font) ? cardFontsBase() : downloadedFontsBase() },
+      language: speechLangFor(n), thai: thaiTextStyle(thaiSize),
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   };
-  const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont]); // eslint-disable-line react-hooks/exhaustive-deps
+  const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont, thaiSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // The next card's question, loaded out of sight while this one is studied, so a template card
   // comes up without a blank card while its page loads (only after a template card, which has the WebView to load it beside).
   // Not while settling: that queue still has the card just answered in it.
   const ahead = page && queue && !settle ? upNext(queue, current) : undefined;
   const aheadPage = useMemo(
     () => templatePage(ahead, ''),
-    [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont], // eslint-disable-line react-hooks/exhaustive-deps
+    [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont, thaiSize], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
@@ -606,7 +614,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { setTyping(false); setSpokenIn(false); }, [showing]);
   // An Omnilanguage card knows its language; an Anki type-in answer on another note type is read from its script.
   const typeInExpected = page?.typeAnswer?.expected;
-  const typedKeyboard = useKeyboardLanguage(rendered?.speechLang ?? (typeInExpected ? keyboardLanguageForText(stripExpected(typeInExpected)) : undefined));
+  // A template card's answer is read by its script, kanji alone in a Japanese note as Japanese (`answerKeyboard`).
+  const typedTag = rendered?.speechLang ?? (typeInExpected ? answerKeyboard(stripExpected(typeInExpected), note ? speechLangFor(note) : undefined) : undefined);
+  const typedKeyboard = useKeyboardLanguage(typedTag);
   const spoken = useSpokenAnswer(rendered?.speechLang, {
     expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
     onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
@@ -1344,6 +1354,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           }}
         />
       ) : null}
+      {page?.typeAnswer || (typing && typeItWord) ? <MissingKeyboardNote speechTag={typedTag} /> : null}
       {typeItWord ? <ListeningNote spoken={spoken} language={rendered?.speechLang ? languageName(rendered.speechLang.split('-')[0]) : 'the word'} /> : null}
       {typeItWord && !typing ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
@@ -1538,7 +1549,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               else Alert.alert("Can't ask about this card", 'This card has no text to ask about. Open its note to see the fields.');
             },
             onFlag: (flag) => setStates([current], (s) => ({ ...s, flag }), flagLabel(flag)),
-            onAgentFlag: chooseAgentFlag,
+            onAgentFlag: agentFlags ? chooseAgentFlag : undefined,
             onBuryCard: () => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow', true),
             onBuryNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow', true),
             onSuspend: () => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card', true),

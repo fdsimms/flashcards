@@ -318,6 +318,10 @@ describe('cards', () => {
       expect(playbackFor(r, false)).toEqual({ text: 'hola', file: undefined });
       expect(renderCard(plain('Trivia'), 'forward').front.speak).toBeUndefined();
       expect(renderCard(plain('Trivia'), 'forward').speechLang).toBeUndefined();
+      // A deck set to no language: its notes say so, and aren't read aloud whatever the deck is called.
+      const none = { ...plain('Greek mythology'), fields: { Front: 'Zeus', Back: 'king of the gods', Language: 'None' } };
+      expect(renderCard(none, 'forward').speechLang).toBeUndefined();
+      expect(renderCard(none, 'forward').back.blocks.map((b) => b.text)).toEqual(['king of the gods']);
     });
     it("doesn't speak a word whose language isn't known, but still plays its recording", () => {
       const note = inDeck('Languages::Klingon', { Entry: 'Qapla’', GenerateReverse: 'y', GenerateAudioCard: 'y' });

@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { speechLangFor } from '../core/cards';
 import { languageKey, languageName } from '../core/voices';
 import { LANGUAGES } from '../reader/languages';
 import { quickAddDecks } from '../reader/noteQueue';
@@ -33,7 +32,7 @@ export default function QuickAddRoute() {
     return collection.decks.map((deck) => {
       const language = claude.find((d) => d.deck === deck)?.language;
       if (language) return { deck, filled: true, speechTag: LANGUAGES[language].speech, languageName: LANGUAGES[language].name };
-      const speechTag = speechLangFor({ id: '', deck, model: '', fields: {}, tags: [] });
+      const speechTag = collection.speechTagOf(deck);
       return { deck, filled: false, speechTag, languageName: speechTag ? languageName(languageKey(speechTag)) : undefined };
     });
   }, [collection, reader.api, reader.settings?.decks]);

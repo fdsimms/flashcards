@@ -47,6 +47,13 @@ export function withStudied(common: Uint8Array, today: number, delta: StudiedDel
   return w.finish();
 }
 
+/** A deck's "studied today" counts on Anki's day `today` (`ankiToday`); zero when they're from an earlier day. */
+export function studiedOn(common: Uint8Array, today: number): { new: number; review: number } {
+  const msg = decodeMessage(common);
+  if ((uint(msg, COMMON.lastDayStudied) ?? 0) !== today) return { new: 0, review: 0 };
+  return { new: int(msg, COMMON.newStudied) ?? 0, review: int(msg, COMMON.reviewStudied) ?? 0 };
+}
+
 /** The deck `did` and each deck above it, by name (levels joined by \x1f; Anki's names ignore case). */
 export function deckAndParents(decks: DeckStatsRow[], did: number): DeckStatsRow[] {
   const deck = decks.find((d) => d.id === did);

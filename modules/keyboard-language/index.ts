@@ -1,6 +1,18 @@
 import { requireOptionalNativeModule } from 'expo';
 
-const mod = requireOptionalNativeModule<{ set(language: string | null): Promise<void> }>('KeyboardLanguage');
+const mod = requireOptionalNativeModule<{ set(language: string | null): Promise<void>; enabled?(language: string): Promise<boolean> }>('KeyboardLanguage');
+
+/**
+ * Whether the person has a keyboard enabled for `language` (a primary subtag, "th"). Undefined when
+ * it can't be told: a build made before this was added.
+ */
+export async function keyboardEnabled(language: string): Promise<boolean | undefined> {
+  try {
+    return mod?.enabled ? await mod.enabled(language) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Asks iOS to open the focused text field on the keyboard for `language` (primary subtags in order,
