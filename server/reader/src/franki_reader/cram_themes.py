@@ -79,6 +79,8 @@ class Seeds:
     # Titles of crams already made and themes already shown.
     avoid: tuple[str, ...]
     stretch: bool
+    # What the learner said the lesson is for (the cram's name): every theme is an angle on it.
+    topic: str = ""
 
 
 @dataclass(frozen=True)
@@ -161,10 +163,13 @@ in the first person, using several of the learner's words, with the English.
 
 Everything in {language} is written in {language}'s own writing, never romanization, with no \
 translations in brackets. Write the English in American English, without em dashes. The themes \
-must differ from each other and from any listed as taken.{level}"""
+must differ from each other and from any listed as taken.{topic}{level}"""
 
 STRETCH = """ The learner wants a stretch: questions and a story a little above their level, \
 while still built mostly from their own words."""
+TOPIC = """ The learner has said what the lesson is for (the message starts with it). Make every \
+theme a different angle on that, so all of them help with it. When it names no subject (only \
+"Thai lesson", say), suggest themes freely."""
 COMFORTABLE = """ Keep the questions and the story within the learner's level: mostly their own \
 words, with common ones for the rest."""
 
@@ -183,7 +188,8 @@ WriteThemes = Callable[[Code, Seeds], Awaitable[tuple[Any, Usage]]]
 
 
 def request_message(seeds: Seeds) -> str:
-    parts = [
+    parts = [f"What the lesson is for: {seeds.topic}", ""] if seeds.topic else []
+    parts += [
         "The learner's words:",
         *(f"[{n}] {w.text} ({w.english}) - {KIND_NOTES[w.kind]}" for n, w in enumerate(seeds.pool)),
     ]
@@ -207,7 +213,7 @@ def request_message(seeds: Seeds) -> str:
     return "\n".join(parts)
 
 
-def system_message(language: Code, stretch: bool) -> str:
+def system_message(language: Code, stretch: bool, topic: bool = False) -> str:
     return SYSTEM.format(
         language=LANGUAGES[language].name,
         count=COUNT,
@@ -216,6 +222,7 @@ def system_message(language: Code, stretch: bool) -> str:
         min_questions=MIN_QUESTIONS,
         max_questions=MAX_QUESTIONS,
         level=STRETCH if stretch else COMFORTABLE,
+        topic=TOPIC if topic else "",
     )
 
 
@@ -307,7 +314,7 @@ def claude_themes(client: anthropic.AsyncAnthropic) -> WriteThemes:
             response = await client.beta.messages.create(
                 model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
-                system=system_message(language, seeds.stretch),
+                system=system_message(language, seeds.stretch, bool(seeds.topic)),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
             )

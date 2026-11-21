@@ -66,9 +66,12 @@ import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, useReviewForms } from './ReviewForms';
-import { SkillDrillCard, SkillDrillFooter, useSkillDrill } from './SkillDrill';
+import { SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
+import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
+import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
-import { drillOfTags, skillOffer } from '../tools/skills';
+import { drillOfTags, skillLanguageDeck, skillOffer, studiedHeadwords } from '../tools/skills';
+import { knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
@@ -377,9 +380,17 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   useEffect(() => { if (revealed) timing.revealShown(); }, [revealed]); // eslint-disable-line react-hooks/exhaustive-deps
   const note = current ? notes.get(current.noteId) : undefined;
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
-  const drill = useMemo(() => (note ? drillOfTags(note.tags) : undefined), [note]);
+  // A dates drill asks only about the months whose words the deck has studied (src/tools/skillWords.ts).
+  const drill = useMemo((): Drill | undefined => {
+    const found = note ? drillOfTags(note.tags) : undefined;
+    if (!found || found.step.group !== 'dates' || !cards) return found;
+    return { ...found, months: knownMonths(found.language, studiedHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck))) };
+  }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
   useSkillRelease(repo, cards, notes, H);
+  // The aspect check on a Russian or Polish verb's front (AspectCheck.tsx): optional, and only outlines a rating.
+  const aspectCheck = useAspectCheck(showing, current && note && aspectCheckOn(note.deck, deckSettings) ? aspectToCheck(note, current) : undefined);
+  const suggestedRating = skill.suggested ?? aspectCheck.suggested;
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own. A frequency tier ("Thai::Tier 3") is part of its language, not a language of its own, so it's looked past.
@@ -1216,6 +1227,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
   const footer = revealed ? (
+    <>
+    <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {buttons.map((b) => b.r === 1 && missReasons.length ? (
         <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => rate(1, miss)} />
@@ -1224,15 +1237,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           key={b.r}
           onPress={() => rate(b.r)}
           accessibilityRole="button"
-          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}${skill.suggested === b.r ? ', suggested' : ''}`}
+          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}${suggestedRating === b.r ? ', suggested' : ''}`}
           scaleTo={0.95}
           dimTo={0.85}
           // After a skill card's drill, the rating it suggests is outlined and the others quieter; the tap is still the learner's.
-          restOpacity={skill.suggested && skill.suggested !== b.r ? 0.55 : 1}
+          restOpacity={suggestedRating && suggestedRating !== b.r ? 0.55 : 1}
           style={{
             flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
-            ...(skill.suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
+            ...(suggestedRating === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
@@ -1241,10 +1254,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Tappable>
       ))}
     </Reveal>
+    </>
   ) : drill && skill.question ? (
     <SkillDrillFooter skill={skill} onFinished={reveal} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />
   ) : (
     <>
+      {typing ? null : <AspectQuestion check={aspectCheck} />}
       {page?.typeAnswer || (typing && typeItWord) ? (
         <TextInput
           key={current.id}

@@ -3,6 +3,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { FORM_PROMPT_CHOICES, formsSettings } from '../core/forms';
 import { LOOKALIKE_DAY_CHOICES, lookalikeSettings } from '../core/lookalikes';
+import { aspectCheckOn } from '../core/aspectCheck';
 import type { DeckSettings } from '../core/types';
 import { Group, Help, NavRow, SectionTitle, Segments, SwitchRow } from './kit';
 import { space } from './theme';
@@ -42,6 +43,16 @@ export function DeckFormsOptions({ deck, all, onChange }: {
           onChange={(n) => onChange({ formPrompts: n })}
         />
       </View>
+
+      <SectionTitle>Verb aspect</SectionTitle>
+      <Group>
+        <SwitchRow first label="Ask imperfective or perfective" value={aspectCheckOn(deck, all)} onValueChange={(v) => onChange({ aspectCheck: v })} />
+      </Group>
+      <Help>
+        On the front of a Russian or Polish verb tagged imperfective or perfective, two buttons ask which it is. Answering is
+        optional: Show answer works as usual. A wrong pick only outlines Hard when you rate the card, and never changes when it
+        is due.
+      </Help>
 
       <SectionTitle>Lookalike words</SectionTitle>
       <Group>

@@ -84,8 +84,19 @@ function dateAt(index: number): CalendarDate {
   return { year, month, day: n + 1 };
 }
 
-/** A date at random from FIRST_YEAR to LAST_YEAR, never `previous` again. */
-export function randomDate(previous?: CalendarDate, random: () => number = Math.random): CalendarDate {
+/**
+ * A date at random from FIRST_YEAR to LAST_YEAR, never `previous` again. With `months` (1 to 12), only a
+ * date in one of those months: a drill asks about the months the learner has studied.
+ */
+export function randomDate(previous?: CalendarDate, random: () => number = Math.random, months?: readonly number[]): CalendarDate {
+  if (months?.length && months.length < 12) {
+    const month = months[Math.floor(random() * months.length)];
+    const year = FIRST_YEAR + Math.floor(random() * (LAST_YEAR - FIRST_YEAR + 1));
+    const length = daysInMonth(year, month);
+    let day = 1 + Math.floor(random() * length);
+    if (previous && previous.year === year && previous.month === month && previous.day === day) day = (day % length) + 1;
+    return { year, month, day };
+  }
   const count = dayIndex({ year: LAST_YEAR + 1, month: 1, day: 1 });
   const last = previous && previous.year >= FIRST_YEAR && previous.year <= LAST_YEAR ? dayIndex(previous) : undefined;
   return dateAt(pickOther(count, last, random));

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, LayoutAnimation, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
@@ -21,25 +21,32 @@ const STATUS = {
 /** A ready note the deck refused when it was approved (a duplicate): shown instead of "Ready". */
 const REFUSED = { icon: 'exclamationmark.triangle.fill', label: 'Not added' } as const;
 
-function NoteRow({ note, first, refusal, onOpen, onRetry, onRemove }: {
+/** A note "Approve all" has saved, while the list holds still until the approval ends. */
+const ADDED = { icon: 'checkmark.circle.fill', label: 'Added' } as const;
+
+function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemove }: {
   note: QueuedNote;
   first: boolean;
   /** Why the deck refused this note the last time it was approved; it stays queued, marked, until it's opened or removed. */
   refusal?: string;
+  /** Saved by "Approve all" while the list is held still: shown as "Added" until the approval ends and the row leaves. */
+  added?: boolean;
+  /** An approval is running: nothing on the row can be tapped. */
+  locked?: boolean;
   onOpen: () => void;
   onRetry: () => void;
   onRemove: () => void;
 }) {
   const c = useTheme();
-  const { icon, label } = refusal ? REFUSED : STATUS[note.state];
+  const { icon, label } = added ? ADDED : refusal ? REFUSED : STATUS[note.state];
   const color = refusal ? c.danger : note.state === 'ready' ? c.good : note.state === 'failed' ? c.danger : c.textSecondary;
   const meaning = note.fields.Meaning ?? note.meaning;
   return (
-    <View style={{ borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
+    <View style={{ borderTopWidth: first ? 0 : hairline, borderTopColor: c.border, opacity: added ? 0.55 : 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Tappable
           onPress={() => { haptic.tap(); onOpen(); }}
-          disabled={note.state === 'waiting'}
+          disabled={note.state === 'waiting' || locked}
           accessibilityRole="button"
           accessibilityLabel={`${note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
@@ -56,6 +63,7 @@ function NoteRow({ note, first, refusal, onOpen, onRetry, onRemove }: {
         </Tappable>
         <Tappable
           onPress={() => { haptic.tap(); onRemove(); }}
+          disabled={locked}
           accessibilityRole="button"
           accessibilityLabel={`Remove ${note.entry} from the queue`}
           style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
@@ -120,7 +128,7 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
   /** Opens the note editor with the word filled in, resolving true once the note is saved. */
   onReview: (note: QueuedNote) => Promise<boolean>;
   /** Saves every ready note as it is and takes it off the queue (useApproveQueued); the alert asking first is this screen's. */
-  onApproveAll: (notes: QueuedNote[]) => Promise<Approval>;
+  onApproveAll: (notes: QueuedNote[], onProgress: (done: number, id: number, saved: boolean) => void) => Promise<Approval>;
   onRetry: (id: number) => Promise<void>;
   onRemove: (id: number) => Promise<void>;
   onRefresh: () => void;
@@ -131,6 +139,12 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
   /** Queue id to the reason the last "Approve all" didn't add it. Replaced on each approval. */
   const [refused, setRefused] = useState<Record<number, string>>({});
   const reviewing = useRef(false);
+  /**
+   * While "Approve all" runs, the ready notes as they were when it was tapped. The list shows these instead
+   * of the live queue, so rows stay put (marked "Added" as they save) and the counts hold still, then the
+   * saved ones leave together when the approval ends.
+   */
+  const [freeze, setFreeze] = useState<{ notes: QueuedNote[]; added: number[]; done: number } | null>(null);
 
   /** `what` says what failed, e.g. "Couldn't remove kot from the queue." */
   const act = async (what: string, job: () => Promise<void>) => {
@@ -179,9 +193,15 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
             reviewing.current = true;
             setApproving(true);
             setProblem(null);
+            setFreeze({ notes, added: [], done: 0 });
             try {
-              const done = await onApproveAll(notes);
+              const done = await onApproveAll(notes, (count, id, saved) => {
+                setFreeze((f) => (f ? { ...f, done: count, added: saved ? [...f.added, id] : f.added } : f));
+              });
               haptic.success();
+              // The saved rows leave together, once, instead of one at a time as each is saved.
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setFreeze(null);
               setRefused(Object.fromEntries(done.refused.map((r) => [r.id, r.reason])));
               const lines = [
                 ...(done.refused.length ? [`Added ${done.saved} of ${notes.length} notes. ${done.refused.length === 1 ? 'The one' : 'The ones'} that weren't added ${done.refused.length === 1 ? 'is' : 'are'} still queued, with the reason on ${done.refused.length === 1 ? 'its' : 'their'} row.`] : []),
@@ -189,6 +209,7 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
               ];
               if (lines.length) setProblem(lines.join('\n'));
             } catch (e) {
+              setFreeze(null);
               setProblem(failureText(e, { what: "Couldn't add the notes.", next: 'Try again.' }));
             } finally {
               reviewing.current = false;
@@ -202,12 +223,14 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
 
   const items = queue?.items ?? [];
   const n = counts(items);
+  // During an approval the ready section shows the notes as they were when it started, not the shrinking queue.
+  const readyRows = freeze ? freeze.notes : items.filter((x) => x.state === 'ready');
   const sections = [
-    { key: 'ready', title: 'Ready to review', rows: items.filter((x) => x.state === 'ready') },
+    { key: 'ready', title: 'Ready to review', rows: readyRows },
     { key: 'waiting', title: 'Filling in', rows: items.filter((x) => x.state === 'waiting') },
     { key: 'failed', title: "Couldn't fill in", rows: items.filter((x) => x.state === 'failed') },
   ].filter((s) => s.rows.length);
-  const ready = firstReady(items);
+  const ready = freeze ? freeze.notes[0] : firstReady(items);
   // Approve all skips the notes the deck just refused; Review still opens them, to change the word.
   const approvable = items.filter((x) => x.state === 'ready' && !(x.id in refused)).length;
 
@@ -216,8 +239,8 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
       title="Queued notes"
       footer={ready ? (
         <>
-          <Button label={n.ready === 1 ? 'Review 1 note' : `Review ${n.ready} notes`} onPress={() => review(ready, true)} disabled={approving} />
-          {approvable ? <Button variant="secondary" label={approvable === 1 ? 'Approve 1 note' : `Approve all ${approvable}`} onPress={approveAll} busy={approving} /> : null}
+          <Button label={(freeze ? freeze.notes.length : n.ready) === 1 ? 'Review 1 note' : `Review ${freeze ? freeze.notes.length : n.ready} notes`} onPress={() => review(ready, true)} disabled={approving} />
+          {approvable || freeze ? <Button variant="secondary" label={approvable === 1 ? 'Approve 1 note' : `Approve all ${approvable}`} onPress={approveAll} busy={approving} busyLabel={freeze ? `Adding ${Math.min(freeze.done + 1, freeze.notes.length)} of ${freeze.notes.length}` : undefined} /> : null}
         </>
       ) : undefined}
     >
@@ -249,7 +272,9 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
                   key={note.id}
                   note={note}
                   first={i === 0}
-                  refusal={refused[note.id]}
+                  refusal={freeze ? undefined : refused[note.id]}
+                  added={freeze?.added.includes(note.id)}
+                  locked={approving}
                   onOpen={() => review(note, note.state === 'ready')}
                   onRetry={() => act(`Couldn't ask Claude again for ${note.entry}.`, () => onRetry(note.id))}
                   onRemove={() => act(`Couldn't remove ${note.entry} from the queue.`, () => onRemove(note.id))}

@@ -3,6 +3,7 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
+import { setAnkiAudioVoice, type AudioVoice } from '../anki/audioVoices';
 import { setAnkiSkillSettings, skillSettingsByName, type SkillSettings } from '../anki/skillSettings';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
@@ -100,6 +101,12 @@ export interface AnkiLink {
   ankiSkillSettings(): Promise<Map<string, SkillSettings>>;
   /** Saves a deck's skill card settings in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
   setAnkiSkillSettings(deck: string, settings: SkillSettings, now?: Date): Promise<boolean>;
+  /**
+   * Sets, or with none removes, the Azure voice the MCP records a language's new notes with (`src/anki/audioVoices.ts`) in the
+   * collection, which a sync carries. Only that language changes. Does nothing while Franki has no Anki collection, since
+   * there is nothing yet for the MCP to read. Waits for the lock.
+   */
+  setAnkiAudioVoice(language: string, voice: AudioVoice | null, now?: Date): Promise<void>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -382,6 +389,11 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     },
 
     setAnkiSkillSettings: (deck, settings, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiSkillSettings(c, deck, settings, now))),
+
+    setAnkiAudioVoice: async (language, voice, now = new Date()) => {
+      if (!keptCollectionFile().exists) return;
+      await lockAnki(() => link.withSyncConnection((c) => setAnkiAudioVoice(c, language, voice, now)));
+    },
 
     detachAnki: detach,
     attachAnki: attach,

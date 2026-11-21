@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-nat
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { runningCramTags } from '../core/cram';
+import { readerLanguageOf } from '../core/leechHint';
 import { untiered } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
@@ -124,7 +125,9 @@ export function NoteEditor(props: {
         if (props.target.fields) setFields(props.target.fields);
         // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
         const cs = await props.repo.collectionSettings();
-        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), new Date(), cs.dayStartsAtHour);
+        // Only crams in the note's language take it: read from its Language field, else its deck.
+        const language = readerLanguageOf({ id: '', deck: startDeck, model: startModel, fields: startFields, tags: [] });
+        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), all, language, new Date(), cs.dayStartsAtHour);
         const startTags = [...new Set([...(props.target.tags ?? []), ...crams])];
         if (startTags.length) setTags(startTags.join(' '));
         setStart({ fields: startFields, tags: startTags.join(' ') });

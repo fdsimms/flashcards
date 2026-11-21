@@ -4,7 +4,7 @@ import { AppState } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { saveNote, type NoteStore } from '../anki/noteService';
 import { setDueDates } from '../anki/rescheduleService';
-import { cardsToCap, cramTag, finished, isRunning, type Cram } from '../core/cram';
+import { cardsToCap, cramTag, finished, isRunning, withTheme, type Cram, type CramTalk } from '../core/cram';
 import { noteHasTag } from '../core/priority';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -131,6 +131,17 @@ export async function finishCram(repo: NoteStore, cram: Cram, notes: Note[], use
   const ids = notes.map((n) => n.id);
   await saveCram(repo, finished(cram, ids, used, new Date()));
   await setCramTag(repo, cram, ids, false);
+}
+
+/**
+ * Use theme (Talking points' ideas): the theme's questions and story are kept on the cram (which
+ * takes the theme's name when it had only a stand-in, `withTheme`), then its words from the deck get
+ * the cram's tag. Saved first, so a try that failed part way keeps the theme and the next try
+ * finishes the tagging.
+ */
+export async function applyTheme(repo: NoteStore, cram: Cram, talk: CramTalk, noteIds: string[]): Promise<void> {
+  await saveCram(repo, withTheme(cram, talk));
+  await setCramTag(repo, cram, noteIds, true);
 }
 
 /** Deletes a cram, taking its tag off its words first. */

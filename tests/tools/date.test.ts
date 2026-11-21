@@ -31,6 +31,27 @@ describe('a calendar date', () => {
   });
 });
 
+describe('a random date in some months', () => {
+  it('is always in one of them, and a real date, and not the previous one again', () => {
+    let state = 7;
+    const random = () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
+    let previous = undefined as ReturnType<typeof randomDate> | undefined;
+    for (let i = 0; i < 500; i++) {
+      const d = randomDate(previous, random, [2, 5]);
+      expect([2, 5]).toContain(d.month);
+      expect(isValidDate(d)).toBe(true);
+      expect(d.year >= FIRST_YEAR && d.year <= LAST_YEAR).toBe(true);
+      if (previous) expect(d).not.toEqual(previous);
+      previous = d;
+    }
+  });
+
+  it('leaves the draw alone with no months or all twelve', () => {
+    expect(randomDate(undefined, () => 0, [])).toEqual(randomDate(undefined, () => 0));
+    expect(randomDate(undefined, () => 0.5, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toEqual(randomDate(undefined, () => 0.5));
+  });
+});
+
 describe('a random date', () => {
   it('runs from the first day of the first year to the last of the last', () => {
     expect(randomDate(undefined, () => 0)).toEqual({ year: FIRST_YEAR, month: 1, day: 1 });
