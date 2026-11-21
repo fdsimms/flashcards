@@ -6,7 +6,8 @@ import { FLAG_NAMES } from '../core/cardState';
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
  * in groups (hold back, ask Claude and cram, mnemonic and a confusing word to link, flag, reschedule, info). Flag is a submenu with the card's current
  * color checked, so choosing one doesn't open a second sheet. Forget is the destructive one: it
- * clears the card's memory (and asks first), where Suspend and Bury can be undone in the note editor.
+ * clears the card's memory (and asks first). Each of them, and a flag, can be taken back with Undo
+ * (Review's `actions`), as an answer can.
  * Show answer timing, last, times each answer on this phone (useAnswerTiming.ts).
  *
  * A plain function called inside `<Stack.Toolbar>`, not a component to render there: the toolbar keeps only

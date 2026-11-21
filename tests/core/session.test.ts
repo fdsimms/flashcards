@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { mix } from '../../src/core/order';
 import { studiedKind, type Queue } from '../../src/core/queue';
-import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, upNext, type AnswerRecord } from '../../src/core/session';
+import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, nextUndo, restoreCard, sessionProgress, sessionSummary, SWIPE_DISTANCE, swipeRating, upNext, type AnswerRecord, type CardAction } from '../../src/core/session';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -182,5 +182,41 @@ describe('keepSessionOrder', () => {
     const prev = queueOf([l1], [a, b], []);
     const next = queueOf([l2], [b, a], [], [l3]);
     expect(ids(keepSessionOrder(prev, next).order)).toEqual(['l2', 'a', 'b', 'l3']);
+  });
+});
+
+describe('nextUndo', () => {
+  const action = (afterAnswers: number): CardAction => ({ kind: 'state', label: 'Suspended this card', before: [], afterAnswers });
+  it('takes back whichever was done last, an answer or a menu action', () => {
+    expect(nextUndo(0, [])).toBeNull();
+    expect(nextUndo(2, [])).toBe('answer');
+    expect(nextUndo(2, [action(2)])).toBe('action');
+    // An answer given after the action comes off first, then the action.
+    expect(nextUndo(3, [action(2)])).toBe('answer');
+    expect(nextUndo(0, [action(0)])).toBe('action');
+  });
+
+  it('takes an action whose answers have since been dropped (a failed write) before an earlier answer', () => {
+    expect(nextUndo(1, [action(2)])).toBe('action');
+  });
+});
+
+describe('restoreCard', () => {
+  const [card] = makeCards(omniNote(), NOW);
+  const before: Card = { ...card, suspended: true, flag: 2, ankiMod: 100, position: 7, sched: { ...card.sched, state: 2, reps: 4 } };
+  const live: Card = { ...card, suspended: false, flag: undefined, buriedAt: NOW.toISOString(), ankiMod: 200, position: undefined, sched: { ...card.sched, reps: 9 } };
+
+  it('puts back only the state after a bury, suspend or flag', () => {
+    const r = restoreCard(live, before, 'state');
+    expect(r).toMatchObject({ suspended: true, flag: 2, buriedAt: undefined, ankiMod: 100 });
+    expect(r.sched).toBe(live.sched);
+    expect(r.position).toBeUndefined();
+  });
+
+  it('puts back the schedule and position too after Set Due Date or Forget', () => {
+    const r = restoreCard(live, before, 'schedule');
+    expect(r.sched).toBe(before.sched);
+    expect(r.position).toBe(7);
+    expect(r.suspended).toBe(true);
   });
 });

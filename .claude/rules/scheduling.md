@@ -159,6 +159,10 @@ question the item was last asked, nothing is sent to WaniKani, and it isn't in u
 `src/core/session.ts`), and today's counts go back down by the same rule they went up
 (`bumpStudied`). The undone card is shown next. As in Anki, undo stops at the last sync: a synced
 answer is already in the server's history (`undoAnkiAnswer` refuses it, under `lockAnki`).
+**The menu's bury, suspend, flag, Set Due Date and Forget join the same Undo** (`CardAction`, `nextUndo`):
+the latest thing done comes off first, whichever kind, as in Anki. Undo puts the card rows back
+exactly (mod and usn too), deletes the Manual review log row and restores `nextPos`
+(`src/anki/cardUndo.ts`), and is refused once a sync has given those rows the server's usn.
 
 **Producing an answer is practice, never a rating.** Type it on a reverse card and the hook asked
 on a new word's first answer (`src/core/activeRecall.ts`), Similar words (`src/tools/mixups.ts`)

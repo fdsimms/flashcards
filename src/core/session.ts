@@ -1,4 +1,5 @@
 import { nextCard, type Queue, type StudiedToday } from './queue';
+import type { AnkiActionUndo } from '../anki/cardUndo';
 import type { AnkiUndo } from '../anki/writeback';
 import type { RatingValue } from './scheduler';
 import type { Card, DeckParams } from './types';
@@ -66,6 +67,48 @@ export interface AnswerRecord {
   counts: 'new' | 'review' | null;
   /** What went wrong, chosen from Again's menu (misses.ts), for the session end's list of misses. */
   miss?: string;
+}
+
+/**
+ * Something Review's menu did to cards, enough to take it back (`undoCardAction`, src/anki/cardUndo.ts).
+ * `state` is a bury, suspend or flag; `schedule` is Set Due Date or Forget, which change the schedule too.
+ */
+export interface CardAction {
+  kind: 'state' | 'schedule';
+  /** What was done, as the undo offer says it ("Suspended this card"). */
+  label: string;
+  /** The cards as they were before. */
+  before: Card[];
+  /** What undoes it in the kept Anki collection, when it changed cards there. */
+  anki?: AnkiActionUndo;
+  /** How many answers stood in the session's history when it was done: an answer given after it is undone first. */
+  afterAnswers: number;
+}
+
+/**
+ * Which comes off first when Undo is tapped: the latest menu action or the latest answer, as Anki's
+ * undo takes back the latest thing done whichever kind it was. `answers` is how many answers
+ * stand in the history. Null when there's nothing to undo.
+ */
+export function nextUndo(answers: number, actions: readonly CardAction[]): 'action' | 'answer' | null {
+  const last = actions[actions.length - 1];
+  if (last && last.afterAnswers >= answers) return 'action';
+  if (answers > 0) return 'answer';
+  return last ? 'action' : null;
+}
+
+/**
+ * A card as it was before a menu action (`before`), put over the card as it is now (`live`): the
+ * fields the action can change go back, and the rest stays as it is now. A bury, suspend or flag
+ * changes only the card's state; Set Due Date and Forget change its schedule and bring it home too.
+ */
+export function restoreCard(live: Card, before: Card, kind: CardAction['kind']): Card {
+  const state = { ...live, suspended: before.suspended, buriedAt: before.buriedAt, flag: before.flag, ankiMod: before.ankiMod };
+  if (kind === 'state') return state;
+  return {
+    ...state, sched: before.sched, position: before.position,
+    filteredDeck: before.filteredDeck, filteredDue: before.filteredDue, previewDue: before.previewDue,
+  };
 }
 
 /** How far through the session is: answers given over those plus the cards still queued. */

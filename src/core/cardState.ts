@@ -16,6 +16,11 @@ export interface CardState {
 /** Anki's flag names, by flag number (index 0 is no flag). */
 export const FLAG_NAMES = ['None', 'Red', 'Orange', 'Green', 'Blue', 'Pink', 'Turquoise', 'Purple'] as const;
 
+/** What Undo says a flag change did: "Flagged this card Red", or "Removed this card's flag". */
+export function flagLabel(flag: number): string {
+  return flag ? `Flagged this card ${FLAG_NAMES[flag] ?? ''}`.trimEnd() : "Removed this card's flag";
+}
+
 export function cardStateOf(card: Card, now: Date, dayStartsAtHour: number): CardState {
   return { suspended: card.suspended, buried: isBuried(card, now, dayStartsAtHour), flag: card.flag ?? 0 };
 }

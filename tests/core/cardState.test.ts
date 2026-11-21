@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardStateOf, noteCards, withCardState } from '../../src/core/cardState';
+import { cardStateOf, flagLabel, noteCards, withCardState } from '../../src/core/cardState';
 import { makeCards } from '../../src/core/cards';
 import type { Card } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -38,5 +38,13 @@ describe('a card\'s state from the review menu', () => {
     expect(noteCards(card, [card, sibling, other]).map((c) => c.id)).toEqual([card.id, sibling.id]);
     expect(noteCards(card, [card, { ...sibling, suspended: true }])).toEqual([card]);
     expect(noteCards(card, [card, { ...sibling, retired: true }])).toEqual([card]);
+  });
+});
+
+describe('flagLabel', () => {
+  it('says which flag was set, or that it was removed', () => {
+    expect(flagLabel(1)).toBe('Flagged this card Red');
+    expect(flagLabel(7)).toBe('Flagged this card Purple');
+    expect(flagLabel(0)).toBe("Removed this card's flag");
   });
 });

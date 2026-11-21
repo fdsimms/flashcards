@@ -75,7 +75,7 @@ Everything lives on the phone. **Backup** (in Settings) makes one file with the 
 
 ## Studying
 
-Tap a deck to study it with its subdecks. **Undo** in the top right takes back the last answer (and the one before, and so on) and shows that card again.
+Tap a deck to study it with its subdecks. **Undo** in the top right takes back the latest thing you did, an answer or something from the menu below (and the one before, and so on), and shows that card again. As in Anki, it goes back only to the last sync.
 
 The button with three dots in the top right flags, buries or suspends the card on screen, as in Anki, and has three more:
 
@@ -83,7 +83,7 @@ The button with three dots in the top right flags, buries or suspends the card o
 - **Forget card** makes it a new card again, back in the place it had among the new cards, with its memory cleared. **Forget and reset counts** also sets its review and lapse counts to zero.
 - **Card info** shows when the card was added, first and last studied, when it's due, its interval, its FSRS stability, difficulty and retrievability, its review and lapse counts, how long it takes you, and every answer in its history, including those given in Anki.
 
-Both changes go into your Anki collection the way Anki makes them, so sync and Send to Anki carry them. Undo doesn't take them back.
+Both changes go into your Anki collection the way Anki makes them, so sync and Send to Anki carry them, and Undo takes them back the way Anki's does.
 
 **Limit cards in progress** (a deck's **Options**) works like WaniKani's Apprentice limit. A card is in progress from when you first learn it until its next review is a week or more away, which is what Guru means on WaniKani. If you forget it, or its next review comes back under a week, it counts again. With the limit on, a deck shows new cards only while fewer than the cap (100 to start) of its cards, subdecks included, are in progress, and its daily new card limit no longer applies.
 

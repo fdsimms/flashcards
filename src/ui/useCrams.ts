@@ -184,7 +184,7 @@ async function capOnce(repo: NoteStore): Promise<number> {
   let moved = 0;
   for (const [days] of await plan()) {
     const group = (await plan()).get(days);
-    if (group?.length) moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).length;
+    if (group?.length) moved += (await setDueDates(repo, group, { min: days, max: days, forceReset: false }, now)).cards.length;
   }
   return moved;
 }
