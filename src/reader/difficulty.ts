@@ -2,7 +2,7 @@
 // in a new text are outside the deck. Standard is 95% known words, the least the research finds
 // adequate for reading and listening; Easier is 97%, about 3 new words in 100 instead of 5; Harder is
 // 93%, about 7, below the research's least, so it says so. A poor score on the check, this text's and
-// the last checked text's answers taken together, steps a language one level easier by itself
+// the last checked text's answers taken together, steps a language one level easier by itself, and a high score one harder
 // (server difficulty.py). Pure, so it's tested;
 // ReadLanguage.tsx shows it.
 import type { DifficultyLevel } from './api';
@@ -20,4 +20,4 @@ export const LEVEL_OPTIONS: { value: DifficultyLevel; label: string }[] = [
 ];
 
 export const LEVEL_HELP =
-  "Standard texts have about 5 new words in 100. Easier has about 3. Harder has about 7, more than research finds you can comfortably follow, so you'll look up more. Applies to texts written from now on. Low scores on the check after two texts in a row make new texts a level easier, and you can change it back here.";
+  "Standard texts have about 5 new words in 100. Easier has about 3. Harder has about 7, more than research finds you can comfortably follow, so you'll look up more. Applies to texts written from now on. Low scores on the check after two texts in a row make new texts a level easier, and high scores make them a level harder. You can change it back here.";

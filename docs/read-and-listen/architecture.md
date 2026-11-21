@@ -157,7 +157,7 @@ Franki's (Client, below).
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
   of at least six between them steps the language's text difficulty one level easier (Harder to
   Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
-  one's check too. A good score changes nothing, and nothing steps back: only the Text difficulty
+  one's check too. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
   setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.
@@ -1080,7 +1080,7 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   speech can't be reread, for listening; below it comprehension varied widely). **Standard is 95%,
   Easier is 97%, Harder is 93%** (`STANDARD_FLOOR`, `EASIER_FLOOR` and `HARDER_FLOOR`,
   `difficulty.py`), chosen per language in Settings (Text difficulty) or stepped easier by a poor
-  check after reading. **Harder is below the research's least** and the setting says so: the
+  check after reading and harder by a high one. **Harder is below the research's least** and the setting says so: the
   evidence is that coverage helps gradually, not as a cliff, and the reader has a gloss on every
   word, but at about 7 new words in 100 expect more lookups. It is only ever a deliberate choice: a
   floor saved by an older server never reads as Harder, and the spread-out rule (`crowding.py`)
@@ -1891,7 +1891,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   coverage target is one of three for each language, **Harder (93% known words)**, **Standard
   (95%)** or **Easier (97%)**, chosen on the language's settings page (`PUT /api/difficulty`),
   applying from the next text written, or stepped one level easier by a poor score on the check after
-  reading (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
+  reading and one harder by a high score (`difficulty.after_reading`). A text already waiting in a favorite's queue keeps the difficulty it was
   written at; the owner chose that over discarding queued texts (19 October 2026). The Milestone 1
   exit check reads the log. The level is saved as `difficulty_v3`; a floor saved by an older server
   (`difficulty_v2`) is read as Standard or Easier by `store.load_difficulty` (96% or more is Easier).

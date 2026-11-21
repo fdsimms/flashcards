@@ -262,8 +262,8 @@ export function CheckCard({ text, questions, picks, onStart }: {
   const effect = !canSteer(questions)
     ? ''
     : questions.every(steersDifficulty)
-      ? ' Low scores on this text and your last one make new texts a level easier (Settings, Text difficulty).'
-      : ' Low scores on this text and your last one make new texts a level easier (Settings, Text difficulty). Questions on words don\'t count toward it.';
+      ? ' Low scores on this text and your last one make new texts a level easier, and high scores a level harder (Settings, Text difficulty).'
+      : ' Low scores on this text and your last one make new texts a level easier, and high scores a level harder (Settings, Text difficulty). Questions on words don\'t count toward it.';
   if (!picks) {
     return (
       <Card style={{ gap: space.s }}>
