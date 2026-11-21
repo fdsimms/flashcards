@@ -7,6 +7,7 @@ import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
 import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
+import { ReadInputTime } from './ReadInputTime';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
@@ -334,6 +335,10 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
               <Group>
                 <NavRow first label="Marked words" loading={markedCount === null} detail={markedCount == null ? undefined : `${markedCount} marked as unknown`} onPress={onWords} />
               </Group>
+            </View>
+
+            <View style={{ paddingHorizontal: space.l }}>
+              <ReadInputTime api={api} />
             </View>
           </>
         ) : null}

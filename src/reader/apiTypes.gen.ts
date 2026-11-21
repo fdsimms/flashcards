@@ -1337,6 +1337,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/input-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Input Time
+         * @description Time spent reading and listening in each language over the last week, most first, for
+         *     the home's This week card. It reports only: it sets no goal and nothing reads it.
+         */
+        get: operations["input_time_api_input_time_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/exposure-effect": {
         parameters: {
             query?: never;
@@ -5315,6 +5336,39 @@ export interface operations {
         };
     };
     progress_api_progress_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    input_time_api_input_time_get: {
         parameters: {
             query?: never;
             header?: {

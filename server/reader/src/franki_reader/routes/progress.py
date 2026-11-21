@@ -18,6 +18,8 @@ from franki_reader.tts import azure_usd
 
 # The window the progress summary covers: the Milestone 1 exit check's two weeks.
 PROGRESS_DAYS = 14
+# The window the time in each language covers (GET /api/input-time).
+INPUT_DAYS = 7
 
 
 def _spent(s: store.Spending) -> dict[str, Any]:
@@ -75,6 +77,33 @@ def router(ctx: AppContext) -> APIRouter:
                 "looked_up_types": done.recognition.looked_up_types,
             },
             "next": {"floor": difficulty.floor, "stretch": difficulty.stretch},
+        }
+
+    @routes.get("/api/input-time", dependencies=authed)
+    async def input_time() -> dict[str, Any]:
+        """Time spent reading and listening in each language over the last week, most first, for
+        the home's This week card. It reports only: it sets no goal and nothing reads it."""
+        since = engine.clock() - timedelta(days=INPUT_DAYS)
+        rows = sorted(
+            store.input_time(engine.conn, since),
+            key=lambda t: (
+                (-(t.reading_seconds + t.listening_seconds), LANGUAGES[t.language].name)
+                if t.language in LANGUAGES
+                else (0, t.language)
+            ),
+        )
+        return {
+            "days": INPUT_DAYS,
+            "languages": [
+                {
+                    "language": t.language,
+                    "reading_seconds": t.reading_seconds,
+                    "listening_seconds": t.listening_seconds,
+                    "last_read_at": instant(t.last_read_at) if t.last_read_at else None,
+                }
+                for t in rows
+                if t.language in LANGUAGES
+            ],
         }
 
     @routes.get("/api/exposure-effect", dependencies=authed)
