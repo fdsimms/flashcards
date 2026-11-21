@@ -106,3 +106,11 @@ describe('rehearsing a cram', () => {
     expect('register' in conversationOf(startChat('th', 'Dinner'))).toBe(false);
   });
 });
+
+describe('the learner\'s polite ending', () => {
+  it('goes to the server for Thai only', () => {
+    expect(conversationOf(startChat('th', 'Dinner'), 'kha').particle).toBe('kha');
+    expect('particle' in conversationOf(startChat('th', 'Dinner'))).toBe(false);
+    expect('particle' in conversationOf(startChat('pl', 'Dinner'), 'kha')).toBe(false);
+  });
+});

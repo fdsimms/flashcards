@@ -8,7 +8,7 @@ import { headword } from '../../core/forms';
 import type { LessonWordCandidate } from '../../core/lessonWords';
 import { noteHasTag, tagCounts } from '../../core/priority';
 import type { Note } from '../../core/types';
-import type { Language } from '../../reader/api';
+import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Field, Group, Help, Loading, NavRow, Screen } from '../kit';
@@ -29,7 +29,7 @@ const SHOWN = 60;
  * if the note can't be saved. What's typed can also be a tag ("Add all 12 tagged italki"), or, with
  * Read & Listen on, a card for Claude to write (`CramAsk`). Nothing typed: the newest notes.
  */
-export function CramWords({ repo, id, initial, findWords, queue }: {
+export function CramWords({ repo, id, initial, findWords, queue, queued, approve }: {
   repo: NoteStore;
   id: string;
   /** What the field starts with (a word typed in the lesson, from the cram's page). */
@@ -38,6 +38,10 @@ export function CramWords({ repo, id, initial, findWords, queue }: {
   findWords?: (language: Language, text: string) => Promise<LessonWordCandidate[]>;
   /** Sends a word to the note queue in the language's deck, while Read & Listen is on and has one. */
   queue?: (language: Language, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
+  /** The note queue as the server last said it, so a card asked for here shows when it's ready. */
+  queued?: QueuedNote[];
+  /** Opens a ready queued note in the note editor and takes it off the queue once saved; true when it was saved. */
+  approve?: (note: QueuedNote) => Promise<boolean>;
 }) {
   const c = useTheme();
   const router = useRouter();
@@ -136,7 +140,7 @@ export function CramWords({ repo, id, initial, findWords, queue }: {
             />
             <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
             {typed && !exact && language && findWords && queue ? (
-              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} />
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
             ) : null}
             {tagMatch && tagged.length ? (
               <Group>

@@ -2,15 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { cramLanguageOf, cramNotes, meaningOf, withCapture, withoutCapture, withQuestionAsked, type Cram } from '../../core/cram';
+import { Stack } from 'expo-router';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
+import { talkTextStyle } from '../../reader/fonts';
+import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { cramsNow, finishCram, saveCram, useCollection, useCrams } from '../useCrams';
 import { useWordAudio } from '../useWordAudio';
 import { CheckRow } from './CramBits';
+import { talkSizeMenu, useTalkSize } from './talkSize';
 
 /**
  * Lesson mode, during the lesson itself (a video call with a tutor, say): the questions to ask,
@@ -34,10 +38,12 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
   const saves = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => { if (cram?.used) setUsed(new Set(cram.used)); }, [cram?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [size, chooseSize] = useTalkSize();
   if (!cram || !collection.loaded) return <Screen title="Lesson"><Loading /></Screen>;
   const notes = cramNotes(cram, collection.notes);
   const language = cramLanguageOf(cram, collection.notes);
   const questions = cram.questions ?? [];
+  const inLanguage = language ? talkTextStyle(LANGUAGES[language], size, 1) : undefined;
   const captured = cram.captured ?? [];
   // Each change starts from the cram as the save before it left it, so two quick taps both count.
   const keep = (change: (now: Cram) => Cram | undefined, what: string) => {
@@ -82,6 +88,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
     <Screen
       title="Lesson"
       largeTitle={false}
+      toolbar={<Stack.Toolbar placement="right">{talkSizeMenu(size, chooseSize)}</Stack.Toolbar>}
       footer={(
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
@@ -99,7 +106,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             <SectionTitle>{`Ask · ${asked} of ${questions.length} asked`}</SectionTitle>
             <Group>
               {questions.map((q, i) => (
-                <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't keep that check."); }} />
+                <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't keep that check."); }} />
               ))}
             </Group>
           </>
@@ -129,7 +136,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
-                      <Text style={{ ...type.title, color: on ? c.goodInk : c.text, flex: 1 }}>{word || 'Untitled'}</Text>
+                      <Text style={{ ...type.title, ...inLanguage, color: on ? c.goodInk : c.text, flex: 1 }}>{word || 'Untitled'}</Text>
                       {on ? <Icon name="checkmark.circle.fill" size={18} color={c.countDue} /> : null}
                     </View>
                     {meaning ? <Text numberOfLines={2} style={{ ...type.footnote, color: c.textSecondary }}>{meaning}</Text> : null}
@@ -142,33 +149,35 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
         ) : <Help>This cram has no words yet.</Help>}
 
         <SectionTitle>New from the lesson</SectionTitle>
-        {captured.length ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            {captured.map((text) => (
-              <Tappable
-                key={text}
-                onPress={() => { haptic.tap(); keep((now) => withoutCapture(now, text), "Couldn't change the cram."); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${text}`}
-                scaleTo={0.95}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
-              >
-                <Text style={{ ...type.subhead, color: c.text }}>{text}</Text>
-                <Icon name="xmark" size={11} color={c.textSecondary} />
-              </Tappable>
-            ))}
-          </View>
-        ) : null}
-        <Field
-          label="A word or phrase your tutor used"
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={jot}
-          submitBehavior="submit"
-          returnKeyType="done"
-          autoCapitalize="none"
-          placeholder="Type it, or use the keyboard's microphone"
-        />
+        <Card>
+          {captured.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
+              {captured.map((text) => (
+                <Tappable
+                  key={text}
+                  onPress={() => { haptic.tap(); keep((now) => withoutCapture(now, text), "Couldn't change the cram."); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${text}`}
+                  scaleTo={0.95}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
+                >
+                  <Text style={{ ...type.subhead, ...(language ? talkTextStyle(LANGUAGES[language], size, 0.8) : {}), color: c.text }}>{text}</Text>
+                  <Icon name="xmark" size={11} color={c.textSecondary} />
+                </Tappable>
+              ))}
+            </View>
+          ) : null}
+          <Field
+            label="A word or phrase your tutor used"
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={jot}
+            submitBehavior="submit"
+            returnKeyType="done"
+            autoCapitalize="none"
+            placeholder="Type it, or use the keyboard's microphone"
+          />
+        </Card>
         <Help>Kept on the cram. Make cards from them on its page afterwards.</Help>
       </ScrollView>
     </Screen>

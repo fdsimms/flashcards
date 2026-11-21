@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
 import {
-  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, pendingRequests, practiceLabel, practiceProgress,
+  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceProgress,
   practiceSummary, textWords, themeTopic, withoutCapture, withoutRequest, wordState, type Cram, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
@@ -22,6 +22,7 @@ import type { RegisterLevel } from '../../reader/registerLevel';
 import { CramListen } from './CramListen';
 import { CramQuestions } from './CramQuestions';
 import { CramTalk } from './CramTalk';
+import { talkSizeMenu, useTalkSize } from './talkSize';
 import { useMissedLately } from './useMissedLately';
 import { leaveScreen } from '../leaveScreen';
 import { DECKS_PATH } from '../tabPaths';
@@ -61,7 +62,7 @@ export function CramPage(props: {
   }, [collection.cards]);
   const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
   const inCram = useMemo(() => new Set(notes.map((n) => n.id)), [notes]);
-  const missed = useMissedLately(repo, cram && !cram.finishedAt ? language : undefined).filter((nid) => !inCram.has(nid));
+  const missed = useMissedLately(repo, cram && !cram.finishedAt ? language : undefined).filter((nid) => !inCram.has(nid)).slice(0, MISSED_MAX);
   const [showAll, setShowAll] = useState(false);
   const [capProblem, setCapProblem] = useState<string>();
   const [problem, setProblem] = useState<string>();
@@ -75,6 +76,7 @@ export function CramPage(props: {
     );
   }, [repo, notes.length]);
 
+  const [talkSize, chooseTalkSize] = useTalkSize();
   if (!cram || !collection.loaded) return <Screen title={cram?.name ?? ''}><Loading /></Screen>;
 
   const running = isRunning(cram, now, H);
@@ -134,6 +136,7 @@ export function CramPage(props: {
       title={cram.name}
       toolbar={(
         <Stack.Toolbar placement="right">
+          {!cram.finishedAt && (cram.theme || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
           <Stack.Toolbar.Button accessibilityLabel="Edit the cram" onPress={() => go('/cram-edit')}>Edit</Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}
@@ -203,12 +206,12 @@ export function CramPage(props: {
           </>
         ) : null}
 
-        {!cram.finishedAt ? <CramQuestions repo={repo} cram={cram} /> : null}
+        {!cram.finishedAt ? <CramQuestions repo={repo} cram={cram} language={language} size={talkSize} /> : null}
 
         {!cram.finishedAt ? (
           <>
             <SectionTitle>Talking points</SectionTitle>
-            {cram.theme ? <CramTalk repo={repo} talk={cram.theme} language={language} /> : null}
+            {cram.theme ? <CramTalk repo={repo} talk={cram.theme} language={language} size={talkSize} /> : null}
             <Group>
               <NavRow
                 first

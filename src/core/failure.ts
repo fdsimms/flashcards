@@ -30,3 +30,14 @@ export function failureText(e: unknown, { what, next }: { what?: string; next: s
   const said = [what, next].filter(Boolean).join(' ');
   return detail ? `${said} (${detail})` : said;
 }
+
+/**
+ * A failure message split for display: "Couldn't save the note. The disk is full." is the title
+ * "Couldn't save the note" and the reason "The disk is full.". Only a message that opens with
+ * "Couldn't" and has more after its first sentence splits; anything else is all reason, since its
+ * first sentence may not name what failed.
+ */
+export function splitFailure(message: string): { title?: string; reason: string } {
+  const m = /^(Couldn't [^.]*)\.\s+(\S[\s\S]*)$/.exec(message.trim());
+  return m ? { title: m[1], reason: m[2] } : { reason: message };
+}

@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { ActionSheetIOS, Text, View } from 'react-native';
 import { withQuestion, withoutQuestion, type Cram } from '../../core/cram';
 import { failureText } from '../../core/failure';
+import { talkTextStyle, type TextSize } from '../../reader/fonts';
+import type { Language } from '../../reader/api';
+import { LANGUAGES } from '../../reader/languages';
 import type { NoteStore } from '../../anki/noteService';
 import { haptic } from '../haptics';
-import { Divider, Field, Group, Icon, SectionTitle, Tappable } from '../kit';
+import { Card, Divider, Field, Group, Icon, SectionTitle, Tappable } from '../kit';
 import { MIN_TAP, space, type, useTheme } from '../theme';
 import { saveCram } from '../useCrams';
 
@@ -16,7 +19,7 @@ const questionId = () => `${Date.now().toString(36)}${Math.random().toString(36)
  * point), typed in English or the language. Return adds one and keeps the keyboard up for the next;
  * a tap on one offers to remove it. Lesson mode checks them off.
  */
-export function CramQuestions({ repo, cram }: { repo: NoteStore; cram: Cram }) {
+export function CramQuestions({ repo, cram, language, size }: { repo: NoteStore; cram: Cram; language: Language | undefined; size: TextSize }) {
   const c = useTheme();
   const [draft, setDraft] = useState('');
   const [problem, setProblem] = useState<string>();
@@ -56,21 +59,23 @@ export function CramQuestions({ repo, cram }: { repo: NoteStore; cram: Cram }) {
             >
               {i === 0 ? null : <Divider inset={space.l} />}
               <Icon name={q.asked ? 'checkmark.circle.fill' : 'questionmark.circle'} size={20} color={q.asked ? c.countDue : c.orange} />
-              <Text style={{ ...type.body, color: q.asked ? c.textSecondary : c.text, flex: 1 }}>{q.text}</Text>
+              <Text style={{ ...type.body, ...(language ? talkTextStyle(LANGUAGES[language], size) : {}), color: q.asked ? c.textSecondary : c.text, flex: 1 }}>{q.text}</Text>
             </Tappable>
           ))}
         </Group>
       ) : null}
-      <Field
-        label={questions.length ? 'Another question' : 'A question to bring'}
-        value={draft}
-        onChangeText={setDraft}
-        onSubmitEditing={add}
-        submitBehavior="submit"
-        returnKeyType="done"
-        placeholder={'e.g. How do I say "it went well"?'}
-      />
-      {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+      <Card>
+        <Field
+          label={questions.length ? 'Another question' : 'A question to bring'}
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={add}
+          submitBehavior="submit"
+          returnKeyType="done"
+          placeholder={'e.g. How do I say "it went well"?'}
+        />
+        {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+      </Card>
     </View>
   );
 }

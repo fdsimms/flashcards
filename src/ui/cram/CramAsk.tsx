@@ -2,26 +2,41 @@ import React, { useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
-import type { Language } from '../../reader/api';
+import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Icon, Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 import { CandidateChips } from './CramBits';
 
+/** What the card says once the words are sent: where they are, one sentence for one word or for several. */
+function sentText(words: string[], held: boolean, approved: string[], ready: number): string {
+  const one = words.length === 1;
+  const added = words.filter((w) => approved.includes(w)).length;
+  if (added === words.length) return one ? `The card for ${words[0]} is added to the cram.` : `All ${words.length} cards are added to the cram.`;
+  if (ready) return one ? `Claude wrote a card for ${words[0]}. Review it and it joins the cram.` : `Claude wrote ${ready === 1 ? 'a card' : `${ready} cards`}. Review ${ready === 1 ? 'it' : 'them'} and ${ready === 1 ? 'it joins' : 'they join'} the cram.`;
+  if (held) return one ? `${words[0]} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.` : `${words.length} words will go to Claude once you're back online. Approve the cards when they're ready and they join the cram.`;
+  return one ? `Claude is writing a card for ${words[0]}. Approve it here when it's ready and it joins the cram.` : `Claude is writing ${words.length} cards. Approve them here when they're ready and they join the cram.`;
+}
+
 /**
  * Make a card, in a cram's Add: what was typed (English, romanization or the language) is looked up
  * as Find word does for an audio lesson (`findWords`, which writes nothing), the words checked (any
  * number of them) are sent to the note queue for Claude to write (`ask`), and each note joins the
- * cram once it's approved, since a new note in the cram's language gets its tag. A second tap
- * while they are on their way does nothing, so a word isn't queued twice.
+ * cram once it's approved, since a new note in the cram's language gets its tag. Once Claude has
+ * written one, the card here opens it in the note editor (`approve`), so it's approved without
+ * leaving the cram. A second tap while they are on their way does nothing, so a word isn't queued twice.
  */
-export function CramAsk({ text, language, findWords, ask }: {
+export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   text: string;
   language: Language;
   findWords: (text: string) => Promise<LessonWordCandidate[]>;
   /** Queues the words and keeps them on the cram as being written; says 'held' when they wait for a connection. */
   ask: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
+  /** The note queue as the server last said it: the card shows a Review button here once Claude has written a word's card. */
+  queued?: QueuedNote[];
+  /** Opens the written card in the note editor; saving there is the approval. True when it was saved. */
+  approve?: (note: QueuedNote) => Promise<boolean>;
 }) {
   const c = useTheme();
   const name = LANGUAGES[language].name;
@@ -31,6 +46,7 @@ export function CramAsk({ text, language, findWords, ask }: {
   // The words checked, by their text.
   const [checked, setChecked] = useState<{ for: string; texts: string[] }>();
   const [problem, setProblem] = useState<{ for: string; text: string }>();
+  const [approved, setApproved] = useState<string[]>([]);
   const working = useRef(false);
   const typed = text.trim();
   // What's shown belongs to what's typed now: an answer for an earlier search isn't.
@@ -72,19 +88,22 @@ export function CramAsk({ text, language, findWords, ask }: {
     if (how) { haptic.success(); setDone({ for: typed, words: picked.map((w) => w.text), held: how === 'held' }); }
   });
 
+  // The cards Claude has written for the words sent, until each is saved in the note editor (the queue holds it till then).
+  const ready = sent ? sent.words.flatMap((w) => (approved.includes(w) ? [] : queued?.filter((n) => n.state === 'ready' && n.entry === w).slice(0, 1) ?? [])) : [];
+  const review = (note: QueuedNote) => run(async () => {
+    haptic.tap();
+    if (await approve?.(note)) { haptic.success(); setApproved((p) => [...p, note.entry]); }
+  });
+
   if (sent) {
     return (
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-        <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
-        <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>
-          {sent.words.length === 1
-            ? (sent.held
-              ? `${sent.words[0]} will go to Claude once you're back online. Approve the card when it's ready and it joins the cram.`
-              : `Claude is writing a card for ${sent.words[0]}. Approve it from the card on Today and it joins the cram.`)
-            : (sent.held
-              ? `${sent.words.length} words will go to Claude once you're back online. Approve the cards when they're ready and they join the cram.`
-              : `Claude is writing ${sent.words.length} cards. Approve them from the card on Today and they join the cram.`)}
-        </Text>
+      <Card style={{ gap: space.m }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+          <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
+          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sentText(sent.words, sent.held, approved, ready.length)}</Text>
+        </View>
+        {approve ? ready.map((n) => <Button key={n.entry} label={ready.length === 1 ? 'Review and add' : `Review and add ${n.entry}`} onPress={() => void review(n)} disabled={busy} />) : null}
+        {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
       </Card>
     );
   }

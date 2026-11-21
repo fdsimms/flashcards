@@ -120,6 +120,13 @@ describe('the request, a theme and its story', () => {
     expect(themesRequest('th', words, [], [], false, 'x', 'formal').register).toBe('formal');
     expect('register' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
   });
+
+  it('sends the polite ending for Thai only', () => {
+    expect(themesRequest('th', words, [], [], false, 'x', undefined, 'kha').particle).toBe('kha');
+    expect('particle' in themesRequest('pl', words, [], [], false, 'x', undefined, 'kha')).toBe(false);
+    expect('particle' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
+  });
+
   it("counts a theme's words by kind and finds the ones still here", () => {
     expect(themeCounts(theme, words)).toEqual({ carried: 1, missed: 0, fresh: 0, deck: 1, new: 1 });
     expect(themeDeckWords(theme, words).map((w) => w.noteId)).toEqual(['c', 'a']);

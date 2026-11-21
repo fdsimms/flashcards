@@ -7,6 +7,7 @@
 // the routes not converted yet: converting one means a response model on the server, rerunning
 // that, and an alias here in place of the hand-written type.
 
+import { OfflineError } from '../core/connection';
 import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
@@ -204,7 +205,7 @@ export type SituationRoles = { you: string; them: string; name: string; gender: 
 export type SituationLine = { speaker: 'them' | 'you'; text: string };
 // `focus`: a grammar topic the scene practices (Your topics), so the other person uses it and the feedback comments on it.
 export type SituationFocus = { title: string; lead: string };
-export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[]; /* how casual or formal the other person's lines are; the server's Settings register when left out */ register?: RegisterLevel };
+export type SituationConversation = { language: Language; scene: string; roles: SituationRoles | null; lines: SituationLine[]; focus?: SituationFocus; /* words from a cram being rehearsed, each "word (meaning)", for the other person to work in */ words?: string[]; /* how casual or formal the other person's lines are; the server's Settings register when left out */ register?: RegisterLevel; /* Thai only: the learner's polite ending, so their own lines are judged as a man's or a woman's */ particle?: 'khrap' | 'kha' };
 // One of their lines: its words split and glossed as a text's are, the words that count as unknown, whether it
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
@@ -600,7 +601,7 @@ export function createApi(
       });
     } catch (e) {
       // The guard's own reason (offline, or a server too slow) says more than a bare failure.
-      throw new ApiError(e instanceof Refusal ? e.message : "Couldn't reach the server. Check your connection and try again.", 0);
+      throw new ApiError(e instanceof Refusal ? e.message : new OfflineError().message, 0);
     }
     if (response.status === 401) onUnauthorized?.();
     if (!response.ok) throw new ApiError(await errorMessage(response), response.status);

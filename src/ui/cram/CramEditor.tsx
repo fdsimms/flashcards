@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import {
-  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, standInName, type Cram,
+  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, MISSED_MAX, standInName, type Cram,
 } from '../../core/cram';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
@@ -19,8 +19,6 @@ import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
 
 const ANY_LANGUAGE = 'Any language';
-/** The most words "missed lately" brings into a new cram. */
-const MISSED_MAX = 10;
 
 /**
  * A cram's sheet. A new one is one step: what it's for, the day (a chip for each of the next five
@@ -53,6 +51,8 @@ export function CramEditor({ repo, id, canSuggest }: {
   const [carry, setCarry] = useState(true);
   const [missed, setMissed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The footer's height: the scroll content is padded by it so Delete cram can scroll clear of Save.
+  const [footerHeight, setFooterHeight] = useState(0);
   const [problem, setProblem] = useState<string>();
   const newId = useRef<string | undefined>(undefined);
   const picked = useRef(false);
@@ -152,6 +152,7 @@ export function CramEditor({ repo, id, canSuggest }: {
     <Screen
       title={editing ? 'Edit cram' : 'New cram'}
       largeTitle={false}
+      onFooterLayout={setFooterHeight}
       toolbar={(
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={() => leaveScreen(router, PRACTICE_PATH)}>Cancel</Stack.Toolbar.Button>
@@ -164,7 +165,7 @@ export function CramEditor({ repo, id, canSuggest }: {
         </>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + footerHeight, gap: space.l }}>
         <Card>
           <Field label="What's it for?" value={name} onChangeText={setName} placeholder="e.g. Talking about my weekend" autoFocus={!id} returnKeyType="done" />
           {!editing && canSuggest && !name.trim() ? (
