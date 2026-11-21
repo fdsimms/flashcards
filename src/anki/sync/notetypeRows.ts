@@ -1,5 +1,5 @@
-import { MessageWriter, utf8Encode } from '../protobuf';
-import { stringifyJson } from './json';
+import { bytesField, decodeMessage, MessageWriter, messages, string as readString, utf8Decode, utf8Encode, type Message } from '../protobuf';
+import { parseJson, stringifyJson } from './json';
 
 /**
  * A note type as sync sends it (Anki's older JSON form, `NotetypeSchema11`) turned into the rows
@@ -10,6 +10,9 @@ import { stringifyJson } from './json';
  *
  * A template that came by sync is stored with mtime 0 and usn 0, as Anki stores it: schema 11
  * carries neither.
+ *
+ * `notetypeJson` is the way back, `From<Notetype> for NotetypeSchema11`: what Anki's own client
+ * sends in applyChanges for a note type changed on this phone (its templates or styling).
  */
 
 export interface NotetypeJson {
@@ -130,5 +133,109 @@ export function notetypeRows(nt: NotetypeJson): NotetypeRows {
     // Stored in list order, whatever `ord` each claims (rslib's update_notetype_fields).
     fields: flds.map((f, ord) => ({ ord, name: str(f.name), config: fieldConfig(f) })),
     templates: tmpls.map((t, ord) => ({ ord, name: str(t.name), config: templateConfig(t) })),
+  };
+}
+
+// ---- the rows back to the JSON sync sends ----
+
+const REQ_KIND_NAME = ['none', 'any', 'all'];
+
+/** The last varint of a field, as a signed 64-bit integer: a number, or a bigint past 2^53 as sync/json.ts keeps one. */
+function varint(m: Message, f: number): number | bigint | undefined {
+  const v = m.get(f)?.at(-1);
+  if (!v || v.wire !== 0) return undefined;
+  const n = BigInt.asIntN(64, v.value);
+  return Number.isSafeInteger(Number(n)) ? Number(n) : n;
+}
+const n0 = (m: Message, f: number): number => Number(varint(m, f) ?? 0);
+const flag = (m: Message, f: number): boolean => n0(m, f) !== 0;
+const text = (m: Message, f: number): string => readString(m, f) ?? '';
+/** A repeated uint32, packed or not. */
+function uints(m: Message, f: number): number[] {
+  const out: number[] = [];
+  for (const v of m.get(f) ?? []) {
+    if (v.wire === 0) out.push(Number(v.value));
+    else if (v.wire === 2) {
+      let n = 0, shift = 0;
+      for (const b of v.value) {
+        n += (b & 0x7f) * 2 ** shift;
+        if (b & 0x80) shift += 7;
+        else { out.push(n); n = 0; shift = 0; }
+      }
+    }
+  }
+  return out;
+}
+/** The add-on keys Anki keeps in `other`, put back beside the known ones (`parse_other_fields`). */
+function otherKeys(m: Message, f: number): Record<string, unknown> {
+  const b = bytesField(m, f);
+  if (!b) return {};
+  try {
+    const v = parseJson(utf8Decode(b));
+    return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+/** A note type's rows as the JSON Anki's sync sends (`From<Notetype> for NotetypeSchema11`). */
+export function notetypeJson(rows: NotetypeRows): NotetypeJson {
+  const c = decodeMessage(rows.config);
+  const did = varint(c, NT.targetDeck);
+  const originalStockKind = n0(c, NT.stockKind);
+  const originalId = varint(c, NT.originalId);
+  return {
+    ...otherKeys(c, NT.other),
+    id: rows.id,
+    name: rows.name,
+    type: n0(c, NT.kind) === 1 ? 1 : 0,
+    mod: rows.mtime,
+    usn: rows.usn,
+    sortf: n0(c, NT.sortField),
+    did: did ? did : null,
+    tmpls: rows.templates.map((t) => {
+      const m = decodeMessage(t.config);
+      const tdid = varint(m, TEMPLATE.did);
+      return {
+        ...otherKeys(m, TEMPLATE.other),
+        name: t.name,
+        ord: t.ord,
+        qfmt: text(m, TEMPLATE.qfmt),
+        afmt: text(m, TEMPLATE.afmt),
+        bqfmt: text(m, TEMPLATE.bqfmt),
+        bafmt: text(m, TEMPLATE.bafmt),
+        did: tdid ? tdid : null,
+        bfont: text(m, TEMPLATE.bfont),
+        bsize: n0(m, TEMPLATE.bsize),
+        id: varint(m, TEMPLATE.id) ?? null,
+      };
+    }),
+    flds: rows.fields.map((f) => {
+      const m = decodeMessage(f.config);
+      return {
+        ...otherKeys(m, FIELD.other),
+        name: f.name,
+        ord: f.ord,
+        sticky: flag(m, FIELD.sticky),
+        rtl: flag(m, FIELD.rtl),
+        font: text(m, FIELD.font),
+        size: n0(m, FIELD.size),
+        description: text(m, FIELD.description),
+        plainText: flag(m, FIELD.plainText),
+        collapsed: flag(m, FIELD.collapsed),
+        excludeFromSearch: flag(m, FIELD.excludeFromSearch),
+        id: varint(m, FIELD.id) ?? null,
+        tag: varint(m, FIELD.tag) ?? null,
+        preventDeletion: flag(m, FIELD.preventDeletion),
+      };
+    }),
+    css: text(c, NT.css),
+    latexPre: text(c, NT.latexPre),
+    latexPost: text(c, NT.latexPost),
+    latexsvg: flag(c, NT.latexSvg),
+    req: messages(c, NT.reqs).map((r) => [n0(r, REQ.cardOrd), REQ_KIND_NAME[n0(r, REQ.kind)] ?? 'none', uints(r, REQ.fieldOrds)]),
+    // skip_serializing_if = "is_default"
+    ...(originalStockKind ? { originalStockKind } : {}),
+    ...(originalId !== undefined ? { originalId } : {}),
   };
 }

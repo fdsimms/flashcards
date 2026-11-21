@@ -60,6 +60,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'hook', page: 'decks', label: 'Ask for your own hook', keywords: ['mnemonic'] },
   { id: 'thaiSize', page: 'decks', label: 'Thai text size', keywords: ['script', 'larger', 'bigger'], route: '/thai-text-size' },
   { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
+  { id: 'noteTypes', page: 'decks', label: 'Note types', keywords: ['card types', 'templates', 'styling', 'css', 'front', 'back', 'models', 'layout'], route: '/note-types' },
 
   { id: 'readerOn', page: 'read', label: 'Read & Listen', keywords: ['passphrase', 'sign in', 'texts', 'stories', 'server'], route: '/read-settings' },
   { id: 'keepPlaying', page: 'read', label: 'Keep playing the shelf', keywords: ['up next', 'queue', 'autoplay', 'continuous', 'listening'], route: '/read-settings' },

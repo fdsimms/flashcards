@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseJson } from '../../../src/anki/sync/json';
-import { notetypeRows, type NotetypeJson } from '../../../src/anki/sync/notetypeRows';
+import { notetypeJson, notetypeRows, type NotetypeJson } from '../../../src/anki/sync/notetypeRows';
 import { comparable } from '../../support/protoCompare';
 
 /** Note types as sync sends them beside the rows Anki stored (make-sync-fixtures.py). */
@@ -21,5 +21,11 @@ describe('a note type from sync, as the rows Anki stores', () => {
     expect(comparable(rows.config)).toEqual(comparable(n.config));
     expect(rows.fields.map((f) => [f.ord, f.name, comparable(f.config)])).toEqual(n.fields.map(([o, name, c]) => [o, name, comparable(c)]));
     expect(rows.templates.map((t) => [t.ord, t.name, comparable(t.config)])).toEqual(n.templates.map(([o, name, c]) => [o, name, comparable(c)]));
+  });
+
+  // What sync sends for a note type changed on this phone: the rows read back into the JSON Anki's
+  // own client would send, add-on keys and 64-bit ids included.
+  it.each(fixtures.notetypes.map((n) => [n.json.name, n] as const))('%s: rows back to the JSON Anki sent', (_name, n) => {
+    expect(notetypeJson(notetypeRows(n.json))).toEqual({ ...n.json, mod: Number(n.json.mod) });
   });
 });

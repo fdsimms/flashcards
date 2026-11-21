@@ -4,7 +4,7 @@ import { deckConfigJson, deckConfigRow, type DeckConfigJson } from './deckConfig
 import { deckJson, deckRow } from './deckRows';
 import { parseJson, stringifyJson } from './json';
 import { cleanField, sortFieldAndChecksum } from './noteFields';
-import { notetypeRows, type NotetypeJson } from './notetypeRows';
+import { notetypeJson, notetypeRows, type NotetypeJson } from './notetypeRows';
 import {
   CHUNK_SIZE, CLIENT_VERSION, SYNC_VERSION, SyncError,
   type CardEntry, type Chunk, type Graves, type NoteEntry, type RevlogEntry, type SanityCounts, type SanityResponse,
@@ -59,7 +59,8 @@ export type SyncOutcome = { mediaUsn: number } & (
    * The two collections can't be merged: one has to replace the other. `schema`: they have
    * different histories (the server was set up from another copy, or something forced a full
    * sync). `sanity`: their counts disagreed after a sync. `local`: the kept collection has
-   * changes to note types (from the app it was exported from) that only an upload sends.
+   * changes to note types (from the app it was exported from) and no Anki collation to send them
+   * with, so only an upload sends them.
    */
   | { kind: 'fullSyncRequired'; uploadOk: boolean; downloadOk: boolean; reason: 'schema' | 'sanity' | 'local' }
 );
@@ -76,17 +77,22 @@ export async function localMeta(db: SyncDb): Promise<Local & { empty: boolean }>
 }
 
 /**
- * Rows of the collated tables marked as changed here that only a full upload can send. Decks
- * and presets changed here (a deck made, renamed or collapsed on the deck list, a preset's new
- * card order) are sent in applyChanges, deleted decks as graves; nothing Franki does changes a
- * note type. (Tags can't be read at all without the collation.)
+ * Rows marked as changed here that only a full upload can send. Decks and presets changed here
+ * (a deck made, renamed or collapsed on the deck list, a preset's new card order) are sent in
+ * applyChanges, deleted decks as graves, and so is a note type (its templates or styling edited
+ * here, `notetypeWrites.ts`), but only with Anki's collation: its fields and templates can't be
+ * read without it. (Tags can't be read at all without the collation.)
  */
-async function localUnsendable(db: SyncDb): Promise<number> {
-  let n = 0;
-  for (const t of ['notetypes']) {
-    n += (await db.first<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t} WHERE usn = -1`))!.n;
-  }
-  return n;
+async function localUnsendable(db: SyncDb, collated: boolean): Promise<number> {
+  if (collated) return 0;
+  return (await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM notetypes WHERE usn = -1'))!.n;
+}
+
+/** A note type of the kept collection as Anki's sync sends it, marked with the server's usn. */
+async function notetypeToSend(db: SyncDb, nt: { id: number; name: string; mtime_secs: number; config: Uint8Array }, usn: number): Promise<NotetypeJson> {
+  const fields = await db.all<{ ord: number; name: string; config: Uint8Array }>('SELECT ord, name, config FROM fields WHERE ntid = ? ORDER BY ord', nt.id);
+  const templates = await db.all<{ ord: number; name: string; config: Uint8Array }>('SELECT ord, name, config FROM templates WHERE ntid = ? ORDER BY ord', nt.id);
+  return notetypeJson({ id: Number(nt.id), name: nt.name, mtime: nt.mtime_secs, usn, config: nt.config, fields, templates });
 }
 
 /** The server's state, for when there's no collection here yet to sync. */
@@ -106,11 +112,12 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
   if (remote.scm !== local.scm) {
     return { kind: 'fullSyncRequired', uploadOk: !local.empty || !!remote.empty, downloadOk: !remote.empty || local.empty, reason: 'schema', mediaUsn };
   }
-  if (await localUnsendable(db)) return { kind: 'fullSyncRequired', uploadOk: true, downloadOk: true, reason: 'local', mediaUsn };
+  const collated = await hasUnicase(db);
+  if (await localUnsendable(db, collated)) return { kind: 'fullSyncRequired', uploadOk: true, downloadOk: true, reason: 'local', mediaUsn };
 
   const serverUsn = remote.usn;
   const localIsNewer = local.mod > remote.mod;
-  const state = new SyncState(await hasUnicase(db));
+  const state = new SyncState(collated);
   let sent = 0;
   let received = false;
 
@@ -125,6 +132,14 @@ export async function syncCollection(db: SyncDb, client: SyncClient, now: () => 
 
       // ---- unchunked: note types, decks, deck options, tags, config ----
       const mine: UnchunkedChanges = { models: [], decks: [[], []], tags: [] };
+      // Note types changed here, as Anki's changed_notetypes sends them: the server's usn, as JSON.
+      if (state.collated) {
+        const nts = await db.all<{ id: number; name: string; mtime_secs: number; config: Uint8Array }>(
+          'SELECT id, name, mtime_secs, config FROM notetypes NOT INDEXED WHERE usn = -1',
+        );
+        for (const nt of nts) mine.models.push(await notetypeToSend(db, nt, serverUsn));
+        if (nts.length) await db.run('UPDATE notetypes SET usn = ? WHERE usn = -1', serverUsn);
+      }
       // Tags added here (a note edited or added in Franki), as Anki's changed_tags sends them.
       if (state.collated) {
         mine.tags = (await db.all<{ tag: string }>('SELECT tag FROM tags WHERE usn = -1')).map((r) => r.tag);

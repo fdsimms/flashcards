@@ -22,6 +22,7 @@ describe('settings pages', () => {
     expect(searchSettings('narr').map((e) => e.id)).toEqual(['narrator']);
     expect(searchSettings('wait answer').map((e) => e.id)).toEqual(['lessonWait']);
     expect(searchSettings('autoplay').map((e) => e.id)).toEqual(['keepPlaying']);
+    expect(searchSettings('css').map((e) => e.id)).toEqual(['noteTypes']);
   });
 
   it('needs every word, ignores case, and finds nothing for a blank query', () => {

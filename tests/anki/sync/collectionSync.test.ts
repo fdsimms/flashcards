@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SyncClient, type HttpPost } from '../../../src/anki/sync/client';
 import { setAnkiDeckCollapsed } from '../../../src/anki/deckWrites';
+import { setAnkiNoteTypeLook } from '../../../src/anki/notetypeWrites';
 import { setAnkiNewMix } from '../../../src/anki/presetWrites';
 import { deckConfigJson } from '../../../src/anki/sync/deckConfigRow';
 import { prepareForUpload, syncCollection } from '../../../src/anki/sync/collectionSync';
@@ -188,12 +189,28 @@ describe('syncing the kept collection', () => {
     expect(await colRow(db)).toEqual(col);
   });
 
-  it('asks for a full sync when the collection has note type changes only an upload can send', async () => {
+  it("asks for a full sync when the collection has note type changes and no Anki collation to send them with", async () => {
     const db = await collection();
     const col = await colRow(db);
     await db.run('UPDATE notetypes SET usn = -1');
     const s = fakeServer(quietRoutes(col));
     expect(await syncCollection(db, s.client, () => NOW)).toMatchObject({ kind: 'fullSyncRequired', reason: 'local' });
+  });
+
+  it('sends a note type whose templates changed here in applyChanges, as the JSON Anki sends, rather than a full sync', async () => {
+    const db = await collection({ unicase: true });
+    const nt = (await db.all<{ id: number; name: string; config: Uint8Array }>('SELECT id, name, config FROM notetypes NOT INDEXED')).find((r) => r.name === 'Basic')!;
+    const look = { templates: [{ ord: 0, front: '<b>{{Front}}</b>', back: '{{FrontSide}}<hr id=answer>{{Back}}' }], css: '.card { color: navy; }', reqs: [{ ord: 0, kind: 'any' as const, fieldOrds: [0] }] };
+    expect(await setAnkiNoteTypeLook(db, 'Basic', look, new Date(NOW - 60_000))).toBe('saved');
+    const col = await colRow(db);
+    const s = fakeServer(quietRoutes(col, { 'sync/meta': () => meta({ mod: col.mod - 1000 }, col) }));
+    expect(await syncCollection(db, s.client, () => NOW)).toMatchObject({ kind: 'synced' });
+    const sent = s.calls.find((c) => c.path === 'sync/applyChanges')!.body.changes.models;
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ id: nt.id, name: 'Basic', usn: 10, mod: Math.floor((NOW - 60_000) / 1000), css: '.card { color: navy; }', req: [[0, 'any', [0]]] });
+    expect(sent[0].tmpls.map((t: { qfmt: string }) => t.qfmt)).toEqual(['<b>{{Front}}</b>']);
+    expect(sent[0].flds.map((f: { name: string }) => f.name)).toEqual(['Front', 'Back']);
+    expect((await db.first<{ n: number }>('SELECT COUNT(*) AS n FROM notetypes WHERE usn = -1'))!.n).toBe(0);
   });
 
   it("sends a preset changed here in applyChanges with every setting it had, rather than a full sync", async () => {
