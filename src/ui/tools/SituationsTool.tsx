@@ -531,7 +531,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
                 : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
               {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{finishing ? 'Getting feedback on your lines...' : chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
-              {problem ? <ErrorNote message={problem.message} onRetry={problem.retry} /> : null}
+              {problem ? <ErrorNote centered={!chat.lines.length} message={problem.message} onRetry={problem.retry} /> : null}
               {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}
             </ScrollView>
           </CardSurface>

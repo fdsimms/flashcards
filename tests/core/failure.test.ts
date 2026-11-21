@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorDetail, failureText, Refusal } from '../../src/core/failure';
+import { errorDetail, failureText, Refusal, splitFailure } from '../../src/core/failure';
 
 describe('errorDetail', () => {
   it("cuts an expo native error down to its cause, on one line, without the closing period", () => {
@@ -34,5 +34,18 @@ describe('failureText', () => {
     class NoteRefused extends Refusal {}
     expect(failureText(new NoteRefused('The first field is empty.'), { what: "Couldn't save the note.", next: 'Try again.' }))
       .toBe("Couldn't save the note. The first field is empty.");
+  });
+});
+
+describe('splitFailure', () => {
+  it("a Couldn't sentence becomes the title and the rest the reason", () => {
+    expect(splitFailure("Couldn't start the conversation. The server can't be reached. Check your connection, then try again.")).toEqual({
+      title: "Couldn't start the conversation",
+      reason: "The server can't be reached. Check your connection, then try again.",
+    });
+  });
+  it('a lone sentence, or one that does not open with Couldn\'t, stays whole', () => {
+    expect(splitFailure("Couldn't save the note.")).toEqual({ reason: "Couldn't save the note." });
+    expect(splitFailure("That's 12 words. Add up to 10 at a time.")).toEqual({ reason: "That's 12 words. Add up to 10 at a time." });
   });
 });
