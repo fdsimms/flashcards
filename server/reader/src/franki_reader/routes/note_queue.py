@@ -1,4 +1,5 @@
-"""Quick add's queue of words for Claude to fill in (note_queue.py)."""
+"""Quick add's queue of words for Claude to fill in (note_queue.py), and its lookup of words for a
+meaning (word_lookup.py)."""
 
 from typing import Any
 
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 from franki_reader import (
     note_queue,
     store,
+    word_lookup,
 )
 from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
@@ -24,11 +26,29 @@ class NoteQueueIn(BaseModel):
     entries: list[QueuedEntry] = Field(min_length=1, max_length=note_queue.MAX_QUEUED)
 
 
+class WordLookupIn(BaseModel):
+    language: Code
+    meaning: str = Field(min_length=1, max_length=200)
+
+
+class FoundWordOut(BaseModel):
+    entry: str
+    meaning: str
+    # What tells it apart from the other words found; empty when there's nothing to say.
+    note: str
+
+
+class WordLookupOut(BaseModel):
+    words: list[FoundWordOut]
+
+
 def router(ctx: AppContext) -> APIRouter:
     routes = APIRouter()
     authed = ctx.authed
     engine = ctx.engine
     write_notes = ctx.write_notes
+    look_up_words = ctx.look_up_words
+    keep_failed_cost = ctx.keep_failed_cost
     # Whether the note queue is being filled in, so a poll or a second Quick add doesn't start a
     # second pass (the running one picks up whatever was added meanwhile).
     queue_filling: list[bool] = [False]
@@ -64,6 +84,8 @@ def router(ctx: AppContext) -> APIRouter:
                     "state": n.state,
                     "fields": n.fields,
                     "error": n.error,
+                    "spelling": n.spelling,
+                    "alternatives": n.alternatives,
                 }
                 for n in store.queued_notes(engine.conn)
             ],
@@ -107,5 +129,31 @@ def router(ctx: AppContext) -> APIRouter:
         # Asking again for one already gone (a save that was sent twice) is fine.
         store.delete_queued(engine.conn, note_id)
         return Response(status_code=204)
+
+    @routes.post("/api/word-lookup", dependencies=authed)
+    async def look_up(body: WordLookupIn) -> WordLookupOut:
+        """Words for a meaning typed in English (Quick add's "Don't know the word?"). Only returns
+        words: a picked one is queued like any other."""
+        if look_up_words is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't look up words"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        meaning = " ".join(body.meaning.split())
+        if not meaning:
+            raise HTTPException(422, "Type what you want to say.")
+        try:
+            words, used = await look_up_words(body.language, meaning)
+        except word_lookup.LookupFailed as e:
+            keep_failed_cost("word_lookup", body.language, e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(
+            engine.conn, "word_lookup", body.language, engine.clock(), used.cost_usd()
+        )
+        return WordLookupOut(
+            words=[FoundWordOut(entry=w.entry, meaning=w.meaning, note=w.note) for w in words]
+        )
 
     return routes

@@ -5611,6 +5611,63 @@
         }
       }
     },
+    "/api/word-lookup": {
+      "post": {
+        "summary": "Look Up",
+        "description": "Words for a meaning typed in English (Quick add's \"Don't know the word?\"). Only returns\nwords: a picked one is queued like any other.",
+        "operationId": "look_up_api_word_lookup_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordLookupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordLookupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/word-suggestions": {
       "get": {
         "summary": "Get Word Suggestions",
@@ -6278,6 +6335,29 @@
           "form"
         ],
         "title": "FormExplainIn"
+      },
+      "FoundWordOut": {
+        "properties": {
+          "entry": {
+            "type": "string",
+            "title": "Entry"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entry",
+          "meaning",
+          "note"
+        ],
+        "title": "FoundWordOut"
       },
       "FrankiCountsIn": {
         "properties": {
@@ -8005,6 +8085,54 @@
           "text"
         ],
         "title": "WordIn"
+      },
+      "WordLookupIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "meaning": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Meaning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "meaning"
+        ],
+        "title": "WordLookupIn"
+      },
+      "WordLookupOut": {
+        "properties": {
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/FoundWordOut"
+            },
+            "type": "array",
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "words"
+        ],
+        "title": "WordLookupOut"
       },
       "WordMeaningIn": {
         "properties": {
