@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Image, Text, View } from 'react-native';
+import React from 'react';
+import { Image, ScrollView, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { JAPANESE_FONT } from '../core/script';
-import { mnemonicParts, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, SUBJECT_TYPE_NAMES, type Part, type Subject, type SubjectType } from '../wanikani/subjects';
+import { mnemonicParts, mnemonicSections, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, shownSentences, SUBJECT_TYPE_NAMES, type Part, type Subject, type SubjectType } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
@@ -103,16 +103,17 @@ function MadeOf({ parts }: { parts: Part[] }) {
   );
 }
 
-/** A mnemonic with WaniKani's marked words in bold. */
-function Mnemonic({ title, markup }: { title: string; markup: string }) {
+/** A mnemonic with WaniKani's marked words in bold, on the subject's color (`onCard`) or on a surface. */
+function Mnemonic({ title, markup, onCard }: { title: string; markup: string; onCard: boolean }) {
   const c = useTheme();
+  const strong = onCard ? c.onWk : c.text;
   return (
-    <View style={{ gap: space.xs, padding: space.m, borderRadius: radius.m, ...smooth, backgroundColor: c.wkWell }}>
-      <Text style={{ ...type.footnote, fontWeight: '600', color: c.onWk }}>{title}</Text>
-      <Text style={{ ...type.subhead, color: c.onWkSoft, lineHeight: 21 }}>
+    <View style={{ gap: space.xs, padding: space.m, borderRadius: radius.m, ...smooth, backgroundColor: onCard ? c.wkWell : c.fill }}>
+      <Text style={{ ...type.footnote, fontWeight: '600', color: strong }}>{title}</Text>
+      <Text style={{ ...type.subhead, color: onCard ? c.onWkSoft : c.textBody, lineHeight: 21 }}>
         {mnemonicParts(markup).map((p, i) => (
           p.mark
-            ? <Text key={i} style={{ fontWeight: '600', color: c.onWk, ...(p.mark === 'ja' || p.mark === 'reading' ? JA : {}) }}>{p.text}</Text>
+            ? <Text key={i} style={{ fontWeight: '600', color: strong, ...(p.mark === 'ja' || p.mark === 'reading' ? JA : {}) }}>{p.text}</Text>
             : <Text key={i}>{p.text}</Text>
         ))}
       </Text>
@@ -120,13 +121,92 @@ function Mnemonic({ title, markup }: { title: string; markup: string }) {
   );
 }
 
+/** Example sentences, Japanese over English. */
+function Sentences({ subject, showMeaning, showReading, onCard }: { subject: Subject; showMeaning: boolean; showReading: boolean; onCard: boolean }) {
+  const c = useTheme();
+  const sentences = shownSentences(subject, showMeaning, showReading);
+  if (!sentences.length) return null;
+  return (
+    <View style={{ gap: space.m }}>
+      {sentences.map((s, i) => (
+        <View key={i} style={{ gap: 2 }}>
+          <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.callout, color: onCard ? c.onWk : c.text }}>{s.ja}</Text>
+          <Text style={{ ...type.footnote, color: onCard ? c.onWkSoft : c.textSecondary }}>{s.en}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Whether a review's answer has mnemonics or sentences to open in `MnemonicsPanel`. */
+export function hasMnemonicPanel(subject: Subject, showMeaning: boolean, showReading: boolean): boolean {
+  return mnemonicSections(subject, showMeaning, showReading).length > 0 || shownSentences(subject, showMeaning, showReading).length > 0;
+}
+
+function ToolButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Icon>['name']; label: string; onPress: () => void }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      scaleTo={0.9}
+      style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkWell }}>
+        <Icon name={icon} size={15} color={c.onWkSoft} />
+      </View>
+    </Tappable>
+  );
+}
+
+/**
+ * Play and Mnemonics as small round icon buttons in the card's top corner, out of the way of the
+ * answer, so a card read above the keyboard keeps its height for the answer. Each is absent when it
+ * has nothing to do (no recording, no mnemonic).
+ */
+export function CardTools({ onPlay, onMnemonics }: { onPlay?: () => void; onMnemonics?: () => void }) {
+  if (!onPlay && !onMnemonics) return null;
+  return (
+    <View style={{ position: 'absolute', top: 0, right: 0, flexDirection: 'row' }}>
+      {onPlay ? <ToolButton icon="speaker.wave.2.fill" label="Play the word" onPress={onPlay} /> : null}
+      {onMnemonics ? <ToolButton icon="lightbulb" label="Show mnemonics" onPress={onMnemonics} /> : null}
+    </View>
+  );
+}
+
+/**
+ * The mnemonics, hints and example sentences over the card, in a scroll of their own. It is part of
+ * the card rather than a sheet, so the keyboard under a typed answer keeps its focus and stays up.
+ */
+export function MnemonicsPanel({ subject, showMeaning, showReading, onClose }: { subject: Subject; showMeaning: boolean; showReading: boolean; onClose: () => void }) {
+  const c = useTheme();
+  return (
+    <View
+      accessibilityViewIsModal
+      style={{ position: 'absolute', top: space.s, left: space.s, right: space.s, bottom: space.s, borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingTop: space.xs }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: MIN_TAP }}>
+        <Text style={{ ...type.headline, color: c.text }}>Mnemonics</Text>
+        <Tappable onPress={() => { haptic.tap(); onClose(); }} accessibilityRole="button" accessibilityLabel="Close mnemonics" scaleTo={0.94} style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s }}>
+          <Text style={{ ...type.callout, fontWeight: '600', color: c.accentInk }}>Close</Text>
+        </Tappable>
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space.s, paddingBottom: space.m }}>
+        {mnemonicSections(subject, showMeaning, showReading).map((m, i) => <Mnemonic key={i} title={m.title} markup={m.markup} onCard={false} />)}
+        <Sentences subject={subject} showMeaning={showMeaning} showReading={showReading} onCard={false} />
+      </ScrollView>
+    </View>
+  );
+}
+
 /**
  * The answer side: what it's made of and the meaning, then the reading (each only when this
- * question asked for it, so the meaning's answer never shows the reading and the reverse), the recording,
- * mnemonics behind a tap unless it's a lesson, and example sentences. The parts go with the
- * meaning, since their meanings hint at it.
+ * question asked for it, so the meaning's answer never shows the reading and the reverse). The parts
+ * go with the meaning, since their meanings hint at it. A lesson also lays out the mnemonics and
+ * example sentences; a review leaves them to `MnemonicsPanel`, opened from `CardTools`.
  */
-export function SubjectDetails({ subject, parts, showMeaning, showReading, synonyms, lesson, onPlay }: {
+export function SubjectDetails({ subject, parts, showMeaning, showReading, synonyms, lesson }: {
   subject: Subject;
   /** What it's made of (`madeOf`); empty for a radical, or when the parts couldn't be read. */
   parts: Part[];
@@ -134,14 +214,10 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
   showReading: boolean;
   synonyms: string[];
   lesson: boolean;
-  /** Plays WaniKani's recording; absent when the word has none (or it isn't a word). */
-  onPlay?: () => void;
 }) {
   const c = useTheme();
-  const [mnemonics, setMnemonics] = useState(lesson);
   const others = otherMeanings(subject);
   const groups = readingGroups(subject);
-  const hasMnemonics = (showMeaning && subject.meaningMnemonic) || (showReading && subject.readingMnemonic);
   return (
     <View style={{ gap: space.l }}>
       {showMeaning && parts.length ? <MadeOf parts={parts} /> : null}
@@ -161,41 +237,10 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
           </Text>
         </View>
       )) : null}
-      {showReading && onPlay ? (
-        <Tappable
-          onPress={onPlay}
-          accessibilityRole="button"
-          accessibilityLabel="Play the word"
-          scaleTo={0.94}
-          style={{ alignSelf: 'center', minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.wkWell }}
-        >
-          <Icon name="speaker.wave.2.fill" size={18} color={c.onWk} />
-          <Text style={{ ...type.callout, color: c.onWk, fontWeight: '600' }}>Play</Text>
-        </Tappable>
-      ) : null}
-      {hasMnemonics && !mnemonics ? (
-        <Tappable
-          onPress={() => { haptic.tap(); setMnemonics(true); }}
-          accessibilityRole="button"
-          scaleTo={0.94}
-          style={{ alignSelf: 'center', minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.s, paddingHorizontal: space.l, borderRadius: radius.pill, backgroundColor: c.wkWell }}
-        >
-          <Icon name="lightbulb" size={18} color={c.onWk} />
-          <Text style={{ ...type.callout, color: c.onWk, fontWeight: '600' }}>Show mnemonics</Text>
-        </Tappable>
-      ) : null}
-      {mnemonics && showMeaning && subject.meaningMnemonic ? <Mnemonic title="Meaning mnemonic" markup={subject.meaningMnemonic} /> : null}
-      {mnemonics && showMeaning && subject.meaningHint ? <Mnemonic title="Hint" markup={subject.meaningHint} /> : null}
-      {mnemonics && showReading && subject.readingMnemonic ? <Mnemonic title="Reading mnemonic" markup={subject.readingMnemonic} /> : null}
-      {mnemonics && showReading && subject.readingHint ? <Mnemonic title="Hint" markup={subject.readingHint} /> : null}
-      {showMeaning && showReading && subject.contextSentences.length ? (
-        <View style={{ gap: space.m, paddingTop: space.m, borderTopWidth: hairline, borderTopColor: c.wkLine }}>
-          {subject.contextSentences.slice(0, 2).map((s, i) => (
-            <View key={i} style={{ gap: 2 }}>
-              <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.callout, color: c.onWk }}>{s.ja}</Text>
-              <Text style={{ ...type.footnote, color: c.onWkSoft }}>{s.en}</Text>
-            </View>
-          ))}
+      {lesson ? mnemonicSections(subject, showMeaning, showReading).map((m, i) => <Mnemonic key={i} title={m.title} markup={m.markup} onCard />) : null}
+      {lesson && shownSentences(subject, showMeaning, showReading).length ? (
+        <View style={{ paddingTop: space.m, borderTopWidth: hairline, borderTopColor: c.wkLine }}>
+          <Sentences subject={subject} showMeaning={showMeaning} showReading={showReading} onCard />
         </View>
       ) : null}
     </View>
