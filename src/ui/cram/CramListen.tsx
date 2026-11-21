@@ -53,7 +53,7 @@ export function CramListen({ repo, api, cram, notes, language, first }: { repo: 
     setProblem(undefined);
     try {
       const [narrator, particle] = await Promise.all([loadNarrator(), loadParticle()]);
-      const id = await api.makeLesson(language, cram.name, narrator || undefined, language === 'th' ? particle : undefined, phrases.map(({ text, english }) => ({ text, english })));
+      const id = await api.makeLesson(language, cram.name, narrator || undefined, language === 'th' ? particle : undefined, phrases.map(({ text, english }) => ({ text, english })), cram.register);
       await saveCram(repo, { ...cram, lesson: { id, noteIds: phrases.map((p) => p.noteId) } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't ask for the lesson.", next: 'Try again.' }));

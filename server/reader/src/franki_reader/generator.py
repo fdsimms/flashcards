@@ -49,6 +49,8 @@ from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
+from franki_reader.register import DEFAULT as DEFAULT_REGISTER
+from franki_reader.register import Register, instruction
 
 # The models a text can be asked to be written by (the shelf's "Written by").
 TextModel = Literal["claude-sonnet-5-5", "claude-haiku-5-5"]
@@ -241,6 +243,9 @@ class TextRequest:
     unset: tuple[str, ...] = ()
     unset_uses: int = grammar.UNSET_USES
     story: StoryContext | None = None
+    # The Settings register (register.py). Each line still carries its own register label, chosen
+    # by who is talking to whom, so this sets the baseline and the default asks for nothing extra.
+    register: Register = DEFAULT_REGISTER
 
     def __post_init__(self) -> None:
         used = len(self.stretch) if self.choose is None else self.choose
@@ -659,6 +664,12 @@ def request_message(request: TextRequest) -> str:
         )
     else:
         parts.append("No stretch words this time.")
+    if request.register != DEFAULT_REGISTER:
+        parts.append(
+            f"Register: the learner wants {request.register} speech. {instruction(request.register)}"
+            " Lines between people who would talk differently, such as a customer and a clerk, may"
+            " still differ, but keep to this as the default."
+        )
     if request.story is not None:
         parts.append(_story_part(request.story))
     if request.practice:

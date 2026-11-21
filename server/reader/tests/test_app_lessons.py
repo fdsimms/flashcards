@@ -55,7 +55,7 @@ def tone() -> bytes:
 
 
 async def write_plan(
-    language: str, scene: str, feedback: str, learner: str = "male"
+    language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
 ) -> tuple[Any, Usage]:
     return PLAN, Usage(input_tokens=1000, output_tokens=400, model="claude-sonnet-5-5")
 
@@ -273,7 +273,7 @@ def test_a_lesson_that_cannot_be_spoken_is_failed_with_its_reason(tmp_path: Path
 
 def test_a_lesson_claude_cannot_write_is_failed_with_its_reason(tmp_path: Path) -> None:
     async def refuses(
-        language: str, scene: str, feedback: str, learner: str = "male"
+        language: str, scene: str, feedback: str, learner: str = "male", register: str = "everyday"
     ) -> tuple[Any, Usage]:
         raise LessonFailed("Claude didn't answer. Try again in a moment.")
 
@@ -307,7 +307,12 @@ def test_deleting_a_lesson_forgets_it_and_its_file(tmp_path: Path) -> None:
 
 
 async def write_given(
-    language: str, scene: str, given: tuple[Phrase, ...], feedback: str, learner: str = "male"
+    language: str,
+    scene: str,
+    given: tuple[Phrase, ...],
+    feedback: str,
+    learner: str = "male",
+    register: str = "everyday",
 ) -> tuple[Any, Usage]:
     return PLAN, Usage(input_tokens=1000, output_tokens=400, model="claude-sonnet-5-5")
 

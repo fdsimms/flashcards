@@ -596,6 +596,7 @@ class Engine:
                 unset=unset,
                 unset_uses=difficulty.unset_uses,
                 story=story,
+                register=settings.register,
             )
 
         if focus:

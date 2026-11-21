@@ -1,4 +1,5 @@
 import type { CramTheme as ApiTheme, CramThemesRequest, Language } from '../reader/api';
+import { registerChoice, type RegisterLevel } from '../reader/registerLevel';
 import { lessonPhraseOf, lastMissed, noteAddedAt, type Cram, type CramTalk } from './cram';
 import { noteHasTag } from './priority';
 import type { Card, Note } from './types';
@@ -111,7 +112,7 @@ export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
 }
 
 /** The request for the server's themes. `topic` is what the lesson is for (the cram's name): every theme is an angle on it. */
-export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string): CramThemesRequest {
+export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string, register?: RegisterLevel): CramThemesRequest {
   return {
     language,
     words: words.map((w) => ({ id: w.noteId, text: w.text, english: w.english, kind: w.kind })),
@@ -119,6 +120,7 @@ export function themesRequest(language: Language, words: ThemeWord[], weak: stri
     avoid,
     stretch,
     topic: topic.replace(/\s+/g, ' ').trim().slice(0, THEME_TOPIC_CHARS),
+    ...registerChoice(register),
   };
 }
 

@@ -7,7 +7,9 @@ import { failureText } from '../../core/failure';
 import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
+import { useApp } from '../AppContext';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
+import type { RegisterLevel } from '../../reader/registerLevel';
 import { canFinish, canSend, conversationOf, rehearsalOf, startChat, withMine, withoutMine, withTheirs, type Chat } from '../../reader/situations';
 import { keep, keepable } from '../../reader/corrections';
 import { loadKept, saveKept } from '../../reader/correctionsStorage';
@@ -51,6 +53,9 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
   // Opened from a cram or a theme (Rehearse): its title is the scene and its words are worked in, until another scene is picked.
   const rehearsal = rehearsalOf(params);
   const [other, setOther] = useState(false);
+  // The rehearsed cram's register to begin with; changing it here is for this scene only.
+  const [sceneRegister, setSceneRegister] = useState<RegisterLevel | undefined>(rehearsal?.register);
+  const settingsRegister = useApp().reader.settings?.register;
 
   if (!readerApi) {
     return (
@@ -66,7 +71,10 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
       <SituationRehearse
         title={tool.title}
         rehearsal={rehearsal}
-        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words)); }}
+        register={sceneRegister}
+        settingsRegister={settingsRegister}
+        onRegister={setSceneRegister}
+        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words, sceneRegister)); }}
         onPickOther={() => setOther(true)}
       />
     );
@@ -94,7 +102,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
       heardOnly={heardOnly}
       feedback={feedback}
       onFeedback={setFeedback}
-      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words)); }}
+      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words, chat.register)); }}
       onDone={onClose}
     />
   );
