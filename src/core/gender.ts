@@ -33,8 +33,9 @@ export function leadingArticle(entry: string): { article: string; rest: string }
 /**
  * The word shown dimmed before a noun, by the noun's Gender and its language (the first two letters of its
  * speech language). The Entry is the bare noun and the card puts this before it; Anki's template (Omnilanguage)
- * puts the same word there. Russian's and Polish's is a reminder (этот / эта / это, ten / ta / to); in the
- * languages with a real article it is part of the word as it's said (`SPOKEN_ARTICLE`).
+ * puts the same word there. Russian's and Polish's is a demonstrative (этот / эта / это, ten / ta / to) that
+ * does the job of an article, so it is said with the word like a real one (`SPOKEN_ARTICLE`): the audio says what
+ * the card shows.
  */
 const GENDER_PREFIXES: Record<string, Partial<Record<Gender, string>>> = {
   ru: { m: 'этот', f: 'эта', n: 'это' },
@@ -45,7 +46,7 @@ const GENDER_PREFIXES: Record<string, Partial<Record<Gender, string>>> = {
   fr: { m: 'le', f: 'la' },
   el: { m: 'ο', f: 'η', n: 'το' },
 };
-const SPOKEN_ARTICLE = new Set(['es', 'nb', 'de', 'fr', 'el']);
+const SPOKEN_ARTICLE = new Set(['es', 'nb', 'de', 'fr', 'el', 'ru', 'pl']);
 
 /**
  * Polish's gender words for a plural, by the Gender field's value: te before a noun that has only a plural
@@ -131,11 +132,12 @@ export function bareNoun(lang: string, gender: Gender | undefined, entry: string
 }
 
 /**
- * What the voice or a recording says for a note's word: the article and the Entry where the article is spoken,
- * a verb with its marker (å huske), else the Entry.
+ * What the voice or a recording says for a note's word: the article (or Polish's plural word, te spodnie) and the
+ * Entry where it is spoken, a verb with its marker (å huske), else the Entry. It is what `renderOmnilanguage`
+ * shows before the word, so a card's audio never says less than its text.
  */
-export function spokenEntry(lang: string, gender: Gender | undefined, partOfSpeech: string, entry: string): string {
-  const article = genderArticle(lang, gender, entry);
+export function spokenEntry(lang: string, genderField: string, partOfSpeech: string, entry: string): string {
+  const article = genderArticle(lang, genderOf(genderField), entry) ?? pluralWord(lang, genderField, entry);
   if (article && articleIsSpoken(lang)) return withArticle(article, entry);
   const marker = verbMarker(lang, partOfSpeech, entry);
   return marker ? `${marker} ${entry}` : entry;
