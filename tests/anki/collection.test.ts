@@ -55,6 +55,18 @@ describe('reading a collection', () => {
     expect(readDeckConfig(hex('48075046'))).toMatchObject({ autoplay: true, maxAnswerSecs: 60 });
   });
 
+  it("reads a preset's Show answer timer and Stop timer on answer, off when missing", () => {
+    // Fields 25 and 38 set, as Anki encodes them.
+    expect(readDeckConfig(hex('C80101B00201'))).toMatchObject({ showTimer: true, stopTimerOnAnswer: true });
+    expect(readDeckConfig(hex('48075046'))).toMatchObject({ showTimer: false, stopTimerOnAnswer: false });
+  });
+
+  it("reads the collection's session time limit, in seconds, and leaves it out when off", () => {
+    const val = (v: unknown) => new TextEncoder().encode(JSON.stringify(v));
+    expect(collectionSettings([{ key: 'timeLim', val: val(900) }]).timeLimitSecs).toBe(900);
+    expect(collectionSettings([{ key: 'timeLim', val: val(0) }])).not.toHaveProperty('timeLimitSecs');
+  });
+
   it("imports each card's own deck, filtered deck, new-card position and learning step", async () => {
     const rows = await readCollectionRows(FIXTURE);
     const data = buildExport(rows);

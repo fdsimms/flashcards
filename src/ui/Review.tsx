@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
-import { cardStateOf, FLAG_NAMES, noteCards, type CardState } from '../core/cardState';
+import { FLAG_NAMES, flagLabel, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, type Playback } from '../core/cards';
@@ -21,11 +21,12 @@ import { becameLeech, DEFAULT_LEARN_STEPS, DEFAULT_LEECH, DEFAULT_RELEARN_STEPS,
 import { fuzzSeed } from '../core/ankiFuzz';
 import { balancerFor, buildLoadSnapshot, forgetCard, loadDayIndex, recordAnswer, type LoadSnapshot } from '../core/loadBalance';
 import { ankiToday, fnvHash } from '../core/order';
-import { saveLeechHint, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
-import { forgetCards, setDueDates } from '../anki/rescheduleService';
-import { parseDueDate } from '../core/reschedule';
+import { saveLeechHint, saveNote, type NoteStore } from '../anki/noteService';
+import { forgetCards, setDueDates, type Rescheduled } from '../anki/rescheduleService';
+import { dueDateLabel, parseDueDate } from '../core/reschedule';
 import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../core/script';
-import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, sessionProgress, sessionSummary, upNext, type AnswerRecord } from '../core/session';
+import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, nextUndo, sessionProgress, sessionSummary, upNext, type AnswerRecord, type CardAction } from '../core/session';
+import { setCardStatesUndoable, undoCardAction } from '../anki/cardUndo';
 import { ankiWrites, reviewWrites } from '../core/writeQueue';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
@@ -121,6 +122,8 @@ import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './k
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
+import { AnswerTimer } from './AnswerTimer';
+import { useTimebox } from './useTimebox';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 
@@ -264,6 +267,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [revealedAt, setRevealedAt] = useState<string>();
   const [now, setNow] = useState(() => new Date());
   const [history, setHistory] = useState<AnswerRecord[]>([]);
+  // What the menu did to cards (bury, suspend, flag, Set Due Date, Forget), for Undo alongside the answers (`nextUndo`).
+  const [actions, setActions] = useState<CardAction[]>([]);
   // A card marked to come back a few more times this session (src/core/miniCram.ts): practice, never a rating.
   const cram = useMiniCram();
   const undone = useRef(new WeakSet<AnswerRecord>());
@@ -283,6 +288,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
   const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
+  // Anki's session time limit, from the collection's settings (useTimebox.ts).
+  useTimebox(collection.timeLimitSecs, history.length, onDone);
   // Set while an answer or an undo is being written. A second tap during the await would
   // otherwise act on the same card again from its old state.
   const busy = useRef(false);
@@ -890,6 +897,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // it back here alone would leave the two disagreeing. As in Anki, undo stops at the last sync.
       if (last.anki && !(await repo.undoAnkiAnswer(last.anki))) {
         setHistory([]);
+        setActions([]);
         lastAnswer.show(null);
         Alert.alert("Couldn't undo that answer", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
         return false;
@@ -1114,8 +1122,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [sheet, sheetHost]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!cards) return <Screen title={title} largeTitle={false}><Loading error={loadError} onRetry={() => setReloads((n) => n + 1)} /></Screen>;
 
-  const undoButton = history.length
-    ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel="Undo the last answer" onPress={() => undo()} />
+  // Undo takes back the latest thing done, an answer or a menu action, as Anki's does.
+  const undoNext = nextUndo(history.length, actions);
+  const undoButton = undoNext
+    ? <Stack.Toolbar.Button icon="arrow.uturn.backward" accessibilityLabel={undoNext === 'action' ? `Undo: ${actions[actions.length - 1].label}` : 'Undo the last answer'} onPress={() => (undoNext === 'action' ? undoAction() : undo())} />
     : null;
 
   if (!current || !note || (!rendered && !page)) {
@@ -1208,7 +1218,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
                 onOpen={(noteId) => onEditNote({ noteId }, (result) => {
                   if (!result) return;
                   // As the toolbar's edit button: a deleted note's cards are gone, so an answer to one can't be undone.
-                  if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
+                  if ('deleted' in result) { setHistory([]); setActions([]); lastAnswer.show(null); }
                   setReloads((n) => n + 1);
                 })}
               />
@@ -1356,8 +1366,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   );
 
   // Suspend, bury or flag cards from the menu: in Franki first, then in the kept collection, as Anki writes it.
-  // `hold` says what a bury or suspend did, which puts Undo on screen for it (HoldUndo.tsx).
-  const setStates = async (targets: Card[], change: (s: CardState) => CardState, hold?: string) => {
+  // `label` says what was done, which puts it in Undo (`actions`); `strip` also floats Undo over the next
+  // card for a few seconds (HoldUndo.tsx), for a change that takes the card off screen.
+  const setStates = async (targets: Card[], change: (s: CardState) => CardState, label?: string, strip = false) => {
     if (busy.current || !targets.length) return;
     busy.current = true;
     writes.current++;
@@ -1366,7 +1377,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // back the state this changes: it finishes first.
       await reviewWrites.idle();
       const when = new Date();
-      const { cards: updated, ankiError } = await setCardStates(repo, targets, change, when, H);
+      const { cards: updated, anki, ankiError } = await setCardStatesUndoable(repo as NoteStore, targets, change, when, H);
       if (ankiError) {
         Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
       }
@@ -1375,7 +1386,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       setRevealedAt(undefined);
       setNow(when);
       haptic.success();
-      if (hold) holdOffer.show({ label: hold, before: targets });
+      if (label) addAction({ kind: 'state', label, before: targets, anki }, strip);
     } catch (e) {
       Alert.alert("Couldn't change this card", failureText(e, { next: 'Try again.' }));
     } finally {
@@ -1383,34 +1394,40 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       writes.current++;
     }
   };
-  // Undo of a bury or suspend: each card's suspended and buried state goes back to what it was, and the card comes back on screen.
-  const undoHold = async () => {
-    const o = holdOffer.offer;
+  // A menu action joins Undo. The last answer's line goes, so its Undo can't take back an answer from
+  // under a later action: Undo always takes back the latest thing first.
+  const addAction = (a: Omit<CardAction, 'afterAnswers'>, strip: boolean) => {
+    setActions((list) => [...list, { ...a, afterAnswers: history.length }]);
+    lastAnswer.show(null);
+    holdOffer.show(strip ? { label: a.label } : null);
+  };
+  // Undo of the latest menu action: the cards go back as they were, in the kept collection too, and the
+  // first comes back on screen. As in Anki, undo stops at the last sync.
+  const undoAction = async () => {
+    const last = actions[actions.length - 1];
     holdOffer.show(null);
-    if (!o || busy.current) return;
+    if (!last || busy.current) return;
     busy.current = true;
     writes.current++;
+    haptic.select();
     try {
       await reviewWrites.idle(); // as in setStates above
       const when = new Date();
-      const restored: Card[] = [];
-      let ankiError: unknown;
-      for (const b of o.before) {
-        const was = cardStateOf(b, when, H);
-        const live = cards?.find((c) => c.id === b.id) ?? b;
-        const res = await setCardStates(repo, [live], (s) => ({ ...s, suspended: was.suspended, buried: was.buried }), when, H);
-        restored.push(...res.cards);
-        ankiError = ankiError ?? res.ankiError;
+      const restored = await undoCardAction(repo as NoteStore, last, cards ?? [], when);
+      if (!restored) {
+        setActions([]);
+        setHistory([]);
+        Alert.alert("Couldn't undo this", 'It has already been synced to your Anki server. Undo only goes back to the last sync.');
+        return;
       }
-      if (ankiError) Alert.alert("Couldn't save this change for Anki", failureText(ankiError, { next: "It's made in Franki, but it won't reach Anki." }));
+      setActions((list) => list.filter((x) => x !== last));
       const byId = new Map(restored.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
-      setPreferId(o.before[0].id);
+      setPreferId(last.before[0].id);
       setRevealedAt(undefined);
       setNow(when);
-      haptic.success();
     } catch (e) {
-      Alert.alert("Couldn't undo this", failureText(e, { next: 'Open the card\'s note to unsuspend or unbury it.' }));
+      Alert.alert("Couldn't undo this", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
       writes.current++;
@@ -1422,7 +1439,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     ActionSheetIOS.showActionSheetWithOptions({ title: 'Flag this card', options, cancelButtonIndex: options.length - 1 }, (i) => {
       if (i === options.length - 1) return;
       const flag = i < names.length ? i + 1 : 0;
-      setStates([current], (s) => ({ ...s, flag }));
+      setStates([current], (s) => ({ ...s, flag }), flagLabel(flag));
     });
   };
   // Flag for an agent (through the Franki MCP): the purple flag on the card, a flag::<reason> tag on the note and, when one is typed, a flagnote:: tag. AgentFlagSheet asks for them.
@@ -1431,19 +1448,20 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     sheets.request({ key: `agentFlag:${current.id}`, kind: 'agentFlag', noteId: note.id, cardId: current.id });
   };
   // Forget and Set Due Date: in the kept collection as Anki does them, then in Franki (rescheduleService.ts).
-  const reschedule = async (run: (when: Date) => Promise<Card[]>, failure: string) => {
+  const reschedule = async (run: (when: Date) => Promise<Rescheduled>, failure: string, label: string, before: Card[]) => {
     if (busy.current) return;
     busy.current = true;
     writes.current++;
     try {
       await reviewWrites.idle(); // as in setStates above
       const when = new Date();
-      const updated = await run(when);
+      const { cards: updated, anki } = await run(when);
       const byId = new Map(updated.map((u) => [u.id, u]));
       setCards((prev) => prev && prev.map((c) => byId.get(c.id) ?? c));
       setRevealedAt(undefined);
       setNow(when);
       haptic.success();
+      addAction({ kind: 'schedule', label, before, anki }, true);
     } catch (e) {
       Alert.alert(failure, failureText(e, { next: 'Nothing was changed. Try again.' }));
     } finally {
@@ -1460,7 +1478,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     }, (i) => {
       if (i === 2) return;
       const target = current;
-      reschedule((when) => forgetCards(repo as NoteStore, [target], { resetCounts: i === 1 }, when), "Couldn't forget this card");
+      reschedule((when) => forgetCards(repo as NoteStore, [target], { resetCounts: i === 1 }, when), "Couldn't forget this card", 'Forgot this card', [target]);
     });
   };
   const chooseDueDate = () => {
@@ -1478,7 +1496,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               Alert.alert("That isn't a number of days", 'Enter a whole number of days, like 3, or a range like 3-7.');
               return;
             }
-            reschedule((when) => setDueDates(repo as NoteStore, [target], spec, when), "Couldn't set the due date");
+            reschedule((when) => setDueDates(repo as NoteStore, [target], spec, when), "Couldn't set the due date", dueDateLabel(spec), [target]);
           },
         },
       ],
@@ -1506,7 +1524,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onPress={() => onEditNote({ noteId: note.id }, (result) => {
               if (!result) return;
               // A deleted note's cards are gone, so an answer to one can't be undone any more.
-              if ('deleted' in result) { setHistory([]); lastAnswer.show(null); }
+              if ('deleted' in result) { setHistory([]); setActions([]); lastAnswer.show(null); }
               else setPreferId(current.id);
               setReloads((n) => n + 1);
             })}
@@ -1522,11 +1540,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               if (card) sheets.request({ key: 'ask', kind: 'ask', card });
               else Alert.alert("Can't ask about this card", 'This card has no text to ask about. Open its note to see the fields.');
             },
-            onFlag: (flag) => setStates([current], (s) => ({ ...s, flag })),
+            onFlag: (flag) => setStates([current], (s) => ({ ...s, flag }), flagLabel(flag)),
             onAgentFlag: chooseAgentFlag,
-            onBuryCard: () => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow'),
-            onBuryNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow'),
-            onSuspend: () => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card'),
+            onBuryCard: () => setStates([current], (s) => ({ ...s, buried: true }), 'Buried this card until tomorrow', true),
+            onBuryNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, buried: true }), 'Buried this note until tomorrow', true),
+            onSuspend: () => setStates([current], (s) => ({ ...s, suspended: true }), 'Suspended this card', true),
+            onSuspendNote: () => setStates(noteCards(current, cards ?? []), (s) => ({ ...s, suspended: true }), 'Suspended this note', true),
             onDueDate: chooseDueDate,
             onForget: chooseForget,
             // The deck is loaded again when Card Info closes: the same card stays on screen.
@@ -1538,13 +1557,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoHold} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoAction} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
           <Count value={dueCounts(queue).reviews} label="due" color={c.countDue} current={shownCount === 'due'} />
           <Count value={dueCounts(queue).learning} label="again" color={c.countLearn} current={shownCount === 'again'} />
           <Count value={queue.fresh.length} label="new" color={c.countNew} current={shownCount === 'new'} />
+          {cardParams?.showTimer ? <AnswerTimer key={showing} revealed={revealed} params={cardParams} /> : null}
         </View>
       ) : null}
       {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
