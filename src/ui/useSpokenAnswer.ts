@@ -2,7 +2,7 @@ import { setAudioModeAsync, type AudioMode } from 'expo-audio';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supportsOnDevice } from '../../modules/speech-on-device';
-import { bestHeard, canListen, recognitionLocale, speakingErrorText } from '../core/speaking';
+import { bestHeard, canListen, joinSegments, recognitionLocale, speakingErrorText } from '../core/speaking';
 import { useApp } from './AppContext';
 import { useOffline } from './connection';
 import { haptic } from './haptics';
@@ -55,6 +55,8 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   const starting = useRef(false);
   // Cancelled on purpose (the card changed): a result that still arrives belongs to the old card, so it's dropped.
   const cancelled = useRef(false);
+  // Hold to talk: what was said before a pause (iOS starts a new transcript after one) and the segment now being heard.
+  const segments = useRef({ done: '', last: '' });
 
   useEffect(() => {
     let live = true;
@@ -72,8 +74,12 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   const mine = () => owner === id.current;
   useSpeechRecognitionEvent('result', (e) => {
     if (!mine() || cancelled.current) return;
-    const guesses =e.results.map((r) => r.transcript);
-    latest.current.onHeard(e.isFinal ? bestHeard(guesses, latest.current.expected) : guesses[0]?.trim() ?? '', e.isFinal);
+    const guesses = e.results.map((r) => r.transcript);
+    const heard = e.isFinal ? bestHeard(guesses, latest.current.expected) : guesses[0]?.trim() ?? '';
+    if (!latest.current.continuous) { latest.current.onHeard(heard, e.isFinal); return; }
+    const joined = joinSegments(segments.current.done, segments.current.last, heard);
+    segments.current = { done: joined.done, last: joined.last };
+    latest.current.onHeard(joined.text, e.isFinal);
   });
   useSpeechRecognitionEvent('error', (e) => {
     if (!mine()) return;
@@ -101,6 +107,7 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
     starting.current = true;
     stopAsked.current = false;
     cancelled.current = false;
+    segments.current = { done: '', last: '' };
     setProblem(null);
     let permission: { granted: boolean } | null;
     try {

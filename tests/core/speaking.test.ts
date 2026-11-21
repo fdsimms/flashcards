@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestHeard, canListen, hearingText, recognitionLocale, spokenAnswerNote, speakingErrorText } from '../../src/core/speaking';
+import { bestHeard, canListen, joinSegments, hearingText, recognitionLocale, spokenAnswerNote, speakingErrorText } from '../../src/core/speaking';
 
 describe('spokenAnswerNote', () => {
   it('mentions tones only for Thai', () => {
@@ -74,5 +74,27 @@ describe('hearingText', () => {
     expect(hearingText(true, null)).toBe('Supported');
     expect(hearingText(false, null)).toBe('Not supported');
     expect(hearingText(null, null)).toBe('');
+  });
+});
+
+describe('joinSegments', () => {
+  it('replaces the segment while it is being revised', () => {
+    const a = joinSegments('', '', 'ผม');
+    const b = joinSegments(a.done, a.last, 'ผมไม่');
+    expect(b.text).toBe('ผมไม่');
+  });
+  it('keeps what was said before a pause when a new transcript starts', () => {
+    const a = joinSegments('', '', 'ไม่เคย');
+    const b = joinSegments(a.done, a.last, 'ครับ');
+    expect(b.text).toBe('ไม่เคยครับ');
+    expect(joinSegments(b.done, b.last, 'ครับผม').text).toBe('ไม่เคยครับผม');
+  });
+  it('puts a space between segments of a spaced language', () => {
+    const a = joinSegments('', '', 'I have never');
+    expect(joinSegments(a.done, a.last, 'run before').text).toBe('I have never run before');
+  });
+  it('ignores an empty result', () => {
+    const a = joinSegments('', '', 'ไม่เคย');
+    expect(joinSegments(a.done, a.last, '  ').text).toBe('ไม่เคย');
   });
 });

@@ -52,6 +52,30 @@ export function bestHeard(guesses: readonly string[], expected?: string | readon
 }
 
 /**
+ * What a hold-to-talk transcript says once a pause is counted in. iOS keeps revising one transcript
+ * while you speak, but after a pause it can start a new one that holds only what comes next, so
+ * taking each result as the whole answer wiped what was said before the pause. `done` is the
+ * segments before the current one and `last` is the current segment as last heard; a result that
+ * doesn't continue `last` (its start differs) begins a new segment, and `last` moves into `done`.
+ */
+export function joinSegments(done: string, last: string, next: string): { done: string; last: string; text: string } {
+  const heard = next.trim();
+  if (!heard) return { done, last, text: joinWords(done, last) };
+  const probe = last.slice(0, Math.min(2, last.length));
+  const continues = !last || heard.startsWith(probe) || last.startsWith(heard.slice(0, Math.min(2, heard.length)));
+  const before = continues ? done : joinWords(done, last);
+  return { done: before, last: heard, text: joinWords(before, heard) };
+}
+
+/** Two pieces of speech side by side: a space between them, except where the script has no spaces (Thai, Japanese, Chinese). */
+function joinWords(a: string, b: string): string {
+  if (!a) return b;
+  if (!b) return a;
+  const spaceless = /[\u0E00-\u0E7F\u3040-\u30FF\u3400-\u9FFF]/;
+  return spaceless.test(a.slice(-1)) && spaceless.test(b[0]) ? a + b : `${a} ${b}`;
+}
+
+/**
  * The note under a spoken answer. Thai gets a line on tones: the recognizer guesses them from the
  * words around, so a wrong tone can still come back as the right word. Japanese gets one on pitch
  * accent, which the recognizer doesn't check at all.
