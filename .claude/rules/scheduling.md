@@ -132,8 +132,12 @@ reaches first; a deck's own Anki limits and retention (Deck.Normal) still win ov
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
 (`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and
 the review screen agree, and the setting is the phone's own (Keychain), never written to Anki. Nothing
-shifts a due date or adds a review: FSRS must see the real time since each review. After it ends the
-weakest-first order stays while a review that came due before the end still waits (`CATCH_UP_DAYS`).
+shifts a due date or adds a review: FSRS must see the real time since each review. After it ends nothing
+of its own applies. **While a review from an earlier study day waits, reviews come likeliest-remembered first**
+(`isBehind`, `src/core/order.ts`; the owner's choice, 21 November 2026), after a vacation or any days away, so what a
+session doesn't reach is what was already slipping; the preset's review order returns once nothing older than today waits.
+**A new reverse card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
+the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it.
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
 Cram): until a running cram's day, a review of one of its words (or a day-long learning step) isn't

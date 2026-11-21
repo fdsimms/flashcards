@@ -1,6 +1,6 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
-import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
+import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
 import { skillCardIds } from './skillTag';
@@ -150,6 +150,11 @@ export interface TreeQueueInput {
   boostFor?: (root: string) => Boost | undefined;
   /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, weakest first overrides the review order. The limits are scaled in `queueInput`. */
   vacation?: VacationPlan;
+  /**
+   * While a review from an earlier study day waits, reviews come likeliest-remembered first (`isBehind`).
+   * Franki's own, set by `queueInput`; without it the review order is the preset's, as Anki builds it.
+   */
+  catchUp?: boolean;
 }
 
 function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedToday {
@@ -274,8 +279,6 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const rootFiltered = paramsFor(root)?.filtered;
   // A filtered deck keeps its own order: Anki builds it with no sort, by its cards' places in it.
   const ownOrder: StudyOrder = rootFiltered ? { ...DEFAULT_ORDER, newSortOrder: 1 } : paramsFor(root)?.order ?? DEFAULT_ORDER;
-  // Vacation mode's weakest-first order, but never over a filtered deck's own place order.
-  const order: StudyOrder = input.vacation?.weakestFirst && !rootFiltered ? { ...ownOrder, reviewOrder: REVIEW.relativeOverdueness } : ownOrder;
   const homeDeckOf = input.homeDeckOf ?? ((c: Card) => deckOfCard.get(c.id)!);
   const ctx: SortContext = {
     now, dayStartsAtHour: h, ankiToday: input.ankiToday, deckOf: (c) => deckOfCard.get(c.id)!, noteOf: (c) => c.noteId,
@@ -283,6 +286,13 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     retentionOf: (c) => paramsFor(homeDeckOf(c))?.desiredRetention,
   };
   const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h) && !input.held?.has(c.id));
+  // Vacation mode's weakest-first order, but never over a filtered deck's own place order. Otherwise,
+  // while a review from an earlier study day still waits, the reviews likeliest to be remembered come
+  // first (`isBehind`): what can't be reached today is then what was already slipping, not what would have been kept.
+  const order: StudyOrder = rootFiltered ? ownOrder
+    : input.vacation?.weakestFirst ? { ...ownOrder, reviewOrder: REVIEW.relativeOverdueness }
+    : input.catchUp && isBehind(all, now, h) ? { ...ownOrder, reviewOrder: REVIEW.retrievabilityDescending }
+    : ownOrder;
   const nextDay = nextStudyDayStart(now, h).getTime();
   // Siblings: a card is held back when one gathered before it has a preset burying its kind.
   const buryFlags = new Map<string, BurySettings>();
@@ -364,7 +374,7 @@ export function queueInput(a: {
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
-  const vacation = vacationPlan(a.vacation, a.cards, a.now, a.collection.dayStartsAtHour);
+  const vacation = vacationPlan(a.vacation, a.now, a.collection.dayStartsAtHour);
   return {
     cardsByDeck: groupByDeck(a.cards, deckOfNote),
     skillCards: skillCardIds(a.notes, a.cards),
@@ -376,6 +386,7 @@ export function queueInput(a: {
     paramsFor: (d) => paramsForDeck(d, a.params),
     homeDeckOf: (c) => cardHomeDeck(c, deckOfNote.get(c.noteId) ?? 'Imported'),
     studiedByDeck: a.studied,
+    catchUp: true,
     gateFor: a.gateFor,
     dayStartsAtHour: a.collection.dayStartsAtHour,
     learnAheadMinutes: a.collection.learnAheadMinutes,

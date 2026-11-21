@@ -596,7 +596,8 @@ describe(`a deck's queue as Anki ${queueVectors.anki} builds it (tests/fixtures/
       const cards = data.cards.map((c) => ({ ...c, ankiMod: ankiMod.get(c.ankiId!) }));
       const collection = data.collectionSettings!;
       const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
-      const input = queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now });
+      // Without Franki's own catch-up order (`catchUp`), which Anki doesn't have: these are Anki's queues.
+      const input = { ...queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now }), catchUp: false };
       for (const [deck, anki] of Object.entries(v.queues)) {
         const q = treeQueue(deck, input);
         expect(q.order.map((c) => c.ankiId), deck).toEqual(anki.order);
