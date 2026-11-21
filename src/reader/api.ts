@@ -189,7 +189,8 @@ export type Register = 'casual' | 'neutral' | 'formal' | 'slang';
 // way of saying a Sentences prompt, or a retelling of a text. `corrected` is theirs with only the mistakes
 // fixed, and theirs as written when it's right. Never kept, never graded.
 export type WritingVerdict = 'right' | 'almost' | 'wrong';
-export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; used_word?: boolean };
+// `hints` say where each mistake is and what kind, never the fix: shown before the correction, for another try (absent from an older server).
+export type WritingCheck = { verdict: WritingVerdict; corrected: string; english: string; notes: string[]; hints?: string[]; used_word?: boolean };
 // A retelling's check adds words from the text it could have used (each with the line it's in) and what it left out.
 export type RetellCheck = WritingCheck & { words: { word: string; english: string; line: number }[]; left_out: string };
 export type WritingRequest =
