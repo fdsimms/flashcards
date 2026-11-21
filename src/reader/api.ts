@@ -537,7 +537,17 @@ export type QueuedNote = {
   state: 'waiting' | 'ready' | 'failed';
   fields: Record<string, string>;
   error: string;
+  /**
+   * How the entry is really written, once it's ready, when it was typed the way it sounds (in Latin
+   * letters, romanized loosely or misspelled); empty otherwise. Absent from a server before it.
+   */
+  spelling?: string;
+  /** The other words a romanized or misspelled entry could be, for the owner to choose from. */
+  alternatives?: { spelling: string; meaning: string }[];
 };
+
+/** A word for a meaning typed in English (Quick add's "Don't know the word?"). */
+export type FoundWord = Schemas['FoundWordOut'];
 
 // `available` is false when the server has no Claude key, so nothing can be queued.
 export type NoteQueue = { available: boolean; items: QueuedNote[] };
@@ -610,6 +620,9 @@ export function createApi(
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.
     removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
+    // Words for a meaning typed in English, asked when the owner sends one.
+    lookUpWords: async (language: Language, meaning: string) =>
+      (await call<Schemas['WordLookupOut']>('POST', '/api/word-lookup', { language, meaning })).words,
     vocabCheck: (language: Language) => call<VocabBank>('GET', `/api/vocab-check?language=${language}`),
     wordSuggestions: (language: Language) => call<WordSuggestions>('GET', `/api/word-suggestions?language=${language}`),
     // Not interested: the word isn't suggested for the language again.

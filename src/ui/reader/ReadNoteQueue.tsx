@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, LayoutAnimation, ScrollView, Text, View } fro
 import { failureText } from '../../core/failure';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
-import { counts, firstReady } from '../../reader/noteQueue';
+import { counts, firstReady, needsChoice } from '../../reader/noteQueue';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
@@ -20,6 +20,9 @@ const STATUS = {
 
 /** A ready note the deck refused when it was approved (a duplicate): shown instead of "Ready". */
 const REFUSED = { icon: 'exclamationmark.triangle.fill', label: 'Not added' } as const;
+
+/** A ready word that could be more than one word: opened to choose, and left out of Approve all. */
+const CHOOSE = { icon: 'questionmark.circle.fill', label: 'Choose a word' } as const;
 
 /** A note "Approve all" has saved, while the list holds still until the approval ends. */
 const ADDED = { icon: 'checkmark.circle.fill', label: 'Added' } as const;
@@ -38,9 +41,12 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
   onRemove: () => void;
 }) {
   const c = useTheme();
-  const { icon, label } = added ? ADDED : refusal ? REFUSED : STATUS[note.state];
-  const color = refusal ? c.danger : note.state === 'ready' ? c.good : note.state === 'failed' ? c.danger : c.textSecondary;
+  const choose = needsChoice(note);
+  const { icon, label } = added ? ADDED : refusal ? REFUSED : choose ? CHOOSE : STATUS[note.state];
+  const color = refusal ? c.danger : choose ? c.warningInk : note.state === 'ready' ? c.good : note.state === 'failed' ? c.danger : c.textSecondary;
   const meaning = note.fields.Meaning ?? note.meaning;
+  // A word typed the way it sounds shows how it's really written beside it.
+  const word = note.spelling ? `${note.entry} → ${note.spelling}` : note.entry;
   return (
     <View style={{ borderTopWidth: first ? 0 : hairline, borderTopColor: c.border, opacity: added ? 0.55 : 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -48,11 +54,11 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
           onPress={() => { haptic.tap(); onOpen(); }}
           disabled={note.state === 'waiting' || locked}
           accessibilityRole="button"
-          accessibilityLabel={`${note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
+          accessibilityLabel={`${note.spelling ? `${note.entry}, written ${note.spelling}` : note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ ...type.headline, color: c.text }}>{note.entry}</Text>
+            <Text style={{ ...type.headline, color: c.text }}>{word}</Text>
             {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
             <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{note.deck}</Text>
           </View>
@@ -179,11 +185,20 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
 
   // The alert names how many notes are added, and its button is the approval (useApproveQueued).
   const approveAll = () => {
-    const notes = getItems().filter((x) => x.state === 'ready' && !(x.id in refused));
-    if (!notes.length) return;
+    const ready = getItems().filter((x) => x.state === 'ready' && !(x.id in refused));
+    // A word that could be more than one is the owner's to choose, so it's never approved unopened.
+    const notes = ready.filter((x) => !needsChoice(x));
+    const left = ready.length - notes.length;
+    const leftLine = left === 1
+      ? '1 word could be more than one word, so it stays queued until you open it and choose.'
+      : `${left} words could each be more than one word, so they stay queued until you open each and choose.`;
+    if (!notes.length) {
+      if (left) Alert.alert(left === 1 ? 'This word needs a choice' : 'These words need a choice', leftLine);
+      return;
+    }
     Alert.alert(
       notes.length === 1 ? 'Add 1 note to your deck?' : `Add ${notes.length} notes to your deck?`,
-      "They're saved as Claude wrote them, without opening each one. To change one first, open it from the list instead.",
+      `They're saved as Claude wrote them, without opening each one. To change one first, open it from the list instead.${left ? ` ${leftLine}` : ''}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

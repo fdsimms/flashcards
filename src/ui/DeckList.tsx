@@ -17,7 +17,7 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
 /** What a deck's long-press menu and its ⋯ button offer besides studying it. */
-export type DeckAction = 'note' | 'rename' | 'options' | 'export' | 'suspend' | 'unsuspend' | 'delete';
+export type DeckAction = 'quick' | 'note' | 'rename' | 'options' | 'export' | 'suspend' | 'unsuspend' | 'delete';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
 export function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
@@ -89,7 +89,7 @@ function DeckChip({ row }: { row: ShownRow }) {
 /** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
 export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
-export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Add a note, rename, options or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room at the right edge for the show/hide button, so every row's counts line up whether or not it has subdecks. */
@@ -291,7 +291,8 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
           />
         </Link.Trigger>
         <Link.Menu title={row.name}>
-          <Link.MenuAction icon="plus" onPress={() => onAction('note')}>Add note</Link.MenuAction>
+          <Link.MenuAction icon="text.badge.plus" onPress={() => onAction('quick')}>{`Quick add to ${row.name}`}</Link.MenuAction>
+      <Link.MenuAction icon="plus" onPress={() => onAction('note')}>Add note</Link.MenuAction>
           <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
           <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
           <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
@@ -342,8 +343,8 @@ export function DeckList(props: {
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
-  /** Quick add (ReadQuickAdd.tsx); present while Read & Listen is on, since Claude fills the notes in there. */
-  onQuickAdd?: () => void;
+  /** Quick add (QuickAdd.tsx), from the header's + button. */
+  onQuickAdd: () => void;
   /** The ⋯ button on a deck's row: add a note, rename, options, export, suspend or unsuspend all, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** One of those, chosen from the menu a long press on the row opens. */
@@ -394,14 +395,14 @@ export function DeckList(props: {
           {!editing && props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncTap.busy} tintColor={syncTap.busy ? c.accent : undefined} accessibilityLabel={syncTap.busy ? 'Syncing' : 'Sync now'} onPress={syncTap.tap} />
           ) : null}
-          {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
+          {!editing ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Quick add words" onPress={props.onQuickAdd} /> : null}
+      {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
           {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Decks settings" onPress={props.onSettings} /> : null}
-          {/* What's used less often than opening a deck, so the bar stays at four buttons. */}
-          {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks, quick add notes or stats">
+          {/* What's used less often than adding to or opening a deck, so the bar stays at five buttons. */}
+          {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks or stats">
             <Stack.Toolbar.MenuAction icon="rectangle.stack.badge.plus" onPress={props.onNewDeck}>New deck</Stack.Toolbar.MenuAction>
             {groups.length ? <Stack.Toolbar.MenuAction icon="arrow.up.arrow.down" onPress={() => { setOpenDeck(null); setEditing(true); }}>Edit decks</Stack.Toolbar.MenuAction> : null}
-            {props.onQuickAdd ? <Stack.Toolbar.MenuAction icon="plus" onPress={props.onQuickAdd}>Quick add notes</Stack.Toolbar.MenuAction> : null}
-            <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
+                <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
           </Stack.Toolbar.Menu> : null}
         </Stack.Toolbar>
       }

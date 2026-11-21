@@ -8,6 +8,7 @@ import { studyDayStart } from '../core/day';
 import { listedDecks } from '../core/deckNames';
 import { deckRows, queueInput, type DeckRow } from '../core/deckTree';
 import { studiedToday } from '../core/queue';
+import type { WordChoice } from '../core/quickAdd';
 import type { Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import { backupStatus } from '../db/backup';
@@ -45,9 +46,13 @@ export type AppRepo = Repo & BackupStore & AnkiLink;
 
 /** What the note editor hands back when it closes; none when it was closed without saving. */
 /** `cardsChanged`: the note wasn't saved, but a card was unsuspended, unburied or unflagged in it. */
-export type NoteEditorResult = { saved: Note } | { deleted: string } | { cardsChanged: true };
-/** A note to edit, or a new one in `deck`, with `model` and `fields` filled in when given (Read & Listen's marked words). */
-export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[] };
+/** `chose` and `dropped` answer a queued word's `choice`: another word was meant, or none of them. */
+export type NoteEditorResult = { saved: Note } | { deleted: string } | { cardsChanged: true } | { chose: { entry: string; meaning: string } } | { dropped: true };
+/**
+ * A note to edit, or a new one in `deck`, with `model` and `fields` filled in when given (Read & Listen's
+ * marked words). `choice`: a queued word that could be more than one word, for the editor to ask which.
+ */
+export type NoteEditorTarget = { noteId: string } | { deck: string | null; model?: string; fields?: Record<string, string>; fieldNotes?: Record<string, string>; tags?: string[]; choice?: WordChoice };
 
 interface AppValue {
   repo: AppRepo;
@@ -177,6 +182,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (target.fields) params.fields = JSON.stringify(target.fields);
       if (target.fieldNotes) params.fieldNotes = JSON.stringify(target.fieldNotes);
       if (target.tags?.length) params.tags = JSON.stringify(target.tags);
+      if (target.choice) params.choice = JSON.stringify(target.choice);
     }
     router.push({ pathname: '/note-editor', params });
   }, [router]);

@@ -1,8 +1,9 @@
-// The note queue, app side: words typed in Quick add, filled in by Claude on Read & Listen's server, then
+// The note queue, app side: words typed in Quick add (src/ui/QuickAdd.tsx), filled in by Claude on Read & Listen's server, then
 // reviewed here. Saving a note in the note editor is the approval step: nothing in this file (or the
 // screens that use it) creates a note or touches a card. Pure, so it's tested.
 import { bareNoun, bareVerb, genderOf } from '../core/gender';
 import { editTextToField } from '../core/noteEditing';
+import type { WordChoice } from '../core/quickAdd';
 import type { Language, NoteQueue, QueuedNote } from './api';
 
 /**
@@ -27,29 +28,6 @@ export function quickAddDecks(
   return [...options.filter((d) => d.language === current), ...options.filter((d) => d.language !== current)];
 }
 
-/** The most words one Quick add queues; the server refuses more. */
-export const MAX_WORDS = 50;
-
-/**
- * What Quick add's box holds, as words to queue: one per line, with the owner's own meaning after a
- * spaced dash or a tab ("bouder - to sulk"). Blank lines are skipped, and a line repeating an earlier
- * one is counted in `repeated` so the screen can say it was ignored.
- */
-export function parseWords(text: string): { entries: { entry: string; meaning: string }[]; repeated: number } {
-  const seen = new Set<string>();
-  const entries: { entry: string; meaning: string }[] = [];
-  let repeated = 0;
-  for (const raw of text.split(/\r?\n/)) {
-    const [first, ...rest] = raw.trim().split(/\s+[-–—]\s+|\t+/);
-    const entry = first.trim();
-    if (!entry) continue;
-    if (seen.has(entry)) { repeated++; continue; }
-    seen.add(entry);
-    entries.push({ entry, meaning: rest.join(' - ').trim() });
-  }
-  return { entries, repeated };
-}
-
 /** How many queued words are in each state. */
 export function counts(items: QueuedNote[]): { ready: number; waiting: number; failed: number } {
   return {
@@ -65,12 +43,28 @@ export const firstReady = (items: QueuedNote[]): QueuedNote | undefined => items
  * The new note a ready word starts as, for the note editor: the fields Claude wrote under the Entry,
  * and its part of speech as the tag, as the owner's finished notes carry it. A noun's article is left off
  * the Entry when its Gender gives that same article (the card shows it from the Gender), and a Norwegian
- * verb's å likewise (the card shows it before a verb).
+ * verb's å likewise (the card shows it before a verb). A word typed the way it sounds opens on how it's
+ * really written (`spelling`), with what was typed under the Entry, or, when it could be more than one
+ * word, a `choice` for the editor to ask which one was meant.
  */
-export function reviewTarget(note: QueuedNote): { deck: string; model: string; fields: Record<string, string>; tags?: string[] } {
-  const target = { deck: note.deck, model: 'Omnilanguage', fields: { Entry: bareVerb(note.language, note.fields.PartOfSpeech ?? '', bareNoun(note.language, genderOf(note.fields.Gender ?? ''), note.entry)), ...note.fields } };
+export function reviewTarget(note: QueuedNote): { deck: string; model: string; fields: Record<string, string>; tags?: string[]; fieldNotes?: Record<string, string>; choice?: WordChoice } {
+  const word = note.spelling || note.entry;
+  const fields = { Entry: bareVerb(note.language, note.fields.PartOfSpeech ?? '', bareNoun(note.language, genderOf(note.fields.Gender ?? ''), word)), ...note.fields };
   const part = note.fields.PartOfSpeech;
-  return part ? { ...target, tags: [part] } : target;
+  const target = { deck: note.deck, model: 'Omnilanguage', fields, ...(part ? { tags: [part] } : {}) };
+  if (needsChoice(note)) {
+    const words = [{ entry: word, meaning: note.fields.Meaning ?? note.meaning }, ...(note.alternatives ?? []).map((a) => ({ entry: a.spelling, meaning: a.meaning }))];
+    return { ...target, choice: { typed: note.entry, words } };
+  }
+  return note.spelling ? { ...target, fieldNotes: { Entry: `You typed ${note.entry}.` } } : target;
+}
+
+/**
+ * Whether a ready word could be more than one word (typed the way it sounds), so the owner opens it to
+ * say which one they meant. Approve all leaves it queued.
+ */
+export function needsChoice(note: QueuedNote): boolean {
+  return note.state === 'ready' && (note.alternatives?.length ?? 0) > 0;
 }
 
 /**

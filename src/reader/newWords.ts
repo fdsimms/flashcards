@@ -6,7 +6,7 @@
 import { isInDeck } from '../core/deckTree';
 import type { Card, Note } from '../core/types';
 import type { Language, WordSuggestion, WordSuggestions } from './api';
-import { MAX_WORDS } from './noteQueue';
+import { MAX_QUEUED } from '../core/quickAdd';
 
 /** A language deck with fewer days of new cards than this is running low. */
 export const RUNWAY_DAYS = 3;
@@ -73,7 +73,7 @@ export function cardsPerNote(deck: string, notes: readonly Note[], cards: readon
 
 /** How many words start ticked: enough notes for RUNWAY_DAYS of the deck's new cards, at most Quick add's limit. */
 export function wordsToTick(perDay: number, perNote: number): number {
-  return Math.min(MAX_WORDS, Math.max(1, Math.ceil((RUNWAY_DAYS * perDay) / Math.max(1, perNote))));
+  return Math.min(MAX_QUEUED, Math.max(1, Math.ceil((RUNWAY_DAYS * perDay) / Math.max(1, perNote))));
 }
 
 /** What a word is compared by: case, accents kept, spacing and a leading article's case aside. */
