@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, pendingRequests, practiceLabel, practiceProgress,
-  practiceSummary, textWords, withoutCapture, withoutRequest, wordState, type Cram, type WordState,
+  practiceSummary, textWords, themeTopic, withoutCapture, withoutRequest, wordState, type Cram, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
@@ -151,7 +151,7 @@ export function CramPage(props: {
               <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
               {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Words solid" /> : null}
               {ids.length ? <Button label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
-              <Help>{ids.length ? 'Missed ones first. Practice any time, as often as you like. It never changes your reviews.' : 'Add words below to practice them.'}</Help>
+              <Help>{ids.length ? 'Missed ones first. A word is solid once you get it right the first time in two passes in a row. Practice any time; it never changes your reviews.' : 'Add words below to practice them.'}</Help>
             </>
           )}
         </Box>
@@ -161,7 +161,7 @@ export function CramPage(props: {
         {!cram.finishedAt && (missed.length || props.readerApi) ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {missed.length ? <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} /> : null}
-            {props.readerApi && language ? <Pill label="Words for the topic" icon="sparkles" ink={c.accentInk} fill={c.accentFill} onPress={() => go('/cram-themes')} /> : null}
+            {props.readerApi && language ? <Pill label={themeTopic(cram) ? 'Words for the topic' : 'Get ideas'} icon="sparkles" ink={c.accentInk} fill={c.accentFill} onPress={() => go('/cram-themes')} /> : null}
           </View>
         ) : null}
         <Group>
@@ -210,7 +210,7 @@ export function CramPage(props: {
                 first
                 icon={{ name: 'sparkles', color: c.accent }}
                 label={cram.theme ? 'More ideas' : 'Suggest talking points'}
-                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : `Angles on "${cram.name}", with questions and words from your deck.`}
+                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Angles on "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
                 disabled={!props.readerApi || !language}
                 onPress={() => go('/cram-themes')}
               />

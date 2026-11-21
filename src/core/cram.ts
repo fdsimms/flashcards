@@ -91,6 +91,8 @@ export interface Cram {
   captured?: string[];
   /** Cards asked of Claude for it, shown as being written until a note with the word is in the cram (`pendingRequests`). */
   requested?: CramRequest[];
+  /** Started with "Not sure yet? Get ideas": its name is a stand-in until a theme names it (`withTheme`), and its talking points aren't angles on that name (`themeTopic`). */
+  untitled?: boolean;
 }
 
 /** The languages a cram can be set to, each with its flag, as the editor's Language list shows them. */
@@ -356,11 +358,20 @@ export function fullDate(cram: Pick<Cram, 'date'>): string {
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** Which words are solid (got the first time in the last pass they were in) and which are still to go, in the cram's order. */
+/** How many passes in a row a word has to be got the first time to count as solid: one lucky pass isn't enough. */
+export const SOLID_PASSES = 2;
+
+/** Whether the word was got the first time in each of the last `SOLID_PASSES` passes it was in. */
+function isSolid(cram: Cram, noteId: string): boolean {
+  const passes = cram.rounds.filter((r) => r.noteIds.includes(noteId)).slice(-SOLID_PASSES);
+  return passes.length === SOLID_PASSES && passes.every((r) => !r.missed.includes(noteId));
+}
+
+/** Which words are solid (`isSolid`) and which are still to go, in the cram's order. */
 export function practiceProgress(cram: Cram, noteIds: string[]): { solid: string[]; toGo: string[] } {
   const solid: string[] = [];
   const toGo: string[] = [];
-  for (const id of noteIds) (wordState(cram, id, false) === 'got' ? solid : toGo).push(id);
+  for (const id of noteIds) (isSolid(cram, id) ? solid : toGo).push(id);
   return { solid, toGo };
 }
 
@@ -396,6 +407,19 @@ export function pendingRequests(cram: Cram, inCram: Note[]): CramRequest[] {
   const have = new Set(inCram.map((n) => textKey(headword(n))));
   return (cram.requested ?? []).filter((r) => !have.has(textKey(r.text)));
 }
+
+/** What the cram's talking points are angles on: its name, or nothing for an untitled cram, whose stand-in name says nothing about the lesson. */
+export const themeTopic = (cram: Pick<Cram, 'name' | 'untitled'>): string => (cram.untitled ? '' : cram.name);
+
+/** The cram with a theme's talking points kept, named after the theme when it had only a stand-in name. */
+export function withTheme(cram: Cram, talk: CramTalk): Cram {
+  if (!cram.untitled) return { ...cram, theme: talk };
+  const { untitled: _, ...rest } = cram;
+  return { ...rest, name: talk.title, theme: talk };
+}
+
+/** The name a cram started with "Not sure yet? Get ideas" has until a theme names it: "Thai lesson", or "Lesson" in no language. */
+export const standInName = (languageName: string | undefined): string => (languageName ? `${languageName} lesson` : 'Lesson');
 
 /** The cram with a card asked for (a second ask for the same word is kept once). */
 export function withRequest(cram: Cram, request: CramRequest): Cram {

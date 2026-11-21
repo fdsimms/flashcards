@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { cramLanguageOf } from '../../core/cram';
+import { cramLanguageOf, themeTopic } from '../../core/cram';
 import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Api, CramTheme, Language } from '../../reader/api';
@@ -65,7 +65,7 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
   const { crams, loaded: cramsLoaded } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === cramId);
-  const topic = cram?.name ?? '';
+  const topic = cram ? themeTopic(cram) : '';
   const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
   const [stretch, setStretch] = useState(suggested?.cramId === cramId ? suggested.stretch : false);
   const [asking, setAsking] = useState(false);
@@ -117,7 +117,7 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
     <Screen title="Talking points" largeTitle={false}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
-        {topic && language ? <Help>{`Angles on "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.`}</Help> : null}
+        {cram && language ? <Help>{topic ? `Angles on "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. Use theme names the cram after it.`}</Help> : null}
         <Segments<'comfortable' | 'stretch'>
           options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'stretch', label: 'Stretch' }]}
           value={stretch ? 'stretch' : 'comfortable'}

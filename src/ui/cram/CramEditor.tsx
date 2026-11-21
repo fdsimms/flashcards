@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, useColorScheme, View } from 'react-native';
 import {
-  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, type Cram,
+  CRAM_LANGUAGE_CHOICES, carryOver, cramDay, cramId, cramNotes, cramProblem, dayChoices, lastCramLanguage, standInName, type Cram,
 } from '../../core/cram';
 import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
@@ -25,11 +25,18 @@ const MISSED_MAX = 10;
 /**
  * A cram's sheet. A new one is one step: what it's for, the day (a chip for each of the next five
  * days, or Other for the calendar), the language (the last cram's, to start), and which words it
- * starts with (the ones not used last time, the ones missed lately), then Start cram opens its page,
- * where everything else is planned. Editing one changes its name, day and language, whether new
- * cards join it, and can delete it.
+ * starts with (the ones not used last time; the ones missed lately, unchecked to start, since they're
+ * seldom about the topic), then Start cram opens its page, where everything else is planned. With
+ * nothing to talk about in mind, "Not sure yet? Get ideas" starts it under a stand-in name and opens
+ * its talking points; the theme used names it (`withTheme`). Editing one changes its name, day and
+ * language, whether new cards join it, and can delete it.
  */
-export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
+export function CramEditor({ repo, id, canSuggest }: {
+  repo: AppRepo;
+  id?: string;
+  /** Read & Listen is on, so talking points can be asked for. */
+  canSuggest: boolean;
+}) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
   const router = useRouter();
@@ -44,7 +51,7 @@ export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
   const [addNew, setAddNew] = useState(true);
   const [language, setLanguage] = useState<Cram['language']>();
   const [carry, setCarry] = useState(true);
-  const [missed, setMissed] = useState(true);
+  const [missed, setMissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
   const newId = useRef<string | undefined>(undefined);
@@ -71,18 +78,22 @@ export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
     .slice(0, MISSED_MAX);
   const languageName = language ? LANGUAGES[language].name : undefined;
 
-  const save = async () => {
+  const save = async (ideas = false) => {
     if (busy) return;
+    // No name yet: a stand-in the theme used replaces (`withTheme`).
+    const title = ideas ? standInName(languageName) : name;
     // A cram's own day, unchanged, can be kept when it's past (renaming a finished cram).
     const keptDay = !!editing && date === editing.date;
-    const wrong = keptDay && name.trim() ? undefined : cramProblem(name, date, now, H);
+    const wrong = keptDay && title.trim() ? undefined : cramProblem(title, date, now, H);
     if (wrong) { setProblem(wrong); return; }
     haptic.tap();
     setBusy(true);
     setProblem(undefined);
     try {
       if (editing) {
-        await saveCram(repo, { ...editing, name: name.trim(), date, addNew, language });
+        // A name typed over the stand-in is the owner's: a theme no longer replaces it.
+        const renamed = name.trim() !== editing.name;
+        await saveCram(repo, { ...editing, name: name.trim(), date, addNew, language, ...(renamed ? { untitled: undefined } : {}) });
         // Saved either way; the cram's page runs the cap again and says if it can't.
         capCramCards(repo).catch(() => undefined);
         leaveScreen(router, PRACTICE_PATH);
@@ -90,13 +101,14 @@ export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
       }
       // Kept for a second try: the cram is saved before its words are tagged, so a try that failed
       // part way is finished by the next one rather than making a second cram.
-      newId.current ??= cramId(name, date, crams.map((x) => x.id));
+      newId.current ??= cramId(title, date, crams.map((x) => x.id));
       const takeCarried = !!carried && carry;
       const cram: Cram = {
         id: newId.current,
-        name: name.trim(),
+        name: title.trim(),
         date,
         createdAt: new Date().toISOString(),
+        ...(ideas ? { untitled: true } : {}),
         addNew,
         ...(language ? { language } : {}),
         rounds: [],
@@ -106,6 +118,7 @@ export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
       await startCram(repo, cram, words, takeCarried ? carried.from : undefined);
       capCramCards(repo).catch(() => undefined);
       router.replace({ pathname: '/cram', params: { id: cram.id } });
+      if (ideas) router.push({ pathname: '/cram-themes', params: { id: cram.id } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't save the cram.", next: 'Try again.' }));
       setBusy(false);
@@ -147,13 +160,19 @@ export function CramEditor({ repo, id }: { repo: AppRepo; id?: string }) {
       footer={(
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
-          <Button label={editing ? 'Save' : 'Start cram'} onPress={save} busy={busy} disabled={!ready} />
+          <Button label={editing ? 'Save' : 'Start cram'} onPress={() => void save()} busy={busy} disabled={!ready} />
         </>
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         <Card>
           <Field label="What's it for?" value={name} onChangeText={setName} placeholder="e.g. Talking about my weekend" autoFocus={!id} returnKeyType="done" />
+          {!editing && canSuggest && !name.trim() ? (
+            <>
+              <Button variant="secondary" label="Not sure yet? Get ideas" onPress={() => void save(true)} disabled={!ready || !language || busy} />
+              <Help>{language ? 'Starts the cram and suggests things to talk about from your words. The one you use names it.' : 'Choose a language below first.'}</Help>
+            </>
+          ) : null}
         </Card>
         <View style={{ gap: space.s }}>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>Day</Text>

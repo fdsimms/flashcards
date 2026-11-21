@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
-  afterCardsAsked, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
+  afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withTheme, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -76,20 +76,45 @@ describe('practice', () => {
     expect(practiceWords(cram(), ids)).toEqual(ids);
     expect(practiceLabel(cram(), ids)).toBe('Practice 3 words');
     expect(practiceSummary(cram(), ids)).toBe('Not practiced yet.');
-    // Two passes in an hour: nothing waits between them.
-    const two = cram({ rounds: [round(new Date(2026, 10, 18, 8), ids, ['a', 'b']), round(new Date(2026, 10, 18, 8, 30), ['a', 'b'], ['a'])] });
-    expect(practiceProgress(two, ids)).toEqual({ solid: ['b', 'c'], toGo: ['a'] });
-    expect(practiceWords(two, ids)).toEqual(['a']);
-    expect(practiceLabel(two, ids)).toBe('Practice the 1 to go');
-    expect(practiceSummary(two, ids)).toBe('2 of 3 words solid.');
-    const all = withRound(two, round(WED, ['a'], []));
+    // Three passes in an hour: nothing waits between them.
+    const three = cram({
+      rounds: [round(new Date(2026, 10, 18, 8), ids, ['a']), round(new Date(2026, 10, 18, 8, 20), ids, ['a', 'b']), round(new Date(2026, 10, 18, 8, 40), ['a', 'b'], ['a'])],
+    });
+    // c was got the first time in both passes it was in; b only in the last, so it isn't solid yet.
+    expect(practiceProgress(three, ids)).toEqual({ solid: ['c'], toGo: ['a', 'b'] });
+    expect(practiceWords(three, ids)).toEqual(['a', 'b']);
+    expect(practiceLabel(three, ids)).toBe('Practice the 2 to go');
+    expect(practiceSummary(three, ids)).toBe('1 of 3 words solid.');
+    const all = withRound(withRound(three, round(WED, ['a', 'b'], [])), round(WED, ['a'], []));
     expect(practiceWords(all, ids)).toEqual(ids);
     expect(practiceLabel(all, ids)).toBe('Practice all 3 again');
     expect(practiceSummary(cram(), [])).toBe('No words yet.');
   });
+  it(`takes ${SOLID_PASSES} clean passes in a row to count a word as solid`, () => {
+    expect(SOLID_PASSES).toBe(2);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], [])] }), ['a']).solid).toEqual([]);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], [])] }), ['a']).solid).toEqual(['a']);
+    // A miss in the latest pass undoes it, and so does one in the pass before.
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], []), round(WED, ['a'], ['a'])] }), ['a']).solid).toEqual([]);
+    expect(practiceProgress(cram({ rounds: [round(WED, ['a'], ['a']), round(WED, ['a'], [])] }), ['a']).solid).toEqual([]);
+  });
   it('counts a word added after the last pass as still to go', () => {
-    const c = cram({ rounds: [round(WED, ['a'], [])] });
+    const c = cram({ rounds: [round(WED, ['a'], []), round(WED, ['a'], [])] });
     expect(practiceProgress(c, ['a', 'new'])).toEqual({ solid: ['a'], toGo: ['new'] });
+  });
+  it('names a cram started without a topic after the theme it takes, and asks for free ideas until then', () => {
+    const talk = { title: 'My weekend at the beach', questions: [] };
+    const untitled = cram({ name: standInName('Thai'), untitled: true });
+    expect(untitled.name).toBe('Thai lesson');
+    expect(standInName(undefined)).toBe('Lesson');
+    expect(themeTopic(untitled)).toBe('');
+    const named = withTheme(untitled, talk);
+    expect(named).toMatchObject({ name: 'My weekend at the beach', theme: talk, id: untitled.id });
+    expect(named.untitled).toBeUndefined();
+    expect(themeTopic(named)).toBe('My weekend at the beach');
+    // A cram named by its owner keeps its name.
+    expect(withTheme(cram(), talk)).toMatchObject({ name: 'Thai lesson', theme: talk });
+    expect(themeTopic(cram())).toBe('Thai lesson');
   });
 });
 
