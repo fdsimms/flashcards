@@ -1295,9 +1295,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         - The text is `source_fields`' text (formatting and media left out) joined by `join`, then
           each `replacements` find/replace in order; `text_overrides` (note id to text) replaces it
           outright for the notes named.
-        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume), as Franki says
-          it: when `Entry` is the first source field and the note's Gender and Language give one
-          (Spanish, Norwegian, German, French, Greek). An Entry that already starts with its article
+        - An Omnilanguage noun is read with its article (die Einstellung, l'amertume, ten wrzesień), as
+          Franki says it: when `Entry` is the first source field and the note's Gender and Language give
+          one (Spanish, Norwegian, German, French, Greek, and Polish's and Russian's ten/ta/to and
+          этот/эта/это, te/ci for a plural). An Entry that already starts with its article
           (el agua) is read as it is. A Norwegian verb is read with its å (å huske), from
           PartOfSpeech. `article=false` reads the Entry alone.
         - `rate` is the speed (0.5 to 2.0, 1 is normal).

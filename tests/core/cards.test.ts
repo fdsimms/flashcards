@@ -154,18 +154,18 @@ describe('cards', () => {
     expect(block({ Entry: '劇団', Language: 'japanese', Hanzi: '劇(ゲキ) drama' })?.label).toBe('Kanji');
     expect(block({ Entry: '剧团', Language: 'mandarin', Hanzi: '劇 drama' })?.label).toBe('Hanzi');
   });
-  it('puts этот / эта / это before a Russian noun wherever the word is shown, but never speaks it', () => {
+  it('puts этот / эта / это before a Russian noun wherever the word is shown and speaks it with the word', () => {
     const note = omniNote({ Entry: 'кошка', Meaning: 'cat', Language: 'russian', Gender: 'f', Transliteration: '' });
     const forward = renderCard(note, 'forward');
     expect(forward.front.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
-    expect(forward.front.speak).toBe('кошка');
+    expect(forward.front.speak).toBe('эта кошка');
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ text: 'кошка', prefix: 'эта' });
   });
   it('puts ten / ta / to before a Polish noun by its Gender, but not before one that already starts with it', () => {
     const note = omniNote({ Entry: 'mężczyzna', Meaning: 'man', Language: 'polish', Gender: 'm', Transliteration: '' });
     const forward = renderCard(note, 'forward');
     expect(forward.front.blocks[0]).toMatchObject({ text: 'mężczyzna', prefix: 'ten' });
-    expect(forward.front.speak).toBe('mężczyzna');
+    expect(forward.front.speak).toBe('ten mężczyzna');
     expect(renderCard(note, 'reverse').back.blocks[0]).toMatchObject({ prefix: 'ten' });
     expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'kobieta', Gender: 'f' } }, 'forward').front.blocks[0].prefix).toBe('ta');
     expect(renderCard({ ...note, fields: { ...note.fields, Entry: 'dziecko', Gender: 'n' } }, 'forward').front.blocks[0].prefix).toBe('to');
@@ -178,7 +178,7 @@ describe('cards', () => {
     const note = omniNote({ Entry: 'spodnie', Meaning: 'pants', Language: 'polish', Gender: 'pl', Transliteration: '' });
     const men = { ...note, fields: { ...note.fields, Entry: 'ludzie', Gender: 'mpl' } };
     expect(renderCard(note, 'forward').front.blocks[0]).toMatchObject({ text: 'spodnie', prefix: 'te' });
-    expect(renderCard(note, 'forward').front.speak).toBe('spodnie');
+    expect(renderCard(note, 'forward').front.speak).toBe('te spodnie');
     expect(renderCard(men, 'forward').front.blocks[0]).toMatchObject({ text: 'ludzie', prefix: 'ci' });
   });
   it("puts å before a Norwegian verb and says it, and leaves a phrase or another language's verb alone", () => {

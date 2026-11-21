@@ -1,6 +1,6 @@
 import { strToU8 } from 'fflate';
 import { isOmnilanguage, speechLangFor } from './cards';
-import { genderOf, spokenEntry } from './gender';
+import { spokenEntry } from './gender';
 import { htmlToText, soundFiles } from './html';
 import { sha1Hex } from '../anki/sha1';
 import type { Note } from './types';
@@ -23,7 +23,7 @@ export const RECORDING_RATE = 1;
 export function recordingText(note: Note): string {
   const entry = htmlToText(note.fields.Entry ?? '').replace(/\s+/g, ' ').trim();
   const lang = speechLangFor(note)?.slice(0, 2) ?? '';
-  return isOmnilanguage(note) ? spokenEntry(lang, genderOf(htmlToText(note.fields.Gender ?? '')), htmlToText(note.fields.PartOfSpeech ?? ''), entry) : entry;
+  return isOmnilanguage(note) ? spokenEntry(lang, htmlToText(note.fields.Gender ?? ''), htmlToText(note.fields.PartOfSpeech ?? ''), entry) : entry;
 }
 
 /**
