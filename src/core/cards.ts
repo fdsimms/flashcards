@@ -176,6 +176,15 @@ export function autoplayFor(card: RenderedCard, revealed: boolean): Playback | u
 const THAI_TWO = 'สอง';
 
 /**
+ * The counted example for one counting word: the noun, "two", then the counting word. A word that
+ * counts itself (ครั้ง, วัน, ชั่วโมง) leaves the noun off, since "สองครั้ง" is the phrase and
+ * "ครั้งสองครั้ง" is not.
+ */
+export function countedExample(entry: string, counter: string): string {
+  return `${entry === counter ? '' : entry}${THAI_TWO}${counter}`;
+}
+
+/**
  * A Thai noun's counting words, from the Classifier field (several may be listed, separated by
  * commas, slashes or line breaks). Only when the word and every counting word are Thai: another
  * language's counters stay a row under Forms, since the noun-number-counter order is Thai's.
@@ -223,10 +232,10 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     pushIf(b, meta.join(' · '), undefined, undefined, undefined, { role: 'chips', chips: meta, gender: genderOf(gender) });
     // A Thai counting word isn't a form of the word: it's shown counted, with the noun and a number.
     const counting = thaiCountingWords(t(note, 'Entry'), t(note, 'Classifier'));
-    pushIf(b, counting.map((w) => `${t(note, 'Entry')}${THAI_TWO}${w}`).join('\n'), 'Counting', undefined, undefined,
+    pushIf(b, counting.map((w) => countedExample(t(note, 'Entry'), w)).join('\n'), 'Counting', undefined, undefined,
       { role: 'counting', rows: counting.map((w) => {
         const known = THAI_COUNTING_WORDS[w];
-        return { label: w, value: `${t(note, 'Entry')}${THAI_TWO}${w}`, ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
+        return { label: w, value: countedExample(t(note, 'Entry'), w), ...(known ? { counts: { roman: known.roman, what: known.counts } } : {}) };
       }) });
     // What kind of word it is and its forms, each under its name (wordGrammar.ts): the verb class is its top line, not a chip.
     const grammar = wordGrammar(note, counting.length > 0);

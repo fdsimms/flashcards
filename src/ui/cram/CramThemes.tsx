@@ -8,6 +8,7 @@ import type { Api, CramTheme, Language } from '../../reader/api';
 import { flaggedName, LANGUAGES } from '../../reader/languages';
 import { keptLines } from '../../reader/corrections';
 import { loadKept } from '../../reader/correctionsStorage';
+import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
@@ -86,11 +87,12 @@ export function CramThemes({ repo, api, cramId, onOpen }: {
     try {
       const marks = await loadToolMarks();
       const kept = await loadKept();
+      const particle = await loadParticle();
       const weak = combineWeakSpots(weakSpots(marks, forLanguage, Date.now(), (id) => toolById(id)?.title), keptLines(kept, forLanguage, Date.now()));
       const already = more && shown ? shown.shown : [];
       // Not this cram's own name: every theme is an angle on it.
       const others = crams.filter((x) => x.id !== cramId);
-      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register));
+      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register, particle));
       setThemeState({ suggested: { cramId, language: forLanguage, words, themes: answer.themes, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't get theme ideas.", next: 'Try again.' }));

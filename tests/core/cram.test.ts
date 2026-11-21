@@ -83,7 +83,7 @@ describe('practice', () => {
     // c was got the first time in both passes it was in; b only in the last, so it isn't solid yet.
     expect(practiceProgress(three, ids)).toEqual({ solid: ['c'], toGo: ['a', 'b'] });
     expect(practiceWords(three, ids)).toEqual(['a', 'b']);
-    expect(practiceLabel(three, ids)).toBe('Practice the 2 to go');
+    expect(practiceLabel(three, ids)).toBe('Practice 2 words');
     expect(practiceSummary(three, ids)).toBe('1 of 3 words solid.');
     const all = withRound(withRound(three, round(WED, ['a', 'b'], [])), round(WED, ['a'], []));
     expect(practiceWords(all, ids)).toEqual(ids);

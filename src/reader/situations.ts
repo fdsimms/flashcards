@@ -4,6 +4,7 @@
 // here grades a card or writes a note.
 import type { Language, SituationConversation, SituationFocus, SituationLine, SituationRoles, SituationTurn } from './api';
 import { LANGUAGES } from './languages';
+import type { Particle } from './lessons';
 import { isRegisterLevel, registerChoice, type RegisterLevel } from './registerLevel';
 
 /** Lines in a conversation; the server takes no more. The screen offers to finish before it's reached. */
@@ -33,10 +34,10 @@ export function startChat(language: Chat['language'], scene: string, focus?: Sit
   return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}), ...(words ? { words } : {}), ...registerChoice(register) };
 }
 
-/** What goes to the server: the scene, the parts, and every line as text. */
-export function conversationOf(chat: Chat): SituationConversation {
+/** What goes to the server: the scene, the parts, and every line as text. Thai also sends the learner's polite ending, so their own lines are judged as a man's or a woman's. */
+export function conversationOf(chat: Chat, particle?: Particle): SituationConversation {
   const lines: SituationLine[] = chat.lines.map((l) => (l.speaker === 'them' ? { speaker: 'them', text: l.turn.line } : { speaker: 'you', text: l.text }));
-  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}), ...(chat.words?.length ? { words: chat.words } : {}), ...registerChoice(chat.register) };
+  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}), ...(chat.words?.length ? { words: chat.words } : {}), ...registerChoice(chat.register), ...(chat.language === 'th' && particle ? { particle } : {}) };
 }
 
 /** The chat with their line added: the parts from a first turn, and whether it ended the scene. */

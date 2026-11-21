@@ -23,6 +23,15 @@ export function scaledFontSize(base: number, size: TextSize): number {
   return Math.round(base * TEXT_SIZE_SCALE[size] * 2) / 2;
 }
 
+/**
+ * A language's text for a talking point, at the reader's text size: `share` of its reading size
+ * (Thai sits bigger than Latin text at the same size) with the line height that language needs.
+ */
+export function talkTextStyle(info: { fontSize: number; lineHeight: number }, size: TextSize, share = 0.85): { fontSize: number; lineHeight: number } {
+  const fontSize = scaledFontSize(info.fontSize * share, size);
+  return { fontSize, lineHeight: Math.round(fontSize * info.lineHeight) };
+}
+
 export type ReadFont = {
   /** Unset means the system face. */
   fontFamily?: string;

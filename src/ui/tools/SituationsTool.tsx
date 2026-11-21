@@ -1,7 +1,7 @@
 import { useAudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
+import { Keyboard, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
@@ -15,12 +15,14 @@ import { keep, keepable } from '../../reader/corrections';
 import { loadKept, saveKept } from '../../reader/correctionsStorage';
 import { isSlow, NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { speedFor } from '../../reader/prefs';
+import { loadParticle } from '../../reader/lessonStorage';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useTrackedPlayer } from '../useSoundingButton';
+import { useHeaderInset } from '../useHeaderInset';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
@@ -275,6 +277,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   });
   const holding = spoken.available && !typingMode;
   const [waiting, setWaiting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   // What went wrong, and what Try again does: none when the owner's line went back in the box to send again.
   const [problem, setProblem] = useState<{ message: string; retry?: () => void } | null>(null);
   const [added, setAdded] = useState<Record<string, 'adding' | 'added' | 'failed'>>({});
@@ -313,6 +316,8 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   };
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
+  // The cards sit in a fixed layout, which the native header would otherwise cover (see useHeaderInset).
+  const header = useHeaderInset();
   // scrollToEnd on content shorter than the view scrolls past the top inset, leaving the first line
   // under the header, so it's only called once the conversation overflows.
   const sizes = useRef({ view: 0, content: 0 });
@@ -322,7 +327,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     setWaiting(true);
     setProblem(null);
     try {
-      const got = await api.situationTurn(conversationOf(from), prefs().situationsAzure);
+      const got = await api.situationTurn(conversationOf(from, await loadParticle()), prefs().situationsAzure);
       if (asking.current !== mine) return;
       onChat(withTheirs(from, got));
       void say(got);
@@ -365,19 +370,25 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     const mine = ++asking.current;
     player.pause();
     phone.stop();
+    Keyboard.dismiss();
     setWaiting(true);
+    setFinishing(true);
     setProblem(null);
     try {
-      const [got, settings] = await Promise.all([api.situationFeedback(conversationOf(chat)), api.settings().catch(() => null)]);
+      const [got, settings] = await Promise.all([loadParticle().then((particle) => api.situationFeedback(conversationOf(chat, particle))), api.settings().catch(() => null)]);
       if (asking.current !== mine) return;
       setDeck(settings?.decks?.[chat.language] ?? null);
       onFeedback(got);
     } catch (e) {
       if (asking.current === mine) setProblem({ message: failureText(e, { what: "Couldn't get feedback on your lines.", next: 'Try again.' }), retry: () => void finish() });
     } finally {
-      if (asking.current === mine) setWaiting(false);
+      if (asking.current === mine) { setWaiting(false); setFinishing(false); }
     }
   };
+  // The status line and any error sit below the lines: bring them into view so a tap on Finish visibly does something.
+  useEffect(() => {
+    if (waiting || problem) setTimeout(() => scrollProps.ref.current?.scrollToEnd({ animated: true }), 50);
+  }, [waiting, problem]); // eslint-disable-line react-hooks/exhaustive-deps
   const add = async (w: { word: string; english: string }) => {
     if (!deck) return;
     setAdded((a) => ({ ...a, [w.word]: 'adding' }));
@@ -417,7 +428,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <View style={{ flex: 1 }}>
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
           <CardSurface>
             <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.m }}>
               <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
@@ -509,7 +520,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           </View>
         )}
       >
-        <View style={{ flex: 1 }}>
+        <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
           <CardSurface>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.l, gap: space.m }} {...scrollProps}
               onLayout={(e) => { sizes.current.view = e.nativeEvent.layout.height; }}
@@ -520,9 +531,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
                 <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{`You're ${chat.roles.you}. ${name} is ${chat.roles.them}.`}</Text>
               ) : null}
               {chat.lines.map((l, i) => (l.speaker === 'them'
-                ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} />
+                ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} lookup={(word, english) => api.wordMeaning(chat.language, word, english)} />
                 : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
-              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
+              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{finishing ? 'Getting feedback on your lines...' : chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
               {problem ? <ErrorNote message={problem.message} onRetry={problem.retry} /> : null}
               {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}

@@ -7588,6 +7588,21 @@
               }
             ],
             "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",
@@ -7906,6 +7921,21 @@
               }
             ],
             "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",

@@ -2223,6 +2223,8 @@ export interface components {
             speak: boolean;
             /** Register */
             register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** SituationLine */
         SituationLine: {
@@ -2333,6 +2335,8 @@ export interface components {
             topic: string;
             /** Register */
             register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** ThemesOut */
         ThemesOut: {
