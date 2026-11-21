@@ -260,6 +260,30 @@ describe('cards', () => {
       for (const [deck, lang] of cases) expect(speechLangFor(inDeck(deck)), deck).toBe(lang);
       expect(speechLangFor(inDeck('Languages::Klingon'))).toBeUndefined();
     });
+    it('reads a code in the Language field as the language it stands for', () => {
+      expect(speechLangFor(inDeck('Thai', { Language: 'pl' }))).toBe('pl-PL');
+      expect(speechLangFor(inDeck('Thai', { Language: 'th-TH' }))).toBe('th-TH');
+      expect(speechLangFor(inDeck('Thai', { Language: 'zh_HK' }))).toBe('zh-HK');
+      expect(speechLangFor(inDeck('Thai', { Language: 'no' }))).toBe('nb-NO');
+      expect(speechLangFor(inDeck('Polski', { Language: 'ไทย' }))).toBe('th-TH');
+    });
+    it('takes a language from the deck name only as a word of its own, top level first', () => {
+      const cases: [string, string | undefined][] = [
+        ['Trivia::Geography::Thailand', undefined], ['Prussian history', undefined], ['Gdansk trip', undefined],
+        ['🧠 Trivia::🦅 U.S. Presidents', undefined], ['Russian::Polish cognates', 'ru-RU'], ['Polish for Thai speakers', 'pl-PL'],
+        ['Spanish::French false friends', 'es-MX'], ['ไทย', 'th-TH'], ['ภาษาไทยพื้นฐาน', 'th-TH'],
+        ['👅 Languages::🐘 ภาษาไทย::Tier 1', 'th-TH'], ['👅 Languages::🍥 日本語', 'ja-JP'], ['👅 Languages::🐻 Русский::Tier 2', 'ru-RU'],
+      ];
+      for (const [deck, lang] of cases) expect(speechLangFor(inDeck(deck)), deck).toBe(lang);
+    });
+    it("reads a note with no note type aloud in its deck's language, and not at all without one", () => {
+      const plain = (deck: string) => ({ id: 'p', deck, model: '', fields: { Front: 'hola', Back: 'hello' }, tags: [] });
+      const r = renderCard(plain('Spanish'), 'forward');
+      expect(r.speechLang).toBe('es-MX');
+      expect(playbackFor(r, false)).toEqual({ text: 'hola', file: undefined });
+      expect(renderCard(plain('Trivia'), 'forward').front.speak).toBeUndefined();
+      expect(renderCard(plain('Trivia'), 'forward').speechLang).toBeUndefined();
+    });
     it("doesn't speak a word whose language isn't known, but still plays its recording", () => {
       const note = inDeck('Languages::Klingon', { Entry: 'Qapla’', GenerateReverse: 'y', GenerateAudioCard: 'y' });
       for (const kind of ['forward', 'reverse', 'audio'] as const) {

@@ -30,3 +30,31 @@ export const stripMarks = (s: string): string => s.replace(/(?![゙゚])\p{M}/gu
  * kana's voicing marks. For a match that forgives a missing accent (forms practice, search).
  */
 export const unaccented = (s: string): string => foldUndecomposed(s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC'));
+
+/** Where a Thai mark goes among the marks on one consonant: vowel signs, then tone, then the rest. */
+function thaiMarkRank(ch: string): number {
+  const c = ch.charCodeAt(0);
+  if (c === 0x0e31 || (c >= 0x0e34 && c <= 0x0e3a) || c === 0x0e47) return 0;
+  if (c >= 0x0e48 && c <= 0x0e4b) return 1;
+  if (c === 0x0e4c) return 2;
+  return 3; // ํ, which with า after it is ำ
+}
+
+/**
+ * Text in NFC, with Thai written the one way it looks. NFC leaves Thai alone, and Thai can be typed
+ * in more than one order that draws the same: ที่ as ท + ่ + ี, น้ำ as น + ํ + ้ + า. Each consonant's
+ * marks are put in the usual order (vowel sign, tone mark, then the rest), a doubled mark is
+ * dropped, and ํ followed by า is written ำ. Every check that compares a typed answer uses it, so
+ * an answer that looks right is never marked different.
+ */
+export function canonicalText(s: string): string {
+  const nfc = s.normalize('NFC');
+  if (!/[฀-๿]/.test(nfc)) return nfc;
+  return nfc
+    .replace(/ำ/g, 'ํา')
+    .replace(/[ัิ-ฺ็-๎]+/g, (run) => {
+      const marks = [...new Set(Array.from(run))];
+      return marks.sort((a, b) => thaiMarkRank(a) - thaiMarkRank(b)).join('');
+    })
+    .replace(/ํา/g, 'ำ');
+}

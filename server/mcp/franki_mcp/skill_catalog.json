@@ -32,6 +32,10 @@
    "th"
   ],
   [
+   "ไทย",
+   "th"
+  ],
+  [
    "polish",
    "pl"
   ],
@@ -298,6 +302,88 @@
   [
    "english",
    null
+  ]
+ ],
+ "deckExamples": [
+  [
+   "Thai",
+   "th"
+  ],
+  [
+   "🐟 Norsk",
+   "nb"
+  ],
+  [
+   "Polski",
+   "pl"
+  ],
+  [
+   "Deutsch::Verbs",
+   "de"
+  ],
+  [
+   "Trivia",
+   null
+  ],
+  [
+   "Japanese",
+   "ja"
+  ],
+  [
+   "Italiano",
+   null
+  ],
+  [
+   "👅 Languages::🐘 ภาษาไทย::Tier 1",
+   "th"
+  ],
+  [
+   "ภาษาไทยพื้นฐาน",
+   "th"
+  ],
+  [
+   "ไทย",
+   "th"
+  ],
+  [
+   "👅 Languages::🍥 日本語",
+   "ja"
+  ],
+  [
+   "Trivia::Geography::Thailand",
+   null
+  ],
+  [
+   "Trivia::Greek mythology",
+   "el"
+  ],
+  [
+   "Prussian history",
+   null
+  ],
+  [
+   "Gdansk trip",
+   null
+  ],
+  [
+   "Russian::Polish cognates",
+   "ru"
+  ],
+  [
+   "Polish for Thai speakers",
+   "pl"
+  ],
+  [
+   "Spanish::French false friends",
+   "es"
+  ],
+  [
+   "thai-thai",
+   "th"
+  ],
+  [
+   "Español (México)",
+   "es"
   ]
  ],
  "languages": {

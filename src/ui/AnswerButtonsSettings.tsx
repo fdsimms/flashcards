@@ -38,8 +38,9 @@ export function AnswerButtonsSettings({ repo }: { repo: Repo }) {
           ))}
         </Group>
         <Help>
-          Applies to every deck. The schedule mostly cares whether you pressed Again. Hard and Easy only move the next
-          review a little closer or further out.
+          Applies to every deck. The schedule mostly cares whether you pressed Again. On a card you've studied before,
+          Hard and Easy move the next review a little closer or further out. On a new card, Easy skips the steps that bring
+          it back the same day, and the next review is days away.
         </Help>
         <Help>
           Always press Again for a card you didn't remember, even one you nearly had. If you change how you use the

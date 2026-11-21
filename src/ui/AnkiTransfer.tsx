@@ -121,7 +121,12 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       // A row matching a note from Anki is left alone: this import can't change Anki's copy.
       const cards = await repo.listCards();
       const ankiNotes = new Set(cards.filter((c) => c.ankiId).map((c) => c.noteId));
-      const result = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks }), notes, cards), ankiNotes);
+      // New rows come in after every card there, in file order; a card already here keeps its place.
+      const had = new Map(cards.map((c) => [c.id, c.position]));
+      const firstPosition = cards.reduce((n, c) => Math.max(n, (c.position ?? -1) + 1), 0);
+      const separator = name.toLowerCase().endsWith('.csv') ? ',' : undefined;
+      const imported = leaveAnkiNotes(reconcileIds(importTsv(await picked.text(), { noteTypes: await repo.listNoteTypes(), decks, separator, firstPosition }), notes, cards), ankiNotes);
+      const result = { ...imported, cards: imported.cards.map((c) => (had.has(c.id) ? { ...c, position: had.get(c.id) } : c)) };
       await repo.upsertNotesAndCards(result.notes, result.cards);
       const shown = result.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [

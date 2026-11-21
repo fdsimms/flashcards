@@ -18,13 +18,14 @@ function recovered(card: Card): boolean {
 }
 
 /**
- * Whether a note tagged leech has recovered. `cards` are all of the note's cards. Suspended cards
- * hold it back (a preset that suspends leeches keeps the tag until the card is studied again), and
- * retired ones are ignored since nothing studies them.
+ * Whether a note tagged leech has recovered. `cards` are all of the note's cards. A studied card
+ * that's suspended holds it back (a preset that suspends leeches keeps the tag until the card is
+ * studied again); a card never studied (a reverse card still new) and a retired one are ignored,
+ * since neither says anything about how well the word is known.
  */
 export function leechRecovered(note: Note, cards: Card[]): boolean {
   if (!isLeechNote(note)) return false;
-  const studied = cards.filter((c) => c.noteId === note.id && !c.retired);
+  const studied = cards.filter((c) => c.noteId === note.id && !c.retired && c.sched.state !== 0);
   return studied.length > 0 && studied.every((c) => !c.suspended && recovered(c));
 }
 

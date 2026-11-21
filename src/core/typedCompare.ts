@@ -1,5 +1,5 @@
 import { toHiragana, toKana } from './kana';
-import { foldUndecomposed, foldYo, stripMarks } from './letters';
+import { canonicalText, foldUndecomposed, foldYo, stripMarks } from './letters';
 import { opcodes } from './typeAnswer';
 
 /**
@@ -36,12 +36,14 @@ export interface TypedComparison {
   off: number;
   /** Right, but written in katakana where it's hiragana, or the other way round. */
   otherKana?: boolean;
+  /** Thai, where the marks are vowels and tones that change the word, not accents. */
+  thai?: boolean;
 }
 
 /** A base character with the marks after it. */
 function letters(s: string): string[] {
   const out: string[] = [];
-  for (const ch of Array.from(s.normalize('NFC'))) {
+  for (const ch of Array.from(canonicalText(s))) {
     if (/^\p{M}/u.test(ch) && out.length) out[out.length - 1] += ch;
     else out.push(ch);
   }
@@ -65,7 +67,7 @@ function push(parts: DiffPart[], text: string, kind: DiffKind) {
  * Spelling variants every other answer check accepts (tools/answer.ts, forms.ts): ß written ss, ё
  * written е, and a final ς written σ. Folded only to ask whether that is the sole difference.
  */
-const folded = (s: string) => foldYo(s.normalize('NFC').toLocaleLowerCase()).replace(/ς/g, 'σ').replace(/ß/g, 'ss');
+const folded = (s: string) => foldYo(canonicalText(s).toLocaleLowerCase()).replace(/ς/g, 'σ').replace(/ß/g, 'ss');
 
 export function compareTyped(expected: string, typedRaw: string): TypedComparison {
   const want = expected.trim();
@@ -104,6 +106,7 @@ export function compareTyped(expected: string, typedRaw: string): TypedCompariso
     sameWords,
     sameLetters: !!typedText && bare(wordsOf(typedText)) === bare(wordsOf(want)),
     off: sameWords ? 0 : Math.max(missed, extra),
+    ...(/[\u0e00-\u0e7f]/.test(want) ? { thai: true } : {}),
   };
 }
 
@@ -131,6 +134,7 @@ export function comparisonLine(c: TypedComparison): string {
   if (c.exact) return 'Exactly right.';
   if (c.otherKana) return 'Right, but written in the other kana.';
   if (c.sameWords) return 'Right, apart from spacing or punctuation.';
+  if (c.sameLetters && c.thai) return `Right consonants, but ${c.off === 1 ? 'a vowel or tone mark is' : `${c.off} vowels or tone marks are`} different.`;
   if (c.sameLetters) return `Right letters, but ${c.off === 1 ? 'one has' : `${c.off} have`} the wrong accent or mark.`;
   if (!c.typed.length) return 'Nothing typed.';
   return `${c.off} ${c.off === 1 ? 'letter' : 'letters'} off.`;

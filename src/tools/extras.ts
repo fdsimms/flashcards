@@ -196,10 +196,19 @@ export interface PlanInput {
   dayStartsAtHour: number;
 }
 
-/** The languages taking turns, the one practiced longest ago first (never first of all), ties in the app's order. */
-export function turnOrder({ prefs, state, languages }: Pick<PlanInput, 'prefs' | 'state' | 'languages'>): Language[] {
+/** Whether a language has anything to offer: a drill in it (with drills on), or a text. */
+function hasExtras(language: Language, prefs: ExtraPrefs, readerOn: boolean): boolean {
+  return (prefs.drills && EXTRA_TOOLS.some((t) => toolLanguages(t).includes(language))) || (prefs.read && readerOn);
+}
+
+/**
+ * The languages taking turns, the one practiced longest ago first (never first of all), ties in the
+ * app's order. A language with nothing to offer (no drill in it and no text) is left out: its time
+ * would never move on, so it would take every turn and the strip would stay empty.
+ */
+export function turnOrder({ prefs, state, languages, readerOn }: Pick<PlanInput, 'prefs' | 'state' | 'languages' | 'readerOn'>): Language[] {
   return LANGUAGE_ORDER
-    .filter((l) => languages.includes(l) && modeOf(prefs, l) === 'turns')
+    .filter((l) => languages.includes(l) && modeOf(prefs, l) === 'turns' && hasExtras(l, prefs, readerOn))
     .sort((a, b) => lastPracticed(state, a) - lastPracticed(state, b) || LANGUAGE_ORDER.indexOf(a) - LANGUAGE_ORDER.indexOf(b));
 }
 

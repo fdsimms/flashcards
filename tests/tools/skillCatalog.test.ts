@@ -19,11 +19,11 @@ describe("the skill catalog the MCP's daily job reads", () => {
     expect(text()).toBe(text());
   });
 
-  it('finds the language of a deck name as the app does, in the same order', () => {
-    const { deckKeys } = skillCatalog();
-    const ofName = (deck: string) => deckKeys.find(([key]) => deck.normalize('NFC').toLowerCase().includes(key))?.[1] ?? null;
-    for (const deck of ['Thai', '🐟 Norsk', 'Polski', 'Deutsch::Verbs', 'Trivia', 'Japanese', 'Italiano']) {
-      expect(ofName(deck), deck).toBe(languageOfDeck(deck)?.language ?? null);
+  it("gives each example deck the language the app's skill cards read from it", () => {
+    // The MCP's test runs its own reading against the same examples (test_skills.py).
+    for (const [deck, language] of skillCatalog().deckExamples) {
+      const app = languageOfDeck(deck)?.language ?? null;
+      expect(language, deck).toBe(app && skillCatalog().languages[app] ? app : null);
     }
   });
 });

@@ -228,6 +228,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
             spellCheck={false}
             autoFocus
             returnKeyType="done"
+            keyboardLanguage={promptSpeech(prompt)}
             onSubmitEditing={() => { if (typed.trim()) answer(typed, false); }}
             error={!!current && !current.right}
           />

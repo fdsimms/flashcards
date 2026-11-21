@@ -119,3 +119,26 @@ describe('TSV import', () => {
     expect(res.warnings).toEqual([expect.stringMatching(/^Row 2: there's no deck with the id 999/)]);
   });
 });
+
+describe('a word list', () => {
+  it('takes the separator it is given over the guess, so a semicolon in a meaning splits nothing', () => {
+    const text = 'กิน,to eat\nทาน,to eat; to consume (polite)\n';
+    const { notes, warnings } = importTsv(text, { separator: ',' });
+    expect(notes.map((n) => [n.fields.Entry, n.fields.Meaning])).toEqual([['กิน', 'to eat'], ['ทาน', 'to eat; to consume (polite)']]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('says so when most rows came in as one field', () => {
+    const { warnings } = importTsv('กิน,to eat\nทาน,to eat; to consume\nดื่ม,to drink\n');
+    expect(warnings.some((w) => w.startsWith('Most rows came in as one field, split by semicolon.'))).toBe(true);
+  });
+
+  it('numbers the rows in file order, every card of a note at its row', () => {
+    const text = '#columns:Entry\tMeaning\tGenerateReverse\nzebra\tz\ty\napple\ta\ty\n';
+    const { cards } = importTsv(text, { firstPosition: 10 });
+    expect(cards.map((c) => [c.id.split(':').slice(2).join(':'), c.position])).toEqual([
+      ['zebra:forward', 10], ['zebra:reverse', 10], ['apple:forward', 11], ['apple:reverse', 11],
+    ]);
+    expect(importTsv(text).cards.every((c) => c.position === undefined)).toBe(true);
+  });
+});

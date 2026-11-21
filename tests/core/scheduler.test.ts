@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
-import { becameLeech, daysSinceLastReview, formatInterval, paramsForDeck, previewIntervals, review, newSchedState, stepOutcome, type RatingValue } from '../../src/core/scheduler';
+import { becameLeech, daysSinceLastReview, formatInterval, paramsForDeck, previewIntervals, rawInterval, review, newSchedState, stepOutcome, type RatingValue } from '../../src/core/scheduler';
 import { fuzzSeed } from '../../src/core/ankiFuzz';
 import { studyDayKey, studyDayStart } from '../../src/core/day';
 import { isInterdayLearning } from '../../src/core/queue';
+import { retrievability } from '../../src/core/order';
 import type { DeckParams } from '../../src/core/types';
 import answerVectors from '../fixtures/anki/answer-vectors.json';
 import { NOW, omniNote } from '../support/fixtures';
@@ -270,5 +271,28 @@ describe('formatInterval', () => {
     expect(formatInterval(59.2 * MIN)).toBe('59m');
     expect(formatInterval(23.2 * 60 * MIN)).toBe('23h');
     expect(formatInterval(45 * 1440 * MIN)).toBe('1.5mo');
+  });
+});
+
+describe('weights from before FSRS-6', () => {
+  // FSRS-4.5 and FSRS-5 weights have no decay of their own: theirs is 0.5, as Anki and ts-fsrs's migration use.
+  const fsrs5 = [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621];
+
+  it('times an interval with a decay of 0.5', () => {
+    // With decay 0.5 the interval is S / factor * (r^-2 - 1), factor = 0.9^-2 - 1 = 19/81.
+    for (const r of [0.8, 0.85, 0.9, 0.95]) {
+      const want = 10 / (19 / 81) * (Math.pow(r, -2) - 1);
+      expect(rawInterval(10, r, fsrs5)).toBeCloseTo(want, 3);
+      expect(rawInterval(10, r, fsrs5.slice(0, 17))).toBeCloseTo(want, 3);
+    }
+  });
+
+  it('gives a retrievability, never NaN', () => {
+    const [c] = makeCards(omniNote(), NOW);
+    const reviewed = { ...c, sched: { ...c.sched, state: 2 as const, stability: 10, lastReview: new Date(NOW.getTime() - 10 * 86_400_000).toISOString() } };
+    // At t = S, recall is 0.9 under every FSRS version.
+    expect(retrievability(reviewed, NOW, fsrs5)).toBeCloseTo(0.9, 5);
+    expect(retrievability({ ...reviewed, sched: { ...reviewed.sched, lastReview: new Date(NOW.getTime() - 30 * 86_400_000).toISOString() } }, NOW, fsrs5))
+      .toBeCloseTo(1 / Math.sqrt(1 + (19 / 81) * 3), 5);
   });
 });

@@ -47,6 +47,10 @@ describe("the phone's voices", () => {
   it('keys a language by its code alone', () => {
     expect(languageKey('th_TH')).toBe('th');
     expect(languageKey('es-MX')).toBe('es');
+    // Cantonese is a language of its own, so a Mandarin voice chosen for Chinese never reads it.
+    expect(languageKey('zh-HK')).toBe('yue');
+    expect(languageKey('zh-CN')).toBe('zh');
+    expect(languageKey('zh_TW')).toBe('zh');
     expect(languageKey('pl')).toBe('pl');
   });
 

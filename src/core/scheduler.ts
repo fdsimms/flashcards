@@ -189,8 +189,8 @@ export interface AnswerContext {
  */
 export function rawInterval(stability: number, desiredRetention: number, weights: number[]): number {
   const f = Math.fround;
-  const w = weights.length >= 21 ? weights : default_w;
-  const decay = f(-w[20]);
+  // FSRS-4.5 and FSRS-5 weights (17 or 19) carry no decay: theirs is 0.5, never FSRS-6's default.
+  const decay = f(-fsrsDecay(weights));
   const factor = f(f(Math.exp(f(f(Math.log(f(0.9))) / decay))) - 1);
   return f(f(stability / factor) * f(f(Math.pow(f(desiredRetention), f(1 / decay))) - 1));
 }

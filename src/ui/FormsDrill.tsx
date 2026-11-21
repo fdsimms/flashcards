@@ -238,6 +238,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
               spellCheck={false}
               autoFocus
               returnKeyType="done"
+              keyboardLanguage={prompt.say?.lang}
               onSubmitEditing={() => { if (typed.trim()) answer(typed); }}
               error={!!current && !isRight(current)}
             />

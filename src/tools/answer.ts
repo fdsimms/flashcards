@@ -1,4 +1,4 @@
-import { foldUndecomposed, foldYo, stripMarks } from '../core/letters';
+import { canonicalText, foldUndecomposed, foldYo, stripMarks } from '../core/letters';
 import type { Phrase } from './phrase';
 
 /**
@@ -46,7 +46,7 @@ interface Token {
 
 function tokens(s: string): Token[] {
   const out: Token[] = [];
-  for (const ch of s.normalize('NFC')) {
+  for (const ch of canonicalText(s)) {
     const last = out[out.length - 1];
     if (/\p{M}/u.test(ch) && last && last.key !== null) {
       last.text += ch;

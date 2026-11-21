@@ -21,6 +21,8 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
   const problem = useConnectionProblem();
   const [language, setLanguage] = usePracticeLanguage();
   const name = LANGUAGES[language].name;
+  // The list is in one language, so its Grammar row counts that language's due points only.
+  const grammarDueHere = grammarDue?.languages.find((d) => d.language === language)?.count ?? 0;
   return (
     <Screen
       title="Practice"
@@ -57,7 +59,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo }: { onOp
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={!off ?(tool.id === 'grammar' && grammarDue?.total ? `${grammarDue.total} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
+                detail={!off ?(tool.id === 'grammar' && grammarDueHere ? `${grammarDueHere} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />

@@ -29,6 +29,12 @@ describe('leech recovery', () => {
     expect(leechRecovered(note(), [card('a'), card('b')])).toBe(true);
   });
 
+  it('ignores a card of the note never studied, suspended or not', () => {
+    expect(leechRecovered(note(), [card('a'), card('b', { state: 0, scheduledDays: 0 })])).toBe(true);
+    expect(leechRecovered(note(), [card('a'), card('b', { state: 0, scheduledDays: 0, suspended: true })])).toBe(true);
+    expect(leechRecovered(note(), [card('b', { state: 0, scheduledDays: 0 })])).toBe(false);
+  });
+
   it('is held back by a suspended card, and ignores retired ones and other notes', () => {
     expect(leechRecovered(note(), [card('a', { suspended: true })])).toBe(false);
     expect(leechRecovered(note(), [card('a'), card('b', { retired: true, scheduledDays: 1 })])).toBe(true);

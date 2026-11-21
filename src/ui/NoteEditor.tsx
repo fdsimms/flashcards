@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
-import { runningCramTags } from '../core/cram';
+import { runningCramTags, type Cram } from '../core/cram';
 import { readerLanguageOf } from '../core/leechHint';
 import { untiered } from '../core/deckTree';
 import { failureText, NOT_IN_ANKI } from '../core/failure';
@@ -71,6 +71,8 @@ export function NoteEditor(props: {
   const [error, setError] = useState<string>();
   // Until the note (or, adding one, the decks and note types) is in, the form isn't shown.
   const [loaded, setLoaded] = useState(false);
+  /** Adding a note: the running crams, and the language and tags the crams' tags were last worked out for. */
+  const cramContext = useRef<{ crams: Cram[]; notes: Note[]; hour: number; language: ReturnType<typeof readerLanguageOf>; tags: string[] }>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -125,8 +127,11 @@ export function NoteEditor(props: {
         setFields(Object.fromEntries(Object.entries(n.fields).map(([k, v]) => [k, fieldToEditText(v)])));
         setTags(n.tags.join(' '));
       } else {
-        // Start in the deck asked for, with the note type its notes use most.
-        const startDeck = props.target.deck ?? all[0]?.deck ?? '';
+        // Start in the deck asked for, else the first the Deck picker lists (never a blank one), with
+        // the note type its notes use most.
+        const filtered = new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d));
+        const listed = [...new Set([...all.map((n) => untiered(n.deck)), ...(props.decks ?? []).filter((d) => !filtered.has(d))])].sort((a, b) => a.localeCompare(b));
+        const startDeck = props.target.deck ?? listed[0] ?? '';
         const startModel = startModelFor(all, [...types.keys()], startDeck);
         setDeck(startDeck);
         const asked = props.target.model;
@@ -137,7 +142,9 @@ export function NoteEditor(props: {
         const cs = await props.repo.collectionSettings();
         // Only crams in the note's language take it: read from its Language field, else its deck.
         const language = readerLanguageOf({ id: '', deck: startDeck, model: startModel, fields: startFields, tags: [] });
-        const crams = runningCramTags(await loadCrams(props.repo).catch(() => cramsNow()), all, language, new Date(), cs.dayStartsAtHour);
+        const running = await loadCrams(props.repo).catch(() => cramsNow());
+        const crams = runningCramTags(running, all, language, new Date(), cs.dayStartsAtHour);
+        cramContext.current = { crams: running, notes: all, hour: cs.dayStartsAtHour, language, tags: crams };
         const startTags = [...new Set([...(props.target.tags ?? []), ...crams])];
         if (startTags.length) setTags(startTags.join(' '));
         setStart({ fields: startFields, tags: startTags.join(' ') });
@@ -160,6 +167,19 @@ export function NoteEditor(props: {
 
   const stored = useMemo(() => Object.fromEntries(fieldNames.map((f) => [f, editTextToField(fields[f] ?? '')])), [fieldNames, fields]);
   const draftNote: Note = { id: original?.id ?? '', deck, model, fields: stored, tags: parseTags(tags) };
+  // A new note joins the running crams in its own language. Those tags were worked out from the deck
+  // and Language field it started with, so when either changes the language, the crams' tags put
+  // there are swapped for the new language's; any other tag, typed or kept, stays.
+  const cramLanguage = loaded && !editing ? readerLanguageOf({ id: '', deck, model, fields: stored, tags: [] }) : undefined;
+  useEffect(() => {
+    const ctx = cramContext.current;
+    if (!ctx || !loaded || editing || cramLanguage === ctx.language) return;
+    const next = runningCramTags(ctx.crams, ctx.notes, cramLanguage, new Date(), ctx.hour);
+    const old = new Set(ctx.tags);
+    setTags((prev) => [...new Set([...parseTags(prev).filter((t) => !old.has(t) || next.includes(t)), ...next])].join(' '));
+    cramContext.current = { ...ctx, language: cramLanguage, tags: next };
+  }, [cramLanguage, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cardNames = useMemo(() => {
     const nt = noteTypes.get(model);
     return cardsFor(draftNote, noteTypes, new Date()).map((card) =>
@@ -181,6 +201,7 @@ export function NoteEditor(props: {
   const saving = useRef(false);
   const save = async (another = false) => {
     if (saving.current) return;
+    if (!deck.trim()) { setError('The note has no deck. Choose one under Deck, then save.'); return; }
     saving.current = true;
     setBusy(true);
     setError(undefined);
