@@ -302,6 +302,17 @@ describe('cards', () => {
     expect(reverse.front.blocks.map((b) => b.role)).toEqual([undefined, 'sense']);
     expect(reverse.back.blocks.some((b) => b.role === 'sense')).toBe(false);
   });
+  it('gives an answer that shows a numbered Meaning its senses, and no other side', () => {
+    const note = omniNote({ Entry: 'Zug', Language: 'german', Meaning: '1. train<br>2. move (in a game)<br>3. draft (of air)', GenerateReverse: 'y', GenerateAudioCard: 'y' });
+    const senses = ['train', 'move (in a game)', 'draft (of air)'];
+    expect(renderCard(note, 'forward').back.blocks.find((b) => b.role === 'meaning')?.senses).toEqual(senses);
+    expect(renderCard(note, 'audio').back.blocks.find((b) => b.role === 'gloss')?.senses).toEqual(senses);
+    // A reverse card's prompt is the senses: nothing on it can be marked.
+    const reverse = renderCard(note, 'reverse');
+    expect([...reverse.front.blocks, ...reverse.back.blocks].some((b) => b.senses)).toBe(false);
+    expect(renderCard(note, 'forward').front.blocks.some((b) => b.senses)).toBe(false);
+    expect(renderCard(omniNote({ Meaning: 'fame; glory' }), 'forward').back.blocks.some((b) => b.senses)).toBe(false);
+  });
   it('shows the words a Sense rules out on every answer and never on a front', () => {
     const note = omniNote({ Entry: 'ducha', Language: 'spanish', Meaning: 'shower', Sense: 'a bathroom shower, not rain', SenseContrast: 'rain shower = aguacero; chubasco', GenerateReverse: 'y', GenerateAudioCard: 'y' });
     for (const kind of ['forward', 'reverse', 'audio'] as const) {

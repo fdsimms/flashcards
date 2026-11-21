@@ -159,7 +159,10 @@ hears what was said, not how.
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo
 takes it back with the answer. The "Last time" line is read from those rows each time, never
 stored. Nothing in `src/core/scheduler.ts` or the queue may read it, and it isn't written into the
-Anki collection.
+Anki collection. **A missed sense is a miss reason kept with any rating** (`src/core/senseMarks.ts`):
+on an answer that shows a numbered Meaning, the senses tapped as missed go in the same column
+(`sense:2`), and the next front says one was missed, never which, read from the card's latest answer.
+With a sense marked Again is outlined, and the rating is still the learner's tap.
 
 **A confused-word link is practice, never an input to scheduling.** Words linked as mixed up
 (`src/core/confusedPairs.ts`, the `confused_pairs` table) are shown on the answer side and asked in

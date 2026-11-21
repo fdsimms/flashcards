@@ -93,6 +93,9 @@ import { useConfusedPairs } from './useConfusedPairs';
 import { OwnHookField, TypeItButton, useOwnHook } from './ReviewActive';
 import { useFieldEdit } from './useFieldEdit';
 import { useSenseContrast } from './useSenseContrast';
+import { useSenseMarks } from './useSenseMarks';
+import { SenseReminder } from './SenseMarks';
+import { isSenseMiss } from '../core/senseMarks';
 import type { AddWord } from './useAddMinedWord';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { spokenAnswerNote } from '../core/speaking';
@@ -449,6 +452,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
   const rendered = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
+  // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
+  const senseMarks = useSenseMarks(current ? `${current.id}:${history.length}` : undefined, rendered, current ? misses.log.get(current.id) : undefined);
   // The card's word with its reading over its kanji once the answer shows (Settings, Furigana), whichever side it's on.
   const wordRuns = rendered ? cardWordRuns([...rendered.front.blocks, ...rendered.back.blocks], furigana) : null;
   // The fuzz seed and load balancer for answering the current card, as Anki has them: the buttons show what an answer does.
@@ -610,6 +615,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!redo && (busy.current || cur === lastAnswered.current)) return;
     if (!redo) busy.current = true;
     if (!redo) skill.rated(rating);
+    // A reason is kept with Again only; a missed sense with whichever rating was pressed (senseMarks.ts). Neither reaches the scheduler.
+    // With a sense marked and no reason chosen, the marks are the reason, for a button and a swipe alike.
+    const said = miss ?? (redo ? undefined : senseMarks.miss);
+    const keptMiss = said && (rating === 1 || isSenseMiss(said)) ? said : undefined;
     const timed = redo ? null : timing.pressed(`${cur.id}:${history.length}`);
     if (!redo) haptic.answer();
     if (!redo) cardMotion.current?.flash(rating);
@@ -647,7 +656,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       const takenMs = redo ? redo.takenMs : answerTimeMs(when.getTime() - shownAt.current, params);
       const record: AnswerRecord = {
         before: cur, deck: cardDeck(cur, nt.deck), buried: siblings,
-        rating, takenMs, preview, counts: answerCounts(cur, when, H, !!preview, isSkillNote(nt)), ...(rating === 1 && miss ? { miss } : {}),
+        rating, takenMs, preview, counts: answerCounts(cur, when, H, !!preview, isSkillNote(nt)), ...(keptMiss ? { miss: keptMiss } : {}),
       };
       const stepCounts = { learn: (params?.learnSteps ?? DEFAULT_LEARN_STEPS).length, relearn: (params?.relearnSteps ?? DEFAULT_RELEARN_STEPS).length };
       const desiredRetention = params?.desiredRetention;
@@ -661,7 +670,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // As a reload (`studiedToday`) counts it: a preview or an early review uses none.
       setStudied((s) => bumpStudied(s, record.deck, record.counts, 1));
       setHistory((h) => [...h, record]);
-      misses.answered(cur.id, rating === 1 ? miss : undefined);
+      misses.answered(cur.id, keptMiss);
       if (rating === 1 && miss === CONFUSED_REASON && canLinkConfused(nt)) sheets.request(confusedSheetFor(nt.id));
       // Reads the hook typed for this card, so it's called before the next card clears it.
       if (!redo) void ownHook.answered(nt);
@@ -725,7 +734,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           // moved since): today's counts keep it there, as Anki's deck counter counts it.
           record.reviewId = await repo.addReview({
             cardId: record.before.id, ...res.log, interday,
-            ...(rating === 1 && miss ? { miss } : {}),
+            ...(keptMiss ? { miss: keptMiss } : {}),
             deck: record.deck,
           });
         } catch (e) {
@@ -883,7 +892,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       lastAnswer.show(null);
       const noteOf = n ?? notes.get(last.before.noteId);
       if (to && noteOf) {
-        await answer(to, undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
+        await answer(to, isSenseMiss(last.miss) ? last.miss : undefined, { card: last.before, note: noteOf, cards: (cards ?? []).map((c) => restored.get(c.id) ?? c), takenMs: last.takenMs });
         lastAnswer.announce(to === 3 ? 'good' : 'again');
         return true;
       }
@@ -1215,16 +1224,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     { r: 4, label: 'Easy', color: c.easy },
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
+  // With a sense marked as missed, Again is outlined as the rating that fits; the tap still decides.
+  const suggested = skill.suggested ?? (senseMarks.miss ? 1 : undefined);
   const footer = revealed ? (
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
-      {buttons.map((b) => b.r === 1 && missReasons.length ? (
+      {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
         <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} onAnswer={(miss) => rate(1, miss)} />
       ) : (
         <Tappable
           key={b.r}
           onPress={() => rate(b.r)}
           accessibilityRole="button"
-          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}${skill.suggested === b.r ? ', suggested' : ''}`}
+          accessibilityLabel={`${b.label}, next in ${intervals?.[b.r] ?? ''}${suggested === b.r ? ', suggested' : ''}`}
           scaleTo={0.95}
           dimTo={0.85}
           // After a skill card's drill, the rating it suggests is outlined and the others quieter; the tap is still the learner's.
@@ -1232,7 +1243,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           style={{
             flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
-            ...(skill.suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
+            ...(suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
@@ -1515,6 +1526,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
+              {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} text={senseMarks.reminder.text} got={senseMarks.reminder.got} /> : null}
               {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
@@ -1525,7 +1537,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               <Reveal rise={14} style={{ gap: space.xl }}>
                 {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
                 <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} /></CardFontScope>
+                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} senseMarking={senseMarks.marking} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>
