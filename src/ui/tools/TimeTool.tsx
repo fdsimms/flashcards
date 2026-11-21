@@ -63,7 +63,7 @@ export function TimeTool({ tool, repo }: ToolScreenProps) {
     if (!right) retries.missed(scope, clockText(asked), asked);
   };
   const listen = useListenCheck(`${language}|${clockText(heard)}`, mark);
-  const draw = (previous: ClockTime) => retries.next(scope, clockText(previous), () => marks.pick(() => randomTime(step, previous), (t) => timePatterns(t, language)));
+  const draw = (previous: ClockTime) => retries.next(scope, clockText(previous), () => marks.pick(() => randomTime(step, previous), (t) => timePatterns(t, language), clockText));
 
   const change = (t: ClockTime) => { if (!listening) answer.hide(); setTime(t); };
   const next = () => {

@@ -54,7 +54,7 @@ export function DateTool({ tool, repo }: ToolScreenProps) {
   const scope = `${language}|${mode}|${weekday}|${year}`;
   const asked = (d: CalendarDate) => { const a = quizDate(d, mode, parts, now); return `${a.year}-${a.month}-${a.day}`; };
   // Weighed by the date it would ask, which is what's marked.
-  const draw = () => marks.pick(() => nextQuizDraw(drawn, mode, parts, now), (d) => datePatterns(quizDate(d, mode, parts, now), parts));
+  const draw = () => marks.pick(() => nextQuizDraw(drawn, mode, parts, now), (d) => datePatterns(quizDate(d, mode, parts, now), parts), asked);
   const next = () => change(retries.next(scope, asked(drawn), draw));
   const mark = (right: boolean) => {
     marks.mark(datePatterns(date, parts), right);
