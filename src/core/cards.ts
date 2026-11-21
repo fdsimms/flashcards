@@ -1,3 +1,4 @@
+import { parsePicture } from './noteIcon';
 import { examplesOf, sourceOf } from './examples';
 import { genderArticle, genderOf, pluralWord, spokenEntry, verbMarker } from './gender';
 import { fieldSegments } from './highlight';
@@ -162,6 +163,9 @@ function t(note: Note, name: string): string {
   return htmlToText(note.fields[name] ?? '');
 }
 
+/** The tap label of a meaning kept behind its picture on a reverse card's front (CardSide draws its button). */
+export const SHOW_MEANING = 'Show meaning';
+
 function pushIf(blocks: Block[], text: string, label?: string, emphasis?: boolean, tapLabel?: string, extra?: Partial<Block>) {
   if (text) blocks.push({ label, text, emphasis, tapLabel, ...extra });
 }
@@ -320,6 +324,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
   const pushEntry = (blocks: Block[], shown = entry) => pushIf(blocks, shown, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
 
+  // The note's picture (the Icon field: an emoji or a line drawing, noteIcon.ts). It goes with the meaning on an
+  // answer side, where the learner meets it with what it stands for, and first on the reverse card's front.
+  // Never on a front that asks for the meaning: it would give the answer.
+  const picture = parsePicture(t(note, 'Icon'));
+  const pushPicture = (blocks: Block[]) => { if (picture) blocks.push({ text: 'Picture of the word', role: 'picture', picture }); };
+
   // "Not this word" (senseContrast.ts): the words for the senses the Sense rules out. On an answer only,
   // never a front: on the reverse card it would stand beside the meaning that asks for the word.
   const pushContrast = (blocks: Block[]) => {
@@ -330,6 +340,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   if (kind === 'forward') {
     pushEntry(front);
     pushIf(front, t(note, 'LeechHint'), undefined);
+    pushPicture(back);
     // The word is already on screen, so its meaning is set smaller than a headline to save room.
     pushIf(back, meaning, undefined, true, undefined, { role: 'meaning', ...sensed });
     pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
@@ -345,7 +356,12 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   }
 
   if (kind === 'reverse') {
-    pushIf(front, meaning, undefined, true);
+    // Picture first: the word is recalled from the thing itself, not by translating the English, which waits
+    // behind a tap for a picture that isn't clear.
+    if (picture) {
+      pushPicture(front);
+      pushIf(front, meaning, undefined, undefined, SHOW_MEANING);
+    } else pushIf(front, meaning, undefined, true);
     pushIf(front, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
     // Which of the words with this meaning is wanted (synonyms.ts), so the other one isn't marked wrong.
     pushIf(front, wanted ?? '', undefined, undefined, undefined, { role: 'wanted' });
@@ -370,6 +386,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     });
   }
   pushEntry(back, stressed || entry);
+  pushPicture(back);
   // The word is the answer here, so the meaning under it is a gloss, not a second headline.
   pushIf(back, meaning, undefined, undefined, undefined, { role: 'gloss', ...sensed });
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });

@@ -437,3 +437,15 @@ def test_an_update_that_leaves_sense_and_meaning_alone_does_not_repeat_the_warni
     stored = {**GERMAN_NOUN, "Meaning": "part; portion", "Sense": "part or portion, or as for"}
     assert o.prepare({"Notes": "takes the genitive"}, existing=stored).review == []
     assert len(o.prepare({"Sense": "part or portion, or as for"}, existing=stored).review) == 1
+
+
+def test_an_icon_is_one_emoji_or_nothing():
+    assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": "☂️"})
+    assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": ""})
+    assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "umbrella"})
+    assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "☂️ umbrella"})
+    assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0"})
+    assert "icon-format" in rules({**GERMAN_NOUN, "Icon": '<svg><path d="M0 0"/></svg>'})
+    assert o.is_drawing("m1.5,2e1 l-3 4") and not o.is_drawing("L3 4") and not o.is_drawing("M0 0|" * 9)
+    assert o.is_emoji("🐘") and o.is_emoji("👨‍⚕️") and o.is_emoji("🇹🇭")
+    assert not o.is_emoji("") and not o.is_emoji("️") and not o.is_emoji("🐘" * 9)

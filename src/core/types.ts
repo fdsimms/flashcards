@@ -1,3 +1,4 @@
+import type { Picture } from './noteIcon';
 import type { AppFont } from './fonts';
 import type { Segment } from './highlight';
 import type { GrammarCell } from './wordGrammar';
@@ -207,7 +208,9 @@ export interface RenderedSide {
      * smaller and quieter than that word (the audio card's back), and `reading` is a Japanese word's kana, which the
      * screen leaves out when furigana shows it over the word already, a `sense` is the short line under a meaning that says which sense of it the card means (the Sense field), a `transliteration` is the word's romanization, set larger than an example's, and `contrast` is the "not this word" box under an answer's Sense (`rows`: label the English sense the word doesn't cover, value the word that does; senseContrast.ts). A block with no role is plain labeled text.
      */
-    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration' | 'contrast';
+    role?: 'chips' | 'example' | 'exampleRomanized' | 'exampleTranslation' | 'note' | 'grammar' | 'counting' | 'wanted' | 'gloss' | 'meaning' | 'reading' | 'sense' | 'transliteration' | 'contrast' | 'picture';
+    /** A `picture` block's emoji or drawing (the note's Icon field, noteIcon.ts); its `text` is what a screen reader says for it. */
+    picture?: Picture;
     /** The note field this block shows whole, when the card lets it be edited in place (Mnemonic, Notes; see `editField.ts`). */
     field?: 'Mnemonic' | 'Notes';
     /** The word's reading in kana (a Japanese Entry's KanaReading), for furigana over it once the answer shows (furigana.ts). */

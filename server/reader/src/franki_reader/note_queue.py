@@ -317,6 +317,14 @@ nothing worth saying; never filler
 - say: "yes" if the learner would plausibly say or write this themselves, in everyday conversation, \
 travel or their own messages; "no" if it is a word to recognize only: literary, technical, dated or \
 rare, or met on signs, menus, forms and in the news
+- icon: one emoji, only when the entry is a thing that can be pictured and an emoji shows exactly it \
+(an umbrella, an elephant, a key). An empty string otherwise, and whenever the nearest emoji only \
+suggests it
+- drawing: only when the entry is a thing that can be pictured and `icon` is empty: a simple line \
+drawing of it, as up to 8 SVG path `d` strings joined by `|`, for a 24 by 24 box, drawn as round \
+strokes about 1.6 wide with no fill, the way a line icon is drawn. Path data only, no markup. Draw \
+the thing by its plainest outline, large in the box. An empty string for an action, a quality or an \
+idea, and when `icon` has an emoji
 - hear: "yes" if they would plausibly hear it said to them or around them in everyday speech; "no" if \
 it is met almost only in writing
 {extras}
@@ -358,6 +366,8 @@ SCHEMA: dict[str, Any] = {
                     "register": {"type": "string"},
                     "part_of_speech": {"type": "string"},
                     "notes": {"type": "string"},
+                    "icon": {"type": "string"},
+                    "drawing": {"type": "string"},
                     "say": {"type": "string", "enum": ["yes", "no"]},
                     "hear": {"type": "string", "enum": ["yes", "no"]},
                     **{key: {"type": "string"} for key in _EXTRA_KEYS},
@@ -374,6 +384,8 @@ SCHEMA: dict[str, Any] = {
                     "register",
                     "part_of_speech",
                     "notes",
+                    "icon",
+                    "drawing",
                     "say",
                     "hear",
                     *_EXTRA_KEYS,
@@ -429,6 +441,43 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     )
 
 
+# What an emoji is made of: the pictographs, with the joiner, variation selector, skin tones and
+# flag letters that build one out of several code points. The MCP lints an Icon the same way
+# (`is_emoji`, server/mcp/franki_mcp/omnilanguage.py).
+_EMOJI = re.compile(
+    "(?:[\u2190-\u21ff\u2300-\u23ff\u2460-\u27bf\u2900-\u297f\u2b00-\u2bff\u3030\u303d\u3297\u3299"
+    "\U0001f000-\U0001faff]|[\u200d\ufe0f\u20e3]|[\U0001f3fb-\U0001f3ff]|[\U0001f1e6-\U0001f1ff])+"
+)
+MAX_ICON_CODEPOINTS = 8
+
+
+def is_emoji(value: str) -> bool:
+    """Whether `value` is one emoji and nothing else: at most a few code points, all of them an
+    emoji's, with a pictograph among them."""
+    return (
+        0 < len(value) <= MAX_ICON_CODEPOINTS
+        and _EMOJI.fullmatch(value) is not None
+        and any(ch not in "\u200d\ufe0f\u20e3" for ch in value)
+    )
+
+
+# A line drawing, for a thing no emoji shows: SVG path `d` strings joined by `|`, for a 24 by 24
+# box, drawn as round strokes with no fill (src/core/noteIcon.ts reads it). Path data only, never
+# markup, so there is nothing to sanitize: each path starts with a move and holds only SVG's path
+# commands and numbers.
+_PATH = re.compile(r"[Mm][MmLlHhVvCcSsQqTtAaZz0-9\s,.+\-eE]*")
+MAX_PATHS = 8
+MAX_DRAWING_LENGTH = 1200
+
+
+def is_drawing(value: str) -> bool:
+    """Whether `value` is a drawing's path data and nothing else."""
+    if not value or len(value) > MAX_DRAWING_LENGTH:
+        return False
+    paths = [p.strip() for p in value.split("|")]
+    return len(paths) <= MAX_PATHS and all(_PATH.fullmatch(p) for p in paths)
+
+
 def _plain(value: object, limit: int, *, markup: bool = False) -> str | None:
     """One line of text with nothing in it a field can't hold, or None. `markup` allows <b> and </b>."""
     if not isinstance(value, str):
@@ -480,6 +529,12 @@ def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict
         fields["GenerateReverse"] = "y"
     if raw.get("hear") == "yes":
         fields["GenerateAudioCard"] = "y"
+    # A picture: one emoji, else a drawing's path data. Anything else is left out, never repaired.
+    icon, drawing = raw.get("icon"), raw.get("drawing")
+    if isinstance(icon, str) and is_emoji(icon.strip()):
+        fields["Icon"] = icon.strip()
+    elif isinstance(drawing, str) and is_drawing(drawing.strip()):
+        fields["Icon"] = drawing.strip()
     # What follows is a nice-to-have: one that doesn't pass is left out, never repaired or a reason to
     # fail the word.
     part = _plain(raw.get("part_of_speech"), MAX_REGISTER)

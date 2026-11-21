@@ -71,6 +71,28 @@ describe('cards', () => {
     expect(renderCard({ ...note, fields: { ...note.fields, Stress: '' } }, 'reverse').back.blocks[0].text).toBe('говорить');
   });
 
+  it("puts a note's picture first on the reverse card's front with the meaning behind a tap, and with the meaning on answer sides", () => {
+    const note = omniNote({ Entry: 'ร่ม', Meaning: 'umbrella', GenerateReverse: 'y', GenerateAudioCard: 'y', Icon: '☂️' });
+    const front = renderCard(note, 'reverse').front.blocks;
+    expect(front[0]).toMatchObject({ role: 'picture', picture: { emoji: '☂️' } });
+    expect([front[1].text, front[1].emphasis ?? false, front[1].tapLabel]).toEqual(['umbrella', false, 'Show meaning']);
+    // The word-to-meaning and listening cards show it with the answer, where it's learned, and never on the front that asks for the meaning.
+    for (const kind of ['forward', 'audio'] as const) {
+      const card = renderCard(note, kind);
+      expect(card.front.blocks.some((b) => b.role === 'picture')).toBe(false);
+      const at = card.back.blocks.findIndex((b) => b.role === 'picture');
+      expect(card.back.blocks[at + 1].text).toBe('umbrella');
+    }
+    // A drawing is a picture too.
+    const drawn = renderCard({ ...note, fields: { ...note.fields, Icon: 'M3 12a9 9 0 0 1 18 0z|M12 12v7' } }, 'reverse').front.blocks[0];
+    expect(drawn.picture).toEqual({ paths: ['M3 12a9 9 0 0 1 18 0z', 'M12 12v7'] });
+    // With no picture, or a value that is neither, the meaning is the headline, as before.
+    for (const icon of ['', 'umbrella', '<svg onload="x">']) {
+      const plain = renderCard({ ...note, fields: { ...note.fields, Icon: icon } }, 'reverse').front.blocks[0];
+      expect([plain.text, plain.emphasis, plain.tapLabel]).toEqual(['umbrella', true, undefined]);
+    }
+  });
+
   it("keeps the Pronunciation behind a tap when the card already hides a transliteration or a reading, after it", () => {
     const thai = omniNote({ Entry: 'ความสุข', Meaning: 'happiness', Transliteration: 'khwaam-sùk', Pronunciation: '/kʰwaːm˧.sùk/' });
     const japanese = omniNote({ Entry: '大人', Meaning: 'adult', KanaReading: 'おとな', Language: 'Japanese', Pronunciation: '/otona/' });

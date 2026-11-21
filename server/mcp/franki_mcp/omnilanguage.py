@@ -45,7 +45,43 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", "Icon", *SWITCHES})
+
+# What an emoji is made of: the pictographs, with the joiner, variation selector, skin tones and
+# flag letters that build one out of several code points. Read & Listen's note queue checks an
+# Icon the same way (`is_emoji`, server/reader/src/franki_reader/note_queue.py).
+_EMOJI = re.compile(
+    "(?:[\u2190-\u21ff\u2300-\u23ff\u2460-\u27bf\u2900-\u297f\u2b00-\u2bff\u3030\u303d\u3297\u3299"
+    "\U0001f000-\U0001faff]|[\u200d\ufe0f\u20e3]|[\U0001f3fb-\U0001f3ff]|[\U0001f1e6-\U0001f1ff])+"
+)
+MAX_ICON_CODEPOINTS = 8
+
+
+def is_emoji(value: str) -> bool:
+    """Whether `value` is one emoji and nothing else: at most a few code points, all of them an
+    emoji's, with a pictograph among them."""
+    return (
+        0 < len(value) <= MAX_ICON_CODEPOINTS
+        and _EMOJI.fullmatch(value) is not None
+        and any(ch not in "\u200d\ufe0f\u20e3" for ch in value)
+    )
+
+
+# A line drawing, for a thing no emoji shows: SVG path `d` strings joined by `|`, for a 24 by 24
+# box, drawn as round strokes with no fill (src/core/noteIcon.ts reads it). Path data only, never
+# markup, so there is nothing to sanitize: each path starts with a move and holds only SVG's path
+# commands and numbers.
+_PATH = re.compile(r"[Mm][MmLlHhVvCcSsQqTtAaZz0-9\s,.+\-eE]*")
+MAX_PATHS = 8
+MAX_DRAWING_LENGTH = 1200
+
+
+def is_drawing(value: str) -> bool:
+    """Whether `value` is a drawing's path data and nothing else."""
+    if not value or len(value) > MAX_DRAWING_LENGTH:
+        return False
+    paths = [p.strip() for p in value.split("|")]
+    return len(paths) <= MAX_PATHS and all(_PATH.fullmatch(p) for p in paths)
 # An example sentence keeps its own language's punctuation (Russian's dash for "is", a French dialogue
 # dash), and its translation follows it: the no-em-dash rule is for the notes written about a word.
 SENTENCES = frozenset({"Context", "ContextRomanized", "ContextTranslation", "ContextLiteral", "Source"})
@@ -173,6 +209,7 @@ RULES: dict[str, str] = {
     "verbclass-unknown": "VerbClass is not a value this language uses",
     "auxiliary-unknown": "Auxiliary is not a value this language uses",
     "pronunciation-format": "Pronunciation is not IPA between slashes or brackets",
+    "icon-format": "Icon is neither one emoji nor a drawing's path data",
     "pronunciation-castilian": "Spanish IPA with Castilian θ",
     "em-dash": "An em dash",
     "notes-already-known": 'Notes says "already known"',
@@ -744,6 +781,11 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
             "(Masculine inanimate. Genitive in -u. The e drops out.).")  # fmt: skip
 
     # -- pronunciation and punctuation --
+    icon = txt("Icon")
+    # Markup is a problem even where it strips to nothing: the field holds text only.
+    if "<" in raw("Icon") or (icon and not is_emoji(icon) and not is_drawing(icon)):
+        add("icon-format", "Icon", "format",
+            "Icon is one emoji that pictures exactly this thing, or a line drawing as SVG path data joined by |, or empty: no words, no markup.")  # fmt: skip
     ipa = txt("Pronunciation")
     if ipa and not re.fullmatch(r"/[^/]+/|\[[^\]]+\]", ipa):
         add("pronunciation-format", "Pronunciation", "format", "Pronunciation is one IPA transcription between slashes: /ˈbluːtʊŋ/.")
@@ -926,6 +968,12 @@ KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>).
   present, past, perfect, participle, future, imperative, perfective, imperfective. Never a form with no label.
 Pronunciation: one IPA transcription between slashes. fill_pronunciation fills it; write it only when sure.
 Stress: Russian only, the Entry with its stress mark (говори́ть). fill_stress fills it; write it only when sure.
+Icon: a picture of the word, only for a thing that can be pictured. One emoji when an emoji shows exactly it
+  (ร่ม ☂️, ช้าง 🐘, กุญแจ 🔑). When none does, a simple line drawing: up to 8 SVG path d strings joined by |, for a
+  24 by 24 box, drawn as round strokes about 1.6 wide with no fill, the way a line icon is drawn, with nothing but
+  path data (M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0 is an umbrella). Franki shows it with the meaning on an
+  answer side and first on the meaning-to-word card, the English behind a tap. Draw the thing by its plainest
+  outline; nothing for an action, a quality or an idea. Empty for most notes.
 Notes: at most two short lines of what helps use the word: what it takes ("Takes the dative."), a collocation
   with its meaning, a contrast with a near word. A breakdown gives each part its meaning ("กลับ (return) +
   บ้าน (home)"). Never "already known".
