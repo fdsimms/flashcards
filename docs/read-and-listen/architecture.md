@@ -2019,9 +2019,9 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   filled in by Claude in the editor.
 - **Quick add is a sheet of its own, for every deck** (`src/ui/QuickAdd.tsx`, the `quick-add` route; 21
   November 2026, mocked first, the owner picked all of it: "do it all"). It opens from a + in the Decks
-  header (on the deck last added to, `src/ui/quickAddDeck.ts`), from a deck's long-press menu and ⋯ sheet
+  header (on the deck last added to), from a deck's long-press menu and ⋯ sheet
   ("Quick add to", that deck), and from the Home Screen's quick actions ("Add words", "Add to" the last
-  deck; `modules/home-shortcuts`, which keeps a tap that launched the app until JS takes it, since
+  deck, and "Study" the deck last studied, which opens Review; `src/ui/lastDeck.ts`, `modules/home-shortcuts`, which keeps a tap that launched the app until JS takes it, since
   expo-quick-actions loses that one under the scene lifecycle). Words go in one per Return, or pasted as a
   list. A Read & Listen language's deck, while it's on, queues them as before; any other deck saves a word
   and its meaning as a note of the deck's usual type when Add is tapped (`useQuickAddNotes`, the type the

@@ -8,7 +8,7 @@ import { useApp } from '../ui/AppContext';
 import { Loading, Screen } from '../ui/kit';
 import { leaveScreen } from '../ui/leaveScreen';
 import { QuickAdd, type QuickAddDeck } from '../ui/QuickAdd';
-import { saveLastQuickAddDeck, useLastQuickAddDeck } from '../ui/quickAddDeck';
+import { lastQuickAddDeck } from '../ui/lastDeck';
 import { DECKS_PATH } from '../ui/tabPaths';
 import { useNoteQueue } from '../ui/useNoteQueue';
 import { useQuickAddNotes } from '../ui/useQuickAddNotes';
@@ -24,7 +24,7 @@ export default function QuickAddRoute() {
   const { reader } = useApp();
   const queue = useNoteQueue(reader.api);
   const notes = useQuickAddNotes();
-  const last = useLastQuickAddDeck();
+  const last = lastQuickAddDeck.use();
   const collection = notes.collection;
 
   const decks = useMemo<QuickAddDeck[]>(() => {
@@ -66,7 +66,7 @@ export default function QuickAddRoute() {
         const language = languageOf(deck);
         return language ? api.lookUpWords(language, meaning) : [];
       } : undefined}
-      onDeckChosen={saveLastQuickAddDeck}
+      onDeckChosen={lastQuickAddDeck.save}
       onDone={() => leaveScreen(router, DECKS_PATH)}
     />
   );

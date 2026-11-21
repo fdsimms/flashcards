@@ -9,8 +9,8 @@ import type { Language, NoteQueue, QueuedNote } from './api';
 /**
  * The decks Quick add can queue words for: each Read & Listen language's deck (`decks`, from its
  * settings; missing from a server older than the deck setting) that is in the collection
- * (`deckNames`). A language never studied has no deck to add to. The deck list offers Quick add only
- * when this has one, and the Quick add screen chooses from it, so the two can't disagree. The
+ * (`deckNames`). A language never studied has no deck to add to. Quick add sends these decks' words
+ * to the note queue for Claude (quick-add.tsx); any other deck saves its words as notes there. The
  * language `current` (the one being read) comes first, as the one to start with.
  */
 export function quickAddDecks(
