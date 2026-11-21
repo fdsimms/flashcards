@@ -21,6 +21,13 @@ describe('repo', () => {
     expect(await repo.showCardHints()).toBe(true);
   });
 
+  it('shows the number of meanings on a card\'s front until the setting is turned off', async () => {
+    const repo = new MemoryRepo();
+    expect(await repo.showSenseCount()).toBe(true);
+    await repo.saveShowSenseCount(false);
+    expect(await repo.showSenseCount()).toBe(false);
+  });
+
   it('draws Thai at Large until another size is chosen', async () => {
     const repo = new MemoryRepo();
     expect(await repo.thaiTextSize()).toBe('large');
