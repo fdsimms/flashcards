@@ -19,6 +19,7 @@ import { TranslationRow } from './TranslationRow';
 import { EDIT_ICON_ROOM, EditableField } from './EditableField';
 import type { EditableField as FieldName } from '../core/editField';
 import type { SentenceGloss } from './useCardGlosses';
+import { SenseContrastBox, type ContrastActions } from './SenseContrastBox';
 
 type Block = RenderedSide['blocks'][number];
 type Item = { b: Block; i: number };
@@ -79,8 +80,9 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  * With `speakSentence`, the Example heading has a speaker button that reads the sentence aloud.
  * With `furigana` (once the answer shows), a Japanese word is drawn with `wordRuns`, its reading over
  * its kanji, and the sentence's words with theirs; the "Show reading" line goes, as it says the same.
+ * With `contrast`, the "not this word" box under the Sense has its Add, remove and open (SenseContrastBox).
  */
-export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing }: {
+export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing, contrast }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss[] | null;
   speakSentence?: (text: string) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
@@ -93,6 +95,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   onEditField?: (field: FieldName, text: string) => Promise<void>;
   /** Whether one of those boxes is open (the card holds off swipe-to-rate while it is). */
   onEditing?: (editing: boolean) => void;
+  /** Given on the back in Review: what the "not this word" box's rows do (useSenseContrast). */
+  contrast?: ContrastActions;
 }) {
   const c = useTheme();
   const thai = thaiTextStyle(thaiSize);
@@ -320,6 +324,9 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               {b.text}
             </Text>
           );
+        }
+        if (b.role === 'contrast') {
+          return <SenseContrastBox key={i} pairs={b.rows ?? []} actions={contrast} thaiSize={thaiSize} />;
         }
         if (b.role === 'note') {
           return editable(b, (
