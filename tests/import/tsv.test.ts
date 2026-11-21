@@ -142,3 +142,18 @@ describe('a word list', () => {
     expect(importTsv(text).cards.every((c) => c.position === undefined)).toBe(true);
   });
 });
+
+describe("a word list imported into a deck made in Franki", () => {
+  it("gives each word the deck's language, and a reverse card when the deck asks both ways", () => {
+    const { notes, cards } = importTsv('hola\thello\n', { fallbackDeck: 'Words', fieldDefaults: { Language: 'Spanish', GenerateReverse: 'y' } });
+    expect(notes[0].deck).toBe('Words');
+    expect(notes[0].fields.Language).toBe('Spanish');
+    expect(cards.map((c) => c.kind).sort()).toEqual(['forward', 'reverse']);
+  });
+
+  it("keeps a language the file gives, and leaves a row a deck column sends elsewhere alone", () => {
+    const text = '#columns:Entry\tMeaning\tLanguage\tDeck\n#deck column:4\nkot\tcat\tPolish\t\npies\tdog\t\tOther\n';
+    const { notes } = importTsv(text, { fallbackDeck: 'Words', fieldDefaults: { Language: 'Spanish' } });
+    expect(notes.map((n) => [n.deck, n.fields.Language])).toEqual([['Words', 'Polish'], ['Other', '']]);
+  });
+});

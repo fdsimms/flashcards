@@ -368,7 +368,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const started = performance.now();
     const key = `${deck}:${studyDayKey(now, H)}`;
     const q = keepSessionOrder(sessionQueue.current?.key === key ? sessionQueue.current.queue : undefined, treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, ownLimitsFor: (d) => deckSettings.get(d), collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
     })));
     sessionQueue.current = { key, queue: q };
     timing.queueTook(performance.now() - started);

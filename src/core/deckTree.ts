@@ -148,6 +148,8 @@ export interface TreeQueueInput {
   held?: Set<string>;
   /** Tagged cards that come first when `root` is studied (`boostFor`, priority.ts). */
   boostFor?: (root: string) => Boost | undefined;
+  /** A deck's own daily new card limit, not today's: its preset's, else its own from Deck options (`DeckRow.newPerDay`). */
+  newPerDayFor?: (deck: string) => number;
   /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, weakest first overrides the review order. The limits are scaled in `queueInput`. */
   vacation?: VacationPlan;
 }
@@ -347,6 +349,11 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
  * deck list and the review screen both build it here, so a deck never shows one count on the list
  * and another when opened.
  */
+/** The app's limits, with a deck's own from Deck options over them. */
+function ownDefaults(own: Partial<DeckLimits> | undefined): DeckLimits {
+  return { newPerDay: own?.newPerDay ?? NEW_PER_DAY, reviewsPerDay: own?.reviewsPerDay ?? REVIEWS_PER_DAY };
+}
+
 export function queueInput(a: {
   notes: Iterable<Note>;
   cards: Card[];
@@ -357,6 +364,11 @@ export function queueInput(a: {
   now: Date;
   /** Lookalikes held back (`heldCards`). */
   held?: Set<string>;
+  /**
+   * A deck's own limits from Deck options, for a deck with no Anki preset to take them from
+   * (`DeckSettings.newPerDay` / `reviewsPerDay`). Required, so every caller decides.
+   */
+  ownLimitsFor: (deck: string) => Partial<DeckLimits> | undefined;
   /** Tagged cards first (`boostFor`). */
   boostFor?: (root: string) => Boost | undefined;
   /** Vacation mode's setting (`VacationPrefs`), resolved here so the deck list and the review screen both apply it. */
@@ -370,10 +382,11 @@ export function queueInput(a: {
     skillCards: skillCardIds(a.notes, a.cards),
     limitsFor: (d) => {
       const p = paramsForDeck(d, a.params);
-      const limits = deckLimits(p, { newPerDay: NEW_PER_DAY, reviewsPerDay: REVIEWS_PER_DAY }, todayKey);
+      const limits = deckLimits(p, ownDefaults(a.ownLimitsFor(d)), todayKey);
       return scaleLimits(limits, vacation, { new: p?.newLimitToday?.day === todayKey, review: p?.reviewLimitToday?.day === todayKey });
     },
     paramsFor: (d) => paramsForDeck(d, a.params),
+    newPerDayFor: (d) => paramsForDeck(d, a.params)?.newPerDay ?? ownDefaults(a.ownLimitsFor(d)).newPerDay,
     homeDeckOf: (c) => cardHomeDeck(c, deckOfNote.get(c.noteId) ?? 'Imported'),
     studiedByDeck: a.studied,
     gateFor: a.gateFor,
@@ -396,6 +409,8 @@ export interface DeckRow extends DeckNode {
   total: number;
   /** Cards in the deck and its subdecks that were never studied and aren't suspended: all of them, not just today's new cards. */
   unstudied: number;
+  /** Every card in the deck and its subdecks, suspended or buried too: 0 is a deck with nothing in it yet. Missing from a row kept from before it was counted. */
+  cards?: number;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
   /**
@@ -488,17 +503,19 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const q = treeQueue(node.deck, input);
     let total = 0;
     let unstudied = 0;
+    let all = 0;
     for (const [deck, cards] of input.cardsByDeck) {
       if (!isInDeck(deck, node.deck)) continue;
+      all += cards.filter((c) => !c.retired).length;
       const open = studiable(cards);
       total += open.length;
       unstudied += open.filter((c) => c.sched.state === 0 && !input.skillCards.has(c.id)).length;
     }
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck, input.skillCards), cap };
-    const newPerDay = input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
+    const newPerDay = input.newPerDayFor?.(node.deck) ?? input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
     const held = heldDue(node.deck, input.cardsByDeck, input.held, input.now ?? new Date(), input.dayStartsAtHour);
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, newPerDay, ...(gate ? { gate } : {}), ...(held ? { held } : {}) };
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, newPerDay, ...(gate ? { gate } : {}), ...(held ? { held } : {}) };
   });
 }
 

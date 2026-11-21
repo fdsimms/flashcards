@@ -1,4 +1,4 @@
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { leadingEmoji } from '../core/deckBadge';
@@ -8,7 +8,7 @@ import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, Card, Group, Help, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
@@ -308,17 +308,20 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
   );
 }
 
-/** With no decks at all: where to bring them in from. */
+/** With no decks at all: make one (NewDeck.tsx), or bring in an Anki collection. */
 export function NoDecksCard({ onImport }: { onImport: () => void }) {
   const c = useTheme();
+  const router = useRouter();
   return (
     <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-      <Icon name="tray" size={40} color={c.textTertiary} weight="regular" />
+      <Icon name="rectangle.stack" size={40} color={c.textTertiary} weight="regular" />
       <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-        Bring in your Anki collection, by syncing with your Anki server or from a file exported from AnkiMobile.
+        Make a deck for what you're learning and add words to it, or bring in your Anki collection.
       </Text>
-      <Button label="Set up Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+      <Button label="Make a deck" onPress={() => router.push('/deck-new')} style={{ alignSelf: 'stretch' }} />
+      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+      <Help>Anki users: sync with your own Anki server, or choose a collection exported from AnkiMobile.</Help>
     </Card>
   );
 }

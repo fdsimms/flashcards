@@ -157,7 +157,7 @@ describe('progress gate', () => {
     const params = { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 2, newLimitToday: { limit: 30, day: '2026-11-11' } };
     const cards = [...inProgress(5), ...newCards(40)];
     const notes = cards.map((c) => ({ id: c.noteId, deck: 'Thai', model: 'Basic', fields: { Front: c.noteId, Back: '' }, tags: [] }));
-    const build = (cap: number) => queueInput({
+    const build = (cap: number) => queueInput({ ownLimitsFor: () => undefined,
       notes, cards, params: new Map([['Thai', params]]), studied: new Map(), gateFor: (d) => (d === 'Thai' ? cap : undefined),
       collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW,
     });
@@ -233,10 +233,22 @@ describe('skill cards', () => {
     expect(rows.find((r) => r.deck === 'Thai')!.unstudied).toBe(3);
   });
 
+  it("queueInput takes a deck's own limits when it has no preset, and the preset's over them", () => {
+    const cards = newCards(30);
+    const notes = cards.map((c) => ({ id: c.noteId, deck: 'Thai', model: '', fields: { Front: c.noteId, Back: '' }, tags: [] }));
+    const base = { notes, cards, studied: new Map(), collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW };
+    const own = (d: string) => (d === 'Thai' ? { newPerDay: 5 } : undefined);
+    expect(treeQueue('Thai', queueInput({ ...base, params: new Map(), ownLimitsFor: own })).fresh).toHaveLength(5);
+    expect(deckRows(queueInput({ ...base, params: new Map(), ownLimitsFor: own })).find((r) => r.deck === 'Thai')!.newPerDay).toBe(5);
+    expect(treeQueue('Thai', queueInput({ ...base, params: new Map(), ownLimitsFor: () => undefined })).fresh).toHaveLength(20);
+    const preset = new Map([['Thai', { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 8 }]]);
+    expect(treeQueue('Thai', queueInput({ ...base, params: preset, ownLimitsFor: own })).fresh).toHaveLength(8);
+  });
+
   it('queueInput marks the cards of notes tagged skill', () => {
     const cards = newCards(4);
     const notes = cards.map((c, i) => ({ id: c.noteId, deck: 'Thai', model: 'Basic', fields: { Front: c.noteId, Back: '' }, tags: i < 3 ? ['skill', 'skill::drill::time-hours'] : [] }));
-    const built = queueInput({ notes, cards, params: new Map(), studied: new Map(), collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW });
+    const built = queueInput({ ownLimitsFor: () => undefined, notes, cards, params: new Map(), studied: new Map(), collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW });
     expect(built.skillCards.size).toBe(3);
   });
 });
@@ -603,7 +615,7 @@ describe(`a deck's queue as Anki ${queueVectors.anki} builds it (tests/fixtures/
       const cards = data.cards.map((c) => ({ ...c, ankiMod: ankiMod.get(c.ankiId!) }));
       const collection = data.collectionSettings!;
       const studied = studiedToday({ notes: data.notes, cards, reviews: [], revlog, now, dayStartsAtHour: collection.dayStartsAtHour });
-      const input = queueInput({ notes: data.notes, cards, params: data.deckParams!, studied, collection, now });
+      const input = queueInput({ ownLimitsFor: () => undefined, notes: data.notes, cards, params: data.deckParams!, studied, collection, now });
       for (const [deck, anki] of Object.entries(v.queues)) {
         const q = treeQueue(deck, input);
         expect(q.order.map((c) => c.ankiId), deck).toEqual(anki.order);

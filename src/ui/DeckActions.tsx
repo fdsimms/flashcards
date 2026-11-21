@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { ActionSheetIOS, Alert } from 'react-native';
-import { createDeck, deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
+import { deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { deckDeletionWarning } from '../core/deckNames';
 import { deckSuspension, deckSuspensionWarning } from '../core/deckSuspension';
@@ -17,7 +17,7 @@ import { failureText, NOT_IN_ANKI } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
- * deck" in the toolbar, a menu on each deck's row (Suspend all and Unsuspend all included), and dragging a row (DeckDrag.tsx). Names are asked for in the system's text prompt;
+ * deck" in the toolbar (a sheet of its own, NewDeck.tsx), a menu on each deck's row (Suspend all and Unsuspend all included), and dragging a row (DeckDrag.tsx). A new name is asked for in the system's text prompt;
  * a name that's refused (taken, empty, inside the deck itself) asks again, saying why.
  */
 export function useDeckActions(onOptions: (deck: string) => void) {
@@ -44,15 +44,8 @@ export function useDeckActions(onOptions: (deck: string) => void) {
   // After a change in Anki's collection, Franki reads its decks from it again.
   const fromAnki = useCallback(() => refreshFromKeptCollection(repo), [repo]);
 
-  const create = useCallback((problem?: string, typed = '') => {
-    Alert.prompt('New deck', problem ?? 'To put it inside another deck, use "::", as in Polski::Verbs.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Create', isPreferred: true,
-        onPress: (value?: string) => run("Couldn't create the deck", () => createDeck(repo, value ?? '', fromAnki), (p) => create(p, value ?? '')),
-      },
-    ], 'plain-text', typed);
-  }, [repo, run, fromAnki]);
+  // New deck is a sheet of its own (NewDeck.tsx): a name, and the language its notes are in.
+  const create = useCallback(() => { router.push('/deck-new'); }, [router]);
 
   const rename = useCallback((deck: string, problem?: string, typed = deck) => {
     Alert.prompt(`Rename "${deck}"`, problem ?? 'Its subdecks move with it. To put it inside another deck, use "::".', [

@@ -28,7 +28,7 @@ const params = (over: Partial<DeckParams> = {}): Map<string, DeckParams> =>
   new Map([[DECK, { weights: [], desiredRetention: 0.9, maxInterval: 36500, newPerDay: 20, reviewsPerDay: 200, ...over }]]);
 
 function queueFor(items: { note: { id: string; deck: string }; card: Card }[], vacation: VacationPrefs | undefined, p = params()) {
-  const input = queueInput({
+  const input = queueInput({ ownLimitsFor: () => undefined,
     notes: items.map((i) => i.note) as never, cards: items.map((i) => i.card), params: p, studied: new Map(),
     // New cards don't use review room here, so a test of the review cut doesn't also cut the new cards.
     collection: { ...DEFAULT_COLLECTION_SETTINGS, newCardsIgnoreReviewLimit: true }, now: NOW, vacation,

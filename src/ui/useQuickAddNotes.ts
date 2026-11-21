@@ -5,9 +5,10 @@ import { runningCramTags } from '../core/cram';
 import { untiered } from '../core/deckTree';
 import { failureText } from '../core/failure';
 import { readerLanguageOf } from '../core/leechHint';
-import { duplicateKey, duplicateOf, editTextToField, notesStillThere, startModelFor } from '../core/noteEditing';
+import { duplicateKey, duplicateOf, editTextToField, notesStillThere, startNoteFor } from '../core/noteEditing';
+import { omnilanguageFieldNames } from '../import/models';
 import type { QuickWord } from '../core/quickAdd';
-import type { Note, NoteType } from '../core/types';
+import type { DeckSettings, Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import { useApp } from './AppContext';
 import { afterSave, useVoiceSettings } from './RecordAudio';
@@ -18,8 +19,11 @@ import { useRecorder } from './useRecorder';
 export interface QuickCollection {
   /** Every deck a note can go in, as the note editor offers them: a filtered deck holds no notes. */
   decks: string[];
-  /** The note type a word saved without Claude goes in as, as the note editor would start it, and its first two fields. */
-  plainType(deck: string): { model: string; word: string; meaning: string };
+  /**
+   * The note type a word saved without Claude goes in as, as the note editor would start it
+   * (`startNoteFor`), its first two fields, and the fields it starts with (a new deck's Language).
+   */
+  plainType(deck: string): { model: string; word: string; meaning: string; start: Record<string, string> };
   /**
    * The deck that already has `entry` as the first field of a `model` note (in the same language, for a
    * word), else undefined: the check `saveNote` refuses a duplicate by (`duplicateOf`), asked of the notes
@@ -48,6 +52,7 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [types, setTypes] = useState<Map<string, NoteType>>(new Map());
   const [filtered, setFiltered] = useState<Set<string>>(new Set());
+  const [own, setOwn] = useState<Map<string, DeckSettings>>(new Map());
   const [problem, setProblem] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -56,8 +61,9 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
     setProblem(null);
     (async () => {
       await reviewWrites.idle();
-      const [all, noteTypes, params, cards] = await Promise.all([repo.listNotes(), repo.listNoteTypes(), repo.listDeckParams(), repo.listCards()]);
+      const [all, noteTypes, params, cards, settings] = await Promise.all([repo.listNotes(), repo.listNoteTypes(), repo.listDeckParams(), repo.listCards(), repo.listDeckSettings()]);
       if (!live) return;
+      setOwn(settings);
       setNotes(notesStillThere(all, cards));
       setTypes(noteTypes);
       setFiltered(new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d)));
@@ -67,7 +73,8 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
 
   const collection = useMemo<QuickCollection | null>(() => {
     if (!notes) return null;
-    const fieldsOf = (model: string) => types.get(model)?.fields ?? Object.keys(notes.find((n) => n.model === model)?.fields ?? { Front: '', Back: '' });
+    const fieldsOf = (model: string) => types.get(model)?.fields
+      ?? Object.keys(notes.find((n) => n.model === model)?.fields ?? (model === 'Omnilanguage' ? Object.fromEntries(omnilanguageFieldNames.map((f) => [f, ''])) : { Front: '', Back: '' }));
     // Each note type's notes by their first field's `duplicateKey`, built on first ask: the rows check
     // every word on each keystroke, and `duplicateOf` reads every note it's given.
     const keys = new Map<string, Map<string, Note[]>>();
@@ -85,15 +92,15 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
       }
       return index;
     };
-    const plain = new Map<string, { model: string; word: string; meaning: string }>();
+    const plain = new Map<string, { model: string; word: string; meaning: string; start: Record<string, string> }>();
     return {
       decks: [...new Set([...notes.map((n) => untiered(n.deck)), ...rows.map((r) => r.deck).filter((d) => !filtered.has(d))])].sort((a, b) => a.localeCompare(b)),
       plainType: (deck) => {
         let found = plain.get(deck);
         if (!found) {
-          const model = startModelFor(notes, [...types.keys()], deck);
+          const { model, fields: start } = startNoteFor(notes, [...types.keys()], deck, own.get(deck));
           const [word = 'Front', meaning = 'Back'] = fieldsOf(model);
-          found = { model, word, meaning };
+          found = { model, word, meaning, start };
           plain.set(deck, found);
         }
         return found;
@@ -106,18 +113,18 @@ export function useQuickAddNotes(): { collection: QuickCollection | null; proble
         return there ? untiered(there.deck) : undefined;
       },
     };
-  }, [notes, types, filtered, rows]);
+  }, [notes, types, filtered, rows, own]);
 
   const save = useCallback(async (deck: string, words: QuickWord[]): Promise<QuickSaved> => {
     if (!collection) return { saved: 0, refused: [] };
-    const { model, word, meaning } = collection.plainType(deck);
+    const { model, word, meaning, start } = collection.plainType(deck);
     const { dayStartsAtHour } = await repo.collectionSettings();
     const crams = await loadCrams(repo).catch(() => cramsNow());
     const all = notes ?? [];
     const result: QuickSaved = { saved: 0, refused: [] };
     const added: Note[] = [];
     for (const w of words) {
-      const fields = { [word]: editTextToField(w.entry), [meaning]: editTextToField(w.meaning) };
+      const fields = { ...start, [word]: editTextToField(w.entry), [meaning]: editTextToField(w.meaning) };
       const tags = runningCramTags(crams, all, readerLanguageOf({ id: '', deck, model, fields, tags: [] }), new Date(), dayStartsAtHour);
       try {
         added.push(await saveNote(repo, { deck, model, fields, tags, allowDuplicate: w.anyway }));

@@ -14,6 +14,7 @@ import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
 import { deckScripts } from '../core/fontScripts';
 import type { Script } from '../core/fonts';
+import { DeckDailyLimits } from './DeckDailyLimits';
 import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckNewCardOrder } from './DeckNewCardOrder';
@@ -136,6 +137,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
           <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
         ) : null}
         {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}
+        {!filtered && !hasPreset && settings ? <DeckDailyLimits settings={settings} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : (
           <Group>
             {hasPreset ? <NavRow first label="Anki options" detail="Daily limits, learning steps, maximum interval and desired retention" onPress={onAnkiOptions} /> : null}

@@ -122,6 +122,11 @@ export function importTsv(
      * as Anki numbers the notes of an import. Without it they have none and sort by id.
      */
     firstPosition?: number;
+    /**
+     * Fields an Omnilanguage note in the file's own deck (not one a deck column names) gets where the
+     * file leaves them empty: a deck made in Franki's language, and whether it asks both ways.
+     */
+    fieldDefaults?: Record<string, string>;
   } = {},
 ): ImportResult {
   const warnings: string[] = [];
@@ -228,6 +233,9 @@ export function importTsv(
       firstRow.set(derived, idx);
     }
     usedIds.add(id);
+    if (opts.fieldDefaults && model === 'Omnilanguage' && !deckCell) {
+      for (const [k, v] of Object.entries(opts.fieldDefaults)) if (!fields[k]?.trim()) fields[k] = v;
+    }
     const note: Note = { id, deck, model, fields, tags };
     notes.push(note);
     const made = makeCards(note, opts.now, noteType).map((c) => (opts.firstPosition !== undefined ? { ...c, position: opts.firstPosition + idx } : c));

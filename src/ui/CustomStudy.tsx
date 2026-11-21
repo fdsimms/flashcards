@@ -46,6 +46,14 @@ export function CustomStudy({ repo, deck, onStarted }: {
   }, [repo]);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  // Only the two limits work without an Anki collection: the others build a filtered deck in it.
+  const [hasAnki, setHasAnki] = useState(true);
+  useEffect(() => {
+    let current = true;
+    repo.keptCollection().then((kept) => { if (current) setHasAnki(!!kept); }).catch(() => undefined);
+    return () => { current = false; };
+  }, [repo]);
+  const offered = hasAnki ? CUSTOM_STUDY_OPTIONS : CUSTOM_STUDY_OPTIONS.filter((o) => o.kind === 'moreNew' || o.kind === 'moreReviews');
 
   const choose = (k: CustomStudyKind) => {
     setKind(k);
@@ -87,10 +95,11 @@ export function CustomStudy({ repo, deck, onStarted }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
         <Help>{kind === 'moreNew' || kind === 'moreReviews' ? `For ${name}. The new limit applies today only.` : `For ${name}. Cards you pick are studied in a deck called Custom Study Session.`}</Help>
         <Group accessibilityRole="radiogroup">
-          {CUSTOM_STUDY_OPTIONS.map((o, i) => (
+          {offered.map((o, i) => (
             <CheckRow key={o.kind} first={i === 0} label={o.title} hint={o.detail} selected={o.kind === kind} onPress={() => choose(o.kind)} />
           ))}
         </Group>
+        {hasAnki ? null : <Help>Reviewing forgotten cards, reviewing ahead, previewing and studying by state or tag need an Anki collection (Settings, Anki).</Help>}
         <Card style={{ gap: space.m }}>
           <Field
             label={option.field.label}

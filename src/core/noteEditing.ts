@@ -1,5 +1,5 @@
 import { nextStudyDayStart } from './day';
-import { isOmnilanguage, speechLangFor } from './cards';
+import { isOmnilanguage, noteLanguageOfDeck, speechLangFor } from './cards';
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
@@ -46,6 +46,31 @@ export function startModelFor(notes: readonly Note[], typeNames: readonly string
   for (const n of inDeck.length ? inDeck : notes) counts.set(n.model, (counts.get(n.model) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? typeNames[0] ?? '';
 }
+
+/**
+ * How a note added to `deck` starts: the note type its notes use most (`startModelFor`), and for a
+ * deck with none yet that's in a language (its Deck options' `noteLanguage`, else the language its
+ * name gives), an Omnilanguage note in that language, asking both ways when the deck says so. A deck
+ * made in Franki then gets cards that speak, show in Practice and can be asked in the language, with
+ * no note type from Anki needed. A deck set to no language, or a collection with no Omnilanguage
+ * note type, starts as before.
+ */
+export function startNoteFor(
+  notes: readonly Note[],
+  typeNames: readonly string[],
+  deck: string,
+  own: { noteLanguage?: string; askBothWays?: boolean } | undefined,
+): { model: string; fields: Record<string, string> } {
+  const inDeck = notes.some((n) => n.deck === deck || n.deck.startsWith(`${deck}::`));
+  const language = own?.noteLanguage ?? noteLanguageOfDeck(deck);
+  const omni = typeNames.includes(OMNILANGUAGE) || !typeNames.length;
+  if (!inDeck && language && omni) {
+    return { model: OMNILANGUAGE, fields: { Language: language, ...(own?.askBothWays ? { GenerateReverse: 'y' } : {}) } };
+  }
+  return { model: startModelFor(notes, typeNames, deck), fields: {} };
+}
+
+const OMNILANGUAGE = 'Omnilanguage';
 
 export function parseTags(text: string): string[] {
   const seen = new Map<string, string>();

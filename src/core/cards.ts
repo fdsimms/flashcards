@@ -48,6 +48,20 @@ export const LANG_TAGS: Record<string, string> = {
 };
 
 /**
+ * The languages a deck made in Franki can be in, by the English name its notes' Language field
+ * holds ("Spanish"), each once, in `LANG_TAGS`' order: the first name each tag has there.
+ */
+export const NOTE_LANGUAGES: { name: string; tag: string }[] = Object.entries(LANG_TAGS)
+  .filter(([key, tag], i, all) => all.findIndex(([, t]) => t === tag) === i && /^[a-z ]+$/.test(key))
+  .map(([key, tag]) => ({ name: key.replace(/\b[a-z]/g, (ch) => ch.toUpperCase()), tag }));
+
+/** The English name a deck's name gives (`deckNameLanguage`), as a Language field holds it. */
+export function noteLanguageOfDeck(deck: string): string | undefined {
+  const tag = deckNameLanguage(deck);
+  return NOTE_LANGUAGES.find((l) => l.tag === tag)?.name;
+}
+
+/**
  * The language a note is spoken in: its Language field, else a language its deck's name gives.
  * Undefined when neither names one, which means don't speak it: iOS's default voice would read
  * the word as English, which a learner can't recognize.

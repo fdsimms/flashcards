@@ -55,8 +55,9 @@ the nearest ancestor deck, then to the `ts-fsrs` defaults. Every `review`/`previ
 passes the deck's params; one that doesn't silently schedules with the defaults.
 
 **Daily limits are per deck, from its Anki preset** (`DeckParams.newPerDay` / `reviewsPerDay`, or
-a today-only limit from Custom Study on its day), with `NEW_PER_DAY` / `REVIEWS_PER_DAY` in
-`src/core/config.ts` only for a deck that has none.
+a today-only limit from Custom Study on its day). A deck with no preset (one made in Franki with no
+Anki collection) takes its own from Deck options (`DeckSettings.newPerDay` / `reviewsPerDay`, through
+`queueInput`'s required `ownLimitsFor`), else `NEW_PER_DAY` / `REVIEWS_PER_DAY` in `src/core/config.ts`.
 
 **A study session is built as Anki's v3 scheduler builds it** (`treeQueue` in
 `src/core/deckTree.ts`, orders in `src/core/order.ts`; each rule's source in rslib is named where

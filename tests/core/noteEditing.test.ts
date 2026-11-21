@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor } from '../../src/core/noteEditing';
+import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor, startNoteFor } from '../../src/core/noteEditing';
+import { NOTE_LANGUAGES } from '../../src/core/cards';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -225,5 +226,28 @@ describe('startModelFor', () => {
     expect(startModelFor(notes, ['Cloze'], 'Empty deck')).toBe('Omnilanguage');
     expect(startModelFor([], ['Cloze', 'Basic'], 'Empty deck')).toBe('Cloze');
     expect(startModelFor([], [], 'Empty deck')).toBe('');
+  });
+});
+
+describe('startNoteFor', () => {
+  const basic = (deck: string) => ({ id: deck, deck, model: 'Basic', fields: { Front: 'x', Back: 'y' }, tags: [] });
+  it("starts a new deck's note in its language, from its options or its name", () => {
+    expect(startNoteFor([], [], 'Spanish', undefined)).toEqual({ model: 'Omnilanguage', fields: { Language: 'Spanish' } });
+    expect(startNoteFor([], [], 'Words', { noteLanguage: 'Polish', askBothWays: true })).toEqual({ model: 'Omnilanguage', fields: { Language: 'Polish', GenerateReverse: 'y' } });
+    expect(startNoteFor([], ['Basic', 'Omnilanguage'], '🌮 Español', undefined).model).toBe('Omnilanguage');
+  });
+  it('starts as before with no language, notes already in the deck, or no Omnilanguage type', () => {
+    expect(startNoteFor([], [], 'Spanish', { noteLanguage: '' })).toEqual({ model: '', fields: {} });
+    expect(startNoteFor([basic('Spanish')], ['Basic', 'Omnilanguage'], 'Spanish', undefined)).toEqual({ model: 'Basic', fields: {} });
+    expect(startNoteFor([], ['Basic'], 'Spanish', undefined)).toEqual({ model: 'Basic', fields: {} });
+    expect(startNoteFor([], [], 'Trivia', undefined)).toEqual({ model: '', fields: {} });
+  });
+  it('offers each language once, by its English name', () => {
+    const names = NOTE_LANGUAGES.map((l) => l.name);
+    expect(names).toContain('Thai');
+    expect(names).toContain('Indonesian');
+    expect(names).toContain('Cantonese');
+    expect(names).not.toContain('Polski');
+    expect(new Set(NOTE_LANGUAGES.map((l) => l.tag)).size).toBe(NOTE_LANGUAGES.length);
   });
 });

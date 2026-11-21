@@ -4,6 +4,7 @@ import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-nat
 import { cardsFor, deleteNote, saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { cardStateOf, FLAG_NAMES, type CardState } from '../core/cardState';
 import { runningCramTags, type Cram } from '../core/cram';
+import { omnilanguageFieldNames } from '../import/models';
 import { readerLanguageOf } from '../core/leechHint';
 import { untiered } from '../core/deckTree';
 import { failureText, NOT_IN_ANKI } from '../core/failure';
@@ -12,7 +13,7 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { applyTagSuggestion, canAddAnother, clozeChoices, nextNoteFields, typedTag, wrapCloze } from '../core/noteDrafting';
 import { suggestTags, tagCounts } from '../core/priority';
-import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startModelFor } from '../core/noteEditing';
+import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
 import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -128,16 +129,19 @@ export function NoteEditor(props: {
         setTags(n.tags.join(' '));
       } else {
         // Start in the deck asked for, else the first the Deck picker lists (never a blank one), with
-        // the note type its notes use most.
+        // the note type its notes use most, or a new deck's language (`startNoteFor`).
         const filtered = new Set([...params].filter(([, p]) => p.filtered).map(([d]) => d));
         const listed = [...new Set([...all.map((n) => untiered(n.deck)), ...(props.decks ?? []).filter((d) => !filtered.has(d))])].sort((a, b) => a.localeCompare(b));
         const startDeck = props.target.deck ?? listed[0] ?? '';
-        const startModel = startModelFor(all, [...types.keys()], startDeck);
+        const own = await props.repo.listDeckSettings();
+        const begun = startNoteFor(all, [...types.keys()], startDeck, own.get(startDeck));
         setDeck(startDeck);
         const asked = props.target.model;
-        setModel(asked && (types.has(asked) || all.some((n) => n.model === asked)) ? asked : startModel);
-        const startFields = props.target.fields ?? {};
-        if (props.target.fields) setFields(props.target.fields);
+        const askedKnown = !!asked && (types.has(asked) || all.some((n) => n.model === asked));
+        const startModel = askedKnown ? asked : begun.model;
+        setModel(startModel);
+        const startFields = { ...(askedKnown ? {} : begun.fields), ...(props.target.fields ?? {}) };
+        if (Object.keys(startFields).length) setFields(startFields);
         // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
         const cs = await props.repo.collectionSettings();
         // Only crams in the note's language take it: read from its Language field, else its deck.
@@ -162,7 +166,9 @@ export function NoteEditor(props: {
   const fieldNames = useMemo(() => {
     const nt = noteTypes.get(model);
     if (nt?.fields.length) return nt.fields;
-    return Object.keys((original?.model === model ? original : notes.find((n) => n.model === model))?.fields ?? { Front: '', Back: '' });
+    const like = (original?.model === model ? original : notes.find((n) => n.model === model))?.fields;
+    // An Omnilanguage note in a collection with no copy of the type (a deck made in Franki): its fields as Anki's type has them.
+    return like ? Object.keys(like) : model === 'Omnilanguage' ? omnilanguageFieldNames : ['Front', 'Back'];
   }, [model, noteTypes, notes, original]);
 
   const stored = useMemo(() => Object.fromEntries(fieldNames.map((f) => [f, editTextToField(fields[f] ?? '')])), [fieldNames, fields]);

@@ -54,7 +54,7 @@ Changes to an Anki note go into your Anki collection as Anki would make them, so
 
 ## Decks
 
-The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck**, in the **…** menu at the top right, makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. The **…** button on a deck's row opens its menu:
+The deck list shows every deck in your Anki collection, empty ones too (all but Anki's Default deck when it has nothing in it). **New deck**, in the **…** menu at the top right (or **Make a deck** when there are none), makes one; "::" puts it inside another, as in `Polski::Verbs`, and makes any deck above it that's missing. It also asks the language the deck's words are in (read from the name until you pick one; **No language** for trivia) and whether each word should also ask its meaning, to answer in the language. A word added to a new deck in a language is a note in that language, read aloud and shown in Practice, with no note type from Anki needed. A deck with no cards yet offers **Add words** and **Import a word list** (a .csv or .txt file with a word and its meaning on each line). A deck that isn't in an Anki collection keeps its daily limits in Franki: **Deck options** sets new cards and reviews a day. The **…** button on a deck's row opens its menu:
 
 - **Add note** opens the note editor in that deck, which is how to fill a deck you just made.
 - **Rename** renames it and every deck inside it. "::" moves it inside another deck. A name another deck has (in any capitalization) is refused, as is one inside the deck itself.
