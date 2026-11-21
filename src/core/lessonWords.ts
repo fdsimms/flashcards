@@ -23,6 +23,30 @@ export interface LessonWordCandidate {
   /** Thai's romanization with tone marks, Russian's and Greek's romanization, Japanese's kana; empty where the spelling shows the sound. */
   reading: string;
   english: string;
+  /** How common the word is in everyday speech, as Claude judges it (not a frequency list); empty when it wasn't sure. */
+  commonness?: string;
+  /** How the word is said (`casual`, `neutral`, `formal`, `slang`); empty when Claude wasn't sure. */
+  register?: string;
+}
+
+/** One small label under a candidate: its words, and how it is drawn (`good` for a word you'll hear daily, `note` for one to be careful with). */
+export interface CandidateChip { label: string; tone: 'plain' | 'good' | 'note' }
+
+const COMMONNESS_CHIPS: Record<string, CandidateChip> = {
+  very_common: { label: 'Very common', tone: 'good' },
+  common: { label: 'Common', tone: 'good' },
+  less_common: { label: 'Less common', tone: 'plain' },
+  rare: { label: 'Rare', tone: 'note' },
+};
+const REGISTER_CHIPS: Record<string, CandidateChip> = {
+  casual: { label: 'Casual', tone: 'note' },
+  formal: { label: 'Formal', tone: 'note' },
+  slang: { label: 'Slang', tone: 'note' },
+};
+
+/** The chips for a candidate. Neutral speech and anything Claude left blank or the app doesn't know show nothing: a chip says something worth knowing. */
+export function candidateChips(c: LessonWordCandidate): CandidateChip[] {
+  return [COMMONNESS_CHIPS[c.commonness ?? ''], REGISTER_CHIPS[c.register ?? '']].filter((x): x is CandidateChip => !!x);
 }
 
 /**
