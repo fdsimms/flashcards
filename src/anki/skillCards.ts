@@ -1,7 +1,7 @@
 import { Refusal } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Language } from '../reader/api';
-import type { Note } from '../core/types';
+import type { Note, NoteType } from '../core/types';
 import { headword } from '../core/forms';
 import { drillOfTags, stepWaits, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillWordDrafts, type SkillDraft, type SkillGroup } from '../tools/skills';
 import { knownAmong, SKILL_WORD_NOTE_TYPE, type SkillWordDraft } from '../tools/skillWords';
@@ -46,12 +46,16 @@ export const missingWordDrafts = (notes: Iterable<Note>, deck: string, language:
   return drafts.filter((_, i) => !known[i]);
 };
 
+/** Whether the words a skill needs can be written: the collection has the note type they're written in, with the fields they use. */
+export const canWriteWords = (type: NoteType | undefined): type is NoteType => !!type && type.fields.includes('Entry') && type.fields.includes('Meaning');
+
 /**
  * Adds what `groups` writes, skipping a card the deck already has, and the words those skills need that
  * the deck lacks (`missingWordDrafts`), as ordinary notes in the same `::Skills` subdeck. Returns the
- * deck, how many cards and how many words were added, and how many cards were already there.
+ * deck, how many cards and how many words were added, how many words couldn't be (the collection has no
+ * note type to write them in), and how many cards were already there.
  */
-export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>, add: SkillAdd): Promise<{ deck: string; added: number; words: number; skipped: number }> {
+export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>, add: SkillAdd): Promise<{ deck: string; added: number; words: number; wordsSkipped: number; skipped: number }> {
   const now = add.now ?? new Date();
   const basic = (await store.listNoteTypes()).get(SKILL_NOTE_TYPE);
   if (!basic || !basic.fields.includes('Front') || !basic.fields.includes('Back')) {
@@ -59,11 +63,11 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
   }
   const drafts = skillDrafts(add.language, add.languageName, add.groups);
   if (!drafts.length) throw new SkillsRefused('There are no skill cards to add for this deck yet.');
-  const wordDrafts = missingWordDrafts(await store.listNotes(), add.deck, add.language, add.groups);
-  const wordType = wordDrafts.length ? (await store.listNoteTypes()).get(SKILL_WORD_NOTE_TYPE) : undefined;
-  if (wordDrafts.length && (!wordType || !wordType.fields.includes('Entry') || !wordType.fields.includes('Meaning'))) {
-    throw new SkillsRefused(`Your collection has no ${SKILL_WORD_NOTE_TYPE} note type with Entry and Meaning fields, which the words these skills need (such as the months) are written in. Sync to bring it to this phone, or turn off the skills that need words (Saying dates), and try again.`);
-  }
+  const wanted = missingWordDrafts(await store.listNotes(), add.deck, add.language, add.groups);
+  const wordType = wanted.length ? (await store.listNoteTypes()).get(SKILL_WORD_NOTE_TYPE) : undefined;
+  // Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner has studied them.
+  const wordDrafts = canWriteWords(wordType) ? wanted : [];
+  const wordsSkipped = wanted.length - wordDrafts.length;
   const deck = await ensureDeck(store, `${add.deck}::${SKILLS_SUBDECK}`, add.refresh, now);
 
   // A card already added (by an earlier Add, here or on another phone) is skipped, by its first field.
@@ -86,14 +90,15 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
   }
   // The words, which the skills above are asked in: the months for dates. Tagged so Review brings some up each day.
   let words = 0;
+  let refused = 0;
   for (const [i, d] of wordDrafts.entries()) {
     add.onProgress?.(drafts.length + i, drafts.length + wordDrafts.length);
     try {
-      await saveNote(store, { deck, model: SKILL_WORD_NOTE_TYPE, fields: { ...emptyFields(wordType!.fields), ...d.fields }, tags: d.tags }, now);
+      await saveNote(store, { deck, model: SKILL_WORD_NOTE_TYPE, fields: { ...emptyFields(wordType!.fields), ...d.fields }, tags: d.tags, allowDuplicate: true }, now);
       words++;
     } catch (e) {
-      // The same first field is there already, in another subdeck of the note type: that word is in the deck.
-      if (e instanceof NoteRefused) continue;
+      // Refused for another reason (such as a note that makes no cards): said, not dropped.
+      if (e instanceof NoteRefused) { refused++; continue; }
       throw e;
     }
   }
@@ -102,7 +107,7 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
     const cards = (await store.listCards()).filter((c) => suspend.has(c.noteId));
     await setCardStates(store, cards, (s) => ({ ...s, suspended: true }), now, add.dayStartsAtHour);
   }
-  return { deck, added, words, skipped };
+  return { deck, added, words, wordsSkipped: wordsSkipped + refused, skipped };
 }
 
 /** A note type's fields, each empty, so a Basic with extra fields still gets all of them. */

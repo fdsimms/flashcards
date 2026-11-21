@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  heardRight, languageOfDeck, missingByCard, missingWords, skillDrafts, skillOffer, skillWordDrafts, stepNeeds, stepWaits, stepWords, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  heardRight, holdable, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, studiedHeadwords, studiedIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
+import { stepNeeds } from '../../src/tools/skillWords';
 
 const seq = (values: number[]) => { let i = 0; return () => values[i++ % values.length]; };
 
@@ -97,10 +98,11 @@ describe('skill cards in the collection', () => {
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
   });
 
-  it('writes one drill card per step, the later steps suspended', () => {
+  it('writes one drill card per step, each suspended until its step before settles or its words are studied', () => {
     const drafts = skillDrafts('th', 'Thai', ['time']);
     expect(drafts).toHaveLength(4);
-    expect(drafts.map((d) => d.suspended)).toEqual([false, true, true, true]);
+    // The first step waits for "half" (ครึ่ง), the others for the step before.
+    expect(drafts.map((d) => d.suspended)).toEqual([true, true, true, true]);
     expect(drafts[0].tags).toEqual([SKILL_TAG, 'skill::drill::time-hours', 'skill::lang::th']);
     expect(drafts[0].fields.Front).toContain("Thai · Telling the time: O'clock and half past");
   });
@@ -234,14 +236,6 @@ describe('the five additions', () => {
   it('waits for the words a step needs, and says so', () => {
     const release = releasable;
     const sections = skillSections;
-    expect(stepWords('numbers-999', 'th')).toEqual(['ร้อย']);
-    expect(stepWords('money-10000', 'pl')).toEqual(['tysiąc']);
-    expect(stepWords('time-quarters', 'pl')).toEqual(['kwadrans']);
-    expect(stepWords('numbers-99', 'th')).toEqual([]);
-    expect(missingWords(['ร้อย'], ['หนึ่งร้อย', 'แมว'])).toEqual(['ร้อย']);
-    expect(missingWords(['ร้อย'], ['ร้อย'])).toEqual([]);
-    expect(missingWords(['sto'], ['Sto, setka'])).toEqual([]);
-    expect(missingWords(['sto'], ['stopa'])).toEqual(['sto']);
     const cards = [
       { id: 'a', stepId: 'numbers-99', language: 'th' as const, suspended: false, settled: true },
       { id: 'b', stepId: 'numbers-999', language: 'th' as const, suspended: true, settled: false, missing: ['ร้อย'] },
@@ -284,51 +278,83 @@ describe('the five additions', () => {
 describe('skill steps that wait for words', () => {
   const note = (id: string, deck: string, Entry: string, tags: string[] = []) => ({ id, deck, model: 'Omnilanguage', fields: { Entry, Meaning: 'x' }, tags });
 
-  it('hold the first dates step back too, where every other first step starts at once', () => {
-    const suspended = (lang: 'th' | 'nb') => skillDrafts(lang, 'x', ['dates', 'time']).map((d) => [d.tags.find((t) => t.startsWith('skill::drill::')), d.suspended]);
-    expect(suspended('nb')).toEqual([
-      ['skill::drill::dates-day', true], ['skill::drill::dates-weekday', true], ['skill::drill::dates-year', true],
-      ['skill::drill::time-hours', false], ['skill::drill::time-quarters', true], ['skill::drill::time-five', true], ['skill::drill::time-any', true],
-    ]);
-    expect(stepWaits(drillStep('dates-day')!, 'nb')).toBe(true);
-    expect(stepWaits(drillStep('time-hours')!, 'nb')).toBe(false);
-    expect(stepWaits(drillStep('time-hours')!, 'pl')).toBe(false);
-    expect(stepWaits(drillStep('time-quarters')!, 'pl')).toBe(true);
+  it('hold every first step that says a word back, and the rest as before', () => {
+    const suspended = (lang: 'th' | 'nb', groups: ('time' | 'numbers' | 'dates' | 'money')[]) => skillDrafts(lang, 'x', groups).map((d) => [d.tags.find((t) => t.startsWith('skill::drill::'))!.slice(14), d.suspended]);
+    expect(suspended('nb', ['dates'])).toEqual([['dates-day', true], ['dates-weekday', true], ['dates-year', true]]);
+    expect(suspended('nb', ['numbers', 'money'])).toEqual(expect.arrayContaining([['numbers-10', true], ['money-100', true]]));
+    expect(stepWaits(drillStep('time-hours')!, 'nb')).toBe(true);
+    // Thai has no word for a quarter, so its quarter step waits only for the hours before it.
+    expect(stepWaits(drillStep('time-quarters')!, 'th')).toBe(true);
+    expect(stepWaits(drillStep('time-five')!, 'nb')).toBe(true);
+    expect(stepWaits(drillStep('time-hours')!, 'en')).toBe(false);
   });
 
-  it('need the single words they always did, and the months and weekdays for dates', () => {
-    expect(stepNeeds('numbers-999', 'th').map((n) => n.words)).toEqual([['ร้อย']]);
-    expect(stepNeeds('dates-day', 'nb').map((n) => n.label)).toEqual(['month names']);
-    expect(stepNeeds('dates-year', 'nb').map((n) => n.label)).toEqual(['month names', 'weekday names']);
-    expect(stepNeeds('time-hours', 'nb')).toEqual([]);
-  });
-
-  it('write the words only for the groups that need them', () => {
-    expect(skillWordDrafts('nb', ['dates', 'time'])).toHaveLength(19);
-    expect(skillWordDrafts('nb', ['time', 'numbers', 'money'])).toEqual([]);
+  it('write the words for the groups that need them, and nothing for the others', () => {
+    expect(skillWordDrafts('nb', ['dates'])).toHaveLength(19);
+    expect(skillWordDrafts('nb', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(expect.arrayContaining(['halv', 'kvart', 'en', 'ti', 'hundre', 'tusen', 'krone']));
+    expect(skillWordDrafts('nb', ['consonants', 'classifiers'])).toEqual([]);
     expect(skillWordDrafts('en', ['dates'])).toEqual([]);
   });
 
-  it('say what a card still waits for, from the headwords studied', () => {
+  it('say what a card still waits for, from the headwords studied in its own language deck', () => {
     const notes = new Map([
       ['n1', note('n1', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb'])],
       ['n2', note('n2', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-year', 'skill::lang::nb'])],
     ]);
     const cards = [{ id: 'c1', noteId: 'n1' }, { id: 'c2', noteId: 'n2' }];
-    expect(missingByCard(cards, notes, ['januar'])).toEqual(new Map([['c1', ['2 more month names']], ['c2', ['2 more month names', 'weekday names']]]));
-    expect(missingByCard(cards, notes, ['januar', 'februar', 'mars'])).toEqual(new Map([['c2', ['weekday names']]]));
-    expect(missingByCard(cards, notes, ['januar', 'februar', 'mars', 'søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'])).toEqual(new Map());
+    const asks: string[] = [];
+    const studied = (words: string[]) => (deck: string) => { asks.push(deck); return words; };
+    expect(missingByCard(cards, notes, studied(['januar']))).toEqual(new Map([['c1', ['2 more month names']], ['c2', ['2 more month names', 'weekday names']]]));
+    expect(asks[0]).toBe('Norsk');
+    expect(missingByCard(cards, notes, studied(['januar', 'februar', 'mars']))).toEqual(new Map([['c2', ['weekday names']]]));
+    expect(missingByCard(cards, notes, studied(['januar', 'februar', 'mars', 'søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']))).toEqual(new Map());
   });
 
-  it('release a first step once its words are studied, but never one already started', () => {
+  it('never count a word studied in another language\'s deck', () => {
+    const started = { sched: { state: 2 } };
+    const all = [note('g1', 'Deutsch::Tier 1', 'Januar'), note('g2', 'Deutsch', 'Februar'), note('g3', 'Deutsch', 'März'), note('s1', 'Norsk::Tier 1', 'januar'), note('s2', 'Norsk::Skills', 'mars', ['skill'])];
+    const cards = all.map((n) => ({ noteId: n.id, ...started }));
+    const norwegian = studiedHeadwords(all as never, cards, skillLanguageDeck('Norsk::Skills'));
+    expect(norwegian).toEqual(['januar']);
+    const skillNote = note('k', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb']);
+    expect(missingByCard([{ id: 'c', noteId: 'k' }], new Map([['k', skillNote]]), studiedIn(all as never, cards))).toEqual(new Map([['c', ['2 more month names']]]));
+    expect(skillLanguageDeck('A::B::Skills')).toBe('A::B');
+    expect(skillLanguageDeck('A::B')).toBe('A::B');
+  });
+
+  it('release a first step once its words are studied, but never one already started or in a paused deck', () => {
     const first = { id: 'a', stepId: 'dates-day', language: 'nb' as const, suspended: true, settled: false, started: false };
     expect(releasable([{ ...first, missing: ['2 more month names'] }])).toEqual([]);
     expect(releasable([{ ...first, missing: [] }])).toEqual(['a']);
     expect(releasable([first])).toEqual(['a']);
     expect(releasable([{ ...first, started: true }])).toEqual([]);
     expect(releasable([{ ...first, suspended: false }])).toEqual([]);
-    // A first step with nothing to wait for, such as the hours, is never released this way: it was never held.
-    expect(releasable([{ ...first, stepId: 'time-hours' }])).toEqual([]);
+    expect(releasable([{ ...first, paused: true }])).toEqual([]);
+    // A step with nothing to wait for, such as the five-minute one with nothing before it, isn't released this way.
+    expect(releasable([{ ...first, stepId: 'time-five' }])).toEqual([]);
+  });
+
+  it('release a later step only while its deck is not paused', () => {
+    const before = { id: 'a', stepId: 'numbers-10', language: 'nb' as const, suspended: false, settled: true, started: true };
+    const next = { id: 'b', stepId: 'numbers-99', language: 'nb' as const, suspended: true, settled: false, started: false };
+    expect(releasable([before, next])).toEqual(['b']);
+    expect(releasable([{ ...before, paused: true }, { ...next, paused: true }])).toEqual([]);
+  });
+
+  it('hold back a live card that was never started and lacks its words, and nothing else', () => {
+    const live = { id: 'a', stepId: 'dates-day', language: 'nb' as const, suspended: false, settled: false, started: false, missing: ['3 month names'] };
+    expect(holdable([live])).toEqual(['a']);
+    expect(holdable([{ ...live, started: true }])).toEqual([]);
+    expect(holdable([{ ...live, suspended: true }])).toEqual([]);
+    expect(holdable([{ ...live, paused: true }])).toEqual([]);
+    expect(holdable([{ ...live, missing: [] }])).toEqual([]);
+    expect(holdable([{ ...live, stepId: 'time-five' }])).toEqual([]);
+  });
+
+  it('need the words their steps say', () => {
+    expect(stepNeeds('dates-day', 'nb').map((n) => n.label)).toEqual(['month names']);
+    expect(stepNeeds('dates-year', 'nb').map((n) => n.label)).toEqual(['month names', 'weekday names']);
+    expect(stepNeeds('time-five', 'nb')).toEqual([]);
   });
 
   it('ask only about the months known', () => {

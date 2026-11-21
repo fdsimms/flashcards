@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { addSkillCards, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
+import { addSkillCards, canWriteWords, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
 import { DEFAULT_SKILL_SETTINGS, type SkillSettings } from '../anki/skillSettings';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { studyDayStart } from '../core/day';
@@ -9,7 +9,8 @@ import { retrievability } from '../core/order';
 import { isInProgress } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
 import type { Note } from '../core/types';
-import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedHeadwords, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
+import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
+import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedIn, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
@@ -35,15 +36,17 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
   const busy = useRef(false);
   const [sections, setSections] = useState<SkillSection[]>([]);
   const [loads, setLoads] = useState(0);
+  // Whether the collection has the note type the words are written in; without it the cards are added and the words aren't.
+  const [canWords, setCanWords] = useState(true);
   // The deck's skill cards, read again after an Add.
   useEffect(() => {
     let live = true;
     (async () => {
-      const [notes, cards, params, settings, saved] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.collectionSettings(), repo.ankiSkillSettings()]);
+      const [notes, cards, params, settings, saved, noteTypes] = await Promise.all([repo.listNotes(), repo.listCards(), repo.listDeckParams(), repo.collectionSettings(), repo.ankiSkillSettings(), repo.listNoteTypes()]);
       const now = new Date();
       const H = settings.dayStartsAtHour;
       const today = studyDayStart(now, H).getTime();
-      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedHeadwords(notes, cards));
+      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedIn(notes, cards));
       const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
       const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
         const n = skillNotes.get(cd.noteId)!;
@@ -55,14 +58,15 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
           missing: missing.get(cd.id),
         };
       });
-      if (live) { setSections(skillSections(info)); setNotes(notes); setSettings(saved.get(deck) ?? DEFAULT_SKILL_SETTINGS); }
+      if (live) { setSections(skillSections(info)); setNotes(notes); setCanWords(canWriteWords(noteTypes.get(SKILL_WORD_NOTE_TYPE))); setSettings(saved.get(deck) ?? DEFAULT_SKILL_SETTINGS); }
     })().catch(() => { if (live) setSections([]); });
     return () => { live = false; };
   }, [repo, deck, loads]);
   const onGroups = groups.filter((g) => !settings.off.includes(g.id)).map((g) => g.id);
   const missing = useMemo(() => (found ? missingDrafts(notes, found.language, found.name, onGroups).length : 0), [notes, found, settings.off]);
   // The words the skills that are on need (the months and weekdays for dates) that the deck doesn't have: added with the cards.
-  const missingWords = useMemo(() => (found ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off]);
+  const missingWords = useMemo(() => (found && canWords ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off, canWords]);
+  const unwritable = useMemo(() => (found && !canWords ? missingWordDrafts(notes, deck, found.language, onGroups).length : 0), [notes, found, deck, settings.off, canWords]);
   const skillCount = useMemo(() => notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).length, [notes, deck]);
   const sample = DRILL_STEPS.find((s) => !settings.off.includes(s.group));
   const subdeck = `${deck.split('::').pop()}::${SKILLS_SUBDECK}`;
@@ -137,6 +141,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       haptic.success();
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
       if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you've studied them.`);
+      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} could not be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that need them come in once you have studied them yourself.`);
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
       parts.push('Later drill steps wait, suspended, until the step before has a review a week or more out.');
       setLoads((n) => n + 1);
@@ -202,8 +207,10 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
             </Group>
             <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: space.m }}>Skills in this deck</Text>
             <Help>{`Skills that are on go into ${subdeck}, made if it isn't there. They come up in your reviews like any card, and FSRS spaces them. A drill card asks a few questions, then you rate it. Later steps are added suspended and come in as the step before settles. Turning a skill off stops adding its cards. Cards already added stay.`}</Help>
-            {groups.some((g) => g.id === 'dates' && !settings.off.includes('dates')) ? (
-              <Help>{`Saying dates is only useful once you know the words, so it also adds the month and weekday words this deck doesn't have to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}. Some of them come up in your new cards every day until you've studied them, and date drills ask only about months you've studied.`}</Help>
+            {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
+              <Help>{canWords
+                ? `A drill is only useful once you know the words it is said in (the months, the numbers, half past, the currency). So these skills also add the words this deck doesn't have to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}. Some of them come up in your new cards every day until you've studied them. A drill step waits until its words are studied, and date drills ask only about months you've studied.`
+                : `A drill is only useful once you know the words it is said in, but your collection has no ${SKILL_WORD_NOTE_TYPE} note type to add them in${unwritable ? ` (${unwritable} words)` : ''}. A drill step waits until you've studied its words yourself.`}</Help>
             ) : null}
             <Group>
               {groups.map((g, i) => (

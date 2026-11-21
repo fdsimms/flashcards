@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { keptSql } from '../../src/anki/attachedSql';
 import { utf8Encode } from '../../src/anki/protobuf';
-import { DEFAULT_SKILL_SETTINGS, setAnkiSkillSettings, skillSettingsByName, skillSettingsFromConfig } from '../../src/anki/skillSettings';
+import { DEFAULT_SKILL_SETTINGS, setAnkiSkillSettings, skillSettingsByName, skillSettingsFromConfig, skillsPausedIn } from '../../src/anki/skillSettings';
 import { nodeSyncDb } from '../support/syncDb';
 
 const FIXTURE = join(__dirname, '..', 'fixtures', 'anki', 'collection.anki2');
@@ -58,5 +58,23 @@ describe("a deck's skill settings in the kept collection", () => {
     expect(await setAnkiSkillSettings(db, 'Nope', { on: false, auto: true, off: [] }, NOW)).toBe(false);
     expect((await read(db)).get(LANGUAGES)).toEqual({ on: false, auto: false, off: [] });
     db.close();
+  });
+});
+
+describe('whether a deck\'s skill cards are paused', () => {
+  const settings = (entries: [string, boolean][]) => new Map(entries.map(([deck, on]) => [deck, { on }]));
+
+  it('reads the nearest deck at or above it that has settings', () => {
+    const paused = settings([['Languages::Norsk', false]]);
+    expect(skillsPausedIn('Languages::Norsk::Skills', paused)).toBe(true);
+    expect(skillsPausedIn('Languages::Norsk', paused)).toBe(true);
+    expect(skillsPausedIn('Languages::Thai::Skills', paused)).toBe(false);
+    expect(skillsPausedIn('Languages', paused)).toBe(false);
+    // A nearer deck's own switch wins over one above it.
+    expect(skillsPausedIn('Languages::Norsk::Skills', settings([['Languages', false], ['Languages::Norsk', true]]))).toBe(false);
+  });
+
+  it('is never paused for a deck with no settings anywhere', () => {
+    expect(skillsPausedIn('Thai::Skills', new Map())).toBe(false);
   });
 });

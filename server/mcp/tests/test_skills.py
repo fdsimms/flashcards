@@ -15,7 +15,7 @@ pytestmark = pytest.mark.anyio
 THAI = skills.CATALOG["languages"]["th"]
 ALL = sum(len(g["notes"]) for g in THAI["groups"])
 LATER = sum(1 for g in THAI["groups"] for n in g["notes"] if n["suspended"])
-WORDS = sum(len(g["words"]) for g in THAI["groups"])
+WORDS = len({w["fields"]["Entry"] for g in THAI["groups"] for w in g["words"]})  # a hundred serves numbers and money
 # Anki's `tag:skill` also matches `skill::words`, so a count of the skill cards leaves the words out.
 CARDS = "tag:skill -tag:skill::words"
 
@@ -53,7 +53,7 @@ async def test_adding_previews_then_writes_with_later_steps_suspended(client, cm
     preview = await call(client, "add_skill_cards", deck="Thai")
     assert preview["written"] == 0 and await count(cm, "tag:skill") == 0
     done = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
-    assert done == {"deck": "Thai::Skills", "added": ALL, "words": WORDS, "skipped": 0}
+    assert done == {"deck": "Thai::Skills", "added": ALL, "words": WORDS, "words_skipped": 0, "skipped": 0}
     assert await count(cm, f'"deck:Thai::Skills" {CARDS}') == ALL
     assert await count(cm, CARDS + " is:suspended") == LATER
     again = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
@@ -98,11 +98,13 @@ async def test_the_hourly_job_adds_only_for_decks_that_are_on_and_automatic(clie
     assert await skills.auto_add(cm) == 0  # automatic is off by default
     await call(client, "set_skill_cards", deck="Thai", auto=True, skills_off=["money"])
     money = len(next(g for g in THAI["groups"] if g["id"] == "money")["notes"])
-    assert await skills.auto_add(cm) == ALL - money + WORDS
+    # The words of the skills that are on: money's currency waits for money.
+    others = {w["fields"]["Entry"] for g in THAI["groups"] if g["id"] != "money" for w in g["words"]}
+    assert await skills.auto_add(cm) == ALL - money + len(others)
     assert await skills.auto_add(cm) == 0
     # Switching the skill on is all it takes for its cards to come.
     await call(client, "set_skill_cards", deck="Thai", skills_off=[])
-    assert await skills.auto_add(cm) == money
+    assert await skills.auto_add(cm) == money + (WORDS - len(others))
     # A paused deck gets nothing, and nothing is added to a deleted card's place after pausing.
     await call(client, "set_skill_cards", deck="Thai", on=False)
     await cm.write(lambda col: col.remove_notes(col.find_notes("tag:skill::consonants")))
@@ -133,3 +135,26 @@ async def test_a_word_the_deck_already_has_is_not_added_again(client, cm, deskto
     done = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
     assert done["words"] == WORDS - 1
     assert await count(cm, "Entry:มกราคม") == 1
+
+
+async def test_without_the_note_type_for_words_the_cards_are_added_and_the_words_reported(client, cm, desktop):
+    desktop.run("add-deck", "Thai", "+", "sync")  # no Omnilanguage note type here
+    done = await call(client, "add_skill_cards", deck="Thai", dry_run=False)
+    assert (done["added"], done["words"], done["words_skipped"]) == (ALL, 0, WORDS)
+    assert await count(cm, "note:Omnilanguage") == 0
+    # The hourly job has nothing it could write, so it doesn't wake the collection every hour.
+    await call(client, "set_skill_cards", deck="Thai", auto=True)
+    assert await skills.auto_add(cm) == 0
+    assert await cm.read(skills._work) == []
+
+
+async def test_a_word_another_language_spells_the_same_is_still_added(client, cm, desktop):
+    # "mars" in French and Norwegian: Anki allows the duplicate, and the Norwegian deck still lacks its word.
+    fields = json.dumps({"Entry": "มกราคม", "Meaning": "January", "Language": "other"})
+    desktop.run(
+        "add-notetype", "Omnilanguage", "Entry,Meaning,Language,PartOfSpeech,GenerateReverse", "+",
+        "add-fields-note", "Omnilanguage", "Elsewhere", fields, "+", "add-deck", "Thai", "+", "sync",
+    )
+    assert (await call(client, "skill_cards", deck="Thai"))["decks"][0]["words_missing"] == WORDS
+    assert (await call(client, "add_skill_cards", deck="Thai", dry_run=False))["words"] == WORDS
+    assert await count(cm, "Entry:มกราคม") == 2

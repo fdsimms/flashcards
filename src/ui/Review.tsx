@@ -70,7 +70,7 @@ import { SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './S
 import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
-import { drillOfTags, skillOffer, studiedHeadwords } from '../tools/skills';
+import { drillOfTags, skillLanguageDeck, skillOffer, studiedHeadwords } from '../tools/skills';
 import { knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
@@ -380,7 +380,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const drill = useMemo((): Drill | undefined => {
     const found = note ? drillOfTags(note.tags) : undefined;
     if (!found || found.step.group !== 'dates' || !cards) return found;
-    return { ...found, months: knownMonths(found.language, studiedHeadwords(notes.values(), cards)) };
+    return { ...found, months: knownMonths(found.language, studiedHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck))) };
   }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
   useSkillRelease(repo, cards, notes, H);

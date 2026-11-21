@@ -1,7 +1,7 @@
 import { LANG_TAGS } from '../core/cards';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { DRILL_STEPS, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillGroups, skillWordDrafts } from './skills';
-import { SKILL_WORD_NOTE_TYPE } from './skillWords';
+import { SKILL_WORD_NOTE_TYPE, stepNeeds } from './skillWords';
 
 /**
  * Everything the MCP's daily job needs to add skill cards (server/mcp/franki_mcp/skills.py), written
@@ -16,7 +16,7 @@ export interface SkillCatalog {
   wordNoteType: string;
   tag: string;
   subdeck: string;
-  /** The drill steps that wait on the step before (`DrillStep.after`) or, for dates, on the deck's words (`stepWaits`): resuming paused skill cards leaves them suspended for Review to release. */
+  /** The drill steps that wait on the step before (`DrillStep.after`) or on the deck's words (`stepWaits`): resuming paused skill cards leaves them suspended for Review to release. */
   laterSteps: string[];
   /** A deck name's words in the order `languageOfDeck` tries them, each with its language code, or null for a language with no skill cards. */
   deckKeys: [string, string | null][];
@@ -40,7 +40,7 @@ export function skillCatalog(): SkillCatalog {
     wordNoteType: SKILL_WORD_NOTE_TYPE,
     tag: SKILL_TAG,
     subdeck: SKILLS_SUBDECK,
-    laterSteps: DRILL_STEPS.filter((s) => s.after || s.group === 'dates').map((s) => s.id),
+    laterSteps: DRILL_STEPS.filter((s) => s.after || LANGUAGE_ORDER.some((l) => stepNeeds(s.id, l).length)).map((s) => s.id),
     deckKeys: Object.entries(LANG_TAGS).map(([key, speech]) => [key, languageOfSpeech(speech)]),
     languages: Object.fromEntries(withSkills.map((l) => [l, {
       name: LANGUAGES[l].name,

@@ -4,15 +4,18 @@
  "tag": "skill",
  "subdeck": "Skills",
  "laterSteps": [
+  "time-hours",
   "time-quarters",
   "time-five",
   "time-any",
+  "numbers-10",
   "numbers-99",
   "numbers-999",
   "numbers-big",
   "dates-day",
   "dates-weekday",
   "dates-year",
+  "money-100",
   "money-1000",
   "money-10000"
  ],
@@ -310,7 +313,7 @@
         "skill::drill::time-hours",
         "skill::lang::th"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Thai · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -343,7 +346,20 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "ครึ่ง",
+        "Meaning": "half",
+        "Language": "thai",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -357,7 +373,7 @@
         "skill::drill::numbers-10",
         "skill::lang::th"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Thai · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -390,7 +406,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "หนึ่ง",
+        "Meaning": "one",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "สอง",
+        "Meaning": "two",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "สาม",
+        "Meaning": "three",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "สี่",
+        "Meaning": "four",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ห้า",
+        "Meaning": "five",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "หก",
+        "Meaning": "six",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "เจ็ด",
+        "Meaning": "seven",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "แปด",
+        "Meaning": "eight",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "เก้า",
+        "Meaning": "nine",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "สิบ",
+        "Meaning": "ten",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ร้อย",
+        "Meaning": "hundred",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "พัน",
+        "Meaning": "thousand",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -670,7 +831,7 @@
         "skill::drill::money-100",
         "skill::lang::th"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Thai · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -693,7 +854,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "ร้อย",
+        "Meaning": "hundred",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "พัน",
+        "Meaning": "thousand",
+        "Language": "thai",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "บาท",
+        "Meaning": "Thai baht",
+        "Language": "thai",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "consonants",
@@ -1513,7 +1711,7 @@
         "skill::drill::time-hours",
         "skill::lang::es"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Spanish · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -1546,7 +1744,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "media",
+        "Meaning": "half",
+        "Language": "spanish",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cuarto",
+        "Meaning": "quarter",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -1560,7 +1783,7 @@
         "skill::drill::numbers-10",
         "skill::lang::es"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Spanish · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -1593,7 +1816,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "uno",
+        "Meaning": "one",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dos",
+        "Meaning": "two",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tres",
+        "Meaning": "three",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cuatro",
+        "Meaning": "four",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cinco",
+        "Meaning": "five",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seis",
+        "Meaning": "six",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "siete",
+        "Meaning": "seven",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ocho",
+        "Meaning": "eight",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nueve",
+        "Meaning": "nine",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "diez",
+        "Meaning": "ten",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cien",
+        "Meaning": "hundred",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mil",
+        "Meaning": "thousand",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -1873,7 +2241,7 @@
         "skill::drill::money-100",
         "skill::lang::es"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Spanish · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -1896,7 +2264,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "cien",
+        "Meaning": "hundred",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mil",
+        "Meaning": "thousand",
+        "Language": "spanish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "peso",
+        "Meaning": "Mexican peso",
+        "Language": "spanish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     }
    ]
   },
@@ -1915,7 +2320,7 @@
         "skill::drill::time-hours",
         "skill::lang::fr"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>French · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -1948,7 +2353,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "demi",
+        "Meaning": "half",
+        "Language": "french",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "quart",
+        "Meaning": "quarter",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -1962,7 +2392,7 @@
         "skill::drill::numbers-10",
         "skill::lang::fr"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>French · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -1995,7 +2425,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "un",
+        "Meaning": "one",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "deux",
+        "Meaning": "two",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "trois",
+        "Meaning": "three",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "quatre",
+        "Meaning": "four",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cinq",
+        "Meaning": "five",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "six",
+        "Meaning": "six",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sept",
+        "Meaning": "seven",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "huit",
+        "Meaning": "eight",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "neuf",
+        "Meaning": "nine",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dix",
+        "Meaning": "ten",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cent",
+        "Meaning": "hundred",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mille",
+        "Meaning": "thousand",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -2275,7 +2850,7 @@
         "skill::drill::money-100",
         "skill::lang::fr"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>French · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -2298,7 +2873,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "cent",
+        "Meaning": "hundred",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "mille",
+        "Meaning": "thousand",
+        "Language": "french",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "euro",
+        "Meaning": "euro",
+        "Language": "french",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     }
    ]
   },
@@ -2317,7 +2929,7 @@
         "skill::drill::time-hours",
         "skill::lang::de"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>German · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -2350,7 +2962,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "halb",
+        "Meaning": "half",
+        "Language": "german",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Viertel",
+        "Meaning": "quarter",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -2364,7 +3001,7 @@
         "skill::drill::numbers-10",
         "skill::lang::de"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>German · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -2397,7 +3034,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "eins",
+        "Meaning": "one",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "zwei",
+        "Meaning": "two",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "drei",
+        "Meaning": "three",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "vier",
+        "Meaning": "four",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fünf",
+        "Meaning": "five",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sechs",
+        "Meaning": "six",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sieben",
+        "Meaning": "seven",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "acht",
+        "Meaning": "eight",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "neun",
+        "Meaning": "nine",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "zehn",
+        "Meaning": "ten",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "hundert",
+        "Meaning": "hundred",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tausend",
+        "Meaning": "thousand",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -2677,7 +3459,7 @@
         "skill::drill::money-100",
         "skill::lang::de"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>German · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -2700,7 +3482,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "hundert",
+        "Meaning": "hundred",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tausend",
+        "Meaning": "thousand",
+        "Language": "german",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "Euro",
+        "Meaning": "euro",
+        "Language": "german",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "cases",
@@ -2996,7 +3815,7 @@
         "skill::drill::time-hours",
         "skill::lang::el"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Greek · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -3029,7 +3848,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "μισή",
+        "Meaning": "half",
+        "Language": "greek",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "τέταρτο",
+        "Meaning": "quarter",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -3043,7 +3887,7 @@
         "skill::drill::numbers-10",
         "skill::lang::el"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Greek · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -3076,7 +3920,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "ένα",
+        "Meaning": "one",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "δύο",
+        "Meaning": "two",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "τρία",
+        "Meaning": "three",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "τέσσερα",
+        "Meaning": "four",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "πέντε",
+        "Meaning": "five",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "έξι",
+        "Meaning": "six",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "εφτά",
+        "Meaning": "seven",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "οχτώ",
+        "Meaning": "eight",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "εννιά",
+        "Meaning": "nine",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "δέκα",
+        "Meaning": "ten",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "εκατό",
+        "Meaning": "hundred",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "χίλια",
+        "Meaning": "thousand",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -3356,7 +4345,7 @@
         "skill::drill::money-100",
         "skill::lang::el"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Greek · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -3379,7 +4368,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "εκατό",
+        "Meaning": "hundred",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "χίλια",
+        "Meaning": "thousand",
+        "Language": "greek",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ευρώ",
+        "Meaning": "euro",
+        "Language": "greek",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "cases",
@@ -3525,7 +4551,7 @@
         "skill::drill::time-hours",
         "skill::lang::ja"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Japanese · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -3558,7 +4584,20 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "半",
+        "Meaning": "half",
+        "Language": "japanese",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -3572,7 +4611,7 @@
         "skill::drill::numbers-10",
         "skill::lang::ja"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Japanese · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -3605,7 +4644,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "一",
+        "Meaning": "one",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "二",
+        "Meaning": "two",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "三",
+        "Meaning": "three",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "四",
+        "Meaning": "four",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "五",
+        "Meaning": "five",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "六",
+        "Meaning": "six",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "七",
+        "Meaning": "seven",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "八",
+        "Meaning": "eight",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "九",
+        "Meaning": "nine",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "十",
+        "Meaning": "ten",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "百",
+        "Meaning": "hundred",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "千",
+        "Meaning": "thousand",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -3885,7 +5069,7 @@
         "skill::drill::money-100",
         "skill::lang::ja"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Japanese · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -3908,7 +5092,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "百",
+        "Meaning": "hundred",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "千",
+        "Meaning": "thousand",
+        "Language": "japanese",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "円",
+        "Meaning": "yen",
+        "Language": "japanese",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "classifiers",
@@ -4074,7 +5295,7 @@
         "skill::drill::time-hours",
         "skill::lang::nb"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Norwegian · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -4107,7 +5328,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "halv",
+        "Meaning": "half",
+        "Language": "norwegian",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "kvart",
+        "Meaning": "quarter",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -4121,7 +5367,7 @@
         "skill::drill::numbers-10",
         "skill::lang::nb"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Norwegian · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -4154,7 +5400,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "en",
+        "Meaning": "one",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "to",
+        "Meaning": "two",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tre",
+        "Meaning": "three",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fire",
+        "Meaning": "four",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fem",
+        "Meaning": "five",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seks",
+        "Meaning": "six",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sju",
+        "Meaning": "seven",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "åtte",
+        "Meaning": "eight",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ni",
+        "Meaning": "nine",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ti",
+        "Meaning": "ten",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "hundre",
+        "Meaning": "hundred",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tusen",
+        "Meaning": "thousand",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -4434,7 +5825,7 @@
         "skill::drill::money-100",
         "skill::lang::nb"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Norwegian · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -4457,7 +5848,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "hundre",
+        "Meaning": "hundred",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tusen",
+        "Meaning": "thousand",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "krone",
+        "Meaning": "Norwegian krone",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     }
    ]
   },
@@ -4476,7 +5904,7 @@
         "skill::drill::time-hours",
         "skill::lang::pl"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Polish · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -4509,7 +5937,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "pół",
+        "Meaning": "half",
+        "Language": "polish",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "kwadrans",
+        "Meaning": "quarter",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -4523,7 +5976,7 @@
         "skill::drill::numbers-10",
         "skill::lang::pl"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Polish · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -4556,7 +6009,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "jeden",
+        "Meaning": "one",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dwa",
+        "Meaning": "two",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "trzy",
+        "Meaning": "three",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "cztery",
+        "Meaning": "four",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "pięć",
+        "Meaning": "five",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sześć",
+        "Meaning": "six",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "siedem",
+        "Meaning": "seven",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "osiem",
+        "Meaning": "eight",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dziewięć",
+        "Meaning": "nine",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "dziesięć",
+        "Meaning": "ten",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sto",
+        "Meaning": "hundred",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tysiąc",
+        "Meaning": "thousand",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -4836,7 +6434,7 @@
         "skill::drill::money-100",
         "skill::lang::pl"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Polish · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -4859,7 +6457,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "sto",
+        "Meaning": "hundred",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tysiąc",
+        "Meaning": "thousand",
+        "Language": "polish",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "złoty",
+        "Meaning": "Polish zloty",
+        "Language": "polish",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "cases",
@@ -5285,7 +6920,7 @@
         "skill::drill::time-hours",
         "skill::lang::ru"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Russian · Telling the time: Quarter past and to</b></div><div>Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.</div>",
@@ -5318,7 +6953,32 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "половина",
+        "Meaning": "half",
+        "Language": "russian",
+        "PartOfSpeech": "adjective",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "четверть",
+        "Meaning": "quarter",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "numbers",
@@ -5332,7 +6992,7 @@
         "skill::drill::numbers-10",
         "skill::lang::ru"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Russian · Numbers: 11 to 99</b></div><div>Say three numbers between 11 and 99 aloud, such as 17, 40 and 85.</div>",
@@ -5365,7 +7025,152 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "один",
+        "Meaning": "one",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "два",
+        "Meaning": "two",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "три",
+        "Meaning": "three",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "четыре",
+        "Meaning": "four",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "пять",
+        "Meaning": "five",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "шесть",
+        "Meaning": "six",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "семь",
+        "Meaning": "seven",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "восемь",
+        "Meaning": "eight",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "девять",
+        "Meaning": "nine",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "десять",
+        "Meaning": "ten",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "сто",
+        "Meaning": "hundred",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "тысяча",
+        "Meaning": "thousand",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "dates",
@@ -5645,7 +7450,7 @@
         "skill::drill::money-100",
         "skill::lang::ru"
        ],
-       "suspended": false
+       "suspended": true
       },
       {
        "front": "<div><b>Russian · Counting money: Prices up to 1,000</b></div><div>Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.</div>",
@@ -5668,7 +7473,44 @@
        "suspended": true
       }
      ],
-     "words": []
+     "words": [
+      {
+       "fields": {
+        "Entry": "сто",
+        "Meaning": "hundred",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "тысяча",
+        "Meaning": "thousand",
+        "Language": "russian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "рубль",
+        "Meaning": "Russian ruble",
+        "Language": "russian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      }
+     ]
     },
     {
      "id": "cases",

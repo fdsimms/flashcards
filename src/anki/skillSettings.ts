@@ -1,3 +1,4 @@
+import { deckLineage } from '../core/deckTree';
 import { SKILL_GROUP_IDS, type SkillGroup } from '../tools/skills';
 import { utf8Decode, utf8Encode } from './protobuf';
 import type { SyncDb } from './sync/collectionSync';
@@ -40,6 +41,18 @@ function settingsOf(v: unknown): SkillSettings {
 
 export const sameSkillSettings = (a: SkillSettings, b: SkillSettings): boolean =>
   a.on === b.on && a.auto === b.auto && a.off.length === b.off.length && a.off.every((g, i) => g === b.off[i]);
+
+/**
+ * Whether a deck's skill cards are paused: the nearest deck at or above it with settings has the master
+ * switch off. A skill card sits in `<deck>::Skills`, and the switch is on the language deck above it.
+ */
+export function skillsPausedIn(deck: string, settings: ReadonlyMap<string, Pick<SkillSettings, 'on'>>): boolean {
+  for (const d of deckLineage(deck).reverse()) {
+    const s = settings.get(d);
+    if (s) return !s.on;
+  }
+  return false;
+}
 
 /** The settings in a config value, by deck id. */
 export function skillSettingsFromConfig(val: Uint8Array | string | null | undefined): Map<number, SkillSettings> {

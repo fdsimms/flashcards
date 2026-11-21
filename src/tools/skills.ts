@@ -1,5 +1,6 @@
 import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
+import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
 import { SKILL_TAG } from '../core/skillTag';
 import type { Note } from '../core/types';
@@ -12,7 +13,7 @@ import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
-import { dateNeeds, dateWordDrafts, stillNeeded, type SkillWordDraft, type WordNeed } from './skillWords';
+import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 
 /**
@@ -248,39 +249,8 @@ export function heardRight(q: DrillQuestion, heard: string, language: Language):
 
 // ==== Waiting for vocabulary ====
 
-/** The words for a hundred and a thousand, which the hundreds and thousands steps can't be said without. */
-const HUNDRED_THOUSAND: Partial<Record<Language, [string, string]>> = {
-  th: ['ร้อย', 'พัน'], pl: ['sto', 'tysiąc'], ru: ['сто', 'тысяча'], de: ['hundert', 'tausend'], es: ['cien', 'mil'],
-  fr: ['cent', 'mille'], el: ['εκατό', 'χίλια'], nb: ['hundre', 'tusen'], ja: ['百', '千'],
-};
-
-/** The words a drill step waits for in the deck, besides the step before it settling. */
-export function stepWords(stepId: string, language: Language): string[] {
-  const ht = HUNDRED_THOUSAND[language];
-  if (ht && (stepId === 'numbers-999' || stepId === 'money-1000')) return [ht[0]];
-  if (ht && (stepId === 'numbers-big' || stepId === 'money-10000')) return [ht[1]];
-  if (language === 'pl' && stepId === 'time-quarters') return ['kwadrans'];
-  return [];
-}
-
-/** Everything a drill step waits for in the deck: the single words of `stepWords` and, for a dates step, the months and weekdays (src/tools/skillWords.ts). */
-export function stepNeeds(stepId: string, language: Language): WordNeed[] {
-  return [...stepWords(stepId, language).map((w): WordNeed => ({ words: [w], min: 1, label: w })), ...dateNeeds(stepId, language)];
-}
-
 /** Whether a step is added suspended and released later: it comes after another step, or waits for words. */
 export const stepWaits = (step: DrillStep, language: Language): boolean => !!step.after || stepNeeds(step.id, language).length > 0;
-
-/**
- * The words of `words` the deck hasn't got, studied: a word counts when a studied note's headword
- * is it, or has it as a word of its own ("sto" in "sto, setka"). Thai and Japanese aren't written with
- * spaces, so there it has to be the whole headword.
- */
-export function missingWords(words: readonly string[], studied: readonly string[]): string[] {
-  const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
-  const known = new Set(studied.flatMap((t) => [norm(t), ...norm(t).split(/[^\p{L}\p{N}]+/u)]).filter(Boolean));
-  return words.filter((w) => !known.has(norm(w)));
-}
 
 // ==== Skill cards in the collection ====
 
@@ -431,9 +401,9 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
   return drafts;
 }
 
-/** The notes for the words `groups` need that the deck may lack: the months and weekdays for dates. The caller leaves out the ones it has. */
+/** The notes for the words the drill groups in `groups` need that the deck may lack (the months for dates, the number words for numbers...). The caller leaves out the ones it has. */
 export function skillWordDrafts(language: Language, groups: SkillGroup[]): SkillWordDraft[] {
-  return groups.includes('dates') && hasDrills('dates', language) ? dateWordDrafts(language) : [];
+  return wordDrafts(language, groups.filter((g): g is DrillGroup => (g === 'time' || g === 'numbers' || g === 'dates' || g === 'money') && hasDrills(g, language)));
 }
 
 /** The drill a note's tags make it, with its language; undefined for any other note. */
@@ -457,6 +427,8 @@ export interface SkillCardState {
   missing?: readonly string[];
   /** Answered at least once: a first step held for words is released only while it hasn't been, so a card the learner suspended mid-ladder isn't undone. */
   started?: boolean;
+  /** The deck's skill cards are paused (Skill cards switched off): nothing is released or held back. */
+  paused?: boolean;
 }
 
 /**
@@ -467,12 +439,22 @@ export interface SkillCardState {
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
   return cards.filter((c) => {
-    if (!c.suspended || c.missing?.length) return false;
+    if (!c.suspended || c.paused || c.missing?.length) return false;
     const step = drillStep(c.stepId);
     if (!step) return false;
     if (step.after) return settled.has(`${c.language}|${step.after}`);
     return !c.started && stepNeeds(step.id, c.language).length > 0;
   }).map((c) => c.id);
+}
+
+/**
+ * The live cards to hold back: a step that waits for words, never started, whose words the deck hasn't
+ * studied. A deck got its first steps live before they waited for words, and a learner can unsuspend one;
+ * holding it again keeps a drill from asking about words never studied. Released again by `releasable`
+ * once the words are studied.
+ */
+export function holdable(cards: readonly SkillCardState[]): string[] {
+  return cards.filter((c) => !c.suspended && !c.paused && !c.started && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
 }
 
 // ==== Progress ====
@@ -539,23 +521,42 @@ export function skillOffer(deck: string, notes: Iterable<{ deck: string; tags: r
   return found.name;
 }
 
-/** The headwords of the notes studied (a card past new), skill cards left out: what `missingWords` checks a step's words against. */
-export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): string[] {
+/** The language deck a skill note's words are looked up in: the deck above its Skills subdeck, so a German "Juni" never counts as Norwegian's. */
+export const skillLanguageDeck = (deck: string): string => (deck.endsWith(`::${SKILLS_SUBDECK}`) ? deck.slice(0, -(SKILLS_SUBDECK.length + 2)) : deck);
+
+/**
+ * The headwords of the notes studied (a card past new), skill cards left out: what a step's words are
+ * checked against. With `deck`, only the notes in it and its subdecks.
+ */
+export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>, deck?: string): string[] {
   const started = new Set<string>();
   for (const c of cards) if (c.sched.state !== 0 && !c.retired) started.add(c.noteId);
   const out: string[] = [];
-  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG)) out.push(headword(n));
+  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG) && (deck === undefined || isInDeck(n.deck, deck))) out.push(headword(n));
   return out;
 }
 
-/** What each skill card's step still waits for, by card id, given the deck's studied headwords. */
-export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: readonly string[]): Map<string, string[]> {
+/** `studiedHeadwords` for any language deck, each worked out once. */
+export function studiedIn(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): (deck: string) => string[] {
+  const allNotes = [...notes];
+  const allCards = [...cards];
+  const memo = new Map<string, string[]>();
+  return (deck) => {
+    let found = memo.get(deck);
+    if (!found) memo.set(deck, found = studiedHeadwords(allNotes, allCards, deck));
+    return found;
+  };
+}
+
+/** What each skill card's step still waits for, by card id, given the studied headwords of its language deck (`studiedIn`). */
+export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: (languageDeck: string) => readonly string[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const c of cards) {
     const n = notes.get(c.noteId);
     const drill = n && drillOfTags(n.tags);
     if (!drill) continue;
-    const missing = stepNeeds(drill.step.id, drill.language).flatMap((need) => stillNeeded(need, studied) ?? []);
+    const words = studied(skillLanguageDeck(n.deck));
+    const missing = stepNeeds(drill.step.id, drill.language).flatMap((need) => stillNeeded(need, words) ?? []);
     if (missing.length) out.set(c.id, missing);
   }
   return out;

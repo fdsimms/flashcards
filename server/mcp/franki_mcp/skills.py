@@ -132,13 +132,20 @@ def _headwords(col: Collection, deck_name: str) -> set[str]:
     return have
 
 
+def _can_write_words(col: Collection) -> bool:
+    """Whether the collection has the note type the words are written in, with the fields they use."""
+    wnt = col.models.by_name(WORD_NOTE_TYPE)
+    return bool(wnt) and {"Entry", "Meaning"} <= {f["name"] for f in wnt["flds"]}
+
+
 def _missing_words(col: Collection, deck_name: str, language: str, off: tuple[str, ...]) -> list[dict[str, Any]]:
     """The words the skills that are on need that the deck lacks, in any of its subdecks, studied or not."""
-    wanted = [w for g in _groups(language) if g["id"] not in off for w in g["words"]]
+    # A word two skills need (a hundred: numbers and money) is one note.
+    wanted = {_norm_word(w["fields"]["Entry"]): w for g in _groups(language) if g["id"] not in off for w in g["words"]}
     if not wanted:
         return []
     have = _headwords(col, deck_name)
-    return [w for w in wanted if _norm_word(w["fields"]["Entry"]) not in have]
+    return [w for key, w in wanted.items() if key not in have]
 
 
 def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, ...]) -> dict[str, Any]:
@@ -153,13 +160,12 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
     todo = _missing(col, language, off)
     words = _missing_words(col, deck_name, language, off)
     if not todo and not words:
-        return {"deck": subdeck, "added": 0, "words": 0, "skipped": 0}
+        return {"deck": subdeck, "added": 0, "words": 0, "words_skipped": 0, "skipped": 0}
+    # Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner has studied them.
     wnt = col.models.by_name(WORD_NOTE_TYPE) if words else None
-    if words and (not wnt or not {"Entry", "Meaning"} <= {f["name"] for f in wnt["flds"]}):
-        raise ToolError(
-            f"The collection has no {WORD_NOTE_TYPE} note type with Entry and Meaning fields, which the words these skills need "
-            "(such as the months) are written in. Sync Franki to bring it in, or switch off the skills that need words (dates), and try again."
-        )
+    words_skipped = 0
+    if words and not _can_write_words(col):
+        words_skipped, words = len(words), []
     did = col.decks.id_for_name(subdeck) or col.decks.id(subdeck)
     added = skipped = 0
     suspend: list[int] = []
@@ -185,12 +191,11 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
             if name in note:
                 note[name] = value
         note.tags = list(w["tags"])
-        # The same Entry in another note of the type is the word, there already.
-        if note.fields_check() != NoteFieldsCheckResult.NORMAL:
-            continue
+        # The same Entry in another language's note ("mars" in French and Norwegian) is no reason to leave the word out: Anki
+        # allows it and only warns. One in this deck is already counted as the word being there (`_headwords`).
         col.add_note(note, did)
         added_words += 1
-    return {"deck": subdeck, "added": added, "words": added_words, "skipped": skipped}
+    return {"deck": subdeck, "added": added, "words": added_words, "words_skipped": words_skipped, "skipped": skipped}
 
 
 def set_paused(col: Collection, deck_name: str, paused: bool) -> int:
@@ -225,7 +230,7 @@ def _state(col: Collection, deck_id: int, name: str, language: str) -> dict[str,
     return {
         "deck": name, "language": CATALOG["languages"][language]["name"], "on": s.on, "auto": s.auto, "skills": skills,
         "missing": sum(k["missing"] for k in skills if k["on"]),
-        "words_missing": sum(k["words_missing"] for k in skills if k["on"]),
+        "words_missing": len(_missing_words(col, name, language, s.off)),
     }
 
 
@@ -239,7 +244,8 @@ def _work(col: Collection) -> list[tuple[str, str, tuple[str, ...]]]:
             continue
         name = deck["name"]
         language = language_of_deck(name)
-        if language and (_missing(col, language, s.off) or _missing_words(col, name, language, s.off)):
+        # Words that can't be written (no note type for them) are no work: the pass would change nothing, every hour.
+        if language and (_missing(col, language, s.off) or (_can_write_words(col) and _missing_words(col, name, language, s.off))):
             out.append((name, language, s.off))
     return out
 
