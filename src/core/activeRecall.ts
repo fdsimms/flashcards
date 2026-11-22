@@ -26,9 +26,10 @@ export function typeItAnswer(note: Note, card: Card): string | undefined {
 /**
  * Every answer Type it (and Answer by speaking) takes on this card: the word, the word as it's said
  * with what the card puts before it (a noun's article, a Norwegian verb's å: the Entry is "huske" and
- * "å huske" is no mistake), and for a Japanese word its reading in kana (KanaReading), since 食べる
- * typed as たべる is the word typed without converting it. Readings split on commas or slashes are
- * each an answer. Empty when the card has no Type it.
+ * "å huske" is no mistake), its romanization (Transliteration), since "khrang" for ครั้ง is the word
+ * typed on a keyboard that has no Thai, and for a Japanese word its reading in kana (KanaReading),
+ * since 食べる typed as たべる is the word typed without converting it. Readings split on commas or
+ * slashes are each an answer. Empty when the card has no Type it.
  */
 export function typeItAnswers(note: Note, card: Card): string[] {
   const word = typeItAnswer(note, card);
@@ -36,7 +37,8 @@ export function typeItAnswers(note: Note, card: Card): string[] {
   const lang = speechLangFor(note);
   if (!lang?.startsWith('ja')) {
     const said = spokenEntry(lang?.slice(0, 2) ?? '', htmlToText(note.fields.Gender ?? ''), htmlToText(note.fields.PartOfSpeech ?? ''), word);
-    return said === word ? [word] : [word, said];
+    const romanization = htmlToText(note.fields.Transliteration ?? '').trim();
+    return [...new Set([word, said, ...(romanization ? [romanization] : [])])];
   }
   const readings = htmlToText(note.fields.KanaReading ?? '').split(/[,、/;]/).map((r) => r.trim()).filter(Boolean);
   return [word, ...readings];

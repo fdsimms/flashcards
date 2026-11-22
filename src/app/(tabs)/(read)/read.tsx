@@ -1,23 +1,18 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
-import type { Language } from '../../../reader/api';
+import React from 'react';
 import { useApp } from '../../../ui/AppContext';
 import { ReadShelf } from '../../../ui/reader/ReadShelf';
 import { useWordAudio } from '../../../ui/useWordAudio';
 
 /**
  * Read & Listen's home: the shelf of the language last read. Sends you to its settings when it
- * isn't signed in. Its `language` parameter (franki://read?language=de, the link on dundundun's Read & Listen task) switches the shelf to that language. Its `practice` parameter (JSON: a language and words) comes from Review's "Read a
- * text with these words": the shelf offers a text written to practice them.
+ * isn't signed in. Its `language` parameter (franki://read?language=de, the link on dundundun's Read & Listen task) switches the shelf to that language.
  */
 export default function ReadRoute() {
   const router = useRouter();
   const { reader, repo } = useApp();
   const playWord = useWordAudio(repo);
-  const { practice: raw, language: linkLanguage } = useLocalSearchParams<{ practice?: string; language?: string }>();
-  const practice = useMemo(() => {
-    try { return raw ? (JSON.parse(raw) as { language: Language; words: string[] }) : undefined; } catch { return undefined; }
-  }, [raw]);
+  const { language: linkLanguage } = useLocalSearchParams<{ language?: string }>();
   if (!reader.api) return <Redirect href="/read-settings" />;
   const api = reader.api;
   return (
@@ -26,16 +21,8 @@ export default function ReadRoute() {
       knownLanguage={reader.settings?.language}
       openLanguage={linkLanguage || undefined}
       onOpenedLanguage={() => router.setParams({ language: '' })}
-      practice={practice ? { language: practice.language, count: practice.words.length, onCancel: () => router.setParams({ practice: '' }) } : undefined}
       onPlayWord={playWord}
       onOpen={(open) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', ...open }) } })}
-      onPractice={(topic) => {
-        // Only this text practices them. Cleared before the push, since setParams changes whichever
-        // screen is in front.
-        const words = practice?.words;
-        router.setParams({ practice: '' });
-        router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'topic', topic, words }) } });
-      }}
       onNew={() => router.push('/read-write')}
       onNewSeries={() => router.push({ pathname: '/read-write', params: { kind: 'series' } })}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'read' } })}
