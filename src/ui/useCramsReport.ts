@@ -9,7 +9,8 @@ import type { ReaderState } from './useReader';
  * its "Share today's counts and crams" setting is. dundundun's cram tasks read them from the
  * server's /api/status (src/core/cramsReport.ts). The crams are read again on every deck-list
  * refresh (`useCramCap`), so a send that failed is tried again then. Turning the setting off sends
- * an empty list once, so dundundun takes its cram tasks away rather than keep the last ones.
+ * an empty list once, so dundundun takes its cram tasks away rather than keep the last ones, and
+ * so does signing out of Read & Listen (`signOut` in useReader).
  */
 export function useCramsReport(reader: ReaderState, repo: NoteStore | null, dayStartsAtHour: number): void {
   const { crams, loaded } = useCrams(repo);

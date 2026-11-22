@@ -1689,8 +1689,8 @@ in the current language, with when one was last read to the end. Nothing else le
 - **Franki's crams** (`franki_crams`): crams live only on the phone, so under the same setting the
   app sends every cram not yet finished, and one finished today (`cramsReport`, `useCramsReport`),
   to `PUT /api/franki-crams`, each with its name, day, when its day ends, when it was last
-  practiced and when it was finished. Each report replaces the last, and turning the setting off
-  sends an empty list. Status shows the last report whatever day it was made (crams change only
+  practiced and when it was finished. Each report replaces the last, and turning the setting off,
+  or signing out of Read & Listen, sends an empty list. Status shows the last report whatever day it was made (crams change only
   while Franki is open), and `null` before the first, which dundundun reads as "not known" rather
   than "none". dundundun writes a practice task each day one runs and a check-off task once its day
   is over, mirroring Franki's own Today cards.
