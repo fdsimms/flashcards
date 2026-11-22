@@ -471,6 +471,8 @@ def test_prepared_talking_points_reach_the_turn_prompt() -> None:
     intro = play_intro(prepared)
     assert "- You ask: ครูวิ่งไหมครับ\n- They may ask you: เหนื่อยไหม" in intro
     assert "Never read this list out" in intro
+    assert "not a script" in intro
+    assert "never change the subject to reach an item" in intro.lower()
     assert "The word list" in intro
 
 
