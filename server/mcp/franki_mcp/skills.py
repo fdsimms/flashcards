@@ -32,6 +32,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
+from .omnilanguage import loose_spelling
 from .tools import READ, WRITE, _deck_id, search_text
 
 SKILL_CARDS_KEY = "frankiSkillCards"  # SKILL_CARDS_KEY in src/anki/skillSettings.ts
@@ -137,24 +138,10 @@ def _missing(col: Collection, language: str, off: tuple[str, ...]) -> list[dict[
     return [n for g in _groups(language) if g["id"] not in off for n in g["notes"] if n["front"] not in have]
 
 
-def _is_greek(ch: str) -> bool:
-    return "\u0370" <= ch <= "\u03ff"
-
-
 def _norm_word(w: str) -> str:
-    """A word as the app's `norm` compares it (src/tools/skillWords.ts): lowercase, Russian ё as е, and
-    Greek's tone marks off, since decks write четвертый and μια as often as четвёртый and μία."""
-    decomposed = unicodedata.normalize("NFD", unicodedata.normalize("NFC", w).lower().replace("ё", "е"))
-    out: list[str] = []
-    base = ""
-    for ch in decomposed:
-        if "\u0300" <= ch <= "\u036f":
-            if _is_greek(base):
-                continue
-        else:
-            base = ch
-        out.append(ch)
-    return unicodedata.normalize("NFC", "".join(out)).strip()
+    """A word as the app's `norm` compares it (src/tools/skillWords.ts): lowercase, then
+    `omnilanguage.loose_spelling`."""
+    return loose_spelling(unicodedata.normalize("NFC", w).lower()).strip()
 
 
 def _headwords(col: Collection, deck_name: str) -> set[str]:

@@ -54,7 +54,11 @@ BRACKET = re.compile(r"\s*[(\[（].*?[)\]）]")
 NOT_A_FORM = frozenset({"pattern", "takes"})
 
 # How a word matched a note, best first.
-KINDS = ("entry", "form", "aspect partner", "part of phrase", "in phrase")
+KINDS = ("entry", "form", "aspect partner", "spelled differently", "part of phrase", "in phrase")
+# Languages whose words are also matched loosely (`omnilanguage.loose_spelling`): е for ё, Greek
+# without tone marks. Reported as "spelled differently", never as the word itself: все is "all",
+# всё "everything".
+LOOSE = frozenset({"russian", "greek"})
 
 
 def _edges_trimmed(text: str) -> str:
@@ -125,6 +129,8 @@ class Index:
     partners: dict[str, set[int]] = field(default_factory=dict)
     # A phrase entry's words, for "in phrase": word -> notes whose Entry has that word among several.
     phrase_words: dict[str, set[int]] = field(default_factory=dict)
+    # Entries and forms by their loose spelling, in `LOOSE` languages, for "spelled differently".
+    loose: dict[str, set[int]] = field(default_factory=dict)
 
     def add(self, nid: int, fields: Mapping[str, str], language: str) -> None:
         own, partners = note_forms(fields)
@@ -136,6 +142,10 @@ class Index:
         for form in partners:
             for k in keys(form, language):
                 self.partners.setdefault(k, set()).add(nid)
+        if language in LOOSE:
+            for form in own:
+                for k in keys(form, language):
+                    self.loose.setdefault(omnilanguage.loose_spelling(k), set()).add(nid)
         entry = normalized(own[0], language)
         if " " in entry:
             for word in entry.split(" "):
@@ -155,6 +165,11 @@ class Index:
                 take(table.get(k, ()), kind)
         if found:
             return list(found.items())
+        if language in LOOSE:
+            for k in ks:
+                take(self.loose.get(omnilanguage.loose_spelling(k), ()), "spelled differently")
+            if found:
+                return list(found.items())
         whole = normalized(word, language)
         if " " in whole:
             # A phrase the deck doesn't have: the words in it that it does.
@@ -205,6 +220,9 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
           it ("warf" and "abwerfen"). Articles and punctuation are ignored.
         - `matched` says how: entry; form (one of the note's listed forms); aspect partner (the
           note's verb names this one as its other aspect: the word itself may still need a note);
+          spelled differently (Russian or Greek only: the same letters once е and ё, or Greek's tone
+          marks, are set aside, as a screen often writes them; may be the same word or another, as
+          все "all" and всё "everything", so check the note before calling the word known);
           part of phrase (a phrase with no note of its own, and a note for one of its words); in
           phrase (a single word with no note of its own, used in a few phrase notes).
         - `deck` limits the search to one deck and its subdecks.

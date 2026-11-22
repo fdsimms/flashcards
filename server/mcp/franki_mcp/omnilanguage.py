@@ -236,6 +236,23 @@ _KANA_ONLY = re.compile(r"^[ぁ-ゟ゠-ヿー]+$")
 _TONE_MARKS = re.compile(r"[̀-ͯ]")
 
 
+def loose_spelling(text: str) -> str:
+    """`text` as the app's `norm` compares a word (src/tools/skillWords.ts): Russian ё as е, and
+    Greek's tone marks off, since decks and screens write четвертый and μια as often as четвёртый and
+    μία. Other accents stay (Polish ę, ł and ś are letters of their own). Case is left as given."""
+    decomposed = unicodedata.normalize("NFD", text.replace("ё", "е").replace("Ё", "Е"))
+    out: list[str] = []
+    base = ""
+    for ch in decomposed:
+        if "\u0300" <= ch <= "\u036f":
+            if "\u0370" <= base <= "\u03ff":
+                continue
+        else:
+            base = ch
+        out.append(ch)
+    return unicodedata.normalize("NFC", "".join(out))
+
+
 def plain(value: str) -> str:
     """A field's HTML as text: a line break for <br> and wherever a <div> or <p> opens or closes, tags dropped, entities read."""
     text = _TAG.sub("", _BREAK.sub("\n", value or ""))
