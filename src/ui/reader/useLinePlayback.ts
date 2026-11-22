@@ -71,6 +71,8 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   const playedRate = useRef(rate);
   // Counts line starts: a slow line is fetched before it plays, and a tap on another line meanwhile wins.
   const starting = useRef(0);
+  // The start still waiting for its line's audio (`startLine`), or null once it's sounding.
+  const loadingStart = useRef<number | null>(null);
   // Record yourself, for shadowing: a take of the line that's playing or last played.
   const self = useSelfRecording(text && current !== null ? `${text.id}:${current}` : null, READER_AUDIO_MODE, {
     onBeforeAudio: () => player.pause(),
@@ -91,12 +93,15 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     setAudioModeAsync(READER_AUDIO_MODE).catch(() => undefined);
     return () => {
       const l = carryOn.current;
+      // A line still loading (closed in the gap between lines, or while a slow recording is made) is
+      // dropped here: the host starts it on a hand-off, so it plays with the host's lock screen
+      // controls rather than this closed reader's.
+      const loading = loadingStart.current === starting.current;
+      starting.current++;
       if (l.text && l.playingAll && l.current !== null && l.playing) {
-        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() }, l.breakTo ?? undefined);
+        playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() }, l.breakTo ?? undefined, loading);
         return;
       }
-      // A line still loading (a slow recording being made) is dropped, so it can't start once the reader's gone.
-      starting.current++;
       playerHost.release();
       setAudioModeAsync(IDLE_MODE).catch(() => undefined);
     };
@@ -139,6 +144,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   const startLine = async (i: number, r: number) => {
     if (!text) return;
     const mine = ++starting.current;
+    loadingStart.current = mine;
     const key = `${text.id}:${i}`;
     setAwaitingSound(true);
     // The line fetched while the last one played, when this is it; else loaded now.
@@ -146,10 +152,11 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     try {
       audio = (await playerHost.preloader.take(text.id, i, r)) ?? (await lineAudio(api, text.id, i, r, slowTimed[key]));
     } catch (e) {
-      if (starting.current === mine) setAwaitingSound(false);
+      if (starting.current === mine) { setAwaitingSound(false); loadingStart.current = null; }
       throw e;
     }
     if (starting.current !== mine) return;
+    loadingStart.current = null;
     if (audio.times) setSlowTimed((prev) => ({ ...prev, [key]: audio.times! }));
     setPlayedSlow(audio.slow);
     playedRate.current = r;

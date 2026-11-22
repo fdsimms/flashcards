@@ -54,6 +54,8 @@ describe('queuedFor', () => {
     expect(queuedFor(items, 'เขา')?.id).toBe(3);
     expect(queuedFor(items, 'เนิน')?.state).toBe('waiting');
     expect(queuedFor(items, 'ภูเขา')).toBeUndefined();
+    // The server stores what was sent with its spaces collapsed.
+    expect(queuedFor([note({ id: 4, entry: 'na razie' })], ' na  razie ')?.id).toBe(4);
   });
 });
 
