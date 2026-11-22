@@ -1,15 +1,15 @@
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
-import type { NoteStore } from '../anki/noteService';
+import { Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { deleteNote, type NoteStore } from '../anki/noteService';
 import { parseSearch } from '../core/ankiSearch';
 import { failureText } from '../core/failure';
-import { deckChipRows, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
+import { deckChipRows, deleteNoteWarning, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
 import { markerText, noteMarkers, type NoteMarker } from '../core/noteMarkers';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { Chip, Divider, Loading, Screen } from './kit';
+import { Chip, Divider, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -18,7 +18,8 @@ const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:ver
 
 /**
  * Every note, searchable and narrowed to a deck or any of its subdecks, and to a state its cards
- * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one.
+ * are in (new, due today, a leech, suspended, flagged); tap one to edit it, or Add a new one. A swipe
+ * on a row deletes the note (after asking), as the editor's Delete does.
  * Search reads Anki's syntax (deck:, tag:, is:due, flag:1, or, -; src/core/ankiSearch.ts), and a
  * plain word matches in any field, a tag or the deck name, closest matches first (a word on the
  * front, then in the meaning, then elsewhere; src/core/noteEditing.ts). A search that can't be
@@ -60,6 +61,22 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
   }, [notes, cards, query, scope, filter]);
   const searchProblem = useMemo(() => { const p = parseSearch(query); return p.ok ? null : p.error; }, [query]);
   // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
+  // The row slid open on its Delete action; one at a time.
+  const [openNote, setOpenNote] = useState<string | null>(null);
+  const confirmDelete = (note: Note) => Alert.alert('Delete this note?', deleteNoteWarning(cards?.byNote.get(note.id)?.length ?? 2), [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Delete', style: 'destructive',
+      onPress: async () => {
+        try {
+          await deleteNote(repo, note.id);
+          setNotes((all) => (all ? all.filter((n) => n.id !== note.id) : all));
+        } catch (e) {
+          Alert.alert("Couldn't delete the note", failureText(e, { next: 'Try again.' }));
+        }
+      },
+    },
+  ]);
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
 
   return (
@@ -111,7 +128,11 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
             markers={cards ? noteMarkers(item, cards.byNote.get(item.id) ?? [], cards.now, cards.dayStartsAtHour) : []}
             first={index === 0}
             last={index === found.length - 1}
-            onPress={() => edit({ noteId: item.id })}
+            open={openNote === item.id}
+            onOpenChange={(o) => setOpenNote(o ? item.id : null)}
+            onDelete={() => confirmDelete(item)}
+            // Tapping a row that's slid open closes it, rather than opening the note.
+            onPress={() => (openNote === item.id ? setOpenNote(null) : edit({ noteId: item.id }))}
           />
         )}
       />
@@ -124,33 +145,47 @@ export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (tar
  * can't be one view): the first and last round its corners, and every row but the first draws the
  * divider above it, as a `Group`'s rows do.
  */
-function NoteRow({ note, markers, first, last, onPress }: { note: Note; markers: NoteMarker[]; first: boolean; last: boolean; onPress: () => void }) {
+function NoteRow({ note, markers, first, last, open, onOpenChange, onDelete, onPress }: {
+  note: Note; markers: NoteMarker[]; first: boolean; last: boolean; open: boolean; onOpenChange: (open: boolean) => void; onDelete: () => void; onPress: () => void;
+}) {
   const c = useTheme();
   const { front, back } = notePreview(note);
+  // The card's edges and corners are on the wrapper, which clips the Delete action sliding out
+  // from under the row, so it never pokes past a rounded corner.
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={[front || 'Empty note', back, note.deck, ...markers.map(markerText)].filter(Boolean).join(', ')}
-      accessibilityHint="Opens the note to edit"
-      style={({ pressed }) => ({
-        paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: pressed ? c.fill : c.surface, ...smooth,
-        borderColor: c.border, borderLeftWidth: hairline, borderRightWidth: hairline,
+    <View
+      style={{
+        overflow: 'hidden', ...smooth, borderColor: c.border, borderLeftWidth: hairline, borderRightWidth: hairline,
         borderTopWidth: first ? hairline : 0, borderBottomWidth: last ? hairline : 0,
         borderTopLeftRadius: first ? radius.l : 0, borderTopRightRadius: first ? radius.l : 0,
         borderBottomLeftRadius: last ? radius.l : 0, borderBottomRightRadius: last ? radius.l : 0,
-      })}
+      }}
     >
-      {first ? null : <Divider inset={space.l} />}
-      <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
-      {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
-      <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
-      {markers.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.xs, paddingTop: space.xs }}>
-          {markers.map((m) => <MarkerChip key={`${m.kind}${m.flag ?? ''}`} marker={m} />)}
-        </View>
-      ) : null}
-    </Pressable>
+      <SwipeToReveal
+        open={open}
+        onOpenChange={onOpenChange}
+        onFullSwipe={onDelete}
+        action={<SwipeAction destructive icon="trash" label="Delete" accessibilityLabel={`Delete ${front || 'empty note'}`} onPress={() => { onOpenChange(false); onDelete(); }} />}
+      >
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={[front || 'Empty note', back, note.deck, ...markers.map(markerText)].filter(Boolean).join(', ')}
+          accessibilityHint="Opens the note to edit"
+          style={({ pressed }) => ({ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: pressed ? c.fill : c.surface })}
+        >
+          {first ? null : <Divider inset={space.l} />}
+          <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
+          {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
+          <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
+          {markers.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.m, rowGap: space.xs, paddingTop: space.xs }}>
+              {markers.map((m) => <MarkerChip key={`${m.kind}${m.flag ?? ''}`} marker={m} />)}
+            </View>
+          ) : null}
+        </Pressable>
+      </SwipeToReveal>
+    </View>
   );
 }
 

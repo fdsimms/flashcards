@@ -26,6 +26,12 @@ export function editTextToField(text: string): string {
   return text.replace(/\r\n?/g, '\n').replace(/\n/g, '<br>');
 }
 
+/** What the "Delete this note?" alert says, in the editor and on Browse's swipe: one wording for both. */
+export function deleteNoteWarning(cardCount: number): string {
+  const one = cardCount === 1;
+  return `Its ${one ? 'card is' : 'cards are'} deleted too, with ${one ? 'its' : 'their'} review history in Franki. Anki deletes them at the next sync, or when you send your collection back.`;
+}
+
 /**
  * A stored field as the editor would store it back untouched (`<br/>` and a raw new line both as
  * `<br>`): what an edit is compared with, so opening a note doesn't count as changing it.

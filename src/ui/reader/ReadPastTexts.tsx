@@ -3,13 +3,15 @@ import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../../reader/api';
 import { pastItem } from '../../reader/audioQueue';
 import { useApp } from '../AppContext';
-import { ErrorNote, Group, Help, NavRow, Screen } from '../kit';
+import { ErrorNote, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
+import { useAudioQueue } from '../useAudioQueue';
 import { useQueueMenu } from '../useQueueMenu';
 import { space, useTheme, readable } from '../theme';
 
 /**
  * Texts read to the end, newest first. Opening
  * one reads it again in the reader, with nothing logged (docs/read-and-listen/architecture.md, Client).
+ * A swipe on a row puts it next in Up Next (a full swipe does it at once); nothing here deletes a text.
  */
 
 const RATING_TEXT: Record<Rating, string> = { too_easy: 'Too easy', about_right: 'About right', too_hard: 'Too hard' };
@@ -26,6 +28,9 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const queueMenu = useQueueMenu();
+  const queue = useAudioQueue();
+  // The row slid open on its Play Next action; one at a time.
+  const [openText, setOpenText] = useState<number | null>(null);
   // Past texts are the reader's language's (the server lists that language's).
   const language = useApp().reader.settings?.language;
 
@@ -55,18 +60,26 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
           <>
             <Group>
               {texts.map((t, i) => (
-                <NavRow
+                <SwipeToReveal
                   key={t.id}
-                  first={i === 0}
-                  label={t.title}
-                  detail={[t.topic, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
-                  onPress={() => onOpen(t)}
-                  onLongPress={language ? () => queueMenu(pastItem(t, language)) : undefined}
-                  action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
-                />
+                  open={openText === t.id}
+                  onOpenChange={(o) => setOpenText(o ? t.id : null)}
+                  onFullSwipe={language ? () => queue.playNext(pastItem(t, language)) : undefined}
+                  action={language ? <SwipeAction icon="text.line.first.and.arrowtriangle.forward" label="Play Next" accessibilityLabel={`Play ${t.title} next`} onPress={() => { setOpenText(null); queue.playNext(pastItem(t, language)); }} /> : null}
+                >
+                  <NavRow
+                    first={i === 0}
+                    label={t.title}
+                    detail={[t.topic, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
+                    // Tapping a row that's slid open closes it, rather than opening the text.
+                    onPress={() => (openText === t.id ? setOpenText(null) : onOpen(t))}
+                    onLongPress={language ? () => queueMenu(pastItem(t, language)) : undefined}
+                    action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
+                  />
+                </SwipeToReveal>
               ))}
             </Group>
-            <Help>Rereading a text doesn't count as reading it again or change how hard new texts are. The headphones button plays it with the words hidden. Touch and hold a text to add it to Up Next.</Help>
+            <Help>Rereading a text doesn't count as reading it again or change how hard new texts are. The headphones button plays it with the words hidden. Swipe a text, or touch and hold it, to add it to Up Next.</Help>
           </>
         ) : null}
       </ScrollView>

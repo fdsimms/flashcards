@@ -13,7 +13,7 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { applyTagSuggestion, canAddAnother, clozeChoices, nextNoteFields, typedTag, wrapCloze } from '../core/noteDrafting';
 import { suggestTags, tagCounts } from '../core/priority';
-import { addDraftChanged, asEdited, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
+import { addDraftChanged, asEdited, deleteNoteWarning, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
 import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -262,7 +262,7 @@ export function NoteEditor(props: {
     if (!original) return;
     Alert.alert(
       'Delete this note?',
-      `Its ${cardNames.length === 1 ? 'card is' : 'cards are'} deleted too, with ${cardNames.length === 1 ? 'its' : 'their'} review history in Franki. Anki deletes them at the next sync, or when you send your collection back.`,
+      deleteNoteWarning(cardNames.length),
       [
         { text: 'Cancel', style: 'cancel' },
         {
