@@ -84,6 +84,7 @@ def router(ctx: AppContext) -> APIRouter:
                     "state": n.state,
                     "fields": n.fields,
                     "error": n.error,
+                    "retrying": note_queue.retrying(n),
                     "spelling": n.spelling,
                     "alternatives": n.alternatives,
                 }

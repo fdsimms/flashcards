@@ -503,6 +503,20 @@ def _plain(value: object, limit: int, *, markup: bool = False) -> str | None:
     return None if "<" in text or ">" in text else value
 
 
+def _bolded(context: str, words: list[str], language: Code) -> str:
+    """`context` with its first whole occurrence of one of `words` in bold, when Claude wrote the
+    sentence with no tags at all; unchanged when none of them appears (an inflected form is for Claude
+    to bold, not for code to guess). A language written with spaces matches whole words only, so "kot"
+    isn't found inside "kotek"; Thai and Japanese have no spaces to match against."""
+    for word in dict.fromkeys(w for w in words if w):
+        pattern = (
+            rf"(?<!\w){re.escape(word)}(?!\w)" if LANGUAGES[language].spaced else re.escape(word)
+        )
+        if found := re.search(pattern, context):
+            return f"{context[: found.start()]}<b>{found.group()}</b>{context[found.end() :]}"
+    return context
+
+
 def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict[str, str]] | None:
     """One word Claude filled, as (entry, fields by Anki field name), or None unless it was asked for
     and its fields are usable. The owner's own meaning is always kept; a field that doesn't apply (a
@@ -529,6 +543,10 @@ def checked(
     if not translation:
         return None, "the translation was missing, too long or had markup in it"
     # The entry is shown in bold, balanced, once or more (a split verb has two).
+    if "<b>" not in context and "</b>" not in context:
+        context = _bolded(
+            context, [_plain(raw.get("spelling"), MAX_MEANING) or "", entry], language
+        )
     opens, closes = context.count("<b>"), context.count("</b>")
     if opens == 0 or opens != closes:
         return None, "the word wasn't in bold in the example sentence"
@@ -626,11 +644,12 @@ def due(note: store.QueuedNote, now: datetime) -> bool:
     since the last one over."""
     if note.state == "waiting":
         return True
-    return (
-        note.state == "failed"
-        and note.attempts < MAX_ATTEMPTS
-        and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
-    )
+    return retrying(note) and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
+
+
+def retrying(note: store.QueuedNote) -> bool:
+    """Whether a failed word will be tried again without the owner asking: it has tries left."""
+    return note.state == "failed" and note.attempts < MAX_ATTEMPTS
 
 
 def pending(conn: sqlite3.Connection, now: datetime) -> list[store.QueuedNote]:
