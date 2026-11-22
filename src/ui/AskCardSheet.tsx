@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Linking, Modal, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { claudeChatLink, SUGGESTED_QUESTIONS, withQuestion, type AskTurn, type CardForClaude } from '../core/askCard';
+import { claudeChatLink, noteDraft, SUGGESTED_QUESTIONS, withNoteRequest, withQuestion, type AskTurn, type CardForClaude } from '../core/askCard';
 import { failureText } from '../core/failure';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
@@ -15,8 +15,9 @@ import { AskingText } from './AskingText';
  * open, and each follow-up sends it again. "Open in the Claude app" hands the card and the typed
  * question to claude.ai instead, for asking without the server's key.
  *
- * `onSaveAnswer` (present only for a note with a Notes field) adds an answer there, under what's
- * already in it, when its button is tapped; the button names the field.
+ * `onSaveAnswer` (present only for a note with a Notes field) adds a note there, under what's
+ * already in it. An answer is never added as it is: Claude drafts a one or two line note from the
+ * chat, the learner edits it, and Add to Notes saves what's in the box.
  * A swipe down closes the sheet, except while an answer is on its way.
  */
 export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswer, onClose }: {
@@ -25,7 +26,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
   visible?: boolean;
   onDismiss?: () => void;
-  /** Adds an answer to the note's Notes field; throws when it can't be saved, and the sheet says why. */
+  /** Adds a note to the note's Notes field; throws when it can't be saved, and the sheet says why. */
   onSaveAnswer?: (answer: string) => Promise<void>;
   onClose: () => void;
 }) {
@@ -35,7 +36,10 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   const [text, setText] = useState('');
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The answer last added to the note, so its button doesn't add it twice.
+  // The note being drafted for Notes (null until asked for), and the answer it was drafted from
+  // once it's added, so the same answer isn't offered again.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
   const [addedAnswer, setAddedAnswer] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
@@ -48,6 +52,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
     const next = withQuestion(turns, question);
     setTurns(next);
     setText('');
+    setDraft(null);
     setAsking(true);
     setError(null);
     try {
@@ -60,14 +65,30 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
     }
   };
 
-  const addToNote = async (answer: string) => {
+  // Claude's short version of the chat, for the learner to edit. The request isn't kept in the turns.
+  const draftNote = async () => {
+    if (!ask || drafting || asking) return;
+    haptic.select();
+    setDrafting(true);
+    setError(null);
+    try {
+      const note = noteDraft(await ask(withNoteRequest(turns)));
+      if (open.current) setDraft(note);
+    } catch (e) {
+      if (open.current) setError(failureText(e, { what: "Couldn't write a note.", next: 'Try again.' }));
+    } finally {
+      if (open.current) setDrafting(false);
+    }
+  };
+
+  const addToNote = async (note: string, answer: string) => {
     if (!onSaveAnswer || adding) return;
     haptic.select();
     setAdding(true);
     setError(null);
     try {
-      await onSaveAnswer(answer);
-      if (open.current) setAddedAnswer(answer);
+      await onSaveAnswer(note);
+      if (open.current) { setAddedAnswer(answer); setDraft(null); }
     } catch (e) {
       if (open.current) setError(failureText(e, { what: "Couldn't add this to the note.", next: 'Try again.' }));
     } finally {
@@ -122,15 +143,26 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
             ))}
           </View>
         ) : null}
-        {onSaveAnswer && lastAnswer && !asking ? (
+        {onSaveAnswer && ask && lastAnswer && !asking ? (
           <View style={{ gap: space.xs }}>
             {addedAnswer === lastAnswer ? (
               <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Added to Notes</Text>
+            ) : draft === null ? (
+              <>
+                <Button label="Write a short note" variant="secondary" onPress={() => void draftNote()} busy={drafting} accessibilityLabel="Have Claude write a short note from this chat for the Notes field" />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                  Claude writes a line or two from this chat. You can edit it before it's added to Notes.
+                </Text>
+              </>
             ) : (
               <>
-                <Button label="Add to Notes" variant="secondary" onPress={() => void addToNote(lastAnswer)} busy={adding} accessibilityLabel="Add this answer to the Notes field" />
+                <Field label="Note" value={draft} onChangeText={setDraft} multiline />
+                <View style={{ flexDirection: 'row', gap: space.m }}>
+                  <Button label="Cancel" variant="secondary" onPress={() => setDraft(null)} style={{ flex: 1 }} disabled={adding} />
+                  <Button label="Add to Notes" onPress={() => void addToNote(draft, lastAnswer)} style={{ flex: 1 }} busy={adding} disabled={!draft.trim()} accessibilityLabel="Add this note to the Notes field" />
+                </View>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  It goes under anything already there, shows on the card's back and syncs to Anki.
+                  It goes under anything already in Notes, shows on the card's back and syncs to Anki.
                 </Text>
               </>
             )}

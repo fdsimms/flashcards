@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { cardForClaude, cardMessage, claudeChatLink, withNotesAnswer, withQuestion } from '../../src/core/askCard';
+import { cardForClaude, cardMessage, claudeChatLink, NOTE_REQUEST, noteDraft, withNoteRequest, withNotesAnswer, withQuestion } from '../../src/core/askCard';
 import type { Note } from '../../src/core/types';
 
 const note = (fields: Record<string, string>, deck = 'Polski'): Note => ({
@@ -63,4 +63,17 @@ test('an answer goes straight into empty Notes, and a blank one changes nothing'
   expect(withNotesAnswer({}, 'Hi').Notes).toBe('Hi');
   const fields = { Notes: 'x' };
   expect(withNotesAnswer(fields, '  ')).toBe(fields);
+});
+
+test('the request for a note goes last and leaves the chat as it was', () => {
+  const turns = [{ role: 'user' as const, content: 'Why?' }, { role: 'assistant' as const, content: 'Because.' }];
+  expect(withNoteRequest(turns)).toEqual([...turns, { role: 'user', content: NOTE_REQUEST }]);
+  expect(turns).toHaveLength(2);
+});
+
+test('a drafted note loses the markdown the model slipped in', () => {
+  expect(noteDraft('Say **ฉันมีความสุขมาก** (chan mii khwaam suk maak).')).toBe('Say ฉันมีความสุขมาก (chan mii khwaam suk maak).');
+  expect(noteDraft('- one\n* two\n3. three')).toBe('one\ntwo\nthree');
+  expect(noteDraft('It is *not* used with 2 * 3 * 4.')).toBe('It is not used with 2 * 3 * 4.');
+  expect(noteDraft('  Plain note.\n\n\n\nSecond.  ')).toBe('Plain note.\n\nSecond.');
 });

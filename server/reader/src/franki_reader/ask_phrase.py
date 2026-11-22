@@ -29,7 +29,8 @@ SYSTEM = (
     "combine, its tone, how it differs from a similar phrase, or another example. The whole text "
     "is there only so you can see what the phrase refers to. Use it only when it sharpens the "
     "answer, and never retell or summarize it. If you are not sure of an answer, say so. Do not "
-    "use em dashes or headings." + ENGLISH + CALIBRATION
+    "use em dashes, headings or markdown (no asterisks, bold or bullet lists): the reply is "
+    "shown as plain text." + ENGLISH + CALIBRATION
 )
 
 
