@@ -1,4 +1,8 @@
 import type { Language } from '../reader/api';
+import { FRENCH_CONTRASTS } from './french/contrasts';
+import { GERMAN_CONTRASTS } from './german/contrasts';
+import { GREEK_CONTRASTS } from './greek/contrasts';
+import { POLISH_CONTRASTS } from './polish/contrasts';
 import { THAI_CONTRASTS } from './thai/contrasts';
 
 /**
@@ -16,6 +20,9 @@ import { THAI_CONTRASTS } from './thai/contrasts';
 
 /** The gap in a sentence's tokens. */
 export const GAP = '_';
+/** Whether a token is the gap, punctuation after it included. */
+export const isGap = (token: string): boolean => token.startsWith(GAP);
+
 /** A space as the language writes it between clauses (Thai has no spaces between words, only between phrases). */
 export const SPACE = '/';
 /** What the gap shows as on the card. */
@@ -31,10 +38,15 @@ export interface ContrastWord {
 }
 
 export interface ContrastSentence {
-  /** The sentence's words in order, `GAP` where the answer goes and `SPACE` where the language puts a space. */
+  /**
+   * The sentence's words in order, `GAP` where the answer goes (punctuation right after it stays on the
+   * token: `_,`) and `SPACE` where the language puts a space.
+   */
   tokens: readonly string[];
   /** Which of the set's words fits the gap. */
   answer: number;
+  /** The answer as this sentence writes it, where that isn't the word itself (gefragt for fragen, zum for zu). */
+  form?: string;
   english: string;
   /** The whole sentence romanized, the answer in place, for a language not written in Latin letters. */
   roman?: string;
@@ -51,7 +63,7 @@ export interface ContrastSet {
 export const CONTRAST_STEP_PREFIX = 'contrast-';
 
 /** Each language's sets. A language with none has no Which word fits. */
-export const CONTRAST_SETS: Partial<Record<Language, readonly ContrastSet[]>> = { th: THAI_CONTRASTS };
+export const CONTRAST_SETS: Partial<Record<Language, readonly ContrastSet[]>> = { th: THAI_CONTRASTS, de: GERMAN_CONTRASTS, fr: FRENCH_CONTRASTS, el: GREEK_CONTRASTS, pl: POLISH_CONTRASTS };
 
 export const contrastSetsFor = (language: Language): readonly ContrastSet[] => CONTRAST_SETS[language] ?? [];
 
@@ -76,6 +88,8 @@ export interface ShownSentence {
   after: string;
   /** The word that fits. */
   answer: ContrastWord;
+  /** It as the sentence writes it in the gap. */
+  fill: string;
   /** The sentence with the answer in the gap. */
   filled: string;
   roman?: string;
@@ -87,14 +101,17 @@ export function showSentence(set: ContrastSet, index: number, language: Language
   if (!s) return undefined;
   const glue = UNSPACED.includes(language) ? '' : ' ';
   const join = (tokens: readonly string[]) => tokens.reduce((out, t) => (t === SPACE ? `${out} ` : out && !out.endsWith(' ') ? `${out}${glue}${t}` : `${out}${t}`), '');
-  const at = s.tokens.indexOf(GAP);
+  const at = s.tokens.findIndex(isGap);
   const answer = set.words[s.answer];
+  const fill = s.form ?? answer.word;
+  // Punctuation written onto the gap (`_,`) follows the answer directly.
+  const stuck = s.tokens[at].slice(GAP.length);
   const before = join(s.tokens.slice(0, at));
-  const after = join(s.tokens.slice(at + 1));
+  const rest = join(s.tokens.slice(at + 1));
   // The gap joins its neighbours as a word would: with the language's glue, or the space a SPACE token gave.
-  const filled = join(s.tokens.map((t) => (t === GAP ? answer.word : t)));
+  const filled = join(s.tokens.map((t, i) => (i === at ? fill + stuck : t)));
   const sep = (side: string, end: 'start' | 'end') => (!side ? '' : end === 'end' ? (side.endsWith(' ') ? '' : glue) : (side.startsWith(' ') ? '' : glue));
-  return { before: before + sep(before, 'end'), after: sep(after, 'start') + after, answer, filled, roman: s.roman, english: s.english };
+  return { before: before + sep(before, 'end'), after: stuck + sep(rest, 'start') + rest, answer, fill, filled, roman: s.roman, english: s.english };
 }
 
 /** A sentence of a set, as a Practice question or a drill's. */

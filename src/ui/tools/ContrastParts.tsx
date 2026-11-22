@@ -35,7 +35,7 @@ export function ContrastSentenceView({ shown, answered, verdict }: { shown: Show
       <Text selectable maxFontSizeMultiplier={1.5} style={sentenceStyle}>
         {shown.before}
         {answered
-          ? <Text style={{ fontWeight: '700', color: c.goodInk }}>{shown.answer.word}</Text>
+          ? <Text style={{ fontWeight: '700', color: c.goodInk }}>{shown.fill}</Text>
           : <Text accessibilityLabel="blank" style={{ color: c.textTertiary }}>{GAP_SHOWN}</Text>}
         {shown.after}
       </Text>

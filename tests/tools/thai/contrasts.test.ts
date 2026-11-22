@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GAP, showSentence } from '../../../src/tools/contrasts';
+import { isGap, showSentence } from '../../../src/tools/contrasts';
 import { THAI_CONTRASTS, unromanized } from '../../../src/tools/thai/contrasts';
 
 describe("Thai's Which word fits sets", () => {
@@ -20,7 +20,7 @@ describe("Thai's Which word fits sets", () => {
   it('puts exactly one gap in each sentence, and an answer that is one of the set', () => {
     for (const set of THAI_CONTRASTS) {
       for (const s of set.sentences) {
-        expect(s.tokens.filter((t) => t === GAP), s.tokens.join(' ')).toHaveLength(1);
+        expect(s.tokens.filter(isGap), s.tokens.join(' ')).toHaveLength(1);
         expect(set.words[s.answer], s.tokens.join(' ')).toBeDefined();
         expect(s.english.trim()).not.toBe('');
       }

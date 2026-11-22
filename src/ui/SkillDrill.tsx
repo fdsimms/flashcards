@@ -248,7 +248,7 @@ function MissedSentence({ question }: { question: DrillQuestion }) {
   if (!shown) return null;
   return (
     <View style={{ alignSelf: 'stretch', gap: 2, backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
-      <Text selectable style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.answer.word}</Text>{shown.after}</Text>
+      <Text selectable style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.fill}</Text>{shown.after}</Text>
       <Text selectable style={{ ...type.footnote, color: c.textSecondary }}>{shown.english}</Text>
     </View>
   );
