@@ -17,7 +17,8 @@ import { AskingText } from './AskingText';
  *
  * `fix` is present while Read & Listen is signed in: "Fix with Claude now" flags the card, asks the
  * server for a fix and shows it, each changed field old above new. Nothing is changed until Apply
- * (`onApply`, which also clears the flag); Not now leaves the card flagged for the MCP.
+ * (`onApply`, which also clears the flag); Not now leaves the card flagged for the MCP. When Claude
+ * finds nothing to change, the note is editable right there and Try again asks once more with it.
  */
 export function AgentFlagSheet({ word, reason: initialReason, note: initialNote, visible = true, onDismiss, onSave, onRemove, fix, onApply, onClose }: {
   /** The card's front, named in the heading. */
@@ -191,8 +192,17 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
               </>
             ) : (
               <>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>The card stays flagged. Ask Claude about it in a chat, or edit the note yourself.</Text>
-                <Button label="Close" variant="secondary" onPress={onClose} />
+                <Field
+                  label="Tell Claude more"
+                  value={note}
+                  onChangeText={setNote}
+                  placeholder="e.g. the counting section has the wrong classifier"
+                  multiline
+                  maxLength={FLAG_NOTE_MAX}
+                />
+                <Button label="Try again" onPress={() => void askForFix()} busy={busy} disabled={!note.trim()} />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>The card stays flagged. You can also ask Claude about it in a chat, or edit the note yourself.</Text>
+                <Button label="Close" variant="secondary" onPress={onClose} disabled={busy} />
               </>
             )}
           </>
