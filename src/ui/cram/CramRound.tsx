@@ -1,6 +1,6 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Keyboard, ScrollView, Text, View } from 'react-native';
+import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { typeItAnswers } from '../../core/activeRecall';
 import { isOmnilanguage, renderCard } from '../../core/cards';
@@ -48,6 +48,9 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   const playWord = useWordAudio(repo);
   const answered = useRef(0);
+  // Counts answers, so the screen resets for the next showing even when it is the same word again
+  // (Missed it on the last word left puts that word straight back).
+  const [turn, setTurn] = useState(0);
 
   useEffect(() => {
     repo.listNoteTypes().then(setNoteTypes, () => undefined);
@@ -76,7 +79,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     onBeforeListen: () => Keyboard.dismiss(),
     onHeard: (text) => { setSpokenIn(true); setTyped(text); },
   });
-  useEffect(() => { spoken.cancel(); setTyped(''); setSpokenIn(false); setRevealed(false); }, [noteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { spoken.cancel(); setTyped(''); setSpokenIn(false); setRevealed(false); }, [noteId, turn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A cram with no words has no round to do, and none is kept.
   const empty = !!round && round.noteIds.length === 0;
@@ -110,6 +113,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     if (!round) return;
     haptic.answer();
     answered.current++;
+    setTurn(answered.current);
     setRound(answerWord(round, got));
   };
 
@@ -165,7 +169,9 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
         </View>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      {/* Tapping empty space shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
+      <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m, flexGrow: 1 }}>
         <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words you've gotten so far" />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {!note ? (
@@ -199,6 +205,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
           </>
         ) : null}
       </ScrollView>
+      </Pressable>
     </Screen>
   );
 }

@@ -217,12 +217,9 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s - 2 }}>
                 {themeChips(theme, shown.wordsOf[i] ?? []).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  {`${(shown.wordsOf[i] ?? []).length} of your ${plural((shown.wordsOf[i] ?? []).length, 'word', 'words')}${theme.new_words.length ? ` · ${theme.new_words.length} new` : ''}`}
-                </Text>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{talkSummary(theme)}</Text>
-              </View>
+              <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                {`${(shown.wordsOf[i] ?? []).length} of your ${plural((shown.wordsOf[i] ?? []).length, 'word', 'words')}${theme.new_words.length ? ` · ${theme.new_words.length} new` : ''} · ${talkSummary(theme)}`}
+              </Text>
             </Card>
           </Tappable>
         ))}
