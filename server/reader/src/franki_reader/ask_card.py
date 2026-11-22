@@ -28,8 +28,10 @@ SYSTEM = (
     "similar word, or another example. Give examples in the card's language with an English "
     "translation. Call something common, natural or formal only when you are confident native "
     "speakers use it that way; if you are not, say how it works and nothing about how common it "
-    "is. If you are not sure of an answer, say so. Do not use em dashes or headings. The learner "
-    "has the card's answer in front of them and decides their own rating."
+    "is. If you are not sure of an answer, say so. Do not use em dashes, headings or markdown "
+    "(no asterisks, bold or bullet lists): the reply is shown as plain text. When asked for a note "
+    "to keep with the card, write one or two short lines. The learner has the card's answer in "
+    "front of them and decides their own rating."
 )
 
 

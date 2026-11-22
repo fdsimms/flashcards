@@ -2117,9 +2117,12 @@ Omnilanguage note's word, meaning, example and mnemonic; any other note type as 
 renders), so a card of any note type can be asked about, and the language is sent only when the
 note has one Read & Listen writes in. The conversation is kept only while the sheet is open and
 sent again with each follow-up (cut to the latest 12 turns). Answers are text only: they never
-grade a card. An answer isn't necessarily a mnemonic (it may be grammar or an example), so the
-button "Add to the note's Notes" adds it to the Notes field under what's there (`withNotesAnswer`),
-only for Omnilanguage notes; tapping the button, which names the field, is the approval. "Open in the Claude app instead" opens a
+grade a card. An answer isn't necessarily a mnemonic (it may be grammar or an example, and often several paragraphs), so it is never added to Notes as it
+is. The button "Write a short note" (Omnilanguage notes only) sends the same conversation to the
+same endpoint with one more turn (`withNoteRequest`, not kept in the chat) asking for a line or
+two worth keeping. The draft, with any markdown taken off (`noteDraft`), is shown in an editable
+box, and "Add to Notes" saves what is in it under what's already in the Notes field
+(`withNotesAnswer`); tapping it is the approval. "Open in the Claude app instead" opens a
 claude.ai/new link with the card and the typed question in the message box, for asking on the
 learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the

@@ -68,6 +68,34 @@ export function withQuestion(turns: AskTurn[], question: string): AskTurn[] {
 }
 
 /**
+ * The turn that asks for a note to keep, sent after the conversation so far (never shown in it).
+ * An answer is often a few paragraphs, which is never what belongs in the card's Notes, so Claude
+ * writes the short version and the learner edits it before it's added.
+ */
+export const NOTE_REQUEST =
+  'Write a note about this card that I can keep with it, based on what we just discussed. ' +
+  'One or two short lines of plain text: only what is worth remembering, such as the rule or one example with its translation. ' +
+  'No markdown, no introduction.';
+
+/** The conversation with the request for a note added last, as the server takes it. */
+export function withNoteRequest(turns: AskTurn[]): AskTurn[] {
+  return [...turns, { role: 'user', content: NOTE_REQUEST }];
+}
+
+/**
+ * A drafted note as plain text for the box the learner edits: emphasis marks and list bullets the
+ * model slipped in anyway are taken off, since Notes show them literally.
+ */
+export function noteDraft(answer: string): string {
+  return answer
+    .replace(/\*\*(.+?)\*\*/gs, '$1')
+    .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/gs, '$1')
+    .replace(/^[ \t]*(?:[-*•]|\d+\.)[ \t]+/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * The note's fields with an answer from Claude added to Notes: under what's already there, after a
  * blank line, so earlier notes aren't lost. A blank answer changes nothing.
  */
