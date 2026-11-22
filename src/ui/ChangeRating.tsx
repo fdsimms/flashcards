@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import type { RatingValue } from '../core/scheduler';
 import { haptic } from './haptics';
 import { Tappable } from './kit';
+import { Pop, Reveal } from './motion';
 import { radius, smooth, type, useTheme } from './theme';
 
 /**
@@ -11,7 +12,8 @@ import { radius, smooth, type, useTheme } from './theme';
  * icon buttons, Undo, Undo with a check (change it to Good) and Undo with an X (change it to
  * Again). It stays until the next answer replaces it. A tap on one of the buttons is confirmed in the
  * line's place for a moment ("Changed to Good") with its own haptic, since the line otherwise looks
- * the same afterward. Review does the changes (an undo and an answer in one step); this never reaches
+ * the same afterward. While a button is held it is tinted in its own color (green for Good, red for
+ * Again), and the confirmation is a pill in that tint whose icon springs in. Review does the changes (an undo and an answer in one step); this never reaches
  * the scheduler itself, it only offers the taps.
  */
 
@@ -65,6 +67,34 @@ function UndoIcon({ badge, color, cutout }: { badge?: { kind: 'check' | 'x'; col
   );
 }
 
+/** An `rgba(r, g, b, a)` or `#rrggbb` fill laid over a `#rrggbb` ground, as one opaque color (the undo arrow's cutout has to match what it sits on). */
+function flatten(fill: string, ground: string): string {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(fill);
+  if (!m) return fill;
+  const a = Number(m[4]);
+  const mix = (i: number, over: number) => Math.round(over * a + parseInt(ground.slice(i, i + 2), 16) * (1 - a));
+  return `#${[mix(1, Number(m[1])), mix(3, Number(m[2])), mix(5, Number(m[3]))].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** One of the line's icon buttons. While held it takes a disc of `fill` and draws its arrow in `ink`. */
+function LineButton({ onPress, label, badge, ink, fill }: { onPress: () => void; label: string; badge?: { kind: 'check' | 'x'; color: string }; ink: string; fill: string }) {
+  const c = useTheme();
+  const [held, setHeld] = useState(false);
+  return (
+    <Tappable
+      onPress={onPress}
+      onPressIn={() => setHeld(true)}
+      onPressOut={() => setHeld(false)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      scaleTo={0.9}
+      style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.m, backgroundColor: held ? fill : 'transparent', ...smooth }}
+    >
+      <UndoIcon color={held ? ink : c.textSecondary} cutout={held ? flatten(fill, c.bg) : c.bg} badge={badge} />
+    </Tappable>
+  );
+}
+
 /**
  * Put at the top of Review's footer. A change to the rating the answer already has isn't offered:
  * no check after Good, no X after Again, so each label below is always true.
@@ -72,17 +102,18 @@ function UndoIcon({ badge, color, cutout }: { badge?: { kind: 'check' | 'x'; col
 export function LastAnswerLine({ last, notice, onUndo, onChange }: { last: LastAnswer | null; notice: AnswerNotice | null; onUndo: () => void; onChange: (to: RatingValue) => void }) {
   const c = useTheme();
   const name = last ? NAMES[last.rating] : '';
-  const button = { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.m, ...smooth } as const;
-  const said = notice === 'good' ? { text: 'Changed to Good', color: c.goodInk, badge: { kind: 'check', color: c.goodInk } as const }
-    : notice === 'again' ? { text: 'Changed to Again', color: c.danger, badge: { kind: 'x', color: c.danger } as const }
-    : notice === 'undone' ? { text: 'Answer undone', color: c.text, badge: undefined }
+  const said = notice === 'good' ? { text: 'Changed to Good', color: c.goodInk, fill: c.goodFill, badge: { kind: 'check', color: c.goodInk } as const }
+    : notice === 'again' ? { text: 'Changed to Again', color: c.danger, fill: c.dangerFill, badge: { kind: 'x', color: c.danger } as const }
+    : notice === 'undone' ? { text: 'Answer undone', color: c.text, fill: c.fill, badge: undefined }
     : null;
   return (
     <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44 }}>
       {said ? (
-        <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <UndoIcon color={said.color} cutout={c.bg} badge={said.badge} />
-          <Text numberOfLines={1} style={{ flexShrink: 1, ...type.footnote, fontWeight: '600', color: said.color }}>{said.text}</Text>
+        <View style={{ flex: 1, minWidth: 0, flexDirection: 'row' }}>
+          <Reveal key={notice} rise={0} duration={150} style={{ flexShrink: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingLeft: 8, paddingRight: 12, borderRadius: radius.pill, backgroundColor: said.fill, ...smooth }}>
+            <Pop from={0.6} bounciness={10}><UndoIcon color={said.color} cutout={flatten(said.fill, c.bg)} badge={said.badge} /></Pop>
+            <Text numberOfLines={1} style={{ flexShrink: 1, ...type.footnote, fontWeight: '600', color: said.color }}>{said.text}</Text>
+          </Reveal>
         </View>
       ) : last ? (
         <Text numberOfLines={1} style={{ flex: 1, minWidth: 0, ...type.footnote, color: c.textSecondary }}>
@@ -91,18 +122,12 @@ export function LastAnswerLine({ last, notice, onUndo, onChange }: { last: LastA
       ) : null}
       {last ? (
         <>
-          <Tappable onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo the last answer" scaleTo={0.9} style={button}>
-            <UndoIcon color={c.textSecondary} cutout={c.bg} />
-          </Tappable>
+          <LineButton onPress={onUndo} label="Undo the last answer" ink={c.text} fill={c.fill} />
           {last.rating !== 3 ? (
-            <Tappable onPress={() => onChange(3)} accessibilityRole="button" accessibilityLabel={`Change ${name} to Good`} scaleTo={0.9} style={button}>
-              <UndoIcon color={c.textSecondary} cutout={c.bg} badge={{ kind: 'check', color: c.goodInk }} />
-            </Tappable>
+            <LineButton onPress={() => onChange(3)} label={`Change ${name} to Good`} ink={c.goodInk} fill={c.goodFill} badge={{ kind: 'check', color: c.goodInk }} />
           ) : null}
           {last.rating !== 1 ? (
-            <Tappable onPress={() => onChange(1)} accessibilityRole="button" accessibilityLabel={`Change ${name} to Again`} scaleTo={0.9} style={button}>
-              <UndoIcon color={c.textSecondary} cutout={c.bg} badge={{ kind: 'x', color: c.danger }} />
-            </Tappable>
+            <LineButton onPress={() => onChange(1)} label={`Change ${name} to Again`} ink={c.danger} fill={c.dangerFill} badge={{ kind: 'x', color: c.danger }} />
           ) : null}
         </>
       ) : null}
