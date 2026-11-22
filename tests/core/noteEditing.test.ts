@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDraftChanged, asEdited, deckChipRows, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor, startNoteFor } from '../../src/core/noteEditing';
+import { addDraftChanged, asEdited, deckChipRows, deleteNoteWarning, duplicateOf, editTextToField, fieldToEditText, matchesNoteFilter, notePreview, notesStillThere, parseTags, searchNotes, startModelFor, startNoteFor } from '../../src/core/noteEditing';
 import { NOTE_LANGUAGES } from '../../src/core/cards';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -249,5 +249,12 @@ describe('startNoteFor', () => {
     expect(names).toContain('Cantonese');
     expect(names).not.toContain('Polski');
     expect(new Set(NOTE_LANGUAGES.map((l) => l.tag)).size).toBe(NOTE_LANGUAGES.length);
+  });
+});
+
+describe('the delete warning', () => {
+  it('says card or cards to match how many the note has', () => {
+    expect(deleteNoteWarning(1)).toMatch(/^Its card is deleted too, with its review history/);
+    expect(deleteNoteWarning(2)).toMatch(/^Its cards are deleted too, with their review history/);
   });
 });

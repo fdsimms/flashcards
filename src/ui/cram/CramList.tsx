@@ -1,16 +1,18 @@
 import { Stack, useRouter } from 'expo-router';
-import React from 'react';
-import { ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, ScrollView } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
+import { failureText } from '../../core/failure';
 import { cramNotes, dayName, isAwaitingFinish, isRunning, practiceSummary, type Cram } from '../../core/cram';
 import { haptic } from '../haptics';
-import { Group, Help, NavRow, Screen, SectionTitle } from '../kit';
+import { Group, Help, NavRow, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
 import { readable, space, useTheme } from '../theme';
-import { useCollection, useCramClock, useCrams } from '../useCrams';
+import { deleteCram, useCollection, useCramClock, useCrams } from '../useCrams';
 
 /**
  * Practice, Cram: every cram, the ones coming up first, then those finished. The + button starts
- * one. With none yet, says what a cram is for.
+ * one. With none yet, says what a cram is for. A swipe on a row deletes it (after asking), as the
+ * editor's Delete does.
  */
 export function CramList({ repo }: { repo: NoteStore }) {
   const c = useTheme();
@@ -20,7 +22,27 @@ export function CramList({ repo }: { repo: NoteStore }) {
   const collection = useCollection(repo);
   const current = crams.filter((x) => !x.finishedAt).sort((a, b) => a.date.localeCompare(b.date));
   const past = crams.filter((x) => x.finishedAt).sort((a, b) => b.date.localeCompare(a.date));
-  const open = (cram: Cram) => { haptic.tap(); router.push({ pathname: '/cram', params: { id: cram.id } }); };
+  // The row slid open on its Delete action; one at a time.
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const confirmDelete = (cram: Cram) => {
+    Alert.alert(`Delete ${cram.name}?`, 'Only the cram is deleted. Its words and their cards stay in your decks.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            // The words' tag comes off first, so wait for the collection if it hasn't been read yet.
+            const notes = collection.loaded ? cramNotes(cram, collection.notes) : cramNotes(cram, await repo.listNotes());
+            await deleteCram(repo, cram, notes);
+          } catch (e) {
+            Alert.alert("Couldn't delete the cram", failureText(e, { next: 'Try again.' }));
+          }
+        },
+      },
+    ]);
+  };
+  const open = (cram: Cram) => { if (openRow === cram.id) { setOpenRow(null); return; } haptic.tap(); router.push({ pathname: '/cram', params: { id: cram.id } }); };
   const detail = (cram: Cram) => {
     if (isAwaitingFinish(cram, now, H)) return 'Over. Check off the words you used.';
     if (isRunning(cram, now, H) && collection.loaded) return `${dayName(cram, now, H)}. ${practiceSummary(cram, cramNotes(cram, collection.notes).map((n) => n.id))}`;
@@ -44,7 +66,9 @@ export function CramList({ repo }: { repo: NoteStore }) {
         {current.length ? (
           <Group>
             {current.map((cram, i) => (
-              <NavRow key={cram.id} first={i === 0} icon={{ name: 'calendar', color: c.accent }} label={cram.name} detail={detail(cram)} onPress={() => open(cram)} />
+              <CramSwipe key={cram.id} cram={cram} open={openRow === cram.id} onOpenChange={(o) => setOpenRow(o ? cram.id : null)} onDelete={confirmDelete}>
+                <NavRow first={i === 0} icon={{ name: 'calendar', color: c.accent }} label={cram.name} detail={detail(cram)} onPress={() => open(cram)} />
+              </CramSwipe>
             ))}
           </Group>
         ) : null}
@@ -53,18 +77,35 @@ export function CramList({ repo }: { repo: NoteStore }) {
             <SectionTitle>Finished</SectionTitle>
             <Group>
               {past.map((cram, i) => (
-                <NavRow
-                  key={cram.id}
-                  first={i === 0}
-                  label={cram.name}
-                  detail={`${dayName(cram, now, H)}. ${cram.used?.length ?? 0} of ${(cram.used?.length ?? 0) + (cram.unused?.length ?? 0)} words used.`}
-                  onPress={() => open(cram)}
-                />
+                <CramSwipe key={cram.id} cram={cram} open={openRow === cram.id} onOpenChange={(o) => setOpenRow(o ? cram.id : null)} onDelete={confirmDelete}>
+                  <NavRow
+                    first={i === 0}
+                    label={cram.name}
+                    detail={`${dayName(cram, now, H)}. ${cram.used?.length ?? 0} of ${(cram.used?.length ?? 0) + (cram.unused?.length ?? 0)} words used.`}
+                    onPress={() => open(cram)}
+                  />
+                </CramSwipe>
               ))}
             </Group>
           </>
         ) : null}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** A cram's row, slid left to show Delete; a full swipe asks to delete it. */
+function CramSwipe({ cram, open, onOpenChange, onDelete, children }: {
+  cram: Cram; open: boolean; onOpenChange: (open: boolean) => void; onDelete: (cram: Cram) => void; children: React.ReactNode;
+}) {
+  return (
+    <SwipeToReveal
+      open={open}
+      onOpenChange={onOpenChange}
+      onFullSwipe={() => onDelete(cram)}
+      action={<SwipeAction destructive icon="trash" label="Delete" accessibilityLabel={`Delete ${cram.name}`} onPress={() => { onOpenChange(false); onDelete(cram); }} />}
+    >
+      {children}
+    </SwipeToReveal>
   );
 }

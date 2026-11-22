@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type GrammarAnswer, type GrammarListRow } from '../../core/grammarDrills';
@@ -11,7 +11,7 @@ import { topicLine } from '../../reader/topics';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { grammarTag } from '../grammarTag';
-import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, Tag } from '../kit';
+import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal, Tag } from '../kit';
 import { Reveal } from '../motion';
 import { space, type, useTheme, readable } from '../theme';
 import { GrammarDrill } from './GrammarDrill';
@@ -35,6 +35,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
   // Your topics in the language; null until known, and after a failed request (a server older than topics has none).
   const [topics, setTopics] = useState<{ language: Language; rows: GrammarTopicRow[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The topic row slid open on its Delete action; one at a time.
+  const [openTopic, setOpenTopic] = useState<number | null>(null);
   const [drilling, setDrilling] = useState<string[] | null>(() => {
     try { return params.points ? (JSON.parse(params.points) as string[]) : null; } catch { return null; }
   });
@@ -61,6 +63,21 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
   }, [repo, readerApi, language]);
   // Again each time the screen comes back into view: a drill or a choice made on a point's page changes what's due.
   useFocusEffect(useCallback(() => { if (!drilling) load(); }, [load, drilling]));
+
+  const confirmDeleteTopic = (t: GrammarTopicRow) => Alert.alert('Delete this topic?', `"${t.title}" and its page are deleted.`, [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Delete', style: 'destructive',
+      onPress: async () => {
+        try {
+          await readerApi?.deleteTopic(t.id);
+          setTopics((p) => (p ? { ...p, rows: p.rows.filter((r) => r.id !== t.id) } : p));
+        } catch (e) {
+          Alert.alert("Couldn't delete the topic", e instanceof ApiError ? e.message : failureText(e, { next: 'Try again.' }));
+        }
+      },
+    },
+  ]);
 
   if (drilling && readerApi) {
     return (
@@ -151,7 +168,16 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
                 {topics.rows.length ? (
                   <Group>
                     {topics.rows.map((t, i) => (
-                      <NavRow key={t.id} first={i === 0} label={t.title} detail={topicLine(t, now, hour)} onPress={() => router.push({ pathname: '/grammar-topic', params: { id: String(t.id) } })} />
+                      <SwipeToReveal
+                        key={t.id}
+                        open={openTopic === t.id}
+                        onOpenChange={(o) => setOpenTopic(o ? t.id : null)}
+                        onFullSwipe={() => confirmDeleteTopic(t)}
+                        action={<SwipeAction destructive icon="trash" label="Delete" accessibilityLabel={`Delete ${t.title}`} onPress={() => { setOpenTopic(null); confirmDeleteTopic(t); }} />}
+                      >
+                        {/* Tapping a row that's slid open closes it, rather than opening the topic. */}
+                        <NavRow first={i === 0} label={t.title} detail={topicLine(t, now, hour)} onPress={() => (openTopic === t.id ? setOpenTopic(null) : router.push({ pathname: '/grammar-topic', params: { id: String(t.id) } }))} />
+                      </SwipeToReveal>
                     ))}
                   </Group>
                 ) : null}
