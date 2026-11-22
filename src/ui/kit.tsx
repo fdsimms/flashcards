@@ -445,13 +445,15 @@ export function SwipeAction({ icon, label, accessibilityLabel, onPress, destruct
  * A small button inside a screen's content (More ideas, Mark as unknown), a full tap target tall.
  * A tinted pill with a hairline edge, so it reads as a button and still shows on `accentFill`.
  */
-export function HeaderAction({ label, onPress, accessibilityLabel }: { label: string; onPress: () => void; accessibilityLabel?: string }) {
+export function HeaderAction({ label, onPress, accessibilityLabel, busy }: { label: string; onPress: () => void; accessibilityLabel?: string; /** Shows a spinner in place of the label while the action is in flight, and can't be pressed. */ busy?: boolean }) {
   const c = useTheme();
   return (
     <Tappable
       onPress={() => { haptic.tap(); onPress(); }}
+      disabled={busy}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!busy, busy: !!busy }}
       scaleTo={0.97}
       hitSlop={space.xs}
       style={{
@@ -459,7 +461,7 @@ export function HeaderAction({ label, onPress, accessibilityLabel }: { label: st
         backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
       }}
     >
-      <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>
+      {busy ? <ActivityIndicator color={c.accentInk} /> : <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>}
     </Tappable>
   );
 }

@@ -27,7 +27,7 @@ const CHOOSE = { icon: 'questionmark.circle.fill', label: 'Choose a word' } as c
 /** A note "Approve all" has saved, while the list holds still until the approval ends. */
 const ADDED = { icon: 'checkmark.circle.fill', label: 'Added' } as const;
 
-function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemove }: {
+function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry, onRemove }: {
   note: QueuedNote;
   first: boolean;
   /** Why the deck refused this note the last time it was approved; it stays queued, marked, until it's opened or removed. */
@@ -36,6 +36,8 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
   added?: boolean;
   /** An approval is running: nothing on the row can be tapped. */
   locked?: boolean;
+  /** A retry or removal for this word is waiting on the server: its buttons show it and can't be tapped again. */
+  pending?: boolean;
   onOpen: () => void;
   onRetry: () => void;
   onRemove: () => void;
@@ -52,7 +54,7 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Tappable
           onPress={() => { haptic.tap(); onOpen(); }}
-          disabled={note.state === 'waiting' || locked}
+          disabled={note.state === 'waiting' || locked || pending}
           accessibilityRole="button"
           accessibilityLabel={`${note.spelling ? `${note.entry}, written ${note.spelling}` : note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
@@ -69,12 +71,12 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
         </Tappable>
         <Tappable
           onPress={() => { haptic.tap(); onRemove(); }}
-          disabled={locked}
+          disabled={locked || pending}
           accessibilityRole="button"
           accessibilityLabel={`Remove ${note.entry} from the queue`}
           style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name="xmark" size={14} color={c.textSecondary} />
+          {pending ? <ActivityIndicator size="small" color={c.textSecondary} /> : <Icon name="xmark" size={14} color={c.textSecondary} />}
         </Tappable>
       </View>
       {refusal ? (
@@ -85,7 +87,7 @@ function NoteRow({ note, first, refusal, added, locked, onOpen, onRetry, onRemov
       {note.state === 'failed' ? (
         <View style={{ paddingHorizontal: space.l, paddingBottom: space.m, gap: space.s, alignItems: 'flex-start' }}>
           <Text style={{ ...type.footnote, color: c.danger }}>{note.error || "Couldn't fill this one in."}</Text>
-          <HeaderAction label="Try again" onPress={onRetry} />
+          <HeaderAction label="Try again" onPress={onRetry} busy={pending} />
         </View>
       ) : null}
     </View>
@@ -152,10 +154,16 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
    */
   const [freeze, setFreeze] = useState<{ notes: QueuedNote[]; added: number[]; done: number } | null>(null);
 
+  /** Queue ids with a retry or removal in flight, so a slow server shows on the row and a second tap does nothing. */
+  const [pending, setPending] = useState<number[]>([]);
+
   /** `what` says what failed, e.g. "Couldn't remove kot from the queue." */
-  const act = async (what: string, job: () => Promise<void>) => {
+  const act = async (id: number, what: string, job: () => Promise<void>) => {
+    if (pending.includes(id)) return;
     setProblem(null);
+    setPending((p) => [...p, id]);
     try { await job(); } catch (e) { setProblem(failureText(e, { what, next: 'Try again.' })); }
+    finally { setPending((p) => p.filter((x) => x !== id)); }
   };
 
   // `all` goes on through the ready notes after this one; a failed word filled in by hand is just itself.
@@ -290,9 +298,10 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
                   refusal={freeze ? undefined : refused[note.id]}
                   added={freeze?.added.includes(note.id)}
                   locked={approving}
+                  pending={pending.includes(note.id)}
                   onOpen={() => review(note, note.state === 'ready')}
-                  onRetry={() => act(`Couldn't ask Claude again for ${note.entry}.`, () => onRetry(note.id))}
-                  onRemove={() => act(`Couldn't remove ${note.entry} from the queue.`, () => onRemove(note.id))}
+                  onRetry={() => act(note.id, `Couldn't ask Claude again for ${note.entry}.`, () => onRetry(note.id))}
+                  onRemove={() => act(note.id, `Couldn't remove ${note.entry} from the queue.`, () => onRemove(note.id))}
                 />
               ))}
             </Group>
