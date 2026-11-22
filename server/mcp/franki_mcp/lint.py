@@ -27,7 +27,9 @@ DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorl
 
 MAX_LISTED = 200  # note ids a rule lists
 DUPLICATE = "duplicate-entry"
-_ARTICLE = re.compile(r"^(?:el|la|los|las|le|les|l['’]|der|die|das|en|ei|et|å|ο|η|το|οι|τα)\s*", re.IGNORECASE)
+# An article is a word of its own, so a space must follow it; only an elided l' joins the noun.
+# Without that, "len" read as "n" and "dieser" as "ser", and two unrelated words were called one.
+_ARTICLE = re.compile(r"^(?:(?:el|la|los|las|le|les|der|die|das|en|ei|et|å|ο|η|το|οι|τα)\s+|l['’]\s*)", re.IGNORECASE)
 
 
 def _bare(entry: str) -> str:
