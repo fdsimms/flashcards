@@ -1,14 +1,15 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { CramPage } from '../ui/cram/CramPage';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { useReadWithWords } from '../ui/useReadWithWords';
 import { useReviewQueued } from '../ui/useReviewQueued';
 
-/** A cram's page, by its `id`. Read a text goes to Read & Listen's shelf with the words to practice, as Review's does. */
+/** A cram's page, by its `id`. Read a text writes one with the cram's words and opens it, as Review's does (useReadWithWords). */
 export default function CramRoute() {
-  const router = useRouter();
-  const { repo, reader, openNoteEditor, sync } = useApp();
+  const { repo, reader, openNoteEditor } = useApp();
+  const readWithWords = useReadWithWords();
   const { id } = useLocalSearchParams<{ id: string }>();
   const queue = useNoteQueue(reader.api);
   const review = useReviewQueued(queue.add);
@@ -27,11 +28,7 @@ export default function CramRoute() {
       } : undefined}
       retry={reader.api ? queue.retry : undefined}
       onEditNote={(noteId, onClose) => openNoteEditor({ noteId }, () => onClose())}
-      onRead={async (language, words) => {
-        // Synced first, so the server knows the words as they are now.
-        await sync({ afterRunning: true });
-        router.dismissTo({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
-      }}
+      onRead={(language, words) => { readWithWords(language, words); }}
     />
   );
 }
