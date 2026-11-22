@@ -13,7 +13,7 @@ import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Group, HeaderAction, Help, Icon, NavRow, Screen, Tappable } from '../kit';
+import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
 import { Cover, CoverRow, useCoverTint } from './Cover';
 import { PracticeWordRow } from './PracticeWordPill';
 import { GlossPopover, type Tapped } from './Reader';
@@ -46,17 +46,13 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, onPractice, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
+export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
-  /** Opened from Review's "Read a text with these words": offers a text written to practice them. */
   /** The language the settings already name, so the header shows it while the shelf loads. */
   knownLanguage?: Language;
-  practice?: { language: Language; count: number; onCancel: () => void };
   /** Says a practice word aloud from its popover. */
   onPlayWord: (word: string, language: Language, say?: string) => void;
   onOpen: (open: OpenText) => void;
-  /** Writes a text on `topicId` practicing the words just studied (the reader waits for it). */
-  onPractice: (topic: { id: number; name: string }) => void;
   /** Opens having a series, dialogue or story written. */
   onNew: () => void;
   /** Opens having a series written, past the choice of kind. */
@@ -167,17 +163,6 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     setPicked(null);
   };
 
-  // Words just studied are in one language: switch to it, once per offer, so the text is written in
-  // it. This screen stays mounted as a tab, so the record of the switch is cleared when the offer
-  // goes (Not now, or a text started), or the next offer would find the shelf still on the old language.
-  const switchedTo = useRef<Language | null>(null);
-  useEffect(() => {
-    if (!practice) { switchedTo.current = null; return; }
-    if (!shelf || switchedTo.current === practice.language) return;
-    switchedTo.current = practice.language;
-    if (shelf.language !== practice.language) changeLanguage(practice.language);
-  }, [practice, shelf]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // A link names a language: switch to it once the shelf has loaded, then tell the route, so the
   // same link opened again later (after switching by hand) is handled again. A code the server
   // doesn't list is ignored rather than sent as a settings change it would refuse.
@@ -219,23 +204,6 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
     }]);
   };
 
-  const [practiceBusy, setPracticeBusy] = useState(false);
-  const startPractice = async () => {
-    if (!shelf || practiceBusy) return;
-    setPracticeBusy(true);
-    setActionError(null);
-    try {
-      // The idea that best fits the deck.
-      const [idea] = await api.suggestions();
-      if (!idea) throw new ApiError('There are no topic ideas left. Tap + at the top to write a text on a topic of your own instead.', 0);
-      onPractice(await api.addTopic(idea.name));
-    } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : "Couldn't start that text. Try again.");
-    } finally {
-      setPracticeBusy(false);
-    }
-  };
-
   const language = shelf?.language ?? picked ?? knownLanguage;
   const name = language ? LANGUAGES[language].name : 'Read & Listen';
 
@@ -273,15 +241,6 @@ export function ReadShelf({ api, knownLanguage, practice, onPlayWord, onOpen, on
         contentContainerStyle={{ ...readable, paddingTop: space.m, paddingBottom: space.xl, gap: space.l }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
-        {practice ? (
-          <Card style={{ gap: space.s, marginHorizontal: space.l }}>
-            <Text style={{ ...type.headline, color: c.text }}>{`Practice the ${practice.count} ${practice.count === 1 ? 'word' : 'words'} you just studied`}</Text>
-            <Help>A text is written with as many of them as fit. It takes about half a minute.</Help>
-            <Button label="Write a text with them" onPress={startPractice} busy={practiceBusy} disabled={!shelf || shelf.language !== practice.language} />
-            <View style={{ alignItems: 'flex-start' }}><HeaderAction label="Not now" onPress={practice.onCancel} /></View>
-          </Card>
-        ) : null}
-
         {error || actionError || !shelf ? (
           <View style={{ paddingHorizontal: space.l, gap: space.m }}>
             {error ? <ErrorNote message={error} onRetry={refresh} /> : null}

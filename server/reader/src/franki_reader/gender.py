@@ -100,6 +100,15 @@ def gender_problems(
     return problems
 
 
+def wrong_gender_words(language: Code, text: str, gender: str) -> list[str]:
+    """The words in one line that belong to the other gender in Thai, for a speaker of `gender`
+    (empty for another language, which isn't checked, or when the line fits)."""
+    if language != "th" or gender not in GENDERS:
+        return []
+    other: Gender = "female" if gender == "male" else "male"
+    return _thai_markers(text)[other]
+
+
 def quote_gender_problems(
     language: Code, quotations: Sequence[tuple[str, Gender, str]]
 ) -> list[str]:

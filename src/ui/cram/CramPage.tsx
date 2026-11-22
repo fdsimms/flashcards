@@ -16,7 +16,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Group, Help, Loading, NavRow, ProgressBar, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, Tappable } from '../kit';
 import { MIN_TAP, readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CheckRow, Pill } from './CramBits';
@@ -94,7 +94,7 @@ export function CramPage(props: {
   const [talkSize, chooseTalkSize] = useTalkSize();
   const noteIds = useMemo(() => notes.map((n) => n.id), [notes]);
   const sel = useSelection(noteIds);
-  if (!cram || !collection.loaded) return <Screen title={cram?.name ?? ''}><Loading /></Screen>;
+  if (!cram || !collection.loaded) return <Screen><Loading /></Screen>;
 
   const running = isRunning(cram, now, H);
   const over = isAwaitingFinish(cram, now, H);
@@ -227,8 +227,8 @@ export function CramPage(props: {
 
   const readerOff = 'Uses Read & Listen. Turn it on in Settings, Read & Listen.';
   return (
+    // No native title: the large one is a single line and cut a long name short, so the name is a heading in the page.
     <Screen
-      title={cram.name}
       footer={sel.selecting ? (
         <SelectBar
           count={sel.selected.size}
@@ -253,6 +253,7 @@ export function CramPage(props: {
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
         <Box>

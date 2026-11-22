@@ -22,7 +22,7 @@ import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckNewCardOrder } from './DeckNewCardOrder';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
-import { Card, Field, Group, Help, Loading, NavRow, Screen, SwitchRow } from './kit';
+import { Card, Field, Group, Help, Loading, NavRow, PageTitle, Screen, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -115,9 +115,10 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
   const on = settings?.gateCap !== undefined;
   const name = deck.split('::').pop();
   return (
-    <Screen title={name}>
+    <Screen>
       {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+        <PageTitle>{name ?? ''}</PageTitle>
         <Group>
           <SwitchRow
             first
