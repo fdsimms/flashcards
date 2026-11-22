@@ -12,6 +12,7 @@ from franki_speech.loudness import (
     TARGET_LUFS,
     TOLERANCE_LU,
     LoudnessError,
+    LoudnessUnavailable,
     measure_loudness,
     normalize_loudness,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "TARGET_LUFS",
     "TOLERANCE_LU",
     "LoudnessError",
+    "LoudnessUnavailable",
     "SpeechClient",
     "SpeechError",
     "audio_filename",
@@ -32,11 +34,12 @@ __all__ = [
 ]
 
 
-def audio_filename(text: str, voice: str, rate: float, reading: str | None = None) -> str:
+def audio_filename(text: str, voice: str, rate: float, reading: str | None = None, ipa: str | None = None) -> str:
     """The same text in the same voice and speed gets the same file, so asking again adds nothing. A
     Japanese word recorded from its reading is named with it, apart from one recorded from the kanji
-    (the app's recordingName names them the same way)."""
-    key = f"{voice}\n{rate}\n{text}" + (f"\n{reading}" if reading else "")
+    (the app's recordingName names them the same way). One recorded from IPA is named with that too;
+    the app never records from IPA, so its names are unchanged."""
+    key = f"{voice}\n{rate}\n{text}" + (f"\n{reading}" if reading else "") + (f"\nipa:{ipa}" if ipa else "")
     digest = hashlib.sha1(key.encode()).hexdigest()[:16]
     return f"franki-tts-{digest}.mp3"
 
