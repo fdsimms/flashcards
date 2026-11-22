@@ -1185,6 +1185,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cram/words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Words Route
+         * @description Words Claude suggests for a cram's topic, for the learner to pick from. Writes nothing:
+         *     the app tags the ones the deck has and queues the rest, each behind the learner's tap.
+         */
+        post: operations["cram_words_route_api_cram_words_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mnemonics": {
         parameters: {
             query?: never;
@@ -2427,16 +2448,16 @@ export interface components {
             /** Word Ids */
             word_ids: string[];
             /** Deck Words */
-            deck_words: components["schemas"]["WordOut"][];
+            deck_words: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
             /** New Words */
-            new_words: components["schemas"]["WordOut"][];
+            new_words: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
             /** Questions */
             questions: components["schemas"]["LineOut"][];
             /** Expects */
             expects: components["schemas"]["ExpectOut"][];
             story: components["schemas"]["LineOut"] | null;
             /** Unknown */
-            unknown: components["schemas"]["WordOut"][];
+            unknown: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
         };
         /** ThemesIn */
         ThemesIn: {
@@ -2583,13 +2604,6 @@ export interface components {
              */
             english: string;
         };
-        /** WordOut */
-        WordOut: {
-            /** Word */
-            word: string;
-            /** English */
-            english: string;
-        };
         /** WordSuggestionOut */
         WordSuggestionOut: {
             /** Word */
@@ -2616,6 +2630,36 @@ export interface components {
             /** Written Error */
             written_error: string;
         };
+        /** WordsIn */
+        WordsIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /**
+             * Facts
+             * @default
+             */
+            facts: string;
+            /**
+             * Focus
+             * @default
+             */
+            focus: string;
+            /** Exclude */
+            exclude?: string[];
+        };
+        /** WordsOut */
+        WordsOut: {
+            /** Words */
+            words: components["schemas"]["franki_reader__routes__cram_words__WordOut"][];
+        };
         /** WriteIn */
         WriteIn: {
             /** Name */
@@ -2632,6 +2676,26 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
+        };
+        /** WordOut */
+        franki_reader__routes__cram_themes__WordOut: {
+            /** Word */
+            word: string;
+            /** English */
+            english: string;
+        };
+        /** WordOut */
+        franki_reader__routes__cram_words__WordOut: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
+            /** English */
+            english: string;
+            /** Commonness */
+            commonness: string;
+            /** Register */
+            register: string;
         };
         /** ReadingIn */
         franki_reader__routes__texts__ReadingIn: {
@@ -5148,6 +5212,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThemesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_words_route_api_cram_words_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WordsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WordsOut"];
                 };
             };
             /** @description Validation Error */

@@ -128,7 +128,7 @@ class Candidate:
 FindWords = Callable[[Code, str], Awaitable[tuple[list[Candidate], Usage]]]
 
 
-def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
+def clean(answer: dict[str, Any], language: Code, limit: int = MAX_CANDIDATES) -> list[Candidate]:
     """The candidates the app may offer: written in the language's own script (a Latin letter in a
     Thai, Russian, Greek or Japanese one means Claude handed the romanization back), each word once,
     each with a meaning, none too long to send as a lesson phrase. One that doesn't pass is dropped,
@@ -157,7 +157,7 @@ def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
                 register if register in REGISTERS else "",
             )
         )
-    return out[:MAX_CANDIDATES]
+    return out[:limit]
 
 
 def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:

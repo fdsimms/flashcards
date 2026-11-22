@@ -313,6 +313,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       language lessons are made in. It writes nothing; asked only on Find
                                       word. 503 without Claude. Its cost is kept in `call_costs`
                                       (feature "lesson_words")
+    POST  /api/cram/words             {language, topic?, facts?, focus?, exclude?: [word]} about eight
+                                      words in the language's own script for what a cram is for
+                                      (Suggest words), leaving out `exclude`: {words: [{text, reading,
+                                      english, commonness, register}]}. It writes nothing; the app
+                                      tags the ones the deck has and queues the rest. Asked when the
+                                      screen opens, on a typed focus and on More words. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature "cram_words")
     POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
                                       owner flagged: {changes: {field: new html}, explanation}, only the
                                       fields that change (none when Claude can't fix it from text). It
@@ -355,6 +362,7 @@ from franki_reader import (
     comprehension,
     config,
     cram_themes,
+    cram_words,
     drills,
     fix_card,
     forms,
@@ -475,6 +483,7 @@ def create_app(
     fix_flagged_card: fix_card.FixCard | None = None,
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
+    suggest_cram_words: cram_words.SuggestWords | None = None,
     write_rare_words: rare_words.WriteRareWords | None = None,
     look_up_words: word_lookup.LookUpWords | None = None,
 ) -> FastAPI:
@@ -568,6 +577,7 @@ def create_app(
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
+        suggest_cram_words=suggest_cram_words,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,
         authed=[Depends(require_passphrase)],
@@ -614,6 +624,7 @@ def production_app() -> FastAPI:
     fix_flagged_card: fix_card.FixCard | None = None
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
+    suggest_cram_words: cram_words.SuggestWords | None = None
     write_rare_words: rare_words.WriteRareWords | None = None
     look_up_words: word_lookup.LookUpWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
@@ -647,6 +658,7 @@ def production_app() -> FastAPI:
         fix_flagged_card = fix_card.claude_fix_card(client)
         find_lesson_words = lesson_words.claude_find_words(client)
         write_cram_themes = cram_themes.claude_themes(client)
+        suggest_cram_words = cram_words.claude_suggest_words(client)
         write_rare_words = rare_words.claude_rare_words(client)
 
         def ask_for(
@@ -740,6 +752,7 @@ def production_app() -> FastAPI:
         fix_flagged_card=fix_flagged_card,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
+        suggest_cram_words=suggest_cram_words,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,
     )

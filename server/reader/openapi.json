@@ -4197,6 +4197,63 @@
         }
       }
     },
+    "/api/cram/words": {
+      "post": {
+        "summary": "Cram Words Route",
+        "description": "Words Claude suggests for a cram's topic, for the learner to pick from. Writes nothing:\nthe app tags the ones the deck has and queues the rest, each behind the learner's tap.",
+        "operationId": "cram_words_route_api_cram_words_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mnemonics": {
       "post": {
         "summary": "Make Mnemonics",
@@ -8170,14 +8227,14 @@
           },
           "deck_words": {
             "items": {
-              "$ref": "#/components/schemas/WordOut"
+              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
             },
             "type": "array",
             "title": "Deck Words"
           },
           "new_words": {
             "items": {
-              "$ref": "#/components/schemas/WordOut"
+              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
             },
             "type": "array",
             "title": "New Words"
@@ -8208,7 +8265,7 @@
           },
           "unknown": {
             "items": {
-              "$ref": "#/components/schemas/WordOut"
+              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
             },
             "type": "array",
             "title": "Unknown"
@@ -8648,24 +8705,6 @@
         ],
         "title": "WordMeaningIn"
       },
-      "WordOut": {
-        "properties": {
-          "word": {
-            "type": "string",
-            "title": "Word"
-          },
-          "english": {
-            "type": "string",
-            "title": "English"
-          }
-        },
-        "type": "object",
-        "required": [
-          "word",
-          "english"
-        ],
-        "title": "WordOut"
-      },
       "WordSuggestionOut": {
         "properties": {
           "word": {
@@ -8739,6 +8778,73 @@
         "title": "WordSuggestionsOut",
         "description": "The words from texts read, the common words the deck lacks and, for English, the rare words\nClaude wrote, each source best first. `written_error` says why Claude's words are missing."
       },
+      "WordsIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Topic",
+            "default": ""
+          },
+          "facts": {
+            "type": "string",
+            "maxLength": 400,
+            "title": "Facts",
+            "default": ""
+          },
+          "focus": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Focus",
+            "default": ""
+          },
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 150,
+            "title": "Exclude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "WordsIn"
+      },
+      "WordsOut": {
+        "properties": {
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/franki_reader__routes__cram_words__WordOut"
+            },
+            "type": "array",
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "words"
+        ],
+        "title": "WordsOut"
+      },
       "WriteIn": {
         "properties": {
           "name": {
@@ -8771,6 +8877,57 @@
           "name"
         ],
         "title": "WriteIn"
+      },
+      "franki_reader__routes__cram_themes__WordOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "english"
+        ],
+        "title": "WordOut"
+      },
+      "franki_reader__routes__cram_words__WordOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "title": "Reading"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "commonness": {
+            "type": "string",
+            "title": "Commonness"
+          },
+          "register": {
+            "type": "string",
+            "title": "Register"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading",
+          "english",
+          "commonness",
+          "register"
+        ],
+        "title": "WordOut"
       },
       "franki_reader__routes__texts__ReadingIn": {
         "properties": {

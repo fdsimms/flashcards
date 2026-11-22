@@ -468,6 +468,8 @@ export type WordSuggestions = Schemas['WordSuggestionsOut'];
 /** A cram's themes (server cram_themes.py), what's asked for them and one of them. */
 export type CramThemes = Schemas['ThemesOut'];
 export type CramThemesRequest = Schemas['ThemesIn'];
+/** What Suggest words sends: what the cram is for, what really happened, the learner's steer and the words to leave out (`cramWordsRequest`). */
+export type CramWordsRequest = Schemas['WordsIn'];
 export type CramTheme = Schemas['ThemeOut'];
 
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
@@ -713,6 +715,9 @@ export function createApi(
       })).topics,
     // Themes to talk about at a lesson, written by Claude from the learner's words (server cram_themes.py). Adds no note and grades nothing.
     cramThemes: (request: CramThemesRequest) => call<CramThemes>('POST', '/api/cram/themes', request),
+    // About eight words in the language for what a cram is for, leaving out `exclude` (server cram_words.py). Writes nothing:
+    // the app tags the ones the deck has and queues the rest (core/cramWords.ts).
+    cramWords: async (body: CramWordsRequest) => (await call<{ words: LessonWordCandidate[] }>('POST', '/api/cram/words', body)).words,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>

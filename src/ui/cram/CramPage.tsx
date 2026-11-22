@@ -34,7 +34,7 @@ const WORDS_SHOWN = 8;
 /**
  * A cram's page, the plan for the day: how practice is going and a Practice button that works any
  * time (on the lesson's day, Start the lesson leads instead); Talking points (folded, a tap opens one,
- * ⋯ edits its story or removes it); Words (Add, and a pill to bring in the words missed lately);
+ * ⋯ edits its story or removes it); Words (Suggest words, Add, and a pill to bring in the words missed lately);
  * Questions about the language; Get ready (an audio lesson, a text, Rehearse); and Start the lesson.
  * Once finished, what was used and what was typed in the lesson.
  * Opening it also puts any of its reviews scheduled after the day on the day (`capCramCards`), and
@@ -229,6 +229,7 @@ export function CramPage(props: {
               <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
               {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Solid words" /> : null}
               {ids.length ? <Button label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
+              {!ids.length && props.readerApi && language ? <Button label="Suggest words" onPress={() => go('/cram-suggest')} /> : null}
               <Help>{ids.length ? 'Words you missed come first. A word is solid after you get it right first try in two rounds in a row. Practicing here doesn\'t change your cards.' : 'Add words below to practice them.'}</Help>
             </>
           )}
@@ -270,7 +271,17 @@ export function CramPage(props: {
           </View>
         ) : null}
         <Group>
-          {!cram.finishedAt ? <NavRow first icon={{ name: 'plus', color: c.accent }} label="Add a word" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
+          {!cram.finishedAt ? (
+            <NavRow
+              first
+              icon={{ name: 'sparkles', color: c.accent }}
+              label="Suggest words"
+              detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : 'Claude picks words for this cram, from your deck and new ones.'}
+              disabled={!props.readerApi || !language}
+              onPress={() => go('/cram-suggest')}
+            />
+          ) : null}
+          {!cram.finishedAt ? <NavRow icon={{ name: 'plus', color: c.accent }} label="Add a word" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
           {shown.map((note, i) => {
             const state = wordState(cram, note.id, (cardsOf.get(note.id) ?? []).every((x) => x.sched.state === 0));
             return (

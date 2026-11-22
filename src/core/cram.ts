@@ -498,7 +498,7 @@ export function practiceSummary(cram: Cram, noteIds: string[]): string {
 }
 
 /** A word's text as compared: one form of Unicode, spaces collapsed, ignoring case. */
-const textKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+export const textKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 
 /** The cards asked of Claude for the cram that aren't in it yet: no note of the cram has the word. */
 export function pendingRequests(cram: Cram, inCram: Note[]): CramRequest[] {

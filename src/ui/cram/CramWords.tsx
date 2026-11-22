@@ -28,7 +28,8 @@ const SHOWN = 60;
  * Notes in the cram's language match by word or by a whole word of the meaning (`searchNotes`); a
  * tap adds the cram's tag or takes it off, the check showing at once and put back, with the reason,
  * if the note can't be saved. What's typed can also be a tag ("Add all 12 tagged italki"), or, with
- * Read & Listen on, a card for Claude to write (`CramAsk`). Nothing typed: the newest notes.
+ * Read & Listen on, a card for Claude to write (`CramAsk`). Nothing typed: the newest notes, and a row
+ * that opens Suggest words (`CramSuggest`).
  */
 export function CramWords({ repo, id, initial, findWords, queue, queued, approve }: {
   repo: NoteStore;
@@ -145,6 +146,11 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
             <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
             {typed && !exact && language && findWords && queue ? (
               <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
+            ) : null}
+            {!typed && language && findWords ? (
+              <Group>
+                <NavRow first icon={{ name: 'sparkles', color: c.accent }} label="Suggest words for this cram" detail="Claude picks them from the cram's name." onPress={() => router.push({ pathname: '/cram-suggest', params: { id } })} />
+              </Group>
             ) : null}
             {tagMatch && tagged.length ? (
               <Group>

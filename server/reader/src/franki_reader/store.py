@@ -1914,6 +1914,7 @@ CallFeature = Literal[
     "lessons",
     "lesson_topics",
     "cram_themes",
+    "cram_words",
     "ipa",
     "aspect",
     "ask_card",
