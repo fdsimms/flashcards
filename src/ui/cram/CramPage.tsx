@@ -14,7 +14,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Group, Help, Loading, NavRow, ProgressBar, Screen, SectionTitle } from '../kit';
+import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle } from '../kit';
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { Pill } from './CramBits';
@@ -88,7 +88,7 @@ export function CramPage(props: {
   }, [repo, notes.length]);
 
   const [talkSize, chooseTalkSize] = useTalkSize();
-  if (!cram || !collection.loaded) return <Screen title={cram?.name ?? ''}><Loading /></Screen>;
+  if (!cram || !collection.loaded) return <Screen><Loading /></Screen>;
 
   const running = isRunning(cram, now, H);
   const over = isAwaitingFinish(cram, now, H);
@@ -195,8 +195,8 @@ export function CramPage(props: {
 
   const readerOff = 'Uses Read & Listen. Turn it on in Settings, Read & Listen.';
   return (
+    // No native title: the large one is a single line and cut a long name short, so the name is a heading in the page.
     <Screen
-      title={cram.name}
       toolbar={(
         <Stack.Toolbar placement="right">
           {!cram.finishedAt && (cram.themes?.length || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
@@ -205,6 +205,7 @@ export function CramPage(props: {
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
         <Box>

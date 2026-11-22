@@ -17,6 +17,7 @@ import { Review } from '../ui/Review';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useDailyExtras } from '../ui/useDailyExtras';
 import type { CardGlossing } from '../ui/useCardGlosses';
+import { useReadWithWords } from '../ui/useReadWithWords';
 import { useWordAudio } from '../ui/useWordAudio';
 
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
@@ -40,16 +41,11 @@ export default function ReviewRoute() {
   // (`decks` is missing from a server older than the deck setting.)
   const language = readerSettings?.decks ? languageOfDeck(deck, readerSettings.decks) : null;
   const extras = useDailyExtras();
+  const readWithWords = useReadWithWords();
   const practice = readerSettings?.decks && language ? {
     languageDeck: readerSettings.decks[language],
-    onRead: async (words: string[]) => {
-      // Synced first, so the server reads the answers just given before it writes the text (after a
-      // sync already running, which may have started before them). Unless this screen was left
-      // while it ran: then the replace would land on whatever is in front.
-      await sync({ afterRunning: true });
-      if (left.current) return;
-      router.dismissTo({ pathname: '/read', params: { practice: JSON.stringify({ language, words }) } });
-    },
+    // Unless this screen was left while it ran: then the text would open over whatever is in front.
+    onRead: (words: string[]) => readWithWords(language, words, () => !left.current),
     // Use today's words: a sentence of one's own with each word learned in the session, checked by Claude.
     onUseWords: readerApi ? (words: WordToUse[]) => router.push({ pathname: '/read-use-words', params: { language, words: JSON.stringify(words) } }) : undefined,
   } : undefined;
