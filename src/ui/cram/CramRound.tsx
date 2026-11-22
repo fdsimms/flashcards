@@ -48,6 +48,9 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   const playWord = useWordAudio(repo);
   const answered = useRef(0);
+  // Counts answers, so the screen resets for the next showing even when it is the same word again
+  // (Missed it on the last word left puts that word straight back).
+  const [turn, setTurn] = useState(0);
 
   useEffect(() => {
     repo.listNoteTypes().then(setNoteTypes, () => undefined);
@@ -76,7 +79,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     onBeforeListen: () => Keyboard.dismiss(),
     onHeard: (text) => { setSpokenIn(true); setTyped(text); },
   });
-  useEffect(() => { spoken.cancel(); setTyped(''); setSpokenIn(false); setRevealed(false); }, [noteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { spoken.cancel(); setTyped(''); setSpokenIn(false); setRevealed(false); }, [noteId, turn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A cram with no words has no round to do, and none is kept.
   const empty = !!round && round.noteIds.length === 0;
@@ -110,6 +113,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     if (!round) return;
     haptic.answer();
     answered.current++;
+    setTurn(answered.current);
     setRound(answerWord(round, got));
   };
 
