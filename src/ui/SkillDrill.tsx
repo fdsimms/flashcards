@@ -49,6 +49,8 @@ interface DrillState {
   times: number[];
   /** What the phone heard, when the answer was said aloud, and whether it's the answer. */
   heard?: { text: string; right: boolean };
+  /** The state at each earlier mark, newest last, so Back can return to a marked question to look at it again. */
+  trail: DrillState[];
 }
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
@@ -60,7 +62,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
     return { ...next, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
-  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, retry: first.retry, missed: [], shown: false, results: [], askedAt: first.at, times: [] } : null;
+  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, retry: first.retry, missed: [], shown: false, results: [], askedAt: first.at, times: [], trail: [] } : null;
   const done = !!live && live.results.length >= DRILL_QUESTIONS;
   const reveal = (heard?: string) => {
     if (!live || live.shown || !drill) return;
@@ -93,8 +95,16 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
       noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
       const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
-      setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times });
+      setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times, trail: [...live.trail, live] });
       return last;
+    },
+    /** Whether an earlier question can be gone back to. */
+    canBack: !!live && live.trail.length > 0,
+    /** Back to the question marked last, its answer showing, to be marked again. The question on screen is let go; the marks it replaces are taken back. */
+    back: () => {
+      if (!live || !live.trail.length) return;
+      const previous = live.trail[live.trail.length - 1];
+      setState({ ...previous, askedAt: Date.now(), trail: live.trail.slice(0, -1) });
     },
     /** The card was answered: after Again or Hard, what was missed comes back with it; Good and Easy let it go. */
     rated: (rating: number) => {
@@ -170,6 +180,23 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
   );
 }
 
+/** Back to the previous question of the drill, at the left of the footer's buttons. Nothing is shown until there is one. */
+export function SkillBackButton({ skill, onBack }: { skill: SkillDrillState; onBack?: () => void }) {
+  const c = useTheme();
+  if (!skill.canBack) return null;
+  return (
+    <Tappable
+      onPress={() => { haptic.select(); skill.back(); onBack?.(); }}
+      accessibilityRole="button"
+      accessibilityLabel="Previous question"
+      scaleTo={0.95}
+      style={{ width: 52, alignSelf: 'center', height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.fill }}
+    >
+      <Icon name="chevron.left" size={20} color={c.text} />
+    </Tappable>
+  );
+}
+
 /** The footer while the drill runs: Show answer, then Missed it and Got it, outlined so they don't read as Again and Good. */
 export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrillState; onFinished: () => void; say: (text: string, speech: string) => void }) {
   const c = useTheme();
@@ -186,6 +213,7 @@ export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrill
     return (
       <View style={{ gap: space.s }}>
         <View style={{ flexDirection: 'row', gap: space.s }}>
+          <SkillBackButton skill={skill} />
           <SpeakButton spoken={spoken} label="Say the answer" />
           <Button
             label="Show answer"
@@ -209,6 +237,7 @@ export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrill
   };
   return (
     <View style={{ flexDirection: 'row', gap: space.s }}>
+      <SkillBackButton skill={skill} />
       {[{ right: false, label: 'Missed it', edge: c.again, fill: c.dangerFill }, { right: true, label: 'Got it', edge: c.good, fill: c.goodFill }].map((b) => (
         <Tappable
           key={b.label}
