@@ -301,7 +301,7 @@ describe('skill steps that wait for words', () => {
   });
 
   it('write the words for the groups that need them, and nothing for the others', () => {
-    expect(skillWordDrafts('nb', ['dates'])).toHaveLength(60);
+    expect(skillWordDrafts('nb', ['dates'])).toHaveLength(70);
     expect(skillWordDrafts('nb', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(expect.arrayContaining(['halv', 'kvart', 'en', 'ti', 'hundre', 'tusen', 'krone']));
     expect(skillWordDrafts('nb', ['consonants', 'classifiers'])).toEqual([]);
     expect(skillWordDrafts('en', ['dates'])).toEqual([]);
@@ -318,17 +318,18 @@ describe('skill steps that wait for words', () => {
     const months = ['januar', 'februar', 'mars'];
     const weekdays = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
     const ordinals = ['første', 'andre', 'tredje', 'fjerde', 'femte', 'sjette', 'sjuende', 'åttende', 'niende', 'tiende'];
+    const numberWords = ['en', 'to', 'tre', 'fire', 'fem', 'seks', 'sju', 'åtte', 'ni', 'ti'];
     const yearWords = ['elleve', 'tolv', 'tretten', 'fjorten', 'femten', 'seksten', 'sytten', 'atten', 'nitten', 'tjue', 'tretti', 'førti', 'femti', 'seksti', 'sytti', 'åtti', 'nitti', 'hundre', 'tusen', 'og'];
     expect(missingByCard(cards, notes, known(['januar']))).toEqual(new Map([
-      ['c1', ['2 more month names', '10 more day ordinals']],
-      ['c2', ['2 more month names', 'weekday names', 'numbers 11 to 19', 'tens', 'hundre', 'tusen', 'og']],
+      ['c1', ['2 more month names', 'number words', '10 more day ordinals']],
+      ['c2', ['2 more month names', 'weekday names', 'hundre', 'tusen', 'numbers 11 to 19', 'tens', 'og']],
     ]));
     expect(asks[0]).toBe('Norsk');
-    expect(missingByCard(cards, notes, known([...months, ...ordinals.slice(0, 4)]))).toEqual(new Map([
+    expect(missingByCard(cards, notes, known([...months, ...numberWords, ...ordinals.slice(0, 4)]))).toEqual(new Map([
       ['c1', ['6 more day ordinals']],
-      ['c2', ['weekday names', 'numbers 11 to 19', 'tens', 'hundre', 'tusen', 'og']],
+      ['c2', ['weekday names', 'hundre', 'tusen', 'numbers 11 to 19', 'tens', 'og']],
     ]));
-    expect(missingByCard(cards, notes, known([...months, ...ordinals, ...weekdays, ...yearWords]))).toEqual(new Map());
+    expect(missingByCard(cards, notes, known([...months, ...numberWords, ...ordinals, ...weekdays, ...yearWords]))).toEqual(new Map());
   });
 
   it('never count a word known in another language\'s deck, or one seen only once', () => {
@@ -342,7 +343,7 @@ describe('skill steps that wait for words', () => {
     const norwegian = knownHeadwords(all as never, cards, skillLanguageDeck('Norsk::Skills'));
     expect(norwegian).toEqual(['januar']);
     const skillNote = note('k', 'Norsk::Skills', '', ['skill', 'skill::drill::dates-day', 'skill::lang::nb']);
-    expect(missingByCard([{ id: 'c', noteId: 'k' }], new Map([['k', skillNote]]), knownIn(all as never, cards))).toEqual(new Map([['c', ['2 more month names', '10 more day ordinals']]]));
+    expect(missingByCard([{ id: 'c', noteId: 'k' }], new Map([['k', skillNote]]), knownIn(all as never, cards))).toEqual(new Map([['c', ['2 more month names', 'number words', '10 more day ordinals']]]));
     expect(skillLanguageDeck('A::B::Skills')).toBe('A::B');
     expect(skillLanguageDeck('A::B')).toBe('A::B');
   });
@@ -377,14 +378,14 @@ describe('skill steps that wait for words', () => {
 
   it('need the words their steps say', () => {
     const labels = (step: string) => stepNeeds(step, 'nb').map((n) => n.label);
-    expect(labels('dates-day')).toEqual(['month names', 'day ordinals']);
-    expect(labels('dates-year')).toEqual(['month names', 'weekday names', 'numbers 11 to 19', 'tens', 'hundred', 'thousand', 'and']);
+    expect(labels('dates-day')).toEqual(['month names', 'number words', 'day ordinals']);
+    expect(labels('dates-year')).toEqual(['month names', 'weekday names', 'hundred', 'thousand', 'numbers 11 to 19', 'tens', 'and']);
     expect(labels('numbers-99')).toEqual(['numbers 11 to 19', 'tens']);
     expect(labels('time-quarters')).toEqual(['quarter', 'past', 'to']);
     expect(labels('time-five')).toEqual(['twenty']);
     expect(labels('time-any')).toEqual(['numbers 11 to 19', 'minute']);
-    expect(labels('money-100')).toEqual(['currency', 'numbers 11 to 19', 'tens']);
-    expect(labels('money-1000')).toEqual(['hundred', 'and']);
+    expect(labels('money-100')).toEqual(['number words', 'hundred', 'currency', 'numbers 11 to 19', 'tens']);
+    expect(labels('money-1000')).toEqual(['hundred', 'thousand', 'and']);
     expect(stepNeeds('time-any', 'en')).toEqual([]);
   });
 
@@ -480,13 +481,16 @@ describe('counting things drills', () => {
     expect(heardRight(q, 'pięć koty', 'pl')).toBe(false);
   });
 
-  it('writes one card per step, the first live and the rest suspended, and none for other languages', () => {
+  it('writes one card per step, all suspended (the first waits for the numbers one to ten), and none for other languages', () => {
     const drafts = skillDrafts('pl', 'Polish', ['counting']);
-    expect(drafts.map((d) => d.suspended)).toEqual([false, true, true, true]);
+    expect(drafts.map((d) => d.suspended)).toEqual([true, true, true, true]);
     expect(drafts[0].tags).toEqual([SKILL_TAG, 'skill::drill::counting-one', 'skill::lang::pl']);
     expect(drafts[0].fields.Front).toContain('Polish · Counting things: 1 with the noun');
     expect(skillDrafts('de', 'German', ['counting'])).toEqual([]);
-    expect(skillWordDrafts('pl', ['counting'])).toEqual([]);
+    // Counting says the numbers (one to ten, the teens, the tens and sto), never the nouns it counts.
+    const counting = skillWordDrafts('pl', ['counting']).map((d) => d.fields.Entry);
+    expect(counting).toEqual(expect.arrayContaining(['jeden', 'dziesięć', 'jedenaście', 'dwadzieścia', 'sto']));
+    expect(counting).not.toContain('kot');
   });
 
   it('lists the steps in Skills under Counting things', () => {
