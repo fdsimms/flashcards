@@ -42,8 +42,8 @@ describe('adding skill cards', () => {
   it('adds Basic notes in the deck\'s Skills subdeck, in Anki too, every step suspended until it can start', async () => {
     const { store, anki } = await franki();
     const got = await addSkillCards(store, { ...add, groups: ['time'] });
-    // The collection has no Omnilanguage note type, so the two words telling the time needs (half, ครึ่ง, and o'clock, โมง) are reported, not added.
-    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, wordsSkipped: 2, skipped: 0 });
+    // The collection has no Omnilanguage note type, so the words telling the time needs (one to ten, half, o'clock, the times of day...) are reported, not added.
+    expect(got).toEqual({ deck: 'Thai::Skills', added: 4, words: 0, wordsSkipped: 22, skipped: 0 });
     const notes = [...store.notes.values()].filter((n) => n.tags.includes('skill'));
     expect(notes).toHaveLength(4);
     expect(notes.every((n) => n.deck === 'Thai::Skills' && n.model === 'Basic' && /^\d+$/.test(n.id))).toBe(true);
@@ -74,7 +74,7 @@ describe('adding skill cards', () => {
     const { store } = await franki();
     const before = store.notes.size;
     const got = await addSkillCards(store, { ...add, groups: ['dates'] });
-    expect(got).toMatchObject({ added: 3, words: 0, wordsSkipped: 19 });
+    expect(got).toMatchObject({ added: 3, words: 0, wordsSkipped: 34 });
     expect(store.notes.size).toBe(before + 3);
   });
 
@@ -102,11 +102,11 @@ describe('writing the words a skill needs', () => {
   it('adds each missing word as an Omnilanguage note in the Skills subdeck, tagged, with its cards live', async () => {
     const store = await offline();
     const got = await addSkillCards(store, { ...add, groups: ['dates'] });
-    expect(got).toEqual({ deck: 'Thai::Skills', added: 3, words: 19, wordsSkipped: 0, skipped: 0 });
+    expect(got).toEqual({ deck: 'Thai::Skills', added: 3, words: 34, wordsSkipped: 0, skipped: 0 });
     const words = [...store.notes.values()].filter((n) => n.model === 'Omnilanguage');
-    expect(words).toHaveLength(19);
-    expect(words.every((n) => n.deck === 'Thai::Skills' && n.tags.join() === 'skill::words' && n.fields.Language === 'thai' && n.fields.PartOfSpeech === 'noun')).toBe(true);
-    expect(words.find((n) => n.fields.Entry === 'กุมภาพันธ์')?.fields.Meaning).toBe('February');
+    expect(words).toHaveLength(34);
+    expect(words.every((n) => n.deck === 'Thai::Skills' && n.tags.join() === 'skill::words' && n.fields.Language === 'thai')).toBe(true);
+    expect(words.find((n) => n.fields.Entry === 'กุมภาพันธ์')?.fields).toMatchObject({ Meaning: 'February', PartOfSpeech: 'noun' });
     // Every field of the note type is there, empty where the word has nothing to say.
     expect(Object.keys(words[0].fields)).toEqual(expect.arrayContaining(omnilanguageFieldNames));
     const ids = new Set(words.map((n) => n.id));
@@ -116,7 +116,7 @@ describe('writing the words a skill needs', () => {
   it('leaves a word the deck has already, in any subdeck, and adds nothing the second time', async () => {
     const store = await offline();
     await saveNote(store, { deck: 'Thai::Tier 1', model: 'Omnilanguage', fields: { Entry: 'มกราคม', Meaning: 'January', Language: 'thai' }, tags: [] }, NOW);
-    expect(await addSkillCards(store, { ...add, groups: ['dates'] })).toMatchObject({ words: 18 });
+    expect(await addSkillCards(store, { ...add, groups: ['dates'] })).toMatchObject({ words: 33 });
     expect([...store.notes.values()].filter((n) => n.fields.Entry === 'มกราคม')).toHaveLength(1);
     expect(await addSkillCards(store, { ...add, groups: ['dates'] })).toMatchObject({ added: 0, words: 0, wordsSkipped: 0 });
   });
@@ -124,7 +124,7 @@ describe('writing the words a skill needs', () => {
   it('counts a word in a studied-or-not note of another language as not there', async () => {
     const store = await offline();
     await saveNote(store, { deck: 'Deutsch', model: 'Omnilanguage', fields: { Entry: 'Januar', Meaning: 'January', Language: 'german' }, tags: [] }, NOW);
-    expect(await addSkillCards(store, { ...add, deck: 'Norsk', language: 'nb', languageName: 'Norwegian', groups: ['dates'] })).toMatchObject({ words: 19 });
+    expect(await addSkillCards(store, { ...add, deck: 'Norsk', language: 'nb', languageName: 'Norwegian', groups: ['dates'] })).toMatchObject({ words: 70 });
   });
 });
 
@@ -133,15 +133,15 @@ describe('the words a skill needs', () => {
 
   it('are every month and weekday the deck lacks', () => {
     const all = missingWordDrafts([], 'Thai', 'th', ['dates']);
-    expect(all).toHaveLength(19);
-    expect(all.every((d) => d.tags.join() === 'skill::words' && d.fields.Language === 'thai' && d.fields.PartOfSpeech === 'noun' && d.fields.GenerateReverse === 'y')).toBe(true);
+    expect(all).toHaveLength(34);
+    expect(all.every((d) => d.tags.join() === 'skill::words' && d.fields.Language === 'thai' && d.fields.GenerateReverse === 'y')).toBe(true);
     expect(all[0].fields).toMatchObject({ Entry: 'มกราคม', Meaning: 'January' });
   });
 
   it('leave out one the deck has in any subdeck, studied or not, or inside a longer headword', () => {
     const notes = [note('1', 'Thai::Tier 1', 'มกราคม'), note('2', 'Norsk', 'januar'), note('3', 'Thai', 'วันจันทร์')];
     const left = missingWordDrafts(notes, 'Thai', 'th', ['dates']).map((d) => d.fields.Entry);
-    expect(left).toHaveLength(17);
+    expect(left).toHaveLength(32);
     expect(left).not.toContain('มกราคม');
     expect(left).not.toContain('วันจันทร์');
     expect(missingWordDrafts([note('4', 'Polski::Tier 1', 'luty, miesiąc')], 'Polski', 'pl', ['dates']).map((d) => d.fields.Entry)).not.toContain('luty');
@@ -149,7 +149,7 @@ describe('the words a skill needs', () => {
 
   it('are none for a skill that needs no words, and the number words, half, hundred, thousand and currency for the others', () => {
     expect(missingWordDrafts([], 'Thai', 'th', ['consonants', 'vowels', 'classifiers'])).toEqual([]);
-    expect(missingWordDrafts([], 'Thai', 'th', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual(['ครึ่ง', 'โมง', ...'หนึ่ง สอง สาม สี่ ห้า หก เจ็ด แปด เก้า สิบ ร้อย พัน บาท'.split(' ')]);
+    expect(missingWordDrafts([], 'Thai', 'th', ['time', 'numbers', 'money']).map((d) => d.fields.Entry)).toEqual([...'หนึ่ง สอง สาม สี่ ห้า หก เจ็ด แปด เก้า สิบ ครึ่ง โมง ยี่ เอ็ด เที่ยง คืน ตี เช้า บ่าย เย็น ทุ่ม นาที ร้อย พัน หมื่น แสน บาท'.split(' ')]);
   });
 
   it('are not counted as skill cards', () => {

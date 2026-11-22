@@ -72,8 +72,8 @@ import { SkillBackButton, SkillDrillCard, SkillDrillFooter, useSkillDrill, type 
 import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
-import { drillOfTags, skillLanguageDeck, skillOffer, studiedHeadwords } from '../tools/skills';
-import { knownMonths } from '../tools/skillWords';
+import { drillOfTags, knownHeadwords, skillLanguageDeck, skillOffer } from '../tools/skills';
+import { knownDays, knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { useSelfRecording } from './useSelfRecording';
@@ -418,11 +418,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Tagged a leech and not recovered since (`isLiveLeech`): Anki's tag stays on a recovered word, the chip doesn't.
   const liveLeech = useMemo(() => !!note && isLiveLeech(note, cards?.filter((c) => c.noteId === note.id) ?? []), [note, cards]);
   // A skill card's drill (SkillDrill.tsx): its questions run in the card, then it's rated like any card.
-  // A dates drill asks only about the months whose words the deck has studied (src/tools/skillWords.ts).
+  // A dates drill asks only about the months and days whose words the deck knows, settled cards (src/tools/skillWords.ts).
   const drill = useMemo((): Drill | undefined => {
     const found = note ? drillOfTags(note.tags) : undefined;
     if (!found || found.step.group !== 'dates' || !cards) return found;
-    return { ...found, months: knownMonths(found.language, studiedHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck))) };
+    const known = knownHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck));
+    return { ...found, months: knownMonths(found.language, known), days: knownDays(found.language, known) };
   }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
   useSkillRelease(repo, cards, notes, H);

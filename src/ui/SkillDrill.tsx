@@ -23,8 +23,8 @@ import { AnswerContent, Status } from './tools/ToolScreen';
  * the drill's state, the card's face and the footer while the drill runs.
  */
 
-/** A drill's step and language, and for dates the months (1 to 12) whose words the deck has studied: only those are asked about. */
-export interface Drill { step: DrillStep; language: Language; months?: number[] }
+/** A drill's step and language, and for dates the months (1 to 12) and days of the month whose words the deck knows: only those are asked about. */
+export interface Drill { step: DrillStep; language: Language; months?: number[]; days?: number[] }
 
 /** The chip's symbol for each kind of drill. */
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
@@ -58,7 +58,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
     void loadDrillSeen();
-    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
+    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
     return { ...next, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
@@ -94,7 +94,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       const missed = right ? live.missed : [...live.missed, live.question];
       // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
       noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
-      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, drill.months, drillSeenFor(drill.language, drill.step.id));
+      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
       setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times, trail: [...live.trail, live] });
       return last;
     },

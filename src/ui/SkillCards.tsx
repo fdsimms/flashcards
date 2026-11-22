@@ -10,7 +10,7 @@ import { isInProgress } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
 import type { Note } from '../core/types';
 import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
-import { DRILL_STEPS, languageOfDeck, missingByCard, SKILL_TAG, studiedIn, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
+import { DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
@@ -46,7 +46,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       const now = new Date();
       const H = settings.dayStartsAtHour;
       const today = studyDayStart(now, H).getTime();
-      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), studiedIn(notes, cards));
+      const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), knownIn(notes, cards));
       const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
       const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
         const n = skillNotes.get(cd.noteId)!;
@@ -140,8 +140,8 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       await refresh();
       haptic.success();
       const parts = [`${got.added} ${got.added === 1 ? 'card is' : 'cards are'} in ${got.deck}.`];
-      if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you've studied them.`);
-      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} couldn't be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that use them start once you've added and studied those words yourself.`);
+      if (got.words) parts.push(`${got.words} ${got.words === 1 ? 'word' : 'words'} the drills need ${got.words === 1 ? 'was' : 'were'} added there too, and some come up in your new cards every day until you know them.`);
+      if (got.wordsSkipped) parts.push(`${got.wordsSkipped} ${got.wordsSkipped === 1 ? 'word' : 'words'} couldn't be added because your collection has no ${SKILL_WORD_NOTE_TYPE} note type. The steps that use them start once you've added those words and know them well.`);
       if (got.skipped) parts.push(`${got.skipped} ${got.skipped === 1 ? 'was' : 'were'} there already.`);
       parts.push('Later steps start once you know the earlier ones.');
       setLoads((n) => n + 1);
@@ -209,8 +209,8 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
             <Help>{`Skill cards go into ${subdeck} and come up in your reviews like any other card. A drill card asks a few questions, then you rate it. Each step starts once you know the one before. Turning a skill off stops new cards. Ones already added stay.`}</Help>
             {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
               <Help>{canWords
-                ? `These skills also add the words their drills use (months, numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you've studied its words.`
-                : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added and studied its words yourself.`}</Help>
+                ? `These skills also add the words their drills use (months, day numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you know its words well, with each one's next review a week or more away.`
+                : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added its words and know them well.`}</Help>
             ) : null}
             <Group>
               {groups.map((g, i) => (

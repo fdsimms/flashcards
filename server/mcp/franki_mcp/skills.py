@@ -184,7 +184,7 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
     words = _missing_words(col, deck_name, language, off)
     if not todo and not words:
         return {"deck": subdeck, "added": 0, "words": 0, "words_skipped": 0, "skipped": 0}
-    # Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner has studied them.
+    # Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner knows them.
     wnt = col.models.by_name(WORD_NOTE_TYPE) if words else None
     words_skipped = 0
     if words and not _can_write_words(col):
@@ -318,9 +318,9 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
         Thai's consonant classes and vowel length, classifiers or counters, and which case follows a
         preposition. Says for each deck its three settings (`on`: the master switch, off means every skill
         card is suspended; `auto`: the server adds missing cards by itself every hour; each skill's `on`),
-        and how many cards each skill still `missing`, and how many `words_missing` (the months and weekdays
-        the dates drills are said in: the server adds them to the deck too, tagged skill::words, and Franki
-        brings some up each day). With no deck, every language deck. To remove skill
+        and how many cards each skill still `missing`, and how many `words_missing` (the words the drills
+        are said in, such as months, weekdays and Norwegian's day ordinals: the server adds them to the deck too, tagged skill::words, and Franki
+        brings some up each day; a drill starts once its words are known, each card's next review a week or more out). With no deck, every language deck. To remove skill
         cards for good, find_notes "deck:<name> tag:skill -tag:skill::words" and delete_notes (the words stay: they are the deck's own); set auto to false first, or the
         server adds them again."""
 
