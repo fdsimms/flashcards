@@ -15,13 +15,16 @@ export function LanguagePill({ language }: { language: CardLanguage }) {
   const c = useTheme();
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: space.m, left: 0, right: 0, alignItems: 'center' }}>
+      {/* The wash is translucent, so it sits on the card's own surface color: otherwise a long prompt shows through the pill and runs into its text. */}
       <View
         accessible
         accessibilityLabel={`${language.name} card`}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, borderRadius: radius.pill, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs, backgroundColor: language.wash }}
+        style={{ borderRadius: radius.pill, ...smooth, overflow: 'hidden', backgroundColor: c.surface }}
       >
-        {language.emoji ? <Text allowFontScaling={false} style={{ fontSize: 13 }}>{language.emoji}</Text> : null}
-        <Text style={{ ...type.overline, color: c.text }}>{language.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, paddingHorizontal: space.m, paddingVertical: space.xs, backgroundColor: language.wash }}>
+          {language.emoji ? <Text allowFontScaling={false} style={{ fontSize: 13 }}>{language.emoji}</Text> : null}
+          <Text style={{ ...type.overline, color: c.text }}>{language.name}</Text>
+        </View>
       </View>
     </View>
   );
