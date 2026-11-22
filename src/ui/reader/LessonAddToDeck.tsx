@@ -7,6 +7,7 @@ import { firstChosen, hasClips, lessonClipName, lessonPhraseNote, phrasesToOffer
 import type { MinedNote } from '../../reader/mining';
 import { LANGUAGES } from '../../reader/languages';
 import { failureText } from '../../core/failure';
+import { withThaiLineHeight } from '../../core/script';
 import { hasMedia, removeMedia, writeMedia } from '../../media/mediaFiles';
 import type { NoteEditorResult } from '../AppContext';
 import { haptic } from '../haptics';
@@ -114,7 +115,7 @@ export function LessonAddToDeck({ api, lesson, language, deck, recorder, loadEnt
                   {i === 0 ? null : <Divider inset={space.l} />}
                   <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ ...type.body, color: c.text }}>{p.text}</Text>
+                    <Text style={{ ...withThaiLineHeight(type.body, p.text), color: c.text }}>{p.text}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>{p.english}</Text>
                   </View>
                   {p.inDeck ? <Tag text="In deck" color={c.goodInk} fill={c.goodFill} /> : null}
