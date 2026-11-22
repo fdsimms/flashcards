@@ -1397,6 +1397,7 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
         ],
         "read_and_listen_today": [],
         "franki": None,
+        "franki_crams": None,
     }
 
 
@@ -1542,6 +1543,60 @@ def test_only_the_passphrase_reports_counts() -> None:
     body = {"due": 1, "new": 1}
     assert c.put("/api/franki-counts", json=body, headers=STATUS_KEY).status_code == 401
     assert c.put("/api/franki-counts", json={"due": -1, "new": 0}, headers=AUTH).status_code == 422
+
+
+THAI_LESSON = {
+    "id": "thai-lesson-2026-10-21",
+    "name": "Thai lesson",
+    "date": "2026-10-21",
+    "ends_at": "2026-10-22T04:00:00-04:00",
+    "practiced_at": "2026-10-19T08:30:00Z",
+    "finished_at": None,
+}
+
+
+def test_status_has_no_crams_until_franki_reports_them() -> None:
+    # null, not an empty list: dundundun leaves its cram tasks alone until Franki has said.
+    assert status_client().get("/api/status", headers=STATUS_KEY).json()["franki_crams"] is None
+
+
+def test_franki_reports_its_crams_and_status_shows_them() -> None:
+    c = status_client()
+    body = {"crams": [THAI_LESSON]}
+    assert c.put("/api/franki-crams", json=body, headers=AUTH).status_code == 204
+
+    reported = c.get("/api/status", headers=STATUS_KEY).json()["franki_crams"]
+
+    assert reported == {
+        "crams": [
+            {
+                **THAI_LESSON,
+                "ends_at": "2026-10-22T08:00:00+00:00",
+                "practiced_at": "2026-10-19T08:30:00+00:00",
+            }
+        ],
+        "reported_at": "2026-10-19T09:00:00+00:00",
+    }
+
+
+def test_a_new_report_of_crams_replaces_the_last() -> None:
+    c = status_client()
+    c.put("/api/franki-crams", json={"crams": [THAI_LESSON]}, headers=AUTH)
+    c.put("/api/franki-crams", json={"crams": []}, headers=AUTH)
+
+    assert c.get("/api/status", headers=STATUS_KEY).json()["franki_crams"]["crams"] == []
+
+
+def test_only_the_passphrase_reports_crams_and_a_bad_one_is_refused() -> None:
+    c = status_client()
+    body = {"crams": [THAI_LESSON]}
+    assert c.put("/api/franki-crams", json=body, headers=STATUS_KEY).status_code == 401
+    no_offset = {"crams": [{**THAI_LESSON, "ends_at": "2026-10-22T04:00:00"}]}
+    assert c.put("/api/franki-crams", json=no_offset, headers=AUTH).status_code == 422
+    bad_date = {"crams": [{**THAI_LESSON, "date": "21 October"}]}
+    assert c.put("/api/franki-crams", json=bad_date, headers=AUTH).status_code == 422
+    too_many = {"crams": [THAI_LESSON] * 51}
+    assert c.put("/api/franki-crams", json=too_many, headers=AUTH).status_code == 422
 
 
 @pytest.mark.parametrize("hidden", ["ja", "en"])

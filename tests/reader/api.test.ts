@@ -229,6 +229,15 @@ test('the deck list totals are put to the counts route', async () => {
   expect(JSON.parse(calls[0].init.body as string)).toEqual({ due: 12, new: 8 });
 });
 
+test('the open crams are put to the crams route, as a list under `crams`', async () => {
+  const { impl, calls } = fakeFetch(new Response(null, { status: 204 }));
+  const cram = { id: 'thai-lesson-2026-11-20', name: 'Thai lesson', date: '2026-11-20', ends_at: '2026-11-21T09:00:00.000Z', practiced_at: null, finished_at: null };
+  await createApi('https://x', 'p', impl).reportCrams([cram]);
+  expect(calls[0].url).toBe('https://x/api/franki-crams');
+  expect(calls[0].init.method).toBe('PUT');
+  expect(JSON.parse(calls[0].init.body as string)).toEqual({ crams: [cram] });
+});
+
 test("the owner's writing is posted to be checked, and a retelling to its text", async () => {
   const answer = { verdict: 'almost', corrected: 'Potrzebuję narzędzia.', english: 'I need a tool.', notes: ['Genitive.'], used_word: true };
   const { impl, calls } = fakeFetch(json(answer));

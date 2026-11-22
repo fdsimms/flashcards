@@ -25,6 +25,7 @@ import { useConnection } from './connection';
 import { useAppLanguageSync } from './useAppLanguage';
 import { useReader, type ReaderState } from './useReader';
 import { useCountsReport } from './useCountsReport';
+import { useCramsReport } from './useCramsReport';
 import { useAutoBackup } from './autoBackup';
 import { useBackupReminder } from './backupReminder';
 import { useStudyReminder } from './studyReminder';
@@ -173,6 +174,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
   useAppLanguageSync(reader);
   useCountsReport(reader, decks, dayStartsAtHour);
+  useCramsReport(reader, repo, dayStartsAtHour);
   useStudyReminder(decks, dayStartsAtHour);
   useBackupReminder(repo ?? undefined, decks, dayStartsAtHour);
   useAutoBackup(repo ?? undefined, decks, dayStartsAtHour);

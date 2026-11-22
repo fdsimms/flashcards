@@ -86,10 +86,14 @@ export function useReader(server: string | undefined, dayStartsAtHour: number): 
   useEffect(() => { void downloads.load(); void heldReader.load(); }, []);
   const signedIn = useCallback((saved: string) => { setNotice(null); setPassphrase(saved); }, []);
   const signOut = useCallback(() => {
+    // Take the crams sent for dundundun away while the passphrase still opens the server: signed
+    // out, nothing can, and dundundun would keep writing tasks for the last ones it was sent
+    // (useCramsReport). Best effort, like every report.
+    if (shareCounts) serverApi?.reportCrams([]).catch(() => undefined);
     clearPassphrase().catch(() => undefined);
     setNotice(null);
     setPassphrase(null);
-  }, []);
+  }, [serverApi, shareCounts]);
 
   // The copy kept on the phone stands in until the server answers (offline, all day on the subway),
   // and the server is asked again when the connection comes back.

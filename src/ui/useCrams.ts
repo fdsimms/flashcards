@@ -49,13 +49,16 @@ export async function reloadCrams(repo: NoteStore): Promise<Cram[]> {
 /** The crams as last read or saved, for code that can't wait (the note editor's starting tags). */
 export const cramsNow = (): Cram[] => crams;
 
-/** Every cram, oldest first, kept up to date. `loaded` is false until the first read lands. */
-export function useCrams(repo: NoteStore): { crams: Cram[]; loaded: boolean } {
+/**
+ * Every cram, oldest first, kept up to date. `loaded` is false until the first read lands. Without
+ * a repo yet (AppContext, before the collection opens) it reads nothing and waits for one.
+ */
+export function useCrams(repo: NoteStore | null): { crams: Cram[]; loaded: boolean } {
   const [, setTick] = useState(0);
   useEffect(() => {
     const l = () => setTick((t) => t + 1);
     listeners.add(l);
-    loadCrams(repo).catch(() => undefined);
+    if (repo) loadCrams(repo).catch(() => undefined);
     return () => { listeners.delete(l); };
   }, [repo]);
   return { crams, loaded: isLoaded };
