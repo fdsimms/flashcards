@@ -19,7 +19,7 @@ import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 import { useFont } from '../AppFont';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
-import { usePhoneSpeech } from '../usePhoneSpeech';
+import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 
 /**
  * What every Practice tool's screen shares: the language menu in the header, Another one and Show
@@ -63,7 +63,7 @@ export function useAnswer(repo: Repo, language: Language) {
   const [missed, setMissed] = useState(false);
   useEffect(() => () => { Speech.stop(); }, []);
   return useMemo(() => {
-    const speak = (p: Phrase) => { Speech.stop(); speech.sayWord(p.text, LANGUAGES[language].speech); };
+    const speak = (p: Phrase) => { void stopSpeechIfRunning().then(() => speech.sayWord(p.text, LANGUAGES[language].speech)); };
     return {
       shown,
       missed,

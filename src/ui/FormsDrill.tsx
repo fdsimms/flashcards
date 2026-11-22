@@ -14,7 +14,7 @@ import { Reveal } from './motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { TranslationRow } from './TranslationRow';
-import { usePhoneSpeech } from './usePhoneSpeech';
+import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -122,7 +122,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     }
   };
 
-  const play = (p: FormPrompt) => { if (p.say) { Speech.stop(); speech.sayWord(p.say.text, p.say.lang); } };
+  const play = (p: FormPrompt) => { if (p.say) { void stopSpeechIfRunning().then(() => speech.sayWord(p.say!.text, p.say!.lang)); } };
 
   /** "Almost" counted as right: its row is marked right, so no miss is left to ask it again or show in the history. */
   const countIt = async () => {

@@ -15,6 +15,7 @@ import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
 import { space, useTheme, readable } from './theme';
+import { stopSpeechIfRunning } from './usePhoneSpeech';
 
 const DOWNLOAD_HELP =
   'To download more iPhone voices, open Settings, Accessibility, Spoken Content, Voices. ' +
@@ -156,9 +157,8 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
   const inLanguage = voicesIn(voices, lang.key);
 
   const listen = (voice: string | undefined, speed: number) => {
-    Speech.stop();
     const v = voices.find((x) => x.identifier === voice);
-    Speech.speak(lang.sample ?? lang.name, { language: v?.language ?? lang.lang, voice, rate: speed });
+    void stopSpeechIfRunning().then(() => Speech.speak(lang.sample ?? lang.name, { language: v?.language ?? lang.lang, voice, rate: speed }));
   };
 
   return (

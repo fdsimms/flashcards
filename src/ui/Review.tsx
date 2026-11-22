@@ -87,7 +87,7 @@ import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from
 import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
 import { asksEarlyHint, canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
-import { usePhoneSpeech } from './usePhoneSpeech';
+import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
 import { missReasonsFor, missReminder } from '../core/misses';
 import { AgainSplit, MissReminder } from './MissMarks';
@@ -540,9 +540,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
    */
   // Stopping speech that isn't running can pull the audio session out from under the recording that
   // starts right after, so ask the voice whether it is speaking rather than keep a flag nothing clears.
-  const stopSpeechIfRunning = useCallback(async () => {
-    if (await Speech.isSpeakingAsync().catch(() => false)) Speech.stop();
-  }, []);
   // Record yourself: a take of your own voice for this card, played back next to its recording.
   // Compare plays the card's recording before the take, so it's offered only with that file here.
   const recordingUri = useMemo(() => (rendered?.audioFile ? mediaFileUri(rendered.audioFile) : undefined), [rendered?.audioFile]);
@@ -590,7 +587,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // recording is shown and the preset autoplays (a recording plays instead, in the page), and
   // from each play button.
   const readAloud = useCallback((tags: TtsTag[]) => {
-    Speech.stop();
     phoneSpeech.readTags(tags);
   }, [phoneSpeech]);
   const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
