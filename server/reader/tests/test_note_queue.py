@@ -23,6 +23,7 @@ from franki_reader.note_queue import (
     FillFailed,
     Spelled,
     check,
+    checked,
     claude_notes,
     fill_pending,
     request_message,
@@ -364,15 +365,51 @@ def test_a_missing_field_fails_the_word() -> None:
 
 def test_romanized_languages_need_both_romanizations() -> None:
     asked = {"ขอบคุณ": ""}
-    thai = filled("ขอบคุณ", romanization="khɔ̀ɔp khun mâak", transliteration="khɔ̀ɔp khun")
+    thai = filled("ขอบคุณ", romanization="khàawp-khun mâak", transliteration="khàawp-khun")
     got = check(thai, asked, "th")
     assert got is not None
-    assert got[1]["ContextRomanized"] == "khɔ̀ɔp khun mâak"
-    assert got[1]["Transliteration"] == "khɔ̀ɔp khun"
+    assert got[1]["ContextRomanized"] == "khàawp-khun mâak"
+    assert got[1]["Transliteration"] == "khàawp-khun"
     assert check(filled("ขอบคุณ"), asked, "th") is None
     # Latin-letter languages never carry them, even if Claude wrote some.
     latin = check(filled("ricane", romanization="x", transliteration="y"), {"ricane": ""}, "fr")
     assert latin is not None and "ContextRomanized" not in latin[1]
+
+
+def test_a_thai_draft_without_tones_or_outside_the_scheme_is_refused() -> None:
+    asked = {"ภูเขา": ""}
+    ok = {
+        "romanization": "chiang-mài mii phuu-khǎo sǔung láe aa-gàat yen sà-baai",
+        "transliteration": "phuu-khǎo",
+    }
+    assert checked(filled("ภูเขา", **ok), asked, "th")[0] is not None
+    # What the queue used to save: no tone marks on the sentence.
+    bare = {
+        "romanization": "chiang mai mi phukhao sung lae akat yen sabai",
+        "transliteration": "phukhao",
+    }
+    assert checked(filled("ภูเขา", **bare), asked, "th") == (
+        None,
+        "the romanization had no tone marks",
+    )
+    # Letters the scheme doesn't have (IPA vowels, an unaspirated p, t or k).
+    ipa = {**ok, "romanization": "khǎo dtà-goon rîak phûean khâam thà-nɔ̌ɔn"}
+    assert checked(filled("ภูเขา", **ipa), asked, "th") == (
+        None,
+        "the romanization wasn't in the deck's scheme",
+    )
+    plain = {**ok, "transliteration": "pak-ka"}
+    assert checked(filled("ภูเขา", **plain), asked, "th") == (
+        None,
+        "the romanization wasn't in the deck's scheme",
+    )
+
+
+def test_the_thai_request_gives_the_scheme_with_its_tones() -> None:
+    message = request_message("th", [("ภูเขา", "")])
+    assert "Tones: mid no mark, low à, falling â, high á, rising ǎ" in message
+    assert "In romanization the Entry is spelled exactly as in transliteration" in message
+    assert "Tones:" not in request_message("ru", [("дом", "")])
 
 
 def test_a_japanese_word_gets_its_reading_in_kana_reading() -> None:

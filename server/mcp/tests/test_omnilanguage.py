@@ -146,6 +146,11 @@ def test_thai_romanization_is_held_to_one_scheme():
     assert "romanization-missing" in rules({**note, "ContextRomanized": ""})
     # A sentence with no tone mark at all was romanized without tones.
     assert "romanization-toneless" in rules({**note, "ContextRomanized": "khao dəən-thaang bawi"})
+    # The Transliteration's marks must agree with the Pronunciation's tone letters.
+    toned = {**note, "Pronunciation": "/dɤːn˧.tʰaːŋ˧/"}
+    assert "romanization-tone-mismatch" not in rules(toned)
+    assert "romanization-tone-mismatch" in rules({**toned, "Pronunciation": "/dɤːn˧.tʰaːŋ˩˩˦/"})
+    assert "romanization-tone-mismatch" not in rules({**note, "Pronunciation": ""})
     # Russian and Greek notes carry none.
     assert "romanization-unneeded" in rules({"Entry": "дом", "Language": "russian", "Transliteration": "dom"})
 

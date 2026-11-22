@@ -70,6 +70,8 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
   const counts = useMemo(() => tagCounts(collection.notes), [collection.notes]);
   const tagMatch = typed && !/\s/.test(typed) ? counts.find((t) => t.tag.toLowerCase() === typed.toLowerCase().replace(/^#/, ''))?.tag : undefined;
   const tagged = useMemo(() => (tagMatch ? offered.filter((n) => noteHasTag(n, tagMatch) && !inCramIds.has(n.id)) : []), [tagMatch, offered, inCramIds]);
+  // Every match on screen not yet in the cram, so a search ("grill") adds its results in one tap.
+  const unchecked = useMemo(() => (typed ? rows.filter((n) => !inCramIds.has(n.id) && !asked.get(n.id)) : []), [typed, rows, inCramIds, asked]);
   const exact = typed && rows.some((n) => headword(n).trim().toLowerCase() === typed.toLowerCase());
 
   if (!cram || !collection.loaded) return <Screen title="Add" largeTitle={false}><Loading /></Screen>;
@@ -93,11 +95,11 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
       saving.current.delete(note.id);
     }
   };
-  const addTagged = async () => {
+  const addMany = async (notes: Note[]) => {
     haptic.tap();
     setProblem(undefined);
     try {
-      await setCramTag(repo, cram, tagged.map((n) => n.id), true);
+      await setCramTag(repo, cram, notes.map((n) => n.id), true);
       collection.reload();
       capCramCards(repo).catch(() => undefined);
     } catch (e) {
@@ -148,7 +150,12 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
             ) : null}
             {tagMatch && tagged.length ? (
               <Group>
-                <NavRow first icon={{ name: 'tag', color: c.accent }} label={`Add all ${tagged.length} tagged ${tagMatch}`} onPress={() => void addTagged()} />
+                <NavRow first icon={{ name: 'tag', color: c.accent }} label={`Add all ${tagged.length} tagged ${tagMatch}`} onPress={() => void addMany(tagged)} />
+              </Group>
+            ) : null}
+            {unchecked.length > 1 && !(tagMatch && tagged.length) ? (
+              <Group>
+                <NavRow first icon={{ name: 'plus', color: c.accent }} label={`Add all ${unchecked.length} shown`} onPress={() => void addMany(unchecked)} />
               </Group>
             ) : null}
             {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}

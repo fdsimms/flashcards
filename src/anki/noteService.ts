@@ -191,6 +191,26 @@ export async function deleteNote(store: NoteStore, noteId: string, now: Date = n
 }
 
 /**
+ * Deletes several notes, one at a time, as `deleteNote` does each. A note that can't be deleted
+ * doesn't stop the rest: `failed` lists those with the first error, so the screen can say how many stayed.
+ */
+export async function deleteNotes(store: NoteStore, noteIds: Iterable<string>, now: Date = new Date()): Promise<{ deleted: string[]; failed: string[]; error?: unknown }> {
+  const deleted: string[] = [];
+  const failed: string[] = [];
+  let error: unknown;
+  for (const id of new Set(noteIds)) {
+    try {
+      await deleteNote(store, id, now);
+      deleted.push(id);
+    } catch (e) {
+      failed.push(id);
+      error ??= e;
+    }
+  }
+  return { deleted, failed, error };
+}
+
+/**
  * Suspends, buries or flags cards: in Franki's tables first, then in the kept collection as Anki
  * writes it (`setAnkiCardStates`), so sync and Send to Anki carry it. The cards come back as saved;
  * `ankiError` says why the collection didn't take the change, which stays made in Franki.

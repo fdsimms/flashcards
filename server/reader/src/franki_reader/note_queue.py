@@ -31,6 +31,7 @@ from typing import Any, cast
 
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
+from franki_speech.thai_romanization import THAI_SCHEME, is_toneless, letters_wrong
 
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
@@ -289,6 +290,11 @@ You fill in flashcard notes for an English-speaking learner of {language}. For e
 are given, you write the fields below. Be accurate: a wrong gloss or an unnatural sentence is worse \
 than a plain one."""
 
+# The deck's scheme, worded for this request's keys instead of the note's field names.
+_THAI_SCHEME = THAI_SCHEME.replace("ContextRomanized", "romanization").replace(
+    "Transliteration", "transliteration"
+)
+
 _REQUEST = """\
 For each entry below, give:
 - entry: the entry exactly as listed
@@ -415,7 +421,12 @@ WriteNotes = Callable[[Code, list[tuple[str, str]]], Awaitable[tuple[list[Any], 
 def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     name = LANGUAGES[language].name
     romanized = language in ROMANIZED
-    if romanized:
+    if language == "th":
+        # The deck's own scheme, tones included, which a note is checked against (thai_romanization).
+        transliteration = (
+            "the spelling alone in Latin letters, in the same scheme, with its tone marks"
+        )
+    elif romanized:
         transliteration = "the spelling alone in Latin letters, the same system"
     elif language == "ja":
         # The owner's Japanese notes keep a reading in kana, not a romanization.
@@ -428,7 +439,10 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     return _REQUEST.format(
         language=name,
         romanization=(
-            f"the sentence in Latin letters, the way a {name} textbook romanizes it"
+            "the sentence in the scheme below, with its tone marks on every syllable that has one\n"
+            f"{_THAI_SCHEME}"
+            if language == "th"
+            else f"the sentence in Latin letters, the way a {name} textbook romanizes it"
             if romanized
             else "an empty string"
         ),
@@ -542,6 +556,13 @@ def checked(
         transliteration = _plain(raw.get("transliteration"), MAX_MEANING)
         if not romanization or not transliteration:
             return None, "the romanization was missing or had stray characters"
+        if language == "th":
+            # The deck's scheme and tone marks: a draft without them is refused, not saved for the
+            # owner to find later (the MCP's lint holds saved notes to the same rules).
+            if letters_wrong(romanization) or letters_wrong(transliteration):
+                return None, "the romanization wasn't in the deck's scheme"
+            if is_toneless(romanization):
+                return None, "the romanization had no tone marks"
         fields["ContextRomanized"] = romanization
         fields["Transliteration"] = transliteration
     elif language == "ja":
