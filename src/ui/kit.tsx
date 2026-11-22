@@ -1,6 +1,6 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useNavigation, useRouter } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
   type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
@@ -14,6 +14,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useConnectionProblem } from './connection';
 import { splitFailure } from '../core/failure';
 import { haptic } from './haptics';
+import { showsHomeButton } from './homeButton';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useMissingKeyboard } from './useMissingKeyboard';
 import { useReduceMotion } from './motion';
@@ -119,9 +120,27 @@ export function Screen(props: {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const problem = useConnectionProblem();
+  // Read once, while this screen is the one just pushed: its place in the stack and its name.
+  const navigation = useNavigation();
+  const [home] = useState(() => {
+    const routes = navigation.getState()?.routes ?? [];
+    return showsHomeButton(routes.length, routes[routes.length - 1]?.name ?? '');
+  });
+  // On a screen several pushes deep, a house to go back to the tab in one tap (dismissAll closes every pushed screen).
+  const withHome = home
+    ? withRightButton(props.toolbar, (
+      <Stack.Toolbar.Button
+        key="home"
+        icon="house"
+        accessibilityLabel="Home"
+        accessibilityHint="Goes back to the main screen"
+        onPress={() => { haptic.tap(); router.dismissAll(); }}
+      />
+    ))
+    : props.toolbar;
   // No Wi-Fi for offline; a cloud with a warning when the internet works but the user's server doesn't answer.
   const toolbar = problem && props.offlineButton !== false
-    ? withOfflineButton(props.toolbar, (
+    ? withRightButton(withHome, (
       <Stack.Toolbar.Button
         key="offline"
         icon={problem === 'offline' ? 'wifi.slash' : 'exclamationmark.icloud'}
@@ -131,7 +150,7 @@ export function Screen(props: {
         onPress={() => { haptic.tap(); router.push('/offline'); }}
       />
     ))
-    : props.toolbar;
+    : withHome;
   const head = (
     <>
       <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false, gestureEnabled: !props.lockGesture }} />
@@ -158,7 +177,7 @@ export function Screen(props: {
  * just it when the screen has none. A screen gets one toolbar per side (the last one drawn wins),
  * so the button goes inside the screen's own rather than beside it.
  */
-function withOfflineButton(toolbar: React.ReactNode, button: React.ReactElement): React.ReactNode {
+function withRightButton(toolbar: React.ReactNode, button: React.ReactElement): React.ReactNode {
   let placed = false;
   const visit = (node: React.ReactNode): React.ReactNode => React.Children.map(node, (child) => {
     if (!React.isValidElement<{ children?: React.ReactNode; placement?: string }>(child)) return child;
