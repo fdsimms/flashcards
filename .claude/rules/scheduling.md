@@ -109,6 +109,16 @@ introduced, down the whole path, so a skills subdeck can't offer a language deck
 deck's limit. Every
 one of those reads `TreeQueueInput.skillCards` (`skillCardIds`), which is required so a new caller has to decide.
 
+**A drill card's longest interval is a week** (`answerParams`, `DRILL_MAX_INTERVAL_DAYS` in `src/core/skillTag.ts`),
+whatever its preset says: a drill asks a few questions drawn from many, and the words it draws from grow (a month
+learned after the dates card went months out waited that long). It's applied in Franki through the card's params,
+not a preset of the Skills subdeck, which also holds the skill's words. It is `GURU_INTERVAL_DAYS` and no shorter, or a
+step would never settle and the next never open. Review brings a drill card due further out than that into the week with Set Due Date when it
+loads (`drillDueTooFar`): one scheduled before the cap, or answered in Anki. A step a later one of its ladder asks everything of
+(`coversEarlier`) is set aside once that one settles (`coverable`, tagged `skill::covered`); after `STOP_SUGGESTED_AFTER`
+clean weeks (`cleanWeeks`) Review and Skill cards offer Stop practicing (`skill::stopped`). A step set aside stays
+suspended through releasing, holding and a resume, in the app and the MCP alike (`setAsideOf`, `setAsideTags`).
+
 **A progress gate limits a deck's new cards by what's in progress** (`DeckSettings.gateCap`, set on
 Deck options): new cards come in only while fewer than the cap are in progress in that deck and its
 subdecks, and never more in a day than the gated deck's own daily new limit (`gateBudget`, so

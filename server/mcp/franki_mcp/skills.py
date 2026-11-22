@@ -233,12 +233,13 @@ def add_missing(col: Collection, deck_name: str, language: str, off: tuple[str, 
 
 
 def set_paused(col: Collection, deck_name: str, paused: bool) -> int:
-    """Suspends every skill card in the deck, or resumes them: all but a later drill step, which waits for Franki's Review to release it once the step before has settled. Returns how many cards changed."""
+    """Suspends every skill card in the deck, or resumes them: all but a later drill step, which waits for Franki's Review to release it once the step before has settled, and a step set aside (stopped by the learner, or covered by a later step: `setAsideTags`). Returns how many cards changed."""
     later = {f"{DRILL_TAG}{s}" for s in CATALOG["laterSteps"]}
+    aside = {t.lower() for t in CATALOG["setAsideTags"]}
     ids: list[int] = []
     for nid in col.find_notes(f'"deck:{search_text(deck_name)}" tag:{TAG} {NOT_WORDS}'):
         note = col.get_note(nid)
-        waits = any(t.lower() in later for t in note.tags)
+        waits = any(t.lower() in later or t.lower() in aside for t in note.tags)
         for card in note.cards():
             if paused and card.queue != QUEUE_TYPE_SUSPENDED:
                 ids.append(card.id)

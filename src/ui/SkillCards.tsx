@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { addSkillCards, canWriteWords, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused } from '../anki/skillCards';
+import { cardHistory } from '../anki/cardHistory';
+import { addSkillCards, canWriteWords, deleteSkillCards, missingDrafts, missingWordDrafts, SkillsRefused, setSkillsPaused, setStepStopped } from '../anki/skillCards';
 import { DEFAULT_SKILL_SETTINGS, type SkillSettings } from '../anki/skillSettings';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { studyDayStart } from '../core/day';
@@ -8,12 +9,13 @@ import { failureText } from '../core/failure';
 import { retrievability } from '../core/order';
 import { isInProgress } from '../core/progress';
 import { paramsForDeck } from '../core/scheduler';
+import { isDrillNote } from '../core/skillTag';
 import type { Note } from '../core/types';
 import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
-import { DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
+import { cleanWeeks, DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Icon, Screen, SwitchRow } from './kit';
+import { Button, Card, Group, HeaderAction, Help, Icon, Screen, SwitchRow } from './kit';
 import { hairline, radius, readable, space, type, useTheme } from './theme';
 
 /**
@@ -48,16 +50,19 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       const today = studyDayStart(now, H).getTime();
       const missing = missingByCard(cards, new Map(notes.map((n) => [n.id, n])), knownIn(notes, cards));
       const skillNotes = new Map(notes.filter((n) => n.tags.includes(SKILL_TAG) && (n.deck === deck || n.deck.startsWith(`${deck}::`))).map((n) => [n.id, n]));
-      const info = cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map((cd) => {
+      const info = await Promise.all(cards.filter((cd) => skillNotes.has(cd.noteId) && !cd.retired).map(async (cd) => {
         const n = skillNotes.get(cd.noteId)!;
         const r = retrievability(cd, now, paramsForDeck(n.deck, params)?.weights ?? []);
+        // A drill card's run of clean weeks, from every device's answers: six or more offers Stop practicing.
+        const weeks = isDrillNote(n) && cd.sched.state === 2 ? cleanWeeks(await cardHistory(repo, cd).catch(() => [])) : undefined;
         return {
+          noteId: n.id, weeks,
           tags: n.tags, suspended: !!cd.suspended, started: cd.sched.state !== 0, settled: cd.sched.state !== 0 && !isInProgress(cd),
           dueInDays: Math.round((studyDayStart(new Date(cd.sched.due), H).getTime() - today) / 86_400_000),
           percent: r === undefined ? undefined : Math.round(r * 100),
           missing: missing.get(cd.id),
         };
-      });
+      }));
       if (live) { setSections(skillSections(info)); setNotes(notes); setCanWords(canWriteWords(noteTypes.get(SKILL_WORD_NOTE_TYPE))); setSettings(saved.get(deck) ?? DEFAULT_SKILL_SETTINGS); }
     })().catch(() => { if (live) setSections([]); });
     return () => { live = false; };
@@ -96,6 +101,23 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
       setLoads((n) => n + 1);
     } catch (e) {
       Alert.alert(on ? "Couldn't resume skill cards" : "Couldn't pause skill cards", failureText(e, { next: 'Try again.' }));
+    } finally {
+      busy.current = false;
+    }
+  };
+
+  // Stop practicing or Start again on one step's row: its note's tag and its card's suspension (`setStepStopped`).
+  const setStopped = async (noteId: string, stop: boolean) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const { dayStartsAtHour } = await repo.collectionSettings();
+      await setStepStopped(repo, noteId, stop, !settings.on, new Date(), dayStartsAtHour);
+      haptic.success();
+      await refresh();
+      setLoads((n) => n + 1);
+    } catch (e) {
+      Alert.alert(stop ? "Couldn't stop practicing this step" : "Couldn't start this step again", failureText(e, { next: 'Try again.' }));
     } finally {
       busy.current = false;
     }
@@ -179,12 +201,18 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{sec.title}</Text>
                 <Card style={{ gap: 0, paddingVertical: space.xs }}>
                   {sec.rows.map((row, i) => (
-                    <View key={row.title} accessible accessibilityLabel={`${row.title}. ${row.detail}${row.meter !== undefined ? `. ${row.meter} percent` : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
+                    <View key={row.title} accessible={!row.action} accessibilityLabel={`${row.title}. ${row.detail}${row.meter !== undefined ? `. ${row.meter} percent` : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={{ ...type.body, color: row.locked ? c.textSecondary : c.text }}>{row.title}</Text>
-                        <Text style={{ ...type.footnote, color: c.textSecondary }}>{row.detail}</Text>
+                        <Text style={{ ...type.body, color: row.locked || row.covered || row.action?.kind === 'start' ? c.textSecondary : c.text }}>{row.title}</Text>
+                        <Text style={{ ...type.footnote, color: row.clean ? c.goodInk : c.textSecondary }}>{row.detail}</Text>
                       </View>
-                      {row.locked ? <Icon name="lock" size={14} color={c.textTertiary} /> : row.meter !== undefined ? (
+                      {row.action ? (
+                        <HeaderAction
+                          label={row.action.kind === 'stop' ? 'Stop practicing' : 'Start again'}
+                          accessibilityLabel={`${row.action.kind === 'stop' ? 'Stop practicing' : 'Start again'}: ${row.title}`}
+                          onPress={() => void setStopped(row.action!.noteId, row.action!.kind === 'stop')}
+                        />
+                      ) : row.covered ? <Icon name="checkmark" size={14} color={c.textTertiary} /> : row.locked ? <Icon name="lock" size={14} color={c.textTertiary} /> : row.meter !== undefined ? (
                         <View style={{ width: 64, height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
                           <View style={{ width: `${row.meter}%`, height: '100%', borderRadius: radius.pill, backgroundColor: row.meter >= 80 ? c.good : c.warning }} />
                         </View>
@@ -194,7 +222,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 </Card>
               </View>
             ))}
-            {sections.length ? <Help>The bar shows how well you know each skill.</Help> : null}
+            {sections.length ? <Help>{"The bar shows how well you know each skill. A drill card comes back at least once a week. When a step asks everything the steps before it did, those are set aside once it's going well."}</Help> : null}
             <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Skill cards</Text>
             <Group>
               <SwitchRow

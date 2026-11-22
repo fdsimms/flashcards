@@ -13,7 +13,8 @@ import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
-import { isSkillNote } from '../core/skillTag';
+import { answerParams, isSkillNote } from '../core/skillTag';
+import { SkillStopStrip, useStopSuggestion } from './SkillStopStrip';
 import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
 import { answerCounts, countKind, isBuried, dueCounts, isInterdayLearning, nextLearningDue, siblingsToBury, studiedToday, type Queue, type StudiedToday } from '../core/queue';
 import { ratingsShown, type AnswerButtons } from '../core/answerButtons';
@@ -427,6 +428,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2), H);
   useSkillRelease(repo, cards, notes, H);
+  // After a drill card's sixth clean week, an offer to stop practicing its step (SkillStopStrip.tsx).
+  const stopSuggestion = useStopSuggestion(repo, H, useCallback((n: Note, ids: string[]) => {
+    setNotes((prev) => new Map(prev).set(n.id, n));
+    const stopped = new Set(ids);
+    setCards((prev) => prev && prev.map((cd) => (stopped.has(cd.id) ? { ...cd, suspended: true } : cd)));
+  }, []));
   // The aspect check on a Russian or Polish verb's front (AspectCheck.tsx): optional, and only outlines a rating.
   const aspectCheck = useAspectCheck(showing, current && note && aspectCheckOn(note.deck, deckSettings) ? aspectToCheck(note, current) : undefined);
   // A miss on the aspect check suggests Hard; with Hard turned off it's Again, the button that's there.
@@ -445,7 +452,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return { emoji, name: rest, wash: tintOf(sub) };
   }, [current, note, deck, subdecks, tintOf]);
   // The card's own deck decides its FSRS settings, not the deck being studied.
-  const cardParams = note && current ? paramsForDeck(cardHomeDeck(current, note.deck), allParams) : undefined;
+  // A drill card's maximum interval is a week (`answerParams`), whatever its preset says.
+  const cardParams = note && current ? answerParams(paramsForDeck(cardHomeDeck(current, note.deck), allParams), note) : undefined;
   // A shaky review card says so on its answer (display only: nothing here reads into the rating or the queue).
   const fragile = revealed && current ? fragilePercent(current, new Date(), cardParams?.weights ?? []) : undefined;
   const noteType = note && current?.kind.startsWith('t') && !isOmnilanguage(note) ? noteTypes.get(note.model) : undefined;
@@ -689,7 +697,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!redo && returned && current === returned) { answerReturn(returned, rating > 1); return; }
     const cur = redo ? redo.card : current;
     const nt = redo ? redo.note : note;
-    const params = redo ? paramsForDeck(cardHomeDeck(redo.card, redo.note.deck), allParams) : cardParams;
+    const params = redo ? answerParams(paramsForDeck(cardHomeDeck(redo.card, redo.note.deck), allParams), redo.note) : cardParams;
     const pool = redo ? redo.cards : cards ?? [];
     if (!cur || !nt) return;
     if (!redo && (busy.current || cur === lastAnswered.current)) return;
@@ -763,6 +771,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The last answer stays on the line above the buttons until the next one, to undo or change. A
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
+      if (!redo && !preview) stopSuggestion.answered(cur, nt, rating, when);
       lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
@@ -1585,7 +1594,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoAction} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoAction} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : stopSuggestion.offer ? <SkillStopStrip offer={stopSuggestion.offer} onStop={() => void stopSuggestion.stop()} onDismiss={stopSuggestion.dismiss} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>

@@ -1,5 +1,6 @@
 import { deckNameLanguage, LANG_TAGS } from '../core/cards';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
+import { SKILL_COVERED_TAG, SKILL_STOPPED_TAG } from '../core/skillTag';
 import { DRILL_STEPS, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillGroups, skillWordDrafts } from './skills';
 import { SKILL_WORD_NOTE_TYPE, stepNeeds } from './skillWords';
 
@@ -18,6 +19,8 @@ export interface SkillCatalog {
   subdeck: string;
   /** The drill steps that wait on the step before (`DrillStep.after`) or on the deck's words (`stepWaits`): resuming paused skill cards leaves them suspended for Review to release. */
   laterSteps: string[];
+  /** The tags that set a drill step aside (`setAsideOf`): stopped by the learner, or covered by a later step. Resuming leaves those suspended too. */
+  setAsideTags: string[];
   /** The names a deck's name is searched for (`deckNameLanguage`), each with its language code, or null for a language with no skill cards. */
   deckKeys: [string, string | null][];
   /** Deck names with the language the app reads from each: the MCP's `language_of_deck` is tested against them, so the two can't drift. */
@@ -50,6 +53,7 @@ export function skillCatalog(): SkillCatalog {
     tag: SKILL_TAG,
     subdeck: SKILLS_SUBDECK,
     laterSteps: DRILL_STEPS.filter((s) => s.after || LANGUAGE_ORDER.some((l) => stepNeeds(s.id, l).length)).map((s) => s.id),
+    setAsideTags: [SKILL_STOPPED_TAG, SKILL_COVERED_TAG],
     deckKeys: Object.entries(LANG_TAGS).map(([key, speech]) => [key, languageOfSpeech(speech)]),
     deckExamples: DECK_EXAMPLES.map((deck) => {
       const speech = deckNameLanguage(deck);

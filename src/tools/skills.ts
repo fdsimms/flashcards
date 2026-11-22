@@ -2,7 +2,7 @@ import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
 import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
-import { SKILL_TAG } from '../core/skillTag';
+import { setAsideOf, SKILL_DRILL_TAG, SKILL_TAG, type SetAside } from '../core/skillTag';
 import { isSettled } from '../core/progress';
 import type { Card, Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
@@ -37,6 +37,12 @@ export interface DrillStep {
   title: string;
   /** The step before, which settles first: this one is added suspended and released after it. */
   after?: string;
+  /**
+   * Asks everything every earlier step of its ladder asks (any minute takes in the hour and the quarters;
+   * a date with the weekday is the day and month with one more word), so once it has settled the earlier
+   * ones are set aside (`coverable`) and a week's practice is one card, not the whole ladder.
+   */
+  coversEarlier?: true;
   /** What Anki on the computer shows, where there's no drill: something to do without the app, then rate. */
   selfCheck: string;
 }
@@ -53,8 +59,8 @@ export interface ContrastStep extends DrillStep { group: 'contrast'; language: L
 export const TIME_STEPS: TimeStep[] = [
   { id: 'time-hours', group: 'time', title: "O'clock and half past", minutes: 'hours', selfCheck: 'Say three times aloud: one on the hour, one at half past, one in the evening.' },
   { id: 'time-quarters', group: 'time', title: 'Quarter past and to', minutes: 'quarters', after: 'time-hours', selfCheck: 'Say three times aloud at a quarter past or a quarter to the hour, morning and afternoon.' },
-  { id: 'time-five', group: 'time', title: 'Five-minute steps', minutes: 5, after: 'time-quarters', selfCheck: 'Say three times aloud on five-minute steps, such as 10:25 or 16:50.' },
-  { id: 'time-any', group: 'time', title: 'Any minute', minutes: 1, after: 'time-five', selfCheck: 'Say three times aloud at any minute, such as 07:13 or 21:48.' },
+  { id: 'time-five', coversEarlier: true, group: 'time', title: 'Five-minute steps', minutes: 5, after: 'time-quarters', selfCheck: 'Say three times aloud on five-minute steps, such as 10:25 or 16:50.' },
+  { id: 'time-any', coversEarlier: true, group: 'time', title: 'Any minute', minutes: 1, after: 'time-five', selfCheck: 'Say three times aloud at any minute, such as 07:13 or 21:48.' },
 ];
 
 export const NUMBER_STEPS: NumberStep[] = [
@@ -66,14 +72,14 @@ export const NUMBER_STEPS: NumberStep[] = [
 
 export const DATE_STEPS: DateStep[] = [
   { id: 'dates-day', group: 'dates', title: 'Day and month', parts: { weekday: false, year: false }, selfCheck: "Say today's date aloud, then your birthday, then the first of next month." },
-  { id: 'dates-weekday', group: 'dates', title: 'With the weekday', parts: { weekday: true, year: false }, after: 'dates-day', selfCheck: "Say today's date aloud with its weekday, then the same for a week from now." },
-  { id: 'dates-year', group: 'dates', title: 'With the weekday and year', parts: { weekday: true, year: true }, after: 'dates-weekday', selfCheck: 'Say aloud the full date of today, of your birthday this year, and of New Year\'s Day.' },
+  { id: 'dates-weekday', coversEarlier: true, group: 'dates', title: 'With the weekday', parts: { weekday: true, year: false }, after: 'dates-day', selfCheck: "Say today's date aloud with its weekday, then the same for a week from now." },
+  { id: 'dates-year', coversEarlier: true, group: 'dates', title: 'With the weekday and year', parts: { weekday: true, year: true }, after: 'dates-weekday', selfCheck: 'Say aloud the full date of today, of your birthday this year, and of New Year\'s Day.' },
 ];
 
 export const MONEY_STEPS: MoneyStep[] = [
   { id: 'money-100', group: 'money', title: 'Prices up to 100', max: 100, selfCheck: 'Say three small prices aloud, such as a coffee, a snack and a bus fare.' },
-  { id: 'money-1000', group: 'money', title: 'Prices up to 1,000', max: 1000, after: 'money-100', selfCheck: 'Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.' },
-  { id: 'money-10000', group: 'money', title: 'Prices up to 10,000', max: 10000, after: 'money-1000', selfCheck: 'Say three prices up to 10,000 aloud, such as a phone, a flight and a month\'s rent.' },
+  { id: 'money-1000', coversEarlier: true, group: 'money', title: 'Prices up to 1,000', max: 1000, after: 'money-100', selfCheck: 'Say three prices up to 1,000 aloud, such as a meal, a shirt and a taxi.' },
+  { id: 'money-10000', coversEarlier: true, group: 'money', title: 'Prices up to 10,000', max: 10000, after: 'money-1000', selfCheck: 'Say three prices up to 10,000 aloud, such as a phone, a flight and a month\'s rent.' },
 ];
 
 /** Polish and Russian: the noun's form follows the number (dwa koty, pięć kotów; два кота, пять котов), one form per step. */
@@ -81,7 +87,7 @@ export const COUNT_STEPS: CountStep[] = [
   { id: 'counting-one', group: 'counting', title: '1 with the noun', ending: 'one', selfCheck: 'Say 1 with three nouns aloud, one of each gender, such as a cat, a book and an apple.' },
   { id: 'counting-few', group: 'counting', title: '2 to 4', ending: 'few', after: 'counting-one', selfCheck: 'Say 2, 3 and 4 with a noun aloud, and 2 with a feminine noun.' },
   { id: 'counting-many', group: 'counting', title: '5 and up', ending: 'many', after: 'counting-few', selfCheck: 'Say 5, 11 and 20 with a noun aloud.' },
-  { id: 'counting-any', group: 'counting', title: 'Any number to 100', ending: 'any', after: 'counting-many', selfCheck: 'Say 21, 22 and 25 with a noun aloud, then any other number to 100.' },
+  { id: 'counting-any', coversEarlier: true, group: 'counting', title: 'Any number to 100', ending: 'any', after: 'counting-many', selfCheck: 'Say 21, 22 and 25 with a noun aloud, then any other number to 100.' },
 ];
 
 /** Which word fits: a step per set, in each language's own order. The id leads with `contrast-`, then the set's (which leads with its language). */
@@ -209,14 +215,42 @@ function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: 
  * A card's round for one study day: `DRILL_QUESTIONS` questions from `step`, none the one before it and
  * none that `recent` (what the step asked lately, drillSeen.ts) holds while the step has others. The
  * round is drawn once and kept (drillRound.ts), so it is the same every time the card comes up that day.
+ * A dates round picks each question's month first (`nextMonth`), from `missedMonths` among others.
  */
-export function drawRound(step: DrillStep, random: () => number = Math.random, language?: Language, only?: DateScope, recent: readonly string[] = []): DrillQuestion[] {
+export function drawRound(step: DrillStep, random: () => number = Math.random, language?: Language, only?: DateScope, recent: readonly string[] = [], missedMonths: readonly number[] = []): DrillQuestion[] {
   const round: DrillQuestion[] = [];
   for (let i = 0; i < DRILL_QUESTIONS; i++) {
     // The round's own questions count as asked, so a small step doesn't repeat one within the round.
-    round.push(drawQuestion(step, round[i - 1], random, language, only, [...recent, ...round.map(questionKey)]));
+    const asked = [...recent, ...round.map(questionKey)];
+    const months = only?.months?.length ? only.months : ALL_MONTHS;
+    const scope = step.group === 'dates' ? { ...only, months: [nextMonth(months, asked, missedMonths.filter((m) => !round.some((q) => q.kind === 'date' && q.date.month === m)), random)] } : only;
+    round.push(drawQuestion(step, round[i - 1], random, language, scope, asked));
   }
   return round;
+}
+
+const ALL_MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** The month (1 to 12) of a dates drill's question key (`questionKey`: year-month-day), or undefined for any other key. */
+const monthOfKey = (key: string): number | undefined => {
+  const m = /^\d+-(\d+)-\d+$/.exec(key);
+  return m ? Number(m[1]) : undefined;
+};
+
+/**
+ * The month a dates drill asks about next, of the `months` the deck knows: one the step hasn't asked
+ * lately (a month just learned comes first, rather than waiting for chance to draw it), then one missed
+ * lately (`missed`, oldest miss first), then the one asked longest ago. So every known month comes round
+ * in turn, which a few random questions a week didn't do. `recent` is the step's asked keys, least recent first.
+ */
+export function nextMonth(months: readonly number[], recent: readonly string[], missed: readonly number[], random: () => number = Math.random): number {
+  const lastAsked = new Map<number, number>();
+  recent.forEach((k, i) => { const m = monthOfKey(k); if (m !== undefined) lastAsked.set(m, i); });
+  const fresh = months.filter((m) => !lastAsked.has(m));
+  if (fresh.length) return fresh[Math.floor(random() * fresh.length)];
+  const miss = missed.find((m) => months.includes(m));
+  if (miss !== undefined) return miss;
+  return [...months].sort((a, b) => lastAsked.get(a)! - lastAsked.get(b)!)[0];
 }
 
 /** The questions a card asks when it returns the same day: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
@@ -515,7 +549,7 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
           Front: `<div><b>${esc(languageName)} · ${esc(GROUP_TITLES[group])}: ${esc(step.title)}</b></div><div>${esc(step.selfCheck)}</div>`,
           Back: `${contrastRules(step)}<div>Rate how it went. In Franki this card is a short drill.</div>`,
         },
-        tags: [SKILL_TAG, `${SKILL_TAG}::drill::${step.id}`, lang],
+        tags: [SKILL_TAG, `${SKILL_DRILL_TAG}${step.id}`, lang],
         suspended: stepWaits(step, language),
       });
     }
@@ -531,7 +565,7 @@ export function skillWordDrafts(language: Language, groups: SkillGroup[]): Skill
 /** The drill a note's tags make it, with its language; undefined for any other note. */
 export function drillOfTags(tags: readonly string[]): { step: DrillStep; language: Language } | undefined {
   if (!tags.includes(SKILL_TAG)) return undefined;
-  const step = tags.map((t) => t.startsWith(`${SKILL_TAG}::drill::`) ? drillStep(t.slice(`${SKILL_TAG}::drill::`.length)) : undefined).find(Boolean);
+  const step = tags.map((t) => t.startsWith(SKILL_DRILL_TAG) ? drillStep(t.slice(SKILL_DRILL_TAG.length)) : undefined).find(Boolean);
   const language = tags.map((t) => t.startsWith(`${SKILL_TAG}::lang::`) ? t.slice(`${SKILL_TAG}::lang::`.length) : undefined)
     .find((l): l is Language => !!l && (LANGUAGE_ORDER as string[]).includes(l));
   return step && language ? { step, language } : undefined;
@@ -549,6 +583,8 @@ export interface SkillCardState {
   missing?: readonly string[];
   /** The deck's skill cards are paused (Skill cards switched off): nothing is released or held back. */
   paused?: boolean;
+  /** Stopped or covered (`setAsideOf`): it stays suspended whatever the ladder or its words say. */
+  setAside?: SetAside;
 }
 
 /**
@@ -558,7 +594,7 @@ export interface SkillCardState {
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
   return cards.filter((c) => {
-    if (!c.suspended || c.paused || c.missing?.length) return false;
+    if (!c.suspended || c.paused || c.setAside || c.missing?.length) return false;
     const step = drillStep(c.stepId);
     if (!step) return false;
     if (step.after) return settled.has(`${c.language}|${step.after}`);
@@ -574,7 +610,52 @@ export function releasable(cards: readonly SkillCardState[]): string[] {
  * for words comes back then too: the pause switch is the way to stop a deck's skill cards.
  */
 export function holdable(cards: readonly SkillCardState[]): string[] {
-  return cards.filter((c) => !c.suspended && !c.paused && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
+  return cards.filter((c) => !c.suspended && !c.paused && !c.setAside && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
+}
+
+/** The later steps of `stepId`'s ladder that ask everything it does (`coversEarlier`), nearest first. */
+export function coveringSteps(stepId: string): DrillStep[] {
+  const step = drillStep(stepId);
+  if (!step) return [];
+  const ladder = DRILL_STEPS.filter((s) => s.group === step.group);
+  return ladder.slice(ladder.indexOf(step) + 1).filter((s) => s.coversEarlier);
+}
+
+/**
+ * The cards to set aside as covered: a step a later one of its ladder covers, once that one has settled
+ * in the same language. Set aside for good (`SKILL_COVERED_TAG`), not while the later step stays settled:
+ * with drills reviewed weekly (`DRILL_MAX_INTERVAL_DAYS`) a Hard puts it back under the week, and the
+ * earlier step would come and go with it. Nothing changes while the deck's skill cards are paused.
+ */
+export function coverable(cards: readonly SkillCardState[]): string[] {
+  const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
+  return cards.filter((c) => !c.paused && !c.setAside && coveringSteps(c.stepId).some((s) => settled.has(`${c.language}|${s.id}`))).map((c) => c.id);
+}
+
+// ==== Clean weeks ====
+
+/** How many clean weeks in a row before Review and Skill cards suggest stopping a step. */
+export const STOP_SUGGESTED_AFTER = 6;
+
+/** A review counts as a week's when it came at least this long after the answer before it (a week, less a day for a study day's drift). */
+const WEEK_GAP_MS = 6 * 86_400_000;
+
+/**
+ * How many weeks running a drill card has been answered Good or Easy: its reviews newest first, each
+ * counted when it came a week or so after the answer before it (an early review at a few days, while the
+ * card was still climbing to the week, isn't a week). Any Again or Hard, or a learning or relearning
+ * answer, ends the run. Answers made by hand (rating 0: Set Due Date, Forget) are passed over.
+ */
+export function cleanWeeks(history: readonly { at: Date; kind: string; rating: number }[]): number {
+  const answers = history.filter((h) => h.rating > 0);
+  let weeks = 0;
+  for (let i = 0; i < answers.length; i++) {
+    const a = answers[i];
+    if (a.kind !== 'Review' || a.rating < 3) break;
+    const before = answers[i + 1];
+    if (before && a.at.getTime() - before.at.getTime() >= WEEK_GAP_MS) weeks++;
+  }
+  return weeks;
 }
 
 // ==== Progress ====
@@ -593,9 +674,24 @@ export interface SkillCardInfo {
   percent?: number;
   /** The words its step still waits for in the deck. */
   missing?: readonly string[];
+  /** Its note, for Stop practicing and Start again. */
+  noteId?: string;
+  /** Weeks running answered Good or Easy (`cleanWeeks`); a drill card's only. */
+  weeks?: number;
 }
 
-export interface SkillRow { title: string; detail: string; meter?: number; locked: boolean }
+export interface SkillRow {
+  title: string;
+  detail: string;
+  meter?: number;
+  locked: boolean;
+  /** Set aside because a later step asks everything it did: shown done, with nothing to tap. */
+  covered?: boolean;
+  /** A run of clean weeks (`STOP_SUGGESTED_AFTER` or more): the detail says so in the good color. */
+  clean?: boolean;
+  /** What the row's button does to the step's note: stop practicing it, or start it again. */
+  action?: { kind: 'stop' | 'start'; noteId: string };
+}
 export interface SkillSection { title: string; rows: SkillRow[] }
 
 const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Next in ${days} days`);
@@ -605,12 +701,19 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sections: SkillSection[] = [];
   for (const group of ['time', 'numbers', 'dates', 'money', 'counting', 'contrast'] as DrillGroup[]) {
     const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
-      const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
+      const card = cards.find((c) => c.tags.includes(`${SKILL_DRILL_TAG}${step.id}`));
       if (!card) return [];
       const before = step.after ? drillStep(step.after)?.title : undefined;
+      const aside = setAsideOf(card.tags);
+      if (aside === 'covered') {
+        const by = coveringSteps(step.id).find((s) => cards.some((c) => c.settled && c.tags.includes(`${SKILL_DRILL_TAG}${s.id}`))) ?? coveringSteps(step.id)[0];
+        return [{ title: step.title, detail: by ? `Covered by “${by.title}”` : 'Covered by a later step', locked: false, covered: true }];
+      }
+      if (aside === 'stopped') return [{ title: step.title, detail: 'Stopped', locked: false, ...(card.noteId ? { action: { kind: 'start' as const, noteId: card.noteId } } : {}) }];
       if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Starts once you know ${card.missing.join(', ')} well`, locked: true }];
       if (card.suspended) return [{ title: step.title, detail: before ? `Starts once you know ${before.charAt(0).toLowerCase() + before.slice(1)} well` : 'Suspended', locked: true }];
       if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
+      if ((card.weeks ?? 0) >= STOP_SUGGESTED_AFTER && card.noteId) return [{ title: step.title, detail: `Right ${card.weeks} weeks in a row`, locked: false, clean: true, action: { kind: 'stop', noteId: card.noteId } }];
       return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
     });
     if (rows.length) sections.push({ title: GROUP_TITLES[group], rows });

@@ -24,6 +24,17 @@ export function recordSeen(seen: DrillSeen, list: string, key: string): DrillSee
   return { ...seen, [list]: kept.slice(-SEEN_KEPT) };
 }
 
+/** `seen` without `key` in `list`: a miss answered right since, no longer one to ask first. */
+export function forgetSeen(seen: DrillSeen, list: string, key: string): DrillSeen {
+  const kept = (seen[list] ?? []).filter((k) => k !== key);
+  if (kept.length === (seen[list] ?? []).length) return seen;
+  const { [list]: _gone, ...rest } = seen;
+  return kept.length ? { ...rest, [list]: kept } : rest;
+}
+
+/** The list a step's missed months are kept in, beside its asked questions: a dates drill asks one of them first next time (`nextMonth`). */
+export const missedList = (language: string, stepId: string): string => `${seenList(language, stepId)}:missed`;
+
 /**
  * A question from `draw` that isn't in `recent` (least recently asked first). When every one of
  * `SEEN_TRIES` draws was asked lately (a small step, all of whose questions have been), the draw
