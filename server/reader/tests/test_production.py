@@ -70,6 +70,31 @@ def test_a_hint_that_gives_the_fix_away_is_dropped() -> None:
     assert cleaned["hints"] == ["The noun after Potrzebuję is in the wrong case."]
 
 
+def test_a_hint_in_plain_english_is_kept_though_the_fix_shares_its_little_words() -> None:
+    german = AttemptRequest("de", "sentence", "Ich gehe Schule.", "Schule", "school")
+    hints = [
+        "A preposition is missing in this sentence.",  # "in" is the hint's English, not the fix
+        'Use "in" before the school.',  # quoted: named
+        "It should be in die Schule.",  # the correction written out
+    ]
+    cleaned = clean_attempt(
+        {**JUDGED, "corrected": "Ich gehe in die Schule.", "hints": hints}, german
+    )
+    assert cleaned is not None and cleaned["hints"] == [
+        "A preposition is missing in this sentence."
+    ]
+    english = AttemptRequest("en", "sentence", "I school.", "school", "school")
+    cleaned = clean_attempt(
+        {
+            **JUDGED,
+            "corrected": "I went to school.",
+            "hints": ["A verb is missing.", 'Add "went".'],
+        },
+        english,
+    )
+    assert cleaned is not None and cleaned["hints"] == ["A verb is missing."]
+
+
 def test_a_right_answer_has_no_hints_and_a_missing_list_is_none() -> None:
     right = clean_attempt({**JUDGED, "verdict": "right"}, SENTENCE)
     assert right is not None and right["hints"] == []
