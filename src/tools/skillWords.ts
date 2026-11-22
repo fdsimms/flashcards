@@ -3,20 +3,24 @@ import { LANGUAGES } from '../reader/languages';
 import { SKILL_WORDS_TAG } from '../core/priority';
 
 /**
- * The words a skill's drills are said in, which a learner can't answer without: the months for Saying
- * dates, the number words for Numbers, "half" for telling the time, the currency for Counting money.
- * A skill is worthless on words the learner never studied, so turning it on adds the ones the deck
- * lacks as ordinary notes (`wordDrafts`), tagged `skill::words` so Review brings some of them up each
- * day (`SKILL_WORDS_PERCENT`, src/core/priority.ts), and a drill step waits until the deck has studied
- * them (`stepNeeds`). A dates drill also asks only about the months studied (`knownMonths`). Nothing
- * here rates, schedules or writes a card.
+ * The words a skill's drills are said in, which a learner can't answer without: the months and the day
+ * ordinals for Saying dates, the number words for Numbers, "half" for telling the time, the currency for
+ * Counting money. A skill is worthless on words the learner doesn't know, so turning it on adds the ones
+ * the deck lacks as ordinary notes (`wordDrafts`), tagged `skill::words` so Review brings some of them up
+ * each day (`SKILL_WORDS_PERCENT`, src/core/priority.ts), and a drill step waits until the deck knows them
+ * (`stepNeeds`): a word counts once its card has settled (`isSettled`, src/core/progress.ts), not when it
+ * has only been seen. A dates drill also asks only about the months (`knownMonths`) and days (`knownDays`)
+ * known. Nothing here rates, schedules or writes a card.
  */
 
 /** The note type the words are written in: the one the deck's own words are. */
 export const SKILL_WORD_NOTE_TYPE = 'Omnilanguage';
 
-/** How many months must be studied before the first dates step opens: it then asks only about the months known. */
+/** How many months must be known before the first dates step opens: it then asks only about the months known. */
 export const MIN_MONTHS = 3;
+
+/** How many day ordinals (the first to the tenth, in any order) must be known before the first dates step opens: it then asks only about the days known. */
+export const MIN_ORDINALS = 10;
 
 export interface SkillWord { entry: string; meaning: string; /** Omnilanguage's PartOfSpeech; a noun unless said. */ pos?: string }
 
@@ -36,6 +40,9 @@ const one = (entry: string, meaning: string, pos?: string): SkillWord[] => [{ en
 
 export const MONTH_MEANINGS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;
 export const WEEKDAY_MEANINGS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+const ORDINAL_MEANINGS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 'nineteenth', 'twentieth', 'thirtieth'] as const;
+const TEEN_MEANINGS = ['eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'] as const;
+const TENS_MEANINGS = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'] as const;
 const DIGIT_MEANINGS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] as const;
 
 /** The month names in each language, January first, as a dictionary lists them. */
@@ -77,6 +84,18 @@ export const DIGIT_WORDS: Partial<Record<Language, readonly string[]>> = {
   ru: ['один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять', 'десять'],
 };
 
+/**
+ * The day ordinals (first to nineteenth, then twentieth and thirtieth), which a date says the day with: the rest
+ * are built from these and the tens (tjueførste, trettiførste). Norwegian only so far; the other languages'
+ * drills still say a day whether or not its word is known.
+ */
+export const ORDINAL_DAY_WORDS: Partial<Record<Language, readonly string[]>> = {
+  nb: ['første', 'andre', 'tredje', 'fjerde', 'femte', 'sjette', 'sjuende', 'åttende', 'niende', 'tiende', 'ellevte', 'tolvte', 'trettende', 'fjortende', 'femtende', 'sekstende', 'syttende', 'attende', 'nittende', 'tjuende', 'trettiende'],
+};
+/** Eleven to nineteen, and the tens twenty to ninety: what 11 to 99 and a year are said with. Norwegian only so far. */
+export const TEEN_WORDS: Partial<Record<Language, readonly string[]>> = { nb: ['elleve', 'tolv', 'tretten', 'fjorten', 'femten', 'seksten', 'sytten', 'atten', 'nitten'] };
+export const TENS_WORDS: Partial<Record<Language, readonly string[]>> = { nb: ['tjue', 'tretti', 'førti', 'femti', 'seksti', 'sytti', 'åtti', 'nitti'] };
+
 /** The words for a hundred and a thousand, which the hundreds and thousands steps can't be said without. */
 const HUNDRED: Partial<Record<Language, string>> = { th: 'ร้อย', pl: 'sto', ru: 'сто', de: 'hundert', es: 'cien', fr: 'cent', el: 'εκατό', nb: 'hundre', ja: '百' };
 const THOUSAND: Partial<Record<Language, string>> = { th: 'พัน', pl: 'tysiąc', ru: 'тысяча', de: 'tausend', es: 'mil', fr: 'mille', el: 'χίλια', nb: 'tusen', ja: '千' };
@@ -107,6 +126,17 @@ const WORD_SETS: readonly WordSet[] = [
   { label: "o'clock", min: 'all', steps: ['time-hours'], words: single(OCLOCK, "o'clock") },
   { label: 'quarter', min: 'all', steps: ['time-quarters'], words: single(QUARTER, 'quarter') },
   { label: 'currency', min: 'all', steps: ['money-100'], words: Object.fromEntries(Object.entries(CURRENCY).map(([l, [entry, meaning]]) => [l, one(entry, meaning)])) },
+  // Norwegian's day ordinals, the numbers 11 to 99 and the small words its drills say; the other languages' are still to come.
+  { label: 'day ordinals', min: MIN_ORDINALS, steps: ['dates-day'], words: bySet(ORDINAL_DAY_WORDS, ORDINAL_MEANINGS, 'numeral') },
+  { label: 'numbers 11 to 19', min: 'all', steps: ['numbers-99', 'time-any', 'money-100', 'dates-year'], words: bySet(TEEN_WORDS, TEEN_MEANINGS, 'numeral') },
+  { label: 'tens', min: 'all', steps: ['numbers-99', 'money-100', 'dates-year'], words: bySet(TENS_WORDS, TENS_MEANINGS, 'numeral') },
+  { label: 'twenty', min: 'all', steps: ['time-five'], words: { nb: one('tjue', 'twenty', 'numeral') } },
+  { label: 'hundred', min: 'all', steps: ['dates-year'], words: { nb: one('hundre', 'hundred', 'numeral') } },
+  { label: 'thousand', min: 'all', steps: ['dates-year'], words: { nb: one('tusen', 'thousand', 'numeral') } },
+  { label: 'and', min: 'all', steps: ['numbers-999', 'money-1000', 'dates-year'], words: { nb: one('og', 'and', 'conjunction') } },
+  { label: 'past', min: 'all', steps: ['time-quarters'], words: { nb: one('over', 'past', 'preposition') } },
+  { label: 'to', min: 'all', steps: ['time-quarters'], words: { nb: one('på', 'to', 'preposition') } },
+  { label: 'minute', min: 'all', steps: ['time-any'], words: { nb: one('minutt', 'minute') } },
 ];
 
 /** A set of words a step waits for in the deck, and how many of them have to be studied. */
@@ -129,25 +159,45 @@ export function stepNeeds(stepId: string, language: Language): WordNeed[] {
 const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
 
 /**
- * The words of `words` the studied headwords have: one counts when a headword is it, or has it as a
+ * The words of `words` the known headwords have: one counts when a headword is it, or has it as a
  * word of its own ("luty" in "luty, miesiąc"). Thai and Japanese aren't written with spaces, so
  * there it has to be the whole headword.
  */
-export function knownAmong(words: readonly string[], studied: readonly string[]): boolean[] {
-  const known = new Set(studied.flatMap((t) => [norm(t), ...norm(t).split(/[^\p{L}\p{N}]+/u)]).filter(Boolean));
+export function knownAmong(words: readonly string[], headwords: readonly string[]): boolean[] {
+  const known = new Set(headwords.flatMap((t) => [norm(t), ...norm(t).split(/[^\p{L}\p{N}]+/u)]).filter(Boolean));
   return words.map((w) => known.has(norm(w)));
 }
 
-/** The months (1 to 12) the studied headwords have, for a drill to ask only about those. */
-export function knownMonths(language: Language, studied: readonly string[]): number[] {
+/** The months (1 to 12) the known headwords have, for a drill to ask only about those. */
+export function knownMonths(language: Language, known: readonly string[]): number[] {
   const months = MONTH_WORDS[language];
   if (!months) return [];
-  return knownAmong(months, studied).flatMap((k, i) => (k ? [i + 1] : []));
+  return knownAmong(months, known).flatMap((k, i) => (k ? [i + 1] : []));
+}
+
+/** The words a day of the month is said with: its ordinal, with the tens before it from 21 (tjue + første). */
+const DAY_PIECES: Partial<Record<Language, (day: number) => string[]>> = {
+  nb: (day) => {
+    const ordinals = ORDINAL_DAY_WORDS.nb!;
+    if (day <= 19) return [ordinals[day - 1]];
+    if (day === 20 || day === 30) return [ordinals[day === 20 ? 19 : 20]];
+    return [TENS_WORDS.nb![day < 30 ? 0 : 1], ordinals[(day % 10) - 1]];
+  },
+};
+
+/**
+ * The days of the month (1 to 31) whose words the known headwords have, for a drill to ask only about
+ * those; empty for a language whose days aren't gated, which asks about every day.
+ */
+export function knownDays(language: Language, known: readonly string[]): number[] {
+  const pieces = DAY_PIECES[language];
+  if (!pieces) return [];
+  return Array.from({ length: 31 }, (_, i) => i + 1).filter((day) => knownAmong(pieces(day), known).every(Boolean));
 }
 
 /** What one need still lacks, for the Skills screen ("3 more month names", "weekday names", or the one word), or undefined once it has enough. */
-export function stillNeeded(need: WordNeed, studied: readonly string[]): string | undefined {
-  const have = knownAmong(need.words, studied).filter(Boolean).length;
+export function stillNeeded(need: WordNeed, known: readonly string[]): string | undefined {
+  const have = knownAmong(need.words, known).filter(Boolean).length;
   if (have >= need.min) return undefined;
   if (need.words.length === 1) return need.words[0];
   return need.min === need.words.length ? need.label : `${need.min - have} more ${need.label}`;

@@ -65,7 +65,7 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
   if (!drafts.length) throw new SkillsRefused('There are no skill cards to add for this deck yet.');
   const wanted = missingWordDrafts(await store.listNotes(), add.deck, add.language, add.groups);
   const wordType = wanted.length ? (await store.listNoteTypes()).get(SKILL_WORD_NOTE_TYPE) : undefined;
-  // Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner has studied them.
+  // Without the note type the words are written in, the cards are added and the words reported as not added: the steps that wait for them come in once the learner knows them.
   const wordDrafts = canWriteWords(wordType) ? wanted : [];
   const wordsSkipped = wanted.length - wordDrafts.length;
   const deck = await ensureDeck(store, `${add.deck}::${SKILLS_SUBDECK}`, add.refresh, now);

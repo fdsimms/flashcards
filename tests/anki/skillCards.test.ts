@@ -124,7 +124,7 @@ describe('writing the words a skill needs', () => {
   it('counts a word in a studied-or-not note of another language as not there', async () => {
     const store = await offline();
     await saveNote(store, { deck: 'Deutsch', model: 'Omnilanguage', fields: { Entry: 'Januar', Meaning: 'January', Language: 'german' }, tags: [] }, NOW);
-    expect(await addSkillCards(store, { ...add, deck: 'Norsk', language: 'nb', languageName: 'Norwegian', groups: ['dates'] })).toMatchObject({ words: 19 });
+    expect(await addSkillCards(store, { ...add, deck: 'Norsk', language: 'nb', languageName: 'Norwegian', groups: ['dates'] })).toMatchObject({ words: 60 });
   });
 });
 

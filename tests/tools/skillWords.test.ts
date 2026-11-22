@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Language } from '../../src/reader/api';
 import { drillAnswer, type DrillQuestion } from '../../src/tools/skills';
 import {
-  DIGIT_WORDS, groupWords, knownAmong, knownMonths, MIN_MONTHS, MONTH_MEANINGS, MONTH_WORDS, SKILL_WORD_NOTE_TYPE, stepNeeds, stillNeeded, WEEKDAY_MEANINGS, WEEKDAY_WORDS, wordDrafts,
+  DIGIT_WORDS, groupWords, knownAmong, knownDays, knownMonths, MIN_MONTHS, MIN_ORDINALS, MONTH_MEANINGS, MONTH_WORDS, ORDINAL_DAY_WORDS, SKILL_WORD_NOTE_TYPE, stepNeeds, stillNeeded, TEEN_WORDS, TENS_WORDS, WEEKDAY_MEANINGS, WEEKDAY_WORDS, wordDrafts,
 } from '../../src/tools/skillWords';
 import { weekdayOf } from '../../src/tools/date';
 import { DATE_SAYERS } from '../../src/tools/tools';
@@ -62,10 +62,60 @@ describe('the word lists', () => {
   });
 });
 
+describe('the Norwegian words the drills say', () => {
+  it('are in the answer: each ordinal, teen and ten, and the small words of a time and a price', () => {
+    const nb = (q: DrillQuestion) => said(q, 'nb');
+    ORDINAL_DAY_WORDS.nb!.forEach((w, i) => {
+      const day = i < 19 ? i + 1 : i === 19 ? 20 : 30;
+      expect(nb(date(3, day)), `ordinal ${day}`).toContain(w);
+    });
+    TEEN_WORDS.nb!.forEach((w, i) => expect(nb(number(11 + i)), `teen ${11 + i}`).toContain(w));
+    TENS_WORDS.nb!.forEach((w, i) => expect(nb(number(20 + i * 10)), `ten ${20 + i * 10}`).toContain(w));
+    expect(nb(number(105))).toContain(' og ');
+    expect(nb(number(2000))).toContain('tusen');
+    const time = (hour: number, minute: number): DrillQuestion => ({ kind: 'time', time: { hour, minute } });
+    expect(nb(time(3, 15))).toContain('over');
+    expect(nb(time(3, 45))).toContain('på');
+    expect(nb(time(3, 20))).toContain('tjue');
+    expect(nb(time(3, 7))).toContain('minutter');
+    expect(nb({ kind: 'money', amount: 120_700 })).toContain(' og ');
+    // A year says hundre and og before 2000, tusen after.
+    expect(nb({ kind: 'date', date: { year: 1985, month: 3, day: 4 }, parts: { weekday: false, year: true } })).toContain('hundreog');
+    expect(nb({ kind: 'date', date: { year: 2026, month: 3, day: 4 }, parts: { weekday: false, year: true } })).toContain('tusenog');
+  });
+});
+
+describe('the days a learner knows', () => {
+  const ordinals = ORDINAL_DAY_WORDS.nb!;
+
+  it('are the days whose ordinal, and tens for the twenties and thirty-first, are known', () => {
+    expect(knownDays('nb', [])).toEqual([]);
+    expect(knownDays('nb', ordinals.slice(0, 10))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    // tjue is what makes the twenties: with it, 21 to 29 come from the first nine ordinals.
+    expect(knownDays('nb', [...ordinals.slice(0, 10), 'tjue'])).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21, 22, 23, 24, 25, 26, 27, 28, 29]);
+    expect(knownDays('nb', [...ordinals, 'tjue', 'tretti'])).toEqual(Array.from({ length: 31 }, (_, i) => i + 1));
+    expect(knownDays('nb', ['første', 'tretti'])).toEqual([1, 31]);
+    expect(knownDays('nb', ['tjuende', 'trettiende'])).toEqual([20, 30]);
+  });
+
+  it('are every day for a language whose days are not gated', () => {
+    expect(knownDays('pl', ['pierwszy'])).toEqual([]);
+  });
+
+  it('are exactly the ones the drill says in pieces: every piece is in the answer', () => {
+    for (let day = 1; day <= 31; day++) {
+      const text = said(date(3, day), 'nb');
+      const known = knownDays('nb', ['første']);
+      expect(known.includes(day)).toBe(day === 1);
+      expect(text, `day ${day}`).toContain(day === 20 ? 'tjuende' : day === 30 ? 'trettiende' : day < 20 ? ordinals[day - 1] : `${day < 30 ? 'tjue' : 'tretti'}${ordinals[(day % 10) - 1]}`);
+    }
+  });
+});
+
 describe('writing the words as notes', () => {
   it('writes each as a note of the deck\'s own type, tagged so Review brings some up', () => {
     const drafts = wordDrafts('nb', ['dates']);
-    expect(drafts).toHaveLength(19);
+    expect(drafts).toHaveLength(60);
     expect(drafts[1]).toEqual({ fields: { Entry: 'februar', Meaning: 'February', Language: 'norwegian', PartOfSpeech: 'noun', GenerateReverse: 'y' }, tags: ['skill::words'] });
     expect(drafts[12].fields).toMatchObject({ Entry: 'søndag', Meaning: 'Sunday' });
     expect(SKILL_WORD_NOTE_TYPE).toBe('Omnilanguage');
@@ -77,7 +127,11 @@ describe('writing the words as notes', () => {
     expect(entries.filter((e) => e === 'hundre')).toHaveLength(1);
     expect(entries).toEqual(expect.arrayContaining(['en', 'ti', 'hundre', 'tusen', 'krone']));
     expect(wordDrafts('nb', ['numbers'])[0].fields.PartOfSpeech).toBe('numeral');
-    expect(wordDrafts('nb', ['time']).map((d) => [d.fields.Entry, d.fields.PartOfSpeech])).toEqual([['halv', 'adjective'], ['kvart', 'noun']]);
+    const time = wordDrafts('nb', ['time']).map((d) => [d.fields.Entry, d.fields.PartOfSpeech]);
+    expect(time.slice(0, 2)).toEqual([['halv', 'adjective'], ['kvart', 'noun']]);
+    expect(time).toEqual(expect.arrayContaining([['tjue', 'numeral'], ['over', 'preposition'], ['på', 'preposition'], ['minutt', 'noun'], ['elleve', 'numeral']]));
+    // Each word once however many steps say it: months, weekdays, 21 ordinals, 9 teens, 8 tens, hundre, tusen and og.
+    expect(new Set(wordDrafts('nb', ['dates']).map((d) => d.fields.Entry)).size).toBe(60);
   });
 
   it('writes nothing for a group with no words in the language', () => {
@@ -88,7 +142,8 @@ describe('writing the words as notes', () => {
 
 describe('what a drill step waits for', () => {
   it('is a few months for the first dates step, and all the weekdays as well after it', () => {
-    expect(stepNeeds('dates-day', 'nb').map((n) => [n.label, n.min])).toEqual([['month names', MIN_MONTHS]]);
+    expect(stepNeeds('dates-day', 'nb').map((n) => [n.label, n.min])).toEqual([['month names', MIN_MONTHS], ['day ordinals', MIN_ORDINALS]]);
+    expect(stepNeeds('dates-day', 'pl').map((n) => [n.label, n.min])).toEqual([['month names', MIN_MONTHS]]);
     expect(stepNeeds('dates-weekday', 'nb').map((n) => [n.label, n.min])).toEqual([['month names', MIN_MONTHS], ['weekday names', 7]]);
     expect(stepNeeds('dates-day', 'en')).toEqual([]);
   });
@@ -97,15 +152,17 @@ describe('what a drill step waits for', () => {
     expect(stepNeeds('numbers-10', 'nb').map((n) => [n.label, n.min])).toEqual([['number words', 10]]);
     expect(stepNeeds('numbers-999', 'th').map((n) => n.words)).toEqual([['ร้อย']]);
     expect(stepNeeds('money-10000', 'pl').map((n) => n.words)).toEqual([['tysiąc']]);
-    expect(stepNeeds('money-1000', 'nb').map((n) => n.words)).toEqual([['hundre']]);
-    expect(stepNeeds('money-100', 'nb').map((n) => n.words)).toEqual([['krone']]);
+    expect(stepNeeds('money-1000', 'nb').map((n) => n.words)).toEqual([['hundre'], ['og']]);
+    expect(stepNeeds('money-100', 'nb').map((n) => n.words[0])).toEqual(['krone', 'elleve', 'tjue']);
     expect(stepNeeds('time-hours', 'nb').map((n) => n.words)).toEqual([['halv']]);
     expect(stepNeeds('time-quarters', 'pl').map((n) => n.words)).toEqual([['kwadrans']]);
     expect(stepNeeds('time-hours', 'pl').map((n) => n.words)).toEqual([['wpół']]);
     expect(stepNeeds('time-hours', 'th').map((n) => n.words)).toEqual([['ครึ่ง'], ['โมง']]);
     expect(stepNeeds('time-quarters', 'th')).toEqual([]);
-    expect(stepNeeds('time-five', 'nb')).toEqual([]);
-    expect(stepNeeds('numbers-99', 'nb')).toEqual([]);
+    expect(stepNeeds('time-five', 'nb').map((n) => n.words)).toEqual([['tjue']]);
+    expect(stepNeeds('time-five', 'pl')).toEqual([]);
+    expect(stepNeeds('numbers-99', 'nb').map((n) => n.label)).toEqual(['numbers 11 to 19', 'tens']);
+    expect(stepNeeds('numbers-99', 'pl')).toEqual([]);
   });
 
   it('counts a word known when a studied headword is it or has it as a word of its own', () => {

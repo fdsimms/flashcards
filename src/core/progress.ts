@@ -19,9 +19,14 @@ export const MAX_GATE_CAP = 5000;
 export const GURU_INTERVAL_DAYS = 7;
 
 /** Started, and not yet scheduled a week or more out. New cards don't count until they're met. */
-export function isInProgress(card: Card): boolean {
+export function isInProgress(card: { sched: Pick<Card['sched'], 'state' | 'scheduledDays'> }): boolean {
   if (card.sched.state === 0) return false;
   return !(card.sched.state === 2 && card.sched.scheduledDays >= GURU_INTERVAL_DAYS);
+}
+
+/** Started and past the progress gate's line: a Review scheduled `GURU_INTERVAL_DAYS` or more out. What a skill's words must be before its drill asks about them. */
+export function isSettled(card: { sched: Pick<Card['sched'], 'state' | 'scheduledDays'> }): boolean {
+  return card.sched.state !== 0 && !isInProgress(card);
 }
 
 /**

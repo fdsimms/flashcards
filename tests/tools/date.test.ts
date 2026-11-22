@@ -37,7 +37,7 @@ describe('a random date in some months', () => {
     const random = () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
     let previous = undefined as ReturnType<typeof randomDate> | undefined;
     for (let i = 0; i < 500; i++) {
-      const d = randomDate(previous, random, [2, 5]);
+      const d = randomDate(previous, random, { months: [2, 5] });
       expect([2, 5]).toContain(d.month);
       expect(isValidDate(d)).toBe(true);
       expect(d.year >= FIRST_YEAR && d.year <= LAST_YEAR).toBe(true);
@@ -46,9 +46,24 @@ describe('a random date in some months', () => {
     }
   });
 
-  it('leaves the draw alone with no months or all twelve', () => {
-    expect(randomDate(undefined, () => 0, [])).toEqual(randomDate(undefined, () => 0));
-    expect(randomDate(undefined, () => 0.5, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toEqual(randomDate(undefined, () => 0.5));
+  it('is always on one of the days asked for, dropping a day the month lacks', () => {
+    let state = 11;
+    const random = () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
+    let previous = undefined as ReturnType<typeof randomDate> | undefined;
+    for (let i = 0; i < 500; i++) {
+      const d = randomDate(previous, random, { days: [3, 30, 31] });
+      expect(isValidDate(d)).toBe(true);
+      expect([3, 30, 31]).toContain(d.day);
+      if (previous) expect(d).not.toEqual(previous);
+      previous = d;
+    }
+    // Only the 31st known, in a month that has 30: any day of it, never an invalid date.
+    for (let i = 0; i < 200; i++) expect(isValidDate(randomDate(undefined, random, { months: [4], days: [31] }))).toBe(true);
+  });
+
+  it('leaves the draw alone with no months or days, or all of them', () => {
+    expect(randomDate(undefined, () => 0, { months: [], days: [] })).toEqual(randomDate(undefined, () => 0));
+    expect(randomDate(undefined, () => 0.5, { months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], days: Array.from({ length: 31 }, (_, i) => i + 1) })).toEqual(randomDate(undefined, () => 0.5));
   });
 });
 

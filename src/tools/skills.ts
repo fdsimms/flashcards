@@ -3,14 +3,15 @@ import { speechLangFor } from '../core/cards';
 import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
 import { SKILL_TAG } from '../core/skillTag';
-import type { Note } from '../core/types';
+import { isSettled } from '../core/progress';
+import type { Card, Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
 import { clockText, randomTime, type ClockTime, type MinuteStep, type TimeSaying } from './time';
 import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
-import { randomDate, weekdayOf, type CalendarDate, type DateParts } from './date';
+import { randomDate, weekdayOf, type CalendarDate, type DateParts, type DateScope } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { drawUnseen } from './drillSeen';
@@ -138,16 +139,16 @@ function drawCount(step: CountStep, previous: CountQuestion | undefined, random:
 
 /**
  * A question for `step` in `language`, never `previous` again, and one not in `recent` (the keys the step
- * asked lately, drillSeen.ts) while the step has others. `months` limits a date to the months the learner has studied.
+ * asked lately, drillSeen.ts) while the step has others. `only` limits a date to the months and days the learner knows.
  */
-export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): DrillQuestion {
-  return drawUnseen(() => drawOnce(step, previous, random, language, months), questionKey, recent);
+export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: () => number = Math.random, language?: Language, only?: DateScope, recent?: readonly string[]): DrillQuestion {
+  return drawUnseen(() => drawOnce(step, previous, random, language, only), questionKey, recent);
 }
 
-function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: () => number, language: Language | undefined, months: readonly number[] | undefined): DrillQuestion {
+function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: () => number, language: Language | undefined, only: DateScope | undefined): DrillQuestion {
   if (step.group === 'dates') {
     const s = step as DateStep;
-    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, months), parts: s.parts };
+    return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, only), parts: s.parts };
   }
   if (step.group === 'money') {
     const s = step as MoneyStep;
@@ -184,9 +185,9 @@ function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: 
  * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
  * Returns what's left of `retry` too.
  */
-export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, months?: readonly number[], recent?: readonly string[]): { question: DrillQuestion; retry: DrillQuestion[] } {
+export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, only?: DateScope, recent?: readonly string[]): { question: DrillQuestion; retry: DrillQuestion[] } {
   const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
-  if (at < 0) return { question: drawQuestion(step, previous, random, language, months, recent), retry: [...retry] };
+  if (at < 0) return { question: drawQuestion(step, previous, random, language, only, recent), retry: [...retry] };
   return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
 }
 
@@ -496,16 +497,13 @@ export interface SkillCardState {
   settled: boolean;
   /** What its step waits for in the deck, said for a person (`stepNeeds`, `stillNeeded`). */
   missing?: readonly string[];
-  /** Answered at least once: a first step held for words is released only while it hasn't been, so a card the learner suspended mid-ladder isn't undone. */
-  started?: boolean;
   /** The deck's skill cards are paused (Skill cards switched off): nothing is released or held back. */
   paused?: boolean;
 }
 
 /**
  * The suspended cards to release: a step whose step before, in the same language, has settled, or a
- * first step that was waiting only for words and hasn't been started; either one only once the deck
- * has the words it needs.
+ * first step that waits only for words; either one only once the deck knows the words it needs.
  */
 export function releasable(cards: readonly SkillCardState[]): string[] {
   const settled = new Set(cards.filter((c) => c.settled).map((c) => `${c.language}|${c.stepId}`));
@@ -514,18 +512,19 @@ export function releasable(cards: readonly SkillCardState[]): string[] {
     const step = drillStep(c.stepId);
     if (!step) return false;
     if (step.after) return settled.has(`${c.language}|${step.after}`);
-    return !c.started && stepNeeds(step.id, c.language).length > 0;
+    return stepNeeds(step.id, c.language).length > 0;
   }).map((c) => c.id);
 }
 
 /**
- * The live cards to hold back: a step that waits for words, never started, whose words the deck hasn't
- * studied. A deck got its first steps live before they waited for words, and a learner can unsuspend one;
- * holding it again keeps a drill from asking about words never studied. Released again by `releasable`
- * once the words are studied.
+ * The live cards to hold back: a step that waits for words whose words the deck doesn't know yet, started
+ * or not. A deck got its steps live before they waited for words (or while a word had only been seen), and
+ * a learner can unsuspend one; holding it again keeps a drill from asking about words not known. Released
+ * again by `releasable` once the words are known, so a step the learner suspended by hand while it waits
+ * for words comes back then too: the pause switch is the way to stop a deck's skill cards.
  */
 export function holdable(cards: readonly SkillCardState[]): string[] {
-  return cards.filter((c) => !c.suspended && !c.paused && !c.started && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
+  return cards.filter((c) => !c.suspended && !c.paused && !!c.missing?.length && stepNeeds(c.stepId, c.language).length > 0).map((c) => c.id);
 }
 
 // ==== Progress ====
@@ -559,7 +558,7 @@ export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
       const card = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${step.id}`));
       if (!card) return [];
       const before = step.after ? drillStep(step.after)?.title : undefined;
-      if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Waiting for ${card.missing.join(', ')} in your deck`, locked: true }];
+      if (card.suspended && card.missing?.length) return [{ title: step.title, detail: `Starts once you know ${card.missing.join(', ')} well`, locked: true }];
       if (card.suspended) return [{ title: step.title, detail: before ? `Starts once you know ${before.charAt(0).toLowerCase() + before.slice(1)} well` : 'Suspended', locked: true }];
       if (!card.started) return [{ title: step.title, detail: 'Not started yet', locked: false }];
       return [{ title: step.title, detail: due(card.dueInDays), meter: card.percent, locked: false }];
@@ -595,38 +594,42 @@ export function skillOffer(deck: string, notes: Iterable<{ deck: string; tags: r
 /** The language deck a skill note's words are looked up in: the deck above its Skills subdeck, so a German "Juni" never counts as Norwegian's. */
 export const skillLanguageDeck = (deck: string): string => (deck.endsWith(`::${SKILLS_SUBDECK}`) ? deck.slice(0, -(SKILLS_SUBDECK.length + 2)) : deck);
 
+/** The cards `knownHeadwords` reads: a note's word is known when one of its cards has settled (`isSettled`). */
+type KnownCard = { noteId: string; sched: Pick<Card['sched'], 'state' | 'scheduledDays'>; retired?: boolean };
+
 /**
- * The headwords of the notes studied (a card past new), skill cards left out: what a step's words are
- * checked against. With `deck`, only the notes in it and its subdecks.
+ * The headwords of the notes known (a card settled: a Review scheduled a week or more out, so a word seen
+ * once, or lapsed since, doesn't count), skill cards left out: what a step's words are checked against.
+ * With `deck`, only the notes in it and its subdecks.
  */
-export function studiedHeadwords(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>, deck?: string): string[] {
-  const started = new Set<string>();
-  for (const c of cards) if (c.sched.state !== 0 && !c.retired) started.add(c.noteId);
+export function knownHeadwords(notes: Iterable<Note>, cards: Iterable<KnownCard>, deck?: string): string[] {
+  const settled = new Set<string>();
+  for (const c of cards) if (!c.retired && isSettled(c)) settled.add(c.noteId);
   const out: string[] = [];
-  for (const n of notes) if (started.has(n.id) && !n.tags.includes(SKILL_TAG) && (deck === undefined || isInDeck(n.deck, deck))) out.push(headword(n));
+  for (const n of notes) if (settled.has(n.id) && !n.tags.includes(SKILL_TAG) && (deck === undefined || isInDeck(n.deck, deck))) out.push(headword(n));
   return out;
 }
 
-/** `studiedHeadwords` for any language deck, each worked out once. */
-export function studiedIn(notes: Iterable<Note>, cards: Iterable<{ noteId: string; sched: { state: number }; retired?: boolean }>): (deck: string) => string[] {
+/** `knownHeadwords` for any language deck, each worked out once. */
+export function knownIn(notes: Iterable<Note>, cards: Iterable<KnownCard>): (deck: string) => string[] {
   const allNotes = [...notes];
   const allCards = [...cards];
   const memo = new Map<string, string[]>();
   return (deck) => {
     let found = memo.get(deck);
-    if (!found) memo.set(deck, found = studiedHeadwords(allNotes, allCards, deck));
+    if (!found) memo.set(deck, found = knownHeadwords(allNotes, allCards, deck));
     return found;
   };
 }
 
-/** What each skill card's step still waits for, by card id, given the studied headwords of its language deck (`studiedIn`). */
-export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, studied: (languageDeck: string) => readonly string[]): Map<string, string[]> {
+/** What each skill card's step still waits for, by card id, given the known headwords of its language deck (`knownIn`). */
+export function missingByCard(cards: Iterable<{ id: string; noteId: string }>, notes: Map<string, Note>, known: (languageDeck: string) => readonly string[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const c of cards) {
     const n = notes.get(c.noteId);
     const drill = n && drillOfTags(n.tags);
     if (!drill) continue;
-    const words = studied(skillLanguageDeck(n.deck));
+    const words = known(skillLanguageDeck(n.deck));
     const missing = stepNeeds(drill.step.id, drill.language).flatMap((need) => stillNeeded(need, words) ?? []);
     if (missing.length) out.set(c.id, missing);
   }

@@ -84,18 +84,26 @@ function dateAt(index: number): CalendarDate {
   return { year, month, day: n + 1 };
 }
 
+/** What a drill may ask about: only these months (1 to 12) and days of the month, the ones the learner knows. Empty or missing means every one. */
+export interface DateScope { months?: readonly number[]; days?: readonly number[] }
+
 /**
- * A date at random from FIRST_YEAR to LAST_YEAR, never `previous` again. With `months` (1 to 12), only a
- * date in one of those months: a drill asks about the months the learner has studied.
+ * A date at random from FIRST_YEAR to LAST_YEAR, never `previous` again. With `only`, a date in one of its
+ * months and on one of its days: a drill asks about the months and days the learner knows.
  */
-export function randomDate(previous?: CalendarDate, random: () => number = Math.random, months?: readonly number[]): CalendarDate {
-  if (months?.length && months.length < 12) {
-    const month = months[Math.floor(random() * months.length)];
+export function randomDate(previous?: CalendarDate, random: () => number = Math.random, only?: DateScope): CalendarDate {
+  const months = only?.months?.length && only.months.length < 12 ? only.months : undefined;
+  const days = only?.days?.length && only.days.length < 31 ? only.days : undefined;
+  if (months || days) {
+    const month = months ? months[Math.floor(random() * months.length)] : 1 + Math.floor(random() * 12);
     const year = FIRST_YEAR + Math.floor(random() * (LAST_YEAR - FIRST_YEAR + 1));
+    // A day the month has: 30 and 31 drop out of a short month, and when none of the days fit (only the 31st known, in April) any day of it does.
     const length = daysInMonth(year, month);
-    let day = 1 + Math.floor(random() * length);
-    if (previous && previous.year === year && previous.month === month && previous.day === day) day = (day % length) + 1;
-    return { year, month, day };
+    const fit = days?.filter((d) => d <= length);
+    const pool = fit?.length ? fit : Array.from({ length }, (_, i) => i + 1);
+    let at = Math.floor(random() * pool.length);
+    if (previous && previous.year === year && previous.month === month && previous.day === pool[at]) at = (at + 1) % pool.length;
+    return { year, month, day: pool[at] };
   }
   const count = dayIndex({ year: LAST_YEAR + 1, month: 1, day: 1 });
   const last = previous && previous.year >= FIRST_YEAR && previous.year <= LAST_YEAR ? dayIndex(previous) : undefined;

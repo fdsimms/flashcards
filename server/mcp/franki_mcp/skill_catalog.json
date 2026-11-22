@@ -5493,6 +5493,162 @@
        "tags": [
         "skill::words"
        ]
+      },
+      {
+       "fields": {
+        "Entry": "elleve",
+        "Meaning": "eleven",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tolv",
+        "Meaning": "twelve",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretten",
+        "Meaning": "thirteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjorten",
+        "Meaning": "fourteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femten",
+        "Meaning": "fifteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksten",
+        "Meaning": "sixteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytten",
+        "Meaning": "seventeen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "atten",
+        "Meaning": "eighteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitten",
+        "Meaning": "nineteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tjue",
+        "Meaning": "twenty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "over",
+        "Meaning": "past",
+        "Language": "norwegian",
+        "PartOfSpeech": "preposition",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "på",
+        "Meaning": "to",
+        "Language": "norwegian",
+        "PartOfSpeech": "preposition",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "minutt",
+        "Meaning": "minute",
+        "Language": "norwegian",
+        "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -5680,6 +5836,222 @@
         "Meaning": "thousand",
         "Language": "norwegian",
         "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "elleve",
+        "Meaning": "eleven",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tolv",
+        "Meaning": "twelve",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretten",
+        "Meaning": "thirteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjorten",
+        "Meaning": "fourteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femten",
+        "Meaning": "fifteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksten",
+        "Meaning": "sixteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytten",
+        "Meaning": "seventeen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "atten",
+        "Meaning": "eighteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitten",
+        "Meaning": "nineteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tjue",
+        "Meaning": "twenty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretti",
+        "Meaning": "thirty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "førti",
+        "Meaning": "forty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femti",
+        "Meaning": "fifty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksti",
+        "Meaning": "sixty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytti",
+        "Meaning": "seventy",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "åtti",
+        "Meaning": "eighty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitti",
+        "Meaning": "ninety",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "og",
+        "Meaning": "and",
+        "Language": "norwegian",
+        "PartOfSpeech": "conjunction",
         "GenerateReverse": "y"
        },
        "tags": [
@@ -5951,6 +6323,498 @@
        "tags": [
         "skill::words"
        ]
+      },
+      {
+       "fields": {
+        "Entry": "første",
+        "Meaning": "first",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "andre",
+        "Meaning": "second",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tredje",
+        "Meaning": "third",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjerde",
+        "Meaning": "fourth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femte",
+        "Meaning": "fifth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sjette",
+        "Meaning": "sixth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sjuende",
+        "Meaning": "seventh",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "åttende",
+        "Meaning": "eighth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "niende",
+        "Meaning": "ninth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tiende",
+        "Meaning": "tenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "ellevte",
+        "Meaning": "eleventh",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tolvte",
+        "Meaning": "twelfth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "trettende",
+        "Meaning": "thirteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjortende",
+        "Meaning": "fourteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femtende",
+        "Meaning": "fifteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sekstende",
+        "Meaning": "sixteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "syttende",
+        "Meaning": "seventeenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "attende",
+        "Meaning": "eighteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nittende",
+        "Meaning": "nineteenth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tjuende",
+        "Meaning": "twentieth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "trettiende",
+        "Meaning": "thirtieth",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "elleve",
+        "Meaning": "eleven",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tolv",
+        "Meaning": "twelve",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretten",
+        "Meaning": "thirteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjorten",
+        "Meaning": "fourteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femten",
+        "Meaning": "fifteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksten",
+        "Meaning": "sixteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytten",
+        "Meaning": "seventeen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "atten",
+        "Meaning": "eighteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitten",
+        "Meaning": "nineteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tjue",
+        "Meaning": "twenty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretti",
+        "Meaning": "thirty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "førti",
+        "Meaning": "forty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femti",
+        "Meaning": "fifty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksti",
+        "Meaning": "sixty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytti",
+        "Meaning": "seventy",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "åtti",
+        "Meaning": "eighty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitti",
+        "Meaning": "ninety",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "hundre",
+        "Meaning": "hundred",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tusen",
+        "Meaning": "thousand",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "og",
+        "Meaning": "and",
+        "Language": "norwegian",
+        "PartOfSpeech": "conjunction",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
       }
      ]
     },
@@ -6020,6 +6884,222 @@
         "Meaning": "Norwegian krone",
         "Language": "norwegian",
         "PartOfSpeech": "noun",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "elleve",
+        "Meaning": "eleven",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tolv",
+        "Meaning": "twelve",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretten",
+        "Meaning": "thirteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "fjorten",
+        "Meaning": "fourteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femten",
+        "Meaning": "fifteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksten",
+        "Meaning": "sixteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytten",
+        "Meaning": "seventeen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "atten",
+        "Meaning": "eighteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitten",
+        "Meaning": "nineteen",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tjue",
+        "Meaning": "twenty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "tretti",
+        "Meaning": "thirty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "førti",
+        "Meaning": "forty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "femti",
+        "Meaning": "fifty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "seksti",
+        "Meaning": "sixty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "sytti",
+        "Meaning": "seventy",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "åtti",
+        "Meaning": "eighty",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "nitti",
+        "Meaning": "ninety",
+        "Language": "norwegian",
+        "PartOfSpeech": "numeral",
+        "GenerateReverse": "y"
+       },
+       "tags": [
+        "skill::words"
+       ]
+      },
+      {
+       "fields": {
+        "Entry": "og",
+        "Meaning": "and",
+        "Language": "norwegian",
+        "PartOfSpeech": "conjunction",
         "GenerateReverse": "y"
        },
        "tags": [
