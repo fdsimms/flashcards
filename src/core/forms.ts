@@ -236,6 +236,15 @@ export function formsOf(note: Note): NoteForms {
   return { forms, unreadable };
 }
 
+/**
+ * Whether any note in a deck or its subdecks lists forms (`formsOf`). Deck options hides Forms practice
+ * for a deck with none, since a suggestion or a drill can never come up there.
+ */
+export function deckHasForms(deck: string, notes: Iterable<Note>): boolean {
+  for (const n of notes) if ((n.deck === deck || n.deck.startsWith(`${deck}::`)) && formsOf(n).forms.length > 0) return true;
+  return false;
+}
+
 /** The Gender field of a noun that takes two genders: m/f, m/n, f/n. */
 const TWO_GENDERS = /^[mfn]\s*[/,]\s*[mfn]$/i;
 

@@ -22,11 +22,26 @@ export const ASPECT_MISS_RATING = 2;
  * languages, nouns, a verb tagged both, and the reverse and audio cards, whose front doesn't show the verb.
  */
 export function aspectToCheck(note: Note, card: Pick<Card, 'kind'>): Aspect | undefined {
-  if (card.kind !== 'forward' || !isOmnilanguage(note)) return undefined;
-  if (!ASPECT_LANGUAGES.includes(speechLangFor(note)?.split('-')[0] ?? '')) return undefined;
+  if (card.kind !== 'forward' || !hasAspectLanguage(note)) return undefined;
   const tags = new Set(note.tags.map((t) => t.toLowerCase()));
   const found = (['perfective', 'imperfective'] as const).filter((a) => tags.has(a));
   return found.length === 1 ? found[0] : undefined;
+}
+
+/** Whether a note is in a language whose verbs have an aspect to ask about (`ASPECT_LANGUAGES`). */
+function hasAspectLanguage(note: Note): boolean {
+  return isOmnilanguage(note) && ASPECT_LANGUAGES.includes(speechLangFor(note)?.split('-')[0] ?? '');
+}
+
+/**
+ * Whether the aspect check can ever apply in a deck: some note in it or its subdecks is in Russian or
+ * Polish. Deck options hides the setting otherwise, so a Toki Pona deck isn't offered it.
+ */
+export function deckHasAspectLanguage(deck: string, notes: Iterable<Note>): boolean {
+  for (const n of notes) {
+    if ((n.deck === deck || n.deck.startsWith(`${deck}::`)) && hasAspectLanguage(n)) return true;
+  }
+  return false;
 }
 
 /** Whether a deck asks it (its own setting, else its nearest ancestor's, else on). */

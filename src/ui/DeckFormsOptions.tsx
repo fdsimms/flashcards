@@ -9,12 +9,16 @@ import { Group, Help, NavRow, SectionTitle, Segments, SwitchRow } from './kit';
 import { space } from './theme';
 
 /**
- * Deck options for forms practice and lookalike words. They apply to the deck and its subdecks
+ * Deck options for forms practice, verb aspect and lookalike words. They apply to the deck and its subdecks
  * unless a subdeck sets its own, so what's shown is what applies here (`formsSettings`,
  * `lookalikeSettings`), and a change is saved as this deck's own.
  */
-export function DeckFormsOptions({ deck, all, onChange }: {
+export function DeckFormsOptions({ deck, formsApply, aspectApplies, all, onChange }: {
   deck: string;
+  /** Whether any note in the deck lists forms (`deckHasForms`); Forms practice is hidden without. */
+  formsApply: boolean;
+  /** Whether the deck has Russian or Polish notes (`deckHasAspectLanguage`); the verb aspect setting is hidden without. */
+  aspectApplies: boolean;
   /** Every deck's settings, this deck's as it is now. */
   all: Map<string, DeckSettings>;
   onChange: (patch: DeckSettings) => void;
@@ -24,33 +28,41 @@ export function DeckFormsOptions({ deck, all, onChange }: {
   const look = lookalikeSettings(deck, all);
   return (
     <>
-      <SectionTitle>Forms practice</SectionTitle>
-      <Group>
-        <SwitchRow first label="Suggest forms practice" value={forms.suggest} onValueChange={(v) => onChange({ suggestForms: v })} />
-        <NavRow label="Practice forms" detail="One pattern across the words you've studied" onPress={() => router.push({ pathname: '/forms-practice', params: { deck } })} />
-        <NavRow label="Practice history" detail="Forms you miss, and answers you mix up" onPress={() => router.push({ pathname: '/forms-history', params: { deck } })} />
-      </Group>
-      <Help>
-        Suggested on a card's answer side for a word new this week, one whose forms you missed last time, or one you
-        haven't practiced in a month.
-      </Help>
-      <View style={{ gap: space.s }}>
-        <SectionTitle>Prompts each time</SectionTitle>
-        <Segments<number>
-          options={FORM_PROMPT_CHOICES.map((n) => ({ value: n, label: String(n), accessibilityLabel: `${n} prompts` }))}
-          value={forms.prompts}
-          onChange={(n) => onChange({ formPrompts: n })}
-        />
-      </View>
+      {formsApply ? (
+        <>
+          <SectionTitle>Forms practice</SectionTitle>
+          <Group>
+            <SwitchRow first label="Suggest forms practice" value={forms.suggest} onValueChange={(v) => onChange({ suggestForms: v })} />
+            <NavRow label="Practice forms" detail="One pattern across the words you've studied" onPress={() => router.push({ pathname: '/forms-practice', params: { deck } })} />
+            <NavRow label="Practice history" detail="Forms you miss, and answers you mix up" onPress={() => router.push({ pathname: '/forms-history', params: { deck } })} />
+          </Group>
+          <Help>
+            Suggested on a card's answer side for a word new this week, one whose forms you missed last time, or one you
+            haven't practiced in a month.
+          </Help>
+          <View style={{ gap: space.s }}>
+            <SectionTitle>Prompts each time</SectionTitle>
+            <Segments<number>
+              options={FORM_PROMPT_CHOICES.map((n) => ({ value: n, label: String(n), accessibilityLabel: `${n} prompts` }))}
+              value={forms.prompts}
+              onChange={(n) => onChange({ formPrompts: n })}
+            />
+          </View>
+        </>
+      ) : null}
 
-      <SectionTitle>Verb aspect</SectionTitle>
-      <Group>
-        <SwitchRow first label="Ask imperfective or perfective" value={aspectCheckOn(deck, all)} onValueChange={(v) => onChange({ aspectCheck: v })} />
-      </Group>
-      <Help>
-        On the front of a Russian or Polish verb tagged imperfective or perfective, two buttons ask which it is. You can skip
-        them and tap Show answer. A wrong pick only outlines Hard when you rate the card.
-      </Help>
+      {aspectApplies ? (
+        <>
+          <SectionTitle>Verb aspect</SectionTitle>
+          <Group>
+            <SwitchRow first label="Ask imperfective or perfective" value={aspectCheckOn(deck, all)} onValueChange={(v) => onChange({ aspectCheck: v })} />
+          </Group>
+          <Help>
+            On the front of a Russian or Polish verb tagged imperfective or perfective, two buttons ask which it is. You can skip
+            them and tap Show answer. A wrong pick only outlines Hard when you rate the card.
+          </Help>
+        </>
+      ) : null}
 
       <SectionTitle>Lookalike words</SectionTitle>
       <Group>
