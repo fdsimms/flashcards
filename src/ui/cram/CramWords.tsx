@@ -14,6 +14,7 @@ import { haptic } from '../haptics';
 import { Field, Group, Help, Loading, NavRow, Screen } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 import { CheckRow } from './CramBits';
 import { CramAsk } from './CramAsk';
 import { leaveScreen } from '../leaveScreen';
@@ -47,6 +48,8 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
   const router = useRouter();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
+  // The keyboard's height as padding under the list, so the Make cards button can be scrolled above it.
+  const { bottomPadding } = useKeyboardScroll();
   const cram = crams.find((x) => x.id === id);
   const [query, setQuery] = useState(initial ?? '');
   // What each tap asked for, shown until the notes are read again and agree; a note being saved
@@ -124,7 +127,8 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl }}
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding }}
         ListHeaderComponent={(
           <View style={{ gap: space.m, paddingVertical: space.m }}>
             <Field
