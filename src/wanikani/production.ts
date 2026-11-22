@@ -54,16 +54,32 @@ export function audioFileName(subjectId: number, audio: PronunciationAudio): str
   return `wanikani-${subjectId}-${audio.voiceActorId}.mp3`;
 }
 
+/**
+ * Words a Title Cased WaniKani gloss keeps capitalized. The same list as `_PROPER` in
+ * server/mcp/franki_mcp/omnilanguage.py, whose `meaning-title-case` rule lints notes made before this
+ * existed: keep the two in step.
+ */
+const PROPER = new Set((
+  'i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august ' +
+  'september october november december japan japanese america american france french england english britain ' +
+  'british china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok'
+).split(' '));
+
+/** WaniKani writes every word of a meaning with a capital ("To Be Born"); the house style is lowercase glosses, keeping proper nouns. */
+export function lowerGloss(text: string): string {
+  return text.replace(/[A-Za-z][A-Za-z']*/g, (w) => (PROPER.has(w.toLowerCase()) || (w === w.toUpperCase() && w.length > 1) ? w : w.toLowerCase()));
+}
+
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** The note's fields: the word, its meanings to ask by, its reading, a sentence, and the recording when there is one. */
+/** The note's fields: the word, its meanings to ask by (lowercase, joined with "; "), its reading, a sentence, and the recording when there is one. */
 export function productionFields(s: Subject, audioFile?: string): Record<string, string> {
   const meanings = [primaryMeaning(s), ...otherMeanings(s)].slice(0, 3);
   const readings = s.readings.filter((r) => r.accepted).map((r) => r.reading);
   const sentence = s.contextSentences[0];
   return {
     Entry: escape(s.characters ?? ''),
-    Meaning: escape(meanings.join(', ')),
+    Meaning: escape(meanings.map(lowerGloss).join('; ')),
     ...(readings.length ? { KanaReading: escape(readings.join('、')) } : {}),
     ...(sentence ? { Context: escape(sentence.ja), ContextTranslation: escape(sentence.en) } : {}),
     ...(s.partsOfSpeech.length ? { PartOfSpeech: escape(s.partsOfSpeech.join(', ')) } : {}),

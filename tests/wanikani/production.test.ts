@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cardKindsFor } from '../../src/core/cards';
-import { audioFileName, audioFor, productionFields, productionNeeded, productionTags, subjectOfNote, suggestedDeck } from '../../src/wanikani/production';
+import { audioFileName, audioFor, lowerGloss, productionFields, productionNeeded, productionTags, subjectOfNote, suggestedDeck } from '../../src/wanikani/production';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
 import { assignmentResource, kanaVocabResource, vocabResource } from './fixtures';
 
@@ -42,7 +42,7 @@ describe('the note', () => {
     expect(file).toBe('wanikani-2467-1.mp3');
     expect(productionFields(vocab, file)).toEqual({
       Entry: '大人',
-      Meaning: 'Adult, Grown Up',
+      Meaning: 'adult; grown up',
       KanaReading: 'おとな',
       Context: '早く大人になりたい。',
       ContextTranslation: 'I want to be an adult soon.',
@@ -52,6 +52,15 @@ describe('the note', () => {
       SuppressFrontCard: 'y',
       GenerateReverse: 'y',
     });
+  });
+
+  it('lowercases WaniKani\'s Title Case glosses but keeps proper nouns', () => {
+    expect(lowerGloss('To Be Born')).toBe('to be born');
+    expect(lowerGloss('One Machine')).toBe('one machine');
+    expect(lowerGloss('Under The Bed')).toBe('under the bed');
+    expect(lowerGloss('October')).toBe('October');
+    expect(lowerGloss('Mt. Fuji')).toBe('Mt. Fuji');
+    expect(lowerGloss('American person')).toBe('American person');
   });
 
   it('makes only the Reverse card', () => {
