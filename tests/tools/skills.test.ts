@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  heardRight, holdable, questionNote, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  heardRight, holdable, questionNote, cleanWeeks, coverable, coveringSteps, nextMonth, STOP_SUGGESTED_AFTER, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 import { stepNeeds } from '../../src/tools/skillWords';
 import { countEnding } from '../../src/tools/counting';
@@ -185,8 +185,94 @@ describe('skill progress', () => {
     expect(sections).toEqual([{ title: 'Letters', rows: [{ title: 'Consonant classes', detail: '1 of 3 learned · 1 not started', meter: 33, locked: false }] }]);
   });
 
+  it('shows a covered step as done, a stopped one with Start again, and a run of clean weeks with Stop practicing', () => {
+    const sections = skillSections([
+      info('skill::drill::dates-day', { suspended: true, settled: true, tags: ['skill', 'skill::drill::dates-day', 'skill::covered'] }),
+      info('skill::drill::dates-weekday', { settled: true, noteId: 'w', weeks: 6 }),
+      info('skill::drill::dates-year', { noteId: 'y', weeks: 5 }),
+      info('skill::drill::time-hours', { suspended: true, noteId: 'h', tags: ['skill', 'skill::drill::time-hours', 'skill::stopped'] }),
+    ]);
+    expect(sections[0].rows).toEqual([
+      { title: "O'clock and half past", detail: 'Stopped', locked: false, action: { kind: 'start', noteId: 'h' } },
+    ]);
+    expect(sections[1].rows).toEqual([
+      { title: 'Day and month', detail: 'Covered by \u201cWith the weekday\u201d', locked: false, covered: true },
+      { title: 'With the weekday', detail: 'Right 6 weeks in a row', locked: false, clean: true, action: { kind: 'stop', noteId: 'w' } },
+      { title: 'With the weekday and year', detail: 'Next in 3 days', meter: 90, locked: false },
+    ]);
+  });
+
   it('is empty with no skill cards', () => {
     expect(skillSections([])).toEqual([]);
+  });
+});
+
+describe('steps that cover the ones before them', () => {
+  const state = (id: string, stepId: string, over: Partial<Parameters<typeof coverable>[0][number]> = {}) => ({ id, stepId, language: 'pl' as const, suspended: false, settled: false, ...over });
+
+  it('names, for each step, the later ones of its ladder that ask everything it does', () => {
+    expect(coveringSteps('dates-day').map((s) => s.id)).toEqual(['dates-weekday', 'dates-year']);
+    // Quarter past and to asks only quarters, so the hour step waits for five-minute steps.
+    expect(coveringSteps('time-hours').map((s) => s.id)).toEqual(['time-five', 'time-any']);
+    expect(coveringSteps('counting-few').map((s) => s.id)).toEqual(['counting-any']);
+    // Number ranges don't overlap: none covers another.
+    expect(coveringSteps('numbers-10')).toEqual([]);
+    expect(coveringSteps('dates-year')).toEqual([]);
+  });
+
+  it('sets a step aside once a step covering it has settled, in the same language, and not while paused', () => {
+    expect(coverable([state('a', 'dates-day', { settled: true }), state('b', 'dates-weekday', { settled: true })])).toEqual(['a']);
+    expect(coverable([state('a', 'dates-day', { settled: true }), state('b', 'dates-weekday')])).toEqual([]);
+    expect(coverable([state('a', 'dates-day'), state('b', 'dates-weekday', { settled: true, language: 'ru' })])).toEqual([]);
+    expect(coverable([state('a', 'dates-day', { paused: true }), state('b', 'dates-weekday', { settled: true, paused: true })])).toEqual([]);
+    expect(coverable([state('a', 'dates-day', { setAside: 'covered' }), state('b', 'dates-weekday', { settled: true })])).toEqual([]);
+  });
+
+  it('never releases or holds back a step set aside', () => {
+    const settled = state('a', 'dates-day', { settled: true });
+    expect(releasable([settled, state('b', 'dates-weekday', { suspended: true, setAside: 'stopped' })])).toEqual([]);
+    expect(holdable([state('c', 'dates-day', { missing: ['styczeń'], setAside: 'stopped' })])).toEqual([]);
+  });
+});
+
+describe('clean weeks', () => {
+  const day = (n: number) => new Date(2026, 9, 1 + n, 12);
+  const rev = (n: number, rating = 3) => ({ at: day(n), kind: 'Review', rating });
+
+  it('counts the reviews a week apart answered Good or Easy, newest first, until an Again or Hard', () => {
+    // Learned, reviewed at 2 and 5 days while climbing (not weeks), then weekly.
+    const history = [rev(54), rev(47, 4), rev(40), rev(33), rev(26), rev(19), rev(12), rev(5), rev(2), { at: day(0), kind: 'Learn', rating: 3 }];
+    expect(cleanWeeks(history)).toBe(7);
+    expect(cleanWeeks([rev(54), rev(47), rev(40, 2), rev(33)])).toBe(2);
+    expect(cleanWeeks([{ at: day(55), kind: 'Relearn', rating: 3 }, rev(47)])).toBe(0);
+    // A change made by hand isn't an answer: passed over.
+    expect(cleanWeeks([rev(54), { at: day(50), kind: 'Manual', rating: 0 }, rev(47), rev(40)])).toBe(2);
+    expect(STOP_SUGGESTED_AFTER).toBe(6);
+  });
+});
+
+describe('which month a dates drill asks', () => {
+  const keys = (...months: number[]) => months.map((m, i) => `2030-${m}-${i + 1}`);
+
+  it('asks a month not asked lately first, so a month just learned comes up at once', () => {
+    expect(nextMonth([1, 3, 4], keys(3, 4, 3, 4), [], () => 0)).toBe(1);
+  });
+
+  it('then a month missed lately, then the one asked longest ago', () => {
+    expect(nextMonth([3, 4, 5], keys(3, 4, 5), [5])).toBe(5);
+    expect(nextMonth([3, 4, 5], keys(3, 4, 5), [])).toBe(3);
+    expect(nextMonth([3, 4, 5], keys(4, 3, 5, 4), [])).toBe(3);
+    // A missed month the deck no longer knows isn't asked.
+    expect(nextMonth([3, 4], keys(3, 4), [5])).toBe(3);
+  });
+
+  it("gives a round's three questions three different months, the new one included", () => {
+    const step = DATE_STEPS[0];
+    const recent = keys(2, 3, 4, 2, 3, 4, 2, 3, 4);
+    const round = drawRound(step, Math.random, 'pl', { months: [1, 2, 3, 4] }, recent);
+    const months = round.map((q) => (q.kind === 'date' ? q.date.month : 0));
+    expect(months[0]).toBe(1);
+    expect(new Set(months).size).toBe(3);
   });
 });
 

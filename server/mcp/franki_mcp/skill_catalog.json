@@ -23,6 +23,10 @@
   "counting-many",
   "counting-any"
  ],
+ "setAsideTags": [
+  "skill::stopped",
+  "skill::covered"
+ ],
  "deckKeys": [
   [
    "thai",
