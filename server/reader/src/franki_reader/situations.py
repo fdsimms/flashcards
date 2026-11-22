@@ -105,8 +105,12 @@ FEEDBACK_SYSTEM = (
     'natural there; "almost": one or two small slips; "wrong": doesn\'t make sense, says something '
     "else, or has more than two mistakes), `corrected` (the learner's line with only the mistakes "
     "fixed, and any English in [brackets] put in the language; exactly their line when it is right) "
-    "and `note` (one short plain English sentence on the main thing that changed, or on why it works "
-    f"when it is right; under {MAX_CHARS} characters). Then give `words`: up to {MAX_WORDS} words "
+    "`note` (one short plain English sentence on the main thing that changed, or on why it works "
+    f"when it is right; under {MAX_CHARS} characters), `heard` (what you took the learner to have "
+    "said: their line written out in the language's own script when they wrote it in Latin letters "
+    "(romanization, however they spell it), and an empty string when they already wrote it in the "
+    "language's script) and `meant` (what the line says in English, as you understood it, even when "
+    f"it is wrong; under {MAX_CHARS} characters). Then give `words`: up to {MAX_WORDS} words "
     "worth adding to their deck, most useful first: each word the learner asked for in [brackets] "
     "(as the language says it), then words their partner used that they likely didn't know. Each is "
     'the dictionary form (`word`), its English (`english`) and `why`: "asked" or "heard". Do not '
@@ -125,8 +129,10 @@ FEEDBACK_SCHEMA: dict[str, Any] = {
                     "verdict": {"type": "string", "enum": list(VERDICTS)},
                     "corrected": {"type": "string"},
                     "note": {"type": "string"},
+                    "heard": {"type": "string"},
+                    "meant": {"type": "string"},
                 },
-                "required": ["index", "verdict", "corrected", "note"],
+                "required": ["index", "verdict", "corrected", "note", "heard", "meant"],
                 "additionalProperties": False,
             },
         },
@@ -259,6 +265,17 @@ def play_intro(conversation: Conversation) -> str:
     return f"{head}{chr(10).join(notes)}\n\nThe word list{words}"
 
 
+# Many learners type Thai in Latin letters, in whatever system they know, usually without tone
+# marks. Reading it by sound and judging the Thai it stands for keeps a line about the Thai, not
+# about how it was spelled.
+_THAI_ROMANIZATION = (
+    " The learner may write their lines in romanization, in any system or spelling (khrap, krap and"
+    " kap are the same word) and usually without tone marks or vowel length. Read each such line by"
+    " its sound, and judge the Thai it stands for: never mark a line down, or mention it in `note`,"
+    " for how it is romanized. Only a different word or wrong grammar is a mistake. Write"
+    " `corrected` in Thai script."
+)
+
 # The learner's lines are said as themselves, so they are judged and corrected as a man's or a
 # woman's Thai (lesson_writer.thai_problems has the same rule for a lesson's phrases).
 _THAI_LEARNER: dict[Learner, str] = {
@@ -290,7 +307,7 @@ def feedback_system(conversation: Conversation) -> str:
             " how natural each line is for that register, not for everyday speech."
         )
     if conversation.language == "th":
-        text += _THAI_LEARNER[conversation.learner]
+        text += _THAI_ROMANIZATION + _THAI_LEARNER[conversation.learner]
     return text
 
 
@@ -501,6 +518,8 @@ def clean_feedback(
         if verdict not in VERDICTS or not isinstance(corrected, str) or not isinstance(note, str):
             continue
         own = conversation.lines[index].text
+        heard, meant = item.get("heard"), item.get("meant")
+        heard = " ".join(heard.split()) if isinstance(heard, str) else ""
         fixed = own if verdict == "right" else " ".join(corrected.split())
         if not fixed or "—" in fixed:
             continue
@@ -511,6 +530,9 @@ def clean_feedback(
                 "verdict": verdict,
                 "corrected": fixed,
                 "note": note.strip()[:MAX_CHARS],
+                # Empty when it is only the line again, so the screen shows it only when it adds something.
+                "heard": "" if heard == " ".join(own.split()) else heard,
+                "meant": meant.strip()[:MAX_CHARS] if isinstance(meant, str) else "",
             }
         )
     words: list[dict[str, str]] = []
