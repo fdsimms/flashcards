@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceProgress,
@@ -8,7 +8,8 @@ import {
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { Card, Note } from '../../core/types';
-import type { Api, Language } from '../../reader/api';
+import type { Api, Language, QueuedNote } from '../../reader/api';
+import { queuedFor } from '../../reader/noteQueue';
 import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
@@ -46,6 +47,12 @@ export function CramPage(props: {
   serverRegister?: RegisterLevel;
   onEditNote: (noteId: string, onClose: () => void) => void;
   onRead: (language: Language, words: string[]) => void;
+  /** The note queue as the server last said it, so a card asked for shows whether it's ready, still being written or failed. */
+  queued?: QueuedNote[];
+  /** Opens a queued note in the note editor and takes it off the queue once saved; true when it was saved. */
+  approve?: (note: QueuedNote) => Promise<boolean>;
+  /** Asks Claude again for a note that couldn't be filled in. */
+  retry?: (id: number) => Promise<void>;
 }) {
   const { repo, id } = props;
   const c = useTheme();
@@ -66,6 +73,7 @@ export function CramPage(props: {
   const [showAll, setShowAll] = useState(false);
   const [capProblem, setCapProblem] = useState<string>();
   const [problem, setProblem] = useState<string>();
+  const approving = useRef(false);
 
   // A cram deleted from its sheet: nothing left to show.
   useEffect(() => { if (loaded && !cram) leaveScreen(router, DECKS_PATH); }, [loaded, cram]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,11 +120,42 @@ export function CramPage(props: {
       },
     );
   };
-  const requestMenu = (text: string) => {
+  // Saving in the note editor is the approval; the note then joins the cram (a new note in its language gets its tag).
+  const approveRequest = async (note: QueuedNote) => {
+    if (!props.approve || approving.current) return;
+    approving.current = true;
     haptic.tap();
+    setProblem(undefined);
+    try {
+      if (await props.approve(note)) { haptic.success(); collection.reload(); capCramCards(repo).catch(() => undefined); }
+    } catch (e) {
+      setProblem(failureText(e, { what: `Couldn't add ${note.entry}.`, next: 'Try again.' }));
+    } finally {
+      approving.current = false;
+    }
+  };
+  const retryRequest = (note: QueuedNote) => {
+    setProblem(undefined);
+    props.retry?.(note.id).catch((e) => setProblem(failureText(e, { what: `Couldn't ask Claude again for ${note.entry}.`, next: 'Try again.' })));
+  };
+  const stopShowing = (text: string) => void keep(withoutRequest(cram, text), "Couldn't change the cram.");
+  const requestMenu = (text: string, note?: QueuedNote) => {
+    haptic.tap();
+    if (note?.state === 'ready' && props.approve) { void approveRequest(note); return; }
+    if (note?.state === 'failed' && props.approve) {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: text, message: note.error || "Claude couldn't write a card for this.", options: ['Fill in by hand', ...(props.retry ? ['Try again'] : []), 'Stop showing it here', 'Cancel'], destructiveButtonIndex: props.retry ? 2 : 1, cancelButtonIndex: props.retry ? 3 : 2 },
+        (i) => {
+          if (i === 0) void approveRequest(note);
+          else if (props.retry && i === 1) retryRequest(note);
+          else if (i === (props.retry ? 2 : 1)) stopShowing(text);
+        },
+      );
+      return;
+    }
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: text, message: "Claude is writing a card for this. Approve it from the card on Today when it's ready and it joins the cram.", options: ['Stop showing it here', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
-      (i) => { if (i === 0) void keep(withoutRequest(cram, text), "Couldn't change the cram."); },
+      { title: text, message: 'Claude is writing a card for this. It shows here as ready to review when it is done, and saving it adds it to the cram.', options: ['Stop showing it here', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
+      (i) => { if (i === 0) stopShowing(text); },
     );
   };
   const captureMenu = (text: string) => {
@@ -186,9 +225,13 @@ export function CramPage(props: {
               />
             );
           })}
-          {pending.map((r, i) => (
-            <NavRow key={`asked-${r.text}`} first={!listed.length && !!cram.finishedAt && i === 0} label={r.text} detail={r.english} badge={{ text: 'Being written', color: c.textSecondary, fill: c.fill }} onPress={() => requestMenu(r.text)} />
-          ))}
+          {pending.map((r, i) => {
+            const note = queuedFor(props.queued ?? [], r.text);
+            const badge = note?.state === 'ready' ? { text: 'Ready to review', color: c.accentInk, fill: c.accentFill }
+              : note?.state === 'failed' ? { text: "Couldn't write", color: c.danger, fill: c.dangerFill }
+              : { text: 'Being written', color: c.textSecondary, fill: c.fill };
+            return <NavRow key={`asked-${r.text}`} first={!listed.length && !!cram.finishedAt && i === 0} label={r.text} detail={r.english} badge={badge} onPress={() => requestMenu(r.text, note)} />;
+          })}
           {listed.length > WORDS_SHOWN ? (
             <NavRow label={showAll ? 'Show fewer' : `Show all ${listed.length}`} onPress={() => { haptic.tap(); setShowAll(!showAll); }} />
           ) : null}

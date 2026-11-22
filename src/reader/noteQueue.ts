@@ -39,6 +39,12 @@ export function counts(items: QueuedNote[]): { ready: number; waiting: number; f
 
 export const firstReady = (items: QueuedNote[]): QueuedNote | undefined => items.find((n) => n.state === 'ready');
 
+/** The queued note for a word asked for (a cram's request), by the text that was sent; a ready one first, as `CramAsk` takes it. */
+export function queuedFor(items: QueuedNote[], text: string): QueuedNote | undefined {
+  const mine = items.filter((n) => n.entry === text);
+  return mine.find((n) => n.state === 'ready') ?? mine[0];
+}
+
 /**
  * The new note a ready word starts as, for the note editor: the fields Claude wrote under the Entry,
  * and its part of speech as the tag, as the owner's finished notes carry it. A noun's article is left off
