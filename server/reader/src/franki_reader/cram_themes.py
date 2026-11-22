@@ -235,7 +235,10 @@ theme doesn't need any.
 lists show (words chosen for the lesson, words they haven't used yet, words they miss, what they \
 have been missing in practice). Do not give counts.
 - asks: 1 to {max_asks} questions the learner asks the tutor to open the theme up and keep the \
-talk going, in {language} with the English.
+talk going, in {language} with the English. The tutor answers them, so they are about the tutor's \
+own life, opinions or experience with the theme, never about what the learner did or felt (a \
+question like "how did you feel after your run?" is one the tutor would ask the learner, so it \
+goes in expects).
 - expects: 1 to {max_expects} questions the tutor is likely to ask the learner about the theme, \
 each with an answer the learner could give (one or two short sentences, in the first person), \
 both in {language} with the English.

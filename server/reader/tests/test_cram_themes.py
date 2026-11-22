@@ -272,6 +272,12 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "stretch" in system_message("fr", True)
 
 
+def test_the_asks_are_for_the_tutor_to_answer_not_about_the_learner() -> None:
+    text = system_message("fr", False, topic=True)
+    assert "about the tutor's own life" in text
+    assert "never about what the learner did or felt" in text
+
+
 def test_the_system_message_asks_for_spoken_not_written_register() -> None:
     text = system_message("th", False)
     assert "ordinary person talks in everyday conversation" in text
