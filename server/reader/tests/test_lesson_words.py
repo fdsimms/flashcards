@@ -133,7 +133,7 @@ def test_no_more_than_the_limit_are_offered() -> None:
 def test_asks_sonnet_with_the_schema_and_what_was_typed() -> None:
     reply = {"candidates": [{"text": "ใหม่", "reading": "mài", "english": "new"}]}
     fake = FakeClient(response("end_turn", json.dumps(reply)))
-    found, used = finish(claude_find_words(fake)("th", "mai"))  # type: ignore[arg-type]
+    found, used = finish(claude_find_words(fake)("th", "mai", "male"))  # type: ignore[arg-type]
     assert found == [NEW]
     assert used.cost_usd() > 0
     assert fake.calls[0]["model"] == "claude-sonnet-5-5"
@@ -157,15 +157,15 @@ def test_asks_sonnet_with_the_schema_and_what_was_typed() -> None:
 def test_an_answer_that_cannot_be_used_fails_with_what_it_cost(stop: str, text: str | None) -> None:
     fake = FakeClient(response(stop, text))
     with pytest.raises(LessonWordsFailed) as e:
-        finish(claude_find_words(fake)("th", "mai"))  # type: ignore[arg-type]
+        finish(claude_find_words(fake)("th", "mai", "male"))  # type: ignore[arg-type]
     assert e.value.usage.cost_usd() > 0
 
 
 def test_the_route_returns_the_candidates_and_keeps_the_cost() -> None:
-    seen: list[tuple[str, str]] = []
+    seen: list[tuple[str, str, str]] = []
 
-    async def find(language: str, typed: str) -> tuple[list[Candidate], Usage]:
-        seen.append((language, typed))
+    async def find(language: str, typed: str, learner: str) -> tuple[list[Candidate], Usage]:
+        seen.append((language, typed, learner))
         return [NEW], COST
 
     c, conn = client(find)
@@ -176,12 +176,51 @@ def test_the_route_returns_the_candidates_and_keeps_the_cost() -> None:
             {"text": "ใหม่", "reading": "mài", "english": "new", "commonness": "", "register": ""}
         ]
     }
-    assert seen == [("th", "mai")]
+    assert seen == [("th", "mai", "male")]
     assert costs(conn) == [("lesson_words", "th")]
 
 
+def test_the_route_passes_the_learners_gender_from_the_polite_particle() -> None:
+    seen: list[tuple[str, str]] = []
+
+    async def find(language: str, typed: str, learner: str) -> tuple[list[Candidate], Usage]:
+        seen.append((language, learner))
+        return [NEW], COST
+
+    c, _ = client(find)
+    for body in (
+        {"language": "th", "text": "mai", "particle": "kha"},
+        {"language": "th", "text": "mai", "particle": "khrap"},
+        {"language": "th", "text": "mai"},
+        {"language": "ru", "text": "mai", "particle": "kha"},  # only Thai has one
+    ):
+        assert c.post("/api/lessons/words", json=body, headers=AUTH).status_code == 200
+    assert seen == [("th", "female"), ("th", "male"), ("th", "male"), ("ru", "male")]
+
+
+def test_a_thai_lookup_is_told_the_learner_is_a_man_or_a_woman_and_other_languages_are_not() -> (
+    None
+):
+    reply = json.dumps({"candidates": [{"text": "ใหม่", "reading": "mài", "english": "new"}]})
+    systems = {}
+    for learner in ("male", "female"):
+        fake = FakeClient(response("end_turn", reply))
+        finish(claude_find_words(fake)("th", "mai", learner))  # type: ignore[arg-type]
+        systems[learner] = fake.calls[0]["system"]
+    assert "The learner is a man" in systems["male"] and "ผม" in systems["male"]
+    assert "The learner is a woman" in systems["female"] and "ดิฉัน" in systems["female"]
+    fake = FakeClient(
+        response(
+            "end_turn",
+            json.dumps({"candidates": [{"text": "новый", "reading": "", "english": "new"}]}),
+        )
+    )
+    finish(claude_find_words(fake)("ru", "novyj", "male"))  # type: ignore[arg-type]
+    assert "learner is a" not in fake.calls[0]["system"].replace("learner of", "")
+
+
 def test_a_language_lessons_are_not_made_in_is_refused_without_asking_claude() -> None:
-    async def find(language: str, typed: str) -> tuple[list[Candidate], Usage]:
+    async def find(language: str, typed: str, learner: str) -> tuple[list[Candidate], Usage]:
         raise AssertionError("asked")
 
     c, conn = client(find)
@@ -197,7 +236,7 @@ def test_a_blank_word_is_refused() -> None:
 
 
 def test_a_failed_call_that_was_billed_is_kept_and_503() -> None:
-    async def find(language: str, typed: str) -> tuple[list[Candidate], Usage]:
+    async def find(language: str, typed: str, learner: str) -> tuple[list[Candidate], Usage]:
         raise LessonWordsFailed("Claude didn't find a word.", COST)
 
     c, conn = client(find)
