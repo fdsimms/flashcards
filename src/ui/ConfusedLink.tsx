@@ -11,7 +11,7 @@ import type { Card, Note } from '../core/types';
 import { LANGUAGES } from '../reader/languages';
 import { linkCandidates, mixupLanguage, mixupSet, searchWords, type MixupWord } from '../tools/mixups';
 import { haptic } from './haptics';
-import { Button, Divider, ErrorNote, Field, Group, Help, Icon, Tag, Tappable } from './kit';
+import { Button, Divider, ErrorNote, Field, Group, Help, Icon, SheetHeader, Tag, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 import { useFont } from './AppFont';
 
@@ -110,10 +110,10 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, o
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
-        <View style={{ gap: space.xs }}>
-          <Text style={{ ...type.headline, color: c.text }}>{`Which word did you mix up with ${word}?`}</Text>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>{`Which word did you mix up with ${word}?`}</Text>
           {gloss ? <Text style={{ ...type.callout, color: c.textSecondary }}>{gloss}</Text> : null}
-        </View>
+        </SheetHeader>
         <Help>Similar words (Practice) will ask you to tell them apart. The link stays in Franki and doesn't change when either card is due.</Help>
 
         {candidates.length ? (
