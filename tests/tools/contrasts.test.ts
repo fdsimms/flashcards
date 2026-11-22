@@ -13,7 +13,7 @@ describe('Which word fits', () => {
     expect(contrastSet('th-jon')?.language).toBe('th');
     expect(contrastSet('nope')).toBeUndefined();
     expect(contrastTitle(contrastSetsFor('th')[0])).toBe('จน / จนกว่า');
-    expect(contrastSetsFor('pl')).toEqual([]);
+    expect(contrastSetsFor('ru')).toEqual([]);
   });
 
   it('joins words with spaces in a language that has them', () => {

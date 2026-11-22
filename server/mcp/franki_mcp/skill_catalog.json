@@ -32,7 +32,15 @@
   "contrast-th-see",
   "contrast-th-hear",
   "contrast-th-tell",
-  "contrast-th-and"
+  "contrast-th-and",
+  "contrast-de-to",
+  "contrast-de-ask",
+  "contrast-de-since",
+  "contrast-fr-bring",
+  "contrast-el-see",
+  "contrast-pl-know",
+  "contrast-pl-hear",
+  "contrast-pl-because"
  ],
  "setAsideTags": [
   "skill::stopped",
@@ -6749,6 +6757,23 @@
        ]
       }
      ]
+    },
+    {
+     "id": "contrast",
+     "title": "Which word fits",
+     "notes": [
+      {
+       "front": "<div><b>French · Which word fits: amener / apporter / emmener / emporter</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>amener</b>: To bring a person here, to where you are or are going.</div><div><b>apporter</b>: To bring a thing here.</div><div><b>emmener</b>: To take a person away, somewhere else.</div><div><b>emporter</b>: To take a thing away with you.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-fr-bring",
+        "skill::lang::fr"
+       ],
+       "suspended": true
+      }
+     ],
+     "words": []
     }
    ]
   },
@@ -9087,6 +9112,43 @@
       }
      ],
      "words": []
+    },
+    {
+     "id": "contrast",
+     "title": "Which word fits",
+     "notes": [
+      {
+       "front": "<div><b>German · Which word fits: nach / zu</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>nach</b>: To a city, or a country with no article, and nach Hause: home.</div><div><b>zu</b>: To a person, a shop, a building or an event: zu Oma, zum Arzt, zur Party.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-de-to",
+        "skill::lang::de"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>German · Which word fits: fragen / bitten</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>fragen</b>: To ask a question. fragen nach: to ask about.</div><div><b>bitten</b>: To ask for something, or ask someone to do something. bitten um: to ask for.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-de-ask",
+        "skill::lang::de"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>German · Which word fits: seit / vor</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>seit</b>: Since, or for: something that started then and is still going on.</div><div><b>vor</b>: Ago: something that happened then and is over.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-de-since",
+        "skill::lang::de"
+       ],
+       "suspended": true
+      }
+     ],
+     "words": []
     }
    ]
   },
@@ -11296,6 +11358,23 @@
         "skill::lang::el"
        ],
        "suspended": false
+      }
+     ],
+     "words": []
+    },
+    {
+     "id": "contrast",
+     "title": "Which word fits",
+     "notes": [
+      {
+       "front": "<div><b>Greek · Which word fits: βλέπω / κοιτάζω</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>βλέπω</b>: To see. Also to watch TV or a movie.</div><div><b>κοιτάζω</b>: To look at: to turn your eyes to something on purpose. Κοίτα! is \"Look!\"</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-el-see",
+        "skill::lang::el"
+       ],
+       "suspended": true
       }
      ],
      "words": []
@@ -17757,6 +17836,43 @@
         "skill::lang::pl"
        ],
        "suspended": false
+      }
+     ],
+     "words": []
+    },
+    {
+     "id": "contrast",
+     "title": "Which word fits",
+     "notes": [
+      {
+       "front": "<div><b>Polish · Which word fits: wiedzieć / znać</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>wiedzieć</b>: To know a fact: what, where, when or that. Often followed by że, co or gdzie.</div><div><b>znać</b>: To know a person, a place, a language or a film: to be familiar with it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-pl-know",
+        "skill::lang::pl"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Polish · Which word fits: słuchać / słyszeć</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>słuchać</b>: To listen, on purpose. Takes the genitive: słuchać muzyki.</div><div><b>słyszeć</b>: To hear: a sound reaches you, whether you meant to listen or not.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-pl-hear",
+        "skill::lang::pl"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Polish · Which word fits: bo / więc</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>bo</b>: Because: the reason comes after it.</div><div><b>więc</b>: So: the result comes after it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-pl-because",
+        "skill::lang::pl"
+       ],
+       "suspended": true
       }
      ],
      "words": []

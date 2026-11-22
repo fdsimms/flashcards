@@ -105,7 +105,7 @@ describe('skill drills', () => {
 describe('skill cards in the collection', () => {
   it('offers the groups a language has', () => {
     expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'classifiers', 'contrast']);
-    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'counting', 'cases']);
+    expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'counting', 'cases', 'contrast']);
     expect(skillGroups('en')).toEqual([]);
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
   });
@@ -599,13 +599,13 @@ describe('Which word fits skill cards', () => {
     expect(first.fields.Front).toContain('Thai · Which word fits: จน / จนกว่า');
     expect(first.fields.Back).toContain('<b>จนกว่า</b> (jon-gwàa)');
     expect(skillGroups('th').find((g) => g.id === 'contrast')?.count).toBe(cards.length);
-    expect(skillDrafts('pl', 'Polish', ['contrast'])).toEqual([]);
+    expect(skillDrafts('ru', 'Russian', ['contrast'])).toEqual([]);
     expect(skillWordDrafts('th', ['contrast'])).toEqual([]);
   });
 
   it('waits for each of the set\'s words, and is released once they are known', () => {
     expect(stepNeeds(jon, 'th').map((n) => n.words)).toEqual([['จน'], ['จนกว่า']]);
-    expect(stepNeeds(jon, 'pl')).toEqual([]);
+    expect(stepNeeds(jon, 'ru')).toEqual([]);
     expect(stepWaits(drillStep(jon)!, 'th')).toBe(true);
     const state = { id: 'c1', stepId: jon, language: 'th' as const, suspended: true, settled: false };
     expect(releasable([{ ...state, missing: ['จนกว่า'] }])).toEqual([]);
