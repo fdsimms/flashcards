@@ -26,6 +26,11 @@ export function htmlToText(html: string): string {
     .replace(/\[sound:[^\]]*\]/g, '')
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\/(div|p|li|tr)>/gi, '\n')
+    .replace(/<ol\b[^>]*>([\s\S]*?)<\/ol\s*>/gi, (_m, items: string) => {
+      // A numbered list keeps its numbers (a Meaning's numbered senses are read from them, senseMarks.ts).
+      let n = 0;
+      return items.replace(/<li[^>]*>/gi, () => `${++n}. `);
+    })
     .replace(/<li[^>]*>/gi, '• ')
     .replace(/<[^>]+>/g, '')
     .replace(/&[^;\s]+;/g, decodeEntities)

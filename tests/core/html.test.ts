@@ -16,4 +16,9 @@ describe('htmlToText', () => {
   it('reads numeric character references, as a plain-text CSV import writes an apostrophe', () => {
     expect(htmlToText('l&#x27;eau &#39;n&#233; &amp; &#X2014; &#0; &bogus;')).toBe("l'eau 'né & \u2014 &#0; &bogus;");
   });
+
+  it('numbers an ordered list and bullets an unordered one', () => {
+    expect(htmlToText('<ol><li>as soon as; when</li><li>enough</li></ol>')).toBe('1. as soon as; when\n2. enough');
+    expect(htmlToText('<ul><li>a</li><li>b</li></ul>')).toBe('• a\n• b');
+  });
 });
