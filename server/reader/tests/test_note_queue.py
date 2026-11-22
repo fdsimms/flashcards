@@ -333,7 +333,10 @@ def test_a_sentence_with_no_tags_gets_the_word_bolded_in_code() -> None:
     assert got is not None and got[1]["Context"] == "Il <b>ricane</b> dans son coin."
     # Thai has no spaces, so the word is found inside the running text.
     thai = filled(
-        "เป้า", context="เขายิงเป้าได้แม่น", romanization="khǎo ying pâo dâi mɛ̂ɛn", transliteration="pâo"
+        "เป้า",
+        context="เขายิงเป้าได้แม่น",
+        romanization="khǎo ying bpâo dâi mâaen",
+        transliteration="bpâo",
     )
     got = check(thai, {"เป้า": ""}, "th")
     assert got is not None and got[1]["Context"] == "เขายิง<b>เป้า</b>ได้แม่น"
