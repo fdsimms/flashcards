@@ -425,7 +425,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const known = knownHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck));
     return { ...found, months: knownMonths(found.language, known), days: knownDays(found.language, known) };
   }, [note, notes, cards]);
-  const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2));
+  const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2), H);
   useSkillRelease(repo, cards, notes, H);
   // The aspect check on a Russian or Polish verb's front (AspectCheck.tsx): optional, and only outlines a rating.
   const aspectCheck = useAspectCheck(showing, current && note && aspectCheckOn(note.deck, deckSettings) ? aspectToCheck(note, current) : undefined);
@@ -695,6 +695,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     if (!redo && (busy.current || cur === lastAnswered.current)) return;
     if (!redo) busy.current = true;
     if (!redo) skill.rated(rating);
+    else skill.redone(String(cur.id), rating);
     // A reason is kept with Again only; a missed sense with whichever rating was pressed (senseMarks.ts). Neither reaches the scheduler.
     // With a sense marked and no reason chosen, the marks are the reason, for a button and a swipe alike.
     const said = miss ?? (redo ? undefined : senseMarks.miss);
@@ -938,6 +939,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       }
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
+      skill.undone(String(last.before.id));
       setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
       undone.current.add(last);

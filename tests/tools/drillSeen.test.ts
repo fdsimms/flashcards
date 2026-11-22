@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type DrillSeen, drawUnseen, mergeSeen, parseSeen, recordSeen, SEEN_KEPT, seenList } from '../../src/tools/drillSeen';
-import { drawQuestion, drillStep, nextDrillQuestion, questionKey } from '../../src/tools/skills';
+import { drawQuestion, drawRound, drillStep, questionKey } from '../../src/tools/skills';
 
 const LIST = seenList('th', 'time-hours');
 
@@ -80,12 +80,24 @@ describe('drawing what has not come round', () => {
       let previous: ReturnType<typeof drawQuestion> | undefined;
       const asked: string[] = [];
       for (let i = 0; i < 60; i++) {
-        const q = nextDrillQuestion(step, previous, [], Math.random, 'th', undefined, seen[LIST]).question;
+        const q = drawQuestion(step, previous, Math.random, 'th', undefined, seen[LIST]);
         asked.push(questionKey(q));
         seen = recordSeen(seen, LIST, questionKey(q));
         previous = q;
       }
       for (let i = 0; i < asked.length; i++) expect(asked.slice(Math.max(0, i - 25), i)).not.toContain(asked[i]);
+    }
+  });
+});
+
+describe('a round drawn against what the step asked lately', () => {
+  it('leaves out what the step asked lately, and repeats nothing within the round', () => {
+    const step = drillStep('time-hours')!;
+    for (let trial = 0; trial < 50; trial++) {
+      const recent = Array.from({ length: 20 }, (_, i) => questionKey(drawQuestion(step, undefined, seeded(trial * 100 + i), 'th')));
+      const round = drawRound(step, Math.random, 'th', undefined, recent).map(questionKey);
+      expect(new Set(round).size).toBe(round.length);
+      for (const k of round) expect(recent).not.toContain(k);
     }
   });
 });

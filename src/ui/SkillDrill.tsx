@@ -3,9 +3,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
-  drillAnswer, DRILL_QUESTIONS, GROUP_TITLES, heardRight, isSlow, medianMs, missesToCarry, nextDrillQuestion, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
+  drawRound, drillAnswer, GROUP_TITLES, heardRight, isSlow, medianMs, missesToCarry, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
 import { drillSeenFor, loadDrillSeen, noteDrillAsked } from '../tools/drillSeenStorage';
+import { questionsToAsk } from '../tools/drillRound';
+import { drillCarryOf, drillRoundFor, keepDrillCarry, keepDrillRound, loadDrillRounds } from '../tools/drillRoundStorage';
+import { studyDayKey } from '../core/day';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
@@ -30,17 +33,19 @@ export interface Drill { step: DrillStep; language: Language; months?: number[];
 const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
 
 /**
- * The questions missed the last time a card was answered Again or Hard, by card id. When the card comes
- * back they're asked again before any new one, as a failed card in Anki comes back unchanged. Kept
- * in memory only, and dropped as soon as the card is answered Good or Easy.
+ * What each card's carried misses were before its latest answers, newest last, so an undo puts them
+ * back. In memory only: undo reaches back through this session's answers and no further.
  */
-const carriedMisses = new Map<string, DrillQuestion[]>();
+const carryBefore = new Map<string, DrillQuestion[][]>();
 
 interface DrillState {
   key: string;
   question: DrillQuestion;
-  /** Missed questions still to ask again, and the ones missed so far in this showing. */
-  retry: DrillQuestion[];
+  /** How many questions this showing asks: the day's round, or only what was missed when the card returns. */
+  total: number;
+  /** The questions after this one. */
+  upcoming: DrillQuestion[];
+  /** The ones missed so far in this showing. */
   missed: DrillQuestion[];
   shown: boolean;
   results: boolean[];
@@ -53,17 +58,28 @@ interface DrillState {
   trail: DrillState[];
 }
 
-/** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
-export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined, hardShown: boolean) {
+/**
+ * The drill of the card on screen, started afresh for each showing (`showing`, Review's). Its questions
+ * are the card's for the study day (src/tools/drillRound.ts): the same however often the card comes
+ * up, an undo included, and after Again or Hard only the ones missed.
+ */
+export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined, hardShown: boolean, dayStartsAtHour: number) {
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
     void loadDrillSeen();
-    const next = nextDrillQuestion(drill.step, undefined, (cardId && carriedMisses.get(cardId)) || [], Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
-    return { ...next, at: Date.now() };
+    void loadDrillRounds();
+    const day = studyDayKey(new Date(), dayStartsAtHour);
+    const kept = cardId ? drillRoundFor(cardId, day, drill.step.id) : undefined;
+    if (kept) return { questions: questionsToAsk(kept), at: Date.now() };
+    const questions = drawRound(drill.step, Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
+    if (cardId) keepDrillRound(cardId, day, drill.step.id, questions);
+    // Asked as far as the step's bag is concerned: the next card of the step leaves these for the others to come round first.
+    for (const q of questions) noteDrillAsked(drill.language, drill.step.id, questionKey(q));
+    return { questions, at: Date.now() };
   }, [showing, drill?.step.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, setState] = useState<DrillState | null>(null);
-  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.question, retry: first.retry, missed: [], shown: false, results: [], askedAt: first.at, times: [], trail: [] } : null;
-  const done = !!live && live.results.length >= DRILL_QUESTIONS;
+  const live: DrillState | null = state && state.key === showing ? state : first && showing ? { key: showing, question: first.questions[0], total: first.questions.length, upcoming: first.questions.slice(1), missed: [], shown: false, results: [], askedAt: first.at, times: [], trail: [] } : null;
+  const done = !!live && live.results.length >= live.total;
   const reveal = (heard?: string) => {
     if (!live || live.shown || !drill) return;
     setState({
@@ -74,12 +90,15 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
   return {
     drill,
     question: live?.question,
+    /** How many questions this showing asks. */
+    total: live?.total ?? 0,
     shown: !!live?.shown,
     heard: live?.heard,
     results: live?.results ?? [],
     done,
     /** Right throughout but slow (`SLOW_MS`): the reason Hard is outlined. */
-    slow: !!drill && done && isSlow(live!.times, drill.step.group),    seconds: live ? Math.round((medianMs(live.times) ?? 0) / 1000) : 0,
+    slow: !!drill && done && isSlow(live!.times, drill.step.group),
+    seconds: live ? Math.round((medianMs(live.times) ?? 0) / 1000) : 0,
     /** The rating to outline once the drill is done. */
     suggested: drill && done ? suggestedRating(live!.results, live!.times, drill.step.group, hardShown) : undefined,
     show: () => reveal(),
@@ -89,12 +108,9 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
     mark: (right: boolean): boolean => {
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
-      const last = results.length >= DRILL_QUESTIONS;
+      const last = results.length >= live.total;
       const missed = right ? live.missed : [...live.missed, live.question];
-      // Asked now, so the next draw (and every later drill of this step) leaves it for the others to come round first.
-      noteDrillAsked(drill.language, drill.step.id, questionKey(live.question));
-      const next = last ? { question: live.question, retry: live.retry } : nextDrillQuestion(drill.step, live.question, live.retry, Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
-      setState({ key: live.key, question: next.question, retry: next.retry, missed, shown: false, results, askedAt: Date.now(), times: live.times, trail: [...live.trail, live] });
+      setState({ key: live.key, question: last ? live.question : live.upcoming[0], total: live.total, upcoming: last ? [] : live.upcoming.slice(1), missed, shown: false, results, askedAt: Date.now(), times: live.times, trail: [...live.trail, live] });
       return last;
     },
     /** Whether an earlier question can be gone back to. */
@@ -105,12 +121,23 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       const previous = live.trail[live.trail.length - 1];
       setState({ ...previous, askedAt: Date.now(), trail: live.trail.slice(0, -1) });
     },
-    /** The card was answered: after Again or Hard, what was missed comes back with it; Good and Easy let it go. */
+    /** The card was answered: after Again or Hard, what was missed is all it asks when it comes back; Good and Easy let it go. */
     rated: (rating: number) => {
-      if (!cardId) return;
-      const carry = missesToCarry(rating, live?.missed ?? []);
-      if (carry.length) carriedMisses.set(cardId, carry);
-      else carriedMisses.delete(cardId);
+      if (!cardId || !drill) return;
+      carryBefore.set(cardId, [...(carryBefore.get(cardId) ?? []), drillCarryOf(cardId)]);
+      keepDrillCarry(cardId, missesToCarry(rating, live?.missed ?? []));
+    },
+    /** A card's answer was changed to `rating` in place (Review's Change to Good or Again): what it carried goes as for a rating, though what was missed isn't known here. */
+    redone: (redoneId: string, rating: number) => {
+      carryBefore.set(redoneId, [...(carryBefore.get(redoneId) ?? []), drillCarryOf(redoneId)]);
+      if (rating >= 3) keepDrillCarry(redoneId, []);
+    },
+    /** An answer was undone: the card carries what it carried before it. */
+    undone: (undoneId: string) => {
+      const stack = carryBefore.get(undoneId);
+      const before = stack?.pop();
+      if (!stack?.length) carryBefore.delete(undoneId);
+      if (before) keepDrillCarry(undoneId, before);
     },
   };
 }
@@ -118,11 +145,11 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
 export type SkillDrillState = ReturnType<typeof useSkillDrill>;
 
 /** The questions answered so far, green or red, and the one being asked outlined. */
-function Dots({ results, at }: { results: boolean[]; at?: number }) {
+function Dots({ results, total, at }: { results: boolean[]; total: number; at?: number }) {
   const c = useTheme();
   return (
     <View accessible accessibilityLabel={`${results.filter(Boolean).length} of ${results.length} right so far`} style={{ flexDirection: 'row', gap: space.xs + 2, justifyContent: 'center' }}>
-      {Array.from({ length: DRILL_QUESTIONS }, (_, i) => (
+      {Array.from({ length: total }, (_, i) => (
         <View key={i} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i < results.length ? (results[i] ? c.good : c.again) : 'transparent', borderWidth: i === at ? 2 : i < results.length ? 0 : 1, borderColor: i === at ? c.accent : c.textTertiary }} />
       ))}
     </View>
@@ -150,18 +177,18 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
       {revealed && skill.done ? (
         <Reveal key="done" rise={6} style={{ alignItems: 'center', gap: space.m }}>
           <Text style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>{drill.step.title}</Text>
-          <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${DRILL_QUESTIONS}`}</Text>
-          <Dots results={skill.results} />
+          <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${skill.total}`}</Text>
+          <Dots results={skill.results} total={skill.total} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {right === DRILL_QUESTIONS
+            {right === skill.total
               ? skill.slow && skill.suggested === 2 ? `All correct, but slow (about ${skill.seconds} seconds each). Hard is outlined.` : 'All correct. Good is outlined.'
-              : `${right === DRILL_QUESTIONS - 1 ? 'One miss.' : 'More than one miss.'} ${skill.suggested === 2 ? 'Hard' : 'Again'} is outlined.`}
+              : `${skill.total - right === 1 ? 'One miss.' : 'More than one miss.'} ${skill.suggested === 2 ? 'Hard' : 'Again'} is outlined.`}
             {'\n'}Tap the rating that fits.
           </Text>
         </Reveal>
       ) : (
         <Reveal key={`${skill.results.length}`} rise={6} duration={140} style={{ alignItems: 'center', gap: space.l }}>
-          <Dots results={skill.results} at={skill.results.length} />
+          <Dots results={skill.results} total={skill.total} at={skill.results.length} />
           {question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
           <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>
           {questionNote(question, drill.language) ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{questionNote(question, drill.language)}</Text> : null}
