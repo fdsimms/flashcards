@@ -26,6 +26,10 @@ import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from franki_speech.thai_romanization import (
+    LETTERS_ADVICE, THAI_SCHEME, TONELESS_ADVICE, is_toneless, letters_wrong, tone_mismatch,
+)
+
 NOTE_TYPE = "Omnilanguage"
 
 PARTS_OF_SPEECH = (
@@ -197,6 +201,7 @@ RULES: dict[str, str] = {
     "romanization-missing": "A Thai note without its romanization",
     "romanization-letters": "A romanization outside the deck's scheme",
     "romanization-toneless": "A Thai example romanization with no tone marks",
+    "romanization-tone-mismatch": "A Thai transliteration whose tone marks disagree with the Pronunciation",
     "romanization-unneeded": "A romanization in a language that is not romanized",
     "kana-missing": "A word with kanji and no KanaReading",
     "kana-format": "KanaReading is not one reading in kana",
@@ -233,7 +238,6 @@ _TAG = re.compile(r"<[^>]+>")
 _BREAK = re.compile(r"<\s*br\s*/?>|</?(?:div|p)\b[^>]*>", re.IGNORECASE)
 _KANJI = re.compile(r"[一-鿿々]")
 _KANA_ONLY = re.compile(r"^[ぁ-ゟ゠-ヿー]+$")
-_TONE_MARKS = re.compile(r"[̀-ͯ]")
 
 
 def loose_spelling(text: str) -> str:
@@ -732,16 +736,16 @@ def problems(fields: Mapping[str, str], tags: Sequence[str] = ()) -> list[Proble
         if context_lines and not txt("ContextRomanized"):
             add("romanization-missing", "ContextRomanized", "required", "Romanize the example, one line per sentence.")
         for name in ("Transliteration", "ContextRomanized"):
-            bare = _TONE_MARKS.sub("", unicodedata.normalize("NFD", txt(name)))
-            if re.search(r"[^a-zə\s-]|(?:^|[\s-])(?:t(?!h)|p(?!h)|k(?!h))", bare):
-                add("romanization-letters", name, "format",
-                    "Use the deck's scheme: dt and bp for ต and ป, th ph kh for the aspirated letters, g for ก; "
-                    "aw / aaw, ae / aae, ue / uue, əə for the vowels; lowercase.")  # fmt: skip
-        # A sentence of four or more syllables with every one mid tone does not happen: the tones were left off.
-        sentence = txt("ContextRomanized")
-        if len(re.findall(r"[^\s-]+", sentence)) >= 4 and not _TONE_MARKS.search(unicodedata.normalize("NFD", sentence)):
-            add("romanization-toneless", "ContextRomanized", "review",
-                "Add the tone marks (low à, falling â, high á, rising ǎ; mid none), derived from the Thai spelling by the tone rules.")  # fmt: skip
+            if letters_wrong(txt(name)):
+                add("romanization-letters", name, "format", LETTERS_ADVICE)
+        if is_toneless(txt("ContextRomanized")):
+            add("romanization-toneless", "ContextRomanized", "review", TONELESS_ADVICE)
+        # The Transliteration's tone marks and the Pronunciation's tone letters say the same tones.
+        clash = tone_mismatch(txt("Transliteration"), txt("Pronunciation"))
+        if clash:
+            add("romanization-tone-mismatch", "Transliteration", "review",
+                f"Its tone marks ({', '.join(clash[0])}) disagree with Pronunciation's tone letters ({', '.join(clash[1])}). "
+                "One of them is wrong: work out the tones from the Thai spelling.")  # fmt: skip
     elif lang and lang.name in ("russian", "greek"):
         for name in ("Transliteration", "ContextRomanized"):
             if txt(name):
@@ -913,16 +917,6 @@ def prepare(new: Mapping[str, str], tags: Sequence[str] = (), existing: Mapping[
 
 # ---- the guide ----
 
-THAI_SCHEME = """\
-Thai romanization, derived from the Thai spelling by the tone rules:
-- Initials: ก g; ข ค ฆ kh; จ j; ฉ ช ฌ ch; ด ฎ d; ต ฏ dt; บ b; ป bp; ถ ฐ ท ธ ฑ ฒ th; ผ พ ภ ph; ฝ ฟ f; ซ ศ ษ ส s;
-  ง ng; ญ ย y; น ณ n; ม m; ร r; ล ฬ l; ว w; ห ฮ h; อ nothing. Finals: k t p ng n m.
-- Vowels, short / long: a / aa, i / ii, ue / uue, u / uu, e / ee, ae / aae, o / oo, aw / aaw, ə / əə.
-  Diphthongs written once: ia, uea, ua. -ำ am (น้ำ alone náam). ไ ใ ai; -าย aai; เ-า ao; -าว aao.
-- A final ย is i (sǔai, ráawi, ləəi); a final ว is o (láaeo, reo, dǐao), or u after i (hǐu).
-- Tones: mid no mark, low à, falling â, high á, rising ǎ, on the syllable's first vowel letter.
-- Lowercase, no punctuation. Syllables of a word joined by hyphens, words separated by spaces.
-- In ContextRomanized the Entry is spelled exactly as in Transliteration, hyphens included."""
 
 _COMMON = """\
 Entry: the citation form as plain text. No article (Gender supplies it), no markup, one word or one phrase.
