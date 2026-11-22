@@ -1,8 +1,8 @@
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Stack } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActionSheetIOS, Alert, AppState, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { FLAG_NAMES, flagLabel, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
@@ -551,11 +551,23 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     },
     original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
+  // Coming back to the app after an interruption (a notification's sound, a call) starts the audio session again.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') setAudioModeAsync(AUDIO_MODE).catch(() => undefined); });
+    return () => sub.remove();
+  }, []);
+  // Only the latest request plays: one that was waiting on the voice to stop must not speak over, or after, a newer one.
+  const speakSeq = useRef(0);
   const speak = useCallback(
     async (what: Playback | undefined) => {
+      const mine = ++speakSeq.current;
       if (!what || !rendered) return;
       self.stopTake();
       await stopSpeechIfRunning();
+      // A notification, call or alarm can end the app's audio session, and nothing starts it again: set the mode
+      // each time so the voice and the player are never left on a dead one.
+      await setAudioModeAsync(AUDIO_MODE).catch(() => undefined);
+      if (mine !== speakSeq.current) return;
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
