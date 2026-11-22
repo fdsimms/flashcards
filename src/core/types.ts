@@ -332,6 +332,8 @@ export interface DeckSettings {
   priorityTag?: string;
   /** Days after Franki first saw the tag on a note that its new cards still come first (default 14). */
   priorityDays?: number;
+  /** Study each subdeck of the deck in one stretch, in name order (default off, Anki's interleaved order). Set on a subdeck, it overrides the deck above. */
+  batchBySubdeck?: boolean;
   /*
    * For a deck with no Anki options preset (one made in Franki without an Anki collection), its own
    * and not inherited: the daily limits (`NEW_PER_DAY` and `REVIEWS_PER_DAY` when unset), and how a
