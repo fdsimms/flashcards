@@ -1,5 +1,6 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import React from 'react';
+import { loadParticle } from '../reader/lessonStorage';
 import { quickAddDecks } from '../reader/noteQueue';
 import { useApp } from '../ui/AppContext';
 import { CramMakeCards } from '../ui/cram/CramMakeCards';
@@ -17,7 +18,7 @@ export default function CramCardsRoute() {
     <CramMakeCards
       repo={repo}
       id={id}
-      findWords={(language, text) => api.lessonWords(language, text)}
+      findWords={async (language, text) => api.lessonWords(language, text, await loadParticle())}
       queue={async (language, entries) => {
         const deck = options.find((o) => o.language === language)?.deck;
         return deck ? queue.add(language, deck, entries) : undefined;

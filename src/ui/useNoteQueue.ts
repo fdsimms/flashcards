@@ -4,6 +4,7 @@ import { ApiError, type Api, type Language, type NoteQueue } from '../reader/api
 import { OfflineError } from '../core/connection';
 import { isOffline } from '../core/held';
 import { holdWords } from '../reader/heldNotes';
+import { loadParticle } from '../reader/lessonStorage';
 import { noteQueueStore } from '../reader/noteQueueStore';
 import { isWorking } from '../reader/noteQueue';
 import { connection } from './connection';
@@ -30,7 +31,7 @@ function supersede() {
  * (HeldWork.tsx), so both make a look on its way out of date.
  */
 export async function queueWords(api: Api, language: Language, deck: string, entries: { entry: string; meaning: string }[]): Promise<void> {
-  const queue = await api.queueNotes(language, deck, entries);
+  const queue = await api.queueNotes(language, deck, entries, language === 'th' ? await loadParticle() : undefined);
   supersede();
   noteQueueStore.set({ queue, error: null });
   schedule();

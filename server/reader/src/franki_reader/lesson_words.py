@@ -21,7 +21,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
-from franki_reader.lesson import MAX_CHARS
+from franki_reader.lesson import MAX_CHARS, Learner
 
 MAX_TOKENS = 1500
 MAX_CANDIDATES = 5
@@ -78,7 +78,20 @@ others only when it could mean more than one. Do not add or drop a polite ending
 learner did not type. When the English is an -ing or -ed adjective, give the form that matches it: \
 "tiring" is what makes you tired, not how you feel, so list that word (and, if it is a different \
 word, the one for "tired" too), not only the nearest feeling. At most five candidates. Write the english in American English, without em \
-dashes."""
+dashes.{thai}"""
+
+# The learner says what they pick, so a Thai sentence is written as they would say it (the same rule
+# as a cram's lines, cram_themes.THAI_MAN). A word typed by itself, ฉัน included, stays as it is.
+THAI_MAN = (
+    ' The learner is a man: in a candidate that is a sentence the learner would say, write "I" as '
+    "ผม and end polite sentences with ครับ, never ฉัน, ดิฉัน, ค่ะ or คะ. A single word or phrase "
+    "is left as it is."
+)
+THAI_WOMAN = (
+    ' The learner is a woman: in a candidate that is a sentence the learner would say, write "I" '
+    "as ดิฉัน or ฉัน, end statements with ค่ะ and questions with คะ, never ผม or ครับ. A single "
+    "word or phrase is left as it is."
+)
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -126,8 +139,9 @@ class Candidate:
     register: str = ""
 
 
-# The candidates for what was typed in a language, and what asking cost.
-FindWords = Callable[[Code, str], Awaitable[tuple[list[Candidate], Usage]]]
+# The candidates for what was typed in a language, for a learner of that gender (it matters in Thai
+# only), and what asking cost.
+FindWords = Callable[[Code, str, Learner], Awaitable[tuple[list[Candidate], Usage]]]
 
 
 def clean(answer: dict[str, Any], language: Code) -> list[Candidate]:
@@ -168,8 +182,9 @@ def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def find(language: Code, typed: str) -> tuple[list[Candidate], Usage]:
+    async def find(language: Code, typed: str, learner: Learner) -> tuple[list[Candidate], Usage]:
         system = SYSTEM.format(
+            thai=(THAI_MAN if learner == "male" else THAI_WOMAN) if language == "th" else "",
             language=LANGUAGES[language].name,
             reading=READINGS.get(language, "left empty (the spelling already shows the sound)"),
             commonness=", ".join(COMMONNESS),

@@ -399,7 +399,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     if (!deck) return;
     setAdded((a) => ({ ...a, [w.word]: 'adding' }));
     try {
-      await api.queueNotes(chat.language, deck, [{ entry: w.word, meaning: w.english }]);
+      await api.queueNotes(chat.language, deck, [{ entry: w.word, meaning: w.english }], chat.language === 'th' ? await loadParticle() : undefined);
       setAdded((a) => ({ ...a, [w.word]: 'added' }));
       haptic.success();
     } catch {

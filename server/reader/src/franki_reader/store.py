@@ -17,7 +17,14 @@ from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
-from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, VOICE_SLOTS, Code, with_deck
+from franki_reader.languages import (
+    HIDDEN_LANGUAGES,
+    LANGUAGES,
+    VOICE_SLOTS,
+    Code,
+    Gender,
+    with_deck,
+)
 from franki_reader.lexicon import Entry, ReadDeck
 from franki_reader.recognition import Recognition
 from franki_reader.register import DEFAULT as DEFAULT_REGISTER
@@ -261,7 +268,8 @@ CREATE TABLE IF NOT EXISTS note_queue (
     attempts INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     tried_at TEXT,
-    cost_usd REAL NOT NULL DEFAULT 0
+    cost_usd REAL NOT NULL DEFAULT 0,
+    learner TEXT NOT NULL DEFAULT 'male'
 );
 -- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
 -- common words are known without being in the deck, so the model isn't asked to gloss them. Each text
@@ -614,6 +622,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # (JSON), when Claude filled it in (note_queue.Spelled); empty before 21 November 2026.
         conn.execute("ALTER TABLE note_queue ADD COLUMN spelling TEXT NOT NULL DEFAULT ''")
         conn.execute("ALTER TABLE note_queue ADD COLUMN alternatives TEXT NOT NULL DEFAULT '[]'")
+    if "learner" not in queue_columns:
+        # Whose Thai the Context sentence is written as, "male" or "female" (the app's polite
+        # ending when the word was queued); "male" before 22 November 2026, and for any other language.
+        conn.execute("ALTER TABLE note_queue ADD COLUMN learner TEXT NOT NULL DEFAULT 'male'")
     if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # Where a story's season is heading, in a few sentences; empty until an episode gives one.
         conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
@@ -2878,11 +2890,13 @@ class QueuedNote:
     # words it could be, as {"spelling", "meaning"} (note_queue.Spelled).
     spelling: str = ""
     alternatives: list[dict[str, str]] = field(default_factory=list)
+    # Whose Thai the Context sentence is written as; "male" for any other language.
+    learner: Gender = "male"
 
 
 _QUEUE_COLUMNS = (
     "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at, spelling,"
-    " alternatives"
+    " alternatives, learner"
 )
 
 
@@ -2900,6 +2914,7 @@ def _queued(row: tuple[Any, ...]) -> QueuedNote:
         datetime.fromisoformat(row[9]) if row[9] else None,
         row[10],
         json.loads(row[11]),
+        "female" if row[12] == "female" else "male",
     )
 
 
@@ -2909,8 +2924,10 @@ def add_queued(
     deck: str,
     entries: list[tuple[str, str]],
     now: datetime,
+    learner: Gender = "male",
 ) -> list[int]:
     """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given.
+    `learner` is whose Thai the sentences are written as (Thai only).
 
     A word already in the queue for that deck with the same meaning isn't added again, and its
     row's id is returned: the app sends words it held while offline until it hears they arrived, so
@@ -2928,9 +2945,9 @@ def add_queued(
                 ids.append(there[0])
                 continue
             cursor = conn.execute(
-                "INSERT INTO note_queue (language, deck, entry, meaning, created_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (language, deck, entry, meaning, now.isoformat()),
+                "INSERT INTO note_queue (language, deck, entry, meaning, created_at, learner)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (language, deck, entry, meaning, now.isoformat(), learner),
             )
             assert cursor.lastrowid is not None
             ids.append(cursor.lastrowid)

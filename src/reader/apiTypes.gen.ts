@@ -2204,6 +2204,8 @@ export interface components {
             deck: string;
             /** Entries */
             entries: components["schemas"]["QueuedEntry"][];
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** PhraseIn */
         PhraseIn: {
@@ -2663,6 +2665,8 @@ export interface components {
             language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
             /** Text */
             text: string;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
         };
         /** WordLookupIn */
         WordLookupIn: {
