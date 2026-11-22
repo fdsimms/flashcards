@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { claudeChatLink, SUGGESTED_QUESTIONS, withQuestion, type AskTurn, type CardForClaude } from '../core/askCard';
 import { failureText } from '../core/failure';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
+import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
 
@@ -93,14 +93,14 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
-        <View style={{ gap: space.xs }}>
-          <Text style={{ ...type.headline, color: c.text }}>{`Ask about ${card.front}`}</Text>
+        <SheetHeader onClose={onClose} disabled={asking}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>{`Ask about ${card.front}`}</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             {ask
               ? 'Claude sees this card and its note, and what you ask here. Nothing is sent until you send a question.'
               : "Asking here uses Read & Listen. Turn it on in Settings, Read & Listen. You can still ask in the Claude app."}
           </Text>
-        </View>
+        </SheetHeader>
         {turns.map((t, i) => (
           <View
             key={i}

@@ -5,7 +5,7 @@ import { AGENT_FLAG_REASONS, FLAG_NOTE_MAX, type AgentFlagReason } from '../core
 import { failureText } from '../core/failure';
 import type { FixProposal } from '../core/fixCard';
 import { htmlToText } from '../core/html';
-import { Button, Chip, ErrorNote, Field } from './kit';
+import { Button, Chip, ErrorNote, Field, SheetHeader } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { AskingText } from './AskingText';
 
@@ -103,7 +103,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
-        <View style={{ gap: space.xs }}>
+        <SheetHeader onClose={onClose} disabled={busy}>
           {heading === null ? <AskingText style={{ ...type.headline, color: c.text }} /> : <Text style={{ ...type.headline, color: c.text }}>{heading}</Text>}
           {phase === 'form' ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
@@ -112,7 +112,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
                 : 'Claude checks this card when you ask in a chat, and suggests a fix for you to approve. The card gets the purple flag.'}
             </Text>
           ) : null}
-        </View>
+        </SheetHeader>
 
         {phase === 'form' ? (
           <>

@@ -464,6 +464,32 @@ export function HeaderAction({ label, onPress, accessibilityLabel }: { label: st
   );
 }
 
+/**
+ * The top of a page sheet: its title block, and a round close button at the right so a sheet
+ * can be left without scrolling down to its bottom buttons. `onClose` does what the sheet's own
+ * Close, Cancel or Skip button does, and `disabled` matches that button's.
+ */
+export function SheetHeader({ children, onClose, disabled }: { children: React.ReactNode; onClose: () => void; disabled?: boolean }) {
+  const c = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
+      <View style={{ flex: 1, gap: space.xs, paddingTop: space.s }}>{children}</View>
+      <Tappable
+        onPress={() => { haptic.tap(); onClose(); }}
+        disabled={disabled}
+        restOpacity={disabled ? 0.4 : 1}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        accessibilityState={{ disabled: !!disabled }}
+        hitSlop={space.xs}
+        style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Icon name="xmark" size={14} color={c.textSecondary} weight="bold" />
+      </Tappable>
+    </View>
+  );
+}
+
 export function Button(props: {
   label: string;
   onPress: () => void;

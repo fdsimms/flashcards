@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Field, Icon, Tappable } from './kit';
+import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
 import { failureText } from '../core/failure';
@@ -95,12 +95,12 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
-        <View style={{ gap: space.xs }}>
+        <SheetHeader onClose={onSkip} disabled={saving}>
           {step ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${step.n} of ${step.of}`}</Text> : null}
           <Text style={{ ...type.headline, color: c.text }}>{misses === undefined ? `Mnemonic for ${word}` : `You've missed ${word} ${misses} times`}</Text>
           {translit ? <Text style={{ ...type.callout, color: c.textSecondary }}>{translit}</Text> : null}
           {gloss ? <Text style={{ ...type.callout, color: translit ? c.text : c.textSecondary }}>{gloss}</Text> : null}
-        </View>
+        </SheetHeader>
         {suspended ? (
           <Text style={{ ...type.footnote, color: c.textSecondary }}>
             This card is suspended because you keep missing it. Save a mnemonic for its back and it goes back into your reviews. Skip, and it stays suspended.
