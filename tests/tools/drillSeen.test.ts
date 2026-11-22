@@ -4,6 +4,15 @@ import { drawQuestion, drillStep, nextDrillQuestion, questionKey } from '../../s
 
 const LIST = seenList('th', 'time-hours');
 
+/** A repeatable stand-in for Math.random. */
+function seeded(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+}
+
 describe('remembering what a step asked', () => {
   it('puts the newest last, and moves a repeat to the end rather than listing it twice', () => {
     let seen = recordSeen({}, LIST, 'a');
@@ -53,8 +62,10 @@ describe('drawing what has not come round', () => {
     let seen: DrillSeen = {};
     let previous: ReturnType<typeof drawQuestion> | undefined;
     const asked: string[] = [];
+    // Seeded: a draw gives up after SEEN_TRIES, so with real randomness a round occasionally repeats (about 1 in 100).
+    const random = seeded(7);
     for (let i = 0; i < 30; i++) {
-      const q = drawQuestion(step, previous, Math.random, 'th', undefined, seen[LIST]);
+      const q = drawQuestion(step, previous, random, 'th', undefined, seen[LIST]);
       asked.push(questionKey(q));
       seen = recordSeen(seen, LIST, questionKey(q));
       previous = q;
