@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import type { Cram } from '../../src/core/cram';
 import {
-  combineWeakSpots, FRESH_DAYS, markWords, THEME_FACTS_CHARS, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
+  combineWeakSpots, FRESH_DAYS, markWords, talkPieces, THEME_FACTS_CHARS, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
   type ThemeWord,
 } from '../../src/core/cramThemes';
 import type { Card, Note } from '../../src/core/types';
@@ -177,5 +177,25 @@ describe('markWords', () => {
     ]);
     expect(markWords('abc', ['x', ''])).toEqual([{ text: 'abc', marked: false }]);
     expect(markWords('', ['x'])).toEqual([]);
+  });
+});
+
+describe('talkPieces', () => {
+  it('keeps a marked run whole and splits the rest at spaces', () => {
+    expect(talkPieces(markWords('Hier, la carte et', ['la carte']))).toEqual([
+      { text: 'Hier,', marked: false },
+      { text: ' ', marked: false, gap: true },
+      { text: 'la carte', marked: true },
+      { text: ' ', marked: false, gap: true },
+      { text: 'et', marked: false },
+    ]);
+  });
+
+  it('leaves Thai, which has no spaces, as one piece on each side of a marked word', () => {
+    expect(talkPieces(markWords('ทางมีภูเขาไหม', ['ภูเขา']))).toEqual([
+      { text: 'ทางมี', marked: false },
+      { text: 'ภูเขา', marked: true },
+      { text: 'ไหม', marked: false },
+    ]);
   });
 });

@@ -2,17 +2,15 @@ import React, { useRef, useState } from 'react';
 import { PixelRatio, Pressable, Text, View, type TextStyle } from 'react-native';
 import { furiganaRuns, hasRuby, shownRuns, type FuriganaSetting } from '../core/furigana';
 import type { Segment } from '../core/highlight';
-import { dotOffsets, sentencePieces, wordBreaks } from '../reader/cardGlosses';
+import { dotOffsets, sentencePieces, UNDERLINE_DOT, UNDERLINE_SPACE, wordBreaks } from '../reader/cardGlosses';
 import { saidAs } from '../reader/wordAudio';
 import { GlossPopover, type Tapped } from './reader/Reader';
 import { Ruby } from './Ruby';
 import { radius, useTheme, smooth } from './theme';
 import type { SentenceGloss } from './useCardGlosses';
 
-const DOT = 2;
+const DOT = UNDERLINE_DOT;
 const TICK_HEIGHT = 7;
-// Room under the glyphs for the dots, so they sit clear of Thai's below-the-line vowels.
-const UNDERLINE_SPACE = 5;
 // How far a word's dots stop short of a tick, so a dot never runs into it.
 const TICK_GAP = 4;
 
