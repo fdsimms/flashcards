@@ -7450,6 +7450,21 @@
             "maxItems": 50,
             "minItems": 1,
             "title": "Entries"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",
@@ -9170,6 +9185,21 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Text"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
           }
         },
         "type": "object",
