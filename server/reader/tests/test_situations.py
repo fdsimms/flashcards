@@ -35,12 +35,12 @@ from franki_reader.tts import ClipCache, Spoken
 
 COST = Usage(1_000_000, 0, 0, 0, "claude-sonnet-5-5")  # $2
 CHECKER = lexicon_from(ENTRIES, "th")
-ROLES = Roles("a customer", "the vendor", "Noi", "female")
+ROLES = Roles("a customer", "the vendor", "Noi", "male")
 START = {
     "you": "a customer",
     "them": "the vendor",
     "name": "Noi",
-    "gender": "female",
+    "gender": "male",
     "line": "รับอะไรดีครับ",
     "english": "What would you like?",
     "glosses": [],
@@ -69,7 +69,7 @@ def test_a_first_line_comes_with_the_roles() -> None:
         "you": "a customer",
         "them": "the vendor",
         "name": "Noi",
-        "gender": "female",
+        "gender": "male",
     }
     assert cleaned["line"] == "รับอะไรดีครับ" and cleaned["done"] is False
 
@@ -218,7 +218,7 @@ def test_claude_feedback_fails_with_its_cost_when_cut_off() -> None:
 
 def test_clips_are_found_by_key_and_old_ones_dropped(tmp_path: Path) -> None:
     clips = ClipCache(tmp_path)
-    key = ClipCache.key("รับอะไรดีครับ", "th-TH-PremwadeeNeural")
+    key = ClipCache.key("รับอะไรดีครับ", "th-TH-NiwatNeural")
     assert clips.path(key) is None
     clips.write(key, b"mp3", NOW)
     assert clips.path(key) == tmp_path / f"{key}.mp3"
@@ -304,13 +304,13 @@ def test_a_first_turn_sets_the_roles_speaks_the_line_and_counts_both_costs(tmp_p
     got = app.post(
         "/api/situations/turn", json={"language": "th", "scene": SCENE}, headers=AUTH
     ).json()
-    assert got["roles"]["gender"] == "female" and got["line"] == "รับอะไรดีครับ"
+    assert got["roles"]["gender"] == "male" and got["line"] == "รับอะไรดีครับ"
     assert "".join(w["text"] for w in got["words"]) == "รับอะไรดีครับ"
     assert (
         got["audio"]
         and app.get(f"/api/situations/audio/{got['audio']}", headers=AUTH).content == b"mp3"
     )
-    assert app.spoken[0][1] == "th-TH-PremwadeeNeural"  # type: ignore[attr-defined]
+    assert app.spoken[0][1] == "th-TH-NiwatNeural"  # type: ignore[attr-defined]
     assert seen[0].roles is None
     costs = app.get("/api/costs", headers=AUTH).json()["situations"]
     assert (
@@ -335,13 +335,13 @@ def test_a_turn_asked_not_to_speak_records_and_bills_nothing(tmp_path: Path) -> 
 
 def test_a_line_can_be_spoken_slowly_as_its_own_clip_made_once(tmp_path: Path) -> None:
     app = client(tmp=tmp_path)
-    body = {"language": "th", "gender": "female", "line": "รับอะไรดีครับ"}
+    body = {"language": "th", "gender": "male", "line": "รับอะไรดีครับ"}
 
     got = app.post("/api/situations/slow", json=body, headers=AUTH).json()
 
     assert got["audio"]
     assert app.get(f"/api/situations/audio/{got['audio']}", headers=AUTH).content == b"slow"
-    assert app.spoken == [("รับอะไรดีครับ", "th-TH-PremwadeeNeural@0.65")]  # type: ignore[attr-defined]
+    assert app.spoken == [("รับอะไรดีครับ", "th-TH-NiwatNeural@0.65")]  # type: ignore[attr-defined]
     chars = len("รับอะไรดีครับ")
     assert app.get("/api/costs", headers=AUTH).json()["situations"]["audio_chars"] == chars
     # Asked again, it comes from the kept clip: no second recording, no second charge.
@@ -356,7 +356,7 @@ def test_a_line_can_be_spoken_slowly_as_its_own_clip_made_once(tmp_path: Path) -
 def test_a_later_turn_sends_the_roles_and_needs_the_learners_line_last() -> None:
     play, seen = playing(TURN)
     app = client(play)
-    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "female"}
+    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "male"}
     body: dict[str, Any] = {
         "language": "th",
         "scene": SCENE,
@@ -396,7 +396,7 @@ def test_feedback_is_cleaned_and_its_cost_kept() -> None:
         }, COST
 
     app = client(feedback=feedback)
-    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "female"}
+    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "male"}
     lines = [{"speaker": "them", "text": "รับอะไรดีครับ"}, {"speaker": "you", "text": "ครับ"}]
     got = app.post(
         "/api/situations/feedback",
@@ -538,7 +538,7 @@ def test_the_endpoints_pass_a_focus_on_and_keep_working_without_one() -> None:
         return {"lines": [], "words": []}, COST
 
     app = client(feedback=feedback)
-    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "female"}
+    roles = {"you": "a customer", "them": "the vendor", "name": "Noi", "gender": "male"}
     lines = [{"speaker": "you", "text": "ครับ"}]
     send = {**base, "roles": roles, "lines": lines}
     app.post("/api/situations/feedback", json=send, headers=AUTH)
@@ -569,3 +569,26 @@ def test_a_tutor_conversation_sets_the_other_person_as_the_learners_tutor() -> N
     assert "own tutor" in play_intro(tutor)
     assert "their tutor" in conversation_message(tutor)
     assert "their tutor" not in conversation_message(plain)
+
+
+# ==== A line that fits its speaker ====
+
+
+def test_a_line_with_the_other_genders_words_goes_back_once_and_the_fixed_line_is_kept() -> None:
+    wrong: dict[str, Any] = {**TURN, "line": "ฉันอยากกินข้าวเหนียวมะม่วงค่ะ"}
+    line, _, used, sent = run_next(wrong, TURN)
+    assert "doesn't fit a man" in sent[1] and "ครับ" in sent[1]
+    assert line["line"] == TURN["line"] and used.cost_usd() == 4.0
+
+
+def test_a_first_turn_that_still_doesnt_fit_changes_the_gender_to_match_the_line() -> None:
+    wrong = {**START, "line": "รับอะไรดีคะ", "gender": "male"}
+    queue = [wrong, wrong]
+
+    async def play(
+        entries: list[Entry], conversation: Conversation, feedback: str
+    ) -> tuple[dict[str, Any], Usage]:
+        return queue.pop(0), COST
+
+    line, _, _ = asyncio.run(next_line(play, ENTRIES, Conversation("th", SCENE, None, ()), CHECKER))
+    assert line["roles"]["gender"] == "female" and queue == []
