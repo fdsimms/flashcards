@@ -89,6 +89,14 @@ async def test_an_update_is_held_to_the_style_only_where_it_writes(client, deskt
     assert notes[werfen]["Meaning"] == "to throw, to toss"
 
 
+def test_an_entry_loses_its_article_only_when_one_is_there():
+    from franki_mcp.lint import _bare
+
+    assert [_bare(e) for e in ("la ficha", "Der Tisch", "l'amertume", "l’eau", "το σπίτι")] == ["ficha", "tisch", "amertume", "eau", "σπίτι"]
+    # A word that only starts with an article's letters keeps them: these were read as "n", "ko" and "ser".
+    assert [_bare(e) for e in ("len", "leko", "dieser", "elegir")] == ["len", "leko", "dieser", "elegir"]
+
+
 async def test_lint_reports_previews_and_applies_only_the_rules_named(client, desktop):
     ficha, pair, werfen, other = messy_deck(desktop)
     report = await call(client, "lint_notes")
