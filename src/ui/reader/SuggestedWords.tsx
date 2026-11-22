@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
+import { withThaiLineHeight } from '../../core/script';
 import type { Api, Language, WordSuggestions } from '../../reader/api';
 import {
   firstTicked, suggestionDetail, suggestionSections, tickedEntries, wordsToTick,
@@ -143,7 +144,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
                       >
                         <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={24} color={on ? c.accent : c.controlEdge} />
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={{ ...type.body, color: c.text }}>{w.word}</Text>
+                          <Text style={{ ...withThaiLineHeight(type.body, w.word), color: c.text }}>{w.word}</Text>
                           {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
                         </View>
                         <FrequencyMeter frequency={frequency} />
