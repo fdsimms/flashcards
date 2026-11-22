@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, nextDrillQuestion, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   heardRight, holdable, questionNote, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 import { stepNeeds } from '../../src/tools/skillWords';
@@ -56,16 +56,14 @@ describe('skill drills', () => {
     }
   });
 
-  it('asks missed questions again before drawing new ones', () => {
-    const step = DATE_STEPS[0];
-    const a = drawQuestion(step);
-    const b = drawQuestion(step, a);
-    const first = nextDrillQuestion(step, undefined, [a, b]);
-    expect(first.question).toBe(a);
-    const second = nextDrillQuestion(step, first.question, first.retry);
-    expect(second.question).toBe(b);
-    expect(second.retry).toEqual([]);
-    expect(questionKey(nextDrillQuestion(step, b, second.retry).question)).not.toBe(questionKey(b));
+  it('draws a round of DRILL_QUESTIONS, none the same as the one before it', () => {
+    for (const step of [DATE_STEPS[0], TIME_STEPS[0]]) {
+      for (let i = 0; i < 50; i++) {
+        const round = drawRound(step);
+        expect(round).toHaveLength(DRILL_QUESTIONS);
+        round.slice(1).forEach((q, at) => expect(questionKey(q)).not.toBe(questionKey(round[at])));
+      }
+    }
   });
 
   it('carries misses over after Again or Hard only', () => {
@@ -95,6 +93,9 @@ describe('skill drills', () => {
   it('suggests Good for all right, Hard for one miss, Again for more', () => {
     expect(suggestedRating([true, true, true])).toBe(3);
     expect(suggestedRating([true, false, true])).toBe(2);
+    expect(suggestedRating([true, false])).toBe(2);
+    // A lone question missed, as when a card returns to ask only that: nothing else was right.
+    expect(suggestedRating([false])).toBe(1);
     expect(suggestedRating([false, false, true])).toBe(1);
     expect(suggestedRating([])).toBe(3);
   });
@@ -414,8 +415,7 @@ describe('skill steps that wait for words', () => {
       expect(q.kind === 'date' && [2, 11].includes(q.date.month)).toBe(true);
       previous = q;
     }
-    const next = nextDrillQuestion(step, undefined, [], random, 'nb', { months: [7] });
-    expect(next.question.kind === 'date' && next.question.date.month).toBe(7);
+    for (const q of drawRound(step, random, 'nb', { months: [7] })) expect(q.kind === 'date' && q.date.month).toBe(7);
   });
 });
 

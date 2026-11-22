@@ -181,17 +181,20 @@ function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: 
 }
 
 /**
- * The next question of a drill: the first of `retry` (questions missed when the card was last
- * answered Again, asked again when it comes back) that isn't `previous`, else a fresh draw.
- * Returns what's left of `retry` too.
+ * A card's round for one study day: `DRILL_QUESTIONS` questions from `step`, none the one before it and
+ * none that `recent` (what the step asked lately, drillSeen.ts) holds while the step has others. The
+ * round is drawn once and kept (drillRound.ts), so it is the same every time the card comes up that day.
  */
-export function nextDrillQuestion(step: DrillStep, previous: DrillQuestion | undefined, retry: readonly DrillQuestion[], random: () => number = Math.random, language?: Language, only?: DateScope, recent?: readonly string[]): { question: DrillQuestion; retry: DrillQuestion[] } {
-  const at = retry.findIndex((q) => !previous || questionKey(q) !== questionKey(previous));
-  if (at < 0) return { question: drawQuestion(step, previous, random, language, only, recent), retry: [...retry] };
-  return { question: retry[at], retry: retry.filter((_, i) => i !== at) };
+export function drawRound(step: DrillStep, random: () => number = Math.random, language?: Language, only?: DateScope, recent: readonly string[] = []): DrillQuestion[] {
+  const round: DrillQuestion[] = [];
+  for (let i = 0; i < DRILL_QUESTIONS; i++) {
+    // The round's own questions count as asked, so a small step doesn't repeat one within the round.
+    round.push(drawQuestion(step, round[i - 1], random, language, only, [...recent, ...round.map(questionKey)]));
+  }
+  return round;
 }
 
-/** The questions to ask again when a card returns: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
+/** The questions a card asks when it returns the same day: the ones missed, kept after Again or Hard and dropped after Good or Easy. */
 export function missesToCarry(rating: number, missed: readonly DrillQuestion[]): DrillQuestion[] {
   return rating <= 2 ? [...missed] : [];
 }
@@ -254,7 +257,8 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
  */
 export function suggestedRating(results: readonly boolean[], thinkMs: readonly number[] = [], group?: DrillGroup, hardShown = true): 1 | 2 | 3 {
   const missed = results.filter((r) => !r).length;
-  if (missed) return missed === 1 && hardShown ? 2 : 1;
+  // One miss is Hard only when something else was right: a single question missed is Again.
+  if (missed) return missed === 1 && results.length > 1 && hardShown ? 2 : 1;
   return group && hardShown && isSlow(thinkMs, group) ? 2 : 3;
 }
 
