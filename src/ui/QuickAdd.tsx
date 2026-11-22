@@ -3,6 +3,7 @@ import { Stack, usePreventRemove } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
 import { failureText } from '../core/failure';
+import { withThaiLineHeight } from '../core/script';
 import {
   addWord, asTyped, counts, MAX_QUEUED, parseWordList, splitLine, wordState,
   type FoundWord, type QuickWord, type WordState,
@@ -367,7 +368,7 @@ function WordRow({ word, first, state, filled, language, inDeck, refusal, onRemo
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TAP + space.m, paddingLeft: space.l }}>
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: 2, paddingVertical: space.s }}>
-        <Text style={{ ...type.body, color: c.text }}>{word.entry}</Text>
+        <Text style={{ ...withThaiLineHeight(type.body, word.entry), color: c.text }}>{word.entry}</Text>
         {line ? <Text style={{ ...type.footnote, color }}>{line}</Text> : null}
         {state === 'inDeck' && !refusal ? (
           <Tappable onPress={onAnyway} accessibilityRole="button" accessibilityLabel={`Add ${word.entry} anyway`} style={{ alignSelf: 'flex-start', paddingVertical: space.xs }}>
@@ -438,7 +439,7 @@ function FoundWords({ found, language, added, onAdd }: {
             >
               {i === 0 ? null : <Divider inset={space.l} />}
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ ...type.body, color: c.text }}>{w.entry}</Text>
+                <Text style={{ ...withThaiLineHeight(type.body, w.entry), color: c.text }}>{w.entry}</Text>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.note ? `${w.meaning} (${w.note})` : w.meaning}</Text>
               </View>
               <Icon name={on ? 'checkmark.circle.fill' : 'plus.circle'} size={22} color={c.accent} />

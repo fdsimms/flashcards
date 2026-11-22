@@ -789,6 +789,15 @@ export function ProgressBar({ value, label = 'Progress through this session', st
 }
 
 /**
+ * A screen's title as a heading in its content, for a name the user wrote (a cram, a deck). The
+ * native large title is one line and cuts a long name short; this wraps. Pass no `title` to `Screen`.
+ */
+export function PageTitle({ children }: { children: string }) {
+  const c = useTheme();
+  return <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.text }}>{children}</Text>;
+}
+
+/**
  * What a screen shows until its data is in: a spinner, or, when loading failed, why, with Try
  * again. Fills the screen and centers itself, so a screen never sits blank while it waits.
  */

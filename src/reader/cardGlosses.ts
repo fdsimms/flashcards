@@ -147,8 +147,12 @@ export function wordBreaks(pieces: SentencePiece[]): boolean[] {
   return pieces.map((p, i) => p.tappable && !!pieces[i + 1]?.tappable);
 }
 
+/** The size of a dot, and the room left under the glyphs for a row of them, so they clear Thai's below-the-line vowels. */
+export const UNDERLINE_DOT = 2;
+export const UNDERLINE_SPACE = 5;
+
 /** The dots of a word's dotted underline: `size` wide, about `pitch` apart, the first at 0 and the last ending at `width`. */
-export function dotOffsets(width: number, size = 2, pitch = 5): number[] {
+export function dotOffsets(width: number, size = UNDERLINE_DOT, pitch = 5): number[] {
   if (width < size) return [];
   const n = Math.max(1, Math.round((width - size) / pitch) + 1);
   if (n === 1) return [(width - size) / 2];
