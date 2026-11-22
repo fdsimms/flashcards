@@ -44,6 +44,11 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   languages came to write a Meaning four ways. An update is checked only for the fields it writes,
   so an old note can be corrected a field at a time. `tests/test_omnilanguage.py` holds every
   example the guide shows to its own rules.
+- **Thai romanization is defined once, in `server/speech/franki_speech/thai_romanization.py`**: the
+  scheme the guide prints, the letters check, and the tone checks (marks against the Pronunciation's
+  tone letters). Read & Listen's note queue puts the same scheme in its prompt and refuses a draft that
+  breaks it, so a word added in the app can't be saved toneless. A rule about Thai romanization goes
+  there, not into either server.
 - **Skill cards come from the app's own definitions** (`skills.py`): the notes it adds are read from
   `skill_catalog.json`, which `src/tools/skillCatalog.ts` writes (`npm run catalog:skills`), and
   `tests/tools/skillCatalog.test.ts` fails when the file is stale, so the server has no second copy of
