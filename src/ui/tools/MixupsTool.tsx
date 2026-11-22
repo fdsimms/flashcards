@@ -126,7 +126,7 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
       <View style={{ gap: space.s, alignItems: 'center' }}>
         {picked === question.target.noteId
           ? <Status tone="good">Right.</Status>
-          : <Status tone="bad">{`Not quite. It's ${question.target.word}.`}</Status>}
+          : <Status tone="bad">{`Incorrect. It's ${question.target.word}.`}</Status>}
         {missed && mode === 'ear' ? <Help>Play each word to compare how they sound.</Help> : null}
       </View>
     ) : undefined;

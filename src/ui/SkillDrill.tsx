@@ -17,6 +17,8 @@ import { Reveal } from './motion';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { ClockFace } from './tools/ClockFace';
 import { AnswerContent, Status } from './tools/ToolScreen';
+import { ContrastChoices, ContrastSentenceView, ContrastVerdict } from './tools/ContrastParts';
+import { contrastSet, showSentence } from '../tools/contrasts';
 
 /**
  * A skill card's drill in Review (src/tools/skills.ts): a few questions from its step, each shown,
@@ -30,7 +32,7 @@ import { AnswerContent, Status } from './tools/ToolScreen';
 export interface Drill { step: DrillStep; language: Language; months?: number[]; days?: number[] }
 
 /** The chip's symbol for each kind of drill. */
-const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up' };
+const GROUP_ICONS: Record<DrillStep['group'], 'clock' | 'number' | 'calendar' | 'banknote' | 'square.stack.3d.up' | 'text.badge.checkmark'> = { time: 'clock', numbers: 'number', dates: 'calendar', money: 'banknote', counting: 'square.stack.3d.up', contrast: 'text.badge.checkmark' };
 
 /**
  * What each card's carried misses were before its latest answers, newest last, so an undo puts them
@@ -54,6 +56,8 @@ interface DrillState {
   times: number[];
   /** What the phone heard, when the answer was said aloud, and whether it's the answer. */
   heard?: { text: string; right: boolean };
+  /** Which word fits: the word tapped (its index in the set), which is the answer to the question. */
+  picked?: number;
   /** The state at each earlier mark, newest last, so Back can return to a marked question to look at it again. */
   trail: DrillState[];
 }
@@ -102,6 +106,15 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
     /** The rating to outline once the drill is done. */
     suggested: drill && done ? suggestedRating(live!.results, live!.times, drill.step.group, hardShown) : undefined,
     show: () => reveal(),
+    /** Which word fits: the word picked, by its index in the set. */
+    picked: live?.picked,
+    /** The questions missed in this showing, oldest first. */
+    missed: live?.missed ?? [],
+    /** Which word fits: a word tapped. It's the answer, so the question is shown with it; Next marks it. */
+    pick: (index: number) => {
+      if (!live || live.shown || !drill) return;
+      setState({ ...live, shown: true, picked: index, times: [...live.times, Date.now() - live.askedAt] });
+    },
     /** The answer said aloud: it's shown, with what was heard and whether that's it. */
     heardAnswer: (text: string) => reveal(text),
     /** Marks the question; true when it was the last. */
@@ -170,7 +183,7 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
   return (
     // The top padding clears the language pill CardSurface draws at the card's top edge in a mixed deck; the chip sits in the flow below it, never pinned to the same spot.
     // Tapping the card shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses.
-    <Pressable accessible={false} disabled={skill.shown || skill.done} onPress={() => { haptic.select(); skill.show(); if (answer0 && speech) say(answer0.everyday.text, speech); }} style={{ flex: 1 }}>
+    <Pressable accessible={false} disabled={skill.shown || skill.done || question.kind === 'contrast'} onPress={() => { haptic.select(); skill.show(); if (answer0 && speech) say(answer0.everyday.text, speech); }} style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
       <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
         <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
@@ -187,14 +200,16 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
               : `${skill.total - right === 1 ? 'One miss.' : 'More than one miss.'} ${skill.suggested === 2 ? 'Hard' : 'Again'} is outlined.`}
             {'\n'}Tap the rating that fits.
           </Text>
+          {skill.missed.map((q) => <MissedSentence key={questionKey(q)} question={q} />)}
         </Reveal>
       ) : (
         <Reveal key={`${skill.results.length}`} rise={6} duration={140} style={{ alignItems: 'center', gap: space.l }}>
           <Dots results={skill.results} total={skill.total} at={skill.results.length} />
-          {question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
-          <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>
+          {question.kind === 'contrast' ? <ContrastFace key={questionKey(question)} skill={skill} /> : null}
+          {question.kind === 'contrast' ? null : question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
+          {question.kind === 'contrast' ? null : <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>}
           {questionNote(question, drill.language) ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{questionNote(question, drill.language)}</Text> : null}
-          {answer ? (
+          {answer && question.kind !== 'contrast' ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
               <View style={{ height: 1, backgroundColor: c.textTertiary, opacity: 0.6 }} />
               {skill.heard ? (
@@ -210,6 +225,32 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
       )}
     </ScrollView>
     </Pressable>
+  );
+}
+
+/** Which word fits' question on the card: the sentence with its gap, and once a word is picked, the verdict, the sentence filled in and the rule. The choices are in the footer, under the thumb. */
+function ContrastFace({ skill }: { skill: SkillDrillState }) {
+  const q = skill.question;
+  if (q?.kind !== 'contrast') return null;
+  const found = contrastSet(q.setId);
+  const shown = found && showSentence(found.set, q.index, found.language);
+  if (!shown) return null;
+  const answered = skill.picked !== undefined;
+  return <ContrastSentenceView shown={shown} answered={answered} verdict={answered ? <ContrastVerdict right={skill.picked === found.set.sentences[q.index].answer} answer={shown.answer.word} /> : undefined} />;
+}
+
+/** A sentence missed in this drill, filled in, on the card's back once the drill is done. */
+function MissedSentence({ question }: { question: DrillQuestion }) {
+  const c = useTheme();
+  if (question.kind !== 'contrast') return null;
+  const found = contrastSet(question.setId);
+  const shown = found && showSentence(found.set, question.index, found.language);
+  if (!shown) return null;
+  return (
+    <View style={{ alignSelf: 'stretch', gap: 2, backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
+      <Text selectable style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.answer.word}</Text>{shown.after}</Text>
+      <Text selectable style={{ ...type.footnote, color: c.textSecondary }}>{shown.english}</Text>
+    </View>
   );
 }
 
@@ -244,6 +285,32 @@ export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrill
   // The card can be tapped to show the answer, which ends any listening the mic button started.
   useEffect(() => { if (skill.shown) spoken.cancel(); }, [skill.shown]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!drill || !question) return null;
+  if (question.kind === 'contrast') {
+    const found = contrastSet(question.setId);
+    if (!found) return null;
+    const answer = found.set.sentences[question.index]?.answer ?? 0;
+    const shownSentence = showSentence(found.set, question.index, found.language);
+    return (
+      <View style={{ gap: space.s }}>
+        <ContrastChoices
+          key={questionKey(question)}
+          set={found.set}
+          language={drill.language}
+          answer={answer}
+          picked={skill.picked}
+          onPick={(i) => {
+            if (i === answer) haptic.success(); else haptic.answer();
+            skill.pick(i);
+            if (shownSentence && speech) say(shownSentence.filled, speech);
+          }}
+        />
+        <View style={{ flexDirection: 'row', gap: space.s }}>
+          <SkillBackButton skill={skill} />
+          {skill.shown ? <Button label="Next" style={{ flex: 1 }} onPress={() => { haptic.select(); if (skill.mark(skill.picked === answer)) onFinished(); }} /> : null}
+        </View>
+      </View>
+    );
+  }
   if (!skill.shown) {
     return (
       <View style={{ gap: space.s }}>

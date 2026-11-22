@@ -132,7 +132,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
           <View style={{ alignItems: 'center' }}>
             {pick.tone === tone
               ? <Status tone="good">{`Right. ${TONE_NAMES[tone]} tone.`}</Status>
-              : <Status tone="bad">{`Not quite. It's ${TONE_NAMES[tone].toLowerCase()}.`}</Status>}
+              : <Status tone="bad">{`Incorrect. It's ${TONE_NAMES[tone].toLowerCase()}.`}</Status>}
           </View>
         )}
         <View style={{ alignItems: 'center' }}><ToneContour tone={tone} width={64} /></View>

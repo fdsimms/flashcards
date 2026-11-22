@@ -270,7 +270,7 @@ export function PickBack({ quiz, rule }: { quiz: DateQuiz; rule: string | undefi
     <View style={{ gap: space.m }}>
       {quiz.picked !== null ? (
         <View style={{ alignItems: 'center' }}>
-          {wrong ? <Status tone="bad">{`Not quite. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
+          {wrong ? <Status tone="bad">{`Incorrect. That phrase is ${dateLabel(wrong.date)}.`}</Status> : <Status tone="good">Right.</Status>}
         </View>
       ) : null}
       {(wrong || quiz.revealed) && rule ? <RuleLine rule={rule} /> : null}
@@ -314,7 +314,7 @@ export function TapBack({ quiz, date, rule }: { quiz: DateQuiz; date: CalendarDa
         <View style={{ alignItems: 'center' }}>
           {right
             ? <Status tone="good">Right.</Status>
-            : <Status tone="bad">{`Not quite. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
+            : <Status tone="bad">{`Incorrect. You tapped ${dateLabel(quiz.tapped)}. The phrase is ${dateLabel(date)}.`}</Status>}
         </View>
         {!right && rule ? <RuleLine rule={rule} /> : null}
       </View>

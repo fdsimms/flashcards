@@ -240,6 +240,9 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 ? `These skills also add the words their drills use (months, day numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you know its words well, with each one's next review a week or more away.`
                 : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added its words and know them well.`}</Help>
             ) : null}
+            {groups.some((g) => g.id === 'contrast' && !settings.off.includes(g.id)) ? (
+              <Help>A Which word fits card starts once you know each of its words well.</Help>
+            ) : null}
             <Group>
               {groups.map((g, i) => (
                 <SwitchRow

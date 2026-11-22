@@ -1,6 +1,7 @@
 import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { SKILL_WORDS_TAG } from '../core/priority';
+import { CONTRAST_STEP_PREFIX, contrastSet } from './contrasts';
 
 /**
  * The words a skill's drills are said in, which a learner can't answer without: the months and the days
@@ -297,8 +298,17 @@ export interface WordNeed {
   label: string;
 }
 
-/** What a drill step waits for in `language`: each set that names it, with the words the language has for it. */
+/**
+ * What a drill step waits for in `language`: each set that names it, with the words the language has for it.
+ * A Which word fits step waits for each of its set's words (contrasts.ts), which are the learner's own to add:
+ * they aren't in `WORD_SETS`, so turning the skill on never adds them.
+ */
 export function stepNeeds(stepId: string, language: Language): WordNeed[] {
+  if (stepId.startsWith(CONTRAST_STEP_PREFIX)) {
+    const found = contrastSet(stepId.slice(CONTRAST_STEP_PREFIX.length));
+    if (!found || found.language !== language) return [];
+    return found.set.words.map((w) => ({ words: [w.word], min: 1, label: w.word }));
+  }
   return WORD_SETS.flatMap((set): WordNeed[] => {
     const words = set.words[language];
     if (!words || !(set.steps.includes(stepId) || set.extraSteps?.[language]?.includes(stepId))) return [];

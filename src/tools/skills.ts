@@ -18,6 +18,7 @@ import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
 import { countEnding, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
+import { CONTRAST_SETS, CONTRAST_STEP_PREFIX, GAP_SHOWN, contrastKey, contrastSet, contrastTitle, drawSentence, showSentence, type ContrastQuestion } from './contrasts';
 
 /**
  * Skill cards' drills: a skill with endless questions (any time, any number) as a ladder of steps,
@@ -27,7 +28,7 @@ import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_S
  * outline (src/ui/tools/SkillDrill.tsx), and the learner's tap is what reaches FSRS.
  */
 
-export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money' | 'counting';
+export type DrillGroup = 'time' | 'numbers' | 'dates' | 'money' | 'counting' | 'contrast';
 
 export interface DrillStep {
   /** Stable across versions: it's written into the card (`SkillId`) and read back to find the drill. */
@@ -52,6 +53,8 @@ interface DateStep extends DrillStep { group: 'dates'; parts: DateParts }
 interface MoneyStep extends DrillStep { group: 'money'; max: MoneyMax }
 /** `ending` is which numbers the step draws: one noun form each, or any number to 100 (the last digits then decide the form). */
 interface CountStep extends DrillStep { group: 'counting'; ending: 'one' | 'few' | 'many' | 'any' }
+/** One set of Which word fits (contrasts.ts): its own language, and a card of its own, waiting for the set's words. */
+export interface ContrastStep extends DrillStep { group: 'contrast'; language: Language; set: string }
 
 export const TIME_STEPS: TimeStep[] = [
   { id: 'time-hours', group: 'time', title: "O'clock and half past", minutes: 'hours', selfCheck: 'Say three times aloud: one on the hour, one at half past, one in the evening.' },
@@ -87,9 +90,22 @@ export const COUNT_STEPS: CountStep[] = [
   { id: 'counting-any', coversEarlier: true, group: 'counting', title: 'Any number to 100', ending: 'any', after: 'counting-many', selfCheck: 'Say 21, 22 and 25 with a noun aloud, then any other number to 100.' },
 ];
 
-export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS, ...COUNT_STEPS];
+/** Which word fits: a step per set, in each language's own order. The id leads with `contrast-`, then the set's (which leads with its language). */
+export const CONTRAST_STEPS: ContrastStep[] = (Object.entries(CONTRAST_SETS) as [Language, NonNullable<(typeof CONTRAST_SETS)[Language]>][]).flatMap(([language, sets]) => sets.map((set): ContrastStep => ({
+  id: `${CONTRAST_STEP_PREFIX}${set.id}`,
+  group: 'contrast',
+  language,
+  set: set.id,
+  title: contrastTitle(set),
+  selfCheck: 'Say a sentence aloud with each word, then check it against the rules on the back.',
+})));
 
-export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money', counting: 'Counting things' };
+export const DRILL_STEPS: DrillStep[] = [...TIME_STEPS, ...NUMBER_STEPS, ...DATE_STEPS, ...MONEY_STEPS, ...COUNT_STEPS, ...CONTRAST_STEPS];
+
+/** Whether `step` is asked in `language`: every step is, but a Which word fits set only in its own. */
+export const stepIn = (step: DrillStep, language: Language): boolean => step.group !== 'contrast' || (step as ContrastStep).language === language;
+
+export const GROUP_TITLES: Record<DrillGroup, string> = { time: 'Telling the time', numbers: 'Numbers', dates: 'Saying dates', money: 'Counting money', counting: 'Counting things', contrast: 'Which word fits' };
 
 export const drillStep = (id: string): DrillStep | undefined => DRILL_STEPS.find((s) => s.id === id);
 
@@ -102,6 +118,7 @@ export function hasDrills(group: DrillGroup, language: Language): boolean {
   if (group === 'numbers') return !!NUMBER_SAYERS[language];
   if (group === 'dates') return !!DATE_SAYERS[language];
   if (group === 'counting') return COUNT_LADDER_LANGUAGES.includes(language) && !!COUNTING[language];
+  if (group === 'contrast') return !!CONTRAST_SETS[language]?.length;
   return !!MONEY_SAYERS[language] && !!CURRENCY_OF[language];
 }
 
@@ -113,7 +130,8 @@ export type DrillQuestion =
   | { kind: 'number'; question: NumberQuestion }
   | { kind: 'date'; date: CalendarDate; parts: DateParts }
   | { kind: 'money'; amount: number }
-  | { kind: 'count'; question: CountQuestion };
+  | { kind: 'count'; question: CountQuestion }
+  | ({ kind: 'contrast' } & ContrastQuestion);
 
 /** A question's key, so the same one isn't asked twice in a row. */
 export function questionKey(q: DrillQuestion): string {
@@ -123,6 +141,7 @@ export function questionKey(q: DrillQuestion): string {
     case 'date': return `${q.date.year}-${q.date.month}-${q.date.day}`;
     case 'money': return String(q.amount);
     case 'count': return `${q.question.noun}:${q.question.n}`;
+    case 'contrast': return contrastKey(q);
   }
 }
 
@@ -152,6 +171,12 @@ export function drawQuestion(step: DrillStep, previous?: DrillQuestion, random: 
 }
 
 function drawOnce(step: DrillStep, previous: DrillQuestion | undefined, random: () => number, language: Language | undefined, only: DateScope | undefined): DrillQuestion {
+  if (step.group === 'contrast') {
+    const s = step as ContrastStep;
+    const set = contrastSet(s.set)?.set;
+    const last = previous?.kind === 'contrast' && previous.setId === s.set ? previous.index : undefined;
+    return { kind: 'contrast', setId: s.set, index: set ? drawSentence(set, last, random) : 0 };
+  }
   if (step.group === 'dates') {
     const s = step as DateStep;
     return { kind: 'date', date: randomDate(previous?.kind === 'date' ? previous.date : undefined, random, only), parts: s.parts };
@@ -248,6 +273,11 @@ export function questionText(q: DrillQuestion, language?: Language): string {
     }
     case 'money': return (language && MONEY_SAYERS[language]?.(q.amount).written.text) ?? String(q.amount);
     case 'count': return `${q.question.n} ${(language && COUNTING[language]?.nouns[q.question.noun]?.cue.text) ?? ''}`.trim();
+    case 'contrast': {
+      const found = contrastSet(q.setId);
+      const shown = found && showSentence(found.set, q.index, found.language);
+      return shown ? `${shown.before}${GAP_SHOWN}${shown.after}` : '';
+    }
   }
 }
 
@@ -271,6 +301,11 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
   if (q.kind === 'money') {
     const s = MONEY_SAYERS[language]?.(q.amount);
     return s && { everyday: s.everyday, also: s.also };
+  }
+  if (q.kind === 'contrast') {
+    const found = contrastSet(q.setId);
+    const shown = found && showSentence(found.set, q.index, found.language);
+    return shown && { everyday: { text: shown.filled, roman: shown.roman }, also: [], last: { title: shown.answer.word, phrase: { text: shown.answer.rule } } };
   }
   if (q.kind === 'count') {
     const counting = COUNTING[language];
@@ -301,7 +336,7 @@ export function suggestedRating(results: readonly boolean[], thinkMs: readonly n
  * time or a price is about speed as much as being right, so a right answer worked out slowly is Hard.
  * The time is from the question coming up to Show answer, or to the end of speaking it.
  */
-export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000, counting: 6000 };
+export const SLOW_MS: Record<DrillGroup, number> = { time: 6000, numbers: 5000, dates: 9000, money: 7000, counting: 6000, contrast: 12000 };
 
 /** The middle of the times taken: one long pause (a distraction) doesn't make a drill slow. */
 export function medianMs(times: readonly number[]): number | undefined {
@@ -337,6 +372,7 @@ function questionDigits(q: DrillQuestion): string[] {
     case 'date': return [];
     // A count is said with its noun; the recognizer may write the number as digits before it (see `heardRight`).
     case 'count': return [];
+    case 'contrast': return [];
   }
 }
 
@@ -378,7 +414,7 @@ export const SKILLS_SUBDECK = 'Skills';
 export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
 
 /** Every skill group, for reading a saved list of them back (src/anki/skillSettings.ts) without trusting it. */
-export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'counting', 'consonants', 'vowels', 'cases', 'classifiers'];
+export const SKILL_GROUP_IDS: readonly SkillGroup[] = ['time', 'numbers', 'dates', 'money', 'counting', 'consonants', 'vowels', 'cases', 'classifiers', 'contrast'];
 
 /** The languages that count with a classifier or counter, and what it's called. */
 const CLASSIFIER_NAMES: Partial<Record<Language, { one: string; title: string }>> = { th: { one: 'classifier', title: 'Classifiers' }, ja: { one: 'counter', title: 'Counters' } };
@@ -417,6 +453,8 @@ export function skillGroups(language: Language): SkillGroupInfo[] {
   if (counting && cls) out.push({ id: 'classifiers', title: cls.title, detail: `${counting.nouns.length} cards, one per noun, asking its ${cls.one}`, count: counting.nouns.length });
   const cases = CASE_LANGUAGES[language];
   if (cases) out.push({ id: 'cases', title: 'Which case', detail: `${cases.governors.length} cards, one per preposition or verb`, count: cases.governors.length });
+  const contrasts = CONTRAST_STEPS.filter((s) => s.language === language);
+  if (contrasts.length) out.push({ id: 'contrast', title: GROUP_TITLES.contrast, detail: `${contrasts.length} cards, one per set of words easily mixed up`, count: contrasts.length });
   return out;
 }
 
@@ -428,6 +466,13 @@ export interface SkillDraft {
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** A Which word fits card's back on Anki on the computer, where there's no drill: each word's rule, to check a sentence against. Nothing for another step. */
+function contrastRules(step: DrillStep): string {
+  if (step.group !== 'contrast') return '';
+  const set = contrastSet((step as ContrastStep).set)?.set;
+  return set ? set.words.map((w) => `<div><b>${esc(w.word)}</b>${w.roman ? ` (${esc(w.roman)})` : ''}: ${esc(w.rule)}</div>`).join('') : '';
+}
 
 /** The notes adding `groups` in `language` writes, in order. */
 export function skillDrafts(language: Language, languageName: string, groups: SkillGroup[]): SkillDraft[] {
@@ -497,12 +542,12 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
       continue;
     }
     if (!hasDrills(group, language)) continue;
-    for (const step of DRILL_STEPS.filter((s) => s.group === group)) {
+    for (const step of DRILL_STEPS.filter((s) => s.group === group && stepIn(s, language))) {
       drafts.push({
         fields: {
           // The language leads, so the same step for two languages isn't the same first field.
           Front: `<div><b>${esc(languageName)} · ${esc(GROUP_TITLES[group])}: ${esc(step.title)}</b></div><div>${esc(step.selfCheck)}</div>`,
-          Back: '<div>Rate how it went. In Franki this card is a short drill.</div>',
+          Back: `${contrastRules(step)}<div>Rate how it went. In Franki this card is a short drill.</div>`,
         },
         tags: [SKILL_TAG, `${SKILL_DRILL_TAG}${step.id}`, lang],
         suspended: stepWaits(step, language),
@@ -654,7 +699,7 @@ const due = (days: number) => (days <= 0 ? 'Due today' : days === 1 ? 'Due tomor
 /** What Skills shows for a deck's skill cards: each drill step in ladder order, and a set of single cards as how many have settled. */
 export function skillSections(cards: readonly SkillCardInfo[]): SkillSection[] {
   const sections: SkillSection[] = [];
-  for (const group of ['time', 'numbers', 'dates', 'money', 'counting'] as DrillGroup[]) {
+  for (const group of ['time', 'numbers', 'dates', 'money', 'counting', 'contrast'] as DrillGroup[]) {
     const rows = DRILL_STEPS.filter((s) => s.group === group).flatMap((step): SkillRow[] => {
       const card = cards.find((c) => c.tags.includes(`${SKILL_DRILL_TAG}${step.id}`));
       if (!card) return [];

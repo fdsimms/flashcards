@@ -1,4 +1,5 @@
 import type { DrillQuestion } from './skills';
+import { contrastSet } from './contrasts';
 
 /**
  * A skill card's questions for one study day, kept so they don't change under the learner: the same
@@ -53,6 +54,8 @@ export function isDrillQuestion(v: unknown): v is DrillQuestion {
     case 'date': return isObject(v.date) && isNumber(v.date.year) && isNumber(v.date.month) && isNumber(v.date.day) && isObject(v.parts);
     case 'money': return isNumber(v.amount);
     case 'count': return isObject(v.question) && isNumber(v.question.noun) && isNumber(v.question.n);
+    // A sentence of a set this version still has: one edited out since is dropped.
+    case 'contrast': return typeof v.setId === 'string' && isNumber(v.index) && !!contrastSet(v.setId)?.set.sentences[v.index];
     default: return false;
   }
 }

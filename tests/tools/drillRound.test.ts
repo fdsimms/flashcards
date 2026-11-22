@@ -84,6 +84,12 @@ describe('reading the file back', () => {
     for (const s of DRILL_STEPS) for (const q of drawRound(s, Math.random, 'pl')) expect(isDrillQuestion(JSON.parse(JSON.stringify(q)))).toBe(true);
   });
 
+  it('drops a Which word fits sentence that its set no longer has', () => {
+    expect(isDrillQuestion({ kind: 'contrast', setId: 'th-jon', index: 0 })).toBe(true);
+    expect(isDrillQuestion({ kind: 'contrast', setId: 'th-jon', index: 999 })).toBe(false);
+    expect(isDrillQuestion({ kind: 'contrast', setId: 'th-gone', index: 0 })).toBe(false);
+  });
+
   it('keeps a round made before the file was read over the one in it', () => {
     const stored = withRound({}, '7', DAY, step.id, round());
     const fresh = withRound({}, '7', DAY, step.id, round());
