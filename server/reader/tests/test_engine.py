@@ -1159,6 +1159,19 @@ def test_a_good_check_after_a_poor_one_changes_nothing() -> None:
     assert store.load_difficulty(e2.conn, "th").floor == 0.95
 
 
+def test_a_step_starts_over_so_the_answers_that_made_it_cant_make_the_next() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    store.save_difficulty(e.conn, Difficulty(floor=0.97), "th")
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    read_with(e, topic.id, checked(4, 4))
+    read_with(e, topic.id, checked(4, 4))  # 8 of 8: Easier to Standard
+    assert store.load_difficulty(e.conn, "th").floor == 0.95
+    read_with(e, topic.id, checked(4, 4))  # alone at Standard: too few answers to move again
+    assert store.load_difficulty(e.conn, "th").floor == 0.95
+    read_with(e, topic.id, checked(4, 4))  # with the one before at Standard: 8 of 8
+    assert store.load_difficulty(e.conn, "th").floor == 0.93
+
+
 def test_a_check_from_over_a_week_ago_isnt_counted_with_this_one() -> None:
     clock = Clock()
     e = engine(ScriptedModel(IN_RANGE), clock=clock)
