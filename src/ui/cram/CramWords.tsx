@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { addableNotes, cramLanguageOf, cramNotes, cramTag, meaningOf, noteAddedAt, searchNotes, withRequest } from '../../core/cram';
+import { withPhrases } from '../../core/cramPhrases';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { LessonWordCandidate } from '../../core/lessonWords';
@@ -28,14 +29,18 @@ const SHOWN = 60;
  * Notes in the cram's language match by word or by a whole word of the meaning (`searchNotes`); a
  * tap adds the cram's tag or takes it off, the check showing at once and put back, with the reason,
  * if the note can't be saved. What's typed can also be a tag ("Add all 12 tagged italki"), or, with
- * Read & Listen on, a card for Claude to write (`CramAsk`). Nothing typed: the newest notes, and a row
- * that opens Suggest words (`CramSuggest`).
+ * Read & Listen on, a phrase for the cram: one row looks the text up and keeps the lines picked on the
+ * cram alone (`CramAsk` with `add`), never a note. Opened with `card`, from a phrase's menu or a word jotted
+ * in the lesson, the same row makes a card for Claude to write instead. Nothing typed: the newest notes,
+ * and a row that opens Suggest words (`CramSuggest`).
  */
-export function CramWords({ repo, id, initial, findWords, queue, queued, approve }: {
+export function CramWords({ repo, id, initial, card, findWords, queue, queued, approve }: {
   repo: NoteStore;
   id: string;
   /** What the field starts with (a word typed in the lesson, from the cram's page). */
   initial?: string;
+  /** Make a card for what's typed (from a phrase's menu, or a word jotted in the lesson), instead of adding it as a phrase. */
+  card?: boolean;
   /** Find word's lookup, while Read & Listen is on. */
   findWords?: (language: Language, text: string) => Promise<LessonWordCandidate[]>;
   /** Sends a word to the note queue in the language's deck, while Read & Listen is on and has one. */
@@ -116,10 +121,17 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
     return how;
   };
 
+  // A word picked from the lookup kept on the cram as a phrase: no note, no card.
+  const addPhrases = async (words: LessonWordCandidate[]) => {
+    // The cram as it is now, so a phrase added while another save was in flight isn't lost.
+    const now = cramsNow().find((x) => x.id === cram.id);
+    if (now) await saveCram(repo, withPhrases(now, words.map((w) => ({ text: w.text, english: w.english, reading: w.reading || undefined }))));
+  };
+
   const name = language ? LANGUAGES[language].name : undefined;
   return (
     <Screen
-      title="Add"
+      title={card ? 'Make a card' : 'Add'}
       largeTitle={false}
       toolbar={(
         <Stack.Toolbar placement="right">
@@ -146,10 +158,13 @@ export function CramWords({ repo, id, initial, findWords, queue, queued, approve
               returnKeyType="search"
             />
             <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
-            {typed && !exact && language && findWords && queue ? (
+            {typed && !exact && language && findWords && !card ? (
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} add={addPhrases} />
+            ) : null}
+            {typed && !exact && language && findWords && queue && card ? (
               <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
             ) : null}
-            {!typed && language && findWords ? (
+            {!typed && !card && language && findWords ? (
               <Group>
                 <NavRow first icon={{ name: 'sparkles', color: c.accent }} label="Suggest words for this cram" detail="Claude picks them from the cram's name." onPress={() => router.push({ pathname: '/cram-suggest', params: { id } })} />
               </Group>

@@ -26,13 +26,18 @@ function sentText(words: string[], held: boolean, approved: string[], ready: num
  * cram once it's approved, since a new note in the cram's language gets its tag. Once Claude has
  * written one, the card here opens it in the note editor (`approve`), so it's approved without
  * leaving the cram. A second tap while they are on their way does nothing, so a word isn't queued twice.
+ *
+ * With `add` instead of `ask` it adds phrases: the same lookup and the same checked choices, but each
+ * checked word is kept on the cram as a phrase (cramPhrases.ts), with no card and nothing queued.
  */
-export function CramAsk({ text, language, findWords, ask, queued, approve }: {
+export function CramAsk({ text, language, findWords, ask, add, queued, approve }: {
   text: string;
   language: Language;
   findWords: (text: string) => Promise<LessonWordCandidate[]>;
   /** Queues the words and keeps them on the cram as being written; says 'held' when they wait for a connection. */
-  ask: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
+  ask?: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
+  /** Keeps the words on the cram as phrases. Given, this is Add a phrase and `ask` is not used. */
+  add?: (words: LessonWordCandidate[]) => Promise<void>;
   /** The note queue as the server last said it: the card shows a Review button here once Claude has written a word's card. */
   queued?: QueuedNote[];
   /** Opens the written card in the note editor; saving there is the approval. True when it was saved. */
@@ -86,7 +91,13 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   });
   const make = () => run(async () => {
     haptic.tap();
-    const how = await ask(picked);
+    if (add) {
+      await add(picked);
+      haptic.success();
+      setDone({ for: typed, words: picked.map((w) => w.text), held: false });
+      return;
+    }
+    const how = await ask?.(picked);
     if (how) { haptic.success(); setDone({ for: typed, words: picked.map((w) => w.text), held: how === 'held' }); }
   });
 
@@ -97,6 +108,16 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
     if (await approve?.(note)) { haptic.success(); setApproved((p) => [...p, note.entry]); }
   });
 
+  if (sent && add) {
+    return (
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+          <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
+          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sent.words.length === 1 ? `Added ${sent.words[0]} to the cram's phrases.` : `Added ${sent.words.length} phrases to the cram.`}</Text>
+        </View>
+      </Card>
+    );
+  }
   if (sent) {
     return (
       <Card style={{ gap: space.m }}>
@@ -112,11 +133,11 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   return (
     <Card style={{ gap: space.s }}>
       {!list ? (
-        <Tappable onPress={() => void find()} disabled={busy} accessibilityRole="button" accessibilityLabel={`Make a card for ${typed}`} scaleTo={0.98} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        <Tappable onPress={() => void find()} disabled={busy} accessibilityRole="button" accessibilityLabel={add ? `Add ${typed}` : `Make a card for ${typed}`} scaleTo={0.98} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
           <Icon name="plus.circle.fill" size={26} color={c.accent} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ ...type.headline, color: c.text }}>{`Make a card for "${typed}"`}</Text>
-            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : `Claude finds the ${name} and writes a card. Approve it and it joins the cram.`}</Text>
+            <Text style={{ ...type.headline, color: c.text }}>{add ? `Add "${typed}"` : `Make a card for "${typed}"`}</Text>
+            <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : add ? `Claude finds the ${name}.` : `Claude finds the ${name} and writes a card. Approve it and it joins the cram.`}</Text>
           </View>
         </Tappable>
       ) : (
@@ -146,7 +167,7 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
               </Tappable>
             );
           })}
-          <Button label={picked.length === 1 ? 'Make 1 card' : `Make ${picked.length} cards`} onPress={() => void make()} busy={busy} disabled={!picked.length} />
+          <Button label={add ? (picked.length === 1 ? 'Add 1 phrase' : `Add ${picked.length} phrases`) : picked.length === 1 ? 'Make 1 card' : `Make ${picked.length} cards`} onPress={() => void make()} busy={busy} disabled={!picked.length} />
           <Text style={{ ...type.footnote, color: c.textSecondary }}>How common a word is and how it is said are Claude's judgment, not a dictionary's.</Text>
         </>
       )}

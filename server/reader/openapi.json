@@ -4368,6 +4368,63 @@
         }
       }
     },
+    "/api/cram/phrases": {
+      "post": {
+        "summary": "Cram Phrases Route",
+        "description": "Phrases Claude writes for a cram's topic from its words, for the learner to pick from.\nWrites nothing: the app keeps the checked ones on the cram, and none is a note.",
+        "operationId": "cram_phrases_route_api_cram_phrases_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhrasesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhrasesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mnemonics": {
       "post": {
         "summary": "Make Mnemonics",
@@ -7439,6 +7496,29 @@
         ],
         "title": "PhraseIn"
       },
+      "PhraseOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "title": "Reading"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading",
+          "english"
+        ],
+        "title": "PhraseOut"
+      },
       "PhraseTurnIn": {
         "properties": {
           "role": {
@@ -7462,6 +7542,134 @@
           "content"
         ],
         "title": "PhraseTurnIn"
+      },
+      "PhraseWordIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "PhraseWordIn"
+      },
+      "PhrasesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Topic",
+            "default": ""
+          },
+          "facts": {
+            "type": "string",
+            "maxLength": 400,
+            "title": "Facts",
+            "default": ""
+          },
+          "focus": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Focus",
+            "default": ""
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/PhraseWordIn"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Words"
+          },
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Exclude"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "PhrasesIn"
+      },
+      "PhrasesOut": {
+        "properties": {
+          "phrases": {
+            "items": {
+              "$ref": "#/components/schemas/PhraseOut"
+            },
+            "type": "array",
+            "title": "Phrases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phrases"
+        ],
+        "title": "PhrasesOut"
       },
       "PoolIn": {
         "properties": {

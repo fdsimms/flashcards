@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Cram } from '../../src/core/cram';
-import { addSummary, cramWordsRequest, SUGGEST_EXCLUDE_MAX, suggestedWords, wordsToLeaveOut } from '../../src/core/cramWords';
+import { addSummary, cramPhrasesRequest, cramWordsRequest, phrasesToLeaveOut, SUGGEST_PHRASE_EXCLUDE, SUGGEST_PHRASE_WORDS, SUGGEST_EXCLUDE_MAX, suggestedWords, wordsToLeaveOut } from '../../src/core/cramWords';
 import type { LessonWordCandidate } from '../../src/core/lessonWords';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
@@ -70,5 +70,31 @@ describe('addSummary', () => {
   it('is singular for one', () => {
     expect(addSummary([{ candidate: word('a') }])).toEqual({ label: 'Add 1 word', detail: '1 new card for Claude to write.' });
     expect(addSummary([{ candidate: word('วิ่ง'), note }])).toEqual({ label: 'Add 1 word', detail: '1 from your deck.' });
+  });
+});
+
+describe('phrases', () => {
+  it('leaves out the cram\'s phrases and the ones shown, once each, the newest kept', () => {
+    expect(phrasesToLeaveOut(cram({ phrases: [{ text: 'ก', english: 'a' }] }), [{ text: 'ก' }, { text: ' ข ' }])).toEqual(['ก', 'ข']);
+    const shown = Array.from({ length: SUGGEST_PHRASE_EXCLUDE + 3 }, (_, i) => ({ text: `ก${i}` }));
+    const out = phrasesToLeaveOut(cram(), shown);
+    expect(out).toHaveLength(SUGGEST_PHRASE_EXCLUDE);
+    expect(out.at(-1)).toBe(`ก${SUGGEST_PHRASE_EXCLUDE + 2}`);
+  });
+
+  it('sends the subject, the steer, the cram words and, for Thai, the polite ending', () => {
+    const r = cramPhrasesRequest('th', cram({ facts: ' I ran ', register: 'casual' }), ' how it felt ', [{ text: 'วิ่ง', english: 'to run' }], [], 'khrap');
+    expect(r).toMatchObject({ language: 'th', topic: 'Talking about the 5k race I ran today', facts: 'I ran', focus: 'how it felt', words: [{ text: 'วิ่ง', english: 'to run' }], exclude: [], particle: 'khrap', register: 'casual' });
+  });
+
+  it('sends no polite ending outside Thai, and no register when the cram follows Settings', () => {
+    const r = cramPhrasesRequest('es', cram(), '', [], [], 'khrap');
+    expect(r).not.toHaveProperty('particle');
+    expect(r).not.toHaveProperty('register');
+  });
+
+  it('sends no more cram words than the server takes', () => {
+    const words = Array.from({ length: SUGGEST_PHRASE_WORDS + 5 }, (_, i) => ({ text: `w${i}`, english: 'x' }));
+    expect(cramPhrasesRequest('th', cram(), '', words, []).words).toHaveLength(SUGGEST_PHRASE_WORDS);
   });
 });

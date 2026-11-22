@@ -1248,6 +1248,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cram/phrases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Phrases Route
+         * @description Phrases Claude writes for a cram's topic from its words, for the learner to pick from.
+         *     Writes nothing: the app keeps the checked ones on the cram, and none is a note.
+         */
+        post: operations["cram_phrases_route_api_cram_phrases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mnemonics": {
         parameters: {
             query?: never;
@@ -2243,6 +2264,15 @@ export interface components {
             /** To Line */
             to_line?: number | null;
         };
+        /** PhraseOut */
+        PhraseOut: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
+            /** English */
+            english: string;
+        };
         /** PhraseTurnIn */
         PhraseTurnIn: {
             /**
@@ -2252,6 +2282,49 @@ export interface components {
             role: "user" | "assistant";
             /** Content */
             content: string;
+        };
+        /** PhraseWordIn */
+        PhraseWordIn: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+        };
+        /** PhrasesIn */
+        PhrasesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /**
+             * Facts
+             * @default
+             */
+            facts: string;
+            /**
+             * Focus
+             * @default
+             */
+            focus: string;
+            /** Words */
+            words?: components["schemas"]["PhraseWordIn"][];
+            /** Exclude */
+            exclude?: string[];
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+        };
+        /** PhrasesOut */
+        PhrasesOut: {
+            /** Phrases */
+            phrases: components["schemas"]["PhraseOut"][];
         };
         /** PoolIn */
         PoolIn: {
@@ -5428,6 +5501,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WordsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_phrases_route_api_cram_phrases_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhrasesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhrasesOut"];
                 };
             };
             /** @description Validation Error */

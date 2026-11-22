@@ -3,8 +3,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
-  practiceSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramTalk as Talk, type WordState,
+  practiceSummary, phrasesSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
+import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
 import { failureText } from '../../core/failure';
 import { deleteNotesWarning } from '../../core/noteEditing';
 import { deleteNotesTitle } from '../../core/selection';
@@ -29,6 +30,7 @@ import { CramQuestions } from './CramQuestions';
 import { CramTalk } from './CramTalk';
 import { talkSizeMenu, useTalkSize } from './talkSize';
 import { useMissedLately } from './useMissedLately';
+import { usePhoneSpeech } from '../usePhoneSpeech';
 import { leaveScreen } from '../leaveScreen';
 import { DECKS_PATH } from '../tabPaths';
 
@@ -38,7 +40,7 @@ const WORDS_SHOWN = 8;
 /**
  * A cram's page, the plan for the day: how practice is going and a Practice button that works any
  * time (on the lesson's day, Start the lesson leads instead); Talking points (folded, a tap opens one,
- * ⋯ edits its story or removes it); Words (Suggest words, Add, and a pill to bring in the words missed lately);
+ * ⋯ edits its story or removes it); Phrases (lines kept on the cram alone, a tap opens its menu); Words (Suggest words, Add, and a pill to bring in the words missed lately);
  * Questions about the language; Get ready (an audio lesson, a text, Rehearse); and Start the lesson.
  * Once finished, what was used and what was typed in the lesson.
  * Opening it also puts any of its reviews scheduled after the day on the day (`capCramCards`), and
@@ -92,6 +94,7 @@ export function CramPage(props: {
   }, [repo, notes.length]);
 
   const [talkSize, chooseTalkSize] = useTalkSize();
+  const phone = usePhoneSpeech(repo);
   const noteIds = useMemo(() => notes.map((n) => n.id), [notes]);
   const sel = useSelection(noteIds);
   if (!cram || !collection.loaded) return <Screen><Loading /></Screen>;
@@ -105,6 +108,7 @@ export function CramPage(props: {
   // What Rehearse works into Situations: the cram's words with their meanings, as an audio lesson takes them, shakiest first.
   const rehearsalWords = language ? lessonPhrases(practiceOrder(cram, notes), language) : [];
   const talks = cram.themes ?? [];
+  const phrases = cram.phrases ?? [];
   const lessonDay = running && days === 0;
   const languageName = language ? LANGUAGES[language].name : undefined;
   const pending = pendingRequests(cram, notes);
@@ -196,6 +200,19 @@ export function CramPage(props: {
       (i) => { if (i === 0) stopShowing(text); },
     );
   };
+  const phraseMenu = (phrase: CramPhrase) => {
+    haptic.tap();
+    const card = !!props.readerApi;
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title: phrase.text, message: phrase.english, options: ['Listen', 'Edit', ...(card ? ['Make a card'] : []), 'Remove', 'Cancel'], destructiveButtonIndex: card ? 3 : 2, cancelButtonIndex: card ? 4 : 3 },
+      (i) => {
+        if (i === 0 && language) phone.sayLine(phrase.text, LANGUAGES[language].speech, false);
+        if (i === 1) go('/cram-phrase', { text: phrase.text });
+        if (card && i === 2) go('/cram-words', { q: phrase.text, card: '1' });
+        if (i === (card ? 3 : 2)) void keep(withoutPhrase(cram, phrase.text), "Couldn't remove the phrase.");
+      },
+    );
+  };
   const talkMenu = (talk: Talk) => {
     haptic.tap();
     // Editing has Read & Listen check the new story, so it's offered only while that's on.
@@ -219,7 +236,7 @@ export function CramPage(props: {
     ActionSheetIOS.showActionSheetWithOptions(
       { title: text, options: ['Make a card', 'Remove', 'Cancel'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
       (i) => {
-        if (i === 0) go('/cram-words', { q: text });
+        if (i === 0) go('/cram-words', { q: text, card: '1' });
         if (i === 1) void keep(withoutCapture(cram, text), "Couldn't change the cram.");
       },
     );
@@ -270,16 +287,16 @@ export function CramPage(props: {
               <Text style={{ ...type.headline, color: c.text }}>Lesson today</Text>
               <Help>{lessonContents(talks.length, cram.questions?.length ?? 0, ids.length, languageName)}</Help>
               <Button label="Start the lesson" onPress={() => go('/cram-lesson')} />
-              {ids.length ? <Button variant="secondary" label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
+              {ids.length || phrases.length ? <Button variant="secondary" label={practiceLabel(cram, ids, phrases.length)} onPress={() => go('/cram-round')} /> : null}
               {ids.length ? <Help>{practiceSummary(cram, ids)}</Help> : null}
             </>
           ) : (
             <>
-              <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
+              <Text style={{ ...type.headline, color: c.text }}>{!ids.length && phrases.length ? phrasesSummary(phrases.length) : practiceSummary(cram, ids)}</Text>
               {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Solid words" /> : null}
-              {ids.length ? <Button label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
-              {!ids.length && props.readerApi && language ? <Button label="Suggest words" onPress={() => go('/cram-suggest')} /> : null}
-              <Help>{ids.length ? 'Words you missed come first. A word is solid after you get it right first try in two rounds in a row. Practicing here doesn\'t change your cards.' : 'Add words below to practice them.'}</Help>
+              {ids.length || phrases.length ? <Button label={practiceLabel(cram, ids, phrases.length)} onPress={() => go('/cram-round')} /> : null}
+              {!ids.length && !phrases.length && props.readerApi && language ? <Button label="Suggest words" onPress={() => go('/cram-suggest')} /> : null}
+              <Help>{ids.length ? 'Words you missed come first. A word is solid after you get it right first try in two rounds in a row. Practicing here doesn\'t change your cards.' : phrases.length ? 'Practicing here doesn\'t change your cards.' : 'Add words or phrases below to practice them.'}</Help>
             </>
           )}
         </Box>
@@ -320,6 +337,34 @@ export function CramPage(props: {
           </>
         ) : null}
 
+        {!cram.finishedAt || phrases.length ? (
+          <>
+            <SectionTitle>{phrases.length ? `Phrases · ${phrases.length}` : 'Phrases'}</SectionTitle>
+            <Group>
+              {phrases.map((phrase, i) => (
+                <NavRow
+                  key={phrase.text}
+                  first={i === 0}
+                  label={phrase.text}
+                  detail={[phrase.reading, phrase.english].filter(Boolean).join(' · ')}
+                  badge={phraseIsUsed(cram, phrase) ? { text: 'Used', color: c.accentInk, fill: c.accentFill } : undefined}
+                  onPress={() => phraseMenu(phrase)}
+                />
+              ))}
+              {!cram.finishedAt ? (
+                <NavRow
+                  first={!phrases.length}
+                  icon={{ name: 'sparkles', color: c.accent }}
+                  label="Suggest phrases"
+                  disabled={!props.readerApi || !language}
+                  detail={!props.readerApi ? readerOff : !language ? "Choose the cram's language first (Edit)." : undefined}
+                  onPress={() => go('/cram-suggest', { mode: 'phrases' })}
+                />
+              ) : null}
+            </Group>
+          </>
+        ) : null}
+
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
           {!cram.finishedAt && listed.length && !sel.selecting ? (
@@ -351,7 +396,7 @@ export function CramPage(props: {
               onPress={() => go('/cram-suggest')}
             />
           ) : null}
-          {!cram.finishedAt ? <NavRow icon={{ name: 'plus', color: c.accent }} label="Add a word" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
+          {!cram.finishedAt ? <NavRow icon={{ name: 'plus', color: c.accent }} label="Add a word or phrase" detail="Search your deck, or type something to say." onPress={() => go('/cram-words')} /> : null}
           {shown.map((note, i) => {
             const state = wordState(cram, note.id, (cardsOf.get(note.id) ?? []).every((x) => x.sched.state === 0));
             return (

@@ -329,6 +329,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       tags the ones the deck has and queues the rest. Asked when the
                                       screen opens, on a typed focus and on More words. 503 without
                                       Claude. Its cost is kept in `call_costs` (feature "cram_words")
+    POST  /api/cram/phrases           {language, topic?, facts?, focus?, words?: [{text, english}],
+                                      exclude?: [phrase], register?, particle?} about six short phrases
+                                      in the language for what a cram is for, built from the cram's
+                                      words and words the learner knows (Suggest words, Phrases):
+                                      {phrases: [{text, reading, english}]}. It writes nothing; the
+                                      app keeps the checked ones on the cram. 503 without Claude. Its
+                                      cost is kept in `call_costs` (feature "cram_phrases")
     POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
                                       owner flagged: {changes: {field: new html}, explanation}, only the
                                       fields that change (none when Claude can't fix it from text). It
@@ -370,6 +377,7 @@ from franki_reader import (
     aspect,
     comprehension,
     config,
+    cram_phrases,
     cram_say,
     cram_themes,
     cram_words,
@@ -494,6 +502,7 @@ def create_app(
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
     suggest_cram_words: cram_words.SuggestWords | None = None,
+    write_cram_phrases: cram_phrases.WritePhrases | None = None,
     write_cram_say: cram_say.WriteSay | None = None,
     write_rare_words: rare_words.WriteRareWords | None = None,
     look_up_words: word_lookup.LookUpWords | None = None,
@@ -589,6 +598,7 @@ def create_app(
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,
+        write_cram_phrases=write_cram_phrases,
         write_cram_say=write_cram_say,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,
@@ -637,6 +647,7 @@ def production_app() -> FastAPI:
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
     suggest_cram_words: cram_words.SuggestWords | None = None
+    write_cram_phrases: cram_phrases.WritePhrases | None = None
     write_cram_say: cram_say.WriteSay | None = None
     write_rare_words: rare_words.WriteRareWords | None = None
     look_up_words: word_lookup.LookUpWords | None = None
@@ -672,6 +683,7 @@ def production_app() -> FastAPI:
         find_lesson_words = lesson_words.claude_find_words(client)
         write_cram_themes = cram_themes.claude_themes(client)
         suggest_cram_words = cram_words.claude_suggest_words(client)
+        write_cram_phrases = cram_phrases.claude_phrases(client)
         write_cram_say = cram_say.claude_say(client)
         write_rare_words = rare_words.claude_rare_words(client)
 
@@ -767,6 +779,7 @@ def production_app() -> FastAPI:
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,
+        write_cram_phrases=write_cram_phrases,
         write_cram_say=write_cram_say,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,

@@ -72,6 +72,17 @@ export interface CramQuestion {
   asked?: boolean;
 }
 
+/**
+ * A line in the cram's language with its English, kept on the cram alone: it is never a note, never
+ * tagged and never scheduled, and a card is made from it only when the learner asks (cramPhrases.ts).
+ * `reading` is the romanization where the language has one.
+ */
+export interface CramPhrase {
+  text: string;
+  english: string;
+  reading?: string;
+}
+
 /** A card asked of Claude for the cram (Add, Make a card): the word in the language and its meaning. */
 export interface CramRequest {
   text: string;
@@ -110,6 +121,10 @@ export interface Cram {
   facts?: string;
   /** Questions about the language to bring to the tutor (how to say something, a grammar point), typed on the cram's page. */
   questions?: CramQuestion[];
+  /** Phrases to practice for it (Phrases): typed in Add or suggested, heard in Listen, rehearsed, and tried in a round. */
+  phrases?: CramPhrase[];
+  /** The phrases checked off as used on the day, by `phraseKey`. */
+  usedPhrases?: string[];
   /** Words and phrases typed in during the lesson (lesson mode), to make cards from afterwards. */
   captured?: string[];
   /** Cards asked of Claude for it, shown as being written until a note with the word is in the cram (`pendingRequests`). */
@@ -379,12 +394,23 @@ export function talkLessonLines(cram: Pick<Cram, 'themes'>): CramLine[] {
   return out;
 }
 
+/** The cram's phrases as audio lesson lines, leaving out any too long to send, the first `LESSON_TALK_LINES`. */
+export function phraseLessonLines(cram: Pick<Cram, 'phrases'>): CramLine[] {
+  return (cram.phrases ?? [])
+    .filter((p) => p.text && p.english && p.text.length <= LESSON_MAX_CHARS && p.english.length <= LESSON_MAX_CHARS)
+    .slice(0, LESSON_TALK_LINES)
+    .map((p) => ({ text: p.text, english: p.english }));
+}
+
+/** The phrases as labeled lines for a rehearsal's tutor to work in (`preparedLines`). */
+export const phrasePreparedLines = (cram: Pick<Cram, 'phrases'>): string[] => (cram.phrases ?? []).map((p) => `Phrase to practice: ${p.text} (${p.english})`);
+
 /**
- * What Listen's audio lesson teaches: the talking points' lines (`talkLessonLines`), then the words
+ * What Listen's audio lesson teaches: the talking points' lines (`talkLessonLines`), the cram's phrases (`phraseLessonLines`), then the words
  * the cram's practice needs most (`practiceOrder`), at most `LESSON_MAX_WORDS` in all.
  */
 export function cramLessonPhrases(cram: Cram, notes: Note[], language: Language): { phrases: CramLine[]; noteIds: string[]; lines: string[] } {
-  const lines = talkLessonLines(cram);
+  const lines = [...talkLessonLines(cram), ...phraseLessonLines(cram)].filter((l, i, all) => all.findIndex((x) => textKey(x.text) === textKey(l.text)) === i);
   const words = lessonPhrases(practiceOrder(cram, notes), language).slice(0, LESSON_MAX_WORDS - lines.length);
   return {
     phrases: [...lines, ...words.map(({ text, english }) => ({ text, english }))],
@@ -407,13 +433,13 @@ export function talkSummary(talk: { questions: unknown[]; expects?: unknown[] | 
 }
 
 /** The talking points as labeled lines for a rehearsal's tutor to steer by (`rehearsalParams`'s `prepared`). */
-export function preparedLines(cram: Pick<Cram, 'themes'>): string[] {
-  return (cram.themes ?? []).flatMap((t) => [
+export function preparedLines(cram: Pick<Cram, 'themes' | 'phrases'>): string[] {
+  return [...(cram.themes ?? []).flatMap((t) => [
     `Topic: ${t.title}`,
     ...t.questions.map((q) => `You ask: ${q.text}`),
     ...(t.expects ?? []).map((e) => `They may ask you: ${e.question.text} (your answer: ${e.answer.text})`),
     ...(t.story ? [`Your story: ${t.story.text}`] : []),
-  ]);
+  ]), ...phrasePreparedLines(cram)];
 }
 
 /**
@@ -435,7 +461,7 @@ export function parseCram(json: string): Cram | undefined {
     // A cram saved before it could keep several themes has one `theme`.
     const { theme, ...rest } = c;
     const themes = Array.isArray(c.themes) ? c.themes : theme ? [theme] : undefined;
-    return { ...rest, themes, language: isReaderLanguage(c.language) ? c.language : undefined, register: isRegisterLevel(c.register) ? c.register : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [] } as Cram;
+    return { ...rest, themes, language: isReaderLanguage(c.language) ? c.language : undefined, register: isRegisterLevel(c.register) ? c.register : undefined, addNew: c.addNew !== false, rounds: Array.isArray(c.rounds) ? c.rounds : [], phrases: Array.isArray(c.phrases) ? c.phrases : undefined, usedPhrases: Array.isArray(c.usedPhrases) ? c.usedPhrases : undefined } as Cram;
   } catch {
     return undefined;
   }
@@ -485,12 +511,20 @@ export function practiceWords(cram: Cram, noteIds: string[]): string[] {
 
 const wordsText = (n: number) => (n === 1 ? '1 word' : `${n} words`);
 
-/** What the Practice button says: "Practice 14 words", "Practice 5 words" (the ones not solid yet), "Practice all 14 again". */
-export function practiceLabel(cram: Cram, noteIds: string[]): string {
+const phrasesText = (n: number) => (n === 1 ? '1 phrase' : `${n} phrases`);
+
+/**
+ * What the Practice button says: "Practice 14 words", "Practice 5 words" (the ones not solid yet),
+ * "Practice all 14 again". `phrases` is how many of the cram's phrases a round also goes through
+ * (each time, since a phrase has no solid state): "Practice 14 words and 3 phrases".
+ */
+export function practiceLabel(cram: Cram, noteIds: string[], phrases = 0): string {
+  const tail = phrases ? ` and ${phrasesText(phrases)}` : '';
+  if (!noteIds.length) return `Practice ${phrasesText(phrases)}`;
   const { solid, toGo } = practiceProgress(cram, noteIds);
-  if (!solid.length) return `Practice ${wordsText(noteIds.length)}`;
-  if (toGo.length) return `Practice ${wordsText(toGo.length)}`;
-  return noteIds.length === 1 ? 'Practice it again' : `Practice all ${noteIds.length} again`;
+  if (!solid.length) return `Practice ${wordsText(noteIds.length)}${tail}`;
+  if (toGo.length) return `Practice ${wordsText(toGo.length)}${tail}`;
+  return noteIds.length === 1 ? `Practice it again${tail}` : `Practice all ${noteIds.length} again${tail}`;
 }
 
 /** One line on how practice is going: "9 of 14 words solid.", or "Not practiced yet." */
@@ -500,6 +534,9 @@ export function practiceSummary(cram: Cram, noteIds: string[]): string {
   const { solid } = practiceProgress(cram, noteIds);
   return `${solid.length} of ${wordsText(noteIds.length)} solid.`;
 }
+
+/** The practice line of a cram that has phrases and no words: "3 phrases.". */
+export const phrasesSummary = (n: number): string => `${phrasesText(n)}.`;
 
 /** A word's text as compared: one form of Unicode, spaces collapsed, ignoring case. */
 export const textKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();

@@ -476,6 +476,8 @@ export type CramThemes = Schemas['ThemesOut'];
 export type CramThemesRequest = Schemas['ThemesIn'];
 /** What Suggest words sends: what the cram is for, what really happened, the learner's steer and the words to leave out (`cramWordsRequest`). */
 export type CramWordsRequest = Schemas['WordsIn'];
+/** What Suggest words sends in Phrases mode (`cramPhrasesRequest`). */
+export type CramPhrasesRequest = Schemas['PhrasesIn'];
 export type CramSayQuestionRequest = Schemas['QuestionIn'];
 export type CramSayLinesRequest = Schemas['LinesIn'];
 export type CramSaid = Schemas['SaidOut'];
@@ -733,6 +735,9 @@ export function createApi(
     // Talk it through in English (server cram_say.py): the next question of a chat about a cram's topic, and what the learner would want to say from what they said. Adds no note and grades nothing.
     cramSayAsk: async (request: CramSayQuestionRequest) => (await call<Schemas['QuestionOut']>('POST', '/api/cram/say/ask', request)).question,
     cramSayLines: (request: CramSayLinesRequest) => call<CramSayLines>('POST', '/api/cram/say/lines', request),
+    // About six short phrases for what a cram is for, built from its words (server cram_phrases.py). Writes nothing: the app keeps
+    // the checked ones on the cram, and none is a note (core/cramPhrases.ts).
+    cramPhrases: async (body: CramPhrasesRequest) => (await call<{ phrases: { text: string; reading: string; english: string }[] }>('POST', '/api/cram/phrases', body)).phrases,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
