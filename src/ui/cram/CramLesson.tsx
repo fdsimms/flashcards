@@ -15,6 +15,7 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import { cramsNow, finishCram, saveCram, useCollection, useCrams } from '../useCrams';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordAudio } from '../useWordAudio';
+import { phraseIsUsed, withPhraseUsed } from '../../core/cramPhrases';
 import { CheckRow } from './CramBits';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
@@ -23,7 +24,8 @@ import { talkSizeMenu, useTalkSize } from './talkSize';
  * Lesson mode, during the lesson itself (a video call with a tutor, say), on one screen: the talking
  * points first (one open at a time, the first to begin with), each with the questions you ask to
  * check off as they're asked, the ones the tutor may ask with your answer, and your story; then the
- * questions about the language, checked off too; then the words as big tiles, tapped when used (a
+ * questions about the language, checked off too; then the phrases, checked off as they're used; then
+ * the words as big tiles, tapped when used (a
  * long press plays one). A field in the footer, always a tap away, jots down a word the tutor used,
  * kept on the cram to make cards from afterwards. Every tap is kept as it's made, so the screen can be
  * left and come back to. Finish ends the cram: the words not used go into the next cram.
@@ -57,6 +59,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
   const inLanguage = language ? talkTextStyle(LANGUAGES[language], size, 1) : undefined;
   const captured = cram.captured ?? [];
   const talks = cram.themes ?? [];
+  const phrases = cram.phrases ?? [];
   const opened = openTalk === undefined ? talks[0]?.title : openTalk;
   const say = (text: string) => { if (language) phone.sayLine(text, LANGUAGES[language].speech, false); };
   const overline = { ...type.footnote, color: c.textSecondary, fontWeight: '600' as const };
@@ -146,6 +149,27 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             <Group>
               {questions.map((q, i) => (
                 <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't save that check mark."); }} />
+              ))}
+            </Group>
+          </>
+        ) : null}
+
+        {phrases.length ? (
+          <>
+            <SectionTitle>{`Phrases · ${phrases.filter((p) => phraseIsUsed(cram, p)).length} of ${phrases.length} used`}</SectionTitle>
+            <Group>
+              {phrases.map((p, i) => (
+                <CheckRow
+                  key={p.text}
+                  first={i === 0}
+                  big
+                  color={c.countDue}
+                  label={p.text}
+                  detail={p.english}
+                  labelSize={inLanguage}
+                  checked={phraseIsUsed(cram, p)}
+                  onPress={() => { haptic.select(); keep((now) => withPhraseUsed(now, p.text, !phraseIsUsed(now, p)), "Couldn't save that check mark."); }}
+                />
               ))}
             </Group>
           </>

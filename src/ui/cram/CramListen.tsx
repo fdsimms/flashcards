@@ -15,7 +15,7 @@ import { cramsNow, saveCram } from '../useCrams';
 
 /**
  * Listen, on a cram's page: an audio lesson from Read & Listen made from the cram's talking points
- * (your questions and answers) and its words, the shakiest first (`cramLessonPhrases`; each asked in
+ * (your questions and answers), its phrases and its words, the shakiest first (`cramLessonPhrases`; each asked in
  * English, a pause to answer, then the native voice), set in its talking point or what it's for
  * (`talkScene`), to play with the screen locked.
  * Made once on a tap and kept in the cram; asked for again while it's being made; made again on a
@@ -84,7 +84,7 @@ export function CramListen({ repo, api, cram, notes, language, first }: { repo: 
   if (problem) return <NavRow first={first} icon={icon} label="Listen" detail={problem} onPress={make} />;
   if (busy) return <NavRow first={first} icon={icon} label="Listen" detail="Asking for the lesson." loading disabled onPress={() => undefined} />;
   if (!lesson || lesson.state === 'failed') {
-    const why = lesson?.state === 'failed' ? `${lessonDetail(lesson)} Tap to try again.` : `Make an audio lesson from ${planned.lines.length ? 'your talking points and words' : 'these words'}: asked in English, a pause to answer, then the ${LANGUAGES[language].name}. Plays with the screen locked.${more}`;
+    const why = lesson?.state === 'failed' ? `${lessonDetail(lesson)} Tap to try again.` : `Make an audio lesson from ${planned.lines.length ? `your ${cram.themes?.length && cram.phrases?.length ? 'talking points, phrases' : cram.phrases?.length ? 'phrases' : 'talking points'} and words` : 'these words'}: asked in English, a pause to answer, then the ${LANGUAGES[language].name}. Plays with the screen locked.${more}`;
     return <NavRow first={first} icon={icon} label="Listen" detail={why} onPress={make} />;
   }
   if (lesson.state === 'making') return <NavRow first={first} icon={icon} label="Listen" making={stageSteps(lesson.stage)} disabled onPress={() => undefined} />;

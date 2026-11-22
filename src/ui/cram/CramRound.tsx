@@ -4,7 +4,8 @@ import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native
 import type { NoteStore } from '../../anki/noteService';
 import { typeItAnswers } from '../../core/activeRecall';
 import { isOmnilanguage, renderCard } from '../../core/cards';
-import { cramNotes, lastMissed, practiceWords, withRound } from '../../core/cram';
+import { cramLanguageOf, cramNotes, lastMissed, practiceWords, withRound } from '../../core/cram';
+import { isPhraseRoundId, phraseOfRoundId, phraseRoundId } from '../../core/cramPhrases';
 import { answerWord, currentWord, isRoundDone, roundRecord, startRound, wordsLeft, type RoundState } from '../../core/cramRound';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
@@ -15,6 +16,8 @@ import { wantedLines } from '../../core/synonyms';
 import { compareTypedAnswer } from '../../core/typedCompare';
 import type { Card, Note, NoteType } from '../../core/types';
 import { languageName } from '../../core/voices';
+import { LANGUAGES } from '../../reader/languages';
+import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Side } from '../CardSide';
 import { haptic } from '../haptics';
 import { Button, Card as Box, Field, Help, Loading, ProgressBar, Screen } from '../kit';
@@ -25,9 +28,12 @@ import { saveCram, useCollection, useCrams } from '../useCrams';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { useWordAudio } from '../useWordAudio';
 
+const phrasesInRound = (ids: string[]) => ids.some(isPhraseRoundId);
+const onlyPhrases = (ids: string[]) => ids.every(isPhraseRoundId);
+
 /**
  * Practicing a cram (src/core/cramRound.ts), any time: the words not solid yet (every word once all
- * are, `practiceWords`), each word's meaning asked and the word answered, typed or spoken where the
+ * are, `practiceWords`) and every phrase (English asked, the phrase said, then shown: `phraseRoundId`), each word's meaning asked and the word answered, typed or spoken where the
  * card is a word (Omnilanguage), then shown; Missed it brings it back a few words later, Got it takes
  * it out. Practice, never a rating: nothing here answers a card or changes its schedule
  * (tests/core/cramRound.test.ts), and the pass is kept in the cram only once every word is got.
@@ -47,6 +53,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   const playWord = useWordAudio(repo);
+  const phone = usePhoneSpeech(repo);
   const answered = useRef(0);
   // Counts answers, so the screen resets for the next showing even when it is the same word again
   // (Missed it on the last word left puts that word straight back).
@@ -59,13 +66,17 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   // The round is made once, from the words as they are when it opens.
   useEffect(() => {
     if (round || !cram || !collection.loaded) return;
-    setRound(startRound(practiceWords(cram, cramNotes(cram, collection.notes).map((n) => n.id)), lastMissed(cram)));
+    // The notes not solid yet, then every phrase (a phrase has no solid state, so each round goes through them all).
+    setRound(startRound([...practiceWords(cram, cramNotes(cram, collection.notes).map((n) => n.id)), ...(cram.phrases ?? []).map(phraseRoundId)], lastMissed(cram)));
   }, [cram, collection.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const byId = useMemo(() => new Map(collection.notes.map((n) => [n.id, n])), [collection.notes]);
   const wanted = useMemo(() => wantedLines(collection.notes), [collection.notes]);
   const noteId = round ? currentWord(round) : undefined;
-  const note = noteId ? byId.get(noteId) : undefined;
+  const phrase = noteId && cram && isPhraseRoundId(noteId) ? phraseOfRoundId(cram, noteId) : undefined;
+  const onPhrase = !!noteId && isPhraseRoundId(noteId);
+  const note = noteId && !onPhrase ? byId.get(noteId) : undefined;
+  const cramLanguage = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
   const omni = !!note && isOmnilanguage(note);
   // Meaning asked, word answered: the note's reverse card, whether or not it has one.
   const reverse = { kind: 'reverse' } as Card;
@@ -108,6 +119,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     spoken.cancel();
     setRevealed(true);
     if (note && language) playWord(headword(note), language).catch(() => undefined);
+    if (phrase && cramLanguage) phone.sayLine(phrase.text, LANGUAGES[cramLanguage].speech, false);
   };
   const mark = (got: boolean) => {
     if (!round) return;
@@ -122,7 +134,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     return (
       <Screen title="Practice" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-          <Help>{`${cram.name} has no words yet. Add some from its page, then practice them.`}</Help>
+          <Help>{`${cram.name} has no words or phrases yet. Add some from its page, then practice them.`}</Help>
         </ScrollView>
       </Screen>
     );
@@ -130,17 +142,22 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const total = round.noteIds.length;
 
   if (done) {
-    const missed = round.missed.map((id) => byId.get(id)).filter((x): x is Note => !!x);
+    const missedNotes = round.missed.map((id) => byId.get(id)).filter((x): x is Note => !!x);
+    const missedPhrases = round.missed.flatMap((id) => phraseOfRoundId(cram, id) ?? []);
+    const missedCount = missedNotes.length + missedPhrases.length;
+    const noun = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
+    const missedWhat = [missedNotes.length ? noun(missedNotes.length, 'word', 'words') : '', missedPhrases.length ? noun(missedPhrases.length, 'phrase', 'phrases') : ''].filter(Boolean).join(' and ');
+    const gotAll = round.noteIds.length === 1 ? 'of it' : phrasesInRound(round.noteIds) ? `${total} ${onlyPhrases(round.noteIds) ? 'phrases' : 'words and phrases'}` : `${total} words`;
     return (
       <Screen title="Practice" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
           <Text style={{ ...type.title, color: c.text }}>Done</Text>
           <Help>
-            {missed.length
-              ? `You missed ${missed.length === 1 ? '1 word' : `${missed.length} words`} the first time. Practice again any time and ${missed.length === 1 ? "it'll" : "they'll"} come first.`
-              : `You got all ${total === 1 ? 'of it' : `${total} words`} the first time.`}
+            {missedCount
+              ? `You missed ${missedWhat} the first time. Practice again any time and ${missedCount === 1 ? "it'll" : "they'll"} come first.`
+              : `You got all ${gotAll} the first time.`}
           </Help>
-          {missed.length ? <Help>{missed.map(headword).join(', ')}</Help> : null}
+          {missedCount ? <Help>{[...missedNotes.map(headword), ...missedPhrases.map((p) => p.text)].join(', ')}</Help> : null}
           {problem ? (
             <>
               <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text>
@@ -172,9 +189,25 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
       {/* Tapping empty space shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
       <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m, flexGrow: 1 }}>
-        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label="Words you've gotten so far" />
+        <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label={phrasesInRound(round.noteIds) ? "Words and phrases you've gotten so far" : "Words you've gotten so far"} />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
-        {!note ? (
+        {onPhrase ? (
+          phrase ? (
+            <Box style={{ gap: space.m }}>
+              <Text style={{ ...type.overline, color: c.textSecondary }}>{cramLanguage ? `Say it in ${languageName(cramLanguage)}` : 'Say it'}</Text>
+              <Text style={{ ...type.title, color: c.text }}>{phrase.english}</Text>
+              {revealed ? (
+                <>
+                  <View style={{ height: 1, backgroundColor: c.border }} />
+                  <Text style={{ ...type.title, color: c.text }}>{phrase.text}</Text>
+                  {phrase.reading ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{phrase.reading}</Text> : null}
+                </>
+              ) : null}
+            </Box>
+          ) : (
+            <Help>This phrase isn't in the cram anymore.</Help>
+          )
+        ) : !note ? (
           <Help>This word isn't in your decks anymore.</Help>
         ) : (
           <Box style={{ gap: space.m }}>

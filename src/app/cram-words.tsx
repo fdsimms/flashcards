@@ -7,9 +7,9 @@ import { CramWords } from '../ui/cram/CramWords';
 import { useNoteQueue } from '../ui/useNoteQueue';
 import { useReviewQueued } from '../ui/useReviewQueued';
 
-/** Add to the cram named by `id`, the field starting with `q` when given. Make a card is there while Read & Listen is on and has a deck in the cram's language. */
+/** Add to the cram named by `id`, the field starting with `q` when given: a typed word or sentence is added as a phrase while Read & Listen is on. With `card=1` it makes a card for it instead, which needs a deck in the cram's language. */
 export default function CramWordsRoute() {
-  const { id, q } = useLocalSearchParams<{ id: string; q?: string }>();
+  const { id, q, card } = useLocalSearchParams<{ id: string; q?: string; card?: string }>();
   const { repo, reader, decks } = useApp();
   const queue = useNoteQueue(reader.api);
   const review = useReviewQueued(queue.add);
@@ -20,6 +20,7 @@ export default function CramWordsRoute() {
       repo={repo}
       id={id}
       initial={q}
+      card={card === '1'}
       findWords={api ? async (language, text) => api.lessonWords(language, text, await loadParticle()) : undefined}
       queue={api ? async (language, entries) => {
         const deck = options.find((o) => o.language === language)?.deck;
