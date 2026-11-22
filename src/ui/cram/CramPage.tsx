@@ -302,6 +302,13 @@ export function CramPage(props: {
             <Group>
               <NavRow
                 first
+                icon={{ name: 'character.bubble', color: c.accent }}
+                label="Talk it through in English"
+                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : `Say it in English first, then see how to say it in ${LANGUAGES[language].name}.`}
+                disabled={!props.readerApi || !language}
+                onPress={() => go('/cram-say')}
+              />
+              <NavRow
                 icon={{ name: 'sparkles', color: c.accent }}
                 label={talks.length ? 'More talking points' : 'Suggest talking points'}
                 detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}

@@ -1164,6 +1164,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cram/say/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Say Ask
+         * @description The next question of a talk in English about a lesson's topic, written by Claude. Reads
+         *     nothing of the deck, writes no card and grades nothing.
+         */
+        post: operations["cram_say_ask_api_cram_say_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cram/say/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Say Lines
+         * @description What the learner would want to say, from what they said in English: a line in the
+         *     language for each, built from their words, with the words they lack marked.
+         */
+        post: operations["cram_say_lines_api_cram_say_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cram/themes": {
         parameters: {
             query?: never;
@@ -2074,6 +2116,34 @@ export interface components {
             /** English */
             english: string;
         };
+        /** LinesIn */
+        LinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Said */
+            said: string;
+            /** Words */
+            words?: components["schemas"]["PoolIn"][];
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+        };
+        /** LinesOut */
+        LinesOut: {
+            /** Summary */
+            summary: string;
+            /** Lines */
+            lines: components["schemas"]["SaidOut"][];
+        };
         /** ListenIn */
         ListenIn: {
             /** Key */
@@ -2196,6 +2266,26 @@ export interface components {
             /** Entries */
             entries: components["schemas"]["PronunciationIn"][];
         };
+        /** QuestionIn */
+        QuestionIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Turns */
+            turns?: components["schemas"]["TurnIn"][];
+        };
+        /** QuestionOut */
+        QuestionOut: {
+            /** Question */
+            question: string;
+        };
         /** QueuedEntry */
         QueuedEntry: {
             /** Entry */
@@ -2256,6 +2346,17 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+        };
+        /** SaidOut */
+        SaidOut: {
+            /** English */
+            english: string;
+            /** Text */
+            text: string;
+            /** Known */
+            known: number;
+            /** Missing */
+            missing: components["schemas"]["WordOut"][];
         };
         /** SentencesIn */
         SentencesIn: {
@@ -2519,6 +2620,16 @@ export interface components {
             phrases?: components["schemas"]["GivenIn"][] | null;
             /** Shown */
             shown?: string[];
+        };
+        /** TurnIn */
+        TurnIn: {
+            /**
+             * Asker
+             * @enum {string}
+             */
+            asker: "claude" | "you";
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -5114,6 +5225,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_say_ask_api_cram_say_ask_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_say_lines_api_cram_say_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesOut"];
+                };
             };
             /** @description Validation Error */
             422: {
