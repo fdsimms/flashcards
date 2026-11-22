@@ -430,7 +430,7 @@ def label_key_forms(lang: Language, pos: str, gender: str, lines: Sequence[str],
 _PROPER = frozenset(
     "i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august "
     "september october november december japan japanese america american france french england english britain "
-    "british china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok".split()
+    "british brit frenchman china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok".split()
 )
 
 
