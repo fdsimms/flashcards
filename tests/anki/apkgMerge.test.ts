@@ -115,6 +115,37 @@ describe.skipIf(!unicaseExtension())('merging a deck package into the collection
     expect(await snapshot(db)).toEqual(once);
   });
 
+  it('sends a card a filtered deck borrowed home with its own due and the queue its type puts it in', async () => {
+    const { db, pkg } = await setup();
+    // A new card as a filtered deck built without rescheduling holds it: in the review queue, its position kept in odue.
+    const edit = await nodeSyncDb(pkg, { unicase: true });
+    opened.push(edit);
+    const fresh = VECTORS.cards_of_new_notes.find((c: { type: number }) => c.type === 0);
+    const card = (await edit.first<{ id: number; ord: number }>('SELECT c.id, c.ord FROM cards c JOIN notes n ON n.id = c.nid WHERE n.guid = ? AND c.ord = ?', fresh.guid, fresh.ord))!;
+    await edit.run('UPDATE cards SET odid = did, odue = 7, due = 123, queue = 2 WHERE id = ?', card.id);
+    const guid = fresh.guid;
+    edit.close();
+    opened.pop();
+    await mergeDeckPackage(db, pkg, CTX);
+    const merged = (await db.first<{ queue: number; due: number; odid: number; odue: number }>(
+      'SELECT c.queue, c.due, c.odid, c.odue FROM cards c JOIN notes n ON n.id = c.nid WHERE n.guid = ? AND c.ord = ?', guid, card.ord,
+    ))!;
+    expect(merged).toEqual({ queue: 0, due: 7, odid: 0, odue: 0 });
+  });
+
+  it('gives a parent deck the package left out an id of its own', async () => {
+    const { db, pkg } = await setup();
+    const edit = await nodeSyncDb(pkg, { unicase: true });
+    opened.push(edit);
+    await edit.run("UPDATE decks SET name = 'Atlas' || char(31) || 'Geography' WHERE name = '🧠 Trivia' || char(31) || 'Geography'");
+    edit.close();
+    opened.pop();
+    const plan = await mergeDeckPackage(db, pkg, CTX);
+    expect(plan.newDecks).toContain('Atlas');
+    const atlas = (await db.first<{ id: number }>("SELECT id FROM decks NOT INDEXED WHERE name = 'Atlas'"))!;
+    expect(Number(atlas.id)).toBeGreaterThan(0);
+  });
+
   it('adds a note type changed since under a name of its own, beside the one here', async () => {
     const { db, pkg } = await setup();
     // The collection's "Basic" gains a field, so the package's "Basic" (same id) no longer matches it.

@@ -5,7 +5,7 @@ import { canonicalTags } from './noteWrites';
 import { utf8Decode } from './protobuf';
 import { hasUnicase, type SqlValue, type SyncDb } from './sync/collectionSync';
 import { parseJson } from './sync/json';
-import { COL_MODIFIED_SQL } from './writeback';
+import { COL_MODIFIED_SQL, queueForType } from './writeback';
 
 /**
  * A deck package (.apkg, Anki's "Deck package" export) merged into the kept collection, as
@@ -180,7 +180,8 @@ async function prepare(db: SyncDb, ctx: { now: Date; dayStartsAtHour: number }):
         await db.run('INSERT INTO main.deck_config (id, name, mtime_secs, usn, config) SELECT id, name, ?, -1, config FROM pkg.deck_config NOT INDEXED WHERE id = ?', nowSecs, configId);
         keptConfigs.add(configId);
       }
-      const id = takeDeckId(src ? n(src.id) : 0);
+      // A left-out parent has no id of its own to keep: a new one, as Anki gives one (never 0, which no deck has).
+      const id = takeDeckId(src ? n(src.id) : ctx.now.getTime());
       await db.run('INSERT INTO main.decks (id, name, mtime_secs, usn, common, kind) VALUES (?, ?, ?, -1, ?, ?)', id, name, nowSecs, like.common, like.kind);
       keptDeckByName.set(fold(name), id);
     }
@@ -212,10 +213,13 @@ async function prepare(db: SyncDb, ctx: { now: Date; dayStartsAtHour: number }):
     for (const c of pkgCards) {
       const id = takeCardId(n(c.id));
       cardMap.set(n(c.id), id);
+      // A card a filtered deck borrowed comes home as Anki's Empty sends it (`emptyFilteredDeck`): its
+      // own due, and the queue its type puts it in, since a deck built without rescheduling puts new
+      // cards in the review queue. Suspended or buried stays so.
       const borrowed = n(c.odid) !== 0;
-      const due = borrowed ? n(c.odue) : n(c.due);
+      const due = borrowed && n(c.odue) !== 0 ? n(c.odue) : n(c.due);
       const type = n(c.type);
-      const queue = n(c.queue);
+      const queue = borrowed && n(c.queue) >= 0 ? queueForType(type, due) : n(c.queue);
       await db.run(
         'INSERT INTO main.cards (id, nid, did, ord, mod, usn, type, queue, due, ivl, factor, reps, lapses, left, odue, odid, flags, data) VALUES (?, ?, ?, ?, ?, -1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)',
         id, noteMap.get(n(c.nid))!, deckMap.get(homeDeck(c))!, c.ord, c.mod, type, queue,
