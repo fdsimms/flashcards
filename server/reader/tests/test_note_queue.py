@@ -1,6 +1,7 @@
 """The note queue: the checks on what Claude fills in, the passes that fill and retry, and its endpoints."""
 
 import asyncio
+import json
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -65,9 +66,13 @@ class Writer:
         self.fail = fail
         self.billed = billed  # what a failed call was billed for, when Claude answered
         self.calls: list[tuple[str, list[tuple[str, str]]]] = []
+        self.learners: list[str] = []  # whose Thai each call was asked for
 
-    async def __call__(self, language: Any, asked: list[tuple[str, str]]) -> Any:
+    async def __call__(
+        self, language: Any, asked: list[tuple[str, str]], learner: str = "male"
+    ) -> Any:
         self.calls.append((language, asked))
+        self.learners.append(learner)
         if self.fail:
             raise FillFailed(self.fail, self.billed)
         return self.answer(language, asked), COST
@@ -463,6 +468,36 @@ def test_words_go_a_language_and_a_batch_at_a_time() -> None:
     ]
 
 
+def test_a_mans_and_a_womans_thai_go_in_separate_calls() -> None:
+    conn = store.connect(":memory:")
+    store.add_queued(conn, "th", "Languages::ไทย", [("ไป", "")], NOW, "female")
+    store.add_queued(conn, "th", "Languages::ไทย", [("กิน", "")], NOW)
+    store.add_queued(conn, "th", "Languages::ไทย", [("นอน", "")], NOW, "female")
+    writer = Writer()
+    run(conn, writer)
+    assert [
+        (asked, who) for (_, asked), who in zip(writer.calls, writer.learners, strict=True)
+    ] == [
+        ([("ไป", ""), ("นอน", "")], "female"),
+        ([("กิน", "")], "male"),
+    ]
+    assert [n.learner for n in store.queued_notes(conn)] == ["female", "male", "female"]
+
+
+def test_the_card_prompt_says_whose_thai_the_sentence_is_and_only_for_thai() -> None:
+    reply = json.dumps({"notes": []})
+    systems = {}
+    for learner in ("male", "female"):
+        fake = FakeClient(response("end_turn", reply))
+        finish(claude_notes(fake)("th", [("ไป", "")], learner))  # type: ignore[arg-type]
+        systems[learner] = fake.calls[0]["system"]
+    assert "The learner is a man" in systems["male"] and "ผม" in systems["male"]
+    assert "The learner is a woman" in systems["female"] and "ดิฉัน" in systems["female"]
+    fake = FakeClient(response("end_turn", reply))
+    finish(claude_notes(fake)("fr", [("ricane", "")], "female"))  # type: ignore[arg-type]
+    assert "The learner is a" not in fake.calls[0]["system"]
+
+
 def test_the_same_word_queued_twice_is_asked_for_once() -> None:
     conn = conn_with(("ricane", ""), ("ricane", "sniggers"))
     writer = Writer()
@@ -541,9 +576,11 @@ def test_a_word_removed_while_it_was_filled_keeps_the_cost_of_its_turn() -> None
     conn = conn_with(("ricane", ""), ("bouder", ""))
 
     class RemovesOne(Writer):
-        async def __call__(self, language: Any, asked: list[tuple[str, str]]) -> Any:
+        async def __call__(
+            self, language: Any, asked: list[tuple[str, str]], learner: str = "male"
+        ) -> Any:
             store.delete_queued(conn, store.queued_notes(conn)[0].id)  # removed mid-call
-            return await super().__call__(language, asked)
+            return await super().__call__(language, asked, learner)
 
     run(conn, RemovesOne())
     assert len(store.queued_notes(conn)) == 1
@@ -565,7 +602,7 @@ def test_claude_notes_keeps_the_usage_of_an_answer_it_cant_use(
 ) -> None:
     write = claude_notes(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
     with pytest.raises(FillFailed) as failed:
-        finish(write("fr", [("ricane", "")]))
+        finish(write("fr", [("ricane", "")], "male"))
     assert failed.value.usage.output_tokens == 900  # the call is still paid for
 
 
@@ -621,6 +658,22 @@ def test_entries_are_trimmed_and_repeats_in_one_request_are_dropped() -> None:
     c = queue_client(Writer())
     r = add(c, {"entry": "  ricane  "}, {"entry": "ricane"}, {"entry": "   "})
     assert [i["entry"] for i in r.json()["items"]] == ["ricane"]
+
+
+def test_the_polite_ending_decides_whose_thai_a_queued_word_is_written_as() -> None:
+    c = queue_client(Writer())
+    for body in (
+        {"particle": "kha", "entries": [{"entry": "ไป"}]},
+        {"particle": "khrap", "entries": [{"entry": "กิน"}]},
+        {"entries": [{"entry": "นอน"}]},
+    ):
+        base = {"language": "th", "deck": DECK}
+        assert c.post("/api/note-queue", headers=AUTH, json={**base, **body}).status_code == 202
+    assert [n.learner for n in store.queued_notes(c.conn)] == ["female", "male", "male"]  # type: ignore[attr-defined]
+    # Only Thai has one: another language's word is queued for "male" whatever it is sent.
+    body = {"language": "fr", "deck": DECK, "particle": "kha", "entries": [{"entry": "ricane"}]}
+    assert c.post("/api/note-queue", headers=AUTH, json=body).status_code == 202
+    assert store.queued_notes(c.conn)[-1].learner == "male"  # type: ignore[attr-defined]
 
 
 def test_nothing_to_queue_is_refused() -> None:

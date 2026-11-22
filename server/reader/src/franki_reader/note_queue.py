@@ -36,7 +36,7 @@ from franki_speech.thai_romanization import THAI_SCHEME, is_toneless, letters_wr
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, Code, Gender
 
 log = logging.getLogger(__name__)
 
@@ -288,7 +288,18 @@ _KANA = re.compile(r"^[\u3041-\u309f\u30a0-\u30ffー・ ]+$")
 _SYSTEM = """\
 You fill in flashcard notes for an English-speaking learner of {language}. For each word or phrase you \
 are given, you write the fields below. Be accurate: a wrong gloss or an unnatural sentence is worse \
-than a plain one."""
+than a plain one.{thai}"""
+
+# The learner reads the Context sentence as theirs, so a Thai one is written as they would say it (the
+# same rule as a lesson's phrases, lesson_writer.thai_problems).
+THAI_MAN = (
+    ' The learner is a man: if the sentence says "I", write ผม, and end a polite sentence with ครับ, '
+    "never ฉัน, ดิฉัน, ค่ะ or คะ."
+)
+THAI_WOMAN = (
+    ' The learner is a woman: if the sentence says "I", write ดิฉัน or ฉัน, and end a statement with '
+    "ค่ะ and a question with คะ, never ผม or ครับ."
+)
 
 # The deck's scheme, worded for this request's keys instead of the note's field names.
 _THAI_SCHEME = THAI_SCHEME.replace("ContextRomanized", "romanization").replace(
@@ -415,7 +426,8 @@ class FillFailed(Exception):
 
 
 # Writes the fields for (entry, the owner's meaning or "") pairs in a language, and what that cost.
-WriteNotes = Callable[[Code, list[tuple[str, str]]], Awaitable[tuple[list[Any], Usage]]]
+# `learner` is whose Thai the sentences are written as, and only Thai reads it.
+WriteNotes = Callable[[Code, list[tuple[str, str]], Gender], Awaitable[tuple[list[Any], Usage]]]
 
 
 def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
@@ -671,14 +683,16 @@ async def fill_pending(
         if not todo:
             return filled
         language = todo[0].language
-        batch = [n for n in todo if n.language == language][:BATCH]
+        # A word queued for a woman's Thai isn't written in the same call as a man's.
+        learner = todo[0].learner
+        batch = [n for n in todo if n.language == language and n.learner == learner][:BATCH]
         tried.update(n.id for n in batch)
         # The same word queued twice is asked for once; its entry is the key Claude's answer comes back by.
         asked: dict[str, str] = {}
         for n in batch:
             asked.setdefault(n.entry, n.meaning)
         try:
-            raw, used = await write(language, list(asked.items()))
+            raw, used = await write(language, list(asked.items()), learner)
         except FillFailed as e:
             log.warning("Couldn't fill in %s notes: %s", language, e)
             failed_cost = e.usage.cost_usd() / len(batch)
@@ -731,13 +745,20 @@ def claude_notes(client: anthropic.AsyncAnthropic) -> WriteNotes:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def write(language: Code, asked: list[tuple[str, str]]) -> tuple[list[Any], Usage]:
+    async def write(
+        language: Code, asked: list[tuple[str, str]], learner: Gender
+    ) -> tuple[list[Any], Usage]:
         messages = [{"role": "user", "content": request_message(language, asked)}]
         try:
             response = await client.beta.messages.create(
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
-                system=_SYSTEM.format(language=LANGUAGES[language].name),
+                system=_SYSTEM.format(
+                    language=LANGUAGES[language].name,
+                    thai=(THAI_MAN if learner == "male" else THAI_WOMAN)
+                    if language == "th"
+                    else "",
+                ),
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
                 betas=["server-side-fallback-2026-07-01"],
