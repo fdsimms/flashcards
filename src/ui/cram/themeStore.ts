@@ -14,6 +14,10 @@ export interface Suggested {
   language: Language;
   words: ThemeWord[];
   themes: CramTheme[];
+  /** Each theme's own words, in the theme's order: the ones sent and the deck's others it named (`themeDeckWords`). */
+  wordsOf: ThemeWord[][];
+  /** What really happened, as the themes were written from it (`Cram.facts`). */
+  facts: string;
   /** Every title shown so far, so asking again gives different themes. */
   shown: string[];
   stretch: boolean;

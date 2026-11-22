@@ -455,6 +455,36 @@ def test_the_turn_endpoint_passes_rehearsal_words_on_tidied_and_refuses_too_many
     assert app.post("/api/situations/turn", json=many, headers=AUTH).status_code == 422
 
 
+def test_prepared_talking_points_reach_the_turn_prompt() -> None:
+    from franki_reader.situations import play_intro
+
+    plain = talk(("you", "ครับ"))
+    prepared = Conversation(
+        "th",
+        SCENE,
+        ROLES,
+        plain.lines,
+        tutor=True,
+        prepared=("You ask: ครูวิ่งไหมครับ", "They may ask you: เหนื่อยไหม"),
+    )
+    assert "prepared" not in play_intro(plain)
+    intro = play_intro(prepared)
+    assert "- You ask: ครูวิ่งไหมครับ\n- They may ask you: เหนื่อยไหม" in intro
+    assert "Never read this list out" in intro
+    assert "The word list" in intro
+
+
+def test_the_turn_endpoint_passes_prepared_lines_on_tidied_and_refuses_too_many() -> None:
+    play, seen = playing(START, START)
+    app = client(play)
+    base = {"language": "th", "scene": SCENE, "partner": "tutor"}
+    prepared = ["  You ask:  ครูวิ่งไหมครับ ", " ", "x" * 300]
+    app.post("/api/situations/turn", json={**base, "prepared": prepared}, headers=AUTH)
+    assert seen[0].prepared == ("You ask: ครูวิ่งไหมครับ", "x" * 240)
+    many = {**base, "prepared": ["a"] * 17}
+    assert app.post("/api/situations/turn", json=many, headers=AUTH).status_code == 422
+
+
 # ==== A structure to practice ====
 
 

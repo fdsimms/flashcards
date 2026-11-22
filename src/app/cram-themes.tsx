@@ -1,6 +1,6 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { talkOf, themeDeckWords } from '../core/cramThemes';
+import { talkOf } from '../core/cramThemes';
 import { useApp } from '../ui/AppContext';
 import { CramThemes } from '../ui/cram/CramThemes';
 import { applyThemes, capCramCards, cramsNow } from '../ui/useCrams';
@@ -17,10 +17,9 @@ export default function CramThemesRoute() {
       api={reader.api}
       cramId={id}
       onOpen={(index) => router.push({ pathname: '/cram-theme', params: { id, index: String(index) } })}
-      onUse={async (themes, words) => {
+      onUse={async (themes, noteIds) => {
         const now = cramsNow().find((x) => x.id === id);
         if (!now) return;
-        const noteIds = [...new Set(themes.flatMap((t) => themeDeckWords(t, words).map((w) => w.noteId)))];
         await applyThemes(repo, now, themes.map(talkOf), noteIds);
         capCramCards(repo).catch(() => undefined);
         router.dismissTo({ pathname: '/cram', params: { id } });

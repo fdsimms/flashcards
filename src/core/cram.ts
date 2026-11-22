@@ -40,11 +40,28 @@ export interface CramRound {
   missed: string[];
 }
 
-/** The theme a cram was made from (cramThemes.ts): its title, the questions to ask the tutor and a story to tell, kept to talk from at the lesson. */
+/** A line in the cram's language with its English. */
+export interface CramLine {
+  text: string;
+  english: string;
+}
+
+/**
+ * A talking point (cramThemes.ts), kept to talk from at the lesson: its title, the questions the
+ * learner asks the tutor, the questions the tutor is likely to ask with an answer ready, and a story
+ * to tell. One kept before there were two kinds of questions has only `questions`.
+ */
 export interface CramTalk {
   title: string;
-  questions: { text: string; english: string }[];
-  story?: { text: string; english: string };
+  /** Questions the learner asks the tutor. */
+  questions: CramLine[];
+  /** Questions the tutor is likely to ask, each with an answer the learner could give. */
+  expects?: { question: CramLine; answer: CramLine }[];
+  story?: CramLine;
+  /** Words its lines used that the learner hadn't studied when it was written, with a meaning where the server kept one. */
+  unknown?: { word: string; english: string }[];
+  /** The questions of `questions` asked in the lesson (lesson mode), by their text. */
+  asked?: string[];
 }
 
 /** A question to ask the tutor, typed on the cram's page and checked off in lesson mode once asked. */
@@ -86,9 +103,11 @@ export interface Cram {
   themes?: CramTalk[];
   /** How casual or formal its talking points, lesson and rehearsals are written. Unset, it follows Settings (`registerLevel.ts`). */
   register?: RegisterLevel;
-  /** The audio lesson made from the words (Read & Listen), and the words it was made from. */
-  lesson?: { id: number; noteIds: string[] };
-  /** Questions to ask the tutor. */
+  /** The audio lesson made from the words (Read & Listen), the words it was made from, and the talking points' lines it teaches (`cramLessonPhrases`). */
+  lesson?: { id: number; noteIds: string[]; lines?: string[] };
+  /** What really happened, in the learner's words (Talking points): the stories and answers are written from it. */
+  facts?: string;
+  /** Questions about the language to bring to the tutor (how to say something, a grammar point), typed on the cram's page. */
   questions?: CramQuestion[];
   /** Words and phrases typed in during the lesson (lesson mode), to make cards from afterwards. */
   captured?: string[];
@@ -313,11 +332,84 @@ export function lessonPhrases(notes: Note[], language: Language): { noteId: stri
   return phrases;
 }
 
-/** Whether the lesson made for the cram has every word it would teach now, and no other. */
-export function lessonIsCurrent(cram: Cram, noteIds: string[]): boolean {
+/** Whether the lesson made for the cram teaches every word and talking-point line it would teach now, and no other. */
+export function lessonIsCurrent(cram: Cram, noteIds: string[], lines: string[] = []): boolean {
   if (!cram.lesson) return false;
   const made = new Set(cram.lesson.noteIds);
-  return made.size === noteIds.length && noteIds.every((id) => made.has(id));
+  const said = new Set(cram.lesson.lines ?? []);
+  return made.size === noteIds.length && noteIds.every((id) => made.has(id)) && said.size === lines.length && lines.every((l) => said.has(l));
+}
+
+/**
+ * The cram's words in the order its practice needs them: the ones missed in the last round, then the
+ * others not solid yet (`practiceProgress`), then the solid ones, each group in the order given. An
+ * audio lesson takes the first `LESSON_MAX_WORDS`, so a long cram's lesson teaches what's shakiest.
+ */
+export function practiceOrder(cram: Cram, notes: Note[]): Note[] {
+  const missed = lastMissed(cram);
+  const { solid } = practiceProgress(cram, notes.map((n) => n.id));
+  const solidSet = new Set(solid);
+  const rank = (n: Note) => (missed.has(n.id) ? 0 : solidSet.has(n.id) ? 2 : 1);
+  return notes.map((n, i) => ({ n, i })).sort((a, b) => rank(a.n) - rank(b.n) || a.i - b.i).map(({ n }) => n);
+}
+
+/** How many of a lesson's phrases the talking points may take: the rest are the cram's words. */
+export const LESSON_TALK_LINES = 5;
+
+/**
+ * The learner's own lines from the talking points that an audio lesson teaches, at most
+ * `LESSON_TALK_LINES`: each talking point's first question to ask, then each one's first answer
+ * ready, then the rest in that order, leaving out any too long to send and repeats.
+ */
+export function talkLessonLines(cram: Pick<Cram, 'themes'>): CramLine[] {
+  const talks = cram.themes ?? [];
+  const firsts = [...talks.map((t) => t.questions[0]), ...talks.map((t) => t.expects?.[0]?.answer)];
+  const rest = talks.flatMap((t) => [...t.questions.slice(1), ...(t.expects ?? []).slice(1).map((e) => e.answer)]);
+  const out: CramLine[] = [];
+  for (const line of [...firsts, ...rest]) {
+    if (!line?.text || !line.english || line.text.length > LESSON_MAX_CHARS || line.english.length > LESSON_MAX_CHARS) continue;
+    if (out.some((l) => textKey(l.text) === textKey(line.text))) continue;
+    out.push({ text: line.text, english: line.english });
+    if (out.length === LESSON_TALK_LINES) break;
+  }
+  return out;
+}
+
+/**
+ * What Listen's audio lesson teaches: the talking points' lines (`talkLessonLines`), then the words
+ * the cram's practice needs most (`practiceOrder`), at most `LESSON_MAX_WORDS` in all.
+ */
+export function cramLessonPhrases(cram: Cram, notes: Note[], language: Language): { phrases: CramLine[]; noteIds: string[]; lines: string[] } {
+  const lines = talkLessonLines(cram);
+  const words = lessonPhrases(practiceOrder(cram, notes), language).slice(0, LESSON_MAX_WORDS - lines.length);
+  return {
+    phrases: [...lines, ...words.map(({ text, english }) => ({ text, english }))],
+    noteIds: words.map((w) => w.noteId),
+    lines: lines.map((l) => l.text),
+  };
+}
+
+/** What a lesson or a rehearsal is set in: the one talking point's title, else what the cram is for, else its first talking point's title, else its name. */
+export function talkScene(cram: Pick<Cram, 'name' | 'untitled' | 'themes'>): string {
+  const talks = cram.themes ?? [];
+  if (talks.length === 1) return talks[0].title;
+  return themeTopic(cram) || talks[0]?.title || cram.name;
+}
+
+/** What a talking point (or a theme on offer) holds, as its folded card says it: "2 to ask · 2 they may ask · your story". */
+export function talkSummary(talk: { questions: unknown[]; expects?: unknown[] | null; story?: unknown }): string {
+  const expects = talk.expects?.length ?? 0;
+  return [`${talk.questions.length} to ask`, ...(expects ? [`${expects} they may ask`] : []), ...(talk.story ? ['your story'] : [])].join(' · ');
+}
+
+/** The talking points as labeled lines for a rehearsal's tutor to steer by (`rehearsalParams`'s `prepared`). */
+export function preparedLines(cram: Pick<Cram, 'themes'>): string[] {
+  return (cram.themes ?? []).flatMap((t) => [
+    `Topic: ${t.title}`,
+    ...t.questions.map((q) => `You ask: ${q.text}`),
+    ...(t.expects ?? []).map((e) => `They may ask you: ${e.question.text} (your answer: ${e.answer.text})`),
+    ...(t.story ? [`Your story: ${t.story.text}`] : []),
+  ]);
 }
 
 /**
@@ -432,6 +524,33 @@ export function withThemes(cram: Cram, talks: CramTalk[]): Cram {
 
 /** The name a cram started with "Not sure yet? Get ideas" has until a theme names it: "Thai lesson", or "Lesson" in no language. */
 export const standInName = (languageName: string | undefined): string => (languageName ? `${languageName} lesson` : 'Lesson');
+
+/** The cram without a talking point (by its title). */
+export const withoutTalk = (cram: Cram, title: string): Cram => ({ ...cram, themes: (cram.themes ?? []).filter((t) => t.title !== title) });
+
+/** The cram with a talking point's story replaced (an edit of the learner's own): the words it marked as unknown no longer apply. */
+export function withTalkStory(cram: Cram, title: string, story: CramLine): Cram {
+  return {
+    ...cram,
+    themes: (cram.themes ?? []).map((t) => {
+      if (t.title !== title) return t;
+      const { unknown: _, ...rest } = t;
+      return { ...rest, story };
+    }),
+  };
+}
+
+/** The cram with one of a talking point's questions checked off as asked in the lesson, or back. */
+export function withTalkAsked(cram: Cram, title: string, text: string, asked: boolean): Cram {
+  return {
+    ...cram,
+    themes: (cram.themes ?? []).map((t) => {
+      if (t.title !== title) return t;
+      const rest = (t.asked ?? []).filter((x) => x !== text);
+      return { ...t, asked: asked ? [...rest, text] : rest };
+    }),
+  };
+}
 
 /** The cram with a card asked for (a second ask for the same word is kept once). */
 export function withRequest(cram: Cram, request: CramRequest): Cram {

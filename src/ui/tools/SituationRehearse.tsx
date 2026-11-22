@@ -36,6 +36,7 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
           <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>{rehearsal.scene}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
           {n ? <Chip label={`Leaning on ${n} ${n === 1 ? 'word' : 'words'} from this cram`} ink={c.accentInk} fill={c.accentFill} /> : null}
+          {rehearsal.prepared.length && partner === 'tutor' ? <Chip label="Asks about your talking points" ink={c.accentInk} fill={c.accentFill} /> : null}
         </View>
         <Card>
           <Segments<Partner>

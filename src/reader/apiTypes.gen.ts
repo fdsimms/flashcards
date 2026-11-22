@@ -1880,6 +1880,11 @@ export interface components {
              */
             count: number;
         };
+        /** ExpectOut */
+        ExpectOut: {
+            question: components["schemas"]["LineOut"];
+            answer: components["schemas"]["LineOut"];
+        };
         /** ExplainIn */
         ExplainIn: {
             /**
@@ -2129,7 +2134,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "carried" | "missed" | "fresh" | "deck";
+            kind: "cram" | "carried" | "missed" | "fresh" | "deck";
         };
         /** PronunciationIn */
         PronunciationIn: {
@@ -2286,6 +2291,8 @@ export interface components {
             focus?: components["schemas"]["SituationFocus"] | null;
             /** Words */
             words?: string[];
+            /** Prepared */
+            prepared?: string[];
             roles?: components["schemas"]["SituationRoles"] | null;
             /** Lines */
             lines?: components["schemas"]["SituationLine"][];
@@ -2296,6 +2303,8 @@ export interface components {
             speak: boolean;
             /** Register */
             register?: ("casual" | "everyday" | "formal") | null;
+            /** Partner */
+            partner?: "tutor" | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
         };
@@ -2377,11 +2386,17 @@ export interface components {
             why: string;
             /** Word Ids */
             word_ids: string[];
+            /** Deck Words */
+            deck_words: components["schemas"]["WordOut"][];
             /** New Words */
             new_words: components["schemas"]["WordOut"][];
             /** Questions */
             questions: components["schemas"]["LineOut"][];
+            /** Expects */
+            expects: components["schemas"]["ExpectOut"][];
             story: components["schemas"]["LineOut"] | null;
+            /** Unknown */
+            unknown: components["schemas"]["WordOut"][];
         };
         /** ThemesIn */
         ThemesIn: {
@@ -2410,6 +2425,11 @@ export interface components {
             register?: ("casual" | "everyday" | "formal") | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+            /**
+             * Facts
+             * @default
+             */
+            facts: string;
         };
         /** ThemesOut */
         ThemesOut: {

@@ -6388,6 +6388,22 @@
         ],
         "title": "DrillsIn"
       },
+      "ExpectOut": {
+        "properties": {
+          "question": {
+            "$ref": "#/components/schemas/LineOut"
+          },
+          "answer": {
+            "$ref": "#/components/schemas/LineOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answer"
+        ],
+        "title": "ExpectOut"
+      },
       "ExplainIn": {
         "properties": {
           "simple": {
@@ -7077,6 +7093,7 @@
           "kind": {
             "type": "string",
             "enum": [
+              "cram",
               "carried",
               "missed",
               "fresh",
@@ -7741,6 +7758,14 @@
             "maxItems": 15,
             "title": "Words"
           },
+          "prepared": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Prepared"
+          },
           "roles": {
             "anyOf": [
               {
@@ -7779,6 +7804,18 @@
               }
             ],
             "title": "Register"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "tutor"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partner"
           },
           "particle": {
             "anyOf": [
@@ -8007,6 +8044,13 @@
             "type": "array",
             "title": "Word Ids"
           },
+          "deck_words": {
+            "items": {
+              "$ref": "#/components/schemas/WordOut"
+            },
+            "type": "array",
+            "title": "Deck Words"
+          },
           "new_words": {
             "items": {
               "$ref": "#/components/schemas/WordOut"
@@ -8021,6 +8065,13 @@
             "type": "array",
             "title": "Questions"
           },
+          "expects": {
+            "items": {
+              "$ref": "#/components/schemas/ExpectOut"
+            },
+            "type": "array",
+            "title": "Expects"
+          },
           "story": {
             "anyOf": [
               {
@@ -8030,6 +8081,13 @@
                 "type": "null"
               }
             ]
+          },
+          "unknown": {
+            "items": {
+              "$ref": "#/components/schemas/WordOut"
+            },
+            "type": "array",
+            "title": "Unknown"
           }
         },
         "type": "object",
@@ -8037,9 +8095,12 @@
           "title",
           "why",
           "word_ids",
+          "deck_words",
           "new_words",
           "questions",
-          "story"
+          "expects",
+          "story",
+          "unknown"
         ],
         "title": "ThemeOut"
       },
@@ -8127,6 +8188,12 @@
               }
             ],
             "title": "Particle"
+          },
+          "facts": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Facts",
+            "default": ""
           }
         },
         "type": "object",

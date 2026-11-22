@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from franki_reader import cram_themes, store, word_suggestions
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
+from franki_reader.lexicon import lexicon_from
 from franki_reader.register import Register
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 
@@ -38,6 +39,8 @@ class ThemesIn(BaseModel):
     # Thai only: the learner's polite ending, khrap (a man's) or kha (a woman's), the same choice
     # audio lessons use. The story is the learner's own words, so it is written for their gender.
     particle: Literal["khrap", "kha"] | None = None
+    # What really happened, in the learner's words (the cram's note): the story and answers keep to it.
+    facts: str = Field(default="", max_length=cram_themes.MAX_FACTS)
 
 
 class LineOut(BaseModel):
@@ -46,17 +49,27 @@ class LineOut(BaseModel):
 
 
 class WordOut(BaseModel):
-    word: str  # a common word the deck lacks, as the note's Entry would start
+    word: str  # a word as the note's Entry would start
     english: str
+
+
+class ExpectOut(BaseModel):
+    question: LineOut  # the tutor's
+    answer: LineOut  # the learner's
 
 
 class ThemeOut(BaseModel):
     title: str
     why: str  # "" when Claude's reason couldn't be shown
     word_ids: list[str]  # the `id`s of the deck words the theme uses
+    # Studied words from the rest of the deck it uses, as text: the app finds their notes by word.
+    deck_words: list[WordOut]
     new_words: list[WordOut]
-    questions: list[LineOut]
+    questions: list[LineOut]  # the questions the learner asks the tutor
+    expects: list[ExpectOut]  # the tutor's likely questions, each with an answer ready
     story: LineOut | None
+    # Words its lines use that the learner doesn't know, with a meaning where one is kept.
+    unknown: list[WordOut]
 
 
 class ThemesOut(BaseModel):
@@ -80,12 +93,13 @@ def router(ctx: AppContext) -> APIRouter:
                 422, f"Themes aren't made in {LANGUAGES[body.language].name} words yet."
             )
         entries, lexicon = engine.snapshot(body.language)
+        wanikani = engine.wanikani_entries(body.language)
         from_texts, common = word_suggestions.suggest(
             engine.conn,
             body.language,
             entries,
             lexicon,
-            engine.wanikani_entries(body.language),
+            wanikani,
             engine.meanings(body.language),
         )
         seeds = cram_themes.Seeds(
@@ -107,9 +121,21 @@ def router(ctx: AppContext) -> APIRouter:
             topic=" ".join(body.topic.split()),
             register=body.register_level or store.load_settings(engine.conn).register,
             learner="female" if body.language == "th" and body.particle == "kha" else "male",
+            deck=cram_themes.deck_of(entries),
+            facts=" ".join(body.facts.split()),
+        )
+        # Known for the check: what the deck knows, and the words the app sent, a cram's words not
+        # yet studied among them (they're the ones the learner is about to learn).
+        known = lexicon_from(
+            entries,
+            body.language,
+            store.load_settings(engine.conn).common_for(body.language),
+            [*(e.text for e in wanikani), *(w.text for w in seeds.pool)],
         )
         try:
-            raw, used = await write_cram_themes(body.language, seeds)
+            themes, used = await cram_themes.write_themes(
+                write_cram_themes, body.language, seeds, known, engine.meanings(body.language)
+            )
         except cram_themes.ThemesFailed as e:
             ctx.keep_failed_cost("cram_themes", body.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
@@ -117,7 +143,6 @@ def router(ctx: AppContext) -> APIRouter:
         store.save_call_cost(
             engine.conn, "cram_themes", body.language, engine.clock(), used.cost_usd()
         )
-        themes = cram_themes.clean_themes(raw, seeds, body.language)
         if not themes:
             raise HTTPException(503, "Claude had no new themes. Try again.")
         return ThemesOut(
@@ -126,9 +151,18 @@ def router(ctx: AppContext) -> APIRouter:
                     title=t.title,
                     why=t.why,
                     word_ids=list(t.word_ids),
+                    deck_words=[WordOut(word=c.text, english=c.english) for c in t.deck_words],
                     new_words=[WordOut(word=c.text, english=c.english) for c in t.new_words],
-                    questions=[LineOut(text=q.text, english=q.english) for q in t.questions],
+                    questions=[LineOut(text=q.text, english=q.english) for q in t.asks],
+                    expects=[
+                        ExpectOut(
+                            question=LineOut(text=e.question.text, english=e.question.english),
+                            answer=LineOut(text=e.answer.text, english=e.answer.english),
+                        )
+                        for e in t.expects
+                    ],
                     story=LineOut(text=t.story.text, english=t.story.english) if t.story else None,
+                    unknown=[WordOut(word=c.text, english=c.english) for c in t.unknown],
                 )
                 for t in themes
             ]

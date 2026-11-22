@@ -26,10 +26,17 @@ def theme(title: str = "Ordering at a café") -> dict[str, Any]:
         "title": title,
         "why": "Uses words you haven't used yet.",
         "words": [0, 1],
+        "deck_words": [],
         "new_words": [],
-        "questions": [
-            {"text": "Vous aimez le café ?", "english": "Do you like coffee?"},
-            {"text": "Où allez-vous souvent ?", "english": "Where do you often go?"},
+        "asks": [{"text": "Vous aimez le café ?", "english": "Do you like coffee?"}],
+        "expects": [
+            {
+                "question": {
+                    "text": "Où allez-vous souvent ?",
+                    "english": "Where do you often go?",
+                },
+                "answer": {"text": "Je vais au café.", "english": "I go to the café."},
+            }
         ],
         "story": {"text": "Hier, j'ai pris un café.", "english": "Yesterday I had a coffee."},
     }
@@ -63,6 +70,12 @@ def test_suggests_themes_and_keeps_what_it_cost() -> None:
         assert t["title"] == "Ordering at a café"
         assert t["word_ids"] == ["a1", "a2"]
         assert t["story"]["english"] == "Yesterday I had a coffee."
+        assert t["questions"] == [
+            {"text": "Vous aimez le café ?", "english": "Do you like coffee?"}
+        ]
+        assert t["expects"][0]["answer"]["english"] == "I go to the café."
+        assert t["deck_words"] == []
+        assert isinstance(t["unknown"], list)
         rows = conn.execute("SELECT feature, language FROM call_costs").fetchall()
         assert [tuple(row) for row in rows] == [("cram_themes", "fr")]
         costs = c.get("/api/costs", headers=AUTH).json()
@@ -88,6 +101,49 @@ def test_sends_the_words_what_was_missed_and_what_is_taken() -> None:
     assert seeds.avoid == ("At the bank", "At the park")
     assert seeds.stretch is True
     assert seeds.topic == "My violin recital"
+    assert seeds.facts == ""
+    # The snapshot (Thai) has no French words for the cached block.
+    assert seeds.deck == ()
+
+
+def test_every_studied_word_of_the_language_goes_into_the_cached_block() -> None:
+    asked: list[Seeds] = []
+    thai = {"text": "ผมชอบกาแฟครับ", "english": "I like coffee."}
+    answer = {
+        "themes": [
+            {
+                **theme(),
+                "asks": [thai],
+                "expects": [{"question": thai, "answer": thai}],
+                "story": thai,
+            }
+        ]
+    }
+    c, _ = client(answer=answer, asked=asked)
+    with c:
+        body = {
+            "language": "th",
+            "words": [{"id": "t1", "text": "กาแฟ", "english": "coffee", "kind": "cram"}],
+        }
+        assert c.post("/api/cram/themes", json=body, headers=AUTH).status_code == 200
+    studied = sorted((e for e in ENTRIES if e.tier != "unreviewed"), key=lambda e: e.note_id)
+    assert [w.text for w in asked[0].deck] == [e.text for e in studied]
+
+
+def test_sends_what_really_happened_and_a_cram_word() -> None:
+    asked: list[Seeds] = []
+    c, _ = client(asked=asked)
+    with c:
+        body = {
+            **BODY,
+            "words": [{"id": "c1", "text": "vite", "english": "fast", "kind": "cram"}],
+            "facts": "  Ran 21 km   in 2:05 ",
+        }
+        assert c.post("/api/cram/themes", json=body, headers=AUTH).status_code == 200
+        too_long = {**BODY, "facts": "x" * 301}
+        assert c.post("/api/cram/themes", json=too_long, headers=AUTH).status_code == 422
+    assert asked[0].facts == "Ran 21 km in 2:05"
+    assert asked[0].pool[0].kind == "cram"
 
 
 def test_a_failed_call_still_counts_what_it_cost() -> None:
@@ -137,4 +193,4 @@ def test_the_register_is_the_requests_or_else_the_settings() -> None:
         assert c.post("/api/cram/themes", json=body, headers=AUTH).status_code == 200
         bad = {**BODY, "register": "slang"}
         assert c.post("/api/cram/themes", json=bad, headers=AUTH).status_code == 422
-    assert [s.register for s in asked] == ["everyday", "formal", "casual"]
+    assert [s.register for s in asked if not s.feedback] == ["everyday", "formal", "casual"]

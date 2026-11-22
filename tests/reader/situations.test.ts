@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SituationTurn } from '../../src/reader/api';
 import {
-  bracketed, canFinish, canSend, conversationOf, lineParts, MAX_LINE, MAX_LINES, rehearsalOf, rehearsalParams, REHEARSAL_WORD_MAX, REHEARSAL_WORDS_MAX, startChat, withMine, withoutMine, withTheirs,
+  bracketed, canFinish, canSend, conversationOf, lineParts, MAX_LINE, MAX_LINES, rehearsalOf, rehearsalParams, REHEARSAL_WORD_MAX, REHEARSAL_WORDS_MAX, PREPARED_LINE_MAX, PREPARED_MAX, startChat, withMine, withoutMine, withTheirs,
 } from '../../src/reader/situations';
 
 const roles = { you: 'a customer', them: 'the vendor', name: 'Noi', gender: 'female' as const };
@@ -80,7 +80,19 @@ describe('rehearsing a cram', () => {
   it('turns a cram into route parameters and back', () => {
     const params = rehearsalParams('th', ' Ordering spicy food ', [{ text: 'สั่ง', english: 'to order' }, { text: ' ', english: 'blank' }, { text: 'เผ็ด', english: 'spicy' }]);
     expect(params.id).toBe('situations');
-    expect(rehearsalOf(params)).toEqual({ language: 'th', scene: 'Ordering spicy food', words: ['สั่ง (to order)', 'เผ็ด (spicy)'], partner: 'tutor' });
+    expect(rehearsalOf(params)).toEqual({ language: 'th', scene: 'Ordering spicy food', words: ['สั่ง (to order)', 'เผ็ด (spicy)'], partner: 'tutor', prepared: [] });
+  });
+  it("carries a cram's talking points to the tutor, tidied, and sends them only to a tutor", () => {
+    const prepared = ['Topic: Race day', '  You ask:  ครูวิ่งไหมครับ ', ' ', 'x'.repeat(PREPARED_LINE_MAX + 1), ...Array.from({ length: PREPARED_MAX }, (_, i) => `Line ${i}`)];
+    const back = rehearsalOf(rehearsalParams('th', 'Race day', [], undefined, prepared));
+    expect(back?.prepared.slice(0, 2)).toEqual(['Topic: Race day', 'You ask: ครูวิ่งไหมครับ']);
+    expect(back?.prepared).toHaveLength(PREPARED_MAX);
+    expect('prepared' in rehearsalParams('th', 'x', [])).toBe(false);
+    expect(rehearsalOf({ language: 'th', scene: 'x', prepared: '{' })?.prepared).toEqual([]);
+    const lines = ['You ask: a'];
+    expect(conversationOf(startChat('th', 'x', undefined, [], undefined, 'tutor', lines)).prepared).toEqual(lines);
+    expect('prepared' in conversationOf(startChat('th', 'x', undefined, [], undefined, 'scene', lines))).toBe(false);
+    expect('prepared' in startChat('th', 'x', undefined, [], undefined, 'tutor', [])).toBe(false);
   });
   it('keeps to what the server takes', () => {
     const many = Array.from({ length: REHEARSAL_WORDS_MAX + 4 }, (_, i) => ({ text: `w${i}`, english: `m${i}` }));
@@ -93,7 +105,7 @@ describe('rehearsing a cram', () => {
     expect(rehearsalOf({ language: 'th', words: '[]' })).toBeUndefined();
     expect(rehearsalOf({ scene: 'x', words: '[]' })).toBeUndefined();
     expect(rehearsalOf({ language: 'xx', scene: 'x' })).toBeUndefined();
-    expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [], partner: 'tutor' });
+    expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [], partner: 'tutor', prepared: [] });
     expect(rehearsalOf({ language: 'th', scene: 'x', words: '[1,"a (b)",""]' })?.words).toEqual(['a (b)']);
   });
 
