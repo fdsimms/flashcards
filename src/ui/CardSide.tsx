@@ -327,7 +327,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
           const names = b.text.startsWith(NOT_PREFIX);
           const words = names ? b.text.slice(NOT_PREFIX.length) : b.text;
           return (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.s - 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'baseline', alignSelf: 'center', gap: space.s - 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
               {names ? <Text style={{ ...type.overline, fontSize: 11, color: c.textDim }}>Not</Text> : null}
               <Text style={{ ...(hasThai(words) ? { ...thai, fontSize: 16, lineHeight: 24 } : { ...type.footnote, lineHeight: 18 }), ...ja(words), color: c.textBody }}>{words}</Text>
             </View>
