@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LANGUAGES } from '../reader/languages';
 import type { Language } from '../reader/api';
 import {
@@ -121,14 +121,18 @@ function Dots({ results, at }: { results: boolean[]; at?: number }) {
 }
 
 /** The card's face: the step's chip, then the question and its answer, or once done, how it went. */
-export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; revealed: boolean }) {
+export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillState; revealed: boolean; say: (text: string, speech: string) => void }) {
   const c = useTheme();
   const { drill, question } = skill;
   if (!drill || !question) return null;
   const answer = skill.shown ? drillAnswer(question, drill.language) : undefined;
   const right = skill.results.filter(Boolean).length;
+  const answer0 = drillAnswer(question, drill.language);
+  const speech = LANGUAGES[drill.language].speech;
   return (
     // The top padding clears the language pill CardSurface draws at the card's top edge in a mixed deck; the chip sits in the flow below it, never pinned to the same spot.
+    // Tapping the card shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses.
+    <Pressable accessible={false} disabled={skill.shown || skill.done} onPress={() => { haptic.select(); skill.show(); if (answer0 && speech) say(answer0.everyday.text, speech); }} style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
       <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
         <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
@@ -167,6 +171,7 @@ export function SkillDrillCard({ skill, revealed }: { skill: SkillDrillState; re
         </Reveal>
       )}
     </ScrollView>
+    </Pressable>
   );
 }
 
@@ -181,6 +186,8 @@ export function SkillDrillFooter({ skill, onFinished, say }: { skill: SkillDrill
     expected: answer ? [answer.everyday.text, ...answer.also.map((p) => p.text)] : undefined,
     onHeard: (text, final) => { if (final) skill.heardAnswer(text); },
   });
+  // The card can be tapped to show the answer, which ends any listening the mic button started.
+  useEffect(() => { if (skill.shown) spoken.cancel(); }, [skill.shown]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!drill || !question) return null;
   if (!skill.shown) {
     return (
