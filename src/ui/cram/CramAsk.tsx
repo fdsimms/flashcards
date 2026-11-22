@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Keyboard, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
 import type { Language, QueuedNote } from '../../reader/api';
@@ -78,6 +78,8 @@ export function CramAsk({ text, language, findWords, ask, queued, approve }: {
   };
   const find = () => run(async () => {
     haptic.tap();
+    // The choices and the Make cards button sit where the keyboard is; the field is a tap away.
+    Keyboard.dismiss();
     const found = await findWords(typed);
     setCandidates({ for: typed, list: found });
     if (!found.length) setProblem({ for: typed, text: noCandidatesText(typed, name) });

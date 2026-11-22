@@ -10,6 +10,7 @@ import { Button, Card, Field, Help, Icon, Screen, Tappable } from '../kit';
 import { CandidateChips } from '../cram/CramBits';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 import { leaveScreen } from '../leaveScreen';
 import { LESSONS_PATH } from '../tabPaths';
 
@@ -26,6 +27,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
   const c = useTheme();
   const router = useRouter();
   const { words, add, remove } = useLessonWords(language);
+  const { bottomPadding } = useKeyboardScroll();
   const [text, setText] = useState('');
   const [problem, setProblem] = useState<string>();
   const [candidates, setCandidates] = useState<LessonWordCandidate[]>();
@@ -83,7 +85,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button accessibilityLabel="Done adding words" onPress={() => leaveScreen(router, LESSONS_PATH)}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }}>
         <Card>
           <Field label="Word" value={text} onChangeText={edit} autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={() => { if (text.trim() && !finding) void find(); }} />
           <Help>{lessonWordHint(language, name)}</Help>
