@@ -80,7 +80,7 @@ describe('rehearsing a cram', () => {
   it('turns a cram into route parameters and back', () => {
     const params = rehearsalParams('th', ' Ordering spicy food ', [{ text: 'สั่ง', english: 'to order' }, { text: ' ', english: 'blank' }, { text: 'เผ็ด', english: 'spicy' }]);
     expect(params.id).toBe('situations');
-    expect(rehearsalOf(params)).toEqual({ language: 'th', scene: 'Ordering spicy food', words: ['สั่ง (to order)', 'เผ็ด (spicy)'] });
+    expect(rehearsalOf(params)).toEqual({ language: 'th', scene: 'Ordering spicy food', words: ['สั่ง (to order)', 'เผ็ด (spicy)'], partner: 'tutor' });
   });
   it('keeps to what the server takes', () => {
     const many = Array.from({ length: REHEARSAL_WORDS_MAX + 4 }, (_, i) => ({ text: `w${i}`, english: `m${i}` }));
@@ -93,7 +93,7 @@ describe('rehearsing a cram', () => {
     expect(rehearsalOf({ language: 'th', words: '[]' })).toBeUndefined();
     expect(rehearsalOf({ scene: 'x', words: '[]' })).toBeUndefined();
     expect(rehearsalOf({ language: 'xx', scene: 'x' })).toBeUndefined();
-    expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [] });
+    expect(rehearsalOf({ language: 'th', scene: 'x', words: '{' })).toEqual({ language: 'th', scene: 'x', words: [], partner: 'tutor' });
     expect(rehearsalOf({ language: 'th', scene: 'x', words: '[1,"a (b)",""]' })?.words).toEqual(['a (b)']);
   });
 
@@ -104,6 +104,16 @@ describe('rehearsing a cram', () => {
     expect(rehearsalOf({ ...params, register: 'slang' })?.register).toBeUndefined();
     expect(conversationOf(startChat('th', 'Dinner', undefined, undefined, 'casual')).register).toBe('casual');
     expect('register' in conversationOf(startChat('th', 'Dinner'))).toBe(false);
+  });
+
+  it("rehearses with the learner's tutor unless the route asks for a scene, and sends it only then", () => {
+    const params = rehearsalParams('th', 'Race day and my time', []);
+    expect(rehearsalOf(params)?.partner).toBe('tutor');
+    expect(rehearsalOf({ ...params, partner: 'scene' })?.partner).toBe('scene');
+    expect(rehearsalOf({ ...params, partner: 'nonsense' })?.partner).toBe('tutor');
+    expect(conversationOf(startChat('th', 'Race day', undefined, [], undefined, 'tutor')).partner).toBe('tutor');
+    expect('partner' in conversationOf(startChat('th', 'Race day', undefined, [], undefined, 'scene'))).toBe(false);
+    expect('partner' in conversationOf(startChat('th', 'Race day'))).toBe(false);
   });
 });
 

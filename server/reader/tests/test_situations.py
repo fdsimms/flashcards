@@ -526,3 +526,14 @@ def test_thai_feedback_judges_the_learners_lines_as_their_own_gender() -> None:
     assert "The learner is a man" in man and "The learner is a woman" not in man
     assert "The learner is a woman" in woman
     assert "learner is a" not in feedback_system(Conversation("fr", "Dinner", None, ()))
+
+
+def test_a_tutor_conversation_sets_the_other_person_as_the_learners_tutor() -> None:
+    from franki_reader.situations import play_intro
+
+    plain = Conversation("th", SCENE, None, ())
+    tutor = Conversation("th", SCENE, None, (), tutor=True)
+    assert "tutor" not in play_intro(plain)
+    assert "own tutor" in play_intro(tutor)
+    assert "their tutor" in conversation_message(tutor)
+    assert "their tutor" not in conversation_message(plain)

@@ -28,16 +28,21 @@ export interface Chat {
   words?: string[];
   /** The register this scene chose; unset, the server's Settings one applies. */
   register?: RegisterLevel;
+  /** Set to 'tutor' when the other person is the learner's own tutor in a lesson, not a person the scene calls for. */
+  partner?: Partner;
 }
 
-export function startChat(language: Chat['language'], scene: string, focus?: SituationFocus, words?: string[], register?: RegisterLevel): Chat {
-  return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}), ...(words ? { words } : {}), ...registerChoice(register) };
+/** Who the other person is: the learner's tutor (a cram's rehearsal begins with this), or whoever the scene calls for. */
+export type Partner = 'tutor' | 'scene';
+
+export function startChat(language: Chat['language'], scene: string, focus?: SituationFocus, words?: string[], register?: RegisterLevel, partner?: Partner): Chat {
+  return { language, scene: scene.trim(), roles: null, lines: [], done: false, ...(focus ? { focus } : {}), ...(words ? { words } : {}), ...registerChoice(register), ...(partner === 'tutor' ? { partner } : {}) };
 }
 
 /** What goes to the server: the scene, the parts, and every line as text. Thai also sends the learner's polite ending, so their own lines are judged as a man's or a woman's. */
 export function conversationOf(chat: Chat, particle?: Particle): SituationConversation {
   const lines: SituationLine[] = chat.lines.map((l) => (l.speaker === 'them' ? { speaker: 'them', text: l.turn.line } : { speaker: 'you', text: l.text }));
-  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}), ...(chat.words?.length ? { words: chat.words } : {}), ...registerChoice(chat.register), ...(chat.language === 'th' && particle ? { particle } : {}) };
+  return { language: chat.language, scene: chat.scene, roles: chat.roles, lines, ...(chat.focus ? { focus: chat.focus } : {}), ...(chat.words?.length ? { words: chat.words } : {}), ...registerChoice(chat.register), ...(chat.partner === 'tutor' ? { partner: 'tutor' as const } : {}), ...(chat.language === 'th' && particle ? { particle } : {}) };
 }
 
 /** The chat with their line added: the parts from a first turn, and whether it ended the scene. */
@@ -101,6 +106,8 @@ export interface Rehearsal {
   words: string[];
   /** The cram's own register, when it chose one. */
   register?: RegisterLevel;
+  /** Who the other person is to begin with: a rehearsal talks with the learner's tutor unless the route says 'scene'. */
+  partner: Partner;
 }
 
 /** The route parameters that open Situations on a rehearsal. A word too long to send is left out, and no more than `REHEARSAL_WORDS_MAX` go. */
@@ -113,11 +120,11 @@ export function rehearsalParams(language: Language, scene: string, words: { text
 }
 
 /** The rehearsal a route's parameters ask for; undefined when there's no scene or the language isn't one Read & Listen plays. */
-export function rehearsalOf(params: { language?: string; scene?: string; words?: string; register?: string }): Rehearsal | undefined {
+export function rehearsalOf(params: { language?: string; scene?: string; words?: string; register?: string; partner?: string }): Rehearsal | undefined {
   const scene = params.scene?.trim().slice(0, SCENE_MAX);
   if (!scene || !params.language || !(params.language in LANGUAGES)) return undefined;
   let raw: unknown = [];
   try { raw = params.words ? JSON.parse(params.words) : []; } catch { /* no words */ }
   const words = (Array.isArray(raw) ? raw : []).filter((w): w is string => typeof w === 'string' && !!w.trim() && w.length <= REHEARSAL_WORD_MAX).slice(0, REHEARSAL_WORDS_MAX);
-  return { language: params.language as Language, scene, words, ...(isRegisterLevel(params.register) ? { register: params.register } : {}) };
+  return { language: params.language as Language, scene, words, partner: params.partner === 'scene' ? 'scene' : 'tutor', ...(isRegisterLevel(params.register) ? { register: params.register } : {}) };
 }
