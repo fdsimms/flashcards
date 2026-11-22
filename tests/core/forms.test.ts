@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deckHasForms,
   againPrompts, checkAnswer, chooseForms, formGiven, formGrammar, practicedGroups, practicedGroupsLine, confusedAnswers, confusions, weakForms, formsOf, formsSettings, formsSuggestion, headword, introductions, patternOf, patternPrompts,
   practiceChoices, practicePool, promptFor, promptKeys, drillPrompts, mergeSentencePrompts, studiedWords, sentenceFor, sentenceGap, unreadableNotice, withoutArticle, wordPrompts,
   type FormPrompt, type PracticeRecord, type WordForm,
@@ -480,6 +481,17 @@ describe('formsSuggestion', () => {
     expect(formsSuggestion({ ...base, history: [rec('present · yo', true, at(5).replace('2026-11', '2026-10'))] })?.reason).toBe('stale');
     expect(formsSuggestion({ ...base, history: [rec('present · yo', true, at(5))] })).toBeUndefined();
     expect(formsSuggestion({ ...base, history: [rec('preterite · yo', false, at(11, 9))] })).toBeUndefined();
+  });
+});
+
+describe('deckHasForms', () => {
+  const inDeck = (deck: string, over: Record<string, string>): Note => ({ ...omniNote(over), deck });
+  it('is true when a note in the deck or a subdeck lists forms', () => {
+    expect(deckHasForms('Deutsch', [inDeck('Deutsch::Nouns', { Entry: 'Haus', Plural: 'Häuser' })])).toBe(true);
+  });
+  it('is false for a deck whose notes list none, or notes in another deck', () => {
+    expect(deckHasForms('Toki Pona', [inDeck('Toki Pona', { Entry: 'pona', Meaning: 'good' })])).toBe(false);
+    expect(deckHasForms('Polski', [inDeck('Deutsch', { Entry: 'Haus', Plural: 'Häuser' })])).toBe(false);
   });
 });
 

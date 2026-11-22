@@ -6,6 +6,8 @@ import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
 import { skillCardIds } from '../core/skillTag';
 import { GURU_INTERVAL_DAYS, parseGateCap } from '../core/progress';
+import { deckHasAspectLanguage } from '../core/aspectCheck';
+import { deckHasForms } from '../core/forms';
 import { newCardOrderOf } from '../core/newCardOrder';
 import { paramsForDeck } from '../core/scheduler';
 import type { DeckSettings, Note } from '../core/types';
@@ -44,6 +46,10 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
   const [scripts, setScripts] = useState<Script[]>([]);
   // Every note, for Tagged cards first's tag suggestions and counts.
   const [allNotes, setAllNotes] = useState<Note[]>([]);
+  // Whether the deck has Russian or Polish notes, the only ones the verb aspect setting does anything for.
+  const [aspectApplies, setAspectApplies] = useState(false);
+  // Whether any note in the deck lists forms, which Forms practice needs.
+  const [formsApply, setFormsApply] = useState(false);
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
@@ -55,6 +61,8 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
       setHasPreset(!!newCardOrderOf(deck, params));
       setScripts(deckScripts(deck, notes));
       setAllNotes(notes);
+      setAspectApplies(deckHasAspectLanguage(deck, notes));
+      setFormsApply(deckHasForms(deck, notes));
       const s = all.get(deck) ?? {};
       setAll(all);
       setSettings(s);
@@ -147,7 +155,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
         )}
         {settings ? <DeckPriorityOptions deck={deck} notes={allNotes} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFontOptions deck={deck} scripts={scripts} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
-        {settings ? <DeckFormsOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {settings ? <DeckFormsOptions deck={deck} formsApply={formsApply} aspectApplies={aspectApplies} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {filtered ? null : <DeckRecordings repo={repo} deck={deck} recorder={recorder} />}
       </ScrollView>
       )}
