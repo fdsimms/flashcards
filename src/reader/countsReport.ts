@@ -1,7 +1,7 @@
 // What Franki tells its server for dundundun: the deck list's totals (deckListTotals), so
 // dundundun's "Franki: 42 cards left" task counts new cards the way Franki does, progress gates
 // included, which Anki's own count on the server can't. Sent while Read & Listen is on and its
-// "Share today's counts" setting is (prefs.ts), from useCountsReport. Pure, so it's tested.
+// "Share today's counts and crams" setting is (prefs.ts), from useCountsReport. Pure, so it's tested.
 
 export interface Counts {
   due: number;
