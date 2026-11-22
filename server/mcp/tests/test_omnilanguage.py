@@ -118,6 +118,8 @@ def test_a_wanikani_meaning_is_lowercased_but_keeps_its_names():
     note = {"Entry": "月曜日", "Meaning": "Monday, First Day Of The Week", "Language": "japanese", "Register": "neutral", "PartOfSpeech": "noun"}
     assert o.fix(note, ["wanikani"]).fields["Meaning"] == "Monday; first day of the week"
     assert o.fix({**note, "Meaning": "Alone, One Person"}, ["wanikani"]).fields["Meaning"] == "alone; one person"
+    assert o.fix({**note, "Meaning": "French Person, Frenchman"}, ["wanikani"]).fields["Meaning"] == "French person; Frenchman"
+    assert o.fix({**note, "Meaning": "British Person, Brit"}, ["wanikani"]).fields["Meaning"] == "British person; Brit"
 
 
 def test_japanese_notes_need_a_reading_and_a_kanji_breakdown_of_their_own_kanji():

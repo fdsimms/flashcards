@@ -61,6 +61,8 @@ describe('the note', () => {
     expect(lowerGloss('October')).toBe('October');
     expect(lowerGloss('Mt. Fuji')).toBe('Mt. Fuji');
     expect(lowerGloss('American person')).toBe('American person');
+    expect(lowerGloss('Frenchman')).toBe('Frenchman');
+    expect(lowerGloss('Brit')).toBe('Brit');
   });
 
   it('makes only the Reverse card', () => {

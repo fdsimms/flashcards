@@ -62,7 +62,7 @@ export function audioFileName(subjectId: number, audio: PronunciationAudio): str
 const PROPER = new Set((
   'i monday tuesday wednesday thursday friday saturday sunday january february march april may june july august ' +
   'september october november december japan japanese america american france french england english britain ' +
-  'british china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok'
+  'british brit frenchman china chinese korea korean germany german tokyo kyoto osaka fuji mt mount tv ok'
 ).split(' '));
 
 /** WaniKani writes every word of a meaning with a capital ("To Be Born"); the house style is lowercase glosses, keeping proper nouns. */
