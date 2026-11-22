@@ -1968,6 +1968,48 @@ def form_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tuple
     return _feature_spending(conn, "forms", since)
 
 
+# The `call_costs` features /api/costs reports under a section of their own (each one's
+# *_spending above, `explanation_spending`, `queue_spending`, `recording_spending`). Every other
+# feature is in `other_call_spending`, so a new one is reported without anyone remembering to.
+REPORTED_FEATURES: frozenset[CallFeature] = frozenset(
+    {
+        "explain",
+        "phrase",
+        "form_explain",
+        "natural",
+        "ask_phrase",
+        "mnemonics",
+        "recording",
+        "note_queue",
+        "questions",
+        "forms",
+        "production",
+        "situations",
+        "lessons",
+        "lesson_topics",
+        "cram_themes",
+        "ipa",
+        "topic_image",
+    }
+)
+
+
+def other_call_spending(conn: sqlite3.Connection, since: datetime) -> dict[str, tuple[int, float]]:
+    """Each `call_costs` feature with no section of its own in /api/costs (`REPORTED_FEATURES`),
+    with calls since `since`: how many (failed ones included) and what they cost Claude."""
+    reported = sorted(REPORTED_FEATURES)
+    marks = ", ".join("?" for _ in reported)
+    return {
+        feature: (count, cost)
+        for feature, count, cost in conn.execute(
+            "SELECT feature, COUNT(*), SUM(cost_usd) FROM call_costs"
+            f" WHERE feature NOT IN ({marks}) AND created_at >= ?"
+            " GROUP BY feature ORDER BY SUM(cost_usd) DESC",
+            (*reported, since.isoformat()),
+        )
+    }
+
+
 def _feature_spending(
     conn: sqlite3.Connection, feature: CallFeature, since: datetime
 ) -> dict[Code, tuple[int, float]]:
@@ -2099,16 +2141,16 @@ def past_texts(
 
 def previous_check(
     conn: sqlite3.Connection, language: Code, since: datetime
-) -> tuple[int, int] | None:
-    """The check after reading (answers right, answers asked) of the language's most recent reading
-    that had one, logged at or after `since`; None if there isn't one. Read before the reading being
-    logged is added, so it's the text before."""
+) -> tuple[int, int, float] | None:
+    """The check after reading (answers right, answers asked, and the floor its text was written
+    at) of the language's most recent reading that had one, logged at or after `since`; None if
+    there isn't one. Read before the reading being logged is added, so it's the text before."""
     row = conn.execute(
-        """SELECT r.check_right, r.check_asked FROM readings r JOIN texts x ON x.id = r.text_id
+        """SELECT r.check_right, r.check_asked, x.floor FROM readings r JOIN texts x ON x.id = r.text_id
            WHERE r.check_asked > 0 AND r.logged_at >= ? AND x.language = ? ORDER BY r.id DESC LIMIT 1""",
         (since.isoformat(), language),
     ).fetchone()
-    return (row[0], row[1]) if row else None
+    return (row[0], row[1], row[2]) if row else None
 
 
 def log_listen(

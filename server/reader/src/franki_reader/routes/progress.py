@@ -160,6 +160,7 @@ def router(ctx: AppContext) -> APIRouter:
         cram_themes = store.cram_theme_spending(engine.conn, since)
         ipa_written = store.ipa_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
+        others = store.other_call_spending(engine.conn, since)
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -399,6 +400,17 @@ def router(ctx: AppContext) -> APIRouter:
             "cram_themes": {
                 "asked": sum(n for n, _ in cram_themes.values()),
                 "cost_usd": round(sum(c for _, c in cram_themes.values()), 4),
+            },
+            # Every other Claude call (asking about a card, fixing one, verb aspect, a lesson's
+            # words, rare words, looking a word up...), failed ones included, by feature
+            # (`store.REPORTED_FEATURES`), so a call with no section above is still counted.
+            "other_calls": {
+                "asked": sum(n for n, _ in others.values()),
+                "cost_usd": round(sum(c for _, c in others.values()), 4),
+                "features": [
+                    {"feature": feature, "asked": n, "cost_usd": round(c, 4)}
+                    for feature, (n, c) in others.items()
+                ],
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an
             # estimate like the texts' audio. Not per language: the app doesn't say which.

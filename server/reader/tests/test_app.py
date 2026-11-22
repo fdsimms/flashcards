@@ -982,6 +982,29 @@ def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None
     }
 
 
+def test_calls_with_no_section_of_their_own_are_counted_in_other_calls() -> None:
+    from typing import get_args
+
+    assert store.REPORTED_FEATURES <= set(get_args(store.CallFeature))
+    conn = store.connect(":memory:")
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    store.save_call_cost(conn, "word_lookup", "de", NOW, 0.25)
+    store.save_call_cost(conn, "word_lookup", "es", NOW, 0.25)
+    store.save_call_cost(conn, "rare_words", "en", NOW, 1.0)
+    store.save_call_cost(conn, "cram_themes", "de", NOW, 9.0)  # has its own section
+    costs = c.get("/api/costs", headers=AUTH).json()
+    assert costs["other_calls"] == {
+        "asked": 3,
+        "cost_usd": 1.5,
+        "features": [
+            {"feature": "rare_words", "asked": 1, "cost_usd": 1.0},
+            {"feature": "word_lookup", "asked": 2, "cost_usd": 0.5},
+        ],
+    }
+    assert costs["cram_themes"] == {"asked": 1, "cost_usd": 9.0}
+
+
 def test_says_what_to_set_when_there_is_no_azure_key() -> None:
     c = voice_client(None)
     r = c.get("/api/voices", params={"language": "th"}, headers=AUTH)
