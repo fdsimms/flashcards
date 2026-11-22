@@ -54,7 +54,7 @@ interface DrillState {
 }
 
 /** The drill of the card on screen, started afresh for each showing (`showing`, Review's). */
-export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined) {
+export function useSkillDrill(showing: string | undefined, drill: Drill | undefined, cardId: string | undefined, hardShown: boolean) {
   const first = useMemo(() => {
     if (!drill || !showing) return undefined;
     void loadDrillSeen();
@@ -79,10 +79,9 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
     results: live?.results ?? [],
     done,
     /** Right throughout but slow (`SLOW_MS`): the reason Hard is outlined. */
-    slow: !!drill && done && isSlow(live!.times, drill.step.group),
-    seconds: live ? Math.round((medianMs(live.times) ?? 0) / 1000) : 0,
+    slow: !!drill && done && isSlow(live!.times, drill.step.group),    seconds: live ? Math.round((medianMs(live.times) ?? 0) / 1000) : 0,
     /** The rating to outline once the drill is done. */
-    suggested: drill && done ? suggestedRating(live!.results, live!.times, drill.step.group) : undefined,
+    suggested: drill && done ? suggestedRating(live!.results, live!.times, drill.step.group, hardShown) : undefined,
     show: () => reveal(),
     /** The answer said aloud: it's shown, with what was heard and whether that's it. */
     heardAnswer: (text: string) => reveal(text),
@@ -154,9 +153,9 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
           <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${DRILL_QUESTIONS}`}</Text>
           <Dots results={skill.results} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
-            {skill.suggested === 3 ? 'All correct. Good is outlined.'
-              : skill.suggested === 2 && skill.slow ? `All correct, but slow (about ${skill.seconds} seconds each). Hard is outlined.`
-                : skill.suggested === 2 ? 'One miss. Hard is outlined.' : 'More than one miss. Again is outlined.'}
+            {right === DRILL_QUESTIONS
+              ? skill.slow && skill.suggested === 2 ? `All correct, but slow (about ${skill.seconds} seconds each). Hard is outlined.` : 'All correct. Good is outlined.'
+              : `${right === DRILL_QUESTIONS - 1 ? 'One miss.' : 'More than one miss.'} ${skill.suggested === 2 ? 'Hard' : 'Again'} is outlined.`}
             {'\n'}Tap the rating that fits.
           </Text>
         </Reveal>

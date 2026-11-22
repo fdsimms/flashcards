@@ -425,11 +425,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const known = knownHeadwords(notes.values(), cards, skillLanguageDeck(note!.deck));
     return { ...found, months: knownMonths(found.language, known), days: knownDays(found.language, known) };
   }, [note, notes, cards]);
-  const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined);
+  const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2));
   useSkillRelease(repo, cards, notes, H);
   // The aspect check on a Russian or Polish verb's front (AspectCheck.tsx): optional, and only outlines a rating.
   const aspectCheck = useAspectCheck(showing, current && note && aspectCheckOn(note.deck, deckSettings) ? aspectToCheck(note, current) : undefined);
-  const suggestedRating = skill.suggested ?? aspectCheck.suggested;
+  // A miss on the aspect check suggests Hard; with Hard turned off it's Again, the button that's there.
+  const suggestedRating = skill.suggested ?? (aspectCheck.suggested === 2 && !ratingsShown(answerButtons).includes(2) ? 1 : aspectCheck.suggested);
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own. A frequency tier ("Thai::Tier 3") is part of its language, not a language of its own, so it's looked past.

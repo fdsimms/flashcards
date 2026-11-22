@@ -249,12 +249,13 @@ export function drillAnswer(q: DrillQuestion, language: Language): { everyday: P
 /**
  * The rating to suggest once a drill is done, as a button's number (1 Again, 2 Hard, 3 Good): all
  * right is Good, one miss Hard, more Again. Only a suggestion: the learner taps the rating, and
- * Easy is theirs to choose.
+ * Easy is theirs to choose. With Hard turned off (`hardShown` false) it must name a button that
+ * is there: one miss is Again (Hard would tell FSRS it was remembered), and right but slow is Good.
  */
-export function suggestedRating(results: readonly boolean[], thinkMs: readonly number[] = [], group?: DrillGroup): 1 | 2 | 3 {
+export function suggestedRating(results: readonly boolean[], thinkMs: readonly number[] = [], group?: DrillGroup, hardShown = true): 1 | 2 | 3 {
   const missed = results.filter((r) => !r).length;
-  if (missed) return missed === 1 ? 2 : 1;
-  return group && isSlow(thinkMs, group) ? 2 : 3;
+  if (missed) return missed === 1 && hardShown ? 2 : 1;
+  return group && hardShown && isSlow(thinkMs, group) ? 2 : 3;
 }
 
 /**
