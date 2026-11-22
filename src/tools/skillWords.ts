@@ -306,7 +306,11 @@ export function stepNeeds(stepId: string, language: Language): WordNeed[] {
   });
 }
 
-const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
+/**
+ * A word as it is compared: lowercase, Russian ё as е, and Greek's tone marks off, since decks write
+ * четвертый and μια as often as четвёртый and μία. Other accents stay (Polish ę, ł and ś are letters of their own).
+ */
+const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().replace(/ё/g, 'е').normalize('NFD').replace(/(?<=[\u0370-\u03ff][\u0300-\u036f]*)[\u0300-\u036f]/g, '').normalize('NFC').trim();
 
 /**
  * The words of `words` the known headwords have: one counts when a headword is it, or has it as a
