@@ -39,9 +39,13 @@ export function counts(items: QueuedNote[]): { ready: number; waiting: number; f
 
 export const firstReady = (items: QueuedNote[]): QueuedNote | undefined => items.find((n) => n.state === 'ready');
 
-/** The queued note for a word asked for (a cram's request), by the text that was sent; a ready one first, as `CramAsk` takes it. */
+/**
+ * The queued note for a word asked for (a cram's request), by the text that was sent, its spaces
+ * collapsed as the server stores it (`routes/note_queue.py`); a ready one first, as `CramAsk` takes it.
+ */
 export function queuedFor(items: QueuedNote[], text: string): QueuedNote | undefined {
-  const mine = items.filter((n) => n.entry === text);
+  const sent = text.split(/\s+/).filter(Boolean).join(' ');
+  const mine = items.filter((n) => n.entry === sent);
   return mine.find((n) => n.state === 'ready') ?? mine[0];
 }
 

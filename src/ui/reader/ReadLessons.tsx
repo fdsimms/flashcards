@@ -57,13 +57,18 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const wasMaking = useRef<Set<number>>(new Set());
   const headerHeight = useHeaderHeight();
 
+  // The language shown now: a load for another one (a poll in flight as the language changed) is dropped.
+  const languageNow = useRef(language);
+  languageNow.current = language;
   const load = useCallback(async () => {
     try {
       const listed = await api.lessons(language);
+      if (languageNow.current !== language) return;
       setLessons(listed.lessons);
       setReview(listed.review ?? null);
       setError(null);
     } catch (e) {
+      if (languageNow.current !== language) return;
       setError(e instanceof ApiError ? e.message : "Couldn't load your lessons.");
     }
   }, [api, language]);

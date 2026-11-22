@@ -280,6 +280,15 @@ export function duplicateOf(notes: Note[], draft: { id?: string; deck: string; m
 }
 
 /**
+ * Whether a note being saved is checked for duplicates at all: a new one always, an edit only when
+ * it changes its first field, so a note that was already a duplicate (Anki allows them) can still
+ * have its tags or deck changed. `saveNote` refuses by this, and the editor's warning predicts it.
+ */
+export function checksDuplicate(existing: Note | undefined, draft: { deck: string; model: string; fields: Record<string, string> }, firstField: string): boolean {
+  return !existing || duplicateOf([existing], draft, firstField) === undefined;
+}
+
+/**
  * What `duplicateOf` compares a first field by: its text, case aside. Exported for a check that indexes
  * many notes by it first (Quick add's), then asks `duplicateOf` about the few that match.
  */

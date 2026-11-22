@@ -48,7 +48,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -519,10 +519,9 @@ class FillPlan:
 
 
 def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
-    """What filling would write: each candidate's lines, up to `limit` notes, reading only the files needed."""
-    chosen = survey_.candidates if limit is None else survey_.candidates[:limit]
+    """What filling would write: each candidate's lines, up to `limit` notes that have some (`cut`), reading only the files needed."""
     by_lang: dict[str, list[Candidate]] = {}
-    for c in chosen:
+    for c in survey_.candidates:
         by_lang.setdefault(c.language, []).append(c)
     filled: list[Planned] = []
     not_found: list[str] = []
@@ -548,7 +547,16 @@ def plan(survey_: Survey, unimorph: UniMorph, limit: int | None) -> FillPlan:
                 filled.append(Planned(c.note_id, c.word, lines[c.note_id]))
             else:
                 not_found.append(c.word)
-    return FillPlan(filled, not_found, survey_.unsupported, len(survey_.candidates) - len(chosen))
+    return cut(FillPlan(filled, not_found, survey_.unsupported, 0), limit)
+
+
+def cut(fill_: FillPlan, limit: int | None) -> FillPlan:
+    """`fill_` with at most `limit` notes to write. The limit counts only notes that have lines, as
+    pronunciation's does: words the tables lack stay empty and would come first every time, so a
+    limit taken off the candidates would end up filling nothing, call after call."""
+    if limit is None or len(fill_.filled) <= limit:
+        return fill_
+    return replace(fill_, filled=fill_.filled[:limit], remaining=fill_.remaining + len(fill_.filled) - limit)
 
 
 def apply(col: Collection, fill: FillPlan) -> int:
@@ -609,9 +617,9 @@ async def fill(cm: CollectionManager, unimorph: UniMorph, query: str, limit: int
     """Finds the notes (a read), works out their lines from UniMorph outside the lock (a download the first time),
     and Japanese verbs' from Read & Listen, then writes them."""
     found = await cm.read(lambda col: survey(col, query))
-    planned = await anyio.to_thread.run_sync(plan, found, unimorph, limit)
-    chosen = found.candidates if limit is None else found.candidates[:limit]
-    await japanese_lines(reader, [c for c in chosen if c.language == JAPANESE], planned)
+    planned = await anyio.to_thread.run_sync(plan, found, unimorph, None)
+    await japanese_lines(reader, [c for c in found.candidates if c.language == JAPANESE], planned)
+    planned = cut(planned, limit)
     if dry_run or not planned.filled:
         return FillResult(planned, 0)
     return FillResult(planned, await cm.write(lambda col: apply(col, planned)))

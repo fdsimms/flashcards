@@ -423,3 +423,11 @@ async def test_without_read_and_listen_japanese_verbs_are_left_empty_and_it_says
         preview = await call(c, "fill_forms")
     assert preview["would_fill"] == [] and preview["not_found"] == []
     assert preview["japanese_skipped"].startswith("2 Japanese verbs were left empty")
+
+
+def test_a_limit_counts_only_notes_with_lines_so_unfillable_ones_never_use_up_a_batch():
+    found = [forms.Planned(i, f"w{i}", ["line"]) for i in range(5)]
+    planned = forms.FillPlan(found, ["nowhere"] * 30, {}, 0)
+    cut = forms.cut(planned, 2)
+    assert [p.note_id for p in cut.filled] == [0, 1] and cut.remaining == 3 and len(cut.not_found) == 30
+    assert forms.cut(planned, None) is planned and forms.cut(planned, 9) is planned

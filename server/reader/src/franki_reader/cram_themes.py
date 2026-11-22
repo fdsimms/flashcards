@@ -35,6 +35,7 @@ from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS, Learner, tokens
 from franki_reader.lesson_words import is_written
 from franki_reader.lexicon import Entry
+from franki_reader.reader import gloss_for
 from franki_reader.register import DEFAULT, Register, instruction
 
 MAX_TOKENS = 6000
@@ -537,7 +538,14 @@ async def write_themes(
             return themes, used
         unknown = [unknown_in(t, checker) for t in themes]
         marked = [
-            replace(t, unknown=tuple(Candidate(w, glosses.get(w, "")) for w in words))
+            # Looked up as the reader looks a word up (`gloss_for`): the meanings are kept in lower case,
+            # so a capitalized word (a German noun, a question's first word) would otherwise miss.
+            replace(
+                t,
+                unknown=tuple(
+                    Candidate(w, gloss_for(w, {}, checker, glosses) or "") for w in words
+                ),
+            )
             for t, words in zip(themes, unknown, strict=True)
         ]
         score = (len(marked), -sum(len(words) for words in unknown))

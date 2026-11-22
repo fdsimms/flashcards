@@ -92,7 +92,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
       setLog((l) => [...deckPackageResultLines(name, opened.plan, 0, opened.media.kept), ...l]);
       return;
     }
-    Alert.alert(`Import ${name}?`, deckPackagePreviewText(opened.plan, opened.media.add, syncOn), [
+    Alert.alert(`Import ${name}?`, deckPackagePreviewText(opened.plan, opened.media.add), [
       { text: 'Cancel', style: 'cancel', onPress: () => opened.discard() },
       { text: 'Import', onPress: () => mergeDeckPackage(opened, name) },
     ]);

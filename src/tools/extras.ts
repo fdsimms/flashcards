@@ -235,7 +235,7 @@ function extrasFor(language: Language, count: number, why: Extra['why'], input: 
 }
 
 function signature({ prefs, languages, readerOn }: PlanInput): string {
-  return JSON.stringify([EXTRA_TOOLS, prefs.turnsPerDay, prefs.drills, prefs.read, readerOn, LANGUAGE_ORDER.filter((l) => languages.includes(l)).map((l) => `${l}:${modeOf(prefs, l)}`)]);
+  return JSON.stringify([EXTRA_TOOLS, prefs.on, prefs.turnsPerDay, prefs.drills, prefs.read, readerOn, LANGUAGE_ORDER.filter((l) => languages.includes(l)).map((l) => `${l}:${modeOf(prefs, l)}`)]);
 }
 
 /**

@@ -157,7 +157,9 @@ Franki's (Client, below).
   within 7 days, taken together, `engine.record_reading` and `store.previous_check`): under 60% right
   of at least six between them steps the language's text difficulty one level easier (Harder to
   Standard, Standard to Easier; `difficulty.after_reading`, below). A text counts toward the next
-  one's check too. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
+  one's check too, unless a step came between: the last text counts only when it was written at
+  the level the language is at now (22 November 2026, the owner), so the answers that made one step
+  can't make the next. **High scores step a level harder the same way** (21 November 2026, the owner: 90% or more right of the same answers, `CHECK_HIGH`; Easier to Standard, Standard to Harder), so a step easier doesn't stay for good. Before that a good score changed nothing, and nothing stepped back: only the Text difficulty
   setting does. Nothing is graded or added to the deck. Not done:
   the check on a past text read again (its reading isn't logged), and questions for texts written
   before it.

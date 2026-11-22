@@ -401,6 +401,13 @@ def run_writes(
 KNOWN = ["vous", "aimez", "le", "café", "buvez", "du", "oui", "un", "hier", "j'ai", "pris"]
 
 
+def test_an_unknown_word_takes_its_meaning_whatever_its_case() -> None:
+    # The meanings are kept in lower case; a line's first word is capitalized.
+    far = theme(story={"text": "Loin, j'ai pris un café.", "english": "x"})
+    themes, _, _ = run_writes([themes_of(far)], seeds(), KNOWN)
+    assert ("Loin", "far") in [(c.text, c.english) for c in themes[0].unknown]
+
+
 def test_known_lines_are_kept_without_asking_again() -> None:
     themes, used, asked = run_writes([themes_of(theme())], seeds(), KNOWN)
     assert len(asked) == 1 and asked[0].feedback == ""

@@ -315,4 +315,17 @@ describe("today's counts from Anki's own counters", () => {
     expect(out.get('Polski::Verbs')).toEqual({ introduced: 1, reviewed: 4 });
     expect(out.get('Custom Study Session')).toEqual({ introduced: 0, reviewed: 25 });
   });
+
+  it("counts an answer the collection never got (its write failed or is still owed) from Franki's own row", () => {
+    const note = n('a', 'Polski');
+    const card = { ...makeCards(note, NOW)[0], ankiId: '1' };
+    const reviews = [{ cardId: card.id, ...review(card.sched, 3, NOW).log, state: 0 }];
+    // Anki's counts don't have it: it isn't in the review log either.
+    const out = studiedToday({ notes: [note], cards: [card], reviews, revlog: [], now: NOW, dayStartsAtHour: H, ankiCounters: [{ deck: 'Polski', introduced: 0, reviewed: 0 }] });
+    expect(out.get('Polski')).toEqual({ introduced: 1, reviewed: 0 });
+    // Once written, the review log and Anki's counts have it, and it's counted once.
+    const revlog = [{ id: Date.parse(reviews[0].reviewedAt), cid: 1, ease: 3, lastIvl: 0, time: 0, type: 0 }];
+    const written = studiedToday({ notes: [note], cards: [card], reviews, revlog, now: NOW, dayStartsAtHour: H, ankiCounters: [{ deck: 'Polski', introduced: 1, reviewed: 0 }] });
+    expect(written.get('Polski')).toEqual({ introduced: 1, reviewed: 0 });
+  });
 });

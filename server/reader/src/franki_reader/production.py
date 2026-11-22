@@ -11,6 +11,7 @@ import json
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from functools import cache
 from typing import Any, Literal, cast
 
 import anthropic
@@ -19,6 +20,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
+from franki_reader.spaced import common_words, fold, lemma
 
 MAX_TOKENS = 2000
 MAX_ATTEMPT = 1200  # characters of the owner's writing sent
@@ -171,23 +173,62 @@ def _notes(raw: object, most: int) -> list[str]:
 
 
 _WORD = re.compile(r"[^\W\d_]+")
+# A span a hint quotes ("dem", «na», ‘ein’): the words in it are named, not English prose.
+_QUOTED = re.compile(r'["“”„«»]([^"“”„«»]+)["“”„«»]|‘([^’]+)’')
+# A hint's word this common in English is read as its prose, not the target language's word.
+ENGLISH_PROSE_RANK = 3000
 
 
-def _hints(raw: object, most: int, attempt: str, corrected: str) -> list[str]:
+@cache
+def _english_prose_words() -> frozenset[str]:
+    return frozenset(common_words("en")[:ENGLISH_PROSE_RANK])
+
+
+def _english_prose(word: str) -> bool:
+    common = _english_prose_words()
+    return lemma(word, "en") in common or fold(word, "en") in common
+
+
+def _gives_away(hint: str, fixes: set[str], corrected: set[str], language: Code) -> bool:
+    """Whether `hint` names a word of the fix. A word it quotes counts, and so does one in a run of
+    two or more words the correction has ("in die Schule"), which is the target language written
+    out. Any other counts unless it's a common English word, since the hint is written in English
+    and "in", "a" or "die" are the hint's own words as often as the fix's (for English, all are)."""
+    quoted = {
+        w.casefold() for span in _QUOTED.findall(hint) for part in span for w in _WORD.findall(part)
+    }
+    words = [w.casefold() for w in _WORD.findall(hint)]
+    in_run = set()
+    for i, w in enumerate(words):
+        if w in corrected and (
+            (i > 0 and words[i - 1] in corrected)
+            or (i + 1 < len(words) and words[i + 1] in corrected)
+        ):
+            in_run.add(w)
+    named = {
+        w
+        for w in words
+        if w in quoted or w in in_run or (language != "en" and not _english_prose(w))
+    }
+    return bool(named & fixes)
+
+
+def _hints(raw: object, most: int, attempt: str, corrected: str, language: Code) -> list[str]:
     """The hints shown before the correction, each kept only if it doesn't give a fix away: none
-    holds a word that is in `corrected` and not in the learner's `attempt`. (A language written
-    without spaces has its fix inside a longer run, which this can't see: the prompt is all that
-    keeps those.) One that does is dropped, never trimmed."""
+    names a word that is in `corrected` and not in the learner's `attempt` (`_gives_away`). (A
+    language written without spaces has its fix inside a longer run, which this can't see: the
+    prompt is all that keeps those.) One that does is dropped, never trimmed."""
     wrote = {w.casefold() for w in _WORD.findall(attempt)}
-    fixes = {w.casefold() for w in _WORD.findall(corrected)} - wrote
-    return [
-        hint
-        for hint in _notes(raw, most)
-        if not ({w.casefold() for w in _WORD.findall(hint)} & fixes)
-    ][:most]
+    fixed = {w.casefold() for w in _WORD.findall(corrected)}
+    fixes = fixed - wrote
+    return [hint for hint in _notes(raw, most) if not _gives_away(hint, fixes, fixed, language)][
+        :most
+    ]
 
 
-def _judged(answer: dict[str, Any], attempt: str, most: int) -> dict[str, Any] | None:
+def _judged(
+    answer: dict[str, Any], attempt: str, most: int, language: Code
+) -> dict[str, Any] | None:
     """The verdict, corrected writing, its English, notes and hints, trimmed; None without a verdict
     from the list. A right answer's corrected writing is the learner's own, whatever came back."""
     verdict = answer.get("verdict")
@@ -205,12 +246,12 @@ def _judged(answer: dict[str, Any], attempt: str, most: int) -> dict[str, Any] |
         "notes": _notes(answer.get("notes"), most),
         "hints": []
         if verdict == "right"
-        else _hints(answer.get("hints"), most, attempt.strip(), fixed),
+        else _hints(answer.get("hints"), most, attempt.strip(), fixed, language),
     }
 
 
 def clean_attempt(answer: dict[str, Any], request: AttemptRequest) -> dict[str, Any] | None:
-    judged = _judged(answer, request.attempt, MAX_NOTES)
+    judged = _judged(answer, request.attempt, MAX_NOTES, request.language)
     if judged is None:
         return None
     # A sentence that doesn't use the word isn't right, however good it is otherwise.
@@ -224,7 +265,7 @@ def clean_retell(answer: dict[str, Any], request: RetellRequest) -> dict[str, An
     """As `clean_attempt`, plus the text's words the retelling could have used, each kept only if it
     is in the text as written (with the line it's in) and not already in the retelling, and what it
     left out."""
-    judged = _judged(answer, request.attempt, MAX_RETELL_NOTES)
+    judged = _judged(answer, request.attempt, MAX_RETELL_NOTES, request.language)
     if judged is None:
         return None
     retold = request.attempt.casefold()

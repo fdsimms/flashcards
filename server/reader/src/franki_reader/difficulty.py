@@ -37,7 +37,8 @@ DEFAULT_FLOOR = STANDARD_FLOOR
 MAX_CEILING = 0.98
 
 # The check after reading steps easier only on the answers from this text and the last one that
-# had a check taken together (`engine.record_reading`), so one bad text can't: at least this many
+# had a check taken together (`engine.record_reading`), the last one only if it was written at the
+# level it's at now, so a step starts over, and so one bad text can't: at least this many
 # answers between them, and fewer than `CHECK_LOW` of them right. The app says low scores make the
 # next text easier (CHECK_MIN_ASKED in src/reader/check.ts, which tests/reader/check.test.ts keeps
 # equal to this).

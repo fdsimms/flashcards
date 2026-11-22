@@ -2,7 +2,7 @@ import { isOmnilanguage, makeCards } from '../core/cards';
 import { cardStateOf, withCardState, type CardState } from '../core/cardState';
 import { untiered } from '../core/deckTree';
 import { NOTE_GONE, Refusal } from '../core/failure';
-import { duplicateOf, notesStillThere } from '../core/noteEditing';
+import { checksDuplicate, duplicateOf, notesStillThere } from '../core/noteEditing';
 import { withMnemonic } from '../core/leechHint';
 import type { Card, Note, NoteType } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
@@ -74,10 +74,9 @@ export async function saveNote(store: NoteStore, draft: NoteDraft, now: Date = n
   // An edit can move the note to another deck; it can't change its note type.
   const note: Note = { id: draft.id ?? '', deck: draft.deck, model: existing?.model ?? draft.model, fields: draft.fields, tags: draft.tags };
   // A note whose first field another note of its type already has is refused, as Anki's duplicate
-  // check would flag it. An edit is checked only when it changes that field, so a note that was
-  // already a duplicate can still have its tags or deck changed.
+  // check would flag it (an edit only when it changes that field, `checksDuplicate`).
   const firstField = noteType?.fields[0] ?? Object.keys(draft.fields)[0];
-  if (firstField && !draft.allowDuplicate && (!existing || duplicateOf([existing], { deck: note.deck, model: note.model, fields: draft.fields }, firstField) === undefined)) {
+  if (firstField && !draft.allowDuplicate && checksDuplicate(existing, { deck: note.deck, model: note.model, fields: draft.fields }, firstField)) {
     const [all, cards] = await Promise.all([store.listNotes(), store.listCards()]);
     const other = duplicateOf(notesStillThere(all, cards), { id: existing?.id, deck: note.deck, model: note.model, fields: draft.fields }, firstField);
     if (other) throw new NoteRefused(`${untiered(other.deck)} already has a note with this ${firstField}, so this one wasn't saved.`);

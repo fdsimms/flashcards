@@ -122,6 +122,14 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   };
 
   const status = mine ? live : { playing: false, currentTime: 0, duration: 0 };
+  // Played to its end here: noted as heard, as the mini-player and Up Next note it (`logPlayed`), so a
+  // later lesson can ask for its phrases. Once per opening, so Loop's passes don't send it again.
+  const heardSent = useRef<number | null>(null);
+  useEffect(() => {
+    if (!mine || !live.didJustFinish || heardSent.current === lesson.id) return;
+    heardSent.current = lesson.id;
+    api.lessonHeard(lesson.id).catch(() => undefined);
+  }, [mine, live.didJustFinish, lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- `api` is the reader's, stable
   const duration = status.duration > 0 ? status.duration : lesson.duration_ms / 1000;
   const progress = progressOf(status.currentTime, duration);
 

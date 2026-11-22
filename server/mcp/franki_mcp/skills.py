@@ -32,6 +32,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
+from .omnilanguage import loose_spelling
 from .tools import READ, WRITE, _deck_id, search_text
 
 SKILL_CARDS_KEY = "frankiSkillCards"  # SKILL_CARDS_KEY in src/anki/skillSettings.ts
@@ -138,17 +139,27 @@ def _missing(col: Collection, language: str, off: tuple[str, ...]) -> list[dict[
 
 
 def _norm_word(w: str) -> str:
-    return unicodedata.normalize("NFC", w).lower().strip()
+    """A word as the app's `norm` compares it (src/tools/skillWords.ts): lowercase, then
+    `omnilanguage.loose_spelling`."""
+    return loose_spelling(unicodedata.normalize("NFC", w).lower()).strip()
 
 
 def _headwords(col: Collection, deck_name: str) -> set[str]:
-    """What the deck's own notes have as words (the skill words included, so one added already isn't added again): each note's Entry, and each word in it, as `knownAmong` reads them in the app (src/tools/skillWords.ts)."""
+    """What the deck's own notes have as words (the skill words included, so one added already isn't added again),
+    as `missingWordDrafts` and `knownAmong` read them in the app (src/anki/skillCards.ts, src/tools/skillWords.ts):
+    every note but the skill cards themselves, by its headword (an Omnilanguage note's Entry, any other's first
+    field, `headword` in src/core/forms.ts), and each word in it."""
     have: set[str] = set()
-    for nid in col.find_notes(f'"deck:{search_text(deck_name)}" "note:{search_text(WORD_NOTE_TYPE)}"'):
-        try:
-            entry = col.get_note(nid)["Entry"]
-        except KeyError:
+    for nid in col.find_notes(f'"deck:{search_text(deck_name)}"'):
+        note = col.get_note(nid)
+        if TAG in note.tags:
             continue
+        if note.note_type()["name"] == WORD_NOTE_TYPE:
+            if "Entry" not in note:
+                continue
+            entry = note["Entry"]
+        else:
+            entry = note.fields[0] if note.fields else ""
         text = _norm_word(re.sub(r"<[^>]*>", " ", entry))
         have.add(text)
         have.update(w for w in re.split(r"[\W_]+", text) if w)
@@ -359,7 +370,7 @@ def register(server: MCPServer, cm: CollectionManager) -> None:
                 off=was.off if skills_off is None else tuple(sorted(set(skills_off))),
             )
             save_settings(col, did, now)
-            changed = set_paused(col, name, not on) if on is not None else 0
+            changed = set_paused(col, name, not on) if on is not None and on != was.on else 0
             return {**_state(col, did, name, language), "cards_changed": changed}
 
         return await cm.write(run)

@@ -40,7 +40,7 @@ from franki_reader import (
     store,
 )
 from franki_reader.coverage import Checker, Coverage, parse_line
-from franki_reader.difficulty import Difficulty, after_reading
+from franki_reader.difficulty import Difficulty, after_reading, nearest_floor
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
     MODEL,
@@ -1143,15 +1143,21 @@ class Engine:
                 ),
             )
         # The check steers on this text's answers and the last text's together (difficulty.py), read
-        # before this reading is logged, so one text can't move the next ones by itself.
+        # before this reading is logged, so one text can't move the next ones by itself. Only a last
+        # text written at the level it's at now: a step starts over, so the answers that made it
+        # can't make the next one too.
         right, asked = reading.check_right, reading.check_asked
-        if text is not None and asked:
+        current = store.load_difficulty(self.conn, text.language) if text is not None else None
+        if text is not None and current is not None and asked:
             before = store.previous_check(self.conn, text.language, self.clock() - CHECK_WINDOW)
-            if before and right is not None:
+            if (
+                before
+                and right is not None
+                and nearest_floor(before[2]) == nearest_floor(current.floor)
+            ):
                 right, asked = right + before[0], asked + before[1]
         store.log_reading(self.conn, text_id, reading, self.clock())
-        if text is not None:
-            current = store.load_difficulty(self.conn, text.language)
+        if text is not None and current is not None:
             after = after_reading(current, right, asked)
             if after != current:
                 store.save_difficulty(self.conn, after, text.language)

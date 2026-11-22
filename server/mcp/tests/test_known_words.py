@@ -50,6 +50,19 @@ def test_a_form_the_note_lists_finds_it_and_the_entry_comes_first():
     assert i.look_up("strong, separable", "german") == []
 
 
+def test_russian_e_for_yo_and_greek_without_tone_marks_are_near_matches_not_the_word():
+    ru = index({"Entry": "ещё"}, {"Entry": "всё"}, {"Entry": "все"}, language="russian")
+    assert ru.look_up("еще", "russian") == [(1, "spelled differently")]
+    # A word the deck has as written is that word, and its look-alike isn't offered with it.
+    assert ru.look_up("все", "russian") == [(3, "entry")]
+    el = index({"Entry": "καλημέρα"}, language="greek")
+    assert el.look_up("ΚΑΛΗΜΕΡΑ", "greek") == [(1, "spelled differently")]
+    assert el.look_up("καλημέρα", "greek") == [(1, "entry")]
+    # Other languages keep their accents: é is a letter of its own in French.
+    fr = index({"Entry": "été"}, language="french")
+    assert fr.look_up("ete", "french") == []
+
+
 def test_the_forms_table_and_its_alternatives_are_matched_without_a_bracket():
     i = index({"Entry": "esperar", "Forms": "present · yo: espero<br>preterite · tú: esperaste / esperastes (rare)"},
               language="spanish")

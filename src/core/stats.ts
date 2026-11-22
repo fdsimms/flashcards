@@ -39,6 +39,8 @@ export interface Answer {
   /** The deck it was given in, when Franki logged it (`ReviewLogEntry.deck`). */
   deck?: string;
   takenMs: number;
+  /** Read from the kept collection's review log, so Anki's "studied today" counts have it too (`studiedToday`). */
+  inCollection?: boolean;
 }
 
 /** An Anki review log row (`revlog`), as stats need it. */
@@ -94,6 +96,7 @@ export function answersFrom(input: { revlog: RevlogRow[]; reviews: ReviewLogEntr
       preview: r.type === 3,
       deck: deckOf(cardId, r.id),
       takenMs: r.time,
+      inCollection: true,
     });
   }
   for (const r of input.reviews) {

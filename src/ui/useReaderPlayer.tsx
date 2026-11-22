@@ -87,8 +87,11 @@ export interface ReaderPlayerHost {
   handOffLesson: (lesson: AudioLesson) => void;
   /** A lesson's screen opened: true when it's the lesson carrying on, which then plays on under the screen instead of stopping. */
   resumeLesson: (id: number) => boolean;
-  /** The reader closed on Play all: carry on from `handoff`. */
-  handOff: (api: Api, handoff: Handoff, breakTo?: number) => void;
+  /**
+   * The reader closed on Play all: carry on from `handoff`. `start`: its line hadn't begun sounding
+   * yet (closed in the gap between two lines), so the host starts it; the reader has dropped its own start.
+   */
+  handOff: (api: Api, handoff: Handoff, breakTo?: number, start?: boolean) => void;
   /** The reader closed without Play all: stop what it was playing. */
   release: () => void;
   toggle: () => void;
@@ -299,7 +302,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     return true;
   }, []);
 
-  const handOff = useCallback((api: Api, handoff: Handoff, breakTo?: number) => {
+  const handOff = useCallback((api: Api, handoff: Handoff, breakTo?: number, start = false) => {
     listener.current?.remove();
     carryingLesson.current = null;
     carrying.current = { api, handoff, breakTo };
@@ -310,7 +313,9 @@ function useReaderPlayer(): ReaderPlayerHost {
     beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)), looping: handoff.loop }, () => buttons.current);
     setTrackCommands(true);
     queue.current?.carried({ kind: 'text', handoff });
-  }, [onStatus, show]);
+    // Closed between two lines: the next one is this host's to start, with the lock screen's buttons its own.
+    if (start) void playLine(handoff.current);
+  }, [onStatus, show, playLine]);
 
   const playText = useCallback((api: Api, handoff: Handoff) => {
     listener.current?.remove();

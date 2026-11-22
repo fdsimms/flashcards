@@ -111,6 +111,14 @@ describe('planExtras', () => {
     expect(planExtras(input({ prefs: { drills: false, read: false } })).extras).toEqual([]);
   });
 
+  it('takes being turned off or on the same study day', () => {
+    const plan = planExtras(input());
+    expect(plan.extras.length).toBeGreaterThan(0);
+    const off = planExtras(input({ prefs: { on: false }, state: { ...EMPTY_EXTRA_STATE, plan } }));
+    expect(off.extras).toEqual([]);
+    expect(planExtras(input({ state: { ...EMPTY_EXTRA_STATE, plan: off } })).extras).toEqual(plan.extras);
+  });
+
   it('keeps the day\'s plan once made, whatever is done after', () => {
     const plan = planExtras(input());
     const state = recordRead({ ...EMPTY_EXTRA_STATE, plan }, plan.extras[0].language, NOW.getTime());

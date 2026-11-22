@@ -65,7 +65,9 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'deckSkills', page: 'deck', label: 'Skill cards', keywords: ['drills', 'times', 'numbers', 'dates', 'prices', 'money', 'letters', 'consonants', 'vowels', 'classifiers', 'cases'], route: DECK_OPTIONS_LIST },
   { id: 'deckPriority', page: 'deck', label: 'Tagged cards first', keywords: ['priority', 'tags'], route: DECK_OPTIONS_LIST },
   { id: 'deckFonts', page: 'deck', label: 'Card fonts', keywords: ['font', 'typeface', 'script'], route: DECK_OPTIONS_LIST },
+  { id: 'deckDailyLimits', page: 'deck', label: 'New cards a day', keywords: ['most reviews a day', 'daily limits', 'maximum'], route: DECK_OPTIONS_LIST },
   { id: 'deckForms', page: 'deck', label: 'Forms practice', keywords: ['conjugation', 'declension', 'grammar'], route: DECK_OPTIONS_LIST },
+  { id: 'deckAspect', page: 'deck', label: 'Ask imperfective or perfective', keywords: ['verb aspect', 'russian', 'polish'], route: DECK_OPTIONS_LIST },
   { id: 'deckLookalikes', page: 'deck', label: 'Lookalike words', keywords: ['confused', 'similar', 'apart', 'sooner'], route: DECK_OPTIONS_LIST },
   { id: 'deckRecordings', page: 'deck', label: 'Record audio', keywords: ['recordings', 'azure', 'voice'], route: DECK_OPTIONS_LIST },
 

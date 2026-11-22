@@ -60,7 +60,10 @@ describe('mapping an answer to Anki', () => {
 
   it('keeps a card answered in a filtered deck there while it learns, and sends it home as a review', () => {
     const learning: Card = { ...card, sched: review(card.sched, 3, now).sched };
-    expect(cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 99, odid: 5, queue: 1 });
+    const kept = cardUpdate(learning, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now });
+    expect(kept).toMatchObject({ did: 99, odid: 5, queue: 1 });
+    // Anki writes the new due into odue too while it stays (checked with Anki 26.09's own scheduler).
+    expect(kept.odue).toBe(kept.due);
     const graduated: Card = { ...card, sched: review(card.sched, 4, now).sched };
     expect(cardUpdate(graduated, row({ did: 99, odid: 5, odue: 40 }), { clock: CLOCK, now })).toMatchObject({ did: 5, odid: 0, odue: 0, queue: 2 });
   });
