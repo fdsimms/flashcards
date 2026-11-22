@@ -163,8 +163,10 @@ def test_feedback_keeps_the_learners_lines_and_words_worth_adding() -> None:
                 "verdict": "almost",
                 "corrected": "ขอ มะม่วง ครับ",
                 "note": "Mango is มะม่วง.",
+                "heard": "ขอ มะม่วง ครับ",
+                "meant": "I would like mango.",
             },
-            {"index": 2, "verdict": "right", "corrected": "ค่ะ", "note": "Fine."},
+            {"index": 2, "verdict": "right", "corrected": "ค่ะ", "note": "Fine.", "heard": "ครับ"},
             {"index": 0, "verdict": "right", "corrected": "x", "note": "Not theirs."},
             {"index": 1, "verdict": "right", "corrected": "dup", "note": "Twice."},
         ],
@@ -177,8 +179,23 @@ def test_feedback_keeps_the_learners_lines_and_words_worth_adding() -> None:
     }
     cleaned = clean_feedback(answer, conversation, CHECKER)
     assert cleaned["lines"] == [
-        {"index": 1, "verdict": "almost", "corrected": "ขอ มะม่วง ครับ", "note": "Mango is มะม่วง."},
-        {"index": 2, "verdict": "right", "corrected": "ครับ", "note": "Fine."},
+        {
+            "index": 1,
+            "verdict": "almost",
+            "corrected": "ขอ มะม่วง ครับ",
+            "note": "Mango is มะม่วง.",
+            "heard": "ขอ มะม่วง ครับ",
+            "meant": "I would like mango.",
+        },
+        # A reading that is only the line again is dropped, and a missing `meant` is empty.
+        {
+            "index": 2,
+            "verdict": "right",
+            "corrected": "ครับ",
+            "note": "Fine.",
+            "heard": "",
+            "meant": "",
+        },
     ]
     assert [w["word"] for w in cleaned["words"]] == ["มะม่วง", "ทุเรียน"]
 
@@ -404,7 +421,16 @@ def test_feedback_is_cleaned_and_its_cost_kept() -> None:
         headers=AUTH,
     )
     assert got.json() == {
-        "lines": [{"index": 1, "verdict": "right", "corrected": "ครับ", "note": "Good."}],
+        "lines": [
+            {
+                "index": 1,
+                "verdict": "right",
+                "corrected": "ครับ",
+                "note": "Good.",
+                "heard": "",
+                "meant": "",
+            }
+        ],
         "words": [],
     }
     only_theirs = {"language": "th", "scene": SCENE, "roles": roles, "lines": lines[:1]}
@@ -567,3 +593,12 @@ def test_a_tutor_conversation_sets_the_other_person_as_the_learners_tutor() -> N
     assert "own tutor" in play_intro(tutor)
     assert "their tutor" in conversation_message(tutor)
     assert "their tutor" not in conversation_message(plain)
+
+
+def test_thai_feedback_reads_romanization_by_sound() -> None:
+    from franki_reader.situations import feedback_system
+
+    thai = feedback_system(talk(("you", "Sawatdii khrap")))
+    assert "never mark a line down" in thai
+    other = feedback_system(Conversation("de", SCENE, None, (Line("you", "Hallo"),)))
+    assert "never mark a line down" not in other
