@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -612,17 +612,20 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         <Stack.Toolbar.Button icon="ellipsis.circle" accessibilityLabel="More: stop cramming this word, open on wanikani.com or WaniKani's options" onPress={returnMenu} />
       </Stack.Toolbar>
     );
+    const revealReturn = () => { Keyboard.dismiss(); setRevealed(true); if (prefs.autoplay && (asked === 'reading' || asked === 'both')) play(audioUrl(returnSubject)); };
     const returnFooter = revealed ? (
       <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
         <RateButton label="Missed it" detail="Extra pass" color={c.again} onPress={() => answerReturn(id, false)} />
         <RateButton label="Got it" detail="Extra pass" color={c.good} onPress={() => answerReturn(id, true)} />
       </Reveal>
-    ) : <Button label="Show answer" onPress={() => { Keyboard.dismiss(); setRevealed(true); if (prefs.autoplay && (asked === 'reading' || asked === 'both')) play(audioUrl(returnSubject)); }} />;
+    ) : <Button label="Show answer" onPress={revealReturn} />;
     return (
       <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
         <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
           {countRow}
           <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+          {/* Tapping the card shows the answer. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
+          <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); revealReturn(); }} style={{ flex: 1 }}>
           <CardSurface color={subjectColor(c, returnSubject.type)} top={cardTop}>
             <CardContent
               subject={returnSubject}
@@ -638,6 +641,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             <QuestionBand kind={asked === 'lesson' ? 'both' : asked} />
             {answerFlash.overlay}
           </CardSurface>
+          </Pressable>
         </Screen>
       </View>
     );
@@ -692,6 +696,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const againDetail = item.lesson ? 'Asked again' : outcomeText(nextStage(item.srsStage, wrong + 1, system), system);
 
   let footer: React.ReactNode;
+  let tapToShow = false;
   if (lesson) {
     // The last lesson of a batch leads into its quiz.
     footer = <Button label={study.session.queue[1]?.kind === 'lesson' ? 'Next' : 'Start the quiz'} onPress={() => answer(true)} />;
@@ -755,6 +760,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     );
   } else if (!revealed) {
     footer = <Button label="Show answer" onPress={reveal} />;
+    tapToShow = true;
   } else {
     footer = (
       <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
@@ -781,6 +787,8 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
         ) : null}
         {droppedNote()}
         <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+        {/* Tapping the card shows the answer where the footer says Show answer (not a typed question, a lesson or the rating step). Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
+        <Pressable accessible={false} disabled={!tapToShow} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
         <CardSurface color={subjectColor(c, subject.type)} top={cardTop}>
           <CardContent
             subject={subject}
@@ -809,6 +817,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {panel ? <MnemonicsPanel subject={subject} showMeaning={showMeaning} showReading={showReading} onClose={() => setPanel(false)} /> : null}
           {answerFlash.overlay}
         </CardSurface>
+        </Pressable>
       </Screen>
     </View>
   );
