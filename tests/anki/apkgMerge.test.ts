@@ -190,16 +190,15 @@ describe('what the screen says about a deck package', () => {
     decks: ['🧠 Trivia', '🧠 Trivia::Geography'], newDecks: ['🧠 Trivia::Geography'], newNoteTypes: ['Vocab'],
   };
 
-  it('previews what it adds, and with sync on, that a new note type needs a full upload', () => {
-    expect(deckPackagePreviewText(plan, 1, true)).toBe(
+  it('previews what it adds', () => {
+    // A new note type goes up in a normal sync (the merge needs the collation that allows it), so there's no full upload to warn of.
+    expect(deckPackagePreviewText(plan, 1)).toBe(
       'Adds 3 new notes (3 cards, 3 past reviews) to 🧠 Trivia and 🧠 Trivia::Geography. 4 notes are already here and stay as they are.\n\n'
-      + 'New deck: 🧠 Trivia::Geography. New note type: Vocab. Also adds 1 image or sound.\n\n'
-      + "Because it adds a note type, the next sync asks whether to upload Franki's whole collection. Sync now first, so nothing on the server is lost.",
+      + 'New deck: 🧠 Trivia::Geography. New note type: Vocab. Also adds 1 image or sound.',
     );
-    expect(deckPackagePreviewText({ ...plan, newNoteTypes: [], newDecks: [] }, 0, true)).toBe(
+    expect(deckPackagePreviewText({ ...plan, newNoteTypes: [], newDecks: [] }, 0)).toBe(
       'Adds 3 new notes (3 cards, 3 past reviews) to 🧠 Trivia and 🧠 Trivia::Geography. 4 notes are already here and stay as they are.',
     );
-    expect(deckPackagePreviewText(plan, 0, false)).not.toContain('sync');
   });
 
   it('reports what it added, a package with nothing new, and a media file it kept', () => {

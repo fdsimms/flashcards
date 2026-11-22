@@ -44,7 +44,7 @@ export interface DeckPackagePlan {
   /** The decks the new notes' cards go into ("A::B"), and those of them the collection doesn't have yet. */
   decks: string[];
   newDecks: string[];
-  /** Note types added to the collection. A note type changed here can only reach the server by a full upload. */
+  /** Note types added to the collection. A sync sends them as Anki's own does (`applyChanges`), with the collation the merge needs. */
   newNoteTypes: string[];
 }
 
@@ -289,7 +289,7 @@ const count = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : 
 const list = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 /** The preview's message: what importing the package adds, and what it leaves as it is. */
-export function deckPackagePreviewText(plan: DeckPackagePlan, media: number, syncOn: boolean): string {
+export function deckPackagePreviewText(plan: DeckPackagePlan, media: number): string {
   const here = plan.alreadyHere ? ` ${count(plan.alreadyHere, 'note is', 'notes are')} already here and stay as ${plan.alreadyHere === 1 ? 'it is' : 'they are'}.` : '';
   const paras = [
     plan.newNotes
@@ -302,9 +302,6 @@ export function deckPackagePreviewText(plan: DeckPackagePlan, media: number, syn
     media ? `Also adds ${count(media, 'image or sound', 'images and sounds')}.` : '',
   ].filter(Boolean);
   if (adds.length) paras.push(adds.join(' '));
-  if (syncOn && plan.newNoteTypes.length) {
-    paras.push(`Because it adds a note type, the next sync asks whether to upload Franki's whole collection. Sync now first, so nothing on the server is lost.`);
-  }
   return paras.join('\n\n');
 }
 
