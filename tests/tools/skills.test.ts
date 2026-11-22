@@ -262,6 +262,9 @@ describe('the five additions', () => {
     expect(suggestedRating([true, true, true], [9000, 7000, 1000], 'time')).toBe(2);
     expect(suggestedRating([true, false, true], [1000, 1000, 1000], 'time')).toBe(2);
     expect(suggestedRating([true, true, true], [9000, 9000, 9000])).toBe(3);
+    // With Hard turned off the suggestion names a button that is there.
+    expect(suggestedRating([true, false, true], [1000, 1000, 1000], 'time', false)).toBe(1);
+    expect(suggestedRating([true, true, true], [9000, 7000, 1000], 'time', false)).toBe(3);
   });
 
   it('takes a spoken answer said any accepted way, or as the digits the phone wrote', () => {
