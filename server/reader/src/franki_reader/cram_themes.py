@@ -39,6 +39,10 @@ from franki_reader.reader import gloss_for
 from franki_reader.register import DEFAULT, Register, instruction
 
 MAX_TOKENS = 6000
+# One ask gives up after this long and is not retried by the SDK (it would wait 10 minutes, twice
+# more): the screen shows "Try again" instead of "Thinking of themes" for minutes. The check's
+# second ask is the only retry, so the longest a tap can take is about twice this.
+REQUEST_TIMEOUT_SECONDS = 60.0
 # How many themes are offered at once, and the most each one carries.
 COUNT = 3
 MAX_TITLE = 60
@@ -595,7 +599,9 @@ def claude_themes(client: anthropic.AsyncAnthropic) -> WriteThemes:
             }
         )
         try:
-            response = await client.beta.messages.create(
+            response = await client.with_options(
+                timeout=REQUEST_TIMEOUT_SECONDS, max_retries=0
+            ).beta.messages.create(
                 model=CHEAP_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=system,
