@@ -89,7 +89,7 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
   );
 
   return (
-    <Screen title="Anki options">
+    <Screen title="Anki options" footer={preset && form ? <Button label="Save" onPress={save} disabled={!changed} busy={busy} /> : undefined}>
       {!preset || !form ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
           <Help>{presetIntro(preset.presetName)}</Help>
@@ -123,7 +123,6 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
               );
             })}
           </Card>
-          <Button label="Save" onPress={save} disabled={!changed} busy={busy} />
         </ScrollView>
       )}
     </Screen>
