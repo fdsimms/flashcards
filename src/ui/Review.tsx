@@ -1587,7 +1587,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
       {drill && skill.question ? (
         <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
-          <SkillDrillCard skill={skill} revealed={revealed} />
+          <SkillDrillCard skill={skill} revealed={revealed} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />
         </SwipeCard>
       ) : null}
       {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
