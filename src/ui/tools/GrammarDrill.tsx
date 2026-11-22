@@ -16,7 +16,7 @@ import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../t
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { TranslationRow } from '../TranslationRow';
-import { usePhoneSpeech } from '../usePhoneSpeech';
+import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 
 type AnswerMode = 'pick' | 'type';
@@ -128,8 +128,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
 
   // The whole sentence with its answer in, so it isn't read before the question is answered.
   const say = (p: DrillPrompt) => {
-    Speech.stop();
-    speech.sayWord(p.before + p.middle + p.after, promptSpeech(p));
+    void stopSpeechIfRunning().then(() => speech.sayWord(p.before + p.middle + p.after, promptSpeech(p)));
   };
   const answer = async (given: string, picked: boolean) => {
     if (current || busy.current || answeredIndex.current === index) return;
