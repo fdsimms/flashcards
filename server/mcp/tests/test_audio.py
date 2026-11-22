@@ -67,6 +67,20 @@ async def test_a_multilingual_voice_is_told_the_texts_language(client, azure):
         client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice=VOICE, language="Thai")
 
 
+async def test_ipa_from_a_field_is_said_in_the_texts_place(client, azure):
+    await call(client, "update_notes", updates=[{"note_id": BOOK, "fields": {"Back": "/naŋ.sɯ̌ː/"}},
+                                                {"note_id": WATER, "fields": {"Back": "//"}}])
+    out = await call(client, "add_tts_audio", note_ids=[BOOK, WATER], source_fields=["Front"], target_field="Back",
+                     voice=VOICE, ipa_field="Back", preview=True)
+    book, water = out["preview"]
+    assert book["ipa"] == "naŋ.sɯ̌ː" and "no IPA to read" in water["error"]
+    out = await call(client, "add_tts_audio", note_ids=[BOOK], source_fields=["Front"], target_field="Back",
+                     voice=VOICE, ipa_field="Back")
+    assert "<phoneme alphabet='ipa' ph='naŋ.sɯ̌ː'>หนังสือ</phoneme>" in azure.requests[0].content.decode()
+    # Named apart from the same text recorded without it.
+    assert out["results"][0]["audio"] == audio_filename("หนังสือ", VOICE, 1.0, ipa="naŋ.sɯ̌ː") != audio_filename("หนังสือ", VOICE, 1.0)
+
+
 async def test_says_what_went_wrong(client, azure):
     assert "Up to 10" in await call_error(client, "add_tts_audio", note_ids=list(range(11)), source_fields=["Front"], target_field="Back", voice=VOICE)
     assert "isn't an Azure voice" in await call_error(client, "add_tts_audio", note_ids=[WATER], source_fields=["Front"], target_field="Back", voice="Premwadee")

@@ -82,6 +82,16 @@ def test_a_japanese_part_says_its_reading_in_the_texts_place() -> None:
     assert "<sub" not in ssml("今日", "ja-JP-NanamiNeural")
 
 
+def test_a_part_with_ipa_says_it_in_the_texts_place() -> None:
+    out = ssml_parts([Part("jan", "es-MX-JorgeNeural", ipa="jan")])
+    assert "<prosody rate='+0%'><phoneme alphabet='ipa' ph='jan'>jan</phoneme></prosody>" in out
+    # Escaped in the attribute, and it takes the place of a Japanese reading and Thai's rewrites.
+    assert "ph='a&apos;&lt;'" in ssml_parts([Part("x", "es-MX-JorgeNeural", ipa="a'<")])
+    japanese = ssml_parts([Part("今日", "ja-JP-NanamiNeural", reading="こんにち", ipa="kʲoː")])
+    assert "<sub" not in japanese and "ph='kʲoː'>今日</phoneme>" in japanese
+    assert "<break" not in ssml_parts([Part("ไป กิน", "th-TH-PremwadeeNeural", ipa="paj kin")])
+
+
 def test_ssml_sets_the_speed() -> None:
     assert "<prosody rate='-20%'>" in ssml("x", VOICE, 0.8)
 

@@ -149,10 +149,13 @@ class SpeechClient:
         rate: float = 1.0,
         language: str | None = None,
         reading: str | None = None,
+        ipa: str | None = None,
     ) -> bytes:
         """`synthesize_parts` for a line in one voice. `reading` is said in the text's place, in
-        Japanese only (`Part.reading`)."""
-        return await self.synthesize_parts([Part(text, voice, reading=reading)], rate, language)
+        Japanese only (`Part.reading`); `ipa` is, in any language (`Part.ipa`)."""
+        return await self.synthesize_parts(
+            [Part(text, voice, reading=reading, ipa=ipa)], rate, language
+        )
 
     async def speak(
         self, text: str, voice: str, rate: float = 1.0, language: str | None = None
@@ -346,12 +349,15 @@ class Part:
     (a child's voice is the same voice a little higher); 0 leaves it as it is. `reading` is what a
     Japanese voice says in the text's place, in kana (今日 meant as こんにち), with SSML's <sub
     alias>: Japanese's phonemes would need a pitch accent no reading carries. Ignored in any other
-    language."""
+    language. `ipa` is said in the text's place instead, as IPA, with SSML's <phoneme>: for a word the
+    voice misreads, or a language it doesn't speak. The voice can only make its own language's
+    sounds, so IPA it has no sound for is said as near as it can, or not at all."""
 
     text: str
     voice: str
     pitch: int = 0
     reading: str | None = None
+    ipa: str | None = None
 
 
 def ssml(text: str, voice: str, rate: float = 1.0, language: str | None = None) -> str:
@@ -385,10 +391,17 @@ def _voice_element(part: Part, rate: float, language: str | None) -> str:
     if language is not None and is_multilingual(voice):
         spoken_in = text_locale(language)
     body = escape(part.text)
-    if part.reading and spoken_in.split("-")[0] == "ja":
+    if part.ipa:
+        # Microsoft's "Pronunciation with SSML" page (speech-synthesis-markup-pronunciation, the
+        # phoneme element), as it was described when this was written: alphabet='ipa' and the IPA
+        # in ph, around the text it replaces. Unchecked against a live key: if Azure refuses it,
+        # look here first. It replaces the text, so the Japanese and Thai rewrites below don't apply.
+        ph = escape(part.ipa, {"'": "&apos;"})
+        body = f"<phoneme alphabet='ipa' ph='{ph}'>{body}</phoneme>"
+    elif part.reading and spoken_in.split("-")[0] == "ja":
         alias = escape(part.reading, {"'": "&apos;"})
         body = f"<sub alias='{alias}'>{body}</sub>"
-    if spoken_in.split("-")[0] == "th":
+    elif spoken_in.split("-")[0] == "th":
         body = _THAI_CONJUNCTION.sub("", body)
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
         for word, alias in THAI_PRONUNCIATIONS.items():
