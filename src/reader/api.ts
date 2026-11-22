@@ -14,6 +14,7 @@ import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
 import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
+import type { CramReport } from '../core/cramsReport';
 
 /**
  * Where Read & Listen's server is: beside the Anki sync server, under /reader on the same domain
@@ -671,6 +672,8 @@ export function createApi(
     settings: () => call<Settings>('GET', '/api/settings'),
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).
     reportCounts: (counts: { due: number; new: number }) => call<void>('PUT', '/api/franki-counts', counts),
+    // The open crams for dundundun (src/core/cramsReport.ts); an empty list takes them all away.
+    reportCrams: (crams: CramReport[]) => call<void>('PUT', '/api/franki-crams', { crams }),
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
     // null while the server is still writing the text (202): ask again in a few seconds, and
     // `onStage` is told where the write has got to (undefined from a server older than stages).

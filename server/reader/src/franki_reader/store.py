@@ -6,7 +6,7 @@ import logging
 import sqlite3
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
@@ -1536,6 +1536,52 @@ def load_franki_counts(conn: sqlite3.Connection) -> FrankiCounts | None:
     try:
         v = json.loads(raw)
         return FrankiCounts(int(v["due"]), int(v["new"]), datetime.fromisoformat(v["reported_at"]))
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+FRANKI_CRAMS_KEY = "franki_crams"
+
+
+@dataclass(frozen=True)
+class FrankiCram:
+    """One of Franki's crams (Practice, Cram: the plan for a day coming up, a lesson or a trip), as
+    Franki last reported it for dundundun's cram tasks. Kept only on the phone otherwise; this is
+    the copy dundundun reads. Instants are as Franki sent them (ISO, with their offset)."""
+
+    id: str
+    name: str
+    date: str  # YYYY-MM-DD, its day
+    ends_at: str  # when its day ends: practice runs until then
+    practiced_at: str | None  # when its latest practice round ended
+    finished_at: str | None  # when its Finish was pressed
+
+
+@dataclass(frozen=True)
+class FrankiCrams:
+    crams: list[FrankiCram]
+    reported_at: datetime  # naive UTC, the engine's clock
+
+
+def save_franki_crams(conn: sqlite3.Connection, crams: FrankiCrams) -> None:
+    value = {
+        "crams": [asdict(c) for c in crams.crams],
+        "reported_at": crams.reported_at.isoformat(),
+    }
+    with conn:
+        _set_meta(conn, FRANKI_CRAMS_KEY, json.dumps(value))
+
+
+def load_franki_crams(conn: sqlite3.Connection) -> FrankiCrams | None:
+    """The crams Franki last reported, or None if it never has."""
+    raw = _get_meta(conn, FRANKI_CRAMS_KEY)
+    if not raw:
+        return None
+    try:
+        v = json.loads(raw)
+        return FrankiCrams(
+            [FrankiCram(**c) for c in v["crams"]], datetime.fromisoformat(v["reported_at"])
+        )
     except (ValueError, KeyError, TypeError):
         return None
 

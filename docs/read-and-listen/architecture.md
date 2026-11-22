@@ -1683,9 +1683,17 @@ in the current language, with when one was last read to the end. Nothing else le
   language. A study day is the 24 hours before a cutoff, as Anki's own statistics count them.
 - **Franki's own counts** (`franki`): Anki can't count new cards the way Franki does, so the app
   sends its deck list's totals (`deckListTotals`, the header's numbers) after each recount while
-  its "Share today's counts" setting is on (`useCountsReport`, off by default), to
+  its "Share today's counts and crams" setting is on (`useCountsReport`, off by default), to
   `PUT /api/franki-counts` with the passphrase. Status shows the last report only when it was
   made since today's study day began; an older one says nothing about today.
+- **Franki's crams** (`franki_crams`): crams live only on the phone, so under the same setting the
+  app sends every cram not yet finished, and one finished today (`cramsReport`, `useCramsReport`),
+  to `PUT /api/franki-crams`, each with its name, day, when its day ends, when it was last
+  practiced and when it was finished. Each report replaces the last, and turning the setting off
+  sends an empty list. Status shows the last report whatever day it was made (crams change only
+  while Franki is open), and `null` before the first, which dundundun reads as "not known" rather
+  than "none". dundundun writes a practice task each day one runs and a check-off task once its day
+  is over, mirroring Franki's own Today cards.
 - **It only reads**, under the same lock and the same 45-second limit as the lexicon
   (`due_with_timeout`), and a read leaves nothing to send (`tests/test_collection.py`). It writes no
   texts: a shelf that's empty says `waiting: 0`.

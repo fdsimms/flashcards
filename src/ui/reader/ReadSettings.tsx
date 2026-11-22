@@ -21,7 +21,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   onSignedIn: (passphrase: string) => void;
   onSignOut: () => void;
   onSyncSetup: () => void;
-  /** Whether the deck list's counts are sent to the server for dundundun. */
+  /** Whether the deck list's counts and the crams are sent to the server for dundundun. */
   shareCounts: boolean;
   onShareCounts: (on: boolean) => void;
 }) {
@@ -105,11 +105,12 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
           <>
             <SectionTitle>dundundun</SectionTitle>
             <Group>
-              <SwitchRow first label="Share today's counts" value={shareCounts} onValueChange={onShareCounts} />
+              <SwitchRow first label="Share today's counts and crams" value={shareCounts} onValueChange={onShareCounts} />
             </Group>
             <Help>
               Sends how many cards are due and how many new cards are left today, as the deck list shows them, to your
-              server after each sync. dundundun's Franki task reads them there. Nothing else is sent.
+              server after each sync, and each cram's name, date, and when you last practiced it. dundundun's Franki
+              tasks read them there. Nothing else is sent.
             </Help>
           </>
         ) : null}

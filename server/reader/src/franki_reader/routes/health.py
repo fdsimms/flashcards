@@ -1,11 +1,11 @@
 """Whether the server is up and the passphrase right, the status another app reads
-(/api/status), and the deck list counts the app reports for it."""
+(/api/status), and the deck list counts and crams the app reports for it."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from franki_reader import read_plan, store
 from franki_reader.gateway import AnkiUnavailable
@@ -18,6 +18,21 @@ class FrankiCountsIn(BaseModel):
     # The deck list's totals across the top-level decks: due (reviews and learning) and new.
     due: int = Field(ge=0, le=1_000_000)
     new: int = Field(ge=0, le=1_000_000)
+
+
+class FrankiCramIn(BaseModel):
+    # One open cram (src/core/cramsReport.ts in the app): instants are ISO with their offset.
+    id: str = Field(min_length=1, max_length=200)
+    name: str = Field(min_length=1, max_length=200)
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    ends_at: AwareDatetime
+    practiced_at: AwareDatetime | None = None
+    finished_at: AwareDatetime | None = None
+
+
+class FrankiCramsIn(BaseModel):
+    # Every cram the app reports, replacing the last list; empty takes them all away.
+    crams: list[FrankiCramIn] = Field(max_length=50)  # the app's MAX_REPORTED_CRAMS
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -54,6 +69,9 @@ def router(ctx: AppContext) -> APIRouter:
         # Only today's: yesterday's new cards left say nothing about today's.
         if reported and reported.reported_at.replace(tzinfo=UTC) < day_starts_at:
             reported = None
+        # Unlike the counts, crams are kept whatever day they were sent: they change only when
+        # Franki is open, and one practiced today is still running tomorrow.
+        crams = store.load_franki_crams(engine.conn)
 
         def naive_utc(at: datetime) -> datetime:
             return at.astimezone(UTC).replace(tzinfo=None)
@@ -129,12 +147,55 @@ def router(ctx: AppContext) -> APIRouter:
                 if reported
                 else None
             ),
+            # null until Franki first reports, which is not the same as no crams.
+            "franki_crams": (
+                {
+                    "crams": [
+                        {
+                            "id": c.id,
+                            "name": c.name,
+                            "date": c.date,
+                            "ends_at": c.ends_at,
+                            "practiced_at": c.practiced_at,
+                            "finished_at": c.finished_at,
+                        }
+                        for c in crams.crams
+                    ],
+                    "reported_at": instant(crams.reported_at),
+                }
+                if crams
+                else None
+            ),
         }
 
     @routes.put("/api/franki-counts", status_code=204, dependencies=authed)
     async def franki_counts(body: FrankiCountsIn) -> Response:
         store.save_franki_counts(
             engine.conn, store.FrankiCounts(body.due, body.new, engine.clock())
+        )
+        return Response(status_code=204)
+
+    @routes.put("/api/franki-crams", status_code=204, dependencies=authed)
+    async def franki_crams(body: FrankiCramsIn) -> Response:
+        def iso(at: datetime | None) -> str | None:
+            return instant(at.astimezone(UTC)) if at else None
+
+        store.save_franki_crams(
+            engine.conn,
+            store.FrankiCrams(
+                [
+                    store.FrankiCram(
+                        c.id,
+                        c.name,
+                        c.date,
+                        instant(c.ends_at.astimezone(UTC)),
+                        iso(c.practiced_at),
+                        iso(c.finished_at),
+                    )
+                    for c in body.crams
+                ],
+                engine.clock(),
+            ),
         )
         return Response(status_code=204)
 

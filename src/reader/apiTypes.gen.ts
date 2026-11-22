@@ -70,6 +70,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/franki-crams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Franki Crams */
+        put: operations["franki_crams_api_franki_crams_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/topics": {
         parameters: {
             query?: never;
@@ -1944,6 +1961,29 @@ export interface components {
             /** New */
             new: number;
         };
+        /** FrankiCramIn */
+        FrankiCramIn: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Practiced At */
+            practiced_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+        };
+        /** FrankiCramsIn */
+        FrankiCramsIn: {
+            /** Crams */
+            crams: components["schemas"]["FrankiCramIn"][];
+        };
         /** GivenIn */
         GivenIn: {
             /** Text */
@@ -2751,6 +2791,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["FrankiCountsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    franki_crams_api_franki_crams_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrankiCramsIn"];
             };
         };
         responses: {

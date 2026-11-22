@@ -140,7 +140,7 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
 function ReadRows({ readerOn, dailySummary, onOpen }: { readerOn: boolean; dailySummary: string | null; onOpen: (route: string) => void }) {
   return (
     <Group>
-      <NavRow first label="Server" detail={readerOn ? 'On. Turn off, or share counts with dundundun' : 'Off. Texts to read and listen to, written from your decks'} onPress={() => onOpen('/read-settings')} />
+      <NavRow first label="Server" detail={readerOn ? 'On. Turn off, or share counts and crams with dundundun' : 'Off. Texts to read and listen to, written from your decks'} onPress={() => onOpen('/read-settings')} />
       {readerOn ? (
         <>
           <NavRow label="Reading and listening" detail="Voices, highlighting, slow speed, meanings, word forms" onPress={() => onOpen('/read-listening')} />
