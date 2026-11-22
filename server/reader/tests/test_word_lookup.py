@@ -57,13 +57,13 @@ def test_clean_keeps_words_with_a_meaning_without_repeats_or_markup() -> None:
     assert len(clean(many)) == COUNT
 
 
-def test_the_lookup_asks_haiku_and_reads_the_words() -> None:
+def test_the_lookup_asks_sonnet_and_reads_the_words() -> None:
     text = json.dumps({"words": [{"entry": "торговаться", "meaning": "to bargain", "note": ""}]})
     fake = FakeClient(response("end_turn", text))
     words, used = finish(claude_word_lookup(fake)("ru", "to bargain"))  # type: ignore[arg-type]
     assert words == [FoundWord("торговаться", "to bargain", "")]
     assert used.output_tokens == 900
-    assert fake.calls[0]["model"] == "claude-haiku-5-5"
+    assert fake.calls[0]["model"] == "claude-sonnet-5-5"
     assert "Russian" in fake.calls[0]["system"]
 
 

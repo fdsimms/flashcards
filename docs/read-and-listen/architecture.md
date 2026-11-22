@@ -1153,11 +1153,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   Thinking counts against `max_tokens` (32,000), so a response cut off there is asked again once at `medium` effort with 48,000 (both calls are counted in the cost), and a story episode, which also returns a recap, plan and choices, starts at `medium` (16 November 2026, after episodes kept failing with "The response was cut off").
   `server/reader/src/franki_reader/generator.py`.
 - **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
-  IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
+  IPA, the vocabulary check and audio lesson content
   use `claude-haiku-5-5` (`CHEAP_MODEL`, about a twentieth of Sonnet's price). Haiku has no server-side
   refusal fallback, so those calls send none and treat `stop_reason: "refusal"` as a failed call, as
   they already did. Texts, drills, sentences, topics, the note queue, the writing check and Situations
-  stay on Sonnet, where a wrong answer is taught back to the learner. Watch the spot checks in
+  stay on Sonnet, where a wrong answer is taught back to the learner. Find word, Look up a word,
+  Fix a flagged card, memory hints, Explain and comprehension questions moved to Sonnet on
+  22 November 2026: Haiku missed words a learner asked for (it listed "tired" and "boring" but
+  not น่าเหนื่อย for "tiring"), and a miss in those is read by the learner as a Thai fact. Watch the spot checks in
   `/api/costs` and Russian word forms first.
 - **Written by** (15 November 2026, a trial): the write sheet (the shelf's +) has a Sonnet or Haiku switch,
   sent as `model` on `POST /api/shelf/write` (Sonnet when left out, 422 for any other model) and used
@@ -2075,7 +2078,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (`needsChoice`). Without Claude a word in Latin letters for such a language is refused on its row,
   saying why, except Japanese, where romaji turns into kana as it's typed (`asTyped`).
 - **Don't know the word?** (Quick add, with Claude): a meaning typed in English is sent to
-  `POST /api/word-lookup` (`word_lookup.py`, Haiku, one call per lookup, its cost kept as `word_lookup`),
+  `POST /api/word-lookup` (`word_lookup.py`, Sonnet, one call per lookup, its cost kept as `word_lookup`),
   and a word picked from what comes back is queued like a typed one. **Say it**: the field's microphone,
   when Settings, Speaking is on, puts what was heard in the field, through the same recognizer as
   Answer by speaking (`useSpokenAnswer`).
@@ -2149,7 +2152,7 @@ browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/cost
 
 The flag sheet (`src/ui/AgentFlagSheet.tsx`) has Fix with Claude now beside Flag for later, shown
 while Read & Listen is signed in. It flags the card as usual, then `POST /api/fix-card`
-(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Haiku,
+(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Sonnet,
 once, only on that tap. The server returns `{changes: {field: new html}, explanation}` and writes
 nothing: the app checks it again (`src/core/fixCard.ts`: only fields the note has, only ones that
 change, and no `[sound:]` or `<img>` reference dropped or added), shows each changed field old above

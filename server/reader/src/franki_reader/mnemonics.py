@@ -14,7 +14,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 COUNT = 3
@@ -101,11 +101,13 @@ def claude_mnemonics(client: anthropic.AsyncAnthropic) -> MakeMnemonics:
         messages = [{"role": "user", "content": request_message(request)}]
         try:
             response = await client.beta.messages.create(
-                model=CHEAP_MODEL,
+                model=MODEL,
                 max_tokens=MAX_TOKENS,
                 system=SYSTEM,
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise MnemonicsFailed(didnt_answer(e, ". Try again in a moment.")) from e

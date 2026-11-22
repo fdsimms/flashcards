@@ -17,7 +17,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
+from franki_reader.generator import MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
@@ -456,11 +456,13 @@ async def _ask(
     messages = [{"role": "user", "content": message}]
     try:
         response = await client.beta.messages.create(
-            model=CHEAP_MODEL,
+            model=MODEL,
             max_tokens=MAX_TOKENS,
             system=system,
             messages=cast(list[BetaMessageParam], messages),
             output_config=output_config,
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
         )
     except anthropic.APIError as e:
         raise ExplainFailed(
