@@ -754,7 +754,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
       // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
       const buriedIds = new Set(siblings.map((sb) => sb.id));
-      const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when);
+      const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when, [updated, ...buried]);
       const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
       // A marked card whose return is due comes up before the queue's next card (the queue is rebuilt as usual).
       const comesBack = !redo && !preview ? cram.answered(cur.id, rating, !next, usableAfter(new Map([updated, ...buried].map((cd) => [cd.id, cd])), pool)) : undefined;

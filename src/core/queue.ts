@@ -198,7 +198,9 @@ export function studiedToday(input: {
   const skillCards = skillCardIds(input.notes, input.cards);
   const out = new Map<string, StudiedToday>();
   // With Anki's counts, an Anki card's answers are counted from them below; a skill card's review is
-  // in them too, and comes off its deck's, as it uses no room.
+  // in them too, and comes off its deck's, as it uses no room. Only an answer the collection has
+  // (`inCollection`): one Franki couldn't write there (still owed, refused, or a card the collection
+  // no longer has) never reached its counts, and is counted from Franki's own row.
   const counted = input.ankiCounters ? new Set(input.cards.filter((c) => c.ankiId).map((c) => c.id)) : new Set<string>();
   const skillReviews = new Map<string, number>();
   for (const a of answersFrom(input)) {
@@ -209,7 +211,7 @@ export function studiedToday(input: {
     // Where it was answered, when that was a filtered deck the card has since left (`Answer.deck`).
     const deck = a.deck ?? deckOf.get(a.cardId);
     if (!deck) continue;
-    if (counted.has(a.cardId)) {
+    if (counted.has(a.cardId) && a.inCollection) {
       if (skillCards.has(a.cardId) && !a.wasNew && (a.kind === 'review' || a.interday)) skillReviews.set(deck, (skillReviews.get(deck) ?? 0) + 1);
       continue;
     }

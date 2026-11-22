@@ -92,12 +92,16 @@ export function useReviewForms(repo: Repo, input: {
     /** A seen word for lookalikes: called after each answer is written. */
     answered: (entry: ReviewLogEntry) => setRecent((r) => [...r, entry]),
     /**
-     * Whether `entry`, once `answered`, holds `card` back as a lookalike of the word just answered:
-     * `heldCards` for that one card, so Review can tell whether the queue rebuilt after an answer will have it.
+     * Whether `entry`, once `answered`, holds `card` back, as `held` will once the queue is rebuilt: as a
+     * lookalike of the word just answered (`heldCards` for that one card), or as a reverse card whose
+     * forward card the answer put back in progress (`heldReverseCards`, over `cards` as the answer left
+     * them, `changed`). So Review can tell whether the queue rebuilt after an answer will have it.
      */
-    holdsAfter: (entry: ReviewLogEntry, when: Date) => {
+    holdsAfter: (entry: ReviewLogEntry, when: Date, changed: readonly Card[]) => {
       const events = seenEvents([...recent, entry], noteOfCard, practice);
-      return (card: Card) => heldCards({ cards: [card], deckOf, index, events, settings: deckSettings, now: when, dayStartsAtHour: H }).size > 0;
+      const now = new Map(changed.map((c) => [c.id, c]));
+      const reverse = heldReverseCards((cards ?? []).map((c) => now.get(c.id) ?? c), notes.values());
+      return (card: Card) => reverse.has(card.id) || heldCards({ cards: [card], deckOf, index, events, settings: deckSettings, now: when, dayStartsAtHour: H }).size > 0;
     },
     /** An answer taken back: it no longer counts as seeing the word. */
     undone: (cardId: string) => setRecent((r) => {
