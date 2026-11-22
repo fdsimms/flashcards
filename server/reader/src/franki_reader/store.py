@@ -2032,9 +2032,10 @@ def finished_readings(
     conn: sqlite3.Connection, since: datetime, language: Code = "th"
 ) -> list[tuple[datetime, tuple[str, ...], tuple[str, ...], dict[str, str]]]:
     """Each text read to the end since `since`, oldest first: when (naive UTC, the engine's clock),
-    its lines as stored, the words tapped or marked in it, and its glosses (met.py)."""
+    its lines as stored, the words tapped or marked in it, and its glosses (met.py): its own, the
+    meanings asked for its words included (`own_glosses`), as the reader showed them."""
     rows = conn.execute(
-        """SELECT r.logged_at, x.lines, r.words_glossed, r.words_flagged, x.glosses FROM readings r
+        """SELECT r.logged_at, x.lines, r.words_glossed, r.words_flagged, x.glosses, x.meanings FROM readings r
            JOIN texts x ON x.id = r.text_id
            WHERE r.finished = 1 AND r.logged_at >= ? AND x.language = ? ORDER BY r.logged_at""",
         (since.isoformat(), language),
@@ -2044,9 +2045,9 @@ def finished_readings(
             datetime.fromisoformat(logged_at),
             tuple(ln["text"] for ln in json.loads(lines)),
             (*json.loads(glossed), *json.loads(flagged)),
-            json.loads(glosses),
+            own_glosses(json.loads(glosses), json.loads(meanings)),
         )
-        for logged_at, lines, glossed, flagged, glosses in rows
+        for logged_at, lines, glossed, flagged, glosses, meanings in rows
     ]
 
 

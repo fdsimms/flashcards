@@ -339,6 +339,11 @@ def test_a_marked_word_carries_the_meanings_asked_for_its_text(conn) -> None:  #
 
     [word] = marked_words(conn)
     assert word.glosses == {"ทอน": "change", "กิน": "to eat"}  # none for one given no meaning
+    # A finished reading's glosses carry them too, so a word looked up there can be met again (met.py).
+    from franki_reader.store import finished_readings
+
+    [(_, _, tapped, glosses)] = finished_readings(conn, NOW - timedelta(days=1))
+    assert "กิน" in tapped and glosses == {"ทอน": "change", "กิน": "to eat"}
     text = get_text(conn, text_id)
     assert text is not None and text.meanings == {"กิน": "to eat", "ครับ": ""}
 
