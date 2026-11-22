@@ -240,9 +240,15 @@ def play_intro(conversation: Conversation) -> str:
         notes.append(
             "The learner has prepared for this conversation:\n"
             f"{listed}\n"
-            "Ask them the questions they expect, in your own words and one at a time, leave room "
-            "for them to ask theirs and to say what they prepared, and react to what they say. "
-            "Never read this list out or mention that they prepared."
+            "This is background for you, not a script to get through. Have the conversation a "
+            "real person would: follow what the learner actually says, and answer or ask about "
+            "that before anything else. If they bring up something new, stay with it for as "
+            "long as it is natural. Only when the conversation has reached one of these topics "
+            "on its own, ask the question they expect about it, in your own words, and leave "
+            "room for them to ask theirs and tell their story. Never steer back to the list, "
+            "never change the subject to reach an item, and don't try to cover all of it: it is "
+            "fine if some of it never comes up. Never read this list out or mention that they "
+            "prepared."
         )
     if conversation.register != DEFAULT:
         notes.append(f"Register for your lines: {instruction(conversation.register)}")
