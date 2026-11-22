@@ -51,8 +51,8 @@ function CramCard({ repo, cram, now, dayStartsAtHour: H }: { repo: NoteStore; cr
         </View>
         {summary ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{summary}</Text> : null}
       </Pressable>
-      {collection.loaded && ids.length ? (
-        <Button label={practiceLabel(cram, ids)} variant={today ? 'secondary' : 'primary'} onPress={() => { haptic.tap(); router.push({ pathname: '/cram-round', params: { id: cram.id } }); }} />
+      {collection.loaded && (ids.length || cram.phrases?.length) ? (
+        <Button label={practiceLabel(cram, ids, cram.phrases?.length ?? 0)} variant={today ? 'secondary' : 'primary'} onPress={() => { haptic.tap(); router.push({ pathname: '/cram-round', params: { id: cram.id } }); }} />
       ) : null}
       {today ? <Button label="Start the lesson" onPress={() => { haptic.tap(); router.push({ pathname: '/cram-lesson', params: { id: cram.id } }); }} /> : null}
     </Card>

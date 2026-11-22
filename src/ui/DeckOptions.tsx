@@ -20,6 +20,7 @@ import { DeckDailyLimits } from './DeckDailyLimits';
 import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckNewCardOrder } from './DeckNewCardOrder';
+import { DeckBatchOptions } from './DeckBatchOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
 import { Card, Field, Group, Help, Loading, NavRow, PageTitle, Screen, SwitchRow } from './kit';
@@ -154,6 +155,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
             <NavRow label="Skill cards" detail="Times, numbers, dates, prices, letters and cases as cards in your reviews" onPress={onSkillCards} />
           </Group>
         )}
+        {settings ? <DeckBatchOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckPriorityOptions deck={deck} notes={allNotes} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFontOptions deck={deck} scripts={scripts} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
         {settings ? <DeckFormsOptions deck={deck} formsApply={formsApply} aspectApplies={aspectApplies} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}

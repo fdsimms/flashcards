@@ -1,7 +1,7 @@
 """Quick add's queue of words for Claude to fill in (note_queue.py), and its lookup of words for a
 meaning (word_lookup.py)."""
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -24,6 +24,9 @@ class NoteQueueIn(BaseModel):
     language: Code
     deck: str = Field(min_length=1, max_length=500)
     entries: list[QueuedEntry] = Field(min_length=1, max_length=note_queue.MAX_QUEUED)
+    # Thai only: the learner's polite particle, khrap (a man's) or kha (a woman's), so the Context
+    # sentence is written for them. Left out, khrap; any other language ignores it.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 class WordLookupIn(BaseModel):
@@ -114,7 +117,14 @@ def router(ctx: AppContext) -> APIRouter:
                 entries.append((entry, " ".join(e.meaning.split())))
         if not entries:
             raise HTTPException(422, "Type at least one word.")
-        store.add_queued(engine.conn, body.language, body.deck, entries, engine.clock())
+        store.add_queued(
+            engine.conn,
+            body.language,
+            body.deck,
+            entries,
+            engine.clock(),
+            "female" if body.language == "th" and body.particle == "kha" else "male",
+        )
         start_filling(background)
         return queue_view()
 

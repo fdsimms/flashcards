@@ -76,6 +76,9 @@ class WordIn(BaseModel):
     language: Code
     # What the learner typed: romanization, Thai script or English.
     text: str = Field(min_length=1, max_length=lesson.MAX_CHARS)
+    # Thai only: the learner's polite particle, as for a lesson, so a sentence is written for a man
+    # (ผม, ครับ) or a woman. Left out, khrap; any other language ignores it.
+    particle: Literal["khrap", "kha"] | None = None
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -223,7 +226,11 @@ def router(ctx: AppContext) -> APIRouter:
         if find_lesson_words is None:
             raise HTTPException(503, NO_CLAUDE.replace("check your writing", "look up a word"))
         try:
-            candidates, used = await find_lesson_words(body.language, typed)
+            candidates, used = await find_lesson_words(
+                body.language,
+                typed,
+                "female" if body.language == "th" and body.particle == "kha" else "male",
+            )
         except lesson_words.LessonWordsFailed as e:
             keep_failed_cost("lesson_words", body.language, e.usage)
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".

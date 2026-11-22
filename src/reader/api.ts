@@ -474,6 +474,10 @@ export type WordSuggestions = Schemas['WordSuggestionsOut'];
 /** A cram's themes (server cram_themes.py), what's asked for them and one of them. */
 export type CramThemes = Schemas['ThemesOut'];
 export type CramThemesRequest = Schemas['ThemesIn'];
+/** What Suggest words sends: what the cram is for, what really happened, the learner's steer and the words to leave out (`cramWordsRequest`). */
+export type CramWordsRequest = Schemas['WordsIn'];
+/** What Suggest words sends in Phrases mode (`cramPhrasesRequest`). */
+export type CramPhrasesRequest = Schemas['PhrasesIn'];
 export type CramSayQuestionRequest = Schemas['QuestionIn'];
 export type CramSayLinesRequest = Schemas['LinesIn'];
 export type CramSaid = Schemas['SaidOut'];
@@ -642,8 +646,9 @@ export function createApi(
     // The queued words. Asking also starts filling in any that are due, so ask again while some are waiting.
     noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
     // These answer 202 with the queue, which `call` would drop.
-    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[]) =>
-      (await send('POST', '/api/note-queue', { language, deck, entries })).json() as Promise<NoteQueue>,
+    // `particle`: the learner's Thai polite ending, so a card's sentence is written as a man or a woman says it; ignored in other languages.
+    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
+      (await send('POST', '/api/note-queue', { language, deck, entries, ...(language === 'th' && particle ? { particle } : {}) })).json() as Promise<NoteQueue>,
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.
     removeQueuedNote: (id: number) => call<void>('DELETE', `/api/note-queue/${id}`),
@@ -725,9 +730,15 @@ export function createApi(
       })).topics,
     // Themes to talk about at a lesson, written by Claude from the learner's words (server cram_themes.py). Adds no note and grades nothing.
     cramThemes: (request: CramThemesRequest) => call<CramThemes>('POST', '/api/cram/themes', request),
+    // About eight words in the language for what a cram is for, leaving out `exclude` (server cram_words.py). Writes nothing:
+    // the app tags the ones the deck has and queues the rest (core/cramWords.ts).
+    cramWords: async (body: CramWordsRequest) => (await call<{ words: LessonWordCandidate[] }>('POST', '/api/cram/words', body)).words,
     // Talk it through in English (server cram_say.py): the next question of a chat about a cram's topic, and what the learner would want to say from what they said. Adds no note and grades nothing.
     cramSayAsk: async (request: CramSayQuestionRequest) => (await call<Schemas['QuestionOut']>('POST', '/api/cram/say/ask', request)).question,
     cramSayLines: (request: CramSayLinesRequest) => call<CramSayLines>('POST', '/api/cram/say/lines', request),
+    // About six short phrases for what a cram is for, built from its words (server cram_phrases.py). Writes nothing: the app keeps
+    // the checked ones on the cram, and none is a note (core/cramPhrases.ts).
+    cramPhrases: async (body: CramPhrasesRequest) => (await call<{ phrases: { text: string; reading: string; english: string }[] }>('POST', '/api/cram/phrases', body)).phrases,
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
@@ -813,8 +824,9 @@ export function createApi(
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
     // from: asked only on Find Thai in Add a word; the server writes nothing (core/lessonWords.ts).
-    lessonWords: async (language: Language, text: string) =>
-      (await call<{ candidates: LessonWordCandidate[] }>('POST', '/api/lessons/words', { language, text })).candidates,
+    // `particle`: the learner's Thai polite ending, so a sentence comes back as a man or a woman says it; ignored in other languages.
+    lessonWords: async (language: Language, text: string, particle?: 'khrap' | 'kha') =>
+      (await call<{ candidates: LessonWordCandidate[] }>('POST', '/api/lessons/words', { language, text, ...(language === 'th' && particle ? { particle } : {}) })).candidates,
     // A Russian or Polish verb's aspect and its aspect partner, written by Claude on the server: asked only on Add to deck,
     // for the note editor to show and check (reader/mining.ts). Every field is null when there's nothing to suggest.
     aspectPair: (language: Language, word: string, line?: string) =>

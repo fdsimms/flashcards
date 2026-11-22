@@ -150,7 +150,7 @@ export function themeCounts(theme: ApiTheme, words: ThemeWord[]): Record<ThemeKi
 }
 
 /** A word's text as compared: one form of Unicode, spaces collapsed, ignoring case. */
-const wordKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+export const wordKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
 
 /**
  * The theme's words: the ones sent, in the theme's order (leaving out any the server named that

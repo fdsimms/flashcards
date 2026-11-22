@@ -1,6 +1,6 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
-import { ankiToday, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
+import { ankiToday, compareDeckNames, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
 import { skillCardIds } from './skillTag';
@@ -157,6 +157,11 @@ export interface TreeQueueInput {
    * Franki's own, set by `queueInput`; without it the review order is the preset's, as Anki builds it.
    */
   catchUp?: boolean;
+  /**
+   * Study each subdeck of the opened deck in one stretch (a language at a time in a Languages deck).
+   * Franki's own: without it the mix is Anki's, which interleaves subdecks (the queue vectors).
+   */
+  batchBySubdeck?: boolean;
 }
 
 function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedToday {
@@ -209,7 +214,8 @@ interface LimitNode { review: number; new: number; capNewToReview: boolean }
  *   first), then new cards (by the root's gather and sort order). A card whose sibling was
  *   gathered first is held back when that sibling's preset buries its kind.
  * - **Presentation:** learning cards due now, then reviews mixed with day-long learning and new
- *   cards (by the root's mix options), then learning cards due within the learn-ahead limit.
+ *   cards (by the root's mix options, one subdeck at a time, in name order), then learning cards
+ *   due within the learn-ahead limit.
  *
  * A progress gate (Franki's own) limits new cards on the gated deck to the smaller of its room
  * and the deck's own daily new limit; the daily new limits of the decks under it don't apply. A
@@ -344,7 +350,14 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const ahead = now.getTime() + (input.learnAheadMinutes ?? 0) * 60000;
   const learnNow = intraday.filter((c) => shownAt(c) <= now.getTime()).sort(learnOrder);
   const learnAhead = intraday.filter((c) => shownAt(c) > now.getTime() && shownAt(c) <= ahead).sort(learnOrder);
-  const main = mix(mix(reviews, interday, order.interdayLearningMix), fresh, order.newMix);
+  // With `batchBySubdeck`, each subdeck of the root (a language, in a Languages deck) is studied in one stretch, in name order,
+  // with its own reviews, day-long learning and new cards mixed. Learning steps due now and within the
+  // learn-ahead limit stay outside the stretch, so a missed card returns whatever the language.
+  const branchOf = (c: Card) => { const d = deckOfCard.get(c.id)!; return d === root ? '' : d.slice(root.length + 2).split('::')[0]; };
+  const branches = [...new Set([...reviews, ...interday, ...fresh].map(branchOf))].sort(compareDeckNames);
+  const inBranch = (cards: Card[], b: string) => (branches.length > 1 ? cards.filter((c) => branchOf(c) === b) : cards);
+  const main = rootFiltered || !input.batchBySubdeck ? mix(mix(reviews, interday, order.interdayLearningMix), fresh, order.newMix)
+    : branches.flatMap((b) => mix(mix(inBranch(reviews, b), inBranch(interday, b), order.interdayLearningMix), inBranch(fresh, b), order.newMix));
   return {
     due: [...learnNow, ...interday, ...reviews, ...learnAhead],
     fresh,
@@ -383,6 +396,8 @@ export function queueInput(a: {
   boostFor?: (root: string) => Boost | undefined;
   /** Vacation mode's setting (`VacationPrefs`), resolved here so the deck list and the review screen both apply it. */
   vacation?: VacationPrefs;
+  /** Study each subdeck in one stretch (`DeckSettings.batchBySubdeck`, read for the deck being opened). */
+  batchBySubdeck?: boolean;
 }): TreeQueueInput {
   const deckOfNote = new Map([...a.notes].map((n) => [n.id, n.deck]));
   const todayKey = studyDayKey(a.now, a.collection.dayStartsAtHour);
@@ -410,6 +425,7 @@ export function queueInput(a: {
     held: a.held,
     boostFor: a.boostFor,
     vacation,
+    batchBySubdeck: a.batchBySubdeck,
   };
 }
 
