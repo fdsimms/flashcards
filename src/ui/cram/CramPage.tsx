@@ -9,7 +9,7 @@ import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { Card, Note } from '../../core/types';
 import type { Api, Language, QueuedNote } from '../../reader/api';
-import { queuedFor } from '../../reader/noteQueue';
+import { isRetrying, queuedFor } from '../../reader/noteQueue';
 import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
@@ -148,7 +148,7 @@ export function CramPage(props: {
   const requestMenu = (text: string, note?: QueuedNote) => {
     haptic.tap();
     if (note?.state === 'ready' && props.approve) { void approveRequest(note); return; }
-    if (note?.state === 'failed' && props.approve) {
+    if (note?.state === 'failed' && !isRetrying(note) && props.approve) {
       ActionSheetIOS.showActionSheetWithOptions(
         { title: text, message: note.error || "Claude couldn't write a card for this.", options: ['Fill in by hand', ...(props.retry ? ['Try again'] : []), 'Stop showing it here', 'Cancel'], destructiveButtonIndex: props.retry ? 2 : 1, cancelButtonIndex: props.retry ? 3 : 2 },
         (i) => {
@@ -287,6 +287,7 @@ export function CramPage(props: {
           {pending.map((r, i) => {
             const note = queuedFor(props.queued ?? [], r.text);
             const badge = note?.state === 'ready' ? { text: 'Ready to review', color: c.accentInk, fill: c.accentFill }
+              : note && isRetrying(note) ? { text: 'Trying again', color: c.textSecondary, fill: c.fill }
               : note?.state === 'failed' ? { text: "Couldn't write", color: c.danger, fill: c.dangerFill }
               : { text: 'Being written', color: c.textSecondary, fill: c.fill };
             return <NavRow key={`asked-${r.text}`} first={!listed.length && !!cram.finishedAt && i === 0} label={r.text} detail={r.english} badge={badge} onPress={() => requestMenu(r.text, note)} />;

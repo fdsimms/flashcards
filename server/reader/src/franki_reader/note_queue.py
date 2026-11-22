@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 MAX_QUEUED = 50  # words one Quick add can queue, and the most suggested from each source (word_suggestions.py)
 BATCH = 10  # words in one call to Claude
-MAX_ATTEMPTS = 3  # tries a word gets before it stays failed until the owner asks again
+MAX_ATTEMPTS = 5  # tries a word gets before it stays failed until the owner asks again
 RETRY_AFTER = timedelta(minutes=10)  # between one try of a word and the next
 MAX_TOKENS = 6000
 # Other words a romanized or misspelled entry could be, at most.
@@ -623,11 +623,12 @@ def due(note: store.QueuedNote, now: datetime) -> bool:
     since the last one over."""
     if note.state == "waiting":
         return True
-    return (
-        note.state == "failed"
-        and note.attempts < MAX_ATTEMPTS
-        and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
-    )
+    return retrying(note) and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
+
+
+def retrying(note: store.QueuedNote) -> bool:
+    """Whether a failed word will be tried again without the owner asking: it has tries left."""
+    return note.state == "failed" and note.attempts < MAX_ATTEMPTS
 
 
 def pending(conn: sqlite3.Connection, now: datetime) -> list[store.QueuedNote]:

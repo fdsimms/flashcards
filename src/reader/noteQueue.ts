@@ -28,12 +28,18 @@ export function quickAddDecks(
   return [...options.filter((d) => d.language === current), ...options.filter((d) => d.language !== current)];
 }
 
-/** How many queued words are in each state. */
+/** A failed word the server is still going to try again (`retrying`, set by the server): shown as waiting, not as failed. */
+export const isRetrying = (n: QueuedNote): boolean => n.state === 'failed' && n.retrying === true;
+
+/** Whether a word is still being worked on: waiting for Claude, or failed with tries left. */
+export const isWorking = (n: QueuedNote): boolean => n.state === 'waiting' || isRetrying(n);
+
+/** How many queued words are in each state; a word the server will retry counts as waiting. */
 export function counts(items: QueuedNote[]): { ready: number; waiting: number; failed: number } {
   return {
     ready: items.filter((n) => n.state === 'ready').length,
-    waiting: items.filter((n) => n.state === 'waiting').length,
-    failed: items.filter((n) => n.state === 'failed').length,
+    waiting: items.filter(isWorking).length,
+    failed: items.filter((n) => n.state === 'failed' && !isRetrying(n)).length,
   };
 }
 

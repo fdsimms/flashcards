@@ -26,6 +26,7 @@ from franki_reader.note_queue import (
     claude_notes,
     fill_pending,
     request_message,
+    retrying,
     spelled,
 )
 
@@ -461,6 +462,7 @@ def test_a_failed_word_waits_then_is_tried_again_up_to_the_limit() -> None:
     conn = conn_with(("ricane", ""))
     failing = Writer(fail="no")
     run(conn, failing)
+    assert retrying(store.queued_notes(conn)[0])  # tries left: the app shows it as trying again
     run(conn, failing, NOW + RETRY_AFTER - timedelta(seconds=1))
     assert len(failing.calls) == 1  # still waiting
     later = NOW
@@ -468,6 +470,7 @@ def test_a_failed_word_waits_then_is_tried_again_up_to_the_limit() -> None:
         later += RETRY_AFTER
         run(conn, failing, later)
     assert len(failing.calls) == MAX_ATTEMPTS
+    assert not retrying(store.queued_notes(conn)[0])  # out of tries: the owner has to ask
     run(conn, Writer(), later + RETRY_AFTER)  # out of tries: stays failed
     assert store.queued_notes(conn)[0].state == "failed"
 
@@ -763,3 +766,14 @@ def test_a_queue_from_before_spellings_gets_the_columns(tmp_path: Any) -> None:
     old.close()
     (word,) = store.queued_notes(store.connect(path))
     assert (word.entry, word.spelling, word.alternatives) == ("ricane", "", [])
+
+
+def test_a_failed_word_with_tries_left_is_marked_retrying_until_they_run_out() -> None:
+    c = queue_client(Writer(fail="Claude didn't answer (APIError)."))
+    add(c, {"entry": "ricane"})
+    (first,) = items(c)
+    assert (first["state"], first["retrying"]) == ("failed", True)
+    store.save_queue_result(c.conn, first["id"], "fr", None, "no", NOW, 0.0)  # type: ignore[attr-defined]
+    for _ in range(MAX_ATTEMPTS):
+        store.save_queue_result(c.conn, first["id"], "fr", None, "no", NOW, 0.0)  # type: ignore[attr-defined]
+    assert items(c)[0]["retrying"] is False
