@@ -95,6 +95,8 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
         playerHost.handOff(api, { textId: l.text.id, title: l.text.title, language: l.text.language, lines: l.text.lines, current: l.current, repeat: l.repeat, played: l.played, loop: l.loop, rate: l.rate, from: queueAsRef.current() }, l.breakTo ?? undefined);
         return;
       }
+      // A line still loading (a slow recording being made) is dropped, so it can't start once the reader's gone.
+      starting.current++;
       playerHost.release();
       setAudioModeAsync(IDLE_MODE).catch(() => undefined);
     };
@@ -200,9 +202,12 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
       starting.current++;
       setAwaitingSound(false);
       player.pause();
-    } else if (current !== null && playedRate.current === rate && !status.didJustFinish && status.currentTime < status.duration) {
-      player.play();
-      onPlay(rate);
+    } else if (current !== null && !status.didJustFinish && status.currentTime < status.duration) {
+      // A line paused partway: on at the same speed, or again from its start at a speed chosen while paused.
+      if (playedRate.current === rate) {
+        player.play();
+        onPlay(rate);
+      } else playLine(current, playingAll);
     } else {
       const start = firstLine(text.lines, current === null ? 0 : current + 1) ?? firstLine(text.lines);
       if (start !== null) playLine(start, true);
