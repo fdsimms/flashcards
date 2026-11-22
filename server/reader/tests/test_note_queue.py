@@ -321,8 +321,29 @@ def test_a_word_that_wasnt_asked_for_is_dropped() -> None:
 
 
 def test_the_sentence_needs_the_word_in_bold() -> None:
-    assert check(filled("ricane", context="Il ricane."), {"ricane": ""}, "fr") is None
     assert check(filled("ricane", context="Il <b>ricane dans."), {"ricane": ""}, "fr") is None
+    # No tags at all and the word isn't in the sentence: nothing to bold, so it fails.
+    assert check(filled("ricane", context="Il rit dans son coin."), {"ricane": ""}, "fr") is None
+
+
+def test_a_sentence_with_no_tags_gets_the_word_bolded_in_code() -> None:
+    got = check(filled("ricane", context="Il ricane dans son coin."), {"ricane": ""}, "fr")
+    assert got is not None and got[1]["Context"] == "Il <b>ricane</b> dans son coin."
+    # Thai has no spaces, so the word is found inside the running text.
+    thai = filled(
+        "เป้า", context="เขายิงเป้าได้แม่น", romanization="khǎo ying pâo dâi mɛ̂ɛn", transliteration="pâo"
+    )
+    got = check(thai, {"เป้า": ""}, "th")
+    assert got is not None and got[1]["Context"] == "เขายิง<b>เป้า</b>ได้แม่น"
+
+
+def test_bolding_in_code_matches_whole_words_in_a_spaced_language() -> None:
+    # "ricane" only appears inside "ricaner": that's a different word, so it isn't guessed at.
+    asked = {"ricane": ""}
+    assert check(filled("ricane", context="Il ricanerait dans son coin."), asked, "fr") is None
+    # Claude's own tags are never moved.
+    got = check(filled("ricane", context="Il ricane et <b>ricane</b>."), asked, "fr")
+    assert got is not None and got[1]["Context"] == "Il ricane et <b>ricane</b>."
 
 
 def test_other_markup_and_stray_characters_are_refused() -> None:
