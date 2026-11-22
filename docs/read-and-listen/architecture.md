@@ -471,7 +471,7 @@ aloud is never heard by the phone.
   most 60 characters, none repeated or taken). Claude only: without it, or when it doesn't answer, the link shows the
   reason and Try again, and the fixed ideas of `suggestions.py` (Situations' scenes) are not used instead. The ideas are dropped when the
   language or the words change. Its cost is kept in `call_costs` as "lesson_topics" and is the `lesson_topics` block of `/api/costs`, apart from `lessons` so a suggestion isn't counted as a lesson made.
-- **A typed word is confirmed before the lesson speaks it** (18 November 2026, the owner: romanization typed in Add a word was spoken completely wrong, and word plus Meaning boxes felt like inventing words; then "it shouldn't be only for Thai"). The voice reads what it is given as the language's own writing, so romanization came out as noise. In every lesson language Add a word (`LessonWordAdd.tsx`) is one box that takes romanization, the language or English; **Find word** asks `POST /api/lessons/words` (`lesson_words.py`, Haiku, one call per tap), which lists up to five real words it could be, each in the language's own writing with its reading (Thai's romanization with tone marks, Russian's and Greek's romanization, Japanese's kana; empty for the Latin-script languages) and its meaning. The learner picks one and that word and meaning join the lesson, so there is no meaning to type. `lesson_words.clean` drops a candidate with none of the language's script, or, for Thai, Russian, Greek and Japanese, one with a Latin letter, since that is the romanization handed back as the word; a repeat and one without a meaning go too. A word already written in the language goes through the same list, so it is shown once for confirmation (and a misspelling is corrected). The cost is kept in `call_costs` (feature "lesson_words"); nothing here is a card or a rating.
+- **A typed word is confirmed before the lesson speaks it** (18 November 2026, the owner: romanization typed in Add a word was spoken completely wrong, and word plus Meaning boxes felt like inventing words; then "it shouldn't be only for Thai"). The voice reads what it is given as the language's own writing, so romanization came out as noise. In every lesson language Add a word (`LessonWordAdd.tsx`) is one box that takes romanization, the language or English; **Find word** asks `POST /api/lessons/words` (`lesson_words.py`, Sonnet, one call per tap; Haiku listed the words for "tired" and "boring" but not "tiring", น่าเหนื่อย, so it was moved up), which lists up to five real words it could be, each in the language's own writing with its reading (Thai's romanization with tone marks, Russian's and Greek's romanization, Japanese's kana; empty for the Latin-script languages) and its meaning. The learner picks one and that word and meaning join the lesson, so there is no meaning to type. `lesson_words.clean` drops a candidate with none of the language's script, or, for Thai, Russian, Greek and Japanese, one with a Latin letter, since that is the romanization handed back as the word; a repeat and one without a meaning go too. A word already written in the language goes through the same list, so it is shown once for confirmation (and a misspelling is corrected). The cost is kept in `call_costs` (feature "lesson_words"); nothing here is a card or a rating.
 - **Thai lessons are made for the learner's polite ending** (16 November 2026, the owner: a man's voice said ฉัน, and no phrase carried ครับ or ค่ะ). The lessons screen has a ครับ / ค่ะ choice for Thai, kept on the phone (`lessonStorage.ts`) and sent as `particle`. It sets `learner` (`lesson.Learner`): the voice every phrase is repeated after, who plays A in the dialogue and role-play, and the particle every taught phrase carries. The request says so, and `lesson_writer.thai_problems` checks it in code (a phrase without the particle, the other gender's particle, or a man saying ฉัน or a woman ผม sends the plan back once, and a second miss fails the lesson). Replaces the earlier rule that left ครับ and ค่ะ out of the phrases taught.
 - **A cram theme's story is written for the learner's gender too** (21 November 2026, the owner: a talking point said ฉัน for a man). The app sends the same `particle` setting with `/api/cram/themes` (Thai only, `CramThemes.tsx`), `cram_themes.SYSTEM` asks for ผม and ครับ or ดิฉัน/ฉัน and ค่ะ, and `clean_themes` drops a story that uses the other gender's words (`gender.thai_fits`) while keeping the theme. **The questions the learner asks and their answers follow the same rule** (22 November 2026): ครับ and คะ are the speaker's, so a question the learner says to the tutor is in the learner's gender, and one in the other's is dropped. The tutor's own questions (They may ask you) are asked with no polite ending, since the tutor's gender isn't known, and aren't checked.
   Situations does the same: `particle` goes with the turn and feedback requests (`conversationOf`), and the feedback prompt judges and corrects the learner's own lines as a man's or a woman's Thai (`situations._THAI_LEARNER`). Not yet covered: the Sentences stock and grammar drills, written ahead with no request to carry it.
@@ -1153,11 +1153,14 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   Thinking counts against `max_tokens` (32,000), so a response cut off there is asked again once at `medium` effort with 48,000 (both calls are counted in the cost), and a story episode, which also returns a recap, plan and choices, starts at `medium` (16 November 2026, after episodes kept failing with "The response was cut off").
   `server/reader/src/franki_reader/generator.py`.
 - **Cheaper model for short, checked calls** (15 November 2026): glosses for common words, word forms,
-  IPA, memory hints, Explain, comprehension questions, the vocabulary check and audio lesson content
+  IPA, the vocabulary check and audio lesson content
   use `claude-haiku-5-5` (`CHEAP_MODEL`, about a twentieth of Sonnet's price). Haiku has no server-side
   refusal fallback, so those calls send none and treat `stop_reason: "refusal"` as a failed call, as
   they already did. Texts, drills, sentences, topics, the note queue, the writing check and Situations
-  stay on Sonnet, where a wrong answer is taught back to the learner. Watch the spot checks in
+  stay on Sonnet, where a wrong answer is taught back to the learner. Find word, Look up a word,
+  Fix a flagged card, memory hints, Explain and comprehension questions moved to Sonnet on
+  22 November 2026: Haiku missed words a learner asked for (it listed "tired" and "boring" but
+  not น่าเหนื่อย for "tiring"), and a miss in those is read by the learner as a Thai fact. Watch the spot checks in
   `/api/costs` and Russian word forms first.
 - **Written by** (15 November 2026, a trial): the write sheet (the shelf's +) has a Sonnet or Haiku switch,
   sent as `model` on `POST /api/shelf/write` (Sonnet when left out, 422 for any other model) and used
@@ -2075,7 +2078,7 @@ music app"), from a mock: one queue of texts and audio lessons, played through o
   (`needsChoice`). Without Claude a word in Latin letters for such a language is refused on its row,
   saying why, except Japanese, where romaji turns into kana as it's typed (`asTyped`).
 - **Don't know the word?** (Quick add, with Claude): a meaning typed in English is sent to
-  `POST /api/word-lookup` (`word_lookup.py`, Haiku, one call per lookup, its cost kept as `word_lookup`),
+  `POST /api/word-lookup` (`word_lookup.py`, Sonnet, one call per lookup, its cost kept as `word_lookup`),
   and a word picked from what comes back is queued like a typed one. **Say it**: the field's microphone,
   when Settings, Speaking is on, puts what was heard in the field, through the same recognizer as
   Answer by speaking (`useSpokenAnswer`).
@@ -2149,7 +2152,7 @@ browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/cost
 
 The flag sheet (`src/ui/AgentFlagSheet.tsx`) has Fix with Claude now beside Flag for later, shown
 while Read & Listen is signed in. It flags the card as usual, then `POST /api/fix-card`
-(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Haiku,
+(`fix_card.py`) sends the note's fields (HTML as stored), the reason and the owner's note to Sonnet,
 once, only on that tap. The server returns `{changes: {field: new html}, explanation}` and writes
 nothing: the app checks it again (`src/core/fixCard.ts`: only fields the note has, only ones that
 change, and no `[sound:]` or `<img>` reference dropped or added), shows each changed field old above
