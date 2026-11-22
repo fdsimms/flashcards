@@ -333,7 +333,7 @@ instructions off, so each tool's own description holds its details.
 - Crams: Franki's Practice, Cram is the plan for a day coming up (a lesson, a trip). Its words
   are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
   date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes, only
-  for notes in the cram's language; find_notes "tag:cram::*" lists the words of every cram. The
+  for notes in the cram's language and never for skill cards (tag `skill`); find_notes "tag:cram::*" lists the words of every cram. The
   date, practice, questions for the tutor and talking points are kept in Franki only.
 """
 

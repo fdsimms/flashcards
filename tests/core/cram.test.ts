@@ -311,6 +311,13 @@ describe('Read & Listen', () => {
     expect(addableNotes(all, [], 'pl').map((n) => n.id)).toEqual(['c']);
     expect(addableNotes(all, [all[0]], 'pl').map((n) => n.id)).toEqual(['a', 'c']);
   });
+  it('never offers a skill card, but keeps one already in the cram', () => {
+    const skill = { ...thai('s', 'กาแฟ', 'coffee'), tags: ['skill'] };
+    const word = thai('a', 'เกือบ', 'almost');
+    expect(addableNotes([skill, word], [word]).map((n) => n.id)).toEqual(['a']);
+    expect(addableNotes([skill, word], []).map((n) => n.id)).toEqual(['a']);
+    expect(addableNotes([skill, word], [skill, word], 'th').map((n) => n.id)).toEqual(['s', 'a']);
+  });
   it('practices only studied words in a text', () => {
     const [studied] = makeCards(omniNote(), WED);
     const cards: Card[] = [{ ...studied, noteId: 'a', sched: { ...studied.sched, state: 2 } }, { ...studied, noteId: 'b' }];
