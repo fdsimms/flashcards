@@ -59,6 +59,16 @@ describe('deck paths', () => {
 });
 
 describe('treeQueue', () => {
+  it('studies one subdeck at a time, in name order, with missed cards free of the batching', () => {
+    const thai = reviewCards(2, 10);
+    const polski = reviewCards(2, 10);
+    const missed = newCards(1).map((c) => ({ ...c, sched: { ...c.sched, state: 3, reps: 2, due: new Date(2026, 10, 11, 11).toISOString() } }));
+    const q = treeQueue('Languages', { ...input({ 'Languages::Thai': [thai[0], missed[0], thai[1]], 'Languages::Polski': polski, 'Languages::Thai::Extra': newCards(1) }), batchBySubdeck: true });
+    const ids = q.order.map((c) => c.id);
+    expect(ids[0]).toBe(missed[0].id);
+    const decks = q.main.map((c) => (polski.some((p) => p.id === c.id) ? 'Polski' : 'Thai'));
+    expect(decks).toEqual(['Polski', 'Polski', 'Thai', 'Thai', 'Thai']);
+  });
   it('studies a parent with its subdecks, each subdeck within its own new-card limit', () => {
     const q = treeQueue('Polski', input(
       { Polski: newCards(3), 'Polski::Odmiana': newCards(3) },

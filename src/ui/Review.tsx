@@ -8,7 +8,7 @@ import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } fro
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, speechLangFor, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
-import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
+import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, inheritedSetting, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
 import { availableFonts } from '../core/fontDownloads';
 import { cardFontFor, isBundled } from '../core/fonts';
 import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
@@ -379,7 +379,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const started = performance.now();
     const key = `${deck}:${studyDayKey(now, H)}`;
     const q = keepSessionOrder(sessionQueue.current?.key === key ? sessionQueue.current.queue : undefined, treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, ownLimitsFor: (d) => deckSettings.get(d), collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }),
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, ownLimitsFor: (d) => deckSettings.get(d), collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }), batchBySubdeck: inheritedSetting(deck, deckSettings, 'batchBySubdeck'),
     })));
     sessionQueue.current = { key, queue: q };
     timing.queueTook(performance.now() - started);
