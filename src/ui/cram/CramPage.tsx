@@ -1,9 +1,9 @@
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
-  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceProgress,
-  practiceSummary, textWords, themeTopic, withoutCapture, withoutRequest, wordState, type Cram, type WordState,
+  cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
+  practiceSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
@@ -33,9 +33,10 @@ const WORDS_SHOWN = 8;
 
 /**
  * A cram's page, the plan for the day: how practice is going and a Practice button that works any
- * time; Things to say (the words, Add, and a pill to bring in the words missed lately or ask Claude
- * for angles on the topic); Ask my tutor; Talking points; Get ready (a text, an audio lesson,
- * Rehearse); and Start the lesson. Once finished, what was used and what was typed in the lesson.
+ * time (on the lesson's day, Start the lesson leads instead); Talking points (folded, a tap opens one,
+ * ⋯ edits its story or removes it); Words (Add, and a pill to bring in the words missed lately);
+ * Questions about the language; Get ready (an audio lesson, a text, Rehearse); and Start the lesson.
+ * Once finished, what was used and what was typed in the lesson.
  * Opening it also puts any of its reviews scheduled after the day on the day (`capCramCards`), and
  * says so if that fails.
  */
@@ -71,6 +72,8 @@ export function CramPage(props: {
   const inCram = useMemo(() => new Set(notes.map((n) => n.id)), [notes]);
   const missed = useMissedLately(repo, cram && !cram.finishedAt ? language : undefined).filter((nid) => !inCram.has(nid)).slice(0, MISSED_MAX);
   const [showAll, setShowAll] = useState(false);
+  // The talking point opened on the page, by its title: one at a time.
+  const [openTalk, setOpenTalk] = useState<string>();
   const [capProblem, setCapProblem] = useState<string>();
   const [problem, setProblem] = useState<string>();
   const approving = useRef(false);
@@ -93,8 +96,11 @@ export function CramPage(props: {
   const ids = notes.map((n) => n.id);
   const solid = practiceProgress(cram, ids).solid.length;
   const words = language ? textWords(notes, collection.cards, language) : [];
-  // What Rehearse works into Situations: the cram's words with their meanings, as an audio lesson takes them.
-  const rehearsalWords = language ? lessonPhrases(notes, language) : [];
+  // What Rehearse works into Situations: the cram's words with their meanings, as an audio lesson takes them, shakiest first.
+  const rehearsalWords = language ? lessonPhrases(practiceOrder(cram, notes), language) : [];
+  const talks = cram.themes ?? [];
+  const lessonDay = running && days === 0;
+  const languageName = language ? LANGUAGES[language].name : undefined;
   const pending = pendingRequests(cram, notes);
   const listed = cram.finishedAt ? finishedNotes(cram, collection.notes) : notes;
   const shown = showAll ? listed : listed.slice(0, WORDS_SHOWN);
@@ -158,6 +164,24 @@ export function CramPage(props: {
       (i) => { if (i === 0) stopShowing(text); },
     );
   };
+  const talkMenu = (talk: Talk) => {
+    haptic.tap();
+    // Editing has Read & Listen check the new story, so it's offered only while that's on.
+    const editable = !!talk.story && !!props.readerApi;
+    const options = [...(editable ? ['Edit the story'] : []), 'Remove', 'Cancel'];
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title: talk.title, options, destructiveButtonIndex: options.length - 2, cancelButtonIndex: options.length - 1 },
+      (i) => {
+        if (editable && i === 0) go('/cram-story', { title: talk.title });
+        else if (i === options.length - 2) {
+          Alert.alert(`Remove ${talk.title}?`, 'Its questions and story are removed from the cram. Its words stay.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: () => void keep(withoutTalk(cram, talk.title), "Couldn't remove the talking point.") },
+          ]);
+        }
+      },
+    );
+  };
   const captureMenu = (text: string) => {
     haptic.tap();
     ActionSheetIOS.showActionSheetWithOptions(
@@ -192,6 +216,14 @@ export function CramPage(props: {
               <Help>Check off the words you used. The rest go into your next cram.</Help>
               <Button label="Check off words" onPress={() => go('/cram-lesson')} />
             </>
+          ) : lessonDay ? (
+            <>
+              <Text style={{ ...type.headline, color: c.text }}>Lesson today</Text>
+              <Help>{lessonContents(talks.length, cram.questions?.length ?? 0, ids.length, languageName)}</Help>
+              <Button label="Start the lesson" onPress={() => go('/cram-lesson')} />
+              {ids.length ? <Button variant="secondary" label={practiceLabel(cram, ids)} onPress={() => go('/cram-round')} /> : null}
+              {ids.length ? <Help>{practiceSummary(cram, ids)}</Help> : null}
+            </>
           ) : (
             <>
               <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
@@ -203,15 +235,42 @@ export function CramPage(props: {
         </Box>
         {capProblem ? <Text style={{ ...type.subhead, color: c.danger }}>{capProblem}</Text> : null}
 
-        <SectionTitle>{`Things to say · ${listed.length + pending.length}`}</SectionTitle>
-        {!cram.finishedAt && (missed.length || props.readerApi) ? (
+        {!cram.finishedAt ? (
+          <>
+            <SectionTitle>{talks.length ? `Talking points · ${talks.length}` : 'Talking points'}</SectionTitle>
+            {talks.map((talk) => (
+              <CramTalk
+                key={talk.title}
+                repo={repo}
+                talk={talk}
+                language={language}
+                size={talkSize}
+                open={openTalk === talk.title}
+                onToggle={() => setOpenTalk(openTalk === talk.title ? undefined : talk.title)}
+                onMenu={() => talkMenu(talk)}
+              />
+            ))}
+            <Group>
+              <NavRow
+                first
+                icon={{ name: 'sparkles', color: c.accent }}
+                label={talks.length ? 'More talking points' : 'Suggest talking points'}
+                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
+                disabled={!props.readerApi || !language}
+                onPress={() => go('/cram-themes')}
+              />
+            </Group>
+          </>
+        ) : null}
+
+        <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
+        {!cram.finishedAt && missed.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            {missed.length ? <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} /> : null}
-            {props.readerApi && language ? <Pill label={themeTopic(cram) ? 'Words for the topic' : 'Get ideas'} icon="sparkles" ink={c.accentInk} fill={c.accentFill} onPress={() => go('/cram-themes')} /> : null}
+            <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
         <Group>
-          {!cram.finishedAt ? <NavRow first icon={{ name: 'plus', color: c.accent }} label="Add a word or something to say" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
+          {!cram.finishedAt ? <NavRow first icon={{ name: 'plus', color: c.accent }} label="Add a word" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
           {shown.map((note, i) => {
             const state = wordState(cram, note.id, (cardsOf.get(note.id) ?? []).every((x) => x.sched.state === 0));
             return (
@@ -253,19 +312,6 @@ export function CramPage(props: {
 
         {!cram.finishedAt ? (
           <>
-            <SectionTitle>Talking points</SectionTitle>
-            {cram.themes?.map((talk) => <CramTalk key={talk.title} repo={repo} talk={talk} language={language} size={talkSize} />)}
-            <Group>
-              <NavRow
-                first
-                icon={{ name: 'sparkles', color: c.accent }}
-                label={cram.themes?.length ? 'More ideas' : 'Suggest talking points'}
-                detail={!props.readerApi ? readerOff : !language ? 'Choose the cram\'s language first (Edit).' : themeTopic(cram) ? `Ways to talk about "${themeTopic(cram)}", with questions and words from your deck.` : 'Themes to talk about, with questions and words from your deck. The one you use names the cram.'}
-                disabled={!props.readerApi || !language}
-                onPress={() => go('/cram-themes')}
-              />
-            </Group>
-
             <SectionTitle>Get ready</SectionTitle>
             <Group>
               <CramListen repo={repo} api={props.readerApi} cram={cram} notes={notes} language={language} first />
@@ -279,9 +325,9 @@ export function CramPage(props: {
               <NavRow
                 icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}
                 label="Rehearse"
-                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
+                detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : talks.length ? 'Your tutor asks about your talking points, and you try your answers.' : rehearsalWords.length ? `Talk it through with Claude, using ${rehearsalWords.length === 1 ? '1 word' : `${rehearsalWords.length} words`}.` : 'Talk it through with Claude.'}
                 disabled={!props.readerApi || !language}
-                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, cram.themes?.length === 1 ? cram.themes[0].title : cram.name, rehearsalWords, cram.register) }); } }}
+                onPress={() => { if (language) { haptic.tap(); router.push({ pathname: '/tool', params: rehearsalParams(language, talkScene(cram), rehearsalWords, cram.register, preparedLines(cram)) }); } }}
               />
             </Group>
             {props.readerApi ? (
@@ -290,8 +336,12 @@ export function CramPage(props: {
               </Box>
             ) : null}
 
-            <Button variant="secondary" label="Start the lesson" onPress={() => go('/cram-lesson')} />
-            <Help>Your questions and words on one screen to check off as you go, and a place to jot down new words.</Help>
+            {!lessonDay ? (
+              <>
+                <Button variant="secondary" label="Start the lesson" onPress={() => go('/cram-lesson')} />
+                <Help>Your talking points, questions and words on one screen to check off as you go, and a place to jot down new words.</Help>
+              </>
+            ) : null}
           </>
         ) : null}
 
@@ -301,6 +351,18 @@ export function CramPage(props: {
       </ScrollView>
     </Screen>
   );
+}
+
+/** What the lesson day's card says the lesson has: "3 talking points, 1 question about Thai, 14 words." */
+function lessonContents(talks: number, questions: number, words: number, languageName: string | undefined): string {
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const about = languageName ?? 'the language';
+  const parts = [
+    ...(talks ? [count(talks, 'talking point', 'talking points')] : []),
+    ...(questions ? [count(questions, `question about ${about}`, `questions about ${about}`)] : []),
+    count(words, 'word', 'words'),
+  ];
+  return `${parts.join(', ')}.`;
 }
 
 /** What a finished cram's card says. */

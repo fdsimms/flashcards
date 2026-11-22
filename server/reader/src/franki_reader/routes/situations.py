@@ -49,6 +49,9 @@ class SituationIn(BaseModel):
     focus: SituationFocus | None = None
     # Words from a cram being rehearsed, each "word (meaning)", for the other person to work in.
     words: list[str] = Field(default_factory=list, max_length=situations.MAX_REHEARSAL_WORDS)
+    # What the learner prepared for a cram's lesson (its talking points), each a short labeled line
+    # ("You ask: ...", "They may ask you: ...", "Your story: ..."), for their tutor to steer by.
+    prepared: list[str] = Field(default_factory=list, max_length=situations.MAX_PREPARED)
     roles: SituationRoles | None = None
     lines: list[SituationLine] = Field(default_factory=list, max_length=situations.MAX_LINES)
     # Whether to record their next line with Azure. The app turns it off when it reads their lines
@@ -76,6 +79,11 @@ class SituationIn(BaseModel):
             for w in (" ".join(w.split())[: situations.MAX_REHEARSAL_WORD] for w in self.words)
             if w
         )
+        prepared = tuple(
+            p
+            for p in (" ".join(p.split())[: situations.MAX_PREPARED_LINE] for p in self.prepared)
+            if p
+        )
         return situations.Conversation(
             self.language,
             self.scene.strip(),
@@ -86,6 +94,7 @@ class SituationIn(BaseModel):
             self.register_level or default,
             "female" if self.language == "th" and self.particle == "kha" else "male",
             self.partner == "tutor",
+            prepared,
         )
 
 

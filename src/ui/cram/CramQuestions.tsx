@@ -15,8 +15,9 @@ import { saveCram } from '../useCrams';
 const questionId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /**
- * Ask my tutor, on a cram's page: questions to bring to the lesson (how to say something, a grammar
- * point), typed in English or the language. Return adds one and keeps the keyboard up for the next;
+ * Questions about the language, on a cram's page: questions to bring to the lesson (how to say
+ * something, a grammar point), typed in English or the language. A talking point's own questions are
+ * a different thing (they're conversation, in the language), so these are named for what they're about. Return adds one and keeps the keyboard up for the next;
  * a tap on one offers to remove it. Lesson mode checks them off.
  */
 export function CramQuestions({ repo, cram, language, size }: { repo: NoteStore; cram: Cram; language: Language | undefined; size: TextSize }) {
@@ -45,7 +46,7 @@ export function CramQuestions({ repo, cram, language, size }: { repo: NoteStore;
   };
   return (
     <View style={{ gap: space.s }}>
-      <SectionTitle>Ask my tutor</SectionTitle>
+      <SectionTitle>{`Questions about ${language ? LANGUAGES[language].name : 'the language'}`}</SectionTitle>
       {questions.length ? (
         <Group>
           {questions.map((q, i) => (

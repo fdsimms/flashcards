@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { cramLanguageOf, themeTopic } from '../../core/cram';
-import { combineWeakSpots, themeCounts, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind, type ThemeWord } from '../../core/cramThemes';
+import { cramLanguageOf, talkSummary, themeTopic } from '../../core/cram';
+import { combineWeakSpots, THEME_FACTS_CHARS, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, type ThemeKind, type ThemeWord } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import type { Api, CramTheme, Language } from '../../reader/api';
 import { flaggedName, LANGUAGES } from '../../reader/languages';
@@ -12,9 +12,9 @@ import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
 import { readable, space, type, radius, useTheme, type Colors } from '../theme';
-import { useCollection, useCrams } from '../useCrams';
+import { saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
 import { setThemeState, useThemeState } from './themeStore';
 
@@ -28,6 +28,7 @@ export function Chip({ label, ink, fill }: { label: string; ink: string; fill: s
 }
 
 const chipColors = (c: Colors): Record<ThemeKind | 'new', { ink: string; fill: string }> => ({
+  cram: { ink: c.accentInk, fill: c.accentFill },
   carried: { ink: c.accentInk, fill: c.accentFill },
   missed: { ink: c.danger, fill: c.dangerFill },
   fresh: { ink: c.countNew, fill: c.countNewFill },
@@ -37,10 +38,11 @@ const chipColors = (c: Colors): Record<ThemeKind | 'new', { ink: string; fill: s
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-/** What a theme's chips say: the words it reuses, by why they're on offer, and the ones to learn. */
-export function themeChips(theme: CramTheme, words: Parameters<typeof themeCounts>[1]): { key: ThemeKind | 'new'; label: string }[] {
+/** What a theme's chips say: its words (`themeDeckWords`), by why they're on offer, and the ones to learn. */
+export function themeChips(theme: CramTheme, words: ThemeWord[]): { key: ThemeKind | 'new'; label: string }[] {
   const n = themeCounts(theme, words);
   const out: { key: ThemeKind | 'new'; label: string }[] = [];
+  if (n.cram) out.push({ key: 'cram', label: `${n.cram} in this cram` });
   if (n.carried) out.push({ key: 'carried', label: `${n.carried} from last time` });
   if (n.missed) out.push({ key: 'missed', label: `${n.missed} missed` });
   if (n.fresh) out.push({ key: 'fresh', label: `${n.fresh} recently added` });
@@ -50,18 +52,20 @@ export function themeChips(theme: CramTheme, words: Parameters<typeof themeCount
 
 /**
  * Talking points for a cram: Claude writes a few angles on what the cram is for (its name) from the
- * words you have (the ones not used last time, missed, added lately), and what Practice has been
- * missing. Asked for when the screen opens, and again with Show different themes; a theme is opened
- * to see its words and questions, and Use theme there adds them to the cram. Several can be checked
- * and added together with Use themes. Nothing is added to the deck here.
+ * words you have (the cram's own, the ones not used last time, missed, added lately, and any others
+ * of the deck that fit), what Practice has been missing, and what really happened when you say (kept
+ * on the cram, `Cram.facts`). Asked for when the screen opens, and again with Show different themes
+ * or Write them again; a theme is opened to see its words and questions, and Use theme there adds
+ * them to the cram. Several can be checked and added together with Use themes. Nothing is added to
+ * the deck here.
  */
 export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
   repo: NoteStore;
   api: Api;
   cramId: string;
   onOpen: (index: number) => void;
-  /** Keeps the checked themes on the cram and adds their deck words; the screen says so if this throws. */
-  onUse: (themes: CramTheme[], words: ThemeWord[]) => Promise<void>;
+  /** Keeps the checked themes on the cram and tags their words (`noteIds`); the screen says so if this throws. */
+  onUse: (themes: CramTheme[], noteIds: string[]) => Promise<void>;
 }) {
   const c = useTheme();
   const { suggested } = useThemeState();
@@ -76,16 +80,19 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
   const asked = useRef(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [using, setUsing] = useState(false);
+  const [facts, setFacts] = useState<string>();
+  const factsDraft = facts ?? cram?.facts ?? '';
 
   const words = useMemo(
-    () => (collection.loaded && language ? themeWords({ notes: collection.notes, cards: collection.cards, language, crams, now: new Date() }) : []),
+    () => (collection.loaded && language ? themeWords({ notes: collection.notes, cards: collection.cards, language, crams, now: new Date(), cram }) : []),
     [collection.loaded, collection.notes, collection.cards, language, crams],
   );
   const shown = suggested?.cramId === cramId && suggested.language === language ? suggested : undefined;
 
-  const ask = useCallback(async (more: boolean, wantStretch: boolean) => {
+  const ask = useCallback(async (more: boolean, wantStretch: boolean, note?: string) => {
     if (asking || !words.length || !language) return;
     const forLanguage = language;
+    const forFacts = (note ?? crams.find((x) => x.id === cramId)?.facts ?? '').replace(/\s+/g, ' ').trim();
     setAsking(true);
     setProblem(undefined);
     try {
@@ -96,14 +103,16 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
       const already = more && shown ? shown.shown : [];
       // Not this cram's own name: every theme is an angle on it.
       const others = crams.filter((x) => x.id !== cramId);
-      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register, particle));
-      setThemeState({ suggested: { cramId, language: forLanguage, words, themes: answer.themes, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
+      const answer = await api.cramThemes(themesRequest(forLanguage, words, weak, themesToAvoid(others, already), wantStretch, topic, crams.find((x) => x.id === cramId)?.register, particle, forFacts));
+      // Each theme's words, found now while the notes are at hand: the deck's other words it named are matched by their word.
+      const wordsOf = answer.themes.map((t) => themeDeckWords(t, words, collection.notes, forLanguage));
+      setThemeState({ suggested: { cramId, language: forLanguage, words, themes: answer.themes, wordsOf, facts: forFacts, shown: [...already, ...answer.themes.map((t) => t.title)], stretch: wantStretch } });
     } catch (e) {
       setProblem(failureText(e, { what: "Couldn't get theme ideas.", next: 'Try again.' }));
     } finally {
       setAsking(false);
     }
-  }, [api, asking, cramId, crams, language, shown, topic, words]);
+  }, [api, asking, cramId, crams, language, shown, topic, words, collection.notes]);
 
   // Asked once on opening, when there's nothing for this language yet.
   useEffect(() => {
@@ -111,6 +120,22 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
     asked.current = true;
     void ask(false, stretch);
   }, [collection.loaded, cramsLoaded, words.length, shown]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // What really happened is kept on the cram, then the themes are written again from it.
+  const rewrite = async () => {
+    if (!cram) return;
+    haptic.tap();
+    const note = factsDraft.replace(/\s+/g, ' ').trim();
+    try {
+      await saveCram(repo, { ...cram, facts: note || undefined });
+    } catch (e) {
+      setProblem(failureText(e, { what: "Couldn't save what happened.", next: 'Try again.' }));
+      return;
+    }
+    setFacts(undefined);
+    void ask(false, stretch, note);
+  };
+  const factsChanged = !!shown && factsDraft.replace(/\s+/g, ' ').trim() !== shown.facts;
 
   const pickStretch = (on: boolean) => {
     setStretch(on);
@@ -129,7 +154,8 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
     haptic.tap();
     setUsing(true);
     try {
-      await onUse(chosen, shown.words);
+      const noteIds = [...new Set(shown.themes.flatMap((t, i) => (picked.has(t.title) ? (shown.wordsOf[i] ?? []).map((w) => w.noteId) : [])))];
+      await onUse(chosen, noteIds);
     } catch (e) {
       Alert.alert("Couldn't use the themes", failureText(e, { next: 'Try again.' }));
     } finally {
@@ -147,6 +173,17 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
         {cram && language ? <Help>{topic ? `Ways to talk about "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. The cram is named after the one you pick.`}</Help> : null}
+        <Card>
+          <Field
+            label="What really happened? (optional)"
+            value={factsDraft}
+            onChangeText={(t) => setFacts(t.slice(0, THEME_FACTS_CHARS))}
+            placeholder="e.g. Ran 21 km in 2:05, legs still sore"
+            multiline
+          />
+          <Help>Your stories and answers are written from this, so they say what you'd really say.</Help>
+          {factsChanged && !asking ? <Button variant="secondary" label="Write them again with this" onPress={() => { void rewrite(); }} /> : null}
+        </Card>
         <Segments<'comfortable' | 'stretch'>
           options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'stretch', label: 'Stretch' }]}
           value={stretch ? 'stretch' : 'comfortable'}
@@ -178,13 +215,13 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
               </View>
               {theme.why ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{theme.why}</Text> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s - 2 }}>
-                {themeChips(theme, shown.words).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}
+                {themeChips(theme, shown.wordsOf[i] ?? []).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  {`${theme.word_ids.length} of your ${plural(theme.word_ids.length, 'word', 'words')}${theme.new_words.length ? ` · ${theme.new_words.length} new` : ''}`}
+                  {`${(shown.wordsOf[i] ?? []).length} of your ${plural((shown.wordsOf[i] ?? []).length, 'word', 'words')}${theme.new_words.length ? ` · ${theme.new_words.length} new` : ''}`}
                 </Text>
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${theme.questions.length} ${plural(theme.questions.length, 'question', 'questions')}`}</Text>
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>{talkSummary(theme)}</Text>
               </View>
             </Card>
           </Tappable>
@@ -208,3 +245,4 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
     </Screen>
   );
 }
+

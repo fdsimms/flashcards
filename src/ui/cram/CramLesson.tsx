@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
-import { cramLanguageOf, cramNotes, meaningOf, withCapture, withoutCapture, withQuestionAsked, type Cram } from '../../core/cram';
+import { cramLanguageOf, cramNotes, meaningOf, talkSummary, withCapture, withoutCapture, withQuestionAsked, withTalkAsked, type Cram, type CramTalk } from '../../core/cram';
 import { Stack } from 'expo-router';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
@@ -10,29 +10,40 @@ import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { cramsNow, finishCram, saveCram, useCollection, useCrams } from '../useCrams';
+import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordAudio } from '../useWordAudio';
 import { CheckRow } from './CramBits';
+import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
 
 /**
- * Lesson mode, during the lesson itself (a video call with a tutor, say): the questions to ask,
- * checked off as they're asked; the words as big tiles, tapped when used (a long press plays one);
- * and a field to jot down a word the tutor used, kept on the cram to make cards from afterwards.
- * Every tap is kept as it's made, so the screen can be left and come back to. Finish ends the cram:
- * the words not used go into the next cram.
+ * Lesson mode, during the lesson itself (a video call with a tutor, say), on one screen: the talking
+ * points first (one open at a time, the first to begin with), each with the questions you ask to
+ * check off as they're asked, the ones the tutor may ask with your answer, and your story; then the
+ * questions about the language, checked off too; then the words as big tiles, tapped when used (a
+ * long press plays one). A field in the footer, always a tap away, jots down a word the tutor used,
+ * kept on the cram to make cards from afterwards. Every tap is kept as it's made, so the screen can be
+ * left and come back to. Finish ends the cram: the words not used go into the next cram.
  */
 export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; onDone: () => void }) {
   const c = useTheme();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
   const playWord = useWordAudio(repo);
-  const { scrollProps, bottomPadding } = useKeyboardScroll();
+  const phone = usePhoneSpeech(repo);
+  // The jot field is in the footer, which the screen doesn't lift over the keyboard: it's raised by the
+  // keyboard's height here (less the home indicator's inset, which the footer already pads by).
+  const { bottomPadding: keyboard } = useKeyboardScroll();
+  const insets = useSafeAreaInsets();
   const cram = crams.find((x) => x.id === id);
   const [used, setUsed] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  // The talking point open, by its title; unset, the first one is.
+  const [openTalk, setOpenTalk] = useState<string | null>();
   const [problem, setProblem] = useState<string>();
   // The saves, one after another, each reading the cram as the last one left it.
   const saves = useRef<Promise<void>>(Promise.resolve());
@@ -45,6 +56,10 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
   const questions = cram.questions ?? [];
   const inLanguage = language ? talkTextStyle(LANGUAGES[language], size, 1) : undefined;
   const captured = cram.captured ?? [];
+  const talks = cram.themes ?? [];
+  const opened = openTalk === undefined ? talks[0]?.title : openTalk;
+  const say = (text: string) => { if (language) phone.sayLine(text, LANGUAGES[language].speech, false); };
+  const overline = { ...type.footnote, color: c.textSecondary, fontWeight: '600' as const };
   // Each change starts from the cram as the save before it left it, so two quick taps both count.
   const keep = (change: (now: Cram) => Cram | undefined, what: string) => {
     setProblem(undefined);
@@ -89,9 +104,20 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
       title="Lesson"
       largeTitle={false}
       toolbar={<Stack.Toolbar placement="right">{talkSizeMenu(size, chooseSize)}</Stack.Toolbar>}
+      footerStyle={keyboard ? { marginBottom: Math.max(0, keyboard - insets.bottom) } : undefined}
       footer={(
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          <Field
+            label="Jot down a word your tutor used"
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={jot}
+            submitBehavior="submit"
+            returnKeyType="done"
+            autoCapitalize="none"
+            placeholder="Type it, or use the keyboard's microphone"
+          />
           <Button label="Finish" onPress={finish} busy={busy} />
           <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>
             {`${count} of ${notes.length} used.${rest ? ` ${rest === 1 ? '1 goes' : `${rest} go`} into your next cram.` : ''}`}
@@ -99,11 +125,24 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
         </>
       )}
     >
-      <ScrollView {...scrollProps} contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         <Text style={{ ...type.headline, color: c.text }}>{cram.name}</Text>
+        {talks.map((talk) => (
+          <LessonTalk
+            key={talk.title}
+            talk={talk}
+            open={opened === talk.title}
+            onToggle={() => { haptic.select(); setOpenTalk(opened === talk.title ? null : talk.title); }}
+            onAsked={(text, on) => { haptic.select(); keep((now) => withTalkAsked(now, talk.title, text, on), "Couldn't save that check mark."); }}
+            language={language}
+            size={size}
+            say={say}
+            overline={overline}
+          />
+        ))}
         {questions.length ? (
           <>
-            <SectionTitle>{`Ask · ${asked} of ${questions.length} asked`}</SectionTitle>
+            <SectionTitle>{`Questions about ${language ? LANGUAGES[language].name : 'the language'} · ${asked} of ${questions.length} asked`}</SectionTitle>
             <Group>
               {questions.map((q, i) => (
                 <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't save that check mark."); }} />
@@ -112,7 +151,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
           </>
         ) : null}
 
-        <SectionTitle>{`Say · ${count} of ${notes.length} used`}</SectionTitle>
+        <SectionTitle>{`Words · ${count} of ${notes.length} used`}</SectionTitle>
         {notes.length ? (
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
@@ -148,9 +187,9 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
           </>
         ) : <Help>This cram has no words yet.</Help>}
 
-        <SectionTitle>New from the lesson</SectionTitle>
-        <Card>
-          {captured.length ? (
+        {captured.length ? <SectionTitle>New from the lesson</SectionTitle> : null}
+        {captured.length ? (
+          <Card>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {captured.map((text) => (
                 <Tappable
@@ -166,20 +205,67 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
                 </Tappable>
               ))}
             </View>
-          ) : null}
-          <Field
-            label="A word or phrase your tutor used"
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={jot}
-            submitBehavior="submit"
-            returnKeyType="done"
-            autoCapitalize="none"
-            placeholder="Type it, or use the keyboard's microphone"
-          />
-        </Card>
-        <Help>These stay with the cram. Make cards from them on its page after the lesson.</Help>
+            <Help>These stay with the cram. Make cards from them on its page after the lesson.</Help>
+          </Card>
+        ) : null}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** A talking point in lesson mode: folded to its title and what it holds, or open to its questions (yours checked off as asked), the tutor's with your answers, and your story. */
+function LessonTalk({ talk, open, onToggle, onAsked, language, size, say, overline }: {
+  talk: CramTalk;
+  open: boolean;
+  onToggle: () => void;
+  onAsked: (text: string, asked: boolean) => void;
+  language: ReturnType<typeof cramLanguageOf>;
+  size: ReturnType<typeof useTalkSize>[0];
+  say: (text: string) => void;
+  overline: object;
+}) {
+  const c = useTheme();
+  const unknown = talk.unknown ?? [];
+  const asked = new Set(talk.asked ?? []);
+  return (
+    <Card style={{ gap: space.s }}>
+      <Tappable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={talk.title} style={{ gap: 2, minHeight: 44, justifyContent: 'center' }}>
+        <Text style={overline}>{talk.title.toUpperCase()}</Text>
+        {!open ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{talkSummary(talk)}</Text> : null}
+      </Tappable>
+      {open ? (
+        <>
+          {talk.questions.length ? <Text style={overline}>YOU ASK</Text> : null}
+          {talk.questions.map((q) => {
+            const on = asked.has(q.text);
+            return (
+              <View key={q.text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
+                <Tappable onPress={() => onAsked(q.text, !on)} hitSlop={space.s} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`Asked: ${q.text}`} style={{ paddingTop: space.xs + 2 }}>
+                  <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.countDue : c.textTertiary} />
+                </Tappable>
+                <View style={{ flex: 1 }}>
+                  <TalkLine text={q.text} english={q.english} language={language} size={size} unknown={unknown} onSay={say} muted={on} />
+                </View>
+              </View>
+            );
+          })}
+          {talk.expects?.length ? <Text style={{ ...overline, paddingTop: space.xs }}>THEY MAY ASK YOU</Text> : null}
+          {talk.expects?.map((e) => (
+            <View key={e.question.text}>
+              <TalkLine text={e.question.text} english={e.question.english} language={language} size={size} unknown={unknown} onSay={say} />
+              <View style={{ borderLeftWidth: 3, borderLeftColor: c.accentFill, paddingLeft: space.s + 2, marginTop: 2 }}>
+                <TalkLine text={e.answer.text} english={e.answer.english} language={language} size={size} unknown={unknown} onSay={say} scale={0.9} />
+              </View>
+            </View>
+          ))}
+          {talk.story ? (
+            <>
+              <Text style={{ ...overline, paddingTop: space.xs }}>YOUR STORY</Text>
+              <TalkLine text={talk.story.text} english={talk.story.english} language={language} size={size} unknown={unknown} onSay={say} />
+            </>
+          ) : null}
+        </>
+      ) : null}
+    </Card>
   );
 }

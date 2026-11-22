@@ -1,7 +1,9 @@
 import type { CramTheme as ApiTheme, CramThemesRequest, Language } from '../reader/api';
 import type { Particle } from '../reader/lessons';
 import { registerChoice, type RegisterLevel } from '../reader/registerLevel';
-import { lessonPhraseOf, lastMissed, noteAddedAt, type Cram, type CramTalk } from './cram';
+import { cramNotes, lessonPhraseOf, lastMissed, noteAddedAt, type Cram, type CramTalk } from './cram';
+import { headword } from './forms';
+import { readerLanguageOf } from './leechHint';
 import { isLiveLeech } from './leechRecovery';
 import type { Card, Note } from './types';
 import { weightOf, type Marks, type Tally } from '../tools/marks';
@@ -24,10 +26,12 @@ export const THEME_WEAK_CHARS = 120;
 export const THEME_TOPIC_CHARS = 120;
 /** A note added in this many days counts as lately added. */
 export const FRESH_DAYS = 14;
+/** The server's `MAX_FACTS`: the longest note on what really happened. */
+export const THEME_FACTS_CHARS = 300;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type ThemeKind = 'carried' | 'missed' | 'fresh' | 'deck';
+export type ThemeKind = 'cram' | 'carried' | 'missed' | 'fresh' | 'deck';
 
 export interface ThemeWord {
   noteId: string;
@@ -37,14 +41,17 @@ export interface ThemeWord {
 }
 
 /**
- * The words themes are built from, at most `THEME_WORDS_MAX`: the unused words of the last finished
- * cram, then the ones missed in the latest cram's last round or still leeches (`isLiveLeech`), then those added in the
- * last `FRESH_DAYS`, then other studied words, newest first within each. Only notes in `language` that
- * an audio lesson could take (`lessonPhraseOf`), and studied (a card that isn't New) unless they were
- * left over from the last cram.
+ * The words themes are built from, at most `THEME_WORDS_MAX`: the words already in the cram the
+ * themes are for, then the unused words of the last finished cram, then the ones missed in the latest
+ * cram's last round or still leeches (`isLiveLeech`), then those added in the last `FRESH_DAYS`, then
+ * other studied words, newest first within each. Only notes in `language` that an audio lesson could
+ * take (`lessonPhraseOf`), and studied (a card that isn't New) unless they are in the cram or were left
+ * over from the last one: those are the words the learner is about to learn. The server adds every
+ * other studied word itself, so a theme can reach the ones that fit its topic.
  */
-export function themeWords(input: { notes: Note[]; cards: Iterable<Card>; language: Language; crams: Cram[]; now: Date }): ThemeWord[] {
+export function themeWords(input: { notes: Note[]; cards: Iterable<Card>; language: Language; crams: Cram[]; now: Date; cram?: Cram }): ThemeWord[] {
   const { notes, language, crams, now } = input;
+  const inCram = new Set(input.cram ? cramNotes(input.cram, notes).map((n) => n.id) : []);
   const studied = new Set<string>();
   const cardsOfNote = new Map<string, Card[]>();
   for (const c of input.cards) {
@@ -59,17 +66,18 @@ export function themeWords(input: { notes: Note[]; cards: Iterable<Card>; langua
   const since = now.getTime() - FRESH_DAYS * DAY_MS;
 
   const kindOf = (n: Note): ThemeKind => {
+    if (inCram.has(n.id)) return 'cram';
     if (carried.has(n.id)) return 'carried';
     if (missed.has(n.id) || isLiveLeech(n, cardsOfNote.get(n.id) ?? [])) return 'missed';
     const added = noteAddedAt(n);
     return added > 0 && added >= since ? 'fresh' : 'deck';
   };
-  const rank: Record<ThemeKind, number> = { carried: 0, missed: 1, fresh: 2, deck: 3 };
+  const rank: Record<ThemeKind, number> = { cram: 0, carried: 1, missed: 2, fresh: 3, deck: 4 };
 
   const words: (ThemeWord & { added: number })[] = [];
   for (const n of notes) {
     const phrase = lessonPhraseOf(n, language);
-    if (!phrase || (!studied.has(n.id) && !carried.has(n.id))) continue;
+    if (!phrase || (!studied.has(n.id) && !carried.has(n.id) && !inCram.has(n.id))) continue;
     words.push({ noteId: n.id, text: phrase.text, english: phrase.english, kind: kindOf(n), added: noteAddedAt(n) });
   }
   words.sort((a, b) => rank[a.kind] - rank[b.kind] || b.added - a.added);
@@ -114,8 +122,12 @@ export function themesToAvoid(crams: Cram[], shown: string[]): string[] {
   return out.slice(0, THEME_AVOID_MAX);
 }
 
-/** The request for the server's themes. `topic` is what the lesson is for (the cram's name): every theme is an angle on it. */
-export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string, register?: RegisterLevel, particle?: Particle): CramThemesRequest {
+/**
+ * The request for the server's themes. `topic` is what the lesson is for (the cram's name): every
+ * theme is an angle on it. `facts` is what really happened, in the learner's words (`Cram.facts`).
+ */
+export function themesRequest(language: Language, words: ThemeWord[], weak: string[], avoid: string[], stretch: boolean, topic: string, register?: RegisterLevel, particle?: Particle, facts = ''): CramThemesRequest {
+  const note = facts.replace(/\s+/g, ' ').trim().slice(0, THEME_FACTS_CHARS);
   return {
     language,
     words: words.map((w) => ({ id: w.noteId, text: w.text, english: w.english, kind: w.kind })),
@@ -123,35 +135,62 @@ export function themesRequest(language: Language, words: ThemeWord[], weak: stri
     avoid,
     stretch,
     topic: topic.replace(/\s+/g, ' ').trim().slice(0, THEME_TOPIC_CHARS),
+    facts: note,
     ...registerChoice(register),
     // Thai only: the story is the learner's own words, so the server writes it for their gender.
     ...(language === 'th' && particle ? { particle } : {}),
   };
 }
 
-/** How many of a theme's words are of each kind, and how many words it offers to learn, for its chips. */
+/** How many of a theme's words (`themeDeckWords`) are of each kind, and how many words it offers to learn, for its chips. */
 export function themeCounts(theme: ApiTheme, words: ThemeWord[]): Record<ThemeKind | 'new', number> {
-  const kinds = new Map(words.map((w) => [w.noteId, w.kind]));
-  const counts: Record<ThemeKind | 'new', number> = { carried: 0, missed: 0, fresh: 0, deck: 0, new: theme.new_words.length };
-  for (const id of theme.word_ids) {
-    const kind = kinds.get(id);
-    if (kind) counts[kind]++;
-  }
+  const counts: Record<ThemeKind | 'new', number> = { cram: 0, carried: 0, missed: 0, fresh: 0, deck: 0, new: theme.new_words.length };
+  for (const w of words) counts[w.kind]++;
   return counts;
 }
 
-/** The theme's words as the words sent, in the theme's order, leaving out any the server named that aren't here. */
-export function themeDeckWords(theme: ApiTheme, words: ThemeWord[]): ThemeWord[] {
+/** A word's text as compared: one form of Unicode, spaces collapsed, ignoring case. */
+const wordKey = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * The theme's words: the ones sent, in the theme's order (leaving out any the server named that
+ * aren't here), then the other studied words it named from the whole deck, found by their word among
+ * the notes in `language` (`deck`; one with no note to match is left out, since it can't be tagged).
+ */
+export function themeDeckWords(theme: ApiTheme, words: ThemeWord[], notes: Note[] = [], language?: Language): ThemeWord[] {
   const byId = new Map(words.map((w) => [w.noteId, w]));
-  return theme.word_ids.flatMap((id) => byId.get(id) ?? []);
+  const sent = theme.word_ids.flatMap((id) => byId.get(id) ?? []);
+  const named = theme.deck_words ?? [];
+  if (!named.length || !language) return sent;
+  const have = new Set(sent.map((w) => w.noteId));
+  const byWord = new Map<string, Note>();
+  for (const n of notes) {
+    if (readerLanguageOf(n) !== language) continue;
+    const key = wordKey(headword(n));
+    if (key && !byWord.has(key)) byWord.set(key, n);
+  }
+  const found: ThemeWord[] = [];
+  for (const w of named) {
+    const note = byWord.get(wordKey(w.word));
+    const phrase = note ? lessonPhraseOf(note, language) : undefined;
+    if (!note || !phrase || have.has(note.id)) continue;
+    have.add(note.id);
+    found.push({ noteId: note.id, text: phrase.text, english: phrase.english, kind: 'deck' });
+  }
+  return [...sent, ...found];
 }
 
-/** What a cram keeps of its theme: the questions and the story, for the lesson itself. */
+/** What a cram keeps of its theme for the lesson itself: the questions of both kinds, the story and the words it marked as unknown. */
 export function talkOf(theme: ApiTheme): CramTalk {
+  const line = (l: { text: string; english: string }) => ({ text: l.text, english: l.english });
+  const expects = theme.expects ?? [];
+  const unknown = theme.unknown ?? [];
   return {
     title: theme.title,
-    questions: theme.questions.map((q) => ({ text: q.text, english: q.english })),
-    ...(theme.story ? { story: { text: theme.story.text, english: theme.story.english } } : {}),
+    questions: theme.questions.map(line),
+    ...(expects.length ? { expects: expects.map((e) => ({ question: line(e.question), answer: line(e.answer) })) } : {}),
+    ...(theme.story ? { story: line(theme.story) } : {}),
+    ...(unknown.length ? { unknown: unknown.map((u) => ({ word: u.word, english: u.english })) } : {}),
   };
 }
 

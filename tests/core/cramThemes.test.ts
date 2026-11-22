@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import type { Cram } from '../../src/core/cram';
 import {
-  combineWeakSpots, FRESH_DAYS, markWords, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
+  combineWeakSpots, FRESH_DAYS, markWords, THEME_FACTS_CHARS, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
   type ThemeWord,
 } from '../../src/core/cramThemes';
 import type { Card, Note } from '../../src/core/types';
+import type { CramTheme } from '../../src/reader/api';
 import type { Marks } from '../../src/tools/marks';
 import { omniNote } from '../support/fixtures';
 
@@ -45,6 +46,13 @@ describe('themeWords', () => {
     const outside = thai(added(FRESH_DAYS + 1), 'ข', 'b');
     const words = themeWords({ notes: [outside, inside], cards: studiedCards(inside.id, outside.id), language: 'th', crams: [], now: NOW });
     expect(words.map((w) => [w.text, w.kind])).toEqual([['ก', 'fresh'], ['ข', 'deck']]);
+  });
+
+  it("puts the cram's own words first, studied or not", () => {
+    const notes = [thai(added(200), 'ก', 'a'), thai(added(3), 'ข', 'b', ['cram::lesson-2026-11-11']), thai(added(300), 'ค', 'c', ['cram::lesson-2026-11-11'])];
+    const [a, b] = notes.map((n) => n.id);
+    const words = themeWords({ notes, cards: studiedCards(a, b), language: 'th', crams: [], now: NOW, cram: cram() });
+    expect(words.map((w) => [w.text, w.kind])).toEqual([['ข', 'cram'], ['ค', 'cram'], ['ก', 'deck']]);
   });
 
   it('sends at most as many words as the server takes', () => {
@@ -107,16 +115,18 @@ describe('the request, a theme and its story', () => {
     { noteId: 'b', text: 'เผ็ด', english: 'spicy', kind: 'missed' },
     { noteId: 'c', text: 'จาน', english: 'plate', kind: 'deck' },
   ];
-  const theme = {
-    title: 'Restaurant', why: '', word_ids: ['c', 'zzz', 'a'], new_words: [{ word: 'แพ้', english: 'allergic' }],
-    questions: [{ text: 'q', english: 'e' }], story: { text: 'ฉันสั่งอาหาร', english: 'I order food' },
+  const theme: CramTheme = {
+    title: 'Restaurant', why: '', word_ids: ['c', 'zzz', 'a'], deck_words: [], new_words: [{ word: 'แพ้', english: 'allergic' }],
+    questions: [{ text: 'q', english: 'e' }], expects: [], story: { text: 'ฉันสั่งอาหาร', english: 'I order food' }, unknown: [],
   };
   it('sends every word with its id and why it is there', () => {
     expect(themesRequest('th', words, ['Money: x'], ['Taxis'], true, '  My violin\n recital ')).toEqual({
       language: 'th',
       words: [{ id: 'a', text: 'สั่ง', english: 'order', kind: 'carried' }, { id: 'b', text: 'เผ็ด', english: 'spicy', kind: 'missed' }, { id: 'c', text: 'จาน', english: 'plate', kind: 'deck' }],
-      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true, topic: 'My violin recital',
+      weak_spots: ['Money: x'], avoid: ['Taxis'], stretch: true, topic: 'My violin recital', facts: '',
     });
+    expect(themesRequest('th', words, [], [], false, 'x', undefined, undefined, '  Ran 21 km\n in 2:05 ').facts).toBe('Ran 21 km in 2:05');
+    expect(themesRequest('th', words, [], [], false, 'x', undefined, undefined, 'y'.repeat(400)).facts).toHaveLength(THEME_FACTS_CHARS);
     expect(themesRequest('th', words, [], [], false, 'x', 'formal').register).toBe('formal');
     expect('register' in themesRequest('th', words, [], [], false, 'x')).toBe(false);
   });
@@ -128,12 +138,29 @@ describe('the request, a theme and its story', () => {
   });
 
   it("counts a theme's words by kind and finds the ones still here", () => {
-    expect(themeCounts(theme, words)).toEqual({ carried: 1, missed: 0, fresh: 0, deck: 1, new: 1 });
+    expect(themeCounts(theme, themeDeckWords(theme, words))).toEqual({ cram: 0, carried: 1, missed: 0, fresh: 0, deck: 1, new: 1 });
     expect(themeDeckWords(theme, words).map((w) => w.noteId)).toEqual(['c', 'a']);
   });
   it('keeps the questions and the story of the theme for the cram', () => {
     expect(talkOf(theme)).toEqual({ title: 'Restaurant', questions: [{ text: 'q', english: 'e' }], story: { text: 'ฉันสั่งอาหาร', english: 'I order food' } });
     expect(talkOf({ ...theme, story: null }).story).toBeUndefined();
+  });
+  it('keeps the questions the tutor may ask with their answers, and the words marked unknown', () => {
+    const expects = [{ question: { text: 'เหนื่อยไหม', english: 'Tired?' }, answer: { text: 'เหนื่อยครับ', english: 'Yes.' } }];
+    const talk = talkOf({ ...theme, expects, unknown: [{ word: 'สนุก', english: 'fun' }] });
+    expect(talk.expects).toEqual(expects);
+    expect(talk.unknown).toEqual([{ word: 'สนุก', english: 'fun' }]);
+    // An older server's theme has neither.
+    const older = { ...theme } as Partial<CramTheme>;
+    delete older.expects; delete older.unknown;
+    expect(talkOf(older as CramTheme)).toEqual(talkOf(theme));
+  });
+  it("finds the deck's other words by their word, in the language, once, after the ones sent", () => {
+    const notes = [thai('n1', 'วิ่ง', 'to run'), thai('n2', 'เหนื่อย', 'tired'), polish('n3'), thai('a', 'สั่ง', 'order')];
+    const named = { ...theme, deck_words: [{ word: 'เหนื่อย', english: 'tired' }, { word: 'książka', english: 'book' }, { word: 'ไม่มี', english: 'none' }, { word: ' วิ่ง ', english: 'run' }, { word: 'สั่ง', english: 'order' }] };
+    const got = themeDeckWords(named, words, notes, 'th');
+    expect(got.map((w) => [w.noteId, w.kind])).toEqual([['c', 'deck'], ['a', 'carried'], ['n2', 'deck'], ['n1', 'deck']]);
+    expect(themeDeckWords(named, words).map((w) => w.noteId)).toEqual(['c', 'a']);
   });
 });
 

@@ -80,7 +80,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
         onRegister={setSceneRegister}
         partner={partner}
         onPartner={setPartner}
-        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words, sceneRegister, partner)); }}
+        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words, sceneRegister, partner, rehearsal.prepared)); }}
         onPickOther={() => setOther(true)}
       />
     );
@@ -108,7 +108,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
       heardOnly={heardOnly}
       feedback={feedback}
       onFeedback={setFeedback}
-      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words, chat.register, chat.partner)); }}
+      onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words, chat.register, chat.partner, chat.prepared)); }}
       onDone={onClose}
     />
   );

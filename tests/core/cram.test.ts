@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
   afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withThemes, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
+  cramLessonPhrases, LESSON_TALK_LINES, practiceOrder, preparedLines, talkLessonLines, talkScene, talkSummary, withoutTalk, withTalkAsked, withTalkStory, type CramTalk,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -326,5 +327,75 @@ describe('Read & Listen', () => {
     expect(lessonIsCurrent(c, ['b', 'a'])).toBe(true);
     expect(lessonIsCurrent(c, ['a'])).toBe(false);
     expect(lessonIsCurrent(cram(), [])).toBe(false);
+    // The talking points' lines it teaches count too.
+    const withLines = cram({ lesson: { id: 3, noteIds: ['a'], lines: ['ครูวิ่งไหมครับ'] } });
+    expect(lessonIsCurrent(withLines, ['a'], ['ครูวิ่งไหมครับ'])).toBe(true);
+    expect(lessonIsCurrent(withLines, ['a'])).toBe(false);
+    expect(lessonIsCurrent(c, ['a', 'b'], ['ครูวิ่งไหมครับ'])).toBe(false);
+  });
+});
+
+const talk = (title: string, over: Partial<CramTalk> = {}): CramTalk => ({
+  title,
+  questions: [{ text: `${title} ask 1`, english: 'a1' }, { text: `${title} ask 2`, english: 'a2' }],
+  expects: [
+    { question: { text: `${title} q1`, english: 'q1' }, answer: { text: `${title} answer 1`, english: 'r1' } },
+    { question: { text: `${title} q2`, english: 'q2' }, answer: { text: `${title} answer 2`, english: 'r2' } },
+  ],
+  story: { text: `${title} story`, english: 's' },
+  ...over,
+});
+
+describe('talking points', () => {
+  const thai = (id: string, entry: string): Note => ({ ...omniNote({ Entry: entry, Meaning: `${entry} meaning` }), id });
+  it('orders the words missed last, then the ones not solid, then the solid ones', () => {
+    const notes = ['a', 'b', 'c', 'd'].map((id) => thai(id, id));
+    const c = cram({ rounds: [round(WED, ['a', 'b', 'c', 'd'], ['c']), round(WED, ['a', 'b', 'c', 'd'], ['d'])] });
+    // a and b were got twice (solid), c was missed once and got since (not solid), d was missed last.
+    expect(practiceOrder(c, notes).map((n) => n.id)).toEqual(['d', 'c', 'a', 'b']);
+  });
+  it("teaches each talking point's first question and first answer, then the rest, up to the limit", () => {
+    const c = cram({ themes: [talk('A'), talk('B')] });
+    expect(talkLessonLines(c).map((l) => l.text)).toEqual(['A ask 1', 'B ask 1', 'A answer 1', 'B answer 1', 'A ask 2']);
+    expect(talkLessonLines(c)).toHaveLength(LESSON_TALK_LINES);
+    // A talking point kept before there were answers, or a line too long to send, is fine.
+    const old = cram({ themes: [{ title: 'Old', questions: [{ text: 'x'.repeat(201), english: 'long' }, { text: 'ok', english: 'ok' }] }] });
+    expect(talkLessonLines(old)).toEqual([{ text: 'ok', english: 'ok' }]);
+    expect(talkLessonLines(cram())).toEqual([]);
+  });
+  it("makes Listen's lesson from the talking points' lines, then the shakiest words, within the limit", () => {
+    const notes = Array.from({ length: 14 }, (_, i) => thai(`n${i}`, `w${i}`));
+    const c = cram({ themes: [talk('A')], rounds: [round(WED, ['n0', 'n13'], ['n13'])] });
+    const got = cramLessonPhrases(c, notes, 'th');
+    expect(got.lines).toEqual(['A ask 1', 'A answer 1', 'A ask 2', 'A answer 2']);
+    expect(got.noteIds[0]).toBe('n13');
+    expect(got.phrases).toHaveLength(15);
+    expect(got.noteIds).toHaveLength(11);
+  });
+  it("sets a lesson or a rehearsal in the one talking point, else what the cram is for, else the first one's title", () => {
+    expect(talkScene(cram({ themes: [talk('Race day')] }))).toBe('Race day');
+    expect(talkScene(cram({ name: 'Half marathon', themes: [talk('A'), talk('B')] }))).toBe('Half marathon');
+    expect(talkScene(cram({ name: 'Thai lesson', untitled: true, themes: [talk('A'), talk('B')] }))).toBe('A');
+    expect(talkScene(cram({ name: 'Thai lesson' }))).toBe('Thai lesson');
+  });
+  it('says what a talking point holds', () => {
+    expect(talkSummary(talk('A'))).toBe('2 to ask · 2 they may ask · your story');
+    expect(talkSummary({ questions: [1], expects: null, story: null })).toBe('1 to ask');
+  });
+  it('lists what was prepared for the tutor, labeled', () => {
+    const lines = preparedLines(cram({ themes: [talk('A', { expects: [talk('A').expects![0]], questions: [talk('A').questions[0]] })] }));
+    expect(lines).toEqual(['Topic: A', 'You ask: A ask 1', 'They may ask you: A q1 (your answer: A answer 1)', 'Your story: A story']);
+    expect(preparedLines(cram())).toEqual([]);
+  });
+  it('takes a talking point out, edits its story and checks off its questions', () => {
+    const c = cram({ themes: [talk('A', { unknown: [{ word: 'x', english: '' }] }), talk('B')] });
+    expect(withoutTalk(c, 'A').themes?.map((t) => t.title)).toEqual(['B']);
+    const edited = withTalkStory(c, 'A', { text: 'new', english: 'New.' }).themes![0];
+    expect(edited.story).toEqual({ text: 'new', english: 'New.' });
+    expect(edited.unknown).toBeUndefined();
+    const asked = withTalkAsked(c, 'A', 'A ask 1', true);
+    expect(asked.themes![0].asked).toEqual(['A ask 1']);
+    expect(withTalkAsked(asked, 'A', 'A ask 1', false).themes![0].asked).toEqual([]);
+    expect(asked.themes![1].asked).toBeUndefined();
   });
 });

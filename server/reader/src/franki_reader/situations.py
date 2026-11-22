@@ -40,6 +40,8 @@ MAX_REHEARSAL_WORDS = (
     15  # words a cram's rehearsal asks the other person to work in (an audio lesson's limit)
 )
 MAX_REHEARSAL_WORD = 200  # characters in one of them, with its meaning
+MAX_PREPARED = 16  # lines of a cram's talking points a rehearsal is given
+MAX_PREPARED_LINE = 240  # characters in one of them, with its label
 MAX_TOKENS = 3000
 FEEDBACK_TOKENS = 6000
 
@@ -194,6 +196,8 @@ class Conversation:
     learner: Learner = "male"
     # The other person is the learner's own tutor in a lesson, not someone the scene calls for.
     tutor: bool = False
+    # What the learner prepared for the lesson (a cram's talking points), as labeled lines.
+    prepared: tuple[str, ...] = ()
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
@@ -230,6 +234,15 @@ def play_intro(conversation: Conversation) -> str:
             "You are the learner's own tutor, in a lesson, and the situation is the topic you are "
             "talking through with them. Ask about it and react to their answers as a friendly tutor "
             "would, staying on the topic."
+        )
+    if conversation.prepared:
+        listed = "\n".join(f"- {p}" for p in conversation.prepared)
+        notes.append(
+            "The learner has prepared for this conversation:\n"
+            f"{listed}\n"
+            "Ask them the questions they expect, in your own words and one at a time, leave room "
+            "for them to ask theirs and to say what they prepared, and react to what they say. "
+            "Never read this list out or mention that they prepared."
         )
     if conversation.register != DEFAULT:
         notes.append(f"Register for your lines: {instruction(conversation.register)}")
