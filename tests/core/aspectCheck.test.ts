@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ASPECT_MISS_RATING, aspectCheckOn, aspectToCheck, aspectVerdict } from '../../src/core/aspectCheck';
+import { ASPECT_MISS_RATING, aspectCheckOn, aspectToCheck, aspectVerdict, deckHasAspectLanguage } from '../../src/core/aspectCheck';
 import type { DeckSettings } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
 
@@ -18,6 +18,19 @@ describe('aspectToCheck', () => {
     expect(aspectToCheck(verb(['noun']), { kind: 'forward' })).toBeUndefined();
     expect(aspectToCheck(verb(['perfective', 'imperfective']), { kind: 'forward' })).toBeUndefined();
     expect(aspectToCheck({ ...verb(['imperfective']), fields: { Front: 'a', Back: 'b' } }, { kind: 'forward' })).toBeUndefined();
+  });
+});
+
+describe('deckHasAspectLanguage', () => {
+  const inDeck = (deck: string, language: string) => ({ ...omniNote({ Entry: 'x', Meaning: 'y', Language: language }), deck });
+  it('is true when the deck or a subdeck has Russian or Polish notes', () => {
+    expect(deckHasAspectLanguage('Languages', [inDeck('Languages::Russian', 'Russian')])).toBe(true);
+    expect(deckHasAspectLanguage('Polski', [inDeck('Polski', 'Polish')])).toBe(true);
+  });
+  it('is false for other languages, other decks and an empty deck', () => {
+    expect(deckHasAspectLanguage('Toki Pona', [inDeck('Toki Pona', 'Toki Pona')])).toBe(false);
+    expect(deckHasAspectLanguage('Languages::German', [inDeck('Languages::Russian', 'Russian')])).toBe(false);
+    expect(deckHasAspectLanguage('Empty', [])).toBe(false);
   });
 });
 
