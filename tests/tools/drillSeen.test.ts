@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type DrillSeen, drawUnseen, mergeSeen, parseSeen, recordSeen, SEEN_KEPT, seenList } from '../../src/tools/drillSeen';
+import { type DrillSeen, drawUnseen, forgetSeen, mergeSeen, missedList, parseSeen, recordSeen, SEEN_KEPT, seenList } from '../../src/tools/drillSeen';
 import { drawQuestion, drawRound, drillStep, questionKey } from '../../src/tools/skills';
 
 const LIST = seenList('th', 'time-hours');
@@ -99,5 +99,18 @@ describe('a round drawn against what the step asked lately', () => {
       expect(new Set(round).size).toBe(round.length);
       for (const k of round) expect(recent).not.toContain(k);
     }
+  });
+});
+
+describe("a dates step's missed months", () => {
+  it('keeps a miss until the month is had right, beside the asked list and apart from it', () => {
+    const list = missedList('pl', 'dates-day');
+    expect(list).not.toBe(seenList('pl', 'dates-day'));
+    let seen = recordSeen(recordSeen({}, list, '3'), list, '7');
+    expect(seen[list]).toEqual(['3', '7']);
+    seen = forgetSeen(seen, list, '3');
+    expect(seen[list]).toEqual(['7']);
+    expect(forgetSeen(seen, list, '9')).toBe(seen);
+    expect(forgetSeen(seen, list, '7')).toEqual({});
   });
 });

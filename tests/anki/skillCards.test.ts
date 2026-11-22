@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
 import { saveNote, type NoteStore } from '../../src/anki/noteService';
-import { addSkillCards, deleteSkillCards, missingDrafts, missingWordDrafts, setSkillsPaused, SkillsRefused } from '../../src/anki/skillCards';
+import { addSkillCards, deleteSkillCards, missingDrafts, missingWordDrafts, setSkillsPaused, setStepStopped, SkillsRefused } from '../../src/anki/skillCards';
 import type { NoteType } from '../../src/core/types';
 import { omnilanguageFieldNames } from '../../src/import/models';
 import { MemoryRepo } from '../../src/db/repo';
@@ -184,10 +184,46 @@ describe('pausing and resuming a deck\'s skill cards', () => {
     expect(skillCards(store).filter((c) => c.suspended)).toHaveLength(4);
   });
 
+  it('leaves a step that was stopped suspended through a resume', async () => {
+    const { store } = await franki();
+    await addSkillCards(store, { ...add, groups: ['consonants'] });
+    const live = skillCards(store).find((c) => !c.suspended)!;
+    await setStepStopped(store, live.noteId, true, false, NOW, 4);
+    await setSkillsPaused(store, 'Thai', true, NOW, 4);
+    await setSkillsPaused(store, 'Thai', false, NOW, 4);
+    expect(store.cards.get(live.id)!.suspended).toBe(true);
+  });
+
   it("leaves another deck's skill cards alone", async () => {
     const { store } = await franki();
     await addSkillCards(store, { ...add, groups: ['time'] });
     expect(await setSkillsPaused(store, 'Polski', true, NOW, 4)).toBe(0);
+  });
+});
+
+describe('stopping a step and starting it again', () => {
+  it('tags the note and suspends its card, and Start again undoes both', async () => {
+    const { store } = await franki();
+    await addSkillCards(store, { ...add, groups: ['consonants'] });
+    const card = [...store.cards.values()].find((c) => !c.suspended && store.notes.get(c.noteId)!.tags.includes('skill'))!;
+    const stopped = await setStepStopped(store, card.noteId, true, false, NOW, 4);
+    expect(stopped.tags).toContain('skill::stopped');
+    expect(store.cards.get(card.id)!.suspended).toBe(true);
+    const back = await setStepStopped(store, card.noteId, false, false, NOW, 4);
+    expect(back.tags).not.toContain('skill::stopped');
+    expect(store.cards.get(card.id)!.suspended).toBe(false);
+  });
+
+  it('takes off a covered tag too, but leaves the card suspended while the deck is paused', async () => {
+    const { store } = await franki();
+    await addSkillCards(store, { ...add, groups: ['consonants'] });
+    const card = [...store.cards.values()].find((c) => !c.suspended && store.notes.get(c.noteId)!.tags.includes('skill'))!;
+    const n = store.notes.get(card.noteId)!;
+    await saveNote(store, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: [...n.tags, 'skill::covered'] }, NOW);
+    await setStepStopped(store, card.noteId, true, false, NOW, 4);
+    const back = await setStepStopped(store, card.noteId, false, true, NOW, 4);
+    expect(back.tags.filter((t) => t.startsWith('skill::') && t !== 'skill::consonants' && !t.startsWith('skill::lang'))).toEqual([]);
+    expect(store.cards.get(card.id)!.suspended).toBe(true);
   });
 });
 

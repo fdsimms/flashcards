@@ -1,8 +1,9 @@
-import { Refusal } from '../core/failure';
+import { NOTE_GONE, Refusal } from '../core/failure';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Language } from '../reader/api';
 import type { Note, NoteType } from '../core/types';
 import { headword } from '../core/forms';
+import { setAsideOf, SKILL_COVERED_TAG, SKILL_STOPPED_TAG } from '../core/skillTag';
 import { drillOfTags, stepWaits, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillWordDrafts, type SkillDraft, type SkillGroup } from '../tools/skills';
 import { knownAmong, SKILL_WORD_NOTE_TYPE, type SkillWordDraft } from '../tools/skillWords';
 import { ensureDeck } from './deckService';
@@ -141,11 +142,35 @@ export async function setSkillsPaused(store: NoteStore & Pick<AnkiLink, 'setAnki
     const n = notes.get(c.noteId);
     if (!n || c.retired || !!c.suspended === paused) return false;
     const drill = drillOfTags(n.tags);
-    return paused || !drill || !stepWaits(drill.step, drill.language);
+    // A step stopped or covered (`setAsideOf`) stays suspended through a resume.
+    return paused || (!setAsideOf(n.tags) && (!drill || !stepWaits(drill.step, drill.language)));
   });
   if (!targets.length) return 0;
   await setCardStates(store, targets, (s) => ({ ...s, suspended: paused }), now, dayStartsAtHour);
   return targets.length;
+}
+
+/**
+ * Sets a drill step aside or brings it back: Stop practicing tags its note `skill::stopped` and suspends
+ * its card; Start again takes off that tag and `skill::covered` and unsuspends it, unless the deck's
+ * skill cards are paused (then it waits for the resume like the rest). The tag is saved first, through
+ * `saveNote`, so a card left suspended by a failed second write is still one the ladder passes by.
+ * Returns the note as saved.
+ */
+export async function setStepStopped(
+  store: NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>, noteId: string, stop: boolean, paused: boolean, now: Date, dayStartsAtHour: number,
+): Promise<Note> {
+  const note = await store.getNote(noteId);
+  if (!note) throw new NoteRefused(NOTE_GONE);
+  const others = note.tags.filter((t) => t !== SKILL_STOPPED_TAG && t !== SKILL_COVERED_TAG);
+  const saved = await saveNote(store, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags: stop ? [...others, SKILL_STOPPED_TAG] : others }, now);
+  const suspend = stop || paused;
+  const cards = (await store.listCards()).filter((c) => c.noteId === note.id && !c.retired && !!c.suspended !== suspend);
+  if (cards.length) {
+    const { ankiError } = await setCardStates(store, cards, (st) => ({ ...st, suspended: suspend }), now, dayStartsAtHour);
+    if (ankiError) throw ankiError;
+  }
+  return saved;
 }
 
 /** Deletes a deck's skill notes, which takes their review history. Returns how many notes went. */

@@ -18,6 +18,8 @@ LATER = sum(1 for g in THAI["groups"] for n in g["notes"] if n["suspended"])
 WORDS = len({w["fields"]["Entry"] for g in THAI["groups"] for w in g["words"]})  # a hundred serves numbers and money
 # Anki's `tag:skill` also matches `skill::words`, so a count of the skill cards leaves the words out.
 CARDS = "tag:skill -tag:skill::words"
+# A skill card that's live once added (Thai's drills all wait for words first), found by its front: setting it aside is what keeps it suspended.
+LIVE_FRONT = next(n["front"] for g in THAI["groups"] for n in g["notes"] if not n["suspended"])
 
 
 def test_a_deck_name_means_the_language_the_app_reads_from_it():
@@ -92,6 +94,23 @@ async def test_pausing_suspends_every_card_and_resuming_leaves_a_later_step_wait
         assert col.get_config(skills.SKILL_CARDS_KEY, None) == {}  # the defaults leave no entry
     finally:
         col.close()
+
+
+async def test_resuming_leaves_a_step_set_aside_suspended(client, cm, thai):
+    # Franki tags a step the learner stopped, or one a later step covers, and keeps its card suspended: a resume mustn't bring it back.
+    await call(client, "add_skill_cards", deck="Thai", dry_run=False)
+    def stop(col):
+        for nid in col.find_notes(f'"Front:{skills.search_text(LIVE_FRONT)}"'):
+            note = col.get_note(nid)
+            note.tags.append(skills.CATALOG["setAsideTags"][0])
+            col.update_note(note)
+            col.sched.suspend_cards(note.card_ids())
+
+    await cm.write(stop)
+    await call(client, "set_skill_cards", deck="Thai", on=False)
+    resumed = await call(client, "set_skill_cards", deck="Thai", on=True)
+    assert resumed["cards_changed"] == ALL - LATER - 1
+    assert await count(cm, f"tag:{skills.CATALOG['setAsideTags'][0]} is:suspended") == 1
 
 
 async def test_settings_are_saved_in_the_collection_for_franki(client, desktop, thai):

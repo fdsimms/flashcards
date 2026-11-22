@@ -1,6 +1,6 @@
 import { Paths } from 'expo-file-system';
 import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
-import { drawUnseen, mergeSeen, parseSeen, recordSeen, seenList, type DrillSeen } from './drillSeen';
+import { drawUnseen, forgetSeen, mergeSeen, missedList, parseSeen, recordSeen, seenList, type DrillSeen } from './drillSeen';
 
 /**
  * The questions skill drills have asked lately (drillSeen.ts), kept in the documents folder: read
@@ -28,6 +28,21 @@ export const drillSeenFor = (language: string, stepId: string): readonly string[
 /** A question was asked: it's remembered now, and saved. */
 export function noteDrillAsked(language: string, stepId: string, key: string): void {
   seen = recordSeen(seen, seenList(language, stepId), key);
+  save();
+}
+
+/** The months (1 to 12) a dates step missed lately and hasn't had right since, oldest miss first. */
+export const drillMissedMonths = (language: string, stepId: string): number[] =>
+  (seen[missedList(language, stepId)] ?? []).map(Number).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
+
+/** A dates question was marked: a miss puts its month on the step's missed list, a right answer takes it off. */
+export function noteDrillMonth(language: string, stepId: string, month: number, right: boolean): void {
+  const list = missedList(language, stepId);
+  seen = right ? forgetSeen(seen, list, String(month)) : recordSeen(seen, list, String(month));
+  save();
+}
+
+function save(): void {
   void loadDrillSeen().then(() => {
     try { writeJsonSafely(Paths.document, FILE, seen); } catch { /* Still held for this run. */ }
   });

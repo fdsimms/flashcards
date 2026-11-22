@@ -5,7 +5,7 @@ import type { Language } from '../reader/api';
 import {
   drawRound, drillAnswer, GROUP_TITLES, heardRight, isSlow, medianMs, missesToCarry, questionKey, questionNote, questionText, suggestedRating, type DrillQuestion, type DrillStep,
 } from '../tools/skills';
-import { drillSeenFor, loadDrillSeen, noteDrillAsked } from '../tools/drillSeenStorage';
+import { drillMissedMonths, drillSeenFor, loadDrillSeen, noteDrillAsked, noteDrillMonth } from '../tools/drillSeenStorage';
 import { questionsToAsk } from '../tools/drillRound';
 import { drillCarryOf, drillRoundFor, keepDrillCarry, keepDrillRound, loadDrillRounds } from '../tools/drillRoundStorage';
 import { studyDayKey } from '../core/day';
@@ -71,7 +71,7 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
     const day = studyDayKey(new Date(), dayStartsAtHour);
     const kept = cardId ? drillRoundFor(cardId, day, drill.step.id) : undefined;
     if (kept) return { questions: questionsToAsk(kept), at: Date.now() };
-    const questions = drawRound(drill.step, Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id));
+    const questions = drawRound(drill.step, Math.random, drill.language, { months: drill.months, days: drill.days }, drillSeenFor(drill.language, drill.step.id), drillMissedMonths(drill.language, drill.step.id));
     if (cardId) keepDrillRound(cardId, day, drill.step.id, questions);
     // Asked as far as the step's bag is concerned: the next card of the step leaves these for the others to come round first.
     for (const q of questions) noteDrillAsked(drill.language, drill.step.id, questionKey(q));
@@ -109,6 +109,8 @@ export function useSkillDrill(showing: string | undefined, drill: Drill | undefi
       if (!live || !drill || done) return false;
       const results = [...live.results, right];
       const last = results.length >= live.total;
+      // A dates drill's next round asks a month missed here first, until it's had right (`nextMonth`).
+      if (live.question.kind === 'date') noteDrillMonth(drill.language, drill.step.id, live.question.date.month, right);
       const missed = right ? live.missed : [...live.missed, live.question];
       setState({ key: live.key, question: last ? live.question : live.upcoming[0], total: live.total, upcoming: last ? [] : live.upcoming.slice(1), missed, shown: false, results, askedAt: Date.now(), times: live.times, trail: [...live.trail, live] });
       return last;
