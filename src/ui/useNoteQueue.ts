@@ -5,6 +5,7 @@ import { OfflineError } from '../core/connection';
 import { isOffline } from '../core/held';
 import { holdWords } from '../reader/heldNotes';
 import { noteQueueStore } from '../reader/noteQueueStore';
+import { isWorking } from '../reader/noteQueue';
 import { connection } from './connection';
 import { heldWords } from './held';
 
@@ -16,7 +17,7 @@ const POLL_MS = 4000;
 const poll = { api: null as Api | null, users: 0, token: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined };
 
 const reason = (e: unknown) => (e instanceof ApiError ? e.message : new OfflineError().message);
-const anyWaiting = (queue: NoteQueue | null) => !!queue?.items.some((n) => n.state === 'waiting');
+const anyWaiting = (queue: NoteQueue | null) => !!queue?.items.some(isWorking);
 
 // A change made here (a word added, retried or removed) makes a look already on its way out of date:
 // its answer was read before the change, and would put back what the change took away.

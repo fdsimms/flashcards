@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, LayoutAnimation, ScrollView, Text, View } fro
 import { failureText } from '../../core/failure';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
-import { counts, firstReady, needsChoice } from '../../reader/noteQueue';
+import { counts, firstReady, isRetrying, isWorking, needsChoice } from '../../reader/noteQueue';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
@@ -17,6 +17,9 @@ const STATUS = {
   waiting: { icon: 'clock', label: 'Waiting' },
   failed: { icon: 'exclamationmark.triangle.fill', label: 'Failed' },
 } as const;
+
+/** A failed word the server will try again by itself: no button, since there's nothing to do yet. */
+const RETRYING = { icon: 'clock', label: 'Trying again' } as const;
 
 /** A ready note the deck refused when it was approved (a duplicate): shown instead of "Ready". */
 const REFUSED = { icon: 'exclamationmark.triangle.fill', label: 'Not added' } as const;
@@ -44,8 +47,9 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
 }) {
   const c = useTheme();
   const choose = needsChoice(note);
-  const { icon, label } = added ? ADDED : refusal ? REFUSED : choose ? CHOOSE : STATUS[note.state];
-  const color = refusal ? c.danger : choose ? c.warningInk : note.state === 'ready' ? c.good : note.state === 'failed' ? c.danger : c.textSecondary;
+  const retrying = isRetrying(note);
+  const { icon, label } = added ? ADDED : refusal ? REFUSED : choose ? CHOOSE : retrying ? RETRYING : STATUS[note.state];
+  const color = refusal ? c.danger : choose ? c.warningInk : note.state === 'ready' ? c.good : note.state === 'failed' && !retrying ? c.danger : c.textSecondary;
   const meaning = note.fields.Meaning ?? note.meaning;
   // A word typed the way it sounds shows how it's really written beside it.
   const word = note.spelling ? `${note.entry} → ${note.spelling}` : note.entry;
@@ -54,9 +58,9 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Tappable
           onPress={() => { haptic.tap(); onOpen(); }}
-          disabled={note.state === 'waiting' || locked || pending}
+          disabled={note.state === 'waiting' || retrying || locked || pending}
           accessibilityRole="button"
-          accessibilityLabel={`${note.spelling ? `${note.entry}, written ${note.spelling}` : note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' ? 'Fill in by hand' : ''}`}
+          accessibilityLabel={`${note.spelling ? `${note.entry}, written ${note.spelling}` : note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' && !retrying ? 'Fill in by hand' : ''}`}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
         >
           <View style={{ flex: 1, gap: 2 }}>
@@ -84,7 +88,11 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
           <Text style={{ ...type.footnote, color: c.danger }}>{refusal}</Text>
         </View>
       ) : null}
-      {note.state === 'failed' ? (
+      {retrying ? (
+        <View style={{ paddingHorizontal: space.l, paddingBottom: space.m }}>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>{note.error ? `${note.error.replace(/ Try again\.$/, '')} Claude will try again in a few minutes.` : 'Claude will try again in a few minutes.'}</Text>
+        </View>
+      ) : note.state === 'failed' ? (
         <View style={{ paddingHorizontal: space.l, paddingBottom: space.m, gap: space.s, alignItems: 'flex-start' }}>
           <Text style={{ ...type.footnote, color: c.danger }}>{note.error || "Couldn't fill this one in."}</Text>
           <HeaderAction label="Try again" onPress={onRetry} busy={pending} />
@@ -250,8 +258,8 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
   const readyRows = freeze ? freeze.notes : items.filter((x) => x.state === 'ready');
   const sections = [
     { key: 'ready', title: 'Ready to review', rows: readyRows },
-    { key: 'waiting', title: 'Filling in', rows: items.filter((x) => x.state === 'waiting') },
-    { key: 'failed', title: "Couldn't fill in", rows: items.filter((x) => x.state === 'failed') },
+    { key: 'waiting', title: 'Filling in', rows: items.filter(isWorking) },
+    { key: 'failed', title: "Couldn't fill in", rows: items.filter((x) => x.state === 'failed' && !isRetrying(x)) },
   ].filter((s) => s.rows.length);
   const ready = freeze ? freeze.notes[0] : firstReady(items);
   // Approve all skips the notes the deck just refused; Review still opens them, to change the word.

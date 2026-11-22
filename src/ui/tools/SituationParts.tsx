@@ -154,6 +154,14 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
               ) : (
                 <TypedDiff comparison={compareTyped(l.corrected, own)} showExpected size="body" lang={lang} expectedLabel="Corrected" showLine={false} />
               )}
+              {l.heard || l.meant ? (
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                  {'Heard as: '}
+                  {l.heard ? <Text accessibilityLanguage={lang} style={{ ...type.footnote, color: c.text }}>{l.heard}</Text> : null}
+                  {l.heard && l.meant ? ' · ' : ''}
+                  {l.meant ? `“${l.meant}”` : ''}
+                </Text>
+              ) : null}
               <Text style={{ ...type.footnote, color: ok ? c.countDue : c.textSecondary }}>{l.note}</Text>
             </View>
           );
