@@ -25,6 +25,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam, BetaTe
 
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word
+from franki_reader.gender import wrong_gender_words
 from franki_reader.generator import MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import Learner
@@ -246,9 +247,15 @@ def play_intro(conversation: Conversation) -> str:
         notes.append(
             "The learner has prepared for this conversation:\n"
             f"{listed}\n"
-            "Ask them the questions they expect, in your own words and one at a time, leave room "
-            "for them to ask theirs and to say what they prepared, and react to what they say. "
-            "Never read this list out or mention that they prepared."
+            "This is background for you, not a script to get through. Have the conversation a "
+            "real person would: follow what the learner actually says, and answer or ask about "
+            "that before anything else. If they bring up something new, stay with it for as "
+            "long as it is natural. Only when the conversation has reached one of these topics "
+            "on its own, ask the question they expect about it, in your own words, and leave "
+            "room for them to ask theirs and tell their story. Never steer back to the list, "
+            "never change the subject to reach an item, and don't try to cover all of it: it is "
+            "fine if some of it never comes up. Never read this list out or mention that they "
+            "prepared."
         )
     if conversation.register != DEFAULT:
         notes.append(f"Register for your lines: {instruction(conversation.register)}")
@@ -314,23 +321,45 @@ def word_list(entries: list[Entry]) -> str:
     )
 
 
+_THAI_FIT = {
+    "male": " In Thai, say ผม and ครับ, never ดิฉัน, ค่ะ or คะ.",
+    "female": " In Thai, say ดิฉัน or ฉัน, ค่ะ and คะ, never ผม or ครับ.",
+}
+_THAI_SPEAKER = {
+    "th": (
+        " Your gender decides your Thai: a man says ผม and ครับ, a woman ดิฉัน, ค่ะ and คะ."
+        " Pick a name that fits it, and write every line to match."
+    )
+}
+
+
 def conversation_message(conversation: Conversation) -> str:
     """The user message of a turn: the parts, then the conversation so far."""
     roles = conversation.roles
+    language = conversation.language
     parts = []
     if roles is None and conversation.tutor:
         parts.append(
             "Start the conversation. The learner's part (`you`) is their student and yours (`them`) "
             "is their tutor; give yourself a first name and gender, and say the first line."
+            + _THAI_SPEAKER.get(language, "")
         )
     elif roles is None:
         parts.append(
             "Start the conversation. Choose the two parts the situation calls for (`you`: the "
             'learner\'s, like "a customer"; `them`: yours, like "the vendor"), a first name and '
-            "gender for yourself, and say the first line."
+            "gender for yourself, and say the first line." + _THAI_SPEAKER.get(language, "")
         )
     else:
-        parts.append(f"The learner is {roles.you}. You are {roles.them}, {roles.name}.")
+        parts.append(
+            f"The learner is {roles.you}. You are {roles.them}, {roles.name}, "
+            f"{'a woman' if roles.gender == 'female' else 'a man'}."
+            + (
+                _THAI_FIT[roles.gender]
+                if conversation.language == "th" and roles.gender in _THAI_FIT
+                else ""
+            )
+        )
         parts.append("The conversation so far:")
         for line in conversation.lines:
             who = roles.name if line.speaker == "them" else "Learner"
@@ -392,6 +421,7 @@ async def next_line(
         line = None
     if line is None:
         raise SituationFailed("Claude's line couldn't be used. Try again.", used)
+    line, used = await _fit_gender(play, entries, conversation, line, used)
     unknown = unknown_words(line["line"], checker)
     if len(unknown) <= MAX_UNKNOWN:
         return line, unknown, used
@@ -409,6 +439,48 @@ async def next_line(
     if second is None or ("roles" in line and "roles" not in second):
         return line, unknown, total
     return second, unknown_words(second["line"], checker), total
+
+
+def _speaker_gender(conversation: Conversation, line: dict[str, Any]) -> str | None:
+    roles = line.get("roles") or (conversation.roles and {"gender": conversation.roles.gender})
+    return roles["gender"] if roles else None
+
+
+async def _fit_gender(
+    play: Play,
+    entries: list[Entry],
+    conversation: Conversation,
+    line: dict[str, Any],
+    used: Usage,
+) -> tuple[dict[str, Any], Usage]:
+    """A Thai line that uses the other gender's words (a man's ครับ said in a woman's voice) is
+    sent back once. When it still doesn't fit on a first turn, the speaker's gender follows the
+    line, so the voice at least matches what is said; a later turn keeps the line, since the
+    speaker's gender is already set."""
+    gender = _speaker_gender(conversation, line)
+    wrong = wrong_gender_words(conversation.language, line["line"], gender or "")
+    if not wrong:
+        return line, used
+    who = "a man" if gender == "male" else "a woman"
+    feedback = (
+        f"Your line used {wrong[0]}, which doesn't fit {who}. You are {who}: say it again "
+        + ("with ผม and ครับ." if gender == "male" else "with ดิฉัน, ค่ะ and คะ.")
+    )
+    try:
+        raw2, used2 = await play(entries, conversation, feedback)
+    except SituationFailed as e:
+        return line, used + e.usage
+    second = clean_line(raw2)
+    total = used + used2
+    if second is not None and ("roles" in line) == ("roles" in second):
+        if "roles" in second:
+            second["roles"]["gender"] = line["roles"]["gender"]
+        if not wrong_gender_words(conversation.language, second["line"], gender or ""):
+            return second, total
+        line = second
+    if "roles" in line:
+        line["roles"]["gender"] = "female" if gender == "male" else "male"
+    return line, total
 
 
 def feedback_message(conversation: Conversation) -> str:

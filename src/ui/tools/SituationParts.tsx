@@ -51,7 +51,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }:
   const meaning = word === null || tapped === null ? '' : word.gloss ?? word.parts ?? looked[tapped] ?? (lookup && needsMeaning(word) ? 'Looking up the meaning...' : '');
   return (
     <View style={{ alignSelf: 'flex-start', maxWidth: '88%', backgroundColor: c.surface, borderRadius: radius.l, borderBottomLeftRadius: radius.s / 2, ...smooth, padding: space.m, gap: space.xs }}>
-      <Text style={{ ...type.caption, fontWeight: '600', color: c.onSpeakerB }}>{name}</Text>
+      <Text style={{ ...type.headline, color: c.onSpeakerB }}>{name}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
         {shown ? (
           <Text accessibilityLanguage={lang} style={{ ...look, color: c.text, flexShrink: 1 }}>

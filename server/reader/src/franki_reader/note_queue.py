@@ -31,6 +31,7 @@ from typing import Any, cast
 
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
+from franki_speech.thai_romanization import THAI_SCHEME, is_toneless, letters_wrong
 
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
@@ -289,6 +290,11 @@ You fill in flashcard notes for an English-speaking learner of {language}. For e
 are given, you write the fields below. Be accurate: a wrong gloss or an unnatural sentence is worse \
 than a plain one."""
 
+# The deck's scheme, worded for this request's keys instead of the note's field names.
+_THAI_SCHEME = THAI_SCHEME.replace("ContextRomanized", "romanization").replace(
+    "Transliteration", "transliteration"
+)
+
 _REQUEST = """\
 For each entry below, give:
 - entry: the entry exactly as listed
@@ -415,7 +421,12 @@ WriteNotes = Callable[[Code, list[tuple[str, str]]], Awaitable[tuple[list[Any], 
 def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     name = LANGUAGES[language].name
     romanized = language in ROMANIZED
-    if romanized:
+    if language == "th":
+        # The deck's own scheme, tones included, which a note is checked against (thai_romanization).
+        transliteration = (
+            "the spelling alone in Latin letters, in the same scheme, with its tone marks"
+        )
+    elif romanized:
         transliteration = "the spelling alone in Latin letters, the same system"
     elif language == "ja":
         # The owner's Japanese notes keep a reading in kana, not a romanization.
@@ -428,7 +439,10 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
     return _REQUEST.format(
         language=name,
         romanization=(
-            f"the sentence in Latin letters, the way a {name} textbook romanizes it"
+            "the sentence in the scheme below, with its tone marks on every syllable that has one\n"
+            f"{_THAI_SCHEME}"
+            if language == "th"
+            else f"the sentence in Latin letters, the way a {name} textbook romanizes it"
             if romanized
             else "an empty string"
         ),
@@ -489,6 +503,20 @@ def _plain(value: object, limit: int, *, markup: bool = False) -> str | None:
     return None if "<" in text or ">" in text else value
 
 
+def _bolded(context: str, words: list[str], language: Code) -> str:
+    """`context` with its first whole occurrence of one of `words` in bold, when Claude wrote the
+    sentence with no tags at all; unchanged when none of them appears (an inflected form is for Claude
+    to bold, not for code to guess). A language written with spaces matches whole words only, so "kot"
+    isn't found inside "kotek"; Thai and Japanese have no spaces to match against."""
+    for word in dict.fromkeys(w for w in words if w):
+        pattern = (
+            rf"(?<!\w){re.escape(word)}(?!\w)" if LANGUAGES[language].spaced else re.escape(word)
+        )
+        if found := re.search(pattern, context):
+            return f"{context[: found.start()]}<b>{found.group()}</b>{context[found.end() :]}"
+    return context
+
+
 def check(raw: object, asked: dict[str, str], language: Code) -> tuple[str, dict[str, str]] | None:
     """One word Claude filled, as (entry, fields by Anki field name), or None unless it was asked for
     and its fields are usable. The owner's own meaning is always kept; a field that doesn't apply (a
@@ -515,6 +543,10 @@ def checked(
     if not translation:
         return None, "the translation was missing, too long or had markup in it"
     # The entry is shown in bold, balanced, once or more (a split verb has two).
+    if "<b>" not in context and "</b>" not in context:
+        context = _bolded(
+            context, [_plain(raw.get("spelling"), MAX_MEANING) or "", entry], language
+        )
     opens, closes = context.count("<b>"), context.count("</b>")
     if opens == 0 or opens != closes:
         return None, "the word wasn't in bold in the example sentence"
@@ -524,6 +556,13 @@ def checked(
         transliteration = _plain(raw.get("transliteration"), MAX_MEANING)
         if not romanization or not transliteration:
             return None, "the romanization was missing or had stray characters"
+        if language == "th":
+            # The deck's scheme and tone marks: a draft without them is refused, not saved for the
+            # owner to find later (the MCP's lint holds saved notes to the same rules).
+            if letters_wrong(romanization) or letters_wrong(transliteration):
+                return None, "the romanization wasn't in the deck's scheme"
+            if is_toneless(romanization):
+                return None, "the romanization had no tone marks"
         fields["ContextRomanized"] = romanization
         fields["Transliteration"] = transliteration
     elif language == "ja":
@@ -605,11 +644,12 @@ def due(note: store.QueuedNote, now: datetime) -> bool:
     since the last one over."""
     if note.state == "waiting":
         return True
-    return (
-        note.state == "failed"
-        and note.attempts < MAX_ATTEMPTS
-        and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
-    )
+    return retrying(note) and (note.tried_at is None or now - note.tried_at >= RETRY_AFTER)
+
+
+def retrying(note: store.QueuedNote) -> bool:
+    """Whether a failed word will be tried again without the owner asking: it has tries left."""
+    return note.state == "failed" and note.attempts < MAX_ATTEMPTS
 
 
 def pending(conn: sqlite3.Connection, now: datetime) -> list[store.QueuedNote]:

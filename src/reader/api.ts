@@ -557,6 +557,8 @@ export type QueuedNote = {
   state: 'waiting' | 'ready' | 'failed';
   fields: Record<string, string>;
   error: string;
+  /** A failed word the server will try again by itself, so there's nothing for the owner to do yet. Absent from a server before it. */
+  retrying?: boolean;
   /**
    * How the entry is really written, once it's ready, when it was typed the way it sounds (in Latin
    * letters, romanized loosely or misspelled); empty otherwise. Absent from a server before it.

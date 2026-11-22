@@ -6,18 +6,22 @@ import {
   practiceSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { failureText } from '../../core/failure';
+import { deleteNotesWarning } from '../../core/noteEditing';
+import { deleteNotesTitle } from '../../core/selection';
 import { headword } from '../../core/forms';
 import type { Card, Note } from '../../core/types';
 import type { Api, Language, QueuedNote } from '../../reader/api';
-import { queuedFor } from '../../reader/noteQueue';
+import { isRetrying, queuedFor } from '../../reader/noteQueue';
 import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Group, Help, Loading, NavRow, ProgressBar, Screen, SectionTitle } from '../kit';
-import { readable, space, type, useTheme, type Colors } from '../theme';
-import { capCramCards, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
-import { Pill } from './CramBits';
+import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, Tappable } from '../kit';
+import { MIN_TAP, readable, space, type, useTheme, type Colors } from '../theme';
+import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
+import { CheckRow, Pill } from './CramBits';
+import { SelectBar } from '../SelectBar';
+import { useSelection } from '../useSelection';
 import { RegisterPicker } from '../reader/RegisterPicker';
 import type { RegisterLevel } from '../../reader/registerLevel';
 import { CramListen } from './CramListen';
@@ -88,7 +92,9 @@ export function CramPage(props: {
   }, [repo, notes.length]);
 
   const [talkSize, chooseTalkSize] = useTalkSize();
-  if (!cram || !collection.loaded) return <Screen title={cram?.name ?? ''}><Loading /></Screen>;
+  const noteIds = useMemo(() => notes.map((n) => n.id), [notes]);
+  const sel = useSelection(noteIds);
+  if (!cram || !collection.loaded) return <Screen><Loading /></Screen>;
 
   const running = isRunning(cram, now, H);
   const over = isAwaitingFinish(cram, now, H);
@@ -115,6 +121,32 @@ export function CramPage(props: {
       () => { collection.reload(); capCramCards(repo).catch(() => undefined); },
       (e) => setProblem(failureText(e, { what: "Couldn't add the words.", next: 'Try again.' })),
     );
+  };
+  const takeOutSelected = () => {
+    haptic.tap();
+    setProblem(undefined);
+    setCramTag(repo, cram, sel.selected, false).then(
+      () => { collection.reload(); sel.stop(); },
+      (e) => { collection.reload(); setProblem(failureText(e, { what: "Couldn't take the words out.", next: 'Try again.' })); },
+    );
+  };
+  const deleteSelected = () => {
+    const picked = [...sel.selected];
+    const cardCount = picked.reduce((n, id) => n + (cardsOf.get(id)?.length ?? 0), 0);
+    haptic.tap();
+    Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          setProblem(undefined);
+          const { failed, error } = await deleteCramWords(repo, picked);
+          collection.reload();
+          if (failed.length) setProblem(failureText(error, { what: `Couldn't delete ${failed.length === 1 ? '1 note' : `${failed.length} notes`}.`, next: 'They are still selected. Try again.' }));
+          else sel.stop();
+        },
+      },
+    ]);
   };
   const wordMenu = (note: Note) => {
     haptic.tap();
@@ -148,7 +180,7 @@ export function CramPage(props: {
   const requestMenu = (text: string, note?: QueuedNote) => {
     haptic.tap();
     if (note?.state === 'ready' && props.approve) { void approveRequest(note); return; }
-    if (note?.state === 'failed' && props.approve) {
+    if (note?.state === 'failed' && !isRetrying(note) && props.approve) {
       ActionSheetIOS.showActionSheetWithOptions(
         { title: text, message: note.error || "Claude couldn't write a card for this.", options: ['Fill in by hand', ...(props.retry ? ['Try again'] : []), 'Stop showing it here', 'Cancel'], destructiveButtonIndex: props.retry ? 2 : 1, cancelButtonIndex: props.retry ? 3 : 2 },
         (i) => {
@@ -195,9 +227,25 @@ export function CramPage(props: {
 
   const readerOff = 'Uses Read & Listen. Turn it on in Settings, Read & Listen.';
   return (
+    // No native title: the large one is a single line and cut a long name short, so the name is a heading in the page.
     <Screen
-      title={cram.name}
-      toolbar={(
+      footer={sel.selecting ? (
+        <SelectBar
+          count={sel.selected.size}
+          total={listed.length}
+          onSelectAll={() => sel.selectAll(noteIds)}
+          onClear={sel.clear}
+          actions={[
+            { label: 'Take out of cram', hint: 'Words stay in your deck', onPress: takeOutSelected },
+            { label: 'Delete notes', hint: 'Asks first', destructive: true, onPress: deleteSelected },
+          ]}
+        />
+      ) : undefined}
+      toolbar={sel.selecting ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button accessibilityLabel="Done selecting" onPress={sel.stop}>Done</Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      ) : (
         <Stack.Toolbar placement="right">
           {!cram.finishedAt && (cram.themes?.length || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
           <Stack.Toolbar.Button accessibilityLabel="Edit the cram" onPress={() => go('/cram-edit')}>Edit</Stack.Toolbar.Button>
@@ -205,6 +253,7 @@ export function CramPage(props: {
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+        <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
         <Box>
@@ -263,12 +312,26 @@ export function CramPage(props: {
           </>
         ) : null}
 
-        <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
-        {!cram.finishedAt && missed.length ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
+          {!cram.finishedAt && listed.length && !sel.selecting ? (
+            <Tappable onPress={() => { haptic.tap(); setProblem(undefined); sel.start(); }} accessibilityRole="button" accessibilityLabel="Select words" style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l }}>
+              <Text style={{ ...type.subhead, color: c.accentInk, fontWeight: '600' }}>Select</Text>
+            </Tappable>
+          ) : null}
+        </View>
+        {!cram.finishedAt && missed.length && !sel.selecting ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
+        {sel.selecting ? (
+          <Group>
+            {listed.map((note, i) => (
+              <CheckRow key={note.id} first={i === 0} label={headword(note) || 'Untitled'} detail={meaningOf(note) || undefined} checked={sel.selected.has(note.id)} onPress={() => { haptic.select(); sel.toggle(note.id); }} />
+            ))}
+          </Group>
+        ) : (
         <Group>
           {!cram.finishedAt ? <NavRow first icon={{ name: 'plus', color: c.accent }} label="Add a word" detail="Search your deck, or ask Claude for a card." onPress={() => go('/cram-words')} /> : null}
           {shown.map((note, i) => {
@@ -287,6 +350,7 @@ export function CramPage(props: {
           {pending.map((r, i) => {
             const note = queuedFor(props.queued ?? [], r.text);
             const badge = note?.state === 'ready' ? { text: 'Ready to review', color: c.accentInk, fill: c.accentFill }
+              : note && isRetrying(note) ? { text: 'Trying again', color: c.textSecondary, fill: c.fill }
               : note?.state === 'failed' ? { text: "Couldn't write", color: c.danger, fill: c.dangerFill }
               : { text: 'Being written', color: c.textSecondary, fill: c.fill };
             return <NavRow key={`asked-${r.text}`} first={!listed.length && !!cram.finishedAt && i === 0} label={r.text} detail={r.english} badge={badge} onPress={() => requestMenu(r.text, note)} />;
@@ -295,6 +359,7 @@ export function CramPage(props: {
             <NavRow label={showAll ? 'Show fewer' : `Show all ${listed.length}`} onPress={() => { haptic.tap(); setShowAll(!showAll); }} />
           ) : null}
         </Group>
+        )}
 
         {cram.captured?.length ? (
           <>

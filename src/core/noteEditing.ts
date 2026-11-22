@@ -32,6 +32,11 @@ export function deleteNoteWarning(cardCount: number): string {
   return `Its ${one ? 'card is' : 'cards are'} deleted too, with ${one ? 'its' : 'their'} review history in Franki. Anki deletes them at the next sync, or when you send your collection back.`;
 }
 
+/** What the "Delete 3 notes?" alert says when Select deletes several: the same facts as `deleteNoteWarning`. */
+export function deleteNotesWarning(cardCount: number): string {
+  return `Their cards are deleted too, with their review history in Franki${cardCount ? ` (${cardCount} ${cardCount === 1 ? 'card' : 'cards'})` : ''}. Anki deletes them at the next sync, or when you send your collection back.`;
+}
+
 /**
  * A stored field as the editor would store it back untouched (`<br/>` and a raw new line both as
  * `<br>`): what an edit is compared with, so opening a note doesn't count as changing it.
