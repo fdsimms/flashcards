@@ -27,6 +27,15 @@ def test_a_deck_name_means_the_language_the_app_reads_from_it():
     assert [(n, skills.language_of_deck(n)) for n, _ in examples] == [(n, lang) for n, lang in examples]
 
 
+def test_words_are_compared_as_the_app_compares_them():
+    # src/tools/skillWords.ts's `norm`: ё as е and Greek's tone marks off; other accents are letters of their own.
+    assert skills._norm_word("Четвёртый") == skills._norm_word("четвертый")
+    assert skills._norm_word("μία") == skills._norm_word("μια") == "μια"
+    assert skills._norm_word("ΜΊΑ") == "μια"
+    assert skills._norm_word("luty") != skills._norm_word("łuty")
+    assert skills._norm_word("señor") == "señor"
+
+
 def test_settings_are_read_as_the_app_reads_them():
     s = skills._settings_of({"auto": True, "off": ["money", "nope", 3]})
     assert s == skills.Settings(on=True, auto=True, off=("money",))
