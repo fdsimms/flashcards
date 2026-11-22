@@ -4,51 +4,72 @@ import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
+/** What the learner said about one sense on this answer. A sense with no verdict counts as recalled (nothing is kept for it). */
+export type SenseVerdict = 'got' | 'missed';
+
 /** What an answer's numbered senses do in Review (useSenseMarks). Numbers count from 1. */
 export interface SenseMarking {
-  /** The senses tapped as missed on this answer. */
-  marked: ReadonlySet<number>;
+  /** The verdicts tapped on this answer. Only 'missed' is kept with the answer. */
+  verdicts: ReadonlyMap<number, SenseVerdict>;
   /** The senses the card's latest answer marked. */
   last: readonly number[];
-  onToggle: (sense: number) => void;
+  /** Sets a sense's verdict, or takes it off when it is already that one. */
+  onMark: (sense: number, verdict: SenseVerdict) => void;
 }
 
 /**
- * A numbered Meaning on the answer, each sense a row to tap when it wasn't recalled (src/core/senseMarks.ts).
- * A tapped sense says "Missed"; one missed last time is tinted and says so until it is tapped. `size` is the
- * meaning's own text style, so the rows read as the Meaning they stand in for.
+ * A numbered Meaning on the answer, each sense a row with a check and an X to say whether it was recalled
+ * (src/core/senseMarks.ts). Only an X is kept; a sense left alone counts as recalled. One missed last time is
+ * tinted and says so until it is given a verdict. `size` is the meaning's own text style, so the rows read as
+ * the Meaning they stand in for.
  */
 export function MarkableSenses({ senses, marking, size }: { senses: string[]; marking: SenseMarking; size: { fontSize: number; lineHeight?: number } }) {
   const c = useTheme();
+  const verdictButton = (n: number, sense: string, verdict: SenseVerdict, current: SenseVerdict | undefined) => {
+    const on = current === verdict;
+    const fill = verdict === 'got' ? c.good : c.danger;
+    return (
+      <Tappable
+        onPress={() => { haptic.select(); marking.onMark(n, verdict); }}
+        accessibilityRole="button"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={`Sense ${n}: ${sense}, ${verdict === 'got' ? 'recalled' : 'missed'}`}
+        accessibilityHint={on ? 'Tap to take this off' : verdict === 'got' ? 'Tap if you recalled this sense' : 'Tap if you missed this sense'}
+        scaleTo={0.9}
+        style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <View style={{ width: 30, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: on ? fill : c.controlEdge, backgroundColor: on ? fill : 'transparent' }}>
+          <Icon name={verdict === 'got' ? 'checkmark' : 'xmark'} size={15} weight="bold" color={on ? c.bg : c.textSecondary} />
+        </View>
+      </Tappable>
+    );
+  };
   return (
     <View style={{ gap: space.xs }}>
       {senses.map((sense, k) => {
         const n = k + 1;
-        const on = marking.marked.has(n);
-        const before = !on && marking.last.includes(n);
+        const verdict = marking.verdicts.get(n);
+        const before = !verdict && marking.last.includes(n);
         return (
-          <Tappable
+          <View
             key={n}
-            onPress={() => { haptic.select(); marking.onToggle(n); }}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={`Sense ${n}: ${sense}${on ? ', marked as missed' : before ? ', missed last time' : ''}`}
-            accessibilityHint={on ? 'Tap to take the mark off' : 'Tap if you missed this sense'}
-            scaleTo={0.98}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m, paddingVertical: space.xs,
-              borderRadius: radius.m, ...smooth, backgroundColor: on ? c.dangerFill : before ? c.accentFill : 'transparent',
+              flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP, paddingLeft: space.m, paddingRight: space.xs, paddingVertical: space.xs,
+              borderRadius: radius.m, ...smooth, backgroundColor: verdict === 'missed' ? c.dangerFill : verdict === 'got' ? c.goodFill : before ? c.accentFill : 'transparent',
             }}
           >
             <Text style={{ ...size, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{n}.</Text>
             <Text style={{ ...size, color: c.text, flex: 1, minWidth: 0 }}>{sense}</Text>
-            {on ? <Text style={{ ...type.caption, fontWeight: '600', color: c.danger }}>Missed</Text>
-              : before ? <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>Missed last time</Text> : null}
-          </Tappable>
+            {before ? <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>Missed last time</Text> : null}
+            <View style={{ flexDirection: 'row' }}>
+              {verdictButton(n, sense, 'got', verdict)}
+              {verdictButton(n, sense, 'missed', verdict)}
+            </View>
+          </View>
         );
       })}
-      {marking.marked.size || marking.last.length ? null : (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Tap a sense you missed.</Text>
+      {marking.verdicts.size || marking.last.length ? null : (
+        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Senses you leave alone count as recalled.</Text>
       )}
     </View>
   );
