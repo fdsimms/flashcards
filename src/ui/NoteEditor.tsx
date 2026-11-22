@@ -13,7 +13,7 @@ import { isOmnilanguage } from '../core/cards';
 import { clearFormatting, formattedRuns, hasFormatting, toggleMark, type Mark, type Selection } from '../core/formatting';
 import { applyTagSuggestion, canAddAnother, clozeChoices, nextNoteFields, typedTag, wrapCloze } from '../core/noteDrafting';
 import { suggestTags, tagCounts } from '../core/priority';
-import { addDraftChanged, asEdited, deleteNoteWarning, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
+import { addDraftChanged, asEdited, checksDuplicate, deleteNoteWarning, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
 import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
@@ -142,6 +142,9 @@ export function NoteEditor(props: {
         setModel(startModel);
         const startFields = { ...(askedKnown ? {} : begun.fields), ...(props.target.fields ?? {}) };
         if (Object.keys(startFields).length) setFields(startFields);
+        // What the deck filled in (its language, asking both ways) is kept for Save and add another, as
+        // if marked to keep: blanked, the next note would lose its language and its reverse card.
+        if (!askedKnown) setKept(new Set(Object.keys(begun.fields)));
         // A running cram that adds new cards tags the note (src/core/cram.ts); the tag shows here and can be taken off.
         const cs = await props.repo.collectionSettings();
         // Only crams in the note's language take it: read from its Language field, else its deck.
@@ -198,7 +201,10 @@ export function NoteEditor(props: {
   // The collection's tags, suggested as the Tags field is typed in, as the tag fields elsewhere suggest them (TagTokenField).
   const collectionTags = useMemo(() => tagCounts(notes), [notes]);
   const suggestedTags = useMemo(() => (tagsFocused ? suggestTags(collectionTags, typedTag(tags), parseTags(tags), TAG_SUGGESTIONS).map((t) => t.tag) : []), [tagsFocused, collectionTags, tags]);
-  const duplicate = fieldNames[0] ? duplicateOf(notes, { id: original?.id, deck, model, fields: stored }, fieldNames[0]) : undefined;
+  // Warned of only where `saveNote` would refuse it (`checksDuplicate`): an edit that keeps its first field saves.
+  const duplicate = fieldNames[0] && checksDuplicate(original, { deck, model, fields: stored }, fieldNames[0])
+    ? duplicateOf(notes, { id: original?.id, deck, model, fields: stored }, fieldNames[0])
+    : undefined;
   const changed = editing
     ? !!original && (deck !== original.deck || JSON.stringify(stored) !== JSON.stringify(Object.fromEntries(fieldNames.map((f) => [f, asEdited(original.fields[f] ?? '')])))
       || parseTags(tags).join(' ') !== original.tags.join(' '))

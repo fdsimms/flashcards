@@ -24,8 +24,8 @@ export interface NewCardOrder {
 export function newCardOrderOf(deck: string, params: Map<string, DeckParams>): NewCardOrder | undefined {
   const own = paramsForDeck(deck, params);
   if (!own || own.filtered || own.presetId === undefined) return undefined;
-  const ownName = [...params].find(([, p]) => p === own)?.[0];
-  const sharedWith = [...params].filter(([name, p]) => name !== ownName && !p.filtered && p.presetId === own.presetId).map(([name]) => name);
+  // Every other deck on the preset, the parent included when the deck has none of its own and uses the parent's.
+  const sharedWith = [...params].filter(([name, p]) => name !== deck && !p.filtered && p.presetId === own.presetId).map(([name]) => name);
   return { presetId: own.presetId, mix: own.order?.newMix ?? 0, sharedWith };
 }
 

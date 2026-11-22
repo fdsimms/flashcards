@@ -24,7 +24,7 @@ describe("a deck's new card order", () => {
   });
 
   it("uses the nearest parent's preset for a deck with none of its own", () => {
-    expect(newCardOrderOf('Languages::Thai::Verbs', params)).toEqual({ presetId: 1, mix: 1, sharedWith: ['Languages', 'Trivia'] });
+    expect(newCardOrderOf('Languages::Thai::Verbs', params)).toEqual({ presetId: 1, mix: 1, sharedWith: ['Languages', 'Languages::Thai', 'Trivia'] });
   });
 
   it('has none for a filtered deck or a deck Anki does not have', () => {
