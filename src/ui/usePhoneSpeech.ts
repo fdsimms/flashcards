@@ -13,8 +13,18 @@ import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
  * the voice rather than stop it blind. Every "stop, then play" goes through this.
  */
 export async function stopSpeechIfRunning(): Promise<void> {
-  if (await Speech.isSpeakingAsync().catch(() => false)) await Speech.stop().catch(() => {});
+  if (!(await Speech.isSpeakingAsync().catch(() => false))) return;
+  await Speech.stop().catch(() => {});
+  // iOS drops an utterance spoken the instant after a stop, so a word answered quickly after the
+  // last one stayed silent at random. Wait until the voice reports it is quiet (at most STOP_WAIT_MS).
+  for (let waited = 0; waited < STOP_WAIT_MS; waited += STOP_POLL_MS) {
+    if (!(await Speech.isSpeakingAsync().catch(() => false))) break;
+    await new Promise((resolve) => setTimeout(resolve, STOP_POLL_MS));
+  }
+  await new Promise((resolve) => setTimeout(resolve, STOP_POLL_MS));
 }
+const STOP_WAIT_MS = 400;
+const STOP_POLL_MS = 30;
 
 /**
  * Reading aloud with the phone's voices, in the voice and at the speed chosen for each language

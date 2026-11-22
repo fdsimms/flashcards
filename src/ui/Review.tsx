@@ -551,11 +551,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     },
     original: recordingUri ? () => ({ source: { uri: recordingUri } }) : null,
   });
+  // Only the latest request plays: one that was waiting on the voice to stop must not speak over, or after, a newer one.
+  const speakSeq = useRef(0);
   const speak = useCallback(
     async (what: Playback | undefined) => {
+      const mine = ++speakSeq.current;
       if (!what || !rendered) return;
       self.stopTake();
       await stopSpeechIfRunning();
+      if (mine !== speakSeq.current) return;
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
