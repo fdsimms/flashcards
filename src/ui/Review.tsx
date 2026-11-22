@@ -68,7 +68,7 @@ import { practiceWords } from '../reader/practice';
 import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, useReviewForms } from './ReviewForms';
-import { SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
+import { SkillBackButton, SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
 import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
@@ -1308,6 +1308,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     <>
     <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
+      {drill ? <SkillBackButton skill={skill} onBack={() => setRevealedAt(undefined)} /> : null}
       {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
         <AgainSplit key={b.r} interval={intervals?.[1]} reasons={missReasons} suggested={suggested === 1} onAnswer={(miss) => rate(1, miss)} />
       ) : (
