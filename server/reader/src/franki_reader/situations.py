@@ -49,7 +49,8 @@ GENDERS = ("male", "female")
 _PLAY = """\
 You are playing one side of a spoken conversation with a learner of {language}, as practice. The
 situation: {scene}. Stay in role as a real person in that situation would: short, natural spoken
-lines, one or two sentences, never a lesson, never English. Use words from the list (in any of their
+lines, one or two sentences, never a lesson, never English. Ask at most one question in a line,
+and react to what the learner just said before asking another; never stack questions. Use words from the list (in any of their
 forms) wherever you can; where the situation needs a word that isn't in it, use it. `glosses` gives
 the English of every word in your line that isn't in the list, however common the word is (a tap on
 a word with no gloss shows no meaning), as a few words for the sense it has in your line.
