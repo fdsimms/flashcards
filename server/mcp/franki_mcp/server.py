@@ -7,17 +7,20 @@ from mcp.server.mcpserver import MCPServer
 from . import forms, frequency, known_words, lint, pronunciation, skills, stress, tiers, tools
 from . import reader as reader_tools
 from .collection import CollectionManager
+from .downloads import AudioFetcher
 from .reader import ReaderClient, ReaderSettings
 from .speech import SpeechClient
 
 
 def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unimorph: forms.UniMorph | None = None,
-                 reader_settings: ReaderSettings | None = None, reader: ReaderClient | None = None, **kwargs) -> MCPServer:
+                 reader_settings: ReaderSettings | None = None, reader: ReaderClient | None = None,
+                 downloads: AudioFetcher | None = None, **kwargs) -> MCPServer:
     """The server with every tool. kwargs go to MCPServer (sign-in settings, for one)."""
     server = MCPServer("Franki", instructions=tools.INSTRUCTIONS, **kwargs)
     # Read & Listen's server (optional): its costs, word ranks and Japanese readings.
     client = reader or ReaderClient(reader_settings)
-    tools.register(server, cm, speech, client)
+    # add_audio_from_url's downloads: a real fetcher unless a test passes a faked one.
+    tools.register(server, cm, speech, client, downloads)
     # Wiktionary's inflection tables, kept beside the collection's folder.
     tables = unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph")
     forms.register(server, cm, tables, client)

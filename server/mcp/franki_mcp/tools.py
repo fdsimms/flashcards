@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
+from .downloads import AudioFetcher, DownloadError, linked_filename
 from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
@@ -39,6 +40,7 @@ from .speech import (
     TARGET_LUFS,
     TOLERANCE_LU,
     LoudnessError,
+    LoudnessUnavailable,
     SpeechClient,
     SpeechError,
     audio_filename,
@@ -51,6 +53,7 @@ from .speech import (
 
 MAX_NOTES_PER_CALL = 100
 MAX_AUDIO_NOTES_PER_CALL = 10
+MAX_LINKED_AUDIO_PER_CALL = 50
 MAX_LEVEL_NOTES_PER_CALL = 20
 FILTER_ORDERS = {name.lower(): value for name, value in DeckProto.Filtered.SearchTerm.Order.items()}
 SOUND = re.compile(r"\[sound:[^\]]*\]")
@@ -276,6 +279,11 @@ class Replacement(BaseModel):
     replace: str = ""
 
 
+class LinkedAudio(BaseModel):
+    note_id: int
+    url: str = Field(description="An https link to the recording, e.g. a dictionary's file for the word.")
+
+
 class NoteUpdate(BaseModel):
     note_id: int
     fields: dict[str, str] | None = Field(default=None, description="Only the fields given change; others keep their content.")
@@ -320,7 +328,8 @@ instructions off, so each tool's own description holds its details.
 - add_field makes every device download the whole collection: ask the user to sync every device
   first, and only then pass every_device_synced=true.
 - Audio: add_tts_audio records a field's text with an Azure voice (list_voices names them). Record
-  a noun from `Entry`: its article is read with it, from Gender.
+  a noun from `Entry`: its article is read with it, from Gender. add_audio_from_url puts a real
+  speaker's recording from a link instead.
 - Crams: Franki's Practice, Cram is the plan for a day coming up (a lesson, a trip). Its words
   are the notes with its tag, `cram::` then its name in lowercase words joined by hyphens, then its
   date (`cram::thai-lesson-2026-11-20`). To add words to a cram, add its tag to their notes, only
@@ -330,9 +339,11 @@ instructions off, so each tool's own description holds its details.
 
 
 def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | None = None,
-             reader: ReaderClient | None = None) -> None:
+             reader: ReaderClient | None = None, downloads: AudioFetcher | None = None) -> None:
     """Adds every tool to the server. Without `speech`, the audio tools say how to turn them on.
-    `reader` (Read & Listen) says which Japanese words to record from their reading."""
+    `reader` (Read & Listen) says which Japanese words to record from their reading. `downloads`
+    fetches add_audio_from_url's links (tests pass one with a faked network)."""
+    fetcher = downloads or AudioFetcher()
 
     # ---- what's in the collection ----
 
@@ -1313,6 +1324,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         replacements: list[Replacement] | None = None,
         text_overrides: dict[str, str] | None = None,
         article: bool = True,
+        ipa_field: str | None = None,
         overwrite: bool = False,
         preview: bool = False,
     ) -> dict[str, Any]:
@@ -1340,6 +1352,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
           こんにち), and from the kanji as written everywhere else, which keeps the word's pitch.
           `reading` in a result says which reading was said. Without Read & Listen, the kanji are
           recorded as written and the result says so.
+        - `ipa_field` (e.g. Pronunciation) has the voice say each note's IPA from that field in the
+          text's place: for a word the voice misreads, or a language no voice speaks, read by a
+          voice whose language has its sounds. The voice can only make its own language's sounds.
+          The slashes or brackets around it are left out; a note with none there is skipped.
         - `preview` returns the text each note would be read as, recording nothing.
         """
         if len(note_ids) > MAX_AUDIO_NOTES_PER_CALL:
@@ -1392,19 +1408,29 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 text = text.replace(r.find, r.replace)
             return text.strip()
 
+        def ipa_of(col: Collection, note: Note) -> str:
+            assert ipa_field is not None
+            said = col._backend.html_to_text_line(text=SOUND.sub("", note[ipa_field]), preserve_media_filenames=False)
+            return said.strip().strip("/[]").strip()
+
         def plan(col: Collection) -> list[dict[str, Any]]:
             out = []
+            asked = [*source_fields, target_field, *([ipa_field] if ipa_field else [])]
             for nid in note_ids:
                 try:
                     note = _get_note(col, nid)
-                    _check_fields(note.note_type(), {f: "" for f in [*source_fields, target_field]})
+                    _check_fields(note.note_type(), {f: "" for f in asked})
                     text = spoken(col, note)
                     if not text:
                         raise ToolError("There's no text to read: the source fields are empty.")
                     if SOUND.search(note[target_field]) and not overwrite:
                         raise ToolError(f"{target_field} already has audio. Pass overwrite to replace it.")
                     row: dict[str, Any] = {"note_id": nid, "text": text}
-                    if japanese and source_fields == ["Entry"] and nid not in overrides and "KanaReading" in note:
+                    if ipa_field:
+                        row["ipa"] = ipa_of(col, note)
+                        if not row["ipa"]:
+                            raise ToolError(f"{ipa_field} is empty, so there's no IPA to read.")
+                    if japanese and not ipa_field and source_fields == ["Entry"] and nid not in overrides and "KanaReading" in note:
                         kana = col._backend.html_to_text_line(text=note["KanaReading"], preserve_media_filenames=False).strip()
                         if kana:
                             row["kana"] = kana
@@ -1425,7 +1451,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if "error" in p:
                 continue
             try:
-                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate, language, p.get("reading"))
+                audio[p["note_id"]] = await client.synthesize(p["text"], voice, rate, language, p.get("reading"), p.get("ipa"))
             except SpeechError as e:
                 p["error"] = str(e)
                 continue
@@ -1447,10 +1473,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     p["error"] = str(e)
                     continue
                 # Recorded from the text as it was; if the note changed while Azure worked, the audio may not match it.
-                if spoken(col, note) != p["text"]:
+                if spoken(col, note) != p["text"] or (ipa_field and ipa_of(col, note) != p["ipa"]):
                     p["error"] = "The note changed while the audio was being made. Nothing was saved; try it again."
                     continue
-                name = col.media.write_data(audio_filename(p["text"], voice, rate, p.get("reading")), audio[p["note_id"]])
+                name = col.media.write_data(audio_filename(p["text"], voice, rate, p.get("reading"), p.get("ipa")), audio[p["note_id"]])
                 kept = SOUND.sub("", note[target_field]).strip() if overwrite else note[target_field].strip()
                 note[target_field] = f"{kept} [sound:{name}]" if kept else f"[sound:{name}]"
                 col.update_note(note)
@@ -1458,6 +1484,92 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             return plans
 
         results = await cm.write(save, media=True)
+        return {"added": sum(1 for r in results if "audio" in r), "results": results}
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
+    async def add_audio_from_url(audio: list[LinkedAudio], target_field: str, overwrite: bool = False) -> dict[str, Any]:
+        """Puts a recording from a link in each note's field as [sound:...] (up to 50 notes a
+        call): a real speaker's audio that a dictionary publishes, for a language no Azure voice
+        speaks or where a person's voice is wanted. The server downloads each file, checks that
+        it's audio and levels it to the same loudness as add_tts_audio's recordings.
+        - Each `url` is https, to a public host, and must answer with audio, up to 5 MB.
+        - A note whose target field already has audio is skipped unless `overwrite`, which replaces
+          that audio; other text in the field stays.
+        - A link that can't be used fails only its own note, with the reason.
+        Check the recordings' license first, and credit the speaker where it asks.
+        """
+        if len(audio) > MAX_LINKED_AUDIO_PER_CALL:
+            raise ToolError(f"Up to {MAX_LINKED_AUDIO_PER_CALL} notes a call; send the rest in another.")
+
+        def plan(col: Collection) -> list[dict[str, Any]]:
+            out: list[dict[str, Any]] = []
+            seen: set[int] = set()
+            for item in audio:
+                row: dict[str, Any] = {"note_id": item.note_id, "url": item.url}
+                out.append(row)
+                try:
+                    if item.note_id in seen:
+                        raise ToolError("This note is in the list twice; give it one link.")
+                    seen.add(item.note_id)
+                    note = _get_note(col, item.note_id)
+                    _check_fields(note.note_type(), {target_field: ""})
+                    if SOUND.search(note[target_field]) and not overwrite:
+                        raise ToolError(f"{target_field} already has audio. Pass overwrite to replace it.")
+                    # Compared when saving: the field is only written if no one changed it meanwhile.
+                    row["was"] = note[target_field]
+                except ToolError as e:
+                    row["error"] = str(e)
+            return out
+
+        plans = await cm.read(plan)
+        # Each row's file goes on the row itself: a note listed twice is two rows, one of them an error.
+        files: dict[int, tuple[str, bytes]] = {}
+        for i, p in enumerate(plans):
+            if "error" in p:
+                continue
+            try:
+                got = await fetcher.fetch(p["url"])
+            except DownloadError as e:
+                p["error"] = str(e)
+                continue
+            try:
+                leveled = await normalize_loudness(got.data, sample_rate=44100)
+            except LoudnessUnavailable as e:
+                if not got.kind.startswith("audio/"):
+                    # With no ffmpeg to read it, only the answer's own type says it's audio.
+                    p["error"] = f"The link doesn't say it's audio, and it can't be checked here: {e}"
+                    continue
+                # Saved as it came, and said so: a recording at its own level beats none.
+                p["warning"] = f"Saved without leveling its loudness: {e}"
+                leveled = got.data
+            except LoudnessError as e:
+                p["error"] = f"The file isn't audio that can be played: {e}"
+                continue
+            files[i] = (linked_filename(got.data, got.kind, got.url, leveled is not got.data), leveled)
+        if not files:
+            return {"added": 0, "results": [{k: v for k, v in p.items() if k != "was"} for p in plans]}
+
+        def save(col: Collection) -> list[dict[str, Any]]:
+            for i, p in enumerate(plans):
+                if i not in files:
+                    continue
+                try:
+                    note = _get_note(col, p["note_id"])
+                except ToolError as e:
+                    p["error"] = str(e)
+                    continue
+                if note[target_field] != p["was"]:
+                    p["error"] = "The note changed while the audio was being fetched. Nothing was saved; try it again."
+                    continue
+                filename, data = files[i]
+                name = col.media.write_data(filename, data)
+                kept = SOUND.sub("", note[target_field]).strip() if overwrite else note[target_field].strip()
+                note[target_field] = f"{kept} [sound:{name}]" if kept else f"[sound:{name}]"
+                col.update_note(note)
+                p["audio"] = name
+            return plans
+
+        results = [{k: v for k, v in r.items() if k != "was"} for r in await cm.write(save, media=True)]
         return {"added": sum(1 for r in results if "audio" in r), "results": results}
 
     @server.tool(annotations=READ)
