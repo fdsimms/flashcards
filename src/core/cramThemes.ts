@@ -221,3 +221,14 @@ export function markWords(text: string, words: string[]): { text: string; marked
   if (pos < text.length) runs.push({ text: text.slice(pos), marked: false });
   return runs;
 }
+
+/**
+ * `markWords`' runs cut into the pieces a line is laid out from: each marked run whole, and the rest
+ * split at spaces (a space is its own `gap` piece), so a language written with spaces still wraps
+ * word by word around a marked word. Thai and Japanese have no spaces, so an unmarked run stays one piece.
+ */
+export function talkPieces(runs: { text: string; marked: boolean }[]): { text: string; marked: boolean; gap?: boolean }[] {
+  return runs.flatMap((r) => (r.marked
+    ? [r]
+    : r.text.split(/( +)/).filter(Boolean).map((t) => (t.trim() ? { text: t, marked: false } : { text: ' ', marked: false, gap: true }))));
+}

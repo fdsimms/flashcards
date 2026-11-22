@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from franki_reader import cram_themes
 from franki_reader.cram_themes import (
     COUNT,
     MAX_ASKS,
@@ -272,6 +273,12 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "stretch" in system_message("fr", True)
 
 
+def test_the_asks_are_for_the_tutor_to_answer_not_about_the_learner() -> None:
+    text = system_message("fr", False, topic=True)
+    assert "about the tutor's own life" in text
+    assert "never about what the learner did or felt" in text
+
+
 def test_the_system_message_asks_for_spoken_not_written_register() -> None:
     text = system_message("th", False)
     assert "ordinary person talks in everyday conversation" in text
@@ -456,3 +463,22 @@ def test_a_failed_first_ask_raises_with_what_it_cost() -> None:
     with pytest.raises(ThemesFailed) as e:
         asyncio.run(write_themes(write, "fr", seeds()))
     assert e.value.usage.input_tokens == 7
+
+
+def test_the_claude_call_gives_up_after_a_minute_without_retrying() -> None:
+    options: dict[str, object] = {}
+
+    class Client:
+        def with_options(self, **kw: object) -> "Client":
+            options.update(kw)
+            return self
+
+    # Only the options matter here: the call itself fails on the fake, as a timeout would.
+    write = cram_themes.claude_themes(Client())  # type: ignore[arg-type]
+
+    async def attempt() -> None:
+        await write("th", seeds())
+
+    with pytest.raises(Exception):  # noqa: B017
+        asyncio.run(attempt())
+    assert options == {"timeout": cram_themes.REQUEST_TIMEOUT_SECONDS, "max_retries": 0}

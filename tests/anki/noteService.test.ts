@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
-import { ankiGuids, collapsedDecks, deleteNote, NoteRefused, saveLeechHint, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
+import { ankiGuids, collapsedDecks, deleteNote, deleteNotes, NoteRefused, saveLeechHint, saveNote, setCardStates, setDeckCollapsed, type NoteStore } from '../../src/anki/noteService';
 import { review } from '../../src/core/scheduler';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -283,5 +283,27 @@ describe('collapsing a deck on the deck list', () => {
     const { store } = await franki({ kept: false });
     await setDeckCollapsed(store, '👅 Languages', true, NOW);
     expect(await collapsedDecks(store)).toEqual(new Set(['👅 Languages']));
+  });
+});
+
+describe('deleting several notes', () => {
+  it('deletes each, and reports one that is already gone as deleted rather than stopping', async () => {
+    const { store } = await franki();
+    const ids = [...store.notes.values()].slice(0, 2).map((n) => n.id);
+    const out = await deleteNotes(store, [...ids, ids[0]], NOW);
+    expect(out.deleted).toEqual(ids);
+    expect(out.failed).toEqual([]);
+    for (const id of ids) expect(await store.getNote(id)).toBeUndefined();
+  });
+
+  it('keeps going past a note that fails, and says which', async () => {
+    const { store } = await franki();
+    const [a, b] = [...store.notes.values()].map((n) => n.id);
+    const real = store.deleteNote.bind(store);
+    store.deleteNote = async (id: string) => { if (id === a) throw new Error('disk'); return real(id); };
+    const out = await deleteNotes(store, [a, b], NOW);
+    expect(out.failed).toEqual([a]);
+    expect(out.deleted).toEqual([b]);
+    expect(String(out.error)).toContain('disk');
   });
 });

@@ -4140,6 +4140,120 @@
         }
       }
     },
+    "/api/cram/say/ask": {
+      "post": {
+        "summary": "Cram Say Ask",
+        "description": "The next question of a talk in English about a lesson's topic, written by Claude. Reads\nnothing of the deck, writes no card and grades nothing.",
+        "operationId": "cram_say_ask_api_cram_say_ask_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cram/say/lines": {
+      "post": {
+        "summary": "Cram Say Lines",
+        "description": "What the learner would want to say, from what they said in English: a line in the\nlanguage for each, built from their words, with the words they lack marked.",
+        "operationId": "cram_say_lines_api_cram_say_lines_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cram/themes": {
       "post": {
         "summary": "Cram Themes Route",
@@ -7018,6 +7132,104 @@
         ],
         "title": "LineOut"
       },
+      "LinesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Topic",
+            "default": ""
+          },
+          "said": {
+            "type": "string",
+            "maxLength": 3000,
+            "minLength": 1,
+            "title": "Said"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/PoolIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "title": "Words"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "said"
+        ],
+        "title": "LinesIn"
+      },
+      "LinesOut": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/SaidOut"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "lines"
+        ],
+        "title": "LinesOut"
+      },
       "ListenIn": {
         "properties": {
           "key": {
@@ -7347,6 +7559,58 @@
         ],
         "title": "PronunciationsIn"
       },
+      "QuestionIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en"
+            ],
+            "title": "Language"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Topic",
+            "default": ""
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TurnIn"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "QuestionIn"
+      },
+      "QuestionOut": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "QuestionOut"
+      },
       "QueuedEntry": {
         "properties": {
           "entry": {
@@ -7551,6 +7815,37 @@
           "language"
         ],
         "title": "ReviewIn"
+      },
+      "SaidOut": {
+        "properties": {
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "known": {
+            "type": "integer",
+            "title": "Known"
+          },
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/WordOut"
+            },
+            "type": "array",
+            "title": "Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "english",
+          "text",
+          "known",
+          "missing"
+        ],
+        "title": "SaidOut"
       },
       "SentencesIn": {
         "properties": {
@@ -8190,6 +8485,39 @@
         "type": "object",
         "title": "StoryIn"
       },
+      "SuggestedWordOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "title": "Reading"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "commonness": {
+            "type": "string",
+            "title": "Commonness"
+          },
+          "register": {
+            "type": "string",
+            "title": "Register"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading",
+          "english",
+          "commonness",
+          "register"
+        ],
+        "title": "SuggestedWordOut"
+      },
       "SuggestionOut": {
         "properties": {
           "name": {
@@ -8227,14 +8555,14 @@
           },
           "deck_words": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
+              "$ref": "#/components/schemas/WordOut"
             },
             "type": "array",
             "title": "Deck Words"
           },
           "new_words": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
+              "$ref": "#/components/schemas/WordOut"
             },
             "type": "array",
             "title": "New Words"
@@ -8265,7 +8593,7 @@
           },
           "unknown": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__cram_themes__WordOut"
+              "$ref": "#/components/schemas/WordOut"
             },
             "type": "array",
             "title": "Unknown"
@@ -8526,6 +8854,30 @@
         ],
         "title": "TopicsIn"
       },
+      "TurnIn": {
+        "properties": {
+          "asker": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "you"
+            ],
+            "title": "Asker"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asker",
+          "text"
+        ],
+        "title": "TurnIn"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -8705,6 +9057,24 @@
         ],
         "title": "WordMeaningIn"
       },
+      "WordOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "english"
+        ],
+        "title": "WordOut"
+      },
       "WordSuggestionOut": {
         "properties": {
           "word": {
@@ -8833,7 +9203,7 @@
         "properties": {
           "words": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__cram_words__WordOut"
+              "$ref": "#/components/schemas/SuggestedWordOut"
             },
             "type": "array",
             "title": "Words"
@@ -8877,57 +9247,6 @@
           "name"
         ],
         "title": "WriteIn"
-      },
-      "franki_reader__routes__cram_themes__WordOut": {
-        "properties": {
-          "word": {
-            "type": "string",
-            "title": "Word"
-          },
-          "english": {
-            "type": "string",
-            "title": "English"
-          }
-        },
-        "type": "object",
-        "required": [
-          "word",
-          "english"
-        ],
-        "title": "WordOut"
-      },
-      "franki_reader__routes__cram_words__WordOut": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "title": "Text"
-          },
-          "reading": {
-            "type": "string",
-            "title": "Reading"
-          },
-          "english": {
-            "type": "string",
-            "title": "English"
-          },
-          "commonness": {
-            "type": "string",
-            "title": "Commonness"
-          },
-          "register": {
-            "type": "string",
-            "title": "Register"
-          }
-        },
-        "type": "object",
-        "required": [
-          "text",
-          "reading",
-          "english",
-          "commonness",
-          "register"
-        ],
-        "title": "WordOut"
       },
       "franki_reader__routes__texts__ReadingIn": {
         "properties": {

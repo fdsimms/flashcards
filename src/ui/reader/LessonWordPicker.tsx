@@ -4,6 +4,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { LESSON_MAX_WORDS } from '../../core/cram';
 import { failureText } from '../../core/failure';
+import { withThaiLineHeight } from '../../core/script';
 import { hasLessonWord, pickerWords, PICKER_ROWS, WORD_FILTERS, type WordFilter } from '../../core/lessonWords';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
@@ -83,7 +84,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
               {index === 0 ? null : <Divider inset={space.m} />}
               <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ ...type.body, color: c.text }}>{item.text}</Text>
+                <Text style={{ ...withThaiLineHeight(type.body, item.text), color: c.text }}>{item.text}</Text>
                 <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{item.english}</Text>
               </View>
             </Pressable>

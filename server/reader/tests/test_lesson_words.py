@@ -130,16 +130,18 @@ def test_no_more_than_the_limit_are_offered() -> None:
     assert len(clean(answer, "th")) == MAX_CANDIDATES
 
 
-def test_asks_haiku_with_the_schema_and_what_was_typed() -> None:
+def test_asks_sonnet_with_the_schema_and_what_was_typed() -> None:
     reply = {"candidates": [{"text": "ใหม่", "reading": "mài", "english": "new"}]}
     fake = FakeClient(response("end_turn", json.dumps(reply)))
     found, used = finish(claude_find_words(fake)("th", "mai"))  # type: ignore[arg-type]
     assert found == [NEW]
     assert used.cost_usd() > 0
-    assert fake.calls[0]["model"] == "claude-haiku-5-5"
+    assert fake.calls[0]["model"] == "claude-sonnet-5-5"
+    assert fake.calls[0]["fallbacks"] == "default"
     assert fake.calls[0]["output_config"]["format"]["type"] == "json_schema"
     assert "mai" in fake.calls[0]["messages"][0]["content"]
     assert "learner of Thai" in fake.calls[0]["system"]
+    assert "tiring" in fake.calls[0]["system"]
 
 
 @pytest.mark.parametrize(

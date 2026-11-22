@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
-import { compareTyped } from '../../src/core/typedCompare';
+import { compareTyped, compareTypedAnswer, comparisonLine } from '../../src/core/typedCompare';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -37,8 +37,17 @@ describe('typeItAnswers', () => {
     expect(typeItAnswers(norwegian({ Entry: 'huske', PartOfSpeech: 'noun', Gender: 'f' }), card('reverse'))).toEqual(['huske', 'ei huske']);
     expect(typeItAnswers(norwegian({ Entry: 'å gå seg vill', PartOfSpeech: 'phrase' }), card('reverse'))).toEqual(['å gå seg vill']);
   });
+  it("takes the romanization too, so a missing tone mark isn't every letter off", () => {
+    const thai = omniNote({ Entry: 'ครั้ง', Transliteration: 'khráng' });
+    expect(typeItAnswers(thai, card('reverse'))).toEqual(['ครั้ง', 'khráng']);
+    const c = compareTypedAnswer(typeItAnswers(thai, card('reverse')), 'khrang');
+    expect(c.sameLetters).toBe(true);
+    expect(c.off).toBe(1);
+    expect(comparisonLine(c)).toBe('Right letters, but one has the wrong accent or mark.');
+    expect(typedMiss(c)).toBe(false);
+  });
   it('takes only the word in another language, and nothing without Type it', () => {
-    expect(typeItAnswers(omniNote(), card('reverse'))).toEqual(['หนังสือ']);
+    expect(typeItAnswers(omniNote({ Transliteration: '' }), card('reverse'))).toEqual(['หนังสือ']);
     expect(typeItAnswers(japanese(), card('forward'))).toEqual([]);
   });
 });

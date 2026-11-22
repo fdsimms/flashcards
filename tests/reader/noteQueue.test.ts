@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { approvalDraft, bannerOf, counts, firstReady, needsChoice, queuedFor, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
+import { approvalDraft, bannerOf, counts, firstReady, isRetrying, isWorking, needsChoice, queuedFor, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
@@ -14,6 +14,15 @@ describe('the queue', () => {
     expect(counts(items)).toEqual({ ready: 2, waiting: 1, failed: 1 });
     expect(firstReady(items)?.id).toBe(2);
     expect(firstReady([note({ state: 'waiting' })])).toBeUndefined();
+  });
+
+  it('counts a failed word the server will retry as waiting, not failed', () => {
+    const again = note({ id: 5, state: 'failed', retrying: true });
+    expect(isRetrying(again)).toBe(true);
+    expect(isRetrying(note({ state: 'failed' }))).toBe(false);
+    expect(isWorking(again) && isWorking(note({ state: 'waiting' })) && !isWorking(note({ state: 'failed' }))).toBe(true);
+    expect(counts([again, ...items])).toEqual({ ready: 2, waiting: 2, failed: 1 });
+    expect(bannerOf({ available: true, items: [again] })).toMatchObject({ tone: 'waiting', message: 'Filling in 1 note' });
   });
 
   it("starts a note from the entry and what Claude wrote, in the word's own deck", () => {

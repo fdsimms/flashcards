@@ -87,13 +87,13 @@ def test_only_fields_that_exist_and_change_are_kept() -> None:
     assert clean({"changes": "no"}, FIELDS) == Fix({}, "")
 
 
-def test_asks_haiku_with_the_schema_and_returns_the_cleaned_fix() -> None:
+def test_asks_sonnet_with_the_schema_and_returns_the_cleaned_fix() -> None:
     reply = {"changes": [{"field": "Meaning", "value": "to break down"}], "explanation": "ok"}
     fake = FakeClient(response("end_turn", json.dumps(reply)))
     fix, used = finish(claude_fix_card(fake)(card()))  # type: ignore[arg-type]
     assert fix.changes == {"Meaning": "to break down"}
     assert used.cost_usd() > 0
-    assert fake.calls[0]["model"] == "claude-haiku-5-5"
+    assert fake.calls[0]["model"] == "claude-sonnet-5-5"
     assert fake.calls[0]["output_config"]["format"]["type"] == "json_schema"
 
 

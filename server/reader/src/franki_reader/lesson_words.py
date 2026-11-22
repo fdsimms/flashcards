@@ -19,7 +19,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
+from franki_reader.generator import MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lesson import MAX_CHARS
 
@@ -75,7 +75,9 @@ only in tone or accent, are separate candidates, each with its own meaning. Pref
 words, and never invent a word: when nothing real fits, return no candidates. If the input is \
 already a {language} word, return it first (with its spelling corrected if it was a typo), and add \
 others only when it could mean more than one. Do not add or drop a polite ending or article the \
-learner did not type. At most five candidates. Write the english in American English, without em \
+learner did not type. When the English is an -ing or -ed adjective, give the form that matches it: \
+"tiring" is what makes you tired, not how you feel, so list that word (and, if it is a different \
+word, the one for "tired" too), not only the nearest feeling. At most five candidates. Write the english in American English, without em \
 dashes."""
 
 SCHEMA: dict[str, Any] = {
@@ -176,11 +178,13 @@ def claude_find_words(client: anthropic.AsyncAnthropic) -> FindWords:
         messages = [{"role": "user", "content": f"Typed by the learner: {typed}"}]
         try:
             response = await client.beta.messages.create(
-                model=CHEAP_MODEL,
+                model=MODEL,
                 max_tokens=MAX_TOKENS,
                 system=system,
                 messages=cast(list[BetaMessageParam], messages),
                 output_config=output_config,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
             )
         except anthropic.APIError as e:
             raise LessonWordsFailed(

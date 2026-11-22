@@ -20,7 +20,7 @@ class WordsIn(BaseModel):
     exclude: list[str] = Field(default_factory=list, max_length=cram_words.MAX_EXCLUDED)
 
 
-class WordOut(BaseModel):
+class SuggestedWordOut(BaseModel):
     text: str  # in the language's own script
     reading: str
     english: str
@@ -30,7 +30,7 @@ class WordOut(BaseModel):
 
 
 class WordsOut(BaseModel):
-    words: list[WordOut]
+    words: list[SuggestedWordOut]
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -67,7 +67,7 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return WordsOut(
             words=[
-                WordOut(
+                SuggestedWordOut(
                     text=w.text,
                     reading=w.reading,
                     english=w.english,

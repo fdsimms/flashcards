@@ -23,9 +23,11 @@ from franki_reader.note_queue import (
     FillFailed,
     Spelled,
     check,
+    checked,
     claude_notes,
     fill_pending,
     request_message,
+    retrying,
     spelled,
 )
 
@@ -321,8 +323,29 @@ def test_a_word_that_wasnt_asked_for_is_dropped() -> None:
 
 
 def test_the_sentence_needs_the_word_in_bold() -> None:
-    assert check(filled("ricane", context="Il ricane."), {"ricane": ""}, "fr") is None
     assert check(filled("ricane", context="Il <b>ricane dans."), {"ricane": ""}, "fr") is None
+    # No tags at all and the word isn't in the sentence: nothing to bold, so it fails.
+    assert check(filled("ricane", context="Il rit dans son coin."), {"ricane": ""}, "fr") is None
+
+
+def test_a_sentence_with_no_tags_gets_the_word_bolded_in_code() -> None:
+    got = check(filled("ricane", context="Il ricane dans son coin."), {"ricane": ""}, "fr")
+    assert got is not None and got[1]["Context"] == "Il <b>ricane</b> dans son coin."
+    # Thai has no spaces, so the word is found inside the running text.
+    thai = filled(
+        "เป้า", context="เขายิงเป้าได้แม่น", romanization="khǎo ying pâo dâi mɛ̂ɛn", transliteration="pâo"
+    )
+    got = check(thai, {"เป้า": ""}, "th")
+    assert got is not None and got[1]["Context"] == "เขายิง<b>เป้า</b>ได้แม่น"
+
+
+def test_bolding_in_code_matches_whole_words_in_a_spaced_language() -> None:
+    # "ricane" only appears inside "ricaner": that's a different word, so it isn't guessed at.
+    asked = {"ricane": ""}
+    assert check(filled("ricane", context="Il ricanerait dans son coin."), asked, "fr") is None
+    # Claude's own tags are never moved.
+    got = check(filled("ricane", context="Il ricane et <b>ricane</b>."), asked, "fr")
+    assert got is not None and got[1]["Context"] == "Il ricane et <b>ricane</b>."
 
 
 def test_other_markup_and_stray_characters_are_refused() -> None:
@@ -342,15 +365,51 @@ def test_a_missing_field_fails_the_word() -> None:
 
 def test_romanized_languages_need_both_romanizations() -> None:
     asked = {"ขอบคุณ": ""}
-    thai = filled("ขอบคุณ", romanization="khɔ̀ɔp khun mâak", transliteration="khɔ̀ɔp khun")
+    thai = filled("ขอบคุณ", romanization="khàawp-khun mâak", transliteration="khàawp-khun")
     got = check(thai, asked, "th")
     assert got is not None
-    assert got[1]["ContextRomanized"] == "khɔ̀ɔp khun mâak"
-    assert got[1]["Transliteration"] == "khɔ̀ɔp khun"
+    assert got[1]["ContextRomanized"] == "khàawp-khun mâak"
+    assert got[1]["Transliteration"] == "khàawp-khun"
     assert check(filled("ขอบคุณ"), asked, "th") is None
     # Latin-letter languages never carry them, even if Claude wrote some.
     latin = check(filled("ricane", romanization="x", transliteration="y"), {"ricane": ""}, "fr")
     assert latin is not None and "ContextRomanized" not in latin[1]
+
+
+def test_a_thai_draft_without_tones_or_outside_the_scheme_is_refused() -> None:
+    asked = {"ภูเขา": ""}
+    ok = {
+        "romanization": "chiang-mài mii phuu-khǎo sǔung láe aa-gàat yen sà-baai",
+        "transliteration": "phuu-khǎo",
+    }
+    assert checked(filled("ภูเขา", **ok), asked, "th")[0] is not None
+    # What the queue used to save: no tone marks on the sentence.
+    bare = {
+        "romanization": "chiang mai mi phukhao sung lae akat yen sabai",
+        "transliteration": "phukhao",
+    }
+    assert checked(filled("ภูเขา", **bare), asked, "th") == (
+        None,
+        "the romanization had no tone marks",
+    )
+    # Letters the scheme doesn't have (IPA vowels, an unaspirated p, t or k).
+    ipa = {**ok, "romanization": "khǎo dtà-goon rîak phûean khâam thà-nɔ̌ɔn"}
+    assert checked(filled("ภูเขา", **ipa), asked, "th") == (
+        None,
+        "the romanization wasn't in the deck's scheme",
+    )
+    plain = {**ok, "transliteration": "pak-ka"}
+    assert checked(filled("ภูเขา", **plain), asked, "th") == (
+        None,
+        "the romanization wasn't in the deck's scheme",
+    )
+
+
+def test_the_thai_request_gives_the_scheme_with_its_tones() -> None:
+    message = request_message("th", [("ภูเขา", "")])
+    assert "Tones: mid no mark, low à, falling â, high á, rising ǎ" in message
+    assert "In romanization the Entry is spelled exactly as in transliteration" in message
+    assert "Tones:" not in request_message("ru", [("дом", "")])
 
 
 def test_a_japanese_word_gets_its_reading_in_kana_reading() -> None:
@@ -440,6 +499,7 @@ def test_a_failed_word_waits_then_is_tried_again_up_to_the_limit() -> None:
     conn = conn_with(("ricane", ""))
     failing = Writer(fail="no")
     run(conn, failing)
+    assert retrying(store.queued_notes(conn)[0])  # tries left: the app shows it as trying again
     run(conn, failing, NOW + RETRY_AFTER - timedelta(seconds=1))
     assert len(failing.calls) == 1  # still waiting
     later = NOW
@@ -447,6 +507,7 @@ def test_a_failed_word_waits_then_is_tried_again_up_to_the_limit() -> None:
         later += RETRY_AFTER
         run(conn, failing, later)
     assert len(failing.calls) == MAX_ATTEMPTS
+    assert not retrying(store.queued_notes(conn)[0])  # out of tries: the owner has to ask
     run(conn, Writer(), later + RETRY_AFTER)  # out of tries: stays failed
     assert store.queued_notes(conn)[0].state == "failed"
 
@@ -742,3 +803,14 @@ def test_a_queue_from_before_spellings_gets_the_columns(tmp_path: Any) -> None:
     old.close()
     (word,) = store.queued_notes(store.connect(path))
     assert (word.entry, word.spelling, word.alternatives) == ("ricane", "", [])
+
+
+def test_a_failed_word_with_tries_left_is_marked_retrying_until_they_run_out() -> None:
+    c = queue_client(Writer(fail="Claude didn't answer (APIError)."))
+    add(c, {"entry": "ricane"})
+    (first,) = items(c)
+    assert (first["state"], first["retrying"]) == ("failed", True)
+    store.save_queue_result(c.conn, first["id"], "fr", None, "no", NOW, 0.0)  # type: ignore[attr-defined]
+    for _ in range(MAX_ATTEMPTS):
+        store.save_queue_result(c.conn, first["id"], "fr", None, "no", NOW, 0.0)  # type: ignore[attr-defined]
+    assert items(c)[0]["retrying"] is False

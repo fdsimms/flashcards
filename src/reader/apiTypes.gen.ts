@@ -1164,6 +1164,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cram/say/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Say Ask
+         * @description The next question of a talk in English about a lesson's topic, written by Claude. Reads
+         *     nothing of the deck, writes no card and grades nothing.
+         */
+        post: operations["cram_say_ask_api_cram_say_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cram/say/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cram Say Lines
+         * @description What the learner would want to say, from what they said in English: a line in the
+         *     language for each, built from their words, with the words they lack marked.
+         */
+        post: operations["cram_say_lines_api_cram_say_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cram/themes": {
         parameters: {
             query?: never;
@@ -2095,6 +2137,34 @@ export interface components {
             /** English */
             english: string;
         };
+        /** LinesIn */
+        LinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Said */
+            said: string;
+            /** Words */
+            words?: components["schemas"]["PoolIn"][];
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+        };
+        /** LinesOut */
+        LinesOut: {
+            /** Summary */
+            summary: string;
+            /** Lines */
+            lines: components["schemas"]["SaidOut"][];
+        };
         /** ListenIn */
         ListenIn: {
             /** Key */
@@ -2217,6 +2287,26 @@ export interface components {
             /** Entries */
             entries: components["schemas"]["PronunciationIn"][];
         };
+        /** QuestionIn */
+        QuestionIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Turns */
+            turns?: components["schemas"]["TurnIn"][];
+        };
+        /** QuestionOut */
+        QuestionOut: {
+            /** Question */
+            question: string;
+        };
         /** QueuedEntry */
         QueuedEntry: {
             /** Entry */
@@ -2277,6 +2367,17 @@ export interface components {
             narrator?: string | null;
             /** Particle */
             particle?: ("khrap" | "kha") | null;
+        };
+        /** SaidOut */
+        SaidOut: {
+            /** English */
+            english: string;
+            /** Text */
+            text: string;
+            /** Known */
+            known: number;
+            /** Missing */
+            missing: components["schemas"]["WordOut"][];
         };
         /** SentencesIn */
         SentencesIn: {
@@ -2432,6 +2533,19 @@ export interface components {
              */
             about: string;
         };
+        /** SuggestedWordOut */
+        SuggestedWordOut: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
+            /** English */
+            english: string;
+            /** Commonness */
+            commonness: string;
+            /** Register */
+            register: string;
+        };
         /** SuggestionOut */
         SuggestionOut: {
             /** Name */
@@ -2448,16 +2562,16 @@ export interface components {
             /** Word Ids */
             word_ids: string[];
             /** Deck Words */
-            deck_words: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
+            deck_words: components["schemas"]["WordOut"][];
             /** New Words */
-            new_words: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
+            new_words: components["schemas"]["WordOut"][];
             /** Questions */
             questions: components["schemas"]["LineOut"][];
             /** Expects */
             expects: components["schemas"]["ExpectOut"][];
             story: components["schemas"]["LineOut"] | null;
             /** Unknown */
-            unknown: components["schemas"]["franki_reader__routes__cram_themes__WordOut"][];
+            unknown: components["schemas"]["WordOut"][];
         };
         /** ThemesIn */
         ThemesIn: {
@@ -2541,6 +2655,16 @@ export interface components {
             /** Shown */
             shown?: string[];
         };
+        /** TurnIn */
+        TurnIn: {
+            /**
+             * Asker
+             * @enum {string}
+             */
+            asker: "claude" | "you";
+            /** Text */
+            text: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2604,6 +2728,13 @@ export interface components {
              */
             english: string;
         };
+        /** WordOut */
+        WordOut: {
+            /** Word */
+            word: string;
+            /** English */
+            english: string;
+        };
         /** WordSuggestionOut */
         WordSuggestionOut: {
             /** Word */
@@ -2658,7 +2789,7 @@ export interface components {
         /** WordsOut */
         WordsOut: {
             /** Words */
-            words: components["schemas"]["franki_reader__routes__cram_words__WordOut"][];
+            words: components["schemas"]["SuggestedWordOut"][];
         };
         /** WriteIn */
         WriteIn: {
@@ -2676,26 +2807,6 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
-        };
-        /** WordOut */
-        franki_reader__routes__cram_themes__WordOut: {
-            /** Word */
-            word: string;
-            /** English */
-            english: string;
-        };
-        /** WordOut */
-        franki_reader__routes__cram_words__WordOut: {
-            /** Text */
-            text: string;
-            /** Reading */
-            reading: string;
-            /** English */
-            english: string;
-            /** Commonness */
-            commonness: string;
-            /** Register */
-            register: string;
         };
         /** ReadingIn */
         franki_reader__routes__texts__ReadingIn: {
@@ -5178,6 +5289,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_say_ask_api_cram_say_ask_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cram_say_lines_api_cram_say_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinesOut"];
+                };
             };
             /** @description Validation Error */
             422: {

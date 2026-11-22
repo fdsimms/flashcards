@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { DAY_STARTS_AT_HOUR } from '../core/config';
-import { saveNote, type NoteStore } from '../anki/noteService';
+import { deleteNotes, saveNote, type NoteStore } from '../anki/noteService';
 import { setDueDates } from '../anki/rescheduleService';
 import { cardsToCap, cramTag, finished, isRunning, withThemes, type Cram, type CramTalk } from '../core/cram';
 import { noteHasTag } from '../core/priority';
@@ -120,6 +120,9 @@ export async function setCramTag(repo: NoteStore, cram: Cram, noteIds: Iterable<
     await saveNote(repo, { id: note.id, deck: note.deck, model: note.model, fields: note.fields, tags });
   }
 }
+
+/** Deletes the notes picked in a cram's Select mode (a screen here imports no writer itself, tests/reader/noGrading.test.ts). Each is deleted on its own, so one that fails leaves the rest done. */
+export const deleteCramWords = deleteNotes;
 
 /** A new cram: saved, its words tagged, and the last cram's words it took marked as taken. Its page caps its cards. */
 export async function startCram(repo: NoteStore, cram: Cram, noteIds: string[], carriedFrom?: Cram): Promise<void> {

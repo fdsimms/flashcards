@@ -26,6 +26,8 @@ import { useHeaderInset } from '../useHeaderInset';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
+import { MakingBody } from '../MakingCard';
+import { WorkingMark } from '../WorkingMark';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
@@ -538,7 +540,20 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
               {chat.lines.map((l, i) => (l.speaker === 'them'
                 ? <TheirLine key={i} turn={l.turn} name={name} look={look} lang={info.speech} heardOnly={heardOnly} onPlay={() => void say(l.turn)} lookup={(word, english) => api.wordMeaning(chat.language, word, english)} />
                 : <MyLine key={i} text={l.text} look={look} lang={info.speech} />))}
-              {waiting ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{finishing ? 'Getting feedback on your lines...' : chat.lines.length ? `${name} is answering...` : 'Setting the scene...'}</Text> : null}
+              {waiting && (finishing || !chat.lines.length) ? (
+                <View style={{ paddingVertical: space.l }}>
+                  <MakingBody
+                    title={finishing ? 'Getting feedback' : 'Setting the scene'}
+                    detail={finishing ? 'Going through your lines and picking out what to fix.' : 'Choosing who you are talking to and writing their first line.'}
+                  />
+                </View>
+              ) : null}
+              {waiting && !finishing && chat.lines.length ? (
+                <View accessible accessibilityRole="progressbar" accessibilityLabel={`${name} is answering`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+                  <WorkingMark />
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${name} is answering...`}</Text>
+                </View>
+              ) : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
               {problem ? <ErrorNote centered={!chat.lines.length} message={problem.message} onRetry={problem.retry} /> : null}
               {chat.lines.length >= 30 && !chat.done ? <Help>This conversation is getting long. Finish when you're ready to see how it went.</Help> : null}

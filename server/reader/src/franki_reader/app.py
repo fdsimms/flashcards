@@ -294,6 +294,15 @@ marked words, ideas) is in the current language, the `language` setting.
                                       english}], questions: [{text, english}], story}]}. 503
                                       without Claude. Its cost is kept in `call_costs` (feature
                                       "cram_themes") and counts under `cram_themes` in /api/costs
+    POST  /api/cram/say/ask           {language, topic?, turns?: [{asker: claude | you, text}]} the
+                                      next question of a talk in English about a lesson's topic:
+                                      {question}. 503 without Claude. Its cost is kept in
+                                      `call_costs` (feature "cram_say")
+    POST  /api/cram/say/lines         {language, said, topic?, words?: [{id, text, english, kind}]}
+                                      what the learner would want to say, from what they said in
+                                      English: {summary, lines: [{english, text, known, missing:
+                                      [{word, english}]}]}, built from their words. 503 without
+                                      Claude. Its cost is kept in `call_costs` (feature "cram_say")
     GET   /api/lessons/{id}/audio     the lesson's MP3, once it's ready
     POST  /api/lessons/{id}/heard     the lesson was played to the end, so a later lesson may open by
                                       asking for its phrases (204; 404 with no such lesson)
@@ -361,6 +370,7 @@ from franki_reader import (
     aspect,
     comprehension,
     config,
+    cram_say,
     cram_themes,
     cram_words,
     drills,
@@ -484,6 +494,7 @@ def create_app(
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
     suggest_cram_words: cram_words.SuggestWords | None = None,
+    write_cram_say: cram_say.WriteSay | None = None,
     write_rare_words: rare_words.WriteRareWords | None = None,
     look_up_words: word_lookup.LookUpWords | None = None,
 ) -> FastAPI:
@@ -578,6 +589,7 @@ def create_app(
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,
+        write_cram_say=write_cram_say,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,
         authed=[Depends(require_passphrase)],
@@ -625,6 +637,7 @@ def production_app() -> FastAPI:
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
     suggest_cram_words: cram_words.SuggestWords | None = None
+    write_cram_say: cram_say.WriteSay | None = None
     write_rare_words: rare_words.WriteRareWords | None = None
     look_up_words: word_lookup.LookUpWords | None = None
     if key := settings.secrets.get("ANTHROPIC_API_KEY"):
@@ -659,6 +672,7 @@ def production_app() -> FastAPI:
         find_lesson_words = lesson_words.claude_find_words(client)
         write_cram_themes = cram_themes.claude_themes(client)
         suggest_cram_words = cram_words.claude_suggest_words(client)
+        write_cram_say = cram_say.claude_say(client)
         write_rare_words = rare_words.claude_rare_words(client)
 
         def ask_for(
@@ -753,6 +767,7 @@ def production_app() -> FastAPI:
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,
+        write_cram_say=write_cram_say,
         write_rare_words=write_rare_words,
         look_up_words=look_up_words,
     )

@@ -9,6 +9,7 @@ from typing import Any
 from franki_reader import (
     ask_card,
     aspect,
+    cram_say,
     cram_words,
     drills,
     fix_card,
@@ -74,6 +75,7 @@ class AppContext:
     find_lesson_words: lesson_words.FindWords | None
     write_cram_themes: WriteThemes | None
     suggest_cram_words: cram_words.SuggestWords | None
+    write_cram_say: cram_say.WriteSay | None
     write_rare_words: rare_words.WriteRareWords | None
     look_up_words: word_lookup.LookUpWords | None
     # `dependencies=` for a route behind the passphrase, and for /api/status, which also opens

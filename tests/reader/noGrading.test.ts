@@ -43,10 +43,13 @@ const EXEMPT: Record<string, string[]> = {
   // cram's tag is written by useCrams.ts, which nothing in src/reader imports. The talking points
   // (CramThemes, CramThemeDetail) ask Read & Listen for themes to talk about and import only the
   // NoteStore and Repo types, the second for the phone's voice; CramTalk reads a theme's questions
-  // aloud the same way. Suggest words (CramSuggest) asks for words for the cram's subject and imports only the NoteStore type; the deck's words are tagged by useCrams.ts. A word to learn goes to the note queue, where saving the note in the editor
+  // aloud the same way. Suggest words (CramSuggest) asks for words for the cram's subject and imports only
+  // the NoteStore type; the deck's words are tagged by useCrams.ts. Talk it through in English (CramSay) asks
+  // the same server what the learner would want to say from what they said in English, and imports only the
+  // NoteStore type. A word to learn goes to the note queue, where saving the note in the editor
   // (or Approve all, after its alert) is the approval.
   'a cram, which imports only the NoteStore and Repo types': [
-    'src/ui/cram/CramLesson.tsx', 'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramMakeCards.tsx', 'src/ui/cram/CramQuestions.tsx', 'src/ui/cram/CramSuggest.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx', 'src/ui/cram/CramWords.tsx',
+    'src/ui/cram/CramLesson.tsx', 'src/ui/cram/CramListen.tsx', 'src/ui/cram/CramMakeCards.tsx', 'src/ui/cram/CramQuestions.tsx', 'src/ui/cram/CramSay.tsx', 'src/ui/cram/CramSuggest.tsx', 'src/ui/cram/CramTalk.tsx', 'src/ui/cram/CramThemeDetail.tsx', 'src/ui/cram/CramThemes.tsx', 'src/ui/cram/CramWords.tsx',
   ],
   // The lesson word picker lists the decks' notes to choose a lesson's words from, and imports only the NoteStore type; it reads, and writes nothing.
   'the audio lesson word picker, which imports only the NoteStore type': ['src/ui/reader/LessonWordPicker.tsx'],

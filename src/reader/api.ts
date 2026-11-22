@@ -213,7 +213,13 @@ export type SituationConversation = { language: Language; scene: string; roles: 
 // ends the scene, and its recording's key (null without one).
 export type SituationTurn = { line: string; english: string; words: Word[]; unknown: string[]; done: boolean; audio: string | null; /* null when not recorded: Azure's voices are off, or it failed */ roles?: SituationRoles };
 export type SituationFeedback = {
-  lines: { index: number; verdict: WritingVerdict; corrected: string; note: string }[];
+  lines: {
+    index: number; verdict: WritingVerdict; corrected: string; note: string;
+    /** What Claude took the line to say, in the language's script: set only for a line written in Latin letters (romanization), '' otherwise. Missing from an older server. */
+    heard?: string;
+    /** The English of what the line says as Claude read it, even when it was wrong; '' when none came back. Missing from an older server. */
+    meant?: string;
+  }[];
   words: { word: string; english: string; why: 'asked' | 'heard' }[];
 };
 
@@ -470,6 +476,10 @@ export type CramThemes = Schemas['ThemesOut'];
 export type CramThemesRequest = Schemas['ThemesIn'];
 /** What Suggest words sends: what the cram is for, what really happened, the learner's steer and the words to leave out (`cramWordsRequest`). */
 export type CramWordsRequest = Schemas['WordsIn'];
+export type CramSayQuestionRequest = Schemas['QuestionIn'];
+export type CramSayLinesRequest = Schemas['LinesIn'];
+export type CramSaid = Schemas['SaidOut'];
+export type CramSayLines = Schemas['LinesOut'];
 export type CramTheme = Schemas['ThemeOut'];
 
 // An audio lesson (server lesson.py): asked for by a scene, then written and spoken in the background.
@@ -553,6 +563,8 @@ export type QueuedNote = {
   state: 'waiting' | 'ready' | 'failed';
   fields: Record<string, string>;
   error: string;
+  /** A failed word the server will try again by itself, so there's nothing for the owner to do yet. Absent from a server before it. */
+  retrying?: boolean;
   /**
    * How the entry is really written, once it's ready, when it was typed the way it sounds (in Latin
    * letters, romanized loosely or misspelled); empty otherwise. Absent from a server before it.
@@ -718,6 +730,9 @@ export function createApi(
     // About eight words in the language for what a cram is for, leaving out `exclude` (server cram_words.py). Writes nothing:
     // the app tags the ones the deck has and queues the rest (core/cramWords.ts).
     cramWords: async (body: CramWordsRequest) => (await call<{ words: LessonWordCandidate[] }>('POST', '/api/cram/words', body)).words,
+    // Talk it through in English (server cram_say.py): the next question of a chat about a cram's topic, and what the learner would want to say from what they said. Adds no note and grades nothing.
+    cramSayAsk: async (request: CramSayQuestionRequest) => (await call<Schemas['QuestionOut']>('POST', '/api/cram/say/ask', request)).question,
+    cramSayLines: (request: CramSayLinesRequest) => call<CramSayLines>('POST', '/api/cram/say/lines', request),
     deleteLesson: (id: number) => call<void>('DELETE', `/api/lessons/${id}`),
     // A phrase of a lesson noted for a review: Again was tapped at its turn, or it was answered slowly. Never a rating.
     markLessonPhrase: (id: number, mark: { text: string; english: string; reason: 'again' | 'slow' }) =>
