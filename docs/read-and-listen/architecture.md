@@ -285,10 +285,11 @@ Franki's (Client, below).
   the brief's principle 12 on 13 November 2026: the deck's own new-cards-per-day limit controls how many come up). An added word is cleared from the list. The brief's "given audio" isn't done here: the note
   plays with the phone's voice until audio is recorded for it (the MCP's `add_tts_audio`).
 - **Practice words after studying** (12 November 2026, by the owner's decision). When a Review
-  session in a Read & Listen language's deck ends, **Read a text with these words** opens the
-  shelf with the words just studied (each note's Entry, `src/reader/practice.ts`), which offers a
-  text written to practice them, on the best-fitting idea (on a liked theme before 14 November 2026; before the shelf,
-  the topic opened next was written for them). The app syncs before opening the shelf, so the answers
+  session in a Read & Listen language's deck ends, **Read a text with these words** writes a
+  text practicing the words just studied (each note's Entry, `src/reader/practice.ts`), on the
+  best-fitting idea, and opens the reader on it (`useReadWithWords`; on 22 November 2026 this stopped
+  stopping on the shelf with an offer card, and a cram's Read a text does the same; on a liked theme before 14 November 2026; before the shelf,
+  the topic opened next was written for them). The app syncs before writing, so the answers
   just given are on the sync server. The server reads the deck again first, so a card first learned
   today counts as studied, offers the studied words as the stretch words to choose from (up to the
   usual count), and keeps the text apart from the topic's queue (`texts.focus`): it isn't served
