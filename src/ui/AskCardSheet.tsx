@@ -43,6 +43,9 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   const [addedAnswer, setAddedAnswer] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
+  // Where the scroll follows content: to the bottom (a question just sent, a draft or an error
+  // appearing), or to the top of the newest answer so a long reply is read from its first line.
+  const follow = useRef<'end' | 'answer'>('end');
   const open = useRef(true);
   useEffect(() => () => { open.current = false; }, []);
 
@@ -50,6 +53,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
     if (!ask || asking || !question.trim()) return;
     haptic.tap();
     const next = withQuestion(turns, question);
+    follow.current = 'end';
     setTurns(next);
     setText('');
     setDraft(null);
@@ -57,8 +61,9 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
     setError(null);
     try {
       const answer = await ask(next);
-      if (open.current) setTurns([...next, { role: 'assistant', content: answer }]);
+      if (open.current) { follow.current = 'answer'; setTurns([...next, { role: 'assistant', content: answer }]); }
     } catch (e) {
+      follow.current = 'end';
       if (open.current) setError(failureText(e, { what: "Couldn't get an answer.", next: 'Try again.' }));
     } finally {
       if (open.current) setAsking(false);
@@ -69,6 +74,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   const draftNote = async () => {
     if (!ask || drafting || asking) return;
     haptic.select();
+    follow.current = 'end';
     setDrafting(true);
     setError(null);
     try {
@@ -110,7 +116,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
         ref={scroll}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() => { if (follow.current === 'end') scroll.current?.scrollToEnd({ animated: true }); }}
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
       >
@@ -125,6 +131,9 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
         {turns.map((t, i) => (
           <View
             key={i}
+            onLayout={t.role === 'assistant' && i === turns.length - 1
+              ? (e) => { if (follow.current === 'answer') scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - space.m), animated: true }); }
+              : undefined}
             style={t.role === 'user'
               ? { alignSelf: 'flex-end', backgroundColor: c.accent, borderRadius: radius.l, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '85%' }
               : { alignSelf: 'flex-start', backgroundColor: c.fill, borderRadius: radius.l, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '92%' }}
