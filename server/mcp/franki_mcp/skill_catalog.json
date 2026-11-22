@@ -21,7 +21,18 @@
   "counting-one",
   "counting-few",
   "counting-many",
-  "counting-any"
+  "counting-any",
+  "contrast-th-jon",
+  "contrast-th-ruu",
+  "contrast-th-cold",
+  "contrast-th-be",
+  "contrast-th-kha",
+  "contrast-th-want",
+  "contrast-th-gaw",
+  "contrast-th-see",
+  "contrast-th-hear",
+  "contrast-th-tell",
+  "contrast-th-and"
  ],
  "deckKeys": [
   [
@@ -2432,6 +2443,123 @@
         "skill::lang::th"
        ],
        "suspended": false
+      }
+     ],
+     "words": []
+    },
+    {
+     "id": "contrast",
+     "title": "Which word fits",
+     "notes": [
+      {
+       "front": "<div><b>Thai · Which word fits: จน / จนกว่า</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>จน</b> (jon): Until, or so much that, for something that did happen. Before a time word, จน or จนถึง.</div><div><b>จนกว่า</b> (jon-gwàa): Until something that hasn't happened yet, usually with จะ after it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-jon",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: รู้ / รู้จัก</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>รู้</b> (rúu): To know a fact or a piece of information. Often รู้ว่า, \"know that\".</div><div><b>รู้จัก</b> (rúu-jàk): To know a person or a place: to have met them, or be familiar with it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-ruu",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: หนาว / เย็น</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>หนาว</b> (nǎao): Cold weather, or a person feeling cold. หน้าหนาว is winter.</div><div><b>เย็น</b> (yen): Cool or cold things: water, drinks, food, a breeze, the air conditioning.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-cold",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: เป็น / คือ / อยู่</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>เป็น</b> (bpen): Is a kind of person or thing: a job, a nationality, a role. Also for having an illness.</div><div><b>คือ</b> (khuue): Is exactly: names or defines something (\"this is\", \"the problem is\").</div><div><b>อยู่</b> (yùu): Is somewhere: a location. After a verb, is in the middle of doing it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-be",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: คะ / ค่ะ</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>คะ</b> (khá): High tone. Ends a woman's question, or follows a name when calling someone.</div><div><b>ค่ะ</b> (khâ): Falling tone. Ends a woman's statement, or on its own means yes.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-kha",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: อยาก / ต้อง / ต้องการ</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>อยาก</b> (yàak): Want to do something. A verb comes after it.</div><div><b>ต้อง</b> (dtâawng): Must, have to. A verb comes after it.</div><div><b>ต้องการ</b> (dtâawng-gaan): Want or need a thing. A noun usually comes after it. A little formal.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-want",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: ก็ / เลย / แล้ว</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>ก็</b> (gâw): Then, also: the second half of \"if... then\", or \"too\" and \"either\" with เหมือนกัน.</div><div><b>เลย</b> (ləəi): So, as a result. After a describing word, really. With ไม่, not at all.</div><div><b>แล้ว</b> (láaeo): Already: the action is done. Comes at the end, after the verb.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-gaw",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: ดู / เห็น</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>ดู</b> (duu): To watch or look at, on purpose.</div><div><b>เห็น</b> (hěn): To see: it comes into view, whether you meant to look or not.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-see",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: ฟัง / ได้ยิน</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>ฟัง</b> (fang): To listen, on purpose.</div><div><b>ได้ยิน</b> (dâai-yin): To hear: a sound reaches you, whether you meant to listen or not.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-hear",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: พูด / บอก</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>พูด</b> (phûut): To speak or talk. A language comes after it, or กับ and the person.</div><div><b>บอก</b> (bàawk): To tell someone something. The person comes right after it.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-tell",
+        "skill::lang::th"
+       ],
+       "suspended": true
+      },
+      {
+       "front": "<div><b>Thai · Which word fits: กับ / และ</b></div><div>Say a sentence aloud with each word, then check it against the rules on the back.</div>",
+       "back": "<div><b>กับ</b> (gàp): With: together with a person or a thing. Also \"and\" between two nouns.</div><div><b>และ</b> (láe): And between two describing words or two clauses. A little formal.</div><div>Rate how it went. In Franki this card is a short drill.</div>",
+       "tags": [
+        "skill",
+        "skill::drill::contrast-th-and",
+        "skill::lang::th"
+       ],
+       "suspended": true
       }
      ],
      "words": []

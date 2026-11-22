@@ -2,6 +2,7 @@ import { deckNameLanguage } from '../core/cards';
 import { grammarPointsFor } from '../core/grammar';
 import type { Language } from '../reader/api';
 import { LANGUAGE_ORDER } from '../reader/languages';
+import { contrastSetsFor } from './contrasts';
 import { sayFrenchDate } from './french/date';
 import { sayFrenchMoney } from './french/money';
 import { sayFrenchNumber } from './french/number';
@@ -69,7 +70,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
+export type ToolId = 'mixups' | 'contrast' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -176,6 +177,13 @@ export const TOOLS: ToolInfo[] = [
     title: 'Similar words',
     summary: 'Tell apart look-alikes, sound-alikes and words you link as mixed up.',
     languages: TOOL_LANGUAGES,
+  },
+  {
+    // Hand-written sentences that only one word of a set fits (contrasts.ts): จน or จนกว่า. Also skill cards in Review.
+    id: 'contrast',
+    title: 'Which word fits',
+    summary: 'Pick the word that fits a sentence, from words easily mixed up.',
+    languages: TOOL_LANGUAGES.filter((l) => contrastSetsFor(l).length > 0),
   },
   {
     // English sentences around words reviewed today or young, to say in the language (server/reader

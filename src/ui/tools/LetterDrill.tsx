@@ -100,7 +100,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
         <View style={{ alignItems: 'center' }}>
           {pick.choice === right
             ? <Status tone="good">{consonant ? `Right. ${CLASS_NAMES[consonant.cls]} class.` : `Right. ${vowel!.long ? 'Long' : 'Short'}.`}</Status>
-            : <Status tone="bad">{consonant ? `Not quite. It's ${CLASS_NAMES[consonant.cls].toLowerCase()} class.` : `Not quite. It's ${vowel!.long ? 'long' : 'short'}.`}</Status>}
+            : <Status tone="bad">{consonant ? `Incorrect. It's ${CLASS_NAMES[consonant.cls].toLowerCase()} class.` : `Incorrect. It's ${vowel!.long ? 'long' : 'short'}.`}</Status>}
         </View>
       )}
       <View style={{ gap: space.xs }}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
+  CONTRAST_STEPS, COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   heardRight, holdable, questionNote, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 import { stepNeeds } from '../../src/tools/skillWords';
@@ -104,7 +104,7 @@ describe('skill drills', () => {
 
 describe('skill cards in the collection', () => {
   it('offers the groups a language has', () => {
-    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'classifiers']);
+    expect(skillGroups('th').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'consonants', 'vowels', 'classifiers', 'contrast']);
     expect(skillGroups('pl').map((g) => g.id)).toEqual(['time', 'numbers', 'dates', 'money', 'counting', 'cases']);
     expect(skillGroups('en')).toEqual([]);
     expect(skillGroups('th').find((g) => g.id === 'consonants')?.count).toBe(44);
@@ -499,5 +499,50 @@ describe('counting things drills', () => {
   it('lists the steps in Skills under Counting things', () => {
     const sections = skillSections([{ tags: ['skill', 'skill::drill::counting-one', 'skill::lang::pl'], suspended: false, started: false, settled: false, dueInDays: 0 }]);
     expect(sections).toEqual([{ title: 'Counting things', rows: [{ title: '1 with the noun', detail: 'Not started yet', locked: false }] }]);
+  });
+});
+
+describe('Which word fits skill cards', () => {
+  const jon = 'contrast-th-jon';
+  const cards = skillDrafts('th', 'Thai', ['contrast']);
+
+  it('writes one card per Thai set, suspended until the deck knows its words, with the rules on its back', () => {
+    expect(cards).toHaveLength(CONTRAST_STEPS.filter((s) => (s as { language: string }).language === 'th').length);
+    expect(cards.every((c) => c.suspended)).toBe(true);
+    const first = cards.find((c) => c.tags.includes(`${SKILL_TAG}::drill::${jon}`))!;
+    expect(first.fields.Front).toContain('Thai · Which word fits: จน / จนกว่า');
+    expect(first.fields.Back).toContain('<b>จนกว่า</b> (jon-gwàa)');
+    expect(skillGroups('th').find((g) => g.id === 'contrast')?.count).toBe(cards.length);
+    expect(skillDrafts('pl', 'Polish', ['contrast'])).toEqual([]);
+    expect(skillWordDrafts('th', ['contrast'])).toEqual([]);
+  });
+
+  it('waits for each of the set\'s words, and is released once they are known', () => {
+    expect(stepNeeds(jon, 'th').map((n) => n.words)).toEqual([['จน'], ['จนกว่า']]);
+    expect(stepNeeds(jon, 'pl')).toEqual([]);
+    expect(stepWaits(drillStep(jon)!, 'th')).toBe(true);
+    const state = { id: 'c1', stepId: jon, language: 'th' as const, suspended: true, settled: false };
+    expect(releasable([{ ...state, missing: ['จนกว่า'] }])).toEqual([]);
+    expect(releasable([state])).toEqual(['c1']);
+    expect(holdable([{ ...state, suspended: false, missing: ['จน'] }])).toEqual(['c1']);
+  });
+
+  it('is found from its tags, asks a sentence of its own set with a gap, and answers with it filled in and the rule', () => {
+    const found = drillOfTags(cards[0].tags)!;
+    expect(found.step.id).toBe(jon);
+    const q = drawQuestion(found.step, undefined, seq([0]), 'th');
+    expect(q).toEqual({ kind: 'contrast', setId: 'th-jon', index: 0 });
+    expect(questionKey(q)).toBe('th-jon:0');
+    expect(questionText(q, 'th')).toBe('ฉันจะรอ＿＿＿เขาจะมา');
+    const answer = drillAnswer(q, 'th')!;
+    expect(answer.everyday).toEqual({ text: 'ฉันจะรอจนกว่าเขาจะมา', roman: 'chǎn jà raaw jon-gwàa khǎo jà maa' });
+    expect(answer.last?.title).toBe('จนกว่า');
+    // Never the same sentence twice in a row.
+    for (let i = 0; i < 20; i++) expect(drawQuestion(found.step, q, Math.random, 'th')).not.toEqual(q);
+  });
+
+  it('shows on Skills under Which word fits, saying which words it waits for', () => {
+    const info: SkillCardInfo = { tags: cards[0].tags, suspended: true, started: false, settled: false, dueInDays: 0, missing: ['จนกว่า'] };
+    expect(skillSections([info])).toEqual([{ title: 'Which word fits', rows: [{ title: 'จน / จนกว่า', detail: 'Starts once you know จนกว่า well', locked: true }] }]);
   });
 });

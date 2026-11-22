@@ -204,7 +204,10 @@ export function ChipChoice<T extends string | number>({ label, options, value, o
   );
 }
 
-/** How an answer went, the same in every Practice quiz: a symbol, then "Right." or "Not quite. It's …". */
+/**
+ * How an answer went, the same in every Practice quiz: a symbol, then "Right.", or after a miss "Incorrect. It's …"
+ * for a pick among a few choices (right or not, nothing in between) and "Not quite. It's …" for a typed or spoken answer, which can be partly right.
+ */
 export function Status({ tone, children }: { tone: 'good' | 'warn' | 'bad'; children: string }) {
   const c = useTheme();
   const color = tone === 'good' ? c.countDue : tone === 'warn' ? c.warning : c.danger;

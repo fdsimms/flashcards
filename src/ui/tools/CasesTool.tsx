@@ -128,7 +128,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
         <View style={{ alignItems: 'center' }}>
           {picked === g.case
             ? <Status tone="good">{`${caseName(g.case)}.`}</Status>
-            : <Status tone="bad">{`${picked ? 'Not quite. ' : ''}It's the ${g.case}.`}</Status>}
+            : <Status tone="bad">{`${picked ? 'Incorrect. ' : ''}It's the ${g.case}.`}</Status>}
         </View>
         {noun ? (
           <View style={{ gap: space.s }}>

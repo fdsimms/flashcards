@@ -5,6 +5,7 @@ import type { Api } from '../../reader/api';
 import type { ToolId, ToolInfo } from '../../tools/tools';
 import type { Colors } from '../theme';
 import { CasesTool } from './CasesTool';
+import { ContrastTool } from './ContrastTool';
 import { CountingTool } from './CountingTool';
 import { DateTool } from './DateTool';
 import { MixupsTool } from './MixupsTool';
@@ -39,6 +40,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   color: (c: Colors) => string;
 }> = {
   mixups: { Screen: MixupsTool, icon: 'arrow.left.arrow.right', color: (c) => c.indigo },
+  contrast: { Screen: ContrastTool, icon: 'text.badge.checkmark', color: (c) => c.teal },
   sentences: { Screen: SentencesTool, icon: 'text.bubble.fill', color: (c) => c.hard },
   situations: { Screen: SituationsTool, icon: 'bubble.left.and.bubble.right.fill', color: (c) => c.good },
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },

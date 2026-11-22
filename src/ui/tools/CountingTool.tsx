@@ -123,7 +123,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   } else if (pick) {
     back = (
       <View style={{ gap: space.m }}>
-        {pick.index !== null ? (missedPick ? <Status tone="bad">{`Not quite. It's ${choiceText(choices[correct], !!counting?.pickByReading)}.`}</Status> : <Status tone="good">Right.</Status>) : null}
+        {pick.index !== null ? (missedPick ? <Status tone="bad">{`Incorrect. It's ${choiceText(choices[correct], !!counting?.pickByReading)}.`}</Status> : <Status tone="good">Right.</Status>) : null}
         {(missedPick || pick.index === null) && rule ? <RuleLine rule={rule} /> : null}
       </View>
     );
