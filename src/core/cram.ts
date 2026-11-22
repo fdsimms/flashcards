@@ -7,6 +7,7 @@ import { LANGUAGE_ORDER, flaggedName } from '../reader/languages';
 import { isRegisterLevel, type RegisterLevel } from '../reader/registerLevel';
 import { isReaderLanguage, readerLanguageOf } from './leechHint';
 import { noteHasTag } from './priority';
+import { isSkillNote } from './skillTag';
 import type { Card, Note } from './types';
 
 /**
@@ -281,13 +282,16 @@ export function cramLanguage(notes: Note[]): Language | undefined {
 /**
  * The notes Add words offers for a cram: only those in the language its words are in, plus any
  * already in it (so a stray one can still be taken out). With no language picked and no words yet
- * there is nothing to go by, so every note is offered until the first is added.
+ * there is nothing to go by, so every note is offered until the first is added. A skill card is
+ * never offered: it practices a pattern, not a word, so a cram's meaning-to-word practice, its
+ * texts and its lesson can't use it (Review hides Cram on one for the same reason).
  */
 export function addableNotes(notes: Note[], inCram: Note[], picked?: Language): Note[] {
   const language = picked ?? cramLanguage(inCram);
-  if (!language) return notes;
   const have = new Set(inCram.map((n) => n.id));
-  return notes.filter((n) => have.has(n.id) || readerLanguageOf(n) === language);
+  const words = notes.filter((n) => have.has(n.id) || !isSkillNote(n));
+  if (!language) return words;
+  return words.filter((n) => have.has(n.id) || readerLanguageOf(n) === language);
 }
 
 /** A note's meaning as plain text: an Omnilanguage note's Meaning, else its second field. */
