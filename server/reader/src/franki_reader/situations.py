@@ -191,6 +191,8 @@ class Conversation:
     register: Register = DEFAULT
     # Whether the learner is a man or a woman, which Thai's "I" and polite ending follow.
     learner: Learner = "male"
+    # The other person is the learner's own tutor in a lesson, not someone the scene calls for.
+    tutor: bool = False
 
 
 # One of their lines as Claude wrote it: {line, english, glosses, done}, plus the roles on the
@@ -221,6 +223,12 @@ def play_intro(conversation: Conversation) -> str:
             "them naturally in your own lines where the scene allows, and phrase your questions so the "
             "learner has a natural chance to use them too. Never list them, name them or explain them "
             "during the scene, and do not force one in where it doesn't fit."
+        )
+    if conversation.tutor:
+        notes.append(
+            "You are the learner's own tutor, in a lesson, and the situation is the topic you are "
+            "talking through with them. Ask about it and react to their answers as a friendly tutor "
+            "would, staying on the topic."
         )
     if conversation.register != DEFAULT:
         notes.append(f"Register for your lines: {instruction(conversation.register)}")
@@ -279,7 +287,12 @@ def conversation_message(conversation: Conversation) -> str:
     """The user message of a turn: the parts, then the conversation so far."""
     roles = conversation.roles
     parts = []
-    if roles is None:
+    if roles is None and conversation.tutor:
+        parts.append(
+            "Start the conversation. The learner's part (`you`) is their student and yours (`them`) "
+            "is their tutor; give yourself a first name and gender, and say the first line."
+        )
+    elif roles is None:
         parts.append(
             "Start the conversation. Choose the two parts the situation calls for (`you`: the "
             'learner\'s, like "a customer"; `them`: yours, like "the vendor"), a first name and '

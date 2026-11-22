@@ -1,9 +1,9 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { RegisterLevel } from '../../reader/registerLevel';
-import type { Rehearsal } from '../../reader/situations';
+import type { Partner, Rehearsal } from '../../reader/situations';
 import { haptic } from '../haptics';
-import { Button, Card, Screen } from '../kit';
+import { Button, Card, Help, Screen, Segments } from '../kit';
 import { RegisterPicker } from '../reader/RegisterPicker';
 import { Chip } from '../cram/CramThemes';
 import { readable, space, type, useTheme } from '../theme';
@@ -13,13 +13,16 @@ import { readable, space, type, useTheme } from '../theme';
  * pick, and Claude is asked to work its words in where they fit (never to require them). Start begins
  * the conversation; Pick a different scene goes to the usual scene screen.
  */
-export function SituationRehearse({ title, rehearsal, register, settingsRegister, onRegister, onStart, onPickOther }: {
+export function SituationRehearse({ title, rehearsal, register, settingsRegister, onRegister, partner, onPartner, onStart, onPickOther }: {
   title: string;
   rehearsal: Rehearsal;
   /** This scene's own register: the cram's to begin with, until it's changed here. */
   register: RegisterLevel | undefined;
   settingsRegister: RegisterLevel | undefined;
   onRegister: (register: RegisterLevel | undefined) => void;
+  /** Who Claude plays: the learner's tutor, or a person the scene calls for. */
+  partner: Partner;
+  onPartner: (partner: Partner) => void;
   onStart: () => void;
   onPickOther: () => void;
 }) {
@@ -34,6 +37,14 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
           {n ? <Chip label={`Leaning on ${n} ${n === 1 ? 'word' : 'words'} from this cram`} ink={c.accentInk} fill={c.accentFill} /> : null}
         </View>
+        <Card>
+          <Segments<Partner>
+            options={[{ value: 'tutor', label: 'Your tutor' }, { value: 'scene', label: 'A scene' }]}
+            value={partner}
+            onChange={onPartner}
+          />
+          <Help>{partner === 'tutor' ? `Claude is your tutor and asks you about "${rehearsal.scene}".` : `Claude plays a person from "${rehearsal.scene}", and you play the other part.`}</Help>
+        </Card>
         <Card><RegisterPicker own={register} settings={settingsRegister} onChange={onRegister} /></Card>
         <Button label="Start" onPress={() => { haptic.tap(); onStart(); }} />
         <Button label="Pick a different scene" variant="secondary" onPress={() => { haptic.tap(); onPickOther(); }} />

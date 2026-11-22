@@ -57,6 +57,8 @@ class SituationIn(BaseModel):
     # How casual or formal the other person's lines are; the Settings default when left out.
     # Named `register_level` because a pydantic model has a `register` of its own (ABCMeta's).
     register_level: Register | None = Field(default=None, alias="register")
+    # "tutor": the other person is the learner's own tutor in a lesson; left out, whoever the scene calls for.
+    partner: Literal["tutor"] | None = None
     # Thai only: the learner's polite ending, khrap (a man's) or kha (a woman's), the same choice
     # audio lessons use. The learner's own lines are judged and corrected as that speaker's.
     particle: Literal["khrap", "kha"] | None = None
@@ -83,6 +85,7 @@ class SituationIn(BaseModel):
             words,
             self.register_level or default,
             "female" if self.language == "th" and self.particle == "kha" else "male",
+            self.partner == "tutor",
         )
 
 
