@@ -141,6 +141,8 @@ export { CardSurface };
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
 const AUDIO_MODE = { playsInSilentMode: true };
+// How long a recording may take to report playing before Review starts it again on a fresh player.
+const RECORDING_START_WAIT_MS = 900;
 
 /** What this session did, shown when the queue is empty: cards answered, time, and how many were Again. */
 /** A sheet Review can raise (src/ui/useSheetQueue.ts); the key makes asking twice for the same one a single sheet. */
@@ -577,16 +579,34 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // each time so the voice and the player are never left on a dead one.
       await setAudioModeAsync(AUDIO_MODE).catch(() => undefined);
       if (mine !== speakSeq.current) return;
+      phoneSpeech.cancelPending();
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
         // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
-        if (!player.current) {
-          player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
-          untrackPlayer.current = trackPlayer(player.current);
-        }
-        player.current.replace({ uri });
-        player.current.play();
+        // A recording iOS took and never played (random, not tied to a file) is started again on a fresh
+        // player and a fresh audio session, up to twice. It counts as started when the player reports
+        // playing, so a clip that already ended isn't repeated.
+        const start = (retries: number) => {
+          if (!player.current) {
+            player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
+            untrackPlayer.current = trackPlayer(player.current);
+          }
+          const p = player.current;
+          let started = false;
+          const sub = p.addListener('playbackStatusUpdate', (st) => { if (st.playing) started = true; });
+          p.replace({ uri });
+          p.play();
+          setTimeout(() => {
+            sub.remove();
+            if (started || retries <= 0 || mine !== speakSeq.current || player.current !== p) return;
+            untrackPlayer.current?.(); untrackPlayer.current = null;
+            try { p.remove(); } catch { /* released */ }
+            player.current = null;
+            setAudioModeAsync(AUDIO_MODE).catch(() => undefined).then(() => { if (mine === speakSeq.current) start(retries - 1); });
+          }, RECORDING_START_WAIT_MS);
+        };
+        start(2);
         return;
       }
       if (!what.text) return;
