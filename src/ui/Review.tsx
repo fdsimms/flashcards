@@ -577,6 +577,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // each time so the voice and the player are never left on a dead one.
       await setAudioModeAsync(AUDIO_MODE).catch(() => undefined);
       if (mine !== speakSeq.current) return;
+      phoneSpeech.cancelPending();
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
@@ -585,8 +586,18 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
           untrackPlayer.current = trackPlayer(player.current);
         }
-        player.current.replace({ uri });
-        player.current.play();
+        const p = player.current;
+        // A recording iOS took and never played (random, not tied to a file): once, start it again.
+        // It counts as started when the player reports playing, so a clip that already ended isn't repeated.
+        let started = false;
+        const sub = p.addListener('playbackStatusUpdate', (st) => { if (st.playing) started = true; });
+        p.replace({ uri });
+        p.play();
+        setTimeout(() => {
+          sub.remove();
+          if (started || mine !== speakSeq.current || player.current !== p) return;
+          try { p.replace({ uri }); p.play(); } catch { /* released */ }
+        }, 900);
         return;
       }
       if (!what.text) return;

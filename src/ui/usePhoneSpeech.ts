@@ -26,6 +26,42 @@ export async function stopSpeechIfRunning(): Promise<void> {
 const STOP_WAIT_MS = 400;
 const STOP_POLL_MS = 30;
 
+// The latest thing this module asked the voice to say. A retry only runs while its own request is still the latest.
+let latestSpeech = 0;
+const START_WAIT_MS = 600;
+const START_RETRIES = 2;
+
+/**
+ * Speaks `text`, and speaks it again if the voice never starts. iOS sometimes takes an utterance and
+ * stays silent (no start, no error, nothing queued), which showed as a word that didn't autoplay at
+ * random. The voice reports `onStart` when it begins, so a request that is neither started nor
+ * speaking after a moment was dropped. A newer request, or a stop, ends the retrying.
+ */
+function speakUntilStarted(text: string, options: Parameters<typeof speechTracking>[0], retries = START_RETRIES): void {
+  const mine = ++latestSpeech;
+  const attempt = (left: number) => {
+    const tracked = speechTracking(options);
+    let heard = false;
+    Speech.speak(text, {
+      ...tracked,
+      onStart: () => { heard = true; tracked.onStart?.(); },
+      onDone: () => { heard = true; tracked.onDone?.(); },
+      onStopped: () => { heard = true; tracked.onStopped?.(); },
+      onError: (e) => { heard = true; tracked.onError?.(e); },
+    });
+    setTimeout(async () => {
+      if (heard || left <= 0 || mine !== latestSpeech) return;
+      if (await Speech.isSpeakingAsync().catch(() => true)) return;
+      if (mine !== latestSpeech) return;
+      await Speech.stop().catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, STOP_POLL_MS));
+      if (mine !== latestSpeech) return;
+      attempt(left - 1);
+    }, START_WAIT_MS);
+  };
+  attempt(retries);
+}
+
 /**
  * Reading aloud with the phone's voices, in the voice and at the speed chosen for each language
  * (Settings, Voices). The phone's voices and the choices are loaded whenever the screen comes into
@@ -40,15 +76,17 @@ export function usePhoneSpeech(repo: Repo) {
   }, [repo]));
   return useMemo(() => ({
     /** An Omnilanguage card's word, in its note's language. */
-    sayWord: (text: string, lang: string | undefined) => Speech.speak(text, speechTracking(wordSpeech(voices.current, settings.current, lang))),
+    sayWord: (text: string, lang: string | undefined) => speakUntilStarted(text, wordSpeech(voices.current, settings.current, lang)),
     /** A line of conversation (Situations), in its language: at the chosen speed, or that times `slow` (`SLOW_RATE`) for a slow one. */
     sayLine: async (text: string, lang: string, slow: boolean) => {
       await stopSpeechIfRunning();
-      Speech.speak(text, speechTracking(lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE)));
+      speakUntilStarted(text, lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE));
     },
+    /** Drops a retry still waiting on an utterance the voice never started, for a sound that plays instead. */
+    cancelPending: () => { latestSpeech++; },
     /** Stops whatever is being read. */
-    stop: () => { Speech.stop().catch(() => {}); },
+    stop: () => { latestSpeech++; Speech.stop().catch(() => {}); },
     /** Anki's {{tts}} tags, one after another. */
-    readTags: async (tags: TtsTag[]) => { await stopSpeechIfRunning(); for (const t of tags) Speech.speak(t.text, speechTracking(tagSpeech(voices.current, settings.current, t))); },
+    readTags: async (tags: TtsTag[]) => { await stopSpeechIfRunning(); latestSpeech++; for (const t of tags) Speech.speak(t.text, speechTracking(tagSpeech(voices.current, settings.current, t))); },
   }), []);
 }
