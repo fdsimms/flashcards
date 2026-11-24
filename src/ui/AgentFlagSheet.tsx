@@ -4,10 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AGENT_FLAG_REASONS, FLAG_NOTE_MAX, type AgentFlagReason } from '../core/agentFlag';
 import { failureText } from '../core/failure';
 import type { FixProposal } from '../core/fixCard';
-import { htmlToText } from '../core/html';
 import { Button, Chip, ErrorNote, Field, SheetHeader } from './kit';
-import { radius, smooth, space, type, useTheme } from './theme';
+import { space, type, useTheme } from './theme';
 import { AskingText } from './AskingText';
+import { FixProposalView } from './FixProposalView';
 
 /**
  * "Flag for Claude to check", shared by Review's menu and Trouble cards: a reason, and a note in the
@@ -158,29 +158,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
 
         {phase === 'proposal' && proposal ? (
           <>
-            {proposal.explanation ? <Text style={{ ...type.callout, color: c.textSecondary }}>{proposal.explanation}</Text> : null}
-            {proposal.changes.map((ch) => {
-              const before = htmlToText(ch.before);
-              const after = htmlToText(ch.after);
-              // A change to markup only reads the same as text, so show the HTML itself.
-              const same = before === after;
-              return (
-                <View key={ch.field} style={{ gap: space.xs }}>
-                  <Text style={{ ...type.overline, color: c.textSecondary }}>{ch.field}</Text>
-                  <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m }}>
-                    <Text selectable style={{ ...type.subhead, color: c.textSecondary }}>{same ? ch.before : before}</Text>
-                  </View>
-                  <View style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
-                    <Text selectable style={{ ...type.subhead, color: c.text }}>{same ? ch.after : after}</Text>
-                  </View>
-                </View>
-              );
-            })}
-            {proposal.skipped ? (
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                {proposal.skipped === 1 ? 'Claude also suggested a change' : `Claude also suggested ${proposal.skipped} changes`} that would have dropped or added a recording or image, so {proposal.skipped === 1 ? 'it was' : 'they were'} left out.
-              </Text>
-            ) : null}
+            <FixProposalView proposal={proposal} />
             {error ? <ErrorNote message={error} /> : null}
             {proposal.changes.length ? (
               <>

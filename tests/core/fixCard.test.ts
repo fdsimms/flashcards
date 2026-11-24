@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { checkFix, fixRequest, withFix } from '../../src/core/fixCard';
+import { chatFixRequest, checkFix, CHAT_REASON, fixRequest, withFix } from '../../src/core/fixCard';
 import type { Note } from '../../src/core/types';
 
 const note = (fields: Record<string, string>, deck = 'Thai'): Note => ({
@@ -53,4 +53,20 @@ test('the changes are written into a copy of the fields', () => {
   expect(next.Meaning).toBe('to break down');
   expect(next.Entry).toBe('เสีย');
   expect(NOTE.fields.Meaning).toContain('เสียใจ');
+});
+
+test('a change asked for in a chat sends the latest turns, starting at the learner, with no note', () => {
+  const turns = Array.from({ length: 15 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `t${i}` } as const));
+  const req = chatFixRequest(NOTE, turns);
+  expect(req.reason).toBe(CHAT_REASON);
+  expect(req.note).toBe('');
+  expect(req.fields).toBe(NOTE.fields);
+  // The last 12 of 15 start on an assistant turn (index 3), so that one is dropped.
+  expect(req.chat?.map((t) => t.content)).toEqual(turns.slice(4).map((t) => t.content));
+  expect(req.chat?.[0].role).toBe('user');
+});
+
+test('a short chat is sent whole', () => {
+  const turns = [{ role: 'user', content: 'Why?' }, { role: 'assistant', content: 'Because.' }] as const;
+  expect(chatFixRequest(NOTE, [...turns]).chat).toEqual(turns);
 });

@@ -3,10 +3,12 @@ import { Linking, Modal, ScrollView, Text, View, type ScrollViewInstance } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { claudeChatLink, noteDraft, SUGGESTED_QUESTIONS, withNoteRequest, withQuestion, type AskTurn, type CardForClaude } from '../core/askCard';
 import { failureText } from '../core/failure';
+import type { FixProposal } from '../core/fixCard';
 import { haptic } from './haptics';
 import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
+import { FixProposalView } from './FixProposalView';
 
 /**
  * Ask Claude about the card on screen, from Review's ⋯ menu. It opens over the card as iOS's own
@@ -18,9 +20,12 @@ import { AskingText } from './AskingText';
  * `onSaveAnswer` (present only for a note with a Notes field) adds a note there, under what's
  * already in it. An answer is never added as it is: Claude drafts a one or two line note from the
  * chat, the learner edits it, and Add to Notes saves what's in the box.
+ * `fix` and `onApplyFix` (present while Read & Listen is signed in) let the chat change the card
+ * itself: Change the card sends the chat to the server, which suggests new field values, and the
+ * learner sees each changed field old above new. Nothing is saved until Apply.
  * A swipe down closes the sheet, except while an answer is on its way.
  */
-export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswer, onClose }: {
+export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswer, fix, onApplyFix, onClose }: {
   card: CardForClaude;
   ask?: (turns: AskTurn[]) => Promise<string>;
   /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
@@ -28,6 +33,10 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   onDismiss?: () => void;
   /** Adds a note to the note's Notes field; throws when it can't be saved, and the sheet says why. */
   onSaveAnswer?: (answer: string) => Promise<void>;
+  /** Asks for a change to the card from the chat so far; throws when it can't. */
+  fix?: (turns: AskTurn[]) => Promise<FixProposal>;
+  /** Saves a suggested change to the note; throws when it can't. */
+  onApplyFix?: (proposal: FixProposal) => Promise<void>;
   onClose: () => void;
 }) {
   const c = useTheme();
@@ -42,6 +51,12 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
   const [drafting, setDrafting] = useState(false);
   const [addedAnswer, setAddedAnswer] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // The change suggested for the card (null until asked for), and the answer it was asked after once
+  // it's applied, so the same chat isn't offered the change again.
+  const [proposal, setProposal] = useState<FixProposal | null>(null);
+  const [fixing, setFixing] = useState(false);
+  const [appliedAnswer, setAppliedAnswer] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   // Where the scroll follows content: to the bottom (a question just sent, a draft or an error
   // appearing), or to the top of the newest answer so a long reply is read from its first line.
@@ -57,6 +72,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
     setTurns(next);
     setText('');
     setDraft(null);
+    setProposal(null);
     setAsking(true);
     setError(null);
     try {
@@ -84,6 +100,37 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
       if (open.current) setError(failureText(e, { what: "Couldn't write a note.", next: 'Try again.' }));
     } finally {
       if (open.current) setDrafting(false);
+    }
+  };
+
+  const changeCard = async () => {
+    if (!fix || fixing || asking) return;
+    haptic.select();
+    follow.current = 'end';
+    setFixing(true);
+    setError(null);
+    try {
+      const got = await fix(turns);
+      if (open.current) setProposal(got);
+    } catch (e) {
+      if (open.current) setError(failureText(e, { what: "Couldn't get a change from Claude.", next: 'Nothing was changed. Try again.' }));
+    } finally {
+      if (open.current) setFixing(false);
+    }
+  };
+
+  const applyChange = async (p: FixProposal, answer: string) => {
+    if (!onApplyFix || applying) return;
+    haptic.select();
+    setApplying(true);
+    setError(null);
+    try {
+      await onApplyFix(p);
+      if (open.current) { setAppliedAnswer(answer); setProposal(null); }
+    } catch (e) {
+      if (open.current) setError(failureText(e, { what: "Couldn't change the card.", next: 'Nothing was changed. Try again.' }));
+    } finally {
+      if (open.current) setApplying(false);
     }
   };
 
@@ -152,13 +199,44 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
             ))}
           </View>
         ) : null}
-        {onSaveAnswer && ask && lastAnswer && !asking ? (
+        {fix && ask && lastAnswer && !asking ? (
+          <View style={{ gap: space.m }}>
+            {appliedAnswer === lastAnswer ? (
+              <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Card changed</Text>
+            ) : proposal === null ? (
+              <View style={{ gap: space.xs }}>
+                <Button label="Change the card" onPress={() => void changeCard()} busy={fixing} disabled={drafting} accessibilityLabel="Have Claude change this card's text from this chat" />
+                <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                  Claude suggests new text for the card from this chat. You see each change before it's saved.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>
+                  {proposal.changes.length ? (proposal.changes.length === 1 ? 'Claude suggests one change' : `Claude suggests ${proposal.changes.length} changes`) : 'Claude found nothing to change'}
+                </Text>
+                <FixProposalView proposal={proposal} />
+                {proposal.changes.length ? (
+                  <View style={{ flexDirection: 'row', gap: space.m }}>
+                    <Button label="Not now" variant="secondary" onPress={() => setProposal(null)} style={{ flex: 1 }} disabled={applying} />
+                    <Button label="Apply" onPress={() => void applyChange(proposal, lastAnswer)} style={{ flex: 1 }} busy={applying} accessibilityLabel="Change the card as suggested" />
+                  </View>
+                ) : (
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                    Say more in the chat about what to change, then try again.
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+        ) : null}
+        {onSaveAnswer && ask && lastAnswer && !asking && !proposal ? (
           <View style={{ gap: space.xs }}>
             {addedAnswer === lastAnswer ? (
               <Text style={{ ...type.callout, fontWeight: '600', color: c.goodInk }}>Added to Notes</Text>
             ) : draft === null ? (
               <>
-                <Button label="Write a short note" variant="secondary" onPress={() => void draftNote()} busy={drafting} accessibilityLabel="Have Claude write a short note from this chat for the Notes field" />
+                <Button label="Write a short note" variant="secondary" onPress={() => void draftNote()} busy={drafting} disabled={fixing} accessibilityLabel="Have Claude write a short note from this chat for the Notes field" />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
                   Claude writes a line or two from this chat. You can edit it before it's added to Notes.
                 </Text>
