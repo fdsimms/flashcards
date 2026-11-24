@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Cram } from '../../src/core/cram';
-import { addSummary, cramPhrasesRequest, cramWordsRequest, phrasesToLeaveOut, SUGGEST_PHRASE_EXCLUDE, SUGGEST_PHRASE_WORDS, SUGGEST_EXCLUDE_MAX, suggestedWords, wordsToLeaveOut } from '../../src/core/cramWords';
+import { addSummary, cramPhrasesRequest, cramWordsRequest, phrasesToLeaveOut, SUGGEST_PHRASE_EXCLUDE, SUGGEST_PHRASE_WORDS, SUGGEST_EXCLUDE_MAX, suggestedWords, withoutListedWords, wordsToLeaveOut } from '../../src/core/cramWords';
 import type { LessonWordCandidate } from '../../src/core/lessonWords';
 import type { Note } from '../../src/core/types';
 import { omniNote } from '../support/fixtures';
@@ -58,6 +58,16 @@ describe('suggestedWords', () => {
   it("matches only notes in the cram's language", () => {
     const out = suggestedWords([word('książka')], [polish('9', 'książka')], cram(), [], 'th');
     expect(out[0].note).toBeUndefined();
+  });
+});
+
+describe('withoutListedWords', () => {
+  it('drops a word whose note is on screen, keeps the rest in order', () => {
+    const out = withoutListedWords([word('อีกไม่นาน'), word('เดี๋ยว'), word('เดี๋ยวนี้')], [thai('1', 'อีกไม่นาน'), thai('2', 'เดี๋ยว ')]);
+    expect(out.map((w) => w.text)).toEqual(['เดี๋ยวนี้']);
+  });
+  it('keeps everything when nothing is listed', () => {
+    expect(withoutListedWords([word('a')], [])).toHaveLength(1);
   });
 });
 

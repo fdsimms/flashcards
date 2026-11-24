@@ -694,9 +694,10 @@ export function createApi(
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
     // null while the server is still writing the text (202): ask again in a few seconds, and
     // `onStage` is told where the write has got to (undefined from a server older than stages).
-    // With `words` (the cards just studied), a text written to practice them.
-    nextText: async (topicId: number, words?: string[], onStage?: (stage: TextStage | undefined) => void) => {
-      const response = await send('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined);
+    // With `words` (the cards just studied), a text written to practice them, and with `about` (what
+    // really happened, at most the server's 300 characters) written from that.
+    nextText: async (topicId: number, words?: string[], onStage?: (stage: TextStage | undefined) => void, about?: string) => {
+      const response = await send('POST', `/api/topics/${topicId}/next`, words?.length ? { words, ...(about ? { about } : {}) } : undefined);
       if (response.status !== 202) return (await response.json()) as ReaderText;
       let stage: TextStage | undefined;
       try {

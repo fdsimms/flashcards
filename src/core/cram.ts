@@ -131,6 +131,8 @@ export interface Cram {
   requested?: CramRequest[];
   /** Started with "Not sure yet? Get ideas": its name is a stand-in until a theme names it (`withThemes`), and its talking points aren't angles on that name (`themeTopic`). */
   untitled?: boolean;
+  /** The study day (`studyDayKey`) its Today card was dismissed on: the card stays away for that day only. */
+  dismissedOn?: string;
 }
 
 /** The languages a cram can be set to, each with its flag, as the editor's Language list shows them. */
@@ -180,6 +182,9 @@ export const isRunning = (cram: Cram, now: Date, dayStartsAtHour: number) => !cr
 
 /** Its day has ended and At the lesson's Finish hasn't been pressed: Today asks how it went. */
 export const isAwaitingFinish = (cram: Cram, now: Date, dayStartsAtHour: number) => !cram.finishedAt && now >= cramEnd(cram, dayStartsAtHour);
+
+/** Its Today card was dismissed during this study day. It comes back the next one. */
+export const isDismissedToday = (cram: Pick<Cram, 'dismissedOn'>, now: Date, dayStartsAtHour: number) => cram.dismissedOn === studyDayKey(now, dayStartsAtHour);
 
 /** Study days from today to the cram's day: 0 on the day itself. */
 export function daysUntil(cram: Pick<Cram, 'date'>, now: Date, dayStartsAtHour: number): number {
@@ -424,6 +429,16 @@ export function talkScene(cram: Pick<Cram, 'name' | 'untitled' | 'themes'>): str
   const talks = cram.themes ?? [];
   if (talks.length === 1) return talks[0].title;
   return themeTopic(cram) || talks[0]?.title || cram.name;
+}
+
+/**
+ * The topic Read a text writes about: what the cram is for (`talkScene`), or undefined for an
+ * untitled cram with no talking point yet, whose stand-in name ("Thai lesson") says nothing, so
+ * the caller picks an idea itself. The server's topic names are at most 150 characters.
+ */
+export function cramTextTopic(cram: Pick<Cram, 'name' | 'untitled' | 'themes'>): string | undefined {
+  if (cram.untitled && !cram.themes?.length) return undefined;
+  return talkScene(cram).replace(/\s+/g, ' ').trim().slice(0, 150) || undefined;
 }
 
 /** What a talking point (or a theme on offer) holds, as its folded card says it: "2 to ask · 2 they may ask · your story". */

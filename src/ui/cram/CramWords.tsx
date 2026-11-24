@@ -4,6 +4,7 @@ import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { addableNotes, cramLanguageOf, cramNotes, cramTag, meaningOf, noteAddedAt, searchNotes, withRequest } from '../../core/cram';
 import { withPhrases } from '../../core/cramPhrases';
+import { withoutListedWords } from '../../core/cramWords';
 import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { LessonWordCandidate } from '../../core/lessonWords';
@@ -78,6 +79,9 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
   const tagged = useMemo(() => (tagMatch ? offered.filter((n) => noteHasTag(n, tagMatch) && !inCramIds.has(n.id)) : []), [tagMatch, offered, inCramIds]);
   // Every match on screen not yet in the cram, so a search ("grill") adds its results in one tap.
   const unchecked = useMemo(() => (typed ? rows.filter((n) => !inCramIds.has(n.id) && !asked.get(n.id)) : []), [typed, rows, inCramIds, asked]);
+  // What the lookup leaves out: words already listed below it, or already in the cram.
+  const listedNotes = useMemo(() => [...rows, ...inCram], [rows, inCram]);
+  const notListed = (words: LessonWordCandidate[]) => withoutListedWords(words, listedNotes);
   const exact = typed && rows.some((n) => headword(n).trim().toLowerCase() === typed.toLowerCase());
 
   if (!cram || !collection.loaded) return <Screen title="Add" largeTitle={false}><Loading /></Screen>;
@@ -159,10 +163,10 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
             />
             <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
             {typed && !exact && language && findWords && !card ? (
-              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} add={addPhrases} />
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} listed={notListed} add={addPhrases} />
             ) : null}
             {typed && !exact && language && findWords && queue && card ? (
-              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} listed={notListed} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
             ) : null}
             {!typed && !card && language && findWords ? (
               <Group>
