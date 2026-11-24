@@ -1,15 +1,17 @@
 /**
  * A note's picture (the Omnilanguage Icon field): one emoji where an emoji shows exactly the thing,
- * else a small line drawing Claude made, kept as SVG path data. Franki shows it with the meaning on
- * an answer side, so the learner meets the picture with what it stands for, and first on the
- * meaning-to-word card's front, where the word is then recalled from the thing itself and the
- * English waits behind a tap (cards.ts).
+ * else a Tabler icon whose own name is the thing, kept as SVG path data. A drawing made up for the
+ * note is never written: a picture has to be exactly the thing, and a near one teaches the wrong
+ * word. Franki shows it with the meaning on an answer side, so the learner meets the picture with
+ * what it stands for, and first on the meaning-to-word card's front, where the word is then
+ * recalled from the thing itself and the English waits behind a tap (cards.ts).
  *
  * A drawing is `|`-separated SVG path `d` strings for a 24 by 24 box, drawn as round strokes with no
  * fill. Only path data is kept, never markup, so there is nothing to sanitize and nothing a card
- * could run: a value that is neither one emoji nor path data is no picture at all. The server checks
- * the same two shapes before a note is written (`is_emoji` and `is_drawing`, note_queue.py and the
- * MCP's omnilanguage.py). Pure, so it's tested.
+ * could run: a value that is neither one emoji nor path data is no picture at all. This is what the
+ * card draws, whatever wrote it, so it stays as permissive as the older notes need. The servers
+ * hold what is written to the stricter rule, one emoji or exactly a Tabler icon's path data
+ * (`franki_speech.icons`, used by note_queue.py and the MCP's omnilanguage.py). Pure, so it's tested.
  */
 
 export type Picture = { emoji: string } | { paths: string[] };

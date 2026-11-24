@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from franki_mcp import omnilanguage as o
+from franki_speech.icons import icon_drawing
 
 GERMAN_NOUN = {
     "Entry": "Einstellung", "Meaning": "setting; attitude", "Language": "german", "Register": "neutral",
@@ -446,13 +447,23 @@ def test_an_update_that_leaves_sense_and_meaning_alone_does_not_repeat_the_warni
     assert len(o.prepare({"Sense": "part or portion, or as for"}, existing=stored).review) == 1
 
 
-def test_an_icon_is_one_emoji_or_nothing():
+def test_an_icon_is_one_emoji_a_tabler_icon_or_nothing():
+    umbrella = icon_drawing("umbrella")
     assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": "☂️"})
     assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": ""})
     assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "umbrella"})
     assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "☂️ umbrella"})
-    assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0"})
     assert "icon-format" in rules({**GERMAN_NOUN, "Icon": '<svg><path d="M0 0"/></svg>'})
-    assert o.is_drawing("m1.5,2e1 l-3 4") and not o.is_drawing("L3 4") and not o.is_drawing("M0 0|" * 9)
     assert o.is_emoji("🐘") and o.is_emoji("👨‍⚕️") and o.is_emoji("🇹🇭")
+    # A Tabler icon is stored as its path data; written as its name, a fix stores it that way.
+    assert "icon-format" not in rules({**GERMAN_NOUN, "Icon": umbrella})
+    assert "icon-tabler-name" in rules({**GERMAN_NOUN, "Icon": "tabler:umbrella"})
+    assert "icon-tabler-name" in o.FIXABLE
+    assert o.fix({**GERMAN_NOUN, "Icon": "Tabler:Umbrella"}).fields["Icon"] == umbrella
+    # A drawing of any other kind is refused, a freehand one included (the old ones in the decks).
+    assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0"})
+    assert "icon-format" in rules({**GERMAN_NOUN, "Icon": "M3 12a5 5 0 0 1 5-5h8a5 5 0 0 1 0 10H8a5 5 0 0 1-5-5z"})
+    # An icon the set doesn't have says what to try instead of only that it is wrong.
+    missing = [p for p in o.problems({**GERMAN_NOUN, "Icon": "tabler:running-track"}) if p.rule == "icon-format"]
+    assert missing and "Names that contain it" in missing[0].message and "track" in missing[0].message
     assert not o.is_emoji("") and not o.is_emoji("️") and not o.is_emoji("🐘" * 9)
