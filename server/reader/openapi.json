@@ -4674,6 +4674,62 @@
         }
       }
     },
+    "/api/wanikani-senses": {
+      "post": {
+        "summary": "Wanikani Senses Route",
+        "operationId": "wanikani_senses_route_api_wanikani_senses_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SensesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SensesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/aspect-pair": {
       "post": {
         "summary": "Aspect Pair",
@@ -8083,6 +8139,139 @@
           "missing"
         ],
         "title": "SaidOut"
+      },
+      "SenseSentenceIn": {
+        "properties": {
+          "ja": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Ja"
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "En",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "ja"
+        ],
+        "title": "SenseSentenceIn"
+      },
+      "SenseWordIn": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "characters": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Characters"
+          },
+          "glosses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 2,
+            "title": "Glosses"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/SenseSentenceIn"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Sentences"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "characters",
+          "glosses",
+          "sentences"
+        ],
+        "title": "SenseWordIn"
+      },
+      "SensesIn": {
+        "properties": {
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/SenseWordIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "words"
+        ],
+        "title": "SensesIn"
+      },
+      "SensesOut": {
+        "properties": {
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/SensesWordOut"
+            },
+            "type": "array",
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "words"
+        ],
+        "title": "SensesOut"
+      },
+      "SensesWordOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "glosses": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Glosses"
+          },
+          "sentences": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Sentences"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "glosses",
+          "sentences",
+          "labels"
+        ],
+        "title": "SensesWordOut"
       },
       "SentencesIn": {
         "properties": {

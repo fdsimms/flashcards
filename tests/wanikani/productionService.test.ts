@@ -87,3 +87,24 @@ describe('making production notes', () => {
     expect(result.waiting).toBe(3);
   });
 });
+
+describe('numbering the senses of a word', () => {
+  const twoSenses = { glosses: [[0], [1]], sentences: [0, 0], labels: ['adult', 'grown up'] };
+
+  it('asks once for the batch, only about words with two or more glosses, and numbers what comes back', async () => {
+    const { deps, store } = setup();
+    const asked: unknown[] = [];
+    // One sentence can't show two senses, so this answer doesn't fit: the note keeps its one line.
+    deps.senses = async (body) => { asked.push(body); return { words: [{ id: 2467, ...twoSenses }] }; };
+    await makeProductionNotes(deps, { deck: DECK, maxLevel: 60, made: new Set(), now: NOW });
+    expect(asked).toEqual([{ words: [expect.objectContaining({ id: 2467, glosses: ['adult', 'grown up'] })] }]);
+    expect((await store.listNotes()).find((n) => n.fields.Entry === '大人')!.fields.Meaning).toBe('adult; grown up');
+  });
+
+  it('makes the notes as one line of glosses when the server fails', async () => {
+    const { deps, store } = setup();
+    deps.senses = async () => { throw new Error('offline'); };
+    expect((await makeProductionNotes(deps, { deck: DECK, maxLevel: 60, made: new Set(), now: NOW })).made).toEqual([2467, 9001]);
+    expect((await store.listNotes()).find((n) => n.fields.Entry === '大人')!.fields.Meaning).toBe('adult; grown up');
+  });
+});

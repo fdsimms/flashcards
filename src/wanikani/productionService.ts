@@ -1,12 +1,15 @@
 import { NoteRefused, saveNote, type NoteStore } from '../anki/noteService';
 import { sha1Hex } from '../anki/sha1';
 import type { WaniKaniApi } from './api';
-import { audioFileName, audioFor, NOTE_TYPE, productionFields, productionNeeded, productionTags } from './production';
+import { audioFileName, audioFor, NOTE_TYPE, productionFields, productionNeeded, productionTags, sensesAsked, type Senses } from './production';
 
 /**
  * Making production notes (production.ts) for words that reached Guru: the word's subject read
  * from WaniKani, its recording kept in the media folder and put on the list the next sync sends,
- * and the note saved the way the note editor saves one (`saveNote`), so it reaches Anki.
+ * and the note saved the way the note editor saves one (`saveNote`), so it reaches Anki. With Read &
+ * Listen on, the batch's words with two or more glosses are first sent to its server (`senses`), which
+ * says which glosses are different senses; when it can't be reached or fails, the notes are made
+ * without, as one line of glosses.
  */
 
 /** Notes made at most per run, so the first run on a big account doesn't hold the collection for long. */
@@ -22,6 +25,8 @@ export interface ProductionDeps {
     recorded(name: string): Promise<string | undefined>;
     setPending(name: string, sha1: string): Promise<void>;
   };
+  /** Read & Listen's `wanikaniSenses`, while it's on: the words with more than one sense, by subject id. */
+  senses?: (body: { words: NonNullable<ReturnType<typeof sensesAsked>>[] }) => Promise<{ words: ({ id: number } & Senses)[] }>;
 }
 
 export interface ProductionResult {
@@ -43,6 +48,7 @@ export async function makeProductionNotes(
   const batch = all.slice(0, PRODUCTION_BATCH);
   if (!batch.length) return { made: [], waiting: 0 };
   const subjects = new Map((await deps.api.subjects(batch.map((a) => a.subjectId))).map((s) => [s.id, s]));
+  const senses = await sortSenses(deps, [...subjects.values()].filter((s) => !s.hidden));
   const made: number[] = [];
   for (const a of batch) {
     const subject = subjects.get(a.subjectId);
@@ -69,7 +75,7 @@ export async function makeProductionNotes(
       }
     }
     try {
-      await saveNote(deps.store, { deck: opts.deck, model: NOTE_TYPE, fields: productionFields(subject, audioFile), tags: productionTags(subject.id) }, opts.now);
+      await saveNote(deps.store, { deck: opts.deck, model: NOTE_TYPE, fields: productionFields(subject, audioFile, senses.get(subject.id)), tags: productionTags(subject.id) }, opts.now);
     } catch (e) {
       if (e instanceof NoteRefused) return { made, waiting: all.length - made.length, refused: e.message };
       throw e;
@@ -78,4 +84,17 @@ export async function makeProductionNotes(
     made.push(subject.id);
   }
   return { made, waiting: all.length - made.length };
+}
+
+/** The senses of the words that have more than one, or none at all when the server can't say. */
+async function sortSenses(deps: ProductionDeps, subjects: Parameters<typeof sensesAsked>[0][]): Promise<Map<number, Senses>> {
+  const words = subjects.map(sensesAsked).filter((w) => w !== undefined);
+  if (!deps.senses || !words.length) return new Map();
+  try {
+    const answer = await deps.senses({ words });
+    return new Map(answer.words.map(({ id, ...senses }) => [id, senses]));
+  } catch {
+    // Read & Listen out of reach, or Claude didn't answer: the notes are made as one line of glosses.
+    return new Map();
+  }
 }

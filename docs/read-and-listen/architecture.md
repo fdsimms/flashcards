@@ -897,6 +897,17 @@ rather than `Transliteration` (`Language.translit_field`).
   they're listed in the model's word list beside the deck's (negative ids, so they never meet a
   note id), gloss with WaniKani's meaning, and say "Learned in WaniKani" in the app. Nothing is
   ever sent to WaniKani.
+- **Senses for production notes** (24 November 2026, the owner's choice; `wanikani_senses.py`,
+  `/api/wanikani-senses`). The app's production note for a word at Guru (src/wanikani/production.ts)
+  takes WaniKani's first three glosses as its Meaning, and WaniKani doesn't say which are different
+  senses (月 "moon; month"). Before a batch of notes is saved, the app sends the words with two or more
+  glosses and WaniKani's example sentences; Haiku sorts each word's glosses into senses and picks one
+  of those sentences per sense, and code keeps an answer only when every gloss is in exactly one of
+  two or three senses, each with its own sentence and a label. The note is then numbered as the
+  house style writes one (Meaning, Context, ContextTranslation and ContextLabels, line for line).
+  A word with one sense, an answer that fails the check, Read & Listen off, or the server out of reach
+  all give the note one line of glosses as before; it isn't asked about again. The cards are English
+  to Japanese only, so a mixed line never asks for two meanings: this is the house style, not a fix.
 - **Splitting a line** (`japanese.py`): Japanese has no spaces, so the server splits each line
   itself with SudachiPy (core dictionary, mode C), never by the model's `|`. A word is what's
   tapped: a verb or adjective with what conjugates it (行きました, 食べさせられた, 待って), a prefix

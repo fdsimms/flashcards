@@ -343,6 +343,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       writes nothing: the app applies it when the owner taps Apply. Asked
                                       only on Fix with Claude now or Change the card. 503 without Claude. Its
                                       cost is kept in `call_costs` (feature "fix_card")
+    POST  /api/wanikani-senses        {words: [{id, characters, glosses, sentences: [{ja, en}]}]} which of a
+                                      WaniKani word's glosses are different senses, asked by the app
+                                      before it saves a batch of production notes (wanikani_senses.py):
+                                      {words: [{id, glosses: [[index]], sentences: [index], labels}]},
+                                      only the words with two or three senses. It writes nothing. 503
+                                      without Claude. Its cost is kept in `call_costs` (feature
+                                      "wanikani_senses")
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
@@ -398,6 +405,7 @@ from franki_reader import (
     store,
     topic_image,
     vocab_check,
+    wanikani_senses,
     word_lookup,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
@@ -500,6 +508,7 @@ def create_app(
     ask_about_card: ask_card.AskCard | None = None,
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
     fix_flagged_card: fix_card.FixCard | None = None,
+    sort_senses: wanikani_senses.SortSenses | None = None,
     find_lesson_words: lesson_words.FindWords | None = None,
     write_cram_themes: WriteThemes | None = None,
     suggest_cram_words: cram_words.SuggestWords | None = None,
@@ -596,6 +605,7 @@ def create_app(
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        sort_senses=sort_senses,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,
@@ -645,6 +655,7 @@ def production_app() -> FastAPI:
     ask_about_card: ask_card.AskCard | None = None
     ask_about_phrase: ask_phrase.AskPhrase | None = None
     fix_flagged_card: fix_card.FixCard | None = None
+    sort_senses: wanikani_senses.SortSenses | None = None
     find_lesson_words: lesson_words.FindWords | None = None
     write_cram_themes: WriteThemes | None = None
     suggest_cram_words: cram_words.SuggestWords | None = None
@@ -681,6 +692,7 @@ def production_app() -> FastAPI:
         ask_about_card = ask_card.claude_ask_card(client)
         ask_about_phrase = ask_phrase.claude_ask_phrase(client)
         fix_flagged_card = fix_card.claude_fix_card(client)
+        sort_senses = wanikani_senses.claude_senses(client)
         find_lesson_words = lesson_words.claude_find_words(client)
         write_cram_themes = cram_themes.claude_themes(client)
         suggest_cram_words = cram_words.claude_suggest_words(client)
@@ -777,6 +789,7 @@ def production_app() -> FastAPI:
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
         fix_flagged_card=fix_flagged_card,
+        sort_senses=sort_senses,
         find_lesson_words=find_lesson_words,
         write_cram_themes=write_cram_themes,
         suggest_cram_words=suggest_cram_words,

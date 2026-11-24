@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { cardKindsFor } from '../../src/core/cards';
-import { audioFileName, audioFor, lowerGloss, productionFields, productionNeeded, productionTags, subjectOfNote, suggestedDeck } from '../../src/wanikani/production';
+import { audioFileName, audioFor, lowerGloss, partOfSpeech, productionFields, productionNeeded, productionTags, sensesAsked, subjectOfNote, suggestedDeck } from '../../src/wanikani/production';
 import { parseAssignment, parseSubject } from '../../src/wanikani/subjects';
 import { assignmentResource, kanaVocabResource, vocabResource } from './fixtures';
 
 const vocab = parseSubject(vocabResource)!;
+const moon = {
+  ...vocab,
+  id: 2542,
+  characters: '月',
+  meanings: [
+    { meaning: 'Moon', primary: true, accepted: true },
+    { meaning: 'Month', primary: false, accepted: true },
+  ],
+  contextSentences: [
+    { ja: '月がきれいだ。', en: 'The moon is pretty.' },
+    { ja: '来月<行く>。', en: 'I go next month & more.' },
+  ],
+};
 
 describe('which words need a production card', () => {
   const passed = [
@@ -44,9 +57,10 @@ describe('the note', () => {
       Entry: '大人',
       Meaning: 'adult; grown up',
       KanaReading: 'おとな',
-      Context: '早く大人になりたい。',
+      Context: '早く<b>大人</b>になりたい。',
       ContextTranslation: 'I want to be an adult soon.',
-      PartOfSpeech: 'noun, no adjective',
+      PartOfSpeech: 'noun',
+      Register: 'neutral',
       Audio: '[sound:wanikani-2467-1.mp3]',
       Language: 'Japanese',
       SuppressFrontCard: 'y',
@@ -82,5 +96,65 @@ describe('the deck', () => {
     expect(suggestedDeck(['👅 Languages', '👅 Languages::🍥 日本語', '👅 Languages::💈 Polski'])).toBe('👅 Languages::🍥 日本語');
     expect(suggestedDeck(['Japanese::Grammar'])).toBeUndefined();
     expect(suggestedDeck(['Polski'])).toBeUndefined();
+  });
+});
+
+describe('a word with different senses', () => {
+  const senses = { glosses: [[0], [1]], sentences: [0, 1], labels: ['moon', 'month'] };
+
+  it('asks the server about a word with two or more glosses, as the Meaning would list them', () => {
+    expect(sensesAsked(moon)).toEqual({ id: 2542, characters: '月', glosses: ['moon', 'month'], sentences: moon.contextSentences });
+    expect(sensesAsked({ ...vocab, meanings: [vocab.meanings[0]] })).toBeUndefined();
+  });
+
+  it('numbers the senses, one to a line, each with its own sentence and label', () => {
+    const fields = productionFields(moon, undefined, senses);
+    expect(fields.Meaning).toBe('1. moon<br>2. month');
+    expect(fields.Context).toBe('<b>月</b>がきれいだ。<br>来<b>月</b>&lt;行く&gt;。');
+    expect(fields.ContextTranslation).toBe('The moon is pretty.<br>I go next month &amp; more.');
+    expect(fields.ContextLabels).toBe('moon<br>month');
+  });
+
+  it('keeps glosses of one sense on its line, in the order sorted', () => {
+    const three = { ...moon, meanings: [...moon.meanings, { meaning: 'Lunar Month', primary: false, accepted: true }] };
+    expect(productionFields(three, undefined, { glosses: [[1, 2], [0]], sentences: [1, 0], labels: ['month', 'moon'] }).Meaning)
+      .toBe('1. month; lunar month<br>2. moon');
+  });
+
+  it("writes one line of glosses when the senses don't fit the word", () => {
+    for (const bad of [
+      { ...senses, glosses: [[0, 1]], sentences: [0], labels: ['moon'] },
+      { ...senses, glosses: [[0], [0]] },
+      { ...senses, glosses: [[0], [1], []], sentences: [0, 1, 0], labels: ['a', 'b', 'c'] },
+      { ...senses, sentences: [0, 0] },
+      { ...senses, sentences: [0, 5] },
+      { ...senses, labels: ['moon', ' '] },
+    ]) {
+      const fields = productionFields(moon, undefined, bad);
+      expect(fields.Meaning).toBe('moon; month');
+      expect(fields.Context).toBe('<b>月</b>がきれいだ。');
+      expect(fields.ContextLabels).toBeUndefined();
+    }
+  });
+});
+
+describe('the house style', () => {
+  it("names the part of speech from the house list, the first of WaniKani's it has, and a verb's class", () => {
+    expect(partOfSpeech(['transitive verb', 'ichidan verb'])).toEqual({ PartOfSpeech: 'verb', VerbClass: 'ichidan' });
+    expect(partOfSpeech(['intransitive verb', 'godan verb'])).toEqual({ PartOfSpeech: 'verb', VerbClass: 'godan' });
+    expect(partOfSpeech(['い adjective'])).toEqual({ PartOfSpeech: 'adjective' });
+    expect(partOfSpeech(['noun', 'の adjective'])).toEqual({ PartOfSpeech: 'noun' });
+    expect(partOfSpeech(['noun', 'する verb'])).toEqual({ PartOfSpeech: 'noun' });
+    expect(partOfSpeech(['counter'])).toEqual({ PartOfSpeech: 'classifier' });
+    expect(partOfSpeech(['expression'])).toEqual({ PartOfSpeech: 'phrase' });
+    expect(partOfSpeech(['adverb'])).toEqual({ PartOfSpeech: 'adverb' });
+    expect(partOfSpeech(['something new'])).toEqual({});
+    expect(partOfSpeech([])).toEqual({});
+  });
+
+  it("bolds the word only where the sentence writes it as the word is", () => {
+    expect(productionFields({ ...moon, characters: '〜月' }).Context).toBe('<b>月</b>がきれいだ。');
+    const verb = { ...vocab, characters: '食べる', contextSentences: [{ ja: 'パンを食べた。', en: 'I ate bread.' }] };
+    expect(productionFields(verb).Context).toBe('パンを食べた。');
   });
 });

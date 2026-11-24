@@ -14,6 +14,7 @@ from franki_reader import (
     meanings,
     reading_lines,
     store,
+    wanikani_senses,
 )
 from franki_reader.coverage import Checker
 from franki_reader.ipa import ipa_of_entry
@@ -112,6 +113,37 @@ class FixCardIn(BaseModel):
     chat: list[CardTurnIn] = Field(default_factory=list, max_length=12)
 
 
+class SenseSentenceIn(BaseModel):
+    ja: str = Field(min_length=1, max_length=500)
+    en: str = Field(default="", max_length=500)
+
+
+class SenseWordIn(BaseModel):
+    # WaniKani's subject id.
+    id: int
+    characters: str = Field(min_length=1, max_length=40)
+    # The glosses as the production note's Meaning would list them.
+    glosses: list[str] = Field(min_length=2, max_length=wanikani_senses.MAX_GLOSSES)
+    sentences: list[SenseSentenceIn] = Field(max_length=wanikani_senses.MAX_SENTENCES)
+
+
+class SensesIn(BaseModel):
+    words: list[SenseWordIn] = Field(max_length=wanikani_senses.MAX_WORDS)
+
+
+class SensesWordOut(BaseModel):
+    id: int
+    # Each sense's glosses and example, as indexes into the word's glosses and sentences.
+    glosses: list[list[int]]
+    sentences: list[int]
+    labels: list[str]
+
+
+class SensesOut(BaseModel):
+    # Only the words with more than one sense.
+    words: list[SensesWordOut]
+
+
 class AspectIn(BaseModel):
     # The word's own language, which is not always the one being read: a card from the Polish deck
     # can be studied while Thai is the reading language.
@@ -144,6 +176,7 @@ def router(ctx: AppContext) -> APIRouter:
     write_aspect = ctx.write_aspect
     ask_about_card = ctx.ask_about_card
     fix_flagged_card = ctx.fix_flagged_card
+    sort_senses = ctx.sort_senses
     keep_failed_cost = ctx.keep_failed_cost
 
     @routes.post("/api/mnemonics", dependencies=authed)
@@ -248,6 +281,37 @@ def router(ctx: AppContext) -> APIRouter:
             raise HTTPException(503, str(e)) from e
         store.save_call_cost(engine.conn, "fix_card", language, engine.clock(), used.cost_usd())
         return {"changes": fix.changes, "explanation": fix.explanation}
+
+    @routes.post("/api/wanikani-senses", dependencies=authed, response_model=SensesOut)
+    async def wanikani_senses_route(body: SensesIn) -> SensesOut:
+        if sort_senses is None:
+            raise HTTPException(
+                503,
+                "Claude isn't set up on the server, so it can't sort WaniKani's meanings"
+                " (ANTHROPIC_API_KEY in server/.env turns it on).",
+            )
+        words = [
+            wanikani_senses.Word(
+                w.id,
+                w.characters.strip(),
+                [g.strip() for g in w.glosses],
+                [wanikani_senses.Sentence(s.ja.strip(), s.en.strip()) for s in w.sentences],
+            )
+            for w in body.words
+        ]
+        try:
+            senses, used = await sort_senses(words)
+        except wanikani_senses.SensesFailed as e:
+            keep_failed_cost("wanikani_senses", "ja", e.usage)
+            # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
+            raise HTTPException(503, str(e)) from e
+        store.save_call_cost(engine.conn, "wanikani_senses", "ja", engine.clock(), used.cost_usd())
+        return SensesOut(
+            words=[
+                SensesWordOut(id=s.id, glosses=s.glosses, sentences=s.sentences, labels=s.labels)
+                for s in senses
+            ]
+        )
 
     @routes.post("/api/aspect-pair", dependencies=authed)
     async def aspect_pair(body: AspectIn) -> dict[str, Any]:

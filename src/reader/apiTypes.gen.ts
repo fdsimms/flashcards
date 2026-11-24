@@ -1341,6 +1341,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/wanikani-senses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wanikani Senses Route */
+        post: operations["wanikani_senses_route_api_wanikani_senses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aspect-pair": {
         parameters: {
             query?: never;
@@ -2460,6 +2477,48 @@ export interface components {
             known: number;
             /** Missing */
             missing: components["schemas"]["WordOut"][];
+        };
+        /** SenseSentenceIn */
+        SenseSentenceIn: {
+            /** Ja */
+            ja: string;
+            /**
+             * En
+             * @default
+             */
+            en: string;
+        };
+        /** SenseWordIn */
+        SenseWordIn: {
+            /** Id */
+            id: number;
+            /** Characters */
+            characters: string;
+            /** Glosses */
+            glosses: string[];
+            /** Sentences */
+            sentences: components["schemas"]["SenseSentenceIn"][];
+        };
+        /** SensesIn */
+        SensesIn: {
+            /** Words */
+            words: components["schemas"]["SenseWordIn"][];
+        };
+        /** SensesOut */
+        SensesOut: {
+            /** Words */
+            words: components["schemas"]["SensesWordOut"][];
+        };
+        /** SensesWordOut */
+        SensesWordOut: {
+            /** Id */
+            id: number;
+            /** Glosses */
+            glosses: number[][];
+            /** Sentences */
+            sentences: number[];
+            /** Labels */
+            labels: string[];
         };
         /** SentencesIn */
         SentencesIn: {
@@ -5695,6 +5754,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    wanikani_senses_route_api_wanikani_senses_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SensesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SensesOut"];
                 };
             };
             /** @description Validation Error */
