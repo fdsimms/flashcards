@@ -59,8 +59,15 @@ export function MarkableSenses({ senses, marking, size }: { senses: string[]; ma
             }}
           >
             <Text style={{ ...size, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{n}.</Text>
-            <Text style={{ ...size, color: c.text, flex: 1, minWidth: 0 }}>{sense}</Text>
-            {before ? <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>Missed last time</Text> : null}
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <Text style={{ ...size, color: c.text }}>{sense}</Text>
+              {before ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                  <Icon name="exclamationmark.circle.fill" size={13} color={c.accentInk} />
+                  <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>Missed last time</Text>
+                </View>
+              ) : null}
+            </View>
             <View style={{ flexDirection: 'row' }}>
               {verdictButton(n, sense, 'got', verdict)}
               {verdictButton(n, sense, 'missed', verdict)}
@@ -68,9 +75,6 @@ export function MarkableSenses({ senses, marking, size }: { senses: string[]; ma
           </View>
         );
       })}
-      {marking.verdicts.size || marking.last.length ? null : (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Senses you leave alone count as recalled.</Text>
-      )}
     </View>
   );
 }

@@ -177,8 +177,11 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
             const state = added[w.word];
             return (
               <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}>
-                <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{w.word}</Text>
-                <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{`${w.english} · ${w.why === 'asked' ? 'you asked for it' : 'you heard it'}`}</Text>
+                <View style={{ flex: 1, gap: space.xs }}>
+                  <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{w.word}</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{w.english}</Text>
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.why === 'asked' ? 'You asked for it' : 'You heard it'}</Text>
+                </View>
                 {onAdd ? (
                   state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>Added</Text> : (
                     <Button variant="secondary" label={state === 'failed' ? 'Try again' : 'Add'} busy={state === 'adding'} onPress={() => onAdd(w)} style={{ minHeight: MIN_TAP, paddingVertical: space.xs }} />
