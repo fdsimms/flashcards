@@ -25,7 +25,7 @@ export default function ReadLessonRoute() {
       onAddToDeck={reader.settings?.decks?.[lesson.language] ? () => router.push({ pathname: '/lesson-add', params: { lesson: raw! } }) : undefined}
       onPlayWord={playWord}
       onAddWord={async (word, meaning, lang, pronunciation) => {
-        const wordDeck = reader.settings?.decks?.[lang];
+        const wordDeck = { ...reader.settings?.decks, ...reader.settings?.glossOnlyDecks }[lang];
         return wordDeck ? addWord({ word, meaning, deck: wordDeck, language: lang, pronunciation }) : false;
       }}
     />

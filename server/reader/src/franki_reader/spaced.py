@@ -41,6 +41,7 @@ from functools import cache, cached_property
 from pathlib import Path
 
 from franki_reader.coverage import Status
+from franki_reader.languages import LANGUAGES
 
 _DATA = Path(__file__).parent / "data"
 _TOKEN = re.compile(r"\w+(?:['’-]\w+)*|\s+|[^\w\s]", re.UNICODE)
@@ -108,6 +109,7 @@ def _es_subjunctive() -> tuple[tuple[str, str], ...]:
 _ES_SUBJUNCTIVE_GUESSES = _es_subjunctive()
 
 RULES: dict[str, Rules] = {
+    "tok": Rules(),
     "es": Rules(
         prefixes=frozenset({"el", "la", "los", "las", "un", "una", "unos", "unas", "lo"}),
         clitics=("nos", "les", "los", "las", "me", "te", "se", "le", "lo", "la", "os"),
@@ -181,6 +183,8 @@ RULES: dict[str, Rules] = {
 def common_lemmas(code: str) -> tuple[str, ...]:
     """The language's most common word families, most common first, as written (Russian keeps its
     ё), for showing a word to the learner."""
+    if code in LANGUAGES and LANGUAGES[code].glosses_only:
+        return ()  # no frequency list: a gloss-only language ranks nothing
     lines = (_DATA / f"{code}_common.txt").read_text(encoding="utf-8").splitlines()
     return tuple(w for w in lines if w and not w.startswith("#"))
 
@@ -230,6 +234,8 @@ def lemma(word: str, code: str) -> str:
     import simplemma  # loaded on first use; see the module docstring
 
     word = fold(word, code)
+    if code in LANGUAGES and LANGUAGES[code].glosses_only:
+        return word  # simplemma has no Toki Pona, and it has no inflection to undo
     if fixed := _LEMMA_FIXES.get(code, {}).get(word):
         return fixed
     found = fold(str(simplemma.lemmatize(word, lang=code, low_memory=True)), code)

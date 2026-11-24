@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
 import type { AspectPair } from '../../src/reader/api';
-import { minedNote, pairFollowUp } from '../../src/reader/mining';
+import { hasAspectPairs, minedNote, pairFollowUp } from '../../src/reader/mining';
 
 describe('mining', () => {
   it('starts the note as an Omnilanguage note with the word and its meaning', () => {
@@ -100,5 +100,11 @@ describe('mining', () => {
       const offer = pairFollowUp(untagged, [untagged]);
       expect(offer?.kind === 'add' && offer.target.tags).toBeUndefined();
     });
+  });
+});
+
+describe('which languages look a verb\'s aspect pair up', () => {
+  it('is Russian and Polish only, never Toki Pona', () => {
+    expect(['ru', 'pl', 'tok', 'th'].map((l) => hasAspectPairs(l as 'ru'))).toEqual([true, true, false, false]);
   });
 });

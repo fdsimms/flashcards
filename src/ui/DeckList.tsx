@@ -13,6 +13,7 @@ import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
+import { HoverPressable } from './hover';
 
 export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
@@ -132,7 +133,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;
   return (
-    <Pressable
+    <HoverPressable
       onPress={editing ? undefined : (onPress ?? onOpen)}
       disabled={editing}
       accessibilityRole={editing ? undefined : 'button'}
@@ -218,7 +219,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
         </View>
       ) : null}
       </>)}
-    </Pressable>
+    </HoverPressable>
   );
 }
 

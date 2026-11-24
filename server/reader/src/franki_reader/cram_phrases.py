@@ -1,6 +1,7 @@
 """Phrases for a cram, written by Claude when the learner opens Suggest words on its Phrases mode.
 
-A phrase is a short line the learner could say about what the cram is for, built from the cram's own
+A phrase is a short line the learner could say to their tutor about what the cram is for (telling
+it, not acting it out), built from the cram's own
 words and words they already know, in the way an ordinary person talks (the register setting). It is
 kept on the cram in the app and is never a note. Claude writes the lines; the code keeps only those
 written in the language's own script, in the learner's gender for Thai (`gender.thai_fits`), and
@@ -41,15 +42,20 @@ MAX_EXCLUDED = 100
 MAX_UNKNOWN = 2
 
 SYSTEM = """\
-A learner of {language} is preparing for something and named it: it is what they want to talk \
-about or be able to say. Write {count} short phrases in {language} that they could really say about \
-it, each one or two short sentences. {register} Build them from the learner's own words listed in \
-the message and from very common words, using two or three of the learner's words in each; \
-nothing else should be unfamiliar. Make the phrases different from each other: say different \
-things about it, not one sentence reworded. For each: text, written the way {language} is \
-written (never romanization, never English); reading, {reading}; english, the meaning in plain \
-American English without em dashes. Also give commonness and register as empty strings. Leave \
-out every phrase listed as already taken.{thai}"""
+A learner of {language} is preparing for a conversation lesson with a tutor and named what they \
+want to be able to talk about. Write {count} short phrases in {language} that the learner could \
+say to the tutor to tell them about it, each one or two short sentences: what happened, how it \
+went, how they felt, what they thought, what they plan next, what was hard or good about it. \
+Most are statements about their own experience, mostly in the past tense when something already \
+happened. They are not lines said inside the situation (a question to a race official, an order \
+at a counter), unless the name says it is for a trip or an errand. {register} Build them from the \
+learner's own words listed in the message and from very common words, using two or three of the \
+learner's words in each; nothing else should be unfamiliar. Make the phrases different from each \
+other: say different things about it, not one sentence reworded. When the message says what \
+really happened, base the phrases on it and never invent a fact about the learner's life. For \
+each: text, written the way {language} is written (never romanization, never English); reading, \
+{reading}; english, the meaning in plain American English without em dashes. Also give \
+commonness and register as empty strings. Leave out every phrase listed as already taken.{thai}"""
 
 THAI_MAN = (
     ' The learner is a man: write "I" as ผม and end polite sentences with ครับ, never ฉัน, '

@@ -59,4 +59,5 @@ export const THAI_COUNTING: CountingLanguage = {
     return `${c.word[0]} (${c.word[1]}) counts ${c.counts}. The noun comes first, then the number, then the classifier.`;
   },
   patterns: (noun) => [`classifier:${NOUNS[noun].classifier}`],
+  counterWord: (noun) => CLASSIFIERS[NOUNS[noun].classifier].word[0],
 };

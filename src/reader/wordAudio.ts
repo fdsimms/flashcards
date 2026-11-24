@@ -4,7 +4,7 @@ import { isOmnilanguage, speechLangFor } from '../core/cards';
 import { htmlToText, soundFiles } from '../core/html';
 import type { Note } from '../core/types';
 import { languageKey } from '../core/voices';
-import type { Language } from './api';
+import type { GlossLanguage } from './api';
 
 /** A word as the deck spells its entry: no markup, NFC, spaces collapsed. */
 export function entryKey(text: string): string {
@@ -16,7 +16,7 @@ export function entryKey(text: string): string {
  * first note that has a recording, since the reader can't tell which meaning was tapped and any
  * recording of the spelling says the word right.
  */
-export function recordingIndex(notes: Note[], language: Language): Map<string, string> {
+export function recordingIndex(notes: Note[], language: GlossLanguage): Map<string, string> {
   const index = new Map<string, string>();
   for (const note of notes) {
     if (!isOmnilanguage(note)) continue;
@@ -36,7 +36,7 @@ const KANJI = /[㐀-䶿一-鿿々〆]/;
  * gloss's `translit`, or a deck note's KanaReading with alternatives, the first said). A phone voice
  * reads kanji one at a time (絶対 as ぜつ たい). Undefined says the word as written.
  */
-export function saidAs(language: Language, word: string, translit?: string | null): string | undefined {
+export function saidAs(language: GlossLanguage, word: string, translit?: string | null): string | undefined {
   if (language !== 'ja' || !KANJI.test(word)) return undefined;
   const first = (translit ?? '').split(/[/／;；、,，]/).map((p) => p.replace(/\s+/g, '')).find(Boolean);
   return first || undefined;

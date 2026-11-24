@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, FlatList, ScrollView, Text, View } from 'react-native';
 import { deleteNote, deleteNotes, type NoteStore } from '../anki/noteService';
 import { parseSearch } from '../core/ankiSearch';
 import { failureText } from '../core/failure';
@@ -15,6 +15,7 @@ import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
+import { HoverPressable } from './hover';
 
 /** What the empty list says the search box takes, besides words. */
 const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:verb, note:Basic, is:new, flag:1, added:7, Front:kot*, "or", "-" for not, and parentheses.';
@@ -180,7 +181,7 @@ function NoteRow({ note, markers, first, last, selecting, selected, open, onOpen
   const c = useTheme();
   const { front, back } = notePreview(note);
   const row = (
-    <Pressable
+    <HoverPressable
       onPress={onPress}
       accessibilityRole={selecting ? 'checkbox' : 'button'}
       accessibilityState={selecting ? { checked: selected } : undefined}
@@ -200,7 +201,7 @@ function NoteRow({ note, markers, first, last, selecting, selected, open, onOpen
           </View>
         ) : null}
       </View>
-    </Pressable>
+    </HoverPressable>
   );
   // The card's edges and corners are on the wrapper, which clips the Delete action sliding out
   // from under the row, so it never pokes past a rounded corner.

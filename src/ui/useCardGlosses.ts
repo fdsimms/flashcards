@@ -3,24 +3,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { examplesOf } from '../core/examples';
 import { htmlToText } from '../core/html';
 import type { Card, Note } from '../core/types';
-import type { Api, Language, Word } from '../reader/api';
+import type { Api, GlossLanguage, Language, Word } from '../reader/api';
 import { cardLanguage, glossesOf, glossKey, glossRequests, keptForDisk, parseKept, partsHeadword, partsKey } from '../reader/cardGlosses';
 import type { Pronunciation } from '../reader/mining';
 
 /** What a card needs to gloss its example sentence: Read & Listen's server, its decks, and what a popover's buttons do. */
 export type CardGlossing = {
   api: Api;
-  /** Each language's deck, as Read & Listen's settings name them. */
+  /** Each Read & Listen language's deck, as its settings name them. */
   decks: Partial<Record<Language, string>>;
+  /** `decks` and the decks of the languages that are only glossed (Toki Pona): which language a card's sentence is in. Only the gloss path reads it. */
+  glossDecks: Partial<Record<GlossLanguage, string>>;
   /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   /** Opens the note editor on a word not in the deck; true once it's saved. */
-  onAddWord: (word: string, meaning: string, language: Language, pronunciation?: Pronunciation) => Promise<boolean>;
+  onAddWord: (word: string, meaning: string, language: GlossLanguage, pronunciation?: Pronunciation) => Promise<boolean>;
 };
 
 /** One card's example sentence as words to tap, with what the popover's buttons do. With `parts`, the card's headword split into the words it is made of. */
-export type SentenceGloss = Omit<CardGlossing, 'decks'> & {
-  language: Language; words: Word[]; parts?: true;
+export type SentenceGloss = Omit<CardGlossing, 'decks' | 'glossDecks'> & {
+  language: GlossLanguage; words: Word[]; parts?: true;
   /** The sentence's English (the headword's Meaning, for its parts): what a looked-up word's meaning is asked in the sense of. */
   english?: string;
 };
@@ -67,7 +69,7 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
 
   useEffect(() => {
     if (!glossing || !cards?.length) return;
-    for (const request of glossRequests(cards, notes, glossing.decks, asked.current)) {
+    for (const request of glossRequests(cards, notes, glossing.glossDecks, asked.current)) {
       const keys = request.sentences.map((s) => glossKey(request.language, s.text));
       for (const key of keys) asked.current.add(key);
       // A sentence the server couldn't answer yet (its deck isn't read) or that failed offline is
@@ -85,7 +87,7 @@ export function useCardGlosses(glossing: CardGlossing | undefined, cards: Card[]
   // One gloss for each of the note's examples whose words are kept, and one for its headword when that splits; the card matches each to its box by its text.
   return useCallback((card: Card, note: Note): SentenceGloss[] => {
     if (!glossing) return [];
-    const language = cardLanguage(card, note, glossing.decks);
+    const language = cardLanguage(card, note, glossing.glossDecks);
     if (!language) return [];
     const { api, onPlayWord, onAddWord } = glossing;
     const sentences = examplesOf(note).flatMap((example) => {

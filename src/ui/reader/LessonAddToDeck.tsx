@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { sendRecording, type RecordDeps } from '../../anki/recordService';
 import { sha1Hex } from '../../anki/sha1';
 import type { Api, AudioLesson, Language } from '../../reader/api';
@@ -13,6 +13,7 @@ import type { NoteEditorResult } from '../AppContext';
 import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Help, Icon, Loading, Screen, Tag } from '../kit';
 import { MIN_TAP, space, type, useTheme, readable } from '../theme';
+import { HoverPressable } from '../hover';
 
 /**
  * Add a lesson's phrases to the deck (docs/read-and-listen/architecture.md, Audio lessons): the
@@ -104,7 +105,7 @@ export function LessonAddToDeck({ api, lesson, language, deck, recorder, loadEnt
             {offered.map((p, i) => {
               const on = chosen.has(p.index);
               return (
-                <Pressable
+                <HoverPressable
                   key={p.index}
                   onPress={() => toggle(p.index)}
                   accessibilityRole="checkbox"
@@ -119,7 +120,7 @@ export function LessonAddToDeck({ api, lesson, language, deck, recorder, loadEnt
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>{p.english}</Text>
                   </View>
                   {p.inDeck ? <Tag text="In deck" color={c.goodInk} fill={c.goodFill} /> : null}
-                </Pressable>
+                </HoverPressable>
               );
             })}
           </Group>

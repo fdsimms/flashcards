@@ -11,8 +11,8 @@ const under = (deck: string, parent: string) => deck === parent || deck.startsWi
  * The Read & Listen language whose deck `deck` is, or is inside. A deck above them (one holding
  * several languages) is the language whose deck is the only one under it, and otherwise none.
  */
-export function languageOfDeck(deck: string, decks: Partial<Record<Language, string>>): Language | null {
-  const entries = Object.entries(decks) as [Language, string][];
+export function languageOfDeck<L extends string = Language>(deck: string, decks: Partial<Record<L, string>>): L | null {
+  const entries = Object.entries(decks) as [L, string][];
   const inside = entries.find(([, d]) => under(deck, d));
   if (inside) return inside[0];
   const below = entries.filter(([, d]) => under(d, deck));

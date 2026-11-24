@@ -9,7 +9,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from franki_reader import read_plan, store
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, TEXT_LANGUAGES
 from franki_reader.routes.context import AppContext
 from franki_reader.routes.views import instant
 
@@ -81,7 +81,7 @@ def router(ctx: AppContext) -> APIRouter:
         ready = store.ready_counts(engine.conn)
         languages = []
         readings = []
-        for code, lang in LANGUAGES.items():
+        for code, lang in TEXT_LANGUAGES.items():
             if code in HIDDEN_LANGUAGES:
                 continue
             read_at = store.last_finished_reading(engine.conn, code)

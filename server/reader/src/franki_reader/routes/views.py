@@ -16,7 +16,7 @@ from franki_reader.generator import (
 )
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
-    LANGUAGES,
+    TEXT_LANGUAGES,
     Code,
 )
 from franki_reader.reader import (
@@ -201,7 +201,7 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
         "language": language,
         "languages": [
             {"code": code, "name": info.name, "ready": counts.get(code, 0)}
-            for code, info in LANGUAGES.items()
+            for code, info in TEXT_LANGUAGES.items()
             if code not in HIDDEN_LANGUAGES
         ],
         "texts": [shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],

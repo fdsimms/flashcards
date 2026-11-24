@@ -56,7 +56,7 @@ from franki_reader.generator import (
     Usage,
     generate,
 )
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
@@ -928,7 +928,7 @@ class Engine:
         if self.audio is None or self.synthesize is None or store.waiting_texts_timed(self.conn):
             return
         audio = self.audio
-        for language in LANGUAGES:
+        for language in TEXT_LANGUAGES:
             async with self._rerecord_locks.setdefault(language, asyncio.Lock()):
                 for text in store.ready_texts(self.conn, language):
                     lines = range(len(text.lines))

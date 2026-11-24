@@ -12,6 +12,7 @@ import { Refusal } from '../core/failure';
 import type { DrillQuestionIn } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
+import { splitDecks } from './languages';
 import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
 import type { CramReport } from '../core/cramsReport';
@@ -170,6 +171,14 @@ export type FormPrimer = {
 
 // The languages texts are written in. Topics are shared; the rest is per language.
 export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja' | 'en';
+
+/**
+ * A language whose card sentences are glossed but that has no texts, voices, shelf or settings
+ * (the server's `glosses_only`). Kept out of `Language` so nothing that lists the languages picks it up.
+ */
+export type GlossOnlyLanguage = 'tok';
+/** Every language a card's example sentence can be glossed in. */
+export type GlossLanguage = Language | GlossOnlyLanguage;
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
 /** How a language is handled by the daily reading tasks: a task every day, taking turns with the others, or none. */
@@ -418,6 +427,8 @@ export type CastVoice = { voice: string; pitch: number };
 export type Settings = {
   stretch_words: StretchWords; lines: Length; form: Form; language: Language;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
+  /** The deck of each gloss-only language, apart from `decks` so a feature that walks every language's deck never sees one; missing from a server older than Toki Pona. */
+  glossOnlyDecks?: Partial<Record<GlossOnlyLanguage, string>>;
   common?: Partial<Record<Language, CommonCount>>;
   /** How each language is handled by the daily reading tasks other apps show (dailyTasks.ts); missing from a server older than the setting. */
   daily_tasks?: Partial<Record<Language, DailyTaskMode>>;
@@ -428,6 +439,14 @@ export type Settings = {
   /** How casual or formal the text Claude writes sounds, where a cram or scene doesn't choose its own (registerLevel.ts); missing from a server older than the setting. */
   register?: RegisterLevel;
 };
+
+/** The settings as the server sends them: `decks` holds every language, gloss-only ones included. */
+type ServerSettings = Omit<Settings, 'decks' | 'glossOnlyDecks'> & { decks?: Record<string, string> };
+
+/** The server's settings with each gloss-only language's deck moved out of `decks` (`splitDecks`). A server older than the deck setting sends no `decks`, and gets none. */
+export function settingsFromServer(raw: ServerSettings): Settings {
+  return (raw.decks ? { ...raw, ...splitDecks(raw.decks) } : raw) as Settings;
+}
 
 // A change to the settings. A deck or voice named '' goes back to the default, and so does a
 // story character's voice set to null.
@@ -558,7 +577,7 @@ export type ReadingLog = {
 // name, once the word is `ready`; `error` says why a `failed` one failed.
 export type QueuedNote = {
   id: number;
-  language: Language;
+  language: GlossLanguage;
   deck: string;
   entry: string;
   meaning: string;
@@ -647,7 +666,7 @@ export function createApi(
     noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
     // These answer 202 with the queue, which `call` would drop.
     // `particle`: the learner's Thai polite ending, so a card's sentence is written as a man or a woman says it; ignored in other languages.
-    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
+    queueNotes: async (language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
       (await send('POST', '/api/note-queue', { language, deck, entries, ...(language === 'th' && particle ? { particle } : {}) })).json() as Promise<NoteQueue>,
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.
@@ -686,12 +705,12 @@ export function createApi(
     forms: async (language: Language) =>
       (await call<{ forms: FormPrimer[] }>('GET', `/api/forms?language=${language}`)).forms,
     clearWord: (word: string) => call<void>('POST', '/api/words/clear', { word }),
-    settings: () => call<Settings>('GET', '/api/settings'),
+    settings: async () => settingsFromServer(await call<ServerSettings>('GET', '/api/settings')),
     // The deck list's totals, for dundundun's Franki task to read from /api/status (countsReport.ts).
     reportCounts: (counts: { due: number; new: number }) => call<void>('PUT', '/api/franki-counts', counts),
     // The open crams for dundundun (src/core/cramsReport.ts); an empty list takes them all away.
     reportCrams: (crams: CramReport[]) => call<void>('PUT', '/api/franki-crams', { crams }),
-    updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
+    updateSettings: async (settings: SettingsChange) => settingsFromServer(await call<ServerSettings>('PATCH', '/api/settings', settings)),
     // null while the server is still writing the text (202): ask again in a few seconds, and
     // `onStage` is told where the write has got to (undefined from a server older than stages).
     // With `words` (the cards just studied), a text written to practice them, and with `about` (what
@@ -838,11 +857,11 @@ export function createApi(
     // Lines from texts read that use each word, up to 5 a word, the latest read first: asked once for a whole study session.
     readingLines: async (language: Language, words: string[]) =>
       (await call<{ lines: Record<string, ReadingLine[]> }>('POST', '/api/reading-lines', { language, words })).lines,
-    glosses: (language: Language, sentences: { text: string; english: string; parts?: true }[]) =>
+    glosses: (language: GlossLanguage, sentences: { text: string; english: string; parts?: true }[]) =>
       call<{ ready: boolean; sentences: Word[][] }>('POST', '/api/glosses', { language, sentences }),
     // The meaning of a tapped word nothing glosses, from Claude on the server (kept there, so a second tap is free): asked
     // only when the popover opens on a word with none. `english` is the line it was tapped in, which tells Claude the sense. Null when there is none to give.
-    wordMeaning: async (language: Language, word: string, english?: string) =>
+    wordMeaning: async (language: GlossLanguage, word: string, english?: string) =>
       (await call<{ meaning: string | null }>('POST', '/api/word-meaning', { language, word, ...(english ? { english } : {}) })).meaning,
     // A line's grammar and vocabulary explained by Claude on the server: asked on the owner's tap, kept per
     // line there. `simple` is a second, plainer version.

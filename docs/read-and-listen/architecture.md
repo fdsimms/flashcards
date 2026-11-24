@@ -358,7 +358,7 @@ answers aren't kept.
   view's "Use the lines yourself". The same check, with the text's lines and English sent, plus up to
   four words from the text the retelling could have used (each kept only if it is in the text and not
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
-- **A picture of the word, first on the meaning-to-word card** (21 November 2026, the owner, after a trial of drawn icons and two mocks; the Icon field, `src/core/noteIcon.ts`, `renderOmnilanguage` in `src/core/cards.ts`). A note for a thing that can be pictured may hold a picture in `Icon`: one emoji where an emoji shows exactly the thing, else a line drawing Claude made, kept as SVG path data joined by `|` for a 24 by 24 box. It shows in two places. With the meaning on the forward and listening cards' answer sides, where the learner meets the picture with what it stands for. And as the headline of the reverse card's front, with the English behind a Show meaning tap, so the word is recalled from the thing itself and not by translating. Never on a front that asks for the meaning. Beside the English on a prompt it would only be decoration (the owner's own question, and what studies of pictures added to a translation find). Of twelve icons drawn in the trial, four could be read as something else; the owner judged them clear enough once the meaning has been seen with them, which is why the answer side shows the picture too, and a reverse card waits for the forward card to settle anyway (`heldReverseCards`). Only path data is kept, never markup, so nothing needs sanitizing: the app (`parsePicture`), the note queue and the MCP's lint (`is_emoji`, `is_drawing`) each take one emoji or path data and nothing else.
+- **A picture of the word, first on the meaning-to-word card** (21 November 2026, the owner, after a trial of drawn icons and two mocks; the Icon field, `src/core/noteIcon.ts`, `renderOmnilanguage` in `src/core/cards.ts`). A note for a thing that can be pictured may hold a picture in `Icon`: one emoji where an emoji shows exactly the thing, else a Tabler icon (MIT) whose own name is exactly the thing, kept as its SVG path data joined by `|` for a 24 by 24 box (24 November 2026, the owner: a drawing Claude made up is never a picture, since an approximate one such as a stadium for a running track teaches the wrong thing, so a thing with neither stays without one; `server/speech/franki_speech/icons.py`, the set built by `scripts/build_tabler_icons.py`, `note_queue.py`'s `icon_name` and the MCP's `tabler:` names). It shows in two places. With the meaning on the forward and listening cards' answer sides, where the learner meets the picture with what it stands for. And as the headline of the reverse card's front, with the English behind a Show meaning tap, so the word is recalled from the thing itself and not by translating. Never on a front that asks for the meaning. Beside the English on a prompt it would only be decoration (the owner's own question, and what studies of pictures added to a translation find). Of twelve icons drawn in the trial, four could be read as something else; the owner judged them clear enough once the meaning has been seen with them, which is why the answer side shows the picture too, and a reverse card waits for the forward card to settle anyway (`heldReverseCards`). Only path data is kept, never markup, so nothing needs sanitizing: the app (`parsePicture`), the note queue and the MCP's lint (`is_emoji`, `is_drawing`) each take one emoji or path data and nothing else.
 - **A card's answer side shows a line from the learner's reading** (21 November 2026, the owner, from a mock: under the note's sentence, not in place of it; `reading_lines.py`, `POST /api/reading-lines`, `src/reader/readingLines.ts`, `useReadingLines`). A card showed the one example sentence saved on its note, the same at every review, and a word is learned from meeting it in several contexts. Review asks once a session, one call a language, for lines from texts read to the end that use each card's word (up to 5 a word, one a text, the latest read first; a line uses a word when a token is its deck entry, `Checker.entry_of`). The answer side shows one in a box labeled "From your reading: <text's title>", right after the note's own example, and they take turns by the card's answer count, so each review shows the next. No translation is shown with it: the line is from a text written at the learner's level, and the word's meaning is on the card. It's read-only on the server and never a rating, kept only for the session, and absent when Read & Listen is signed out or out of reach.
 - **The home shows the week's time in each language** (21 November 2026, the owner, from a mock of two versions; `ReadInputTime.tsx`, `src/reader/inputTime.ts`, `GET /api/input-time`). With several languages on rotation, one can go a week or more with almost no input and nothing said so. The This week card has one bar a language for the last 7 days, split into reading and listening, most time first, and "Last read N days ago" under a language with none. Reading is the time logged on texts read; listening is the time on texts played with their words hidden plus the length of each lesson played to the end. A text heard again (`listens`) keeps no time, so it isn't counted. It reports only and sets no goal, as the progress card does, and nothing reads it to steer a text. Hidden with fewer than two languages read, and when the server can't be reached.
 - **Sentences work in the grammar being practiced** (21 November 2026, the owner; `sentences.py`). A grammar point was only ever recognized: its drills are multiple choice, and Forms practice is typed forms. The request for a batch of sentences now names the points set to Practice and asks for about a third of the sentences to be built on one, where the word allows it. Prompt only: no sentence is dropped for using none. Which point a sentence uses is found in code when it's served (`grammar_of`, the texts' finders), so the tool can say "Grammar you're practicing: ..." on the answer side, and a sentence written before the point was chosen counts too. A point the finders can't see (docs/grammar.md lists what they skip) is asked for but never named.
@@ -877,6 +877,37 @@ spaced languages do, with these differences:
 - **Hidden until the app was rebuilt with it**, as Japanese was: `HIDDEN_LANGUAGES` in
   `languages.py` keeps a language out of the shelf and settings for a build that has no entry for
   it. Emptied on 17 November 2026, once the owner's build had both (the owner's confirmation).
+
+### Toki Pona (gloss only)
+
+Added on 24 November 2026, at the owner's request, so the example sentences on its deck's cards
+(`👅 Languages::🙂 toki pona`, Lipu Linku's jan Lakuse words) get the same tap-a-word meanings as
+every other language. It is the one language with `glosses_only=True` (`languages.py`), which means
+nothing is written, recorded or shelved in it: no voices (Azure has none), no common-word list, no
+lemmatizer (simplemma has none, so `spaced.lemma` returns the word as written and
+`common_lemmas` is empty), no grammar points, no Practice tools.
+
+- **The server keeps it out by one filter.** `TEXT_LANGUAGES` is `LANGUAGES` less the gloss-only
+  ones, and the shelf's language menu, the daily-task list, `/api/settings`' `voices`, `cast` and
+  `daily_tasks`, and the tests that walk every language's voices read it. `/api/settings` still
+  sends its `decks.tok`, which is how the app learns the deck. `PATCH /api/settings` refuses
+  `tok` as the language, a voice, a cast or a common-word count (422), so it can't become the current
+  language.
+- **The app keeps it out of `Language`.** `GlossLanguage` is `Language | 'tok'`, and only the gloss
+  path (`glossRequests`, `useCardGlosses`, the popover's play and meaning lookup) takes it. At the
+  settings boundary (`settingsFromServer`, `splitDecks`) its deck moves out of `decks`, which every
+  feature that walks the languages reads, into `glossOnlyDecks`; `CardGlossing.glossDecks` joins the
+  two for finding a card's language. Reading lines and the sense contrast keep `decks`, so they never
+  ask about it.
+- **A tapped word nothing glosses** still gets its meaning from Claude (`/api/word-meaning`, the
+  same cached call as any language), which is the one place its quality depends on Claude's Toki Pona.
+- **Add to deck works** from its popover, into its own deck, through the same note queue: it needs
+  no Toki Pona rules, since the prompt names the language, `ROMANIZED` and `EXTRAS` leave it with the
+  common fields only, and the `Language` field comes out as `toki pona`, as in the deck's own notes
+  (`test_note_queue.py`). The queue's language is a `GlossLanguage` on the app's side for this.
+  Quick add and the other lists of languages don't offer it, since they walk `decks`.
+- **A tapped word is said by the phone's English voice** when its note has no recording
+  (`GLOSS_ONLY.tok.speech`), which reads Toki Pona's spelling well enough for a single word.
 
 ### Japanese
 
