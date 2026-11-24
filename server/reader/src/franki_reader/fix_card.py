@@ -7,7 +7,7 @@ here reads or writes the collection, and the rating stays the owner's.
 
 import json
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 import anthropic
@@ -24,7 +24,9 @@ MAX_EXPLANATION = 400
 SYSTEM = """\
 You fix one flashcard a language learner flagged. You get the note's fields as the app stores them \
 (HTML), why it was flagged, and sometimes the learner's own words about what is wrong: when they \
-wrote something, that is the request, so do exactly that. Change only the fields that need it, and \
+wrote something, that is the request, so do exactly that. When you get a chat the learner had \
+about the card instead, the change they want is what the chat settled on, usually the last thing \
+they asked you to do or the wording you offered: make that change to the card's own fields. Change only the fields that need it, and \
 give each one's complete new value. Keep everything else in a field as it is: HTML tags, bold \
 marks around the word in an example sentence, and any [sound:...] or <img> reference. Never add or \
 remove a media reference. Never rewrite a field that was fine. If the fix needs a new recording or a \
@@ -60,6 +62,12 @@ class FixCardFailed(Exception):
 
 
 @dataclass(frozen=True)
+class Turn:
+    role: str
+    content: str
+
+
+@dataclass(frozen=True)
 class FlaggedCard:
     # The note's language when Read & Listen writes in it; other note types may not say.
     language: Code | None
@@ -69,6 +77,8 @@ class FlaggedCard:
     reason: str
     # What they typed, or "".
     note: str
+    # The chat they asked for the change in, oldest first; empty for a flag.
+    chat: list[Turn] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -91,6 +101,9 @@ def request_message(card: FlaggedCard) -> str:
         lines.append(f"What the learner wrote: {card.note}")
     lines.append("Fields:")
     lines += [f"{name}: {value}" for name, value in card.fields.items()]
+    if card.chat:
+        lines.append("Chat about this card, oldest first:")
+        lines += [f"{'Learner' if t.role == 'user' else 'You'}: {t.content}" for t in card.chat]
     return "\n".join(lines)
 
 

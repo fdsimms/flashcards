@@ -17,6 +17,7 @@ from franki_reader.fix_card import (
     Fix,
     FixCardFailed,
     FlaggedCard,
+    Turn,
     claude_fix_card,
     clean,
     request_message,
@@ -66,6 +67,31 @@ def test_the_message_names_the_reason_the_owners_words_and_every_field() -> None
     assert "What the learner wrote: remove it" in text
     assert "Context: แอร์<b>เสีย</b>ครับ[sound:a.mp3]" in text
     assert "What the learner wrote" not in request_message(card(""))
+
+
+def test_a_chat_is_sent_after_the_fields_and_names_who_said_what() -> None:
+    chat = [Turn("user", "Is it worth narrowing this?"), Turn("assistant", "Yes, say 'to add'.")]
+    text = request_message(FlaggedCard("th", FIELDS, "Change asked for in a chat", "", chat))
+    assert text.index("Context:") < text.index("Chat about this card")
+    assert "Learner: Is it worth narrowing this?" in text
+    assert "You: Yes, say 'to add'." in text
+    assert "Chat about this card" not in request_message(card())
+
+
+def test_the_route_passes_the_chat_on() -> None:
+    seen: list[FlaggedCard] = []
+
+    async def fix(c: FlaggedCard) -> tuple[Fix, Usage]:
+        seen.append(c)
+        return Fix({}, "Nothing to change."), COST
+
+    c, _ = client(fix)
+    chat = [{"role": "user", "content": "Narrow it."}, {"role": "assistant", "content": "Done."}]
+    body = {**BODY, "note": "", "chat": chat}
+    assert c.post("/api/fix-card", json=body, headers=AUTH).status_code == 200
+    assert seen[0].chat == [Turn("user", "Narrow it."), Turn("assistant", "Done.")]
+    too_many = {**body, "chat": chat * 7}
+    assert c.post("/api/fix-card", json=too_many, headers=AUTH).status_code == 422
 
 
 def test_only_fields_that_exist_and_change_are_kept() -> None:

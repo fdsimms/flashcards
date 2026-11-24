@@ -821,7 +821,7 @@ export function createApi(
       (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
     // A fix for a flagged card, suggested by Claude on the server: only the fields that change, each as its whole new HTML,
     // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
-    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
+    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string; chat?: { role: 'user' | 'assistant'; content: string }[] }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
     // from: asked only on Find Thai in Add a word; the server writes nothing (core/lessonWords.ts).

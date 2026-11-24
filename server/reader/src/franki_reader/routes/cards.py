@@ -108,6 +108,8 @@ class FixCardIn(BaseModel):
     reason: str = Field(min_length=1, max_length=200)
     # What the owner typed in the flag sheet.
     note: str = Field(default="", max_length=600)
+    # The chat about the card the change was asked for in (Ask Claude's Change the card), else none.
+    chat: list[CardTurnIn] = Field(default_factory=list, max_length=12)
 
 
 class AspectIn(BaseModel):
@@ -233,7 +235,11 @@ def router(ctx: AppContext) -> APIRouter:
         try:
             fix, used = await fix_flagged_card(
                 fix_card.FlaggedCard(
-                    body.language, body.fields, body.reason.strip(), body.note.strip()
+                    body.language,
+                    body.fields,
+                    body.reason.strip(),
+                    body.note.strip(),
+                    [fix_card.Turn(t.role, t.content.strip()) for t in body.chat],
                 )
             )
         except fix_card.FixCardFailed as e:

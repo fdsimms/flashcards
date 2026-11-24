@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActionSheetIOS, Alert, AppState, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { FLAG_NAMES, flagLabel, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
-import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
+import { checkFix, chatFixRequest, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, speechLangFor, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, inheritedSetting, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
@@ -1139,18 +1139,31 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       />
     );
   } else if (sheet?.kind === 'ask') {
+    // Read from the note each render, so a change applied in the chat shows in the next question, not the card as the sheet opened.
+    const askCard = (note && current ? cardForClaude(note, noteTypes.get(note.model), current.kind) : undefined) ?? sheet.card;
     sheetHost = (
       <AskCardSheet
         key={sheet.key}
         visible={sheets.visible}
         onDismiss={() => sheets.dismissed(sheet.key)}
-        card={sheet.card}
-        ask={askAboutCard ? (turns) => askAboutCard(sheet.card, turns) : undefined}
+        card={askCard}
+        ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
         // Added to the note's Notes field, as an edit made in the note editor would be.
         onSaveAnswer={note && isOmnilanguage(note) ? async (answer) => {
           writes.current++;
           try {
             const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withNotesAnswer(note.fields, answer), tags: note.tags });
+            setNotes((prev) => new Map(prev).set(saved.id, saved));
+          } finally {
+            writes.current++;
+          }
+        } : undefined}
+        // Asked from the chat: the server suggests new field values, and nothing is saved until Apply.
+        fix={askAboutCard && fixFlaggedCard && note ? async (turns) => checkFix(note, await fixFlaggedCard(chatFixRequest(note, turns))) : undefined}
+        onApplyFix={note ? async (proposal) => {
+          writes.current++;
+          try {
+            const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withFix(note.fields, proposal), tags: note.tags });
             setNotes((prev) => new Map(prev).set(saved.id, saved));
           } finally {
             writes.current++;

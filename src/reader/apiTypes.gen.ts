@@ -2014,6 +2014,8 @@ export interface components {
              * @default
              */
             note: string;
+            /** Chat */
+            chat?: components["schemas"]["CardTurnIn"][];
         };
         /** FormExplainIn */
         FormExplainIn: {
