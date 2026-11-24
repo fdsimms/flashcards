@@ -1934,6 +1934,7 @@ CallFeature = Literal[
     "ask_card",
     "ask_phrase",
     "fix_card",
+    "wanikani_senses",
     "lesson_words",
     "topic_image",
     "rare_words",

@@ -24,6 +24,7 @@ from franki_reader import (
     store,
     topic_image,
     vocab_check,
+    wanikani_senses,
     word_lookup,
 )
 from franki_reader.ask_phrase import AskPhrase
@@ -73,6 +74,7 @@ class AppContext:
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None
     fix_flagged_card: fix_card.FixCard | None
+    sort_senses: wanikani_senses.SortSenses | None
     find_lesson_words: lesson_words.FindWords | None
     write_cram_themes: WriteThemes | None
     suggest_cram_words: cram_words.SuggestWords | None

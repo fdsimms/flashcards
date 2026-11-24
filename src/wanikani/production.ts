@@ -72,17 +72,99 @@ export function lowerGloss(text: string): string {
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** The note's fields: the word, its meanings to ask by (lowercase, joined with "; "), its reading, a sentence, and the recording when there is one. */
-export function productionFields(s: Subject, audioFile?: string): Record<string, string> {
-  const meanings = [primaryMeaning(s), ...otherMeanings(s)].slice(0, 3);
+/**
+ * WaniKani's parts of speech as the house list names them (PARTS_OF_SPEECH in
+ * server/mcp/franki_mcp/omnilanguage.py, which lint_notes checks against: keep the two in step).
+ * A verb's or adjective's kind ("ichidan verb", "な adjective") comes down to verb or adjective.
+ */
+function housePart(wk: string): string | undefined {
+  const p = wk.trim().toLowerCase();
+  if (/\bverb$/.test(p)) return 'verb';
+  if (/adjective$/.test(p)) return 'adjective';
+  if (p === 'counter') return 'classifier';
+  if (p === 'expression') return 'phrase';
+  return ['noun', 'proper noun', 'numeral', 'adverb', 'pronoun', 'conjunction', 'interjection', 'prefix', 'suffix'].includes(p) ? p : undefined;
+}
+
+/** The note's PartOfSpeech, from the first of WaniKani's parts that the house list has, and a verb's VerbClass. */
+export function partOfSpeech(partsOfSpeech: string[]): { PartOfSpeech?: string; VerbClass?: string } {
+  const part = partsOfSpeech.map(housePart).find((p) => p !== undefined);
+  if (!part) return {};
+  const kinds = partsOfSpeech.map((p) => p.trim().toLowerCase());
+  const verbClass = part !== 'verb' ? undefined
+    : kinds.includes('godan verb') ? 'godan' : kinds.includes('ichidan verb') ? 'ichidan' : kinds.includes('する verb') ? 'suru' : undefined;
+  return { PartOfSpeech: part, ...(verbClass ? { VerbClass: verbClass } : {}) };
+}
+
+/** A sentence with the word in bold where it's written as the word is (a conjugated verb isn't), escaped. */
+function withWordBold(sentence: string, characters: string): string {
+  const word = characters.replace(/[〜～~]/g, '');
+  const at = word ? sentence.indexOf(word) : -1;
+  if (at < 0) return escape(sentence);
+  return escape(sentence.slice(0, at)) + '<b>' + escape(word) + '</b>' + escape(sentence.slice(at + word.length));
+}
+
+/** The glosses the note's Meaning lists: WaniKani's primary meaning and the next two it accepts, lowercased. */
+function glossesOf(s: Subject): string[] {
+  return [primaryMeaning(s), ...otherMeanings(s)].slice(0, 3).map(lowerGloss);
+}
+
+/**
+ * Which of a word's glosses are different senses, as Read & Listen's server sorted them
+ * (server/reader/src/franki_reader/wanikani_senses.py): each sense's glosses and its example
+ * sentence, as indexes into the word's glosses and `contextSentences`, and a label for each.
+ */
+export interface Senses {
+  glosses: number[][];
+  sentences: number[];
+  labels: string[];
+}
+
+/** What the server is asked about a word: only one with two or more glosses has senses to sort. */
+export function sensesAsked(s: Subject): { id: number; characters: string; glosses: string[]; sentences: { ja: string; en: string }[] } | undefined {
+  const glosses = glossesOf(s);
+  if (glosses.length < 2 || !s.characters) return undefined;
+  return { id: s.id, characters: s.characters, glosses, sentences: s.contextSentences.slice(0, 3) };
+}
+
+/** Senses that still fit the word: two or three, every gloss in exactly one, each with a sentence of its own and a label. */
+function fits(s: Subject, glosses: string[], senses: Senses): boolean {
+  const n = senses.glosses.length;
+  if (n < 2 || n > 3 || senses.sentences.length !== n || senses.labels.length !== n) return false;
+  const used = senses.glosses.flat().sort((a, b) => a - b);
+  if (used.length !== glosses.length || used.some((g, i) => g !== i)) return false;
+  if (senses.glosses.some((g) => !g.length)) return false;
+  if (new Set(senses.sentences).size !== n || senses.sentences.some((i) => !s.contextSentences[i])) return false;
+  return senses.labels.every((l) => !!l.trim());
+}
+
+/**
+ * The note's fields: the word, its meanings to ask by (lowercase, joined with "; "), its reading, a
+ * sentence with the word in bold, its part of speech and register, and the recording when there is one. Given `senses` that fit, the meanings are numbered,
+ * one sense to a line, each with its own sentence and label, as the house style writes a word with
+ * different senses (月: "1. moon<br>2. month"); senses that don't fit are ignored.
+ */
+export function productionFields(s: Subject, audioFile?: string, senses?: Senses): Record<string, string> {
+  const glosses = glossesOf(s);
   const readings = s.readings.filter((r) => r.accepted).map((r) => r.reading);
   const sentence = s.contextSentences[0];
+  const split = senses && fits(s, glosses, senses) ? senses : undefined;
+  const examples: Record<string, string> = split
+    ? {
+        Context: split.sentences.map((i) => withWordBold(s.contextSentences[i].ja, s.characters ?? '')).join('<br>'),
+        ContextTranslation: split.sentences.map((i) => escape(s.contextSentences[i].en)).join('<br>'),
+        ContextLabels: split.labels.map((l) => escape(l.trim())).join('<br>'),
+      }
+    : sentence ? { Context: withWordBold(sentence.ja, s.characters ?? ''), ContextTranslation: escape(sentence.en) } : {};
   return {
     Entry: escape(s.characters ?? ''),
-    Meaning: escape(meanings.map(lowerGloss).join('; ')),
+    Meaning: split
+      ? split.glosses.map((g, i) => `${i + 1}. ${g.map((j) => escape(glosses[j])).join('; ')}`).join('<br>')
+      : escape(glosses.join('; ')),
     ...(readings.length ? { KanaReading: escape(readings.join('、')) } : {}),
-    ...(sentence ? { Context: escape(sentence.ja), ContextTranslation: escape(sentence.en) } : {}),
-    ...(s.partsOfSpeech.length ? { PartOfSpeech: escape(s.partsOfSpeech.join(', ')) } : {}),
+    ...examples,
+    ...partOfSpeech(s.partsOfSpeech),
+    Register: 'neutral',
     ...(audioFile ? { Audio: `[sound:${audioFile}]` } : {}),
     Language: 'Japanese',
     SuppressFrontCard: 'y',
