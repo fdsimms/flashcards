@@ -28,7 +28,7 @@ import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** Settings made in the app for one deck: the progress gate, new card order, Anki options, skill cards, forms practice, lookalike words and recordings. */
-export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOptions, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; onSkillCards: () => void; onAnkiOptions: () => void; recorder: RecordDeps | null }) {
+export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse, onAnkiOptions, recorder }: { repo: Repo & AnkiLink; deck: string; onCustomStudy: () => void; onSkillCards: () => void; onBrowse: () => void; onAnkiOptions: () => void; recorder: RecordDeps | null }) {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [settings, setSettings] = useState<DeckSettings | null>(null);
@@ -153,6 +153,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onAnkiOpt
             {hasPreset ? <NavRow first label="Anki options" detail="Daily limits, learning steps, maximum interval and desired retention" onPress={onAnkiOptions} /> : null}
             <NavRow first={!hasPreset} label="Custom study" detail="Study more today, or pick cards to study now" onPress={onCustomStudy} />
             <NavRow label="Skill cards" detail="Times, numbers, dates, prices, letters and cases as cards in your reviews" onPress={onSkillCards} />
+            <NavRow label="Browse cards" detail="Search, filter and edit the notes in this deck" onPress={onBrowse} />
           </Group>
         )}
         {settings ? <DeckBatchOptions deck={deck} all={new Map(all).set(deck, settings)} onChange={(patch) => save({ ...settings, ...patch })} /> : null}

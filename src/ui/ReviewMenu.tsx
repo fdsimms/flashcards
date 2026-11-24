@@ -14,7 +14,7 @@ import { FLAG_NAMES } from '../core/cardState';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
   /** The card's flag, 0 for none. */
   flag: number;
   /** Whether the card is marked to come back a few more times this session (src/core/miniCram.ts). */
@@ -38,6 +38,8 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
   onDueDate: () => void;
   onForget: () => void;
   onCardInfo: () => void;
+  /** Opens Browse on this deck; missing for a filtered deck, which has no notes of its own. */
+  onBrowse?: () => void;
   /** Whether Review shows how long each answer took to bring up the next card. */
   timingOn: boolean;
   onTiming: () => void;
@@ -45,7 +47,7 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
   onSettings: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, reschedule, card info or card settings">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, reschedule, card info, browse the deck or card settings">
       {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended, and Suspend note every card of the note. First, since they're the most used. */}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryCard}>Bury card</Stack.Toolbar.MenuAction>
@@ -79,6 +81,7 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
       </Stack.Toolbar.Menu>
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>
+        {onBrowse ? <Stack.Toolbar.MenuAction icon="magnifyingglass" onPress={onBrowse}>Browse this deck</Stack.Toolbar.MenuAction> : null}
         <Stack.Toolbar.MenuAction icon="stopwatch" isOn={timingOn} onPress={onTiming}>Show answer timing</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="gearshape" onPress={onSettings}>Card settings</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
