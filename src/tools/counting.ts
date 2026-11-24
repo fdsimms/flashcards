@@ -1,5 +1,6 @@
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
+import { knownAmong } from './skillWords';
 
 /**
  * Counting things: a number with a noun, as each language says it. What's hard differs by
@@ -49,6 +50,12 @@ export interface CountingLanguage {
    * being asked: 三本 is the same in kanji whether it's read さんぼん or さんほん.
    */
   pickByReading?: boolean;
+  /**
+   * The counter or classifier a noun is counted with, as a deck would headword it (ตัว, 本), for a
+   * language where that's a word of its own to learn. Counting asks only about nouns whose counter the
+   * deck knows (`knownCountNouns`). Absent where a number's effect isn't a word (cases, plurals).
+   */
+  counterWord?: (noun: number) => string;
 }
 
 export interface CountQuestion {
@@ -69,12 +76,33 @@ export function countKey(q: CountQuestion): string {
   return `${q.noun}:${q.n}`;
 }
 
-/** A noun of `nounCount` and a number from 1 to `max` at random, never `previous` again. */
-export function randomCount(nounCount: number, max: CountMax, previous?: CountQuestion, random: () => number = Math.random): CountQuestion {
-  const total = nounCount * max;
-  const last = previous && previous.noun < nounCount && previous.n >= 1 && previous.n <= max ? previous.noun * max + previous.n - 1 : undefined;
-  const i = pickOther(total, last, random);
-  return { noun: Math.floor(i / max), n: (i % max) + 1 };
+/**
+ * The nouns (indexes into `nouns`) that can be asked given the headwords the deck knows: all of them
+ * where the language's counters aren't words to learn, otherwise those whose counter is known.
+ */
+export function knownCountNouns(language: CountingLanguage, known: readonly string[]): number[] {
+  const all = language.nouns.map((_, i) => i);
+  const word = language.counterWord;
+  if (!word) return all;
+  const have = knownAmong(all.map(word), known);
+  return all.filter((i) => have[i]);
+}
+
+/** The counters a language's nouns need that the deck doesn't know yet, each once, for saying what's missing. */
+export function missingCounters(language: CountingLanguage, known: readonly string[]): string[] {
+  const word = language.counterWord;
+  if (!word) return [];
+  const words = [...new Set(language.nouns.map((_, i) => word(i)))];
+  const have = knownAmong(words, known);
+  return words.filter((_, i) => !have[i]);
+}
+
+/** A noun and a number from 1 to `max` at random, never `previous` again. `nouns` limits it to those indexes (default: the first `nounCount`). */
+export function randomCount(nounCount: number, max: CountMax, previous?: CountQuestion, random: () => number = Math.random, nouns?: readonly number[]): CountQuestion {
+  const pool = nouns && nouns.length ? nouns : Array.from({ length: nounCount }, (_, i) => i);
+  const at = previous && previous.n >= 1 && previous.n <= max ? pool.indexOf(previous.noun) : -1;
+  const i = pickOther(pool.length * max, at >= 0 ? at * max + previous!.n - 1 : undefined, random);
+  return { noun: pool[Math.floor(i / max)], n: (i % max) + 1 };
 }
 
 /** What Pick shows of a choice: its reading, where that's what's asked (`byReading`), else its text. */

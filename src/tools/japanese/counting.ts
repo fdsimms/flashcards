@@ -84,4 +84,5 @@ export const JAPANESE_COUNTING: CountingLanguage = {
   },
   patterns: (noun, n) => [`counter:${NOUNS[noun].counter}`, `last:${n % 10}`],
   pickByReading: true,
+  counterWord: (noun) => COUNTERS[NOUNS[noun].counter].kanji,
 };
