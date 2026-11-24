@@ -389,7 +389,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return q;
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
   const queue = settle ? settle.queue : rebuilt;
-  // Reviews a lookalike seen today holds until tomorrow, for the done screen (as the deck list says, `heldDue`).
+  // Reviews a lookalike seen today holds until tomorrow, for the done screen (`heldDue`).
   const heldToday = useMemo(() => (cards ? heldDue(deck, groupByDeck(cards, deckOf), forms.held, now, H) : 0), [cards, deckOf, deck, forms.held, now, H]);
   // While settling, `queue` still holds the card just answered, so a bar worked out from it would move
   // once on that count and again when the queue is rebuilt. It holds still until the rebuilt queue is in.
