@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardDocument, fieldIsEmpty, holdMediaAutoplay, renderTemplate, renderTemplateCard, sideAudio, START_AUTOPLAY, templateOrdinals } from '../../src/core/template';
+import { cardDocument, fieldIsEmpty, holdMediaAutoplay, playSoundScript, renderTemplate, renderTemplateCard, sideAudio, soundTapped, START_AUTOPLAY, templateOrdinals } from '../../src/core/template';
 import type { Note, NoteType } from '../../src/core/types';
 import vectors from '../fixtures/anki/template-vectors.json';
 
@@ -257,7 +257,7 @@ describe('autoplay', () => {
   });
 
   /** Runs a page's player script with a stand-in Audio, and says which files played, in order. `shown` runs START_AUTOPLAY, as the app does once the page is on screen. */
-  function runPlayer(page: string, shown = true) {
+  function runPlayer(page: string, shown = true, app?: { postMessage(data: string): void }) {
     const played: string[] = [];
     const players: { file: string; onended?: () => void; paused: boolean; pause(): void; play(): void }[] = [];
     function Audio(this: (typeof players)[number], file: string) {
@@ -268,11 +268,11 @@ describe('autoplay', () => {
     const document = { querySelectorAll: (sel: string) => (sel === '[data-sound]' ? files.map((sound) => ({ dataset: { sound } })) : []) };
     const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const window: { startAutoplay?: () => void } = {};
-    const playSound = new Function('document', 'Audio', 'window', `${script}; return playSound;`)(document, Audio, window) as (f: string) => void;
+    const window: { startAutoplay?: () => void; ReactNativeWebView?: typeof app } = { ReactNativeWebView: app };
+    const { playSound, tapSound } = new Function('document', 'Audio', 'window', `${script}; return { playSound, tapSound };`)(document, Audio, window) as Record<'playSound' | 'tapSound', (f: string) => void>;
     const start = () => new Function('window', START_AUTOPLAY)(window);
     if (shown) start();
-    return { played, players, playSound, start };
+    return { played, players, playSound, tapSound, window, start };
   }
   const opts = { css: '', ord: 0, dark: false };
 
@@ -300,5 +300,29 @@ describe('autoplay', () => {
     expect(tapped.players[0].paused).toBe(true);
     expect(tapped.played).toEqual(['a.mp3', 'b.mp3']);
     expect(runPlayer(cardDocument('[sound:a.mp3][sound:b.mp3]', { ...opts, autoplay: false })).played).toEqual([]);
+  });
+
+  it('stops the sound playing at a tap, and asks the app for the tapped one, which plays it once the headphones are awake', () => {
+    const sent: string[] = [];
+    const page = runPlayer(cardDocument('[sound:a.mp3][sound:b.mp3]', { ...opts, autoplay: true }), true, { postMessage: (d) => sent.push(d) });
+    page.tapSound('b.mp3');
+    expect(page.players[0].paused).toBe(true);
+    expect(page.played).toEqual(['a.mp3']);
+    expect(sent.map(soundTapped)).toEqual(['b.mp3']);
+    new Function('window', playSoundScript(sent.map(soundTapped)[0]!))(page.window);
+    expect(page.played).toEqual(['a.mp3', 'b.mp3']);
+  });
+
+  it('plays a tapped sound itself with no app to ask', () => {
+    const page = runPlayer(cardDocument('[sound:a.mp3]', { ...opts, autoplay: false }));
+    page.tapSound('a.mp3');
+    expect(page.played).toEqual(['a.mp3']);
+  });
+
+  it("reads only a play button's message as a tapped sound", () => {
+    expect(soundTapped(JSON.stringify({ sound: 'it\'s "here".mp3' }))).toBe('it\'s "here".mp3');
+    expect(soundTapped('{"tap":true}')).toBeUndefined();
+    expect(soundTapped(JSON.stringify({ tts: 0 }))).toBeUndefined();
+    expect(soundTapped('not json')).toBeUndefined();
   });
 });

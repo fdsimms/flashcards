@@ -5,7 +5,7 @@ import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
 import { pageFont } from '../core/cardFonts';
 import { pageUsesMathJax } from '../core/mathjax';
-import { START_AUTOPLAY } from '../core/template';
+import { playSoundScript, soundTapped, START_AUTOPLAY } from '../core/template';
 import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
 import { space, type, useTheme } from './theme';
@@ -66,6 +66,12 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
     onShown?.();
     return () => { live = false; };
   }, [hidden, loads]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A play button in the page asks for its sound here, to play it once the headphones are awake. Only the latest tap plays.
+  const tapped = useRef(0);
+  const playTapped = (file: string) => {
+    const mine = ++tapped.current;
+    void wake().then(() => { if (mine === tapped.current) view.current?.injectJavaScript(playSoundScript(file)); });
+  };
 
   useEffect(() => {
     const dir = new Directory(Paths.document, 'card-pages');
@@ -127,7 +133,9 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
           injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
           onMessage={(e) => {
             const data = e.nativeEvent.data;
-            if (onTap && data === TAP_MESSAGE) onTap();
+            const sound = soundTapped(data);
+            if (sound !== undefined) playTapped(sound);
+            else if (onTap && data === TAP_MESSAGE) onTap();
             else onMessage?.(data);
           }}
           onLoadEnd={() => setLoads((n) => n + 1)}
