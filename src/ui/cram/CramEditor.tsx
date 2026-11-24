@@ -222,7 +222,7 @@ export function CramEditor({ repo, id, canSuggest }: {
               {missedIds.length ? (
                 <CheckRow
                   first={!carried}
-                  label={`${missedIds.length === 1 ? '1' : missedIds.length} ${languageName ?? ''} ${missedIds.length === 1 ? 'word' : 'words'} you missed lately`.replace(/\s+/g, ' ')}
+                  label={`${missedIds.length === 1 ? '1' : missedIds.length} ${languageName ?? ''} ${missedIds.length === 1 ? 'word' : 'words'} you missed recently`.replace(/\s+/g, ' ')}
                   detail="Answered Again in Review, most missed first"
                   checked={missed}
                   onPress={() => { haptic.select(); setMissed(!missed); }}
