@@ -6742,6 +6742,14 @@
             "maxLength": 600,
             "title": "Note",
             "default": ""
+          },
+          "chat": {
+            "items": {
+              "$ref": "#/components/schemas/CardTurnIn"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Chat"
           }
         },
         "type": "object",
@@ -7413,6 +7421,12 @@
             "type": "array",
             "maxItems": 500,
             "title": "Words"
+          },
+          "about": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "About",
+            "default": ""
           }
         },
         "type": "object",

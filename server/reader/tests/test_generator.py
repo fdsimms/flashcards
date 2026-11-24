@@ -339,6 +339,13 @@ def test_a_story_is_asked_for_by_name_and_a_dialogue_by_default() -> None:
     assert "Write a short story of 6 lines." in story
 
 
+def test_what_really_happened_is_given_to_write_from_and_left_out_when_empty() -> None:
+    told = request_message(TextRequest("Half marathon", about="I ran with Noi and got a blister."))
+    assert "What really happened, in the learner's words: I ran with Noi and got a blister." in told
+    assert "contradicts it" in told
+    assert "What really happened" not in request_message(TextRequest("Half marathon"))
+
+
 def _marked(*marks: bool) -> dict[str, Any]:
     d = draft(*["ฉัน|อยาก|กิน|ครับ"] * len(marks))
     for line, mark in zip(d["lines"], marks, strict=True):
