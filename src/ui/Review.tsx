@@ -231,7 +231,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   onCustomStudy: () => void;
   /** Add skill cards to the deck (SkillCards.tsx), offered at the end of a session when its language has some and it has none. */
   onSkillCards?: () => void;
-  /** Opens Browse narrowed to this deck, from the end-of-session list. */
+  /** Opens Browse narrowed to this deck, from the end-of-session list and the card menu. */
   onBrowse: () => void;
   /** Opens Card Info (src/ui/CardInfo.tsx) for a card. */
   onCardInfo: (cardId: string) => void;
@@ -1229,8 +1229,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         const language = skillOffer(deck, notes.values());
         return language ? [{ key: 'skills', label: `Add skill cards for ${language}`, icon: { name: 'square.stack.3d.up' as const, color: c.teal }, onPress: onSkillCards }] : [];
       })() : []),
-      { key: 'browse', label: 'Browse cards', icon: { name: 'magnifyingglass' as const, color: c.violet }, onPress: onBrowse },
-      // An Anki filtered deck has no limits or cards of its own to add to.
+      // An Anki filtered deck has no limits or notes of its own to browse or add to.
+      ...(paramsForDeck(deck, allParams)?.filtered ? [] : [{ key: 'browse', label: 'Browse cards', icon: { name: 'magnifyingglass' as const, color: c.violet }, onPress: onBrowse }]),
       ...(paramsForDeck(deck, allParams)?.filtered ? [] : [{ key: 'custom', label: 'Custom study', icon: { name: 'slider.horizontal.3' as const, color: c.indigo }, onPress: onCustomStudy }]),
     ];
     // The next deck, or back to the top, is the one thing to do next; Back to decks is always there.
@@ -1623,6 +1623,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             onForget: chooseForget,
             // The deck is loaded again when Card Info closes: the same card stays on screen.
             onCardInfo: () => { setPreferId(current.id); onCardInfo(current.id); },
+            onBrowse: paramsForDeck(deck, allParams)?.filtered ? undefined : onBrowse,
             timingOn: timing.on,
             onTiming: timing.toggle,
             onSettings,
