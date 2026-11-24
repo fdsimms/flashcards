@@ -313,8 +313,8 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
         </Card>
       ) : null}
-      <Button variant="secondary" label={kept ? 'Kept as What really happened' : 'Keep it as What really happened'} disabled={kept || saving || !result.summary.trim()} onPress={onKeep} />
-      {result.summary.trim() ? <Help>{kept ? 'Talking points on this cram are written from it.' : `Saves "${factsFromSummary(result.summary)}"`}</Help> : null}
+      <Button variant="secondary" label={kept ? 'Saved for Talking points' : 'Use this for Talking points'} disabled={kept || saving || !result.summary.trim()} onPress={onKeep} />
+      {result.summary.trim() ? <Help>{kept ? 'Talking points on this cram are written from it. You can edit it there.' : `Talking points will only use what you said here: "${factsFromSummary(result.summary)}"`}</Help> : null}
     </>
   );
 }
