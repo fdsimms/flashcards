@@ -88,6 +88,7 @@ import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from
 import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
 import { asksEarlyHint, canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
+import { useOutputWake } from './useOutputWake';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
 import { missReasonsFor, missReminder } from '../core/misses';
@@ -549,6 +550,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // One player for the session's recorded audio, released when the screen closes.
   const player = useRef<AudioPlayer | null>(null);
   const phoneSpeech = usePhoneSpeech(repo);
+  const wake = useOutputWake();
   const untrackPlayer = useRef<(() => void) | null>(null);
   useEffect(() => () => { untrackPlayer.current?.(); untrackPlayer.current = null; player.current?.remove(); player.current = null; Speech.stop(); }, []);
 
@@ -589,6 +591,9 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       player.current?.pause();
       const uri = what.file ? mediaFileUri(what.file) : undefined;
       if (uri) {
+        // Bluetooth headphones that have been quiet lose the start of the next sound, all of a word (useOutputWake).
+        await wake();
+        if (mine !== speakSeq.current) return;
         // Keep the session active between clips: reactivating it for each one sometimes stalled the next.
         // A recording iOS took and never played (random, not tied to a file) is started again on a fresh
         // player and a fresh audio session, up to twice. It counts as started when the player reports
@@ -618,7 +623,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       if (!what.text) return;
       phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
-    [rendered, phoneSpeech, self.stopTake],
+    [rendered, phoneSpeech, self.stopTake, wake],
   );
 
   // The Example sentence's speaker button: the phone's voice for the note's language, at the speed chosen

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import type { TtsTag } from '../core/tts';
 import { lineSpeech, tagSpeech, wordSpeech, type PhoneVoice, type VoiceSettings } from '../core/voices';
 import type { Repo } from '../db/repo';
+import { useOutputWake } from './useOutputWake';
 import { speechTracking } from './useSoundingButton';
 import { NORMAL_RATE, SLOW_RATE } from '../reader/playbackRate';
 
@@ -74,19 +75,30 @@ export function usePhoneSpeech(repo: Repo) {
     Speech.getAvailableVoicesAsync().then((v) => { voices.current = v; }).catch(() => {});
     repo.voiceSettings().then((s) => { settings.current = s; }).catch(() => {});
   }, [repo]));
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake). A
+  // request that a newer one, or a stop, replaced while the link woke says nothing.
+  const wake = useOutputWake();
+  const afterWake = async (say: () => void) => {
+    const mine = ++latestSpeech;
+    await wake();
+    if (mine === latestSpeech) say();
+  };
   return useMemo(() => ({
     /** An Omnilanguage card's word, in its note's language. */
-    sayWord: (text: string, lang: string | undefined) => speakUntilStarted(text, wordSpeech(voices.current, settings.current, lang)),
+    sayWord: (text: string, lang: string | undefined) => afterWake(() => speakUntilStarted(text, wordSpeech(voices.current, settings.current, lang))),
     /** A line of conversation (Situations), in its language: at the chosen speed, or that times `slow` (`SLOW_RATE`) for a slow one. */
     sayLine: async (text: string, lang: string, slow: boolean) => {
       await stopSpeechIfRunning();
-      speakUntilStarted(text, lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE));
+      await afterWake(() => speakUntilStarted(text, lineSpeech(voices.current, settings.current, lang, slow ? SLOW_RATE : NORMAL_RATE)));
     },
     /** Drops a retry still waiting on an utterance the voice never started, for a sound that plays instead. */
     cancelPending: () => { latestSpeech++; },
     /** Stops whatever is being read. */
     stop: () => { latestSpeech++; Speech.stop().catch(() => {}); },
     /** Anki's {{tts}} tags, one after another. */
-    readTags: async (tags: TtsTag[]) => { await stopSpeechIfRunning(); latestSpeech++; for (const t of tags) Speech.speak(t.text, speechTracking(tagSpeech(voices.current, settings.current, t))); },
-  }), []);
+    readTags: async (tags: TtsTag[]) => {
+      await stopSpeechIfRunning();
+      await afterWake(() => { for (const t of tags) Speech.speak(t.text, speechTracking(tagSpeech(voices.current, settings.current, t))); });
+    },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps -- `wake` is stable and the rest are refs
 }

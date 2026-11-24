@@ -7,6 +7,7 @@ import { mediaFileUri } from '../media/mediaFiles';
 import type { GlossLanguage } from '../reader/api';
 import { glossInfo } from '../reader/languages';
 import { recordingIndex, wordPlayback } from '../reader/wordAudio';
+import { useOutputWake } from './useOutputWake';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
 
@@ -22,6 +23,9 @@ export function useWordAudio(repo: Repo) {
   const indexes = useRef(new Map<GlossLanguage, Map<string, string>>());
   const player = useRef<AudioPlayer | null>(null);
   const untrack = useRef<(() => void) | null>(null);
+  const wake = useOutputWake();
+  // Only the latest tap plays: one still waiting on the headphones to wake gives way to a newer one.
+  const latest = useRef(0);
 
   useEffect(() => {
     notes.current = repo.listNotes();
@@ -45,6 +49,10 @@ export function useWordAudio(repo: Repo) {
     player.current?.pause();
     const uri = what.file ? mediaFileUri(what.file) : undefined;
     if (uri) {
+      // Bluetooth headphones that have been quiet lose the start of the next sound, all of a word.
+      const mine = ++latest.current;
+      await wake();
+      if (mine !== latest.current) return;
       if (!player.current) {
         player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
         untrack.current = trackPlayer(player.current);
@@ -53,6 +61,7 @@ export function useWordAudio(repo: Repo) {
       player.current.play();
       return;
     }
+    latest.current++;
     phone.sayWord(say ?? what.text, glossInfo(language).speech);
-  }, [phone]);
+  }, [phone, wake]);
 }

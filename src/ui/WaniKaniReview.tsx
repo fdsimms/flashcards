@@ -31,6 +31,8 @@ import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
 import { useMiniCram } from './useMiniCram';
+import { useOutputWake } from './useOutputWake';
+import { trackPlayer } from './useSoundingButton';
 import { StagePopup } from './StagePopup';
 import { useStagePopups } from './useStagePopups';
 import { WaniKaniMissList } from './WaniKaniMisses';
@@ -212,20 +214,32 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // Capped: the keyboard comes up on every question, and its full slide made each new card feel slow.
   const keyboard = useKeyboardInset(KEYBOARD_SLIDE_MS);
 
-  // One player for WaniKani's recordings, released when the screen closes.
+  // One player for WaniKani's recordings, released when the screen closes. It reports to `sounding`,
+  // which is how `wake` tells a word played right after another from one after a quiet stretch.
   const player = useRef<AudioPlayer | null>(null);
-  useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
+  const untrackPlayer = useRef<(() => void) | null>(null);
+  useEffect(() => () => { untrackPlayer.current?.(); untrackPlayer.current = null; player.current?.remove(); player.current = null; }, []);
+  const wake = useOutputWake();
+  // Only the latest request plays: one still waiting on the headphones to wake gives way to a newer one.
+  const playSeq = useRef(0);
   // The recording kept on this phone when there is one (offline.ts), else WaniKani's.
   const audioUrl = (s: Subject | undefined) => {
     const a = s && audioFor(s);
     return a ? localAudioUri(audioFileName(s.id, a)) ?? a.url : undefined;
   };
-  const play = useCallback((url: string | undefined) => {
+  const play = useCallback(async (url: string | undefined) => {
     if (!url) return;
-    player.current ??= createAudioPlayer(null, { keepAudioSessionActive: true });
+    // Bluetooth headphones that have been quiet lose the start of the next sound, all of a word (useOutputWake).
+    const mine = ++playSeq.current;
+    await wake();
+    if (mine !== playSeq.current) return;
+    if (!player.current) {
+      player.current = createAudioPlayer(null, { keepAudioSessionActive: true });
+      untrackPlayer.current = trackPlayer(player.current);
+    }
     player.current.replace({ uri: url });
     player.current.play();
-  }, []);
+  }, [wake]);
 
   const session = study?.session;
   const question = session ? currentQuestion(session) : undefined;
