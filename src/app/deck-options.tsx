@@ -9,5 +9,5 @@ export default function DeckOptionsRoute() {
   const { repo } = useApp();
   const recorder = useRecorder();
   const { deck } = useLocalSearchParams<{ deck: string }>();
-  return <DeckOptions repo={repo} deck={deck} onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })} onSkillCards={() => router.push({ pathname: '/skill-cards', params: { deck } })} onAnkiOptions={() => router.push({ pathname: '/deck-preset', params: { deck } })} recorder={recorder} />;
+  return <DeckOptions repo={repo} deck={deck} onCustomStudy={() => router.push({ pathname: '/custom-study', params: { deck } })} onSkillCards={() => router.push({ pathname: '/skill-cards', params: { deck } })} onBrowse={() => router.push({ pathname: '/browse', params: { deck } })} onAnkiOptions={() => router.push({ pathname: '/deck-preset', params: { deck } })} recorder={recorder} />;
 }

@@ -15,6 +15,7 @@ import { WANIKANI_SCOPE } from '../wanikani/log';
 import { Card as Box, Chip, Group, Help, Loading, NavRow, Screen, Segments } from './kit';
 import { AnswerButtonsBox, HoursBox, RetentionTable } from './StatsAnswers';
 import { Bars } from './StatsBars';
+import { ForecastBox } from './StatsForecast';
 import { AnswerCalendar } from './StatsCalendar';
 import { space, type, useTheme, readable } from './theme';
 
@@ -78,6 +79,8 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
     const since = calendarStart(now, dayStartsAtHour, rangeDays);
     return {
       ...computeStats({ cards, answers, now, dayStartsAtHour, days: DAYS }),
+      // What sets how often a review is passed in the forecast: the cards' answers, not WaniKani's.
+      cardAnswers: scope === null ? data.answers : scope === WANIKANI_SCOPE ? [] : answers,
       calendar: answerCalendar({ answers, now, dayStartsAtHour }),
       intervals: intervalGroups(cards),
       buttons: answerButtons({ answers, since }),
@@ -135,20 +138,11 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
             <Help>WaniKani answers given in Franki. Answers given on wanikani.com aren't counted here.</Help>
           ) : null}
 
-          {onWaniKani ? null : (
-          <Box>
-            <Text style={{ ...type.headline, color: c.text }}>Due in the next {DAYS} days</Text>
-            <Bars
-              bars={stats.forecast.map((d) => ({ start: d.start, value: d.due }))}
-              describe={(d, i) => [i === 0 ? 'Today' : dayLabel(d.start), `${plural(d.value, 'card', 'cards')} due`]}
-              first="Today" last={`In ${DAYS - 1} days`}
+          {onWaniKani || !data ? null : (
+            <ForecastBox
+              repo={repo} data={data} answers={stats.cardAnswers} scope={scope} decks={decks}
+              fallback={{ days: stats.forecast, overdue: stats.overdue }} days={DAYS}
             />
-            <Help>
-              {stats.overdue ? `${plural(stats.overdue, 'card is', 'cards are')} overdue. ` : ''}
-              Tomorrow: {plural(stats.forecast[1]?.due ?? 0, 'card', 'cards')}. On average{' '}
-              {plural(Math.round(stats.forecast.reduce((n, d) => n + d.due, 0) / DAYS), 'card', 'cards')} a day.
-            </Help>
-          </Box>
           )}
 
           <Box>
