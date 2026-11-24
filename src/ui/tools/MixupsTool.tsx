@@ -165,7 +165,7 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
         </Stack.Toolbar.Menu>,
       ]}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !set ? <View style={{ padding: space.l }}><Loading /></View> : !question ? (
+      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !set ? <View style={{ flex: 1, padding: space.l }}><Loading /></View> : !question ? (
         <View style={{ padding: space.l }}>
           <Card>
             <Help>

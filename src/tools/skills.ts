@@ -2,7 +2,7 @@ import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
 import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
-import { setAsideOf, SKILL_DRILL_TAG, SKILL_TAG, type SetAside } from '../core/skillTag';
+import { setAsideOf, SKILL_DRILL_TAG, SKILL_TAG, SKILLS_SUBDECK, type SetAside } from '../core/skillTag';
 import { isSettled } from '../core/progress';
 import type { Card, Note } from '../core/types';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
@@ -409,7 +409,7 @@ export const stepWaits = (step: DrillStep, language: Language): boolean => !!ste
  */
 export { SKILL_TAG };
 export const SKILL_NOTE_TYPE = 'Basic';
-export const SKILLS_SUBDECK = 'Skills';
+export { SKILLS_SUBDECK };
 
 export type SkillGroup = DrillGroup | 'consonants' | 'vowels' | 'cases' | 'classifiers';
 
