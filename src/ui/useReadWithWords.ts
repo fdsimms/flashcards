@@ -6,8 +6,9 @@ import { useApp } from './AppContext';
 
 /**
  * "Read a text with these words" (Review's end-of-session step, a cram's Read a text): writes a text
- * on the idea that best fits the language's deck and opens the reader on it, which shows the text
- * being written and plays it when it lands. Nothing stops on the shelf in between.
+ * on `topicName` when the caller has one (a cram's is what it is for), else on the idea that best
+ * fits the language's deck, and opens the reader on it, which shows the text being written and
+ * plays it when it lands. Nothing stops on the shelf in between.
  *
  * Synced first, so the server reads the answers just given before it writes the text. The reader
  * is pushed, not replaced, so Back returns to where this was started from. `stillHere` is asked
@@ -20,7 +21,7 @@ export function useReadWithWords() {
   const { api, settings, setSettings } = reader;
   // A second tap while the first is still writing would start a second text.
   const running = useRef(false);
-  return useCallback(async (language: Language, words: string[], stillHere: () => boolean = () => true) => {
+  return useCallback(async (language: Language, words: string[], stillHere: () => boolean = () => true, topicName?: string) => {
     if (!api || running.current) return;
     running.current = true;
     try {
@@ -32,9 +33,13 @@ export function useReadWithWords() {
         api.settings().then(setSettings, () => undefined);
         if (!stillHere()) return;
       }
-      const [idea] = await api.suggestions();
-      if (!idea) throw new ApiError('There are no topic ideas left. Tap + in Read & Listen to write a text on a topic of your own instead.', 0);
-      const topic = await api.addTopic(idea.name);
+      let name = topicName;
+      if (!name) {
+        const [idea] = await api.suggestions();
+        if (!idea) throw new ApiError('There are no topic ideas left. Tap + in Read & Listen to write a text on a topic of your own instead.', 0);
+        name = idea.name;
+      }
+      const topic = await api.addTopic(name);
       if (!stillHere()) return;
       router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'topic', topic, words }) } });
     } catch (e) {

@@ -28,7 +28,7 @@ export default function CramRoute() {
       } : undefined}
       retry={reader.api ? queue.retry : undefined}
       onEditNote={(noteId, onClose) => openNoteEditor({ noteId }, () => onClose())}
-      onRead={(language, words) => { readWithWords(language, words); }}
+      onRead={(language, words, topic) => { readWithWords(language, words, undefined, topic); }}
     />
   );
 }
