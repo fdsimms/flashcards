@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { collectionChanged } from '../core/collectionChanged';
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
 import { languageOfDeck } from '../reader/practice';
@@ -16,9 +16,8 @@ import { backToDecks } from '../ui/leaveScreen';
 import { Review } from '../ui/Review';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { useDailyExtras } from '../ui/useDailyExtras';
-import type { CardGlossing } from '../ui/useCardGlosses';
+import { useCardGlossing } from '../ui/useCardGlossing';
 import { useReadWithWords } from '../ui/useReadWithWords';
-import { useWordAudio } from '../ui/useWordAudio';
 
 /** Studies the deck named by the `deck` parameter, and its subdecks. */
 export default function ReviewRoute() {
@@ -49,17 +48,9 @@ export default function ReviewRoute() {
     // Use today's words: a sentence of one's own with each word learned in the session, checked by Claude.
     onUseWords: readerApi ? (words: WordToUse[]) => router.push({ pathname: '/read-use-words', params: { language, words: JSON.stringify(words) } }) : undefined,
   } : undefined;
-  // An example sentence's words, tapped for their meanings while Read & Listen is signed in. Add to
-  // deck opens the note editor on the word, in its language's deck, as the reader's does.
-  const playWord = useWordAudio(repo);
+  // An example sentence's words, tapped for their meanings while Read & Listen is signed in.
+  const glossing = useCardGlossing(repo);
   const addWord = useAddMinedWord();
-  const readerDecks = readerSettings?.decks;
-  const glossing = useMemo<CardGlossing | undefined>(() => (readerApi && readerDecks ? {
-    api: readerApi,
-    decks: readerDecks,
-    onPlayWord: playWord,
-    onAddWord: (word, meaning, lang, pronunciation) => addWord({ word, meaning, deck: readerDecks[lang], language: lang, pronunciation }),
-  } : undefined), [readerApi, readerDecks, playWord, addWord]);
   // Custom study raises limits from a screen over this one: the deck is loaded again when it closes.
   const [reloadKey, setReloadKey] = useState(0);
   const firstFocus = useRef(true);
