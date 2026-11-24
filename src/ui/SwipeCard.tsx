@@ -88,8 +88,13 @@ const ARRIVE_MS = 160;
  * the finger even while the screen is busy rendering the next card; only the decision to answer
  * and the haptic hop back to JS.
  */
-export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, words, children }: {
+export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, words, offstage = false, children }: {
   enabled: boolean;
+  /**
+   * Laid out out of sight, taking no space, taps or VoiceOver: Review's card ahead, loading while a
+   * native card is on screen. The same element shown later keeps what it loaded (only the style changes).
+   */
+  offstage?: boolean;
   /** What the tint says at each edge: Review's answers by default; Practice's Missed it and Got it. */
   words?: { right: string; left: string };
   /** Present when the deck mixes languages (`studiedSubdecks`). */
@@ -184,7 +189,12 @@ export function SwipeCard({ enabled, cardKey, shown, motion, onRate, language, w
   const leftWord = useAnimatedStyle(() => ({ opacity: interpolate(x.value, [-SWIPE_DISTANCE * 0.22, 0], [1, 0], Extrapolation.CLAMP) }));
   const fill = FILL;
   return (
-    <View style={{ flex: 1 }}>
+    <View
+      style={offstage ? [FILL, { opacity: 0 }] : { flex: 1 }}
+      pointerEvents={offstage ? 'none' : 'auto'}
+      accessibilityElementsHidden={offstage}
+      importantForAccessibility={offstage ? 'no-hide-descendants' : 'auto'}
+    >
       <GestureDetector gesture={pan}>
         <Animated.View style={[{ flex: 1 }, cardStyle]}>
           <CardSurface language={language}>
