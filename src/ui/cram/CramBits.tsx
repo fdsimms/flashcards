@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { candidateChips, type LessonWordCandidate } from '../../core/lessonWords';
 import { Divider, Icon, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme } from '../theme';
+import { HoverPressable } from '../hover';
 
 /**
  * The small pieces the cram screens share: a pill to tap (a day on the new cram's sheet, a
@@ -58,7 +59,7 @@ export function CheckRow({ label, detail, checked, onPress, first, big, color, t
 }) {
   const c = useTheme();
   return (
-    <Pressable
+    <HoverPressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="checkbox"
@@ -76,7 +77,7 @@ export function CheckRow({ label, detail, checked, onPress, first, big, color, t
         {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
       </View>
       {trailing}
-    </Pressable>
+    </HoverPressable>
   );
 }
 

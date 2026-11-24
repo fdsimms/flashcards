@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
+import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { choiceText, COUNT_MAXES, countChoices, countKey, randomCount, type CountMode, type CountQuestion } from '../../tools/counting';
+import { choiceText, COUNT_MAXES, countChoices, countKey, knownCountNouns, missingCounters, randomCount, type CountMode, type CountQuestion } from '../../tools/counting';
+import { knownHeadwords, languageOfDeck } from '../../tools/skills';
 import type { Phrase } from '../../tools/phrase';
 import { toolPrefs } from '../../tools/storage';
 import { COUNTING, toolLanguage } from '../../tools/tools';
@@ -37,15 +39,25 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   const [mode, setMode] = useToolPref('countMode');
   const [max, setMax] = useToolPref('countMax');
   const counting = COUNTING[language];
+  // The headwords of this language's settled cards: Counting asks only about counters the deck knows (`knownCountNouns`).
+  const [knownWords, setKnownWords] = useState<{ language: Language; words: string[] } | undefined>();
+  useEffect(() => {
+    let live = true;
+    void Promise.all([repo.listNotes(), repo.listCards()]).then(([notes, cards]) => {
+      if (live) setKnownWords({ language, words: knownHeadwords(notes.filter((n) => languageOfDeck(n.deck)?.language === language), cards) });
+    });
+    return () => { live = false; };
+  }, [repo, language]);
+  const known = knownWords?.language === language ? knownWords.words : undefined;
+  const pool = useMemo(() => (counting && known ? knownCountNouns(counting, known) : undefined), [counting, known]);
+  const missing = useMemo(() => (counting && known ? missingCounters(counting, known) : []), [counting, known]);
   /** The question, with the language its noun is from, so another language's noun is never shown. */
-  const [held, setHeld] = useState(() => {
-    const l = toolLanguage(tool, toolPrefs().language);
-    return { language: l, question: drawFromBag(language, tool.id, () => randomCount(COUNTING[l]?.nouns.length ?? 1, toolPrefs().countMax), countKey) };
-  });
+  const [held, setHeld] = useState<{ language: Language; question?: CountQuestion }>(() => ({ language: toolLanguage(tool, toolPrefs().language) }));
   const question = held.language === language ? held.question : undefined;
   useEffect(() => {
-    if (held.language !== language && counting) setHeld({ language, question: marks.pick(() => randomCount(counting.nouns.length, max), (q) => counting.patterns(q.noun, q.n), countKey) });
-  }, [held.language, language, counting, max]);
+    if (!counting || !pool?.length || (held.language === language && held.question && pool.includes(held.question.noun))) return;
+    setHeld({ language, question: drawFromBag(language, tool.id, () => randomCount(counting.nouns.length, max, undefined, Math.random, pool), countKey) });
+  }, [held, language, counting, pool, max, tool.id]);
 
   const saying = useMemo(() => (question && counting ? counting.say(question.noun, question.n) : undefined), [counting, question]);
   const rule = question && counting ? counting.rule(question.noun, question.n) : undefined;
@@ -70,11 +82,11 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
     if (!right) retries.missed(`${language}|${max}`, countKey(question), question);
   };
   const next = (m = max) => {
-    if (!counting) return;
+    if (!counting || !pool?.length) return;
     answer.hide();
     setPicked(null);
     setMarked(null);
-    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question), (q) => counting.patterns(q.noun, q.n), countKey);
+    const draw = () => marks.pick(() => randomCount(counting.nouns.length, m, question, Math.random, pool), (q) => counting.patterns(q.noun, q.n), countKey);
     // A missed question comes back only in the same language and range.
     setHeld({ language, question: retries.next(`${language}|${m}`, question && countKey(question), draw) });
   };
@@ -160,7 +172,14 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         </Stack.Toolbar.Menu>,
       ]}
     >
-      <PracticeCard
+      {pool && !pool.length ? (
+        <View style={{ flex: 1, justifyContent: 'center', gap: space.s, paddingHorizontal: space.l }}>
+          <Text style={{ ...type.headline, color: c.text, textAlign: 'center' }}>No counters to practice yet</Text>
+          <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>
+            {`Counting things asks only about counters your deck knows. Learn one first, such as ${missing.slice(0, 3).join(', ')}, and it shows up here once its card has settled.`}
+          </Text>
+        </View>
+      ) : <PracticeCard
         questionKey={key}
         cardKey={`${key}|${answer.shown}|${answer.missed}`}
         swipe={swipeOn && mode === 'say' && answer.shown && !answer.missed}
@@ -171,7 +190,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         speech={LANGUAGES[language].speech}
         front={front}
         back={back}
-      />
+      />}
     </ToolScreen>
   );
 }

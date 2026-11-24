@@ -1,9 +1,10 @@
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { deckTint } from '../../core/deckBadge';
 import { haptic } from '../haptics';
 import { Tappable } from '../kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { HoverPressable } from '../hover';
 
 /** The tint a cover takes: from what it's about (a story's or a text's id), so it keeps its color wherever it shows. */
 export function useCoverTint(key: string | number): string {
@@ -36,7 +37,7 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
 }) {
   const c = useTheme();
   return (
-    <Pressable
+    <HoverPressable hover="lift"
       onPress={() => { haptic.tap(); onPress(); }}
       onLongPress={onLongPress ? () => { haptic.select(); onLongPress(); } : undefined}
       accessibilityRole="button"
@@ -63,7 +64,7 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
         ) : null}
         {meta ? <Text style={{ ...type.footnote, color: metaColor ?? c.textSecondary }}>{meta}</Text> : null}
       </View>
-    </Pressable>
+    </HoverPressable>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, FlatList, ScrollView, Text, View } from 'react-native';
 import { saveNote, setCardStates, type NoteStore } from '../anki/noteService';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
 import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
@@ -17,6 +17,7 @@ import { haptic } from './haptics';
 import { Chip, Divider, Help, Icon, Loading, Screen, Segments } from './kit';
 import { LeechHintSheet } from './LeechHintSheet';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
+import { HoverPressable } from './hover';
 
 type Data = { notes: Note[]; cards: Card[]; answers: Answer[]; noteTypes: Map<string, NoteType>; now: Date; dayStartsAtHour: number };
 
@@ -205,7 +206,7 @@ function Row({ row, mode, noteType, first, last, onPress }: { row: TroubleRow; m
     : `Again ${row.misses.toLocaleString()} of ${row.answers.toLocaleString()} ${row.answers === 1 ? 'review' : 'reviews'}`;
   const detail = [cardTypeName(row.card, noteType), missed, row.leech ? 'Leech' : '', row.card.flag === AGENT_FLAG ? 'Flagged for Claude' : ''].filter(Boolean).join(' · ');
   return (
-    <Pressable
+    <HoverPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={[front || 'Empty note', back, detail].filter(Boolean).join(', ')}
@@ -230,6 +231,6 @@ function Row({ row, mode, noteType, first, last, onPress }: { row: TroubleRow; m
       <View style={{ minWidth: 32, alignItems: 'center', paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: c.dangerFill }}>
         <Text style={{ ...type.subhead, fontWeight: '600', color: c.danger, fontVariant: ['tabular-nums'] }}>{row.misses.toLocaleString()}</Text>
       </View>
-    </Pressable>
+    </HoverPressable>
   );
 }

@@ -55,3 +55,22 @@ describe('a count’s ending', () => {
       .toEqual(['1', '2-4', '2-4', 'many', 'teen', 'teen', 'teen', '1', '2-4', 'many', 'many']);
   });
 });
+
+describe('known counters', () => {
+  it('asks only about nouns whose counter the deck knows', async () => {
+    const { knownCountNouns, missingCounters } = await import('../../src/tools/counting');
+    const { THAI_COUNTING } = await import('../../src/tools/thai/counting');
+    const pool = knownCountNouns(THAI_COUNTING, ['ตัว']);
+    expect(pool.length).toBeGreaterThan(0);
+    expect(pool.every((i) => THAI_COUNTING.counterWord!(i) === 'ตัว')).toBe(true);
+    expect(knownCountNouns(THAI_COUNTING, [])).toEqual([]);
+    expect(missingCounters(THAI_COUNTING, ['ตัว'])).not.toContain('ตัว');
+    expect(missingCounters(THAI_COUNTING, ['ตัว'])).toContain('คัน');
+    for (let i = 0; i < 50; i++) expect(pool).toContain(randomCount(THAI_COUNTING.nouns.length, 10, undefined, Math.random, pool).noun);
+  });
+  it('has no filter where counters are not words', async () => {
+    const { knownCountNouns } = await import('../../src/tools/counting');
+    const { POLISH_COUNTING } = await import('../../src/tools/polish/counting');
+    expect(knownCountNouns(POLISH_COUNTING, [])).toHaveLength(POLISH_COUNTING.nouns.length);
+  });
+});

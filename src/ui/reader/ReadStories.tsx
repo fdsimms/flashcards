@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type StoryListItem } from '../../reader/api';
 import { WorkingMark } from '../WorkingMark';
 import { storyNext, storyPlace, storyWriting } from '../../reader/stories';
@@ -8,6 +8,7 @@ import { haptic } from '../haptics';
 import { Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { readable, space, type, useTheme } from '../theme';
+import { HoverPressable } from '../hover';
 
 // While an episode is being written, check back this often.
 const POLL_MS = 10_000;
@@ -102,7 +103,7 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
   const place = storyPlace(story);
   const writing = storyWriting(story);
   return (
-    <Pressable
+    <HoverPressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={[name, place, writing ?? next?.text].filter(Boolean).join('. ')}
@@ -120,6 +121,6 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
         ) : next ? <Text style={{ ...type.footnote, color: next.ready ? c.countDue : c.textSecondary }}>{next.text}</Text> : null}
       </View>
       <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-    </Pressable>
+    </HoverPressable>
   );
 }
