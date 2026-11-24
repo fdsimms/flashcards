@@ -3,7 +3,7 @@ import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, compareDeckNames, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
 import { isInProgress } from './progress';
-import { skillCardIds } from './skillTag';
+import { isSkillsDeck, skillCardIds } from './skillTag';
 import { dueMs, isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
 import { paramsForDeck } from './scheduler';
 import { scaleLimits, vacationPlan, type VacationPlan, type VacationPrefs } from './vacation';
@@ -473,11 +473,16 @@ export function shownDeckRows<R extends DeckNode>(rows: R[], collapsed: Set<stri
  * The Today tab's decks: the deck list's rows trimmed to the decks with something due or new
  * today. A deck stays when it or a deck inside it has cards today, so a subdeck is never shown
  * without the decks above it, and a deck whose subdecks all have nothing loses its show/hide
- * button. Collapsed decks hide their subdecks here as on the deck list.
+ * button. Collapsed decks hide their subdecks here as on the deck list. A skills subdeck
+ * (`isSkillsDeck`) never keeps a deck on the list: its cards are practice offered inside the language
+ * deck, so a deck with only skill cards left is done for the day. It still shows under a deck that is
+ * listed for its own cards.
  */
 export function todayDeckRows<R extends DeckNode & { due: number; fresh: number }>(rows: R[], collapsed: Set<string>) {
-  const busy = rows.filter((r) => r.due + r.fresh > 0);
-  return shownDeckRows(rows.filter((r) => busy.some((b) => isInDeck(b.deck, r.deck))), collapsed);
+  const busy = rows.filter((r) => r.due + r.fresh > 0 && !isSkillsDeck(r.deck));
+  const listed = rows.filter((r) => busy.some((b) => isInDeck(b.deck, r.deck)));
+  const skillsUnderListed = rows.filter((r) => isSkillsDeck(r.deck) && r.due + r.fresh > 0 && listed.some((l) => l.deck !== r.deck && isInDeck(r.deck, l.deck)));
+  return shownDeckRows(rows.filter((r) => listed.includes(r) || skillsUnderListed.includes(r)), collapsed);
 }
 
 /**
