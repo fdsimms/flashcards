@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActionSheetIOS, Alert, AppState, Keyboard, Pressable, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { FLAG_NAMES, flagLabel, noteCards, type CardState } from '../core/cardState';
 import { AGENT_FLAG, flagNoteOf, flagReasonOf, withFlagReason, withoutFlag } from '../core/agentFlag';
-import { checkFix, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
+import { checkFix, chatFixRequest, fixRequest, withFix, type FixRequest, type FixResponse } from '../core/fixCard';
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, speechLangFor, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, inheritedSetting, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
@@ -389,7 +389,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return q;
   }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
   const queue = settle ? settle.queue : rebuilt;
-  // Reviews a lookalike seen today holds until tomorrow, for the done screen (as the deck list says, `heldDue`).
+  // Reviews a lookalike seen today holds until tomorrow, for the done screen (`heldDue`).
   const heldToday = useMemo(() => (cards ? heldDue(deck, groupByDeck(cards, deckOf), forms.held, now, H) : 0), [cards, deckOf, deck, forms.held, now, H]);
   // While settling, `queue` still holds the card just answered, so a bar worked out from it would move
   // once on that count and again when the queue is rebuilt. It holds still until the rebuilt queue is in.
@@ -1139,18 +1139,31 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       />
     );
   } else if (sheet?.kind === 'ask') {
+    // Read from the note each render, so a change applied in the chat shows in the next question, not the card as the sheet opened.
+    const askCard = (note && current ? cardForClaude(note, noteTypes.get(note.model), current.kind) : undefined) ?? sheet.card;
     sheetHost = (
       <AskCardSheet
         key={sheet.key}
         visible={sheets.visible}
         onDismiss={() => sheets.dismissed(sheet.key)}
-        card={sheet.card}
-        ask={askAboutCard ? (turns) => askAboutCard(sheet.card, turns) : undefined}
+        card={askCard}
+        ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
         // Added to the note's Notes field, as an edit made in the note editor would be.
         onSaveAnswer={note && isOmnilanguage(note) ? async (answer) => {
           writes.current++;
           try {
             const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withNotesAnswer(note.fields, answer), tags: note.tags });
+            setNotes((prev) => new Map(prev).set(saved.id, saved));
+          } finally {
+            writes.current++;
+          }
+        } : undefined}
+        // Asked from the chat: the server suggests new field values, and nothing is saved until Apply.
+        fix={askAboutCard && fixFlaggedCard && note ? async (turns) => checkFix(note, await fixFlaggedCard(chatFixRequest(note, turns))) : undefined}
+        onApplyFix={note ? async (proposal) => {
+          writes.current++;
+          try {
+            const saved = await saveNote(repo as NoteStore, { id: note.id, deck: note.deck, model: note.model, fields: withFix(note.fields, proposal), tags: note.tags });
             setNotes((prev) => new Map(prev).set(saved.id, saved));
           } finally {
             writes.current++;
@@ -1659,7 +1672,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
-              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}

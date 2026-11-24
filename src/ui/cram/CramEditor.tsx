@@ -17,6 +17,7 @@ import { CheckRow, Pill } from './CramBits';
 import { useMissedLately } from './useMissedLately';
 import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 const ANY_LANGUAGE = 'Any language';
 
@@ -36,6 +37,7 @@ export function CramEditor({ repo, id, canSuggest }: {
   canSuggest: boolean;
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const dark = useColorScheme() === 'dark';
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
@@ -165,7 +167,7 @@ export function CramEditor({ repo, id, canSuggest }: {
         </>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + footerHeight, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + footerHeight + bottomPadding, gap: space.l }} keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <Field label="What's it for?" value={name} onChangeText={setName} placeholder="e.g. Talking about my weekend" autoFocus={!id} returnKeyType="done" />
           {!editing && canSuggest && !name.trim() ? (
