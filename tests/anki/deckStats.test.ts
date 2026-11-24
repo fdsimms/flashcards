@@ -16,10 +16,20 @@ const counts = (bytes: Uint8Array) => {
 
 describe("a deck's studied-today counts", () => {
   it('counts an answer from the queue the card was in, as Anki does', () => {
-    expect(studiedDelta(0, 4000)).toEqual({ new: 1, review: 0, ms: 4000 });
-    expect(studiedDelta(2, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
-    expect(studiedDelta(3, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
-    expect(studiedDelta(1, 2000)).toEqual({ new: 0, review: 0, ms: 2000 });
+    expect(studiedDelta({ type: 0, queue: 0, due: 5 }, 4000)).toEqual({ new: 1, review: 0, ms: 4000 });
+    expect(studiedDelta({ type: 2, queue: 2, due: 900 }, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
+    expect(studiedDelta({ type: 1, queue: 3, due: 900 }, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
+    expect(studiedDelta({ type: 1, queue: 1, due: 1_800_000_000 }, 2000)).toEqual({ new: 0, review: 0, ms: 2000 });
+  });
+
+  it('counts a card still buried from an earlier day by its type, as Anki has unburied it by then', () => {
+    // Sibling-buried (-2) and buried by hand (-3) new cards are new cards studied.
+    expect(studiedDelta({ type: 0, queue: -2, due: 5 }, 4000)).toEqual({ new: 1, review: 0, ms: 4000 });
+    expect(studiedDelta({ type: 0, queue: -3, due: 5 }, 4000)).toEqual({ new: 1, review: 0, ms: 4000 });
+    expect(studiedDelta({ type: 2, queue: -2, due: 900 }, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
+    // A learning card on a day-long step is a review; one on a step within the day counts nothing.
+    expect(studiedDelta({ type: 3, queue: -2, due: 900 }, 3000)).toEqual({ new: 0, review: 1, ms: 3000 });
+    expect(studiedDelta({ type: 1, queue: -3, due: 1_800_000_000 }, 2000)).toEqual({ new: 0, review: 0, ms: 2000 });
   });
 
   it("adds to today's counts, keeping every other field", () => {

@@ -1,4 +1,5 @@
 import { decodeMessage, int, MessageWriter, uint } from './protobuf';
+import { queueForType } from './writeback';
 
 /**
  * A deck's "studied today" counts (`Deck.Common`), which Anki's daily limits read rather than the
@@ -17,8 +18,16 @@ export interface DeckStatsRow { id: number; name: string; mtime_secs: number; us
 /** What one answer adds: Anki counts a card answered from the new queue as new, from the review or day-learning queue as a review. */
 export interface StudiedDelta { new: number; review: number; ms: number }
 
-export function studiedDelta(queueBefore: number, takenMs: number): StudiedDelta {
-  return { new: queueBefore === 0 ? 1 : 0, review: queueBefore === 2 || queueBefore === 3 ? 1 : 0, ms: takenMs };
+/**
+ * What answering the card in `row` (as the collection has it before the answer) adds. A card still
+ * buried in the collection (queue -2 or -3) is counted from the queue its type puts it in: Franki
+ * studies a card buried on an earlier day (`isBuried`) without writing back the unbury Anki does at
+ * each new day, so by the bare queue a buried new card's answer counted as nothing, and the next
+ * load offered that many more new cards than the session it was answered in.
+ */
+export function studiedDelta(row: { type: number; queue: number; due: number }, takenMs: number): StudiedDelta {
+  const queue = row.queue === -2 || row.queue === -3 ? queueForType(row.type, row.due) : row.queue;
+  return { new: queue === 0 ? 1 : 0, review: queue === 2 || queue === 3 ? 1 : 0, ms: takenMs };
 }
 
 /**
