@@ -68,9 +68,6 @@ export function MarkableSenses({ senses, marking, size }: { senses: string[]; ma
           </View>
         );
       })}
-      {marking.verdicts.size || marking.last.length ? null : (
-        <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Senses you leave alone count as recalled.</Text>
-      )}
     </View>
   );
 }
