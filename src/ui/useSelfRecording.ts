@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking } from 'react-native';
 import { TAKE_LIMIT_SECONDS } from '../core/selfRecording';
 import { haptic } from './haptics';
+import { useOutputWake } from './useOutputWake';
 
 /**
  * Record yourself (src/core/selfRecording.ts): one take of your own voice for whatever `key`
@@ -69,6 +70,9 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
   original.current = opts.original;
 
   const player = useAudioPlayer(null);
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake): a take
+  // or a Compare starts once they're awake. Compare going on to the take follows straight on, so it doesn't wait.
+  const wake = useOutputWake();
   const [playing, setPlaying] = useState<SelfPlaying>(null);
   // What the player is on, read when a clip ends (the listener below outlives a render), and a count
   // of plays started so a Compare still loading its first clip gives way to whatever was tapped since.
@@ -124,7 +128,9 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
       if (old && old !== uri) remove(old);
       return uri;
     });
-    if (playAfter.current) playUri(uri);
+    if (!playAfter.current) return;
+    const mine = ++plays.current;
+    void wake().then(() => { if (plays.current === mine) playUri(uri); });
   };
 
   const stop = useCallback((playBack = true) => {
@@ -205,8 +211,9 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     if (!take) return;
     haptic.tap();
     if (playingRef.current) { stopTake(); return; }
-    plays.current++;
-    playUri(take);
+    const mine = ++plays.current;
+    const uri = take;
+    void wake().then(() => { if (plays.current === mine) playUri(uri); });
   };
   const compare = () => {
     const load = original.current;
@@ -217,7 +224,9 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     const forKey = keyRef.current;
     // The native recording may be fetched first (a line's audio comes from the server), so a tap or a
     // new card meanwhile wins over it.
-    Promise.resolve(load()).then((first) => {
+    Promise.resolve(load()).then(async (first) => {
+      if (plays.current !== mine || forKey !== keyRef.current) return;
+      await wake();
       if (plays.current !== mine || forKey !== keyRef.current) return;
       before.current();
       player.replace(first.source);

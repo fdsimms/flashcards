@@ -13,6 +13,7 @@ import { beginListening, NO_CONTROLS, setListeningLoop, type ListeningControls }
 import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { LOOP_BREAK_SOURCE } from '../loopBreak';
 import { useSelfRecording } from '../useSelfRecording';
+import { useOutputWake } from '../useOutputWake';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
 import { useSpokenWords } from './useSpokenWords';
 
@@ -139,9 +140,12 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
   // What the activity's buttons do, through the ref so they act on the latest render's state.
   const buttons = useRef<ListeningControls>(NO_CONTROLS);
 
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake), so a line
+  // someone starts waits for them; one following straight on from the last (`continuing`) doesn't.
+  const wake = useOutputWake();
   // Plays a line at `r`. A slow line is recorded by the server the first time (`api.slowTimes` waits for
   // that and brings its word times); if that fails, the normal recording plays stretched instead.
-  const startLine = async (i: number, r: number) => {
+  const startLine = async (i: number, r: number, continuing: boolean) => {
     if (!text) return;
     const mine = ++starting.current;
     loadingStart.current = mine;
@@ -156,6 +160,10 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
       throw e;
     }
     if (starting.current !== mine) return;
+    if (!continuing) {
+      await wake();
+      if (starting.current !== mine) return;
+    }
     loadingStart.current = null;
     if (audio.times) setSlowTimed((prev) => ({ ...prev, [key]: audio.times! }));
     setPlayedSlow(audio.slow);
@@ -180,13 +188,13 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     if (next !== null && next !== current) playerHost.preloader.prefetch(api, text.id, next, rate, slowTimed[`${text.id}:${next}`]);
   }, [text, current, playingAll, status.playing, status.isBuffering, repeat, loopText, rate]); // eslint-disable-line react-hooks/exhaustive-deps -- `slowTimed` only saves asking for times again
 
-  const playLine = (i: number, all: boolean, r = rate) => {
+  const playLine = (i: number, all: boolean, r = rate, continuing = false) => {
     if (!text) return;
     self.stop(false);
     self.stopTake();
     setSilentLine(null);
     setBreakTo(null);
-    startLine(i, r);
+    startLine(i, r, continuing);
     setCurrent(i);
     setPlayed(1);
     setPlayingAll(all);
@@ -212,7 +220,8 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     } else if (current !== null && !status.didJustFinish && status.currentTime < status.duration) {
       // A line paused partway: on at the same speed, or again from its start at a speed chosen while paused.
       if (playedRate.current === rate) {
-        player.play();
+        const mine = ++starting.current;
+        void wake().then(() => { if (starting.current === mine) player.play(); });
         onPlay(rate);
       } else playLine(current, playingAll);
     } else {
@@ -265,7 +274,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     if (breakTo !== null) {
       // The break has played: round again from the first line, unless Loop text was turned off during it.
       setBreakTo(null);
-      if (loopText) playLine(breakTo, true);
+      if (loopText) playLine(breakTo, true, rate, true);
       else { setPlayingAll(false); setAwaitingSound(false); }
       return;
     }
@@ -294,7 +303,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
       player.seekTo(0).then(() => player.play(), () => undefined);
       return;
     }
-    if (next !== null) playLine(next, true);
+    if (next !== null) playLine(next, true, rate, true);
     else {
       setPlayingAll(false);
       setAwaitingSound(false);
@@ -308,7 +317,7 @@ export function useLinePlayback({ api, playerHost, text, queueAs, onPlay, onLine
     setSilentLine(current);
     onLineHeard(current); // nothing to wait for on a line with no sound
     const next = nextLine(text.lines, current, playingAll);
-    if (next !== null) playLine(next, true);
+    if (next !== null) playLine(next, true, rate, true);
     else { setPlayingAll(false); setAwaitingSound(false); }
   }, [status.error]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to a load error only
 

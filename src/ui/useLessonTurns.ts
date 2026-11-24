@@ -3,6 +3,7 @@ import {
 } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutputWake } from './useOutputWake';
 import type { Api, AudioLesson } from '../reader/api';
 import { loadTurnPrefs, saveTurnPref, type TurnPrefs } from '../reader/lessonStorage';
 import { markOf, scriptOf, slowAnswer, takeAfter, turnAt, type MarkReason, type ScriptEntry, type ScriptTurn } from '../reader/lessonScript';
@@ -73,6 +74,9 @@ export function useLessonTurns(player: AudioPlayer, waits: LessonWaits): LessonT
   const takeRef = useRef<{ uri: string; turn: ScriptTurn; at: number; played: boolean } | null>(null);
   const [take, setTake] = useState<LessonTurns['take']>(null);
   const takePlayer = useRef<AudioPlayer | null>(null);
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake): a take or
+  // an answer replayed on a tap waits for them. A take the lesson plays in its course follows straight on.
+  const wake = useOutputWake();
   takePlayer.current ??= createAudioPlayer(null);
   // After the take, the lesson goes on, unless it was played on its own (the You row).
   const resumeAfterTake = useRef(false);
@@ -248,8 +252,8 @@ export function useLessonTurns(player: AudioPlayer, waits: LessonWaits): LessonT
       : script.filter((e) => e.kind === 'say' && e.end <= t.turn.start).pop()?.start;
     if (from === undefined) return;
     if (asked) t.played = false;
-    player.seekTo(from / 1000).then(() => player.play(), () => undefined);
-  }, [player]);
+    player.seekTo(from / 1000).then(async () => { await wake(); player.play(); }, () => undefined);
+  }, [player, wake]);
 
   const canAgain = waits.held && !!lesson.current?.script && !!turnAt(lesson.current.script, player.currentTime);
 
@@ -267,7 +271,7 @@ export function useLessonTurns(player: AudioPlayer, waits: LessonWaits): LessonT
     again,
     canAgain,
     replayAnswer,
-    playTake: () => playTakeNow(false),
+    playTake: () => { void wake().then(() => playTakeNow(false)); },
   };
 }
 

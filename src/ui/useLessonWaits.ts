@@ -1,5 +1,6 @@
 import type { AudioPlayer } from 'expo-audio';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutputWake } from './useOutputWake';
 import type { AudioLesson } from '../reader/api';
 import { loadWait, saveWait } from '../reader/lessonStorage';
 import { continueFrom, letGo, NOT_WAITING, pausesOf, waitTick, type Pause, type WaitState } from '../reader/lessonWaits';
@@ -27,6 +28,7 @@ export interface LessonWaits {
 export function useLessonWaits(player: AudioPlayer): LessonWaits {
   const [on, setOnState] = useState(false);
   const [held, setHeld] = useState(false);
+  const wake = useOutputWake();
   const onRef = useRef(false);
   const pauses = useRef<Pause[]>([]);
   const state = useRef<WaitState>(NOT_WAITING);
@@ -78,14 +80,16 @@ export function useLessonWaits(player: AudioPlayer): LessonWaits {
     if (!at) return;
     state.current = letGo(state.current);
     setHeld(false);
-    player.seekTo(continueFrom(pauses.current[at.index])).then(() => player.play(), () => player.play());
-  }, [player]);
+    // After the learner's turn, Bluetooth headphones may have gone quiet and would lose the lesson's next words (useOutputWake).
+    const play = () => { void wake().then(() => { if (!state.current.held) player.play(); }); };
+    player.seekTo(continueFrom(pauses.current[at.index])).then(play, play);
+  }, [player, wake]);
 
   const moved = useCallback(() => {
     const wasHeld = !!state.current.held;
     reset();
-    if (wasHeld) player.play();
-  }, [player, reset]);
+    if (wasHeld) void wake().then(() => player.play());
+  }, [player, reset, wake]);
 
   return { on, setOn, held, watch, goOn, moved };
 }

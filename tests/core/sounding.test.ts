@@ -63,4 +63,22 @@ describe('sounding', () => {
     s.press({});
     expect(l).toHaveBeenCalledTimes(3);
   });
+
+  it('says since when it has been quiet: never before a sound, not while one plays, then when it ended or was stopped', () => {
+    let now = 1000;
+    const s = createSounding(() => now);
+    expect(s.quietSince()).toBe(Number.NEGATIVE_INFINITY);
+    const first = s.begin(() => {});
+    expect(s.quietSince()).toBeNull();
+    const second = s.begin(() => {});
+    now = 2000;
+    s.end(first);
+    expect(s.quietSince()).toBeNull();
+    s.end(second);
+    expect(s.quietSince()).toBe(2000);
+    s.begin(() => {});
+    now = 3000;
+    s.stop();
+    expect(s.quietSince()).toBe(3000);
+  });
 });

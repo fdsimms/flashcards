@@ -1,5 +1,5 @@
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { compareTypedAnswer } from '../../core/typedCompare';
@@ -17,6 +17,7 @@ import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from '../RecordYourself';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
+import { useOutputWake } from '../useOutputWake';
 import { TranslationRow } from '../TranslationRow';
 import { TypedDiff } from '../TypedDiff';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -67,12 +68,19 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
 
-  const play = (r = rate) => {
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake). Only the latest request plays.
+  const wake = useOutputWake();
+  const playSeq = useRef(0);
+  const play = async (r = rate) => {
     if (at === undefined || !line?.audio) return;
     self.stop(false);
-    player.replace(api.audioSource(text.id, at, r));
-    player.play();
     setPlays((n) => n + 1);
+    const mine = ++playSeq.current;
+    const source = api.audioSource(text.id, at, r);
+    await wake();
+    if (mine !== playSeq.current) return;
+    player.replace(source);
+    player.play();
   };
   // Each line starts with an empty box; Write what you hear plays it as it comes up.
   useEffect(() => {

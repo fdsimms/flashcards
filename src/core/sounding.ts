@@ -20,12 +20,15 @@ export interface Sounding {
   stop(): void;
   /** Whether a sound is playing and `id` is the button pressed last. */
   playing(id: unknown): boolean;
+  /** When the last sound ended (ms since the epoch), -Infinity before any, or null while one plays. */
+  quietSince(): number | null;
   subscribe(listener: () => void): () => void;
 }
 
-export function createSounding(): Sounding {
+export function createSounding(clock: () => number = Date.now): Sounding {
   let next = 0;
   let current: { token: number; stop: () => void } | null = null;
+  let quietAt = Number.NEGATIVE_INFINITY;
   let pressed: unknown = null;
   const listeners = new Set<() => void>();
   const emit = () => { for (const l of [...listeners]) l(); };
@@ -39,6 +42,7 @@ export function createSounding(): Sounding {
     end(token) {
       if (current?.token !== token) return;
       current = null;
+      quietAt = clock();
       emit();
     },
     press(id) {
@@ -50,10 +54,12 @@ export function createSounding(): Sounding {
       const c = current;
       if (!c) return;
       current = null;
+      quietAt = clock();
       try { c.stop(); } catch { /* already gone */ }
       emit();
     },
     playing: (id) => current !== null && pressed === id,
+    quietSince: () => (current ? null : quietAt),
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

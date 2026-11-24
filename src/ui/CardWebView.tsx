@@ -5,10 +5,11 @@ import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
 import { pageFont } from '../core/cardFonts';
 import { pageUsesMathJax } from '../core/mathjax';
-import { START_AUTOPLAY } from '../core/template';
+import { playSoundScript, soundTapped, START_AUTOPLAY } from '../core/template';
 import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
 import { space, type, useTheme } from './theme';
+import { useOutputWake } from './useOutputWake';
 
 let pageCount = 0;
 
@@ -55,11 +56,22 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
   // Pages finished loading, counted. Autoplay starts once a page is both loaded and shown, whichever
   // comes last; telling a page that has already started again does nothing (cardDocument).
   const [loads, setLoads] = useState(0);
+  // Bluetooth headphones that have been quiet lose the start of the next sound, all of a word (useOutputWake),
+  // so the page's sounds start once the link is awake. A page hidden or reloaded meanwhile doesn't start.
+  const wake = useOutputWake();
   useEffect(() => {
     if (hidden || loads === 0) return;
-    view.current?.injectJavaScript(START_AUTOPLAY);
+    let live = true;
+    void wake().then(() => { if (live) view.current?.injectJavaScript(START_AUTOPLAY); });
     onShown?.();
+    return () => { live = false; };
   }, [hidden, loads]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A play button in the page asks for its sound here, to play it once the headphones are awake. Only the latest tap plays.
+  const tapped = useRef(0);
+  const playTapped = (file: string) => {
+    const mine = ++tapped.current;
+    void wake().then(() => { if (mine === tapped.current) view.current?.injectJavaScript(playSoundScript(file)); });
+  };
 
   useEffect(() => {
     const dir = new Directory(Paths.document, 'card-pages');
@@ -121,7 +133,9 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
           injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
           onMessage={(e) => {
             const data = e.nativeEvent.data;
-            if (onTap && data === TAP_MESSAGE) onTap();
+            const sound = soundTapped(data);
+            if (sound !== undefined) playTapped(sound);
+            else if (onTap && data === TAP_MESSAGE) onTap();
             else onMessage?.(data);
           }}
           onLoadEnd={() => setLoads((n) => n + 1)}

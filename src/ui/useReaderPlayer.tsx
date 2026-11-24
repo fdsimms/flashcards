@@ -6,6 +6,7 @@ import { afterLine, linePosition, lineShown, skipTo, voicedLineAt, type Handoff 
 import { firstLine } from '../reader/playback';
 import { lineAudio } from '../reader/lineAudio';
 import { LOOP_BREAK_SOURCE } from './loopBreak';
+import { useOutputWake } from './useOutputWake';
 import { SKIP_SECONDS, skipTo as skipLessonTo } from '../reader/lessons';
 import { createPreloader, type Preloader } from '../reader/preload';
 import { preloadFiles } from './preloadFiles';
@@ -197,7 +198,11 @@ function useReaderPlayer(): ReaderPlayerHost {
     setAudioModeAsync(FOREGROUND_MODE).catch(() => undefined);
   }, [watchLesson, position]);
 
-  const playLine = useCallback(async (line: number) => {
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake), so what
+  // someone starts (`wakeFirst`) waits for them; a line following straight on from the last doesn't.
+  const wake = useOutputWake();
+  const resuming = useRef(0);
+  const playLine = useCallback(async (line: number, wakeFirst = false) => {
     const c = carrying.current;
     if (!c) return;
     const mine = ++starting.current;
@@ -205,6 +210,10 @@ function useReaderPlayer(): ReaderPlayerHost {
     const { api, handoff } = c;
     const audio = (await preloader.current!.take(handoff.textId, line, handoff.rate)) ?? (await lineAudio(api, handoff.textId, line, handoff.rate));
     if (starting.current !== mine || carrying.current !== c) return;
+    if (wakeFirst) {
+      await wake();
+      if (starting.current !== mine || carrying.current !== c) return;
+    }
     c.handoff = { ...handoff, current: line, played: 1 };
     player.current!.replace(audio.source);
     player.current!.setPlaybackRate(audio.stretch, 'high');
@@ -216,7 +225,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     // The line after this one's last repeat, fetched while this plays (a line repeated forever has none).
     const after = Number.isFinite(c.handoff.repeat) ? afterLine({ ...c.handoff, played: c.handoff.repeat }) : null;
     if (after?.kind === 'line') preloader.current!.prefetch(api, handoff.textId, after.line, handoff.rate);
-  }, [show]);
+  }, [show, wake]);
 
   // What's carried played to its end: Up Next goes on to the next item, or it all stops.
   const finished = useCallback(() => {
@@ -326,7 +335,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     listener.current = player.current!.addListener('playbackStatusUpdate', onStatus);
     setAudioModeAsync(BACKGROUND_MODE).catch(() => undefined);
     beginListening({ kind: 'text', title: handoff.title, detail: lineDetail(linePosition(handoff)), looping: handoff.loop }, () => buttons.current);
-    void playLine(handoff.current);
+    void playLine(handoff.current, true);
   }, [onStatus, playLine, watchLesson]);
 
   const playLesson = useCallback(async (api: Api, lesson: AudioLesson, at: number) => {
@@ -349,10 +358,12 @@ function useReaderPlayer(): ReaderPlayerHost {
       waits.moved();
     }
     if (carryingLesson.current !== lesson) return;
+    await wake();
+    if (carryingLesson.current !== lesson) return;
     p.play();
     show(true);
     beginListening({ kind: 'lesson', title: lesson.title, detail: '', looping: lessonLoopNow.current.isOn(lesson.id) }, () => buttons.current);
-  }, [onLessonStatus, show, watchLesson, waits]);
+  }, [onLessonStatus, show, watchLesson, waits, wake]);
 
   const setTextRate = useCallback((rate: number) => {
     const c = carrying.current;
@@ -362,7 +373,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     void playLine(c.handoff.current);
   }, [playLine]);
 
-  const pause = useCallback(() => { player.current!.pause(); }, []);
+  const pause = useCallback(() => { resuming.current++; player.current!.pause(); }, []);
 
   const putDown = useCallback((at: Position) => {
     queue.current?.stopped(at);
@@ -383,8 +394,12 @@ function useReaderPlayer(): ReaderPlayerHost {
     const p = player.current!;
     // Held at a lesson's pause, Play is Continue: on past the rest of the silence.
     if (waits.held) waits.goOn();
-    else if (p.playing) p.pause(); else p.play();
-  }, [waits]);
+    else if (p.playing) { resuming.current++; p.pause(); } else {
+      // Play after a pause waits for the headphones too; a pause meanwhile drops it.
+      const mine = ++resuming.current;
+      void wake().then(() => { if (resuming.current === mine) p.play(); });
+    }
+  }, [waits, wake]);
 
   const skip = useCallback((step: -1 | 1) => {
     if (carryingLesson.current) {
@@ -396,14 +411,14 @@ function useReaderPlayer(): ReaderPlayerHost {
     const c = carrying.current;
     if (!c) return;
     const to = skipTo(c.handoff, step);
-    if (to !== null) void playLine(to);
+    if (to !== null) void playLine(to, true);
   }, [playLine, waits]);
 
   const seekLine = useCallback((n: number) => {
     const c = carrying.current;
     if (!c) return;
     const to = voicedLineAt(c.handoff, n);
-    if (to !== null) void playLine(to);
+    if (to !== null) void playLine(to, true);
   }, [playLine]);
 
   // The Live Activity's Start over and Loop, for what the mini-player carries on.
@@ -412,7 +427,7 @@ function useReaderPlayer(): ReaderPlayerHost {
     const c = carrying.current;
     if (!c) return;
     const first = firstLine(c.handoff.lines);
-    if (first !== null) void playLine(first);
+    if (first !== null) void playLine(first, true);
   }, [playLine]);
 
   const toggleLoop = useCallback(() => {

@@ -363,7 +363,26 @@ const escapeAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;
 /** [sound:x.mp3] -> a play button. With autoplay, a side's sounds play on their own in turn when it's shown. */
 function soundButtons(html: string): string {
   return html.replace(/\[sound:([^\]]+)\]/g, (_, file: string) =>
-    `<a class="replay-button" href="#" data-sound="${escapeAttr(file)}" onclick="playSound(this.dataset.sound);return false;">▶</a>`);
+    `<a class="replay-button" href="#" data-sound="${escapeAttr(file)}" onclick="tapSound(this.dataset.sound);return false;">▶</a>`);
+}
+
+/**
+ * The file a page's play button asked the app for, from its message, or undefined for any other
+ * message. A tap stops the sound playing at once, then waits in the app for Bluetooth headphones
+ * to wake (CardWebView, useOutputWake) before the app plays it with `playSoundScript`.
+ */
+export function soundTapped(data: string): string | undefined {
+  try {
+    const sound = JSON.parse(data)?.sound;
+    return typeof sound === 'string' ? sound : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** What the app runs in a page to play the sound a play button asked for (`soundTapped`). */
+export function playSoundScript(file: string): string {
+  return `window.playSound && window.playSound(${JSON.stringify(file)}); true;`;
 }
 
 /**
@@ -478,6 +497,8 @@ ${opts.font ? cardFontCss(opts.font.id, opts.font.base) : ''}
 <script>
 var player = null;
 function playSound(file) { if (player) player.pause(); player = new Audio(file); player.play(); }
+window.playSound = playSound;
+function tapSound(file) { if (player) player.pause(); if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ sound: file })); else playSound(file); }
 function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
 ${opts.autoplay ? AUTOPLAY_SCRIPT : ''}
 var autoplayed = false;

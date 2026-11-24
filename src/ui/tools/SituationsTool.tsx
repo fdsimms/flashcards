@@ -22,6 +22,7 @@ import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Ta
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useTrackedPlayer } from '../useSoundingButton';
+import { useOutputWake } from '../useOutputWake';
 import { useHeaderInset } from '../useHeaderInset';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
@@ -294,6 +295,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const saying = useRef(0);
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   useTrackedPlayer(player);
+  const wake = useOutputWake();
   const phone = usePhoneSpeech(repo);
   useEffect(() => () => { asking.current++; saying.current++; phone.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Their line, aloud: Azure's recording when one was made (the setting is on), else the phone's voice
@@ -316,6 +318,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
       }
       if (saying.current !== mine) return;
     }
+    // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+    await wake();
+    if (saying.current !== mine) return;
     player.replace(api.situationAudio(key));
     player.setPlaybackRate(stretch, 'high');
     player.play();
