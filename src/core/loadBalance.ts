@@ -70,12 +70,23 @@ export function balancerFor(snap: LoadSnapshot, card: Card, o: {
     if (e.preset === o.preset) for (const d of e.days) dayCounts[d]++;
     if (o.buryReviews && e.noteId === card.noteId) siblingDays.push(...e.days);
   }
+  return balancerFrom(dayCounts, o.buryReviews ? siblingDays : undefined, { seed: o.seed, easyDays: o.easyDays, nextDayAt: o.nextDayAt, weekdayOf: o.weekdayOf });
+}
+
+/**
+ * The balancer from counts already worked out: the cards on each of the next days under the
+ * answered card's preset, and the days its note's other cards are on (when the preset buries
+ * review siblings). `balancerFor` builds them from a snapshot for one answer; a caller answering
+ * many cards keeps the counts itself and adds each answer to them, which is what the forecast does.
+ * Undefined (plain fuzz) when the preset has no cards in the window, as in Anki.
+ */
+export function balancerFrom(dayCounts: number[], siblingDays: number[] | undefined, o: {
+  seed: bigint; easyDays?: number[]; nextDayAt: Date; weekdayOf?: (d: number) => number;
+}): Balancer | undefined {
   if (!dayCounts.some((n) => n > 0)) return undefined;
   const seed = o.seed;
   // Monday 0, in this device's time zone, of the day `d` days on (Anki: next_day_at + (d - 1) days).
   // day-ms-ok: Anki adds seconds here too, and from the day's start an hour either way keeps the date.
   const weekdayOf = o.weekdayOf ?? ((d: number) => (new Date(o.nextDayAt.getTime() + (d - 1) * DAY).getDay() + 6) % 7);
-  return (iv, min, max) => balancedInterval(iv, min, max, {
-    seed, dayCounts, weekdayOf, easyDays: o.easyDays, siblingDays: o.buryReviews ? siblingDays : undefined,
-  });
+  return (iv, min, max) => balancedInterval(iv, min, max, { seed, dayCounts, weekdayOf, easyDays: o.easyDays, siblingDays });
 }
