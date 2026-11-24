@@ -94,11 +94,11 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         </Text>
 
         <View style={{ gap: 2 }}>
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>Fill in the blank with the right form of this word:</Text>
           <Text style={{ ...type.cardBack, color: c.accent }}>
             {word.lemma}
             {word.gloss ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{`   "${word.gloss}"`}</Text> : null}
           </Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>Type the form that fits the sentence.</Text>
         </View>
 
         <View
@@ -121,8 +121,8 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
             spellCheck={false}
             returnKeyType="done"
             onSubmitEditing={check}
-            accessibilityLabel={`Type the form of ${word.lemma} that fits the sentence`}
-            placeholder="Type the form"
+            accessibilityLabel={`Type the form of ${word.lemma} that fills the blank`}
+            placeholder="Type the word for the blank"
             placeholderTextColor={c.textTertiary}
             selectionColor={c.accent}
             keyboardAppearance={dark ? 'dark' : 'light'}
