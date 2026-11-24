@@ -29,13 +29,13 @@ const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:ver
  * read says why where the list would be. A row says when its
  * cards are suspended, buried, flagged or the note is a leech (src/core/noteMarkers.ts).
  */
-export function Browse({ repo, onEditNote }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void }) {
+export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; initialDeck: string | null }) {
   const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [cards, setCards] = useState<{ byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number } | null>(null);
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<string | null>(null);
+  const [scope, setScope] = useState<string | null>(initialDeck);
   const [filter, setFilter] = useState<NoteFilter | null>(null);
   const [error, setError] = useState<string | null>(null);
 
