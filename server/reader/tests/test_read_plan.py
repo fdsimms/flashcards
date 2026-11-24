@@ -78,6 +78,14 @@ def test_a_rotating_language_read_on_its_own_today_counts_as_the_turn() -> None:
     assert [(e.language, e.done) for e in entries] == [("es", True)]
 
 
+def test_reading_another_language_drops_an_unread_pick_once_the_turns_are_filled() -> None:
+    # Polish was picked, then Spanish was read on its own: one turn a day, so Polish's task goes.
+    langs = [lang("es", "Spanish", days_ago=-0.1), lang("pl", "Polish", days_ago=6)]
+    assert [(e.language, e.done) for e in plan(langs, {}, 1, DAY, ["pl"])] == [("es", True)]
+    # With two turns a day Polish keeps its place.
+    assert codes(plan(langs, {}, 2, DAY, ["pl"])) == ["pl", "es"]
+
+
 def test_picks_stay_for_the_day_and_a_lower_count_never_takes_one_away() -> None:
     langs = [lang("pl", "Polish", days_ago=6), lang("es", "Spanish", days_ago=3)]
     assert codes(plan(langs, {}, 1, DAY, ["es"])) == ["es"]
