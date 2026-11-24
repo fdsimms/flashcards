@@ -142,7 +142,8 @@ const within = <T,>(work: Promise<T>, ms: number): Promise<T> => new Promise((re
 export type ReaderSource =
   // `resume`: opened from Now Playing on a text Up Next stopped partway: it plays from that line.
   | { kind: 'shelf'; textId: number; order: number[]; playAll?: boolean; resume?: number }
-  | { kind: 'topic'; topic: { id: number; name: string }; words?: string[] }
+  // `about`: what really happened, which a text on `words` is written from (a cram's facts).
+  | { kind: 'topic'; topic: { id: number; name: string }; words?: string[]; about?: string }
   // `listen`: heard through with the words hidden, starting now, and counted as a listen on the
   // server (relisten.py); it holds the texts to play after this one, none when this is the last.
   | { kind: 'past'; text: PastText; listen?: PastText[]; resume?: number };
@@ -345,14 +346,14 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       const topicId = source.topic.id;
       const deadline = Date.now() + WRITE_WAIT_MS;
       const words = source.words;
-      let next = await api.nextText(topicId, words, setWriteStage);
+      let next = await api.nextText(topicId, words, setWriteStage, source.about);
       while (next === null) {
         if (!stillWanted()) return;
         setWriting(true);
         if (Date.now() > deadline) throw new ApiError('Writing this text is taking longer than usual. Try again in a minute.', 0);
         await wait(POLL_MS);
         if (!stillWanted()) return;
-        next = await api.nextText(topicId, words, setWriteStage);
+        next = await api.nextText(topicId, words, setWriteStage, source.about);
       }
       if (!stillWanted()) return;
       setText(next);

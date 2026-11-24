@@ -244,6 +244,8 @@ class TextRequest:
     unset: tuple[str, ...] = ()
     unset_uses: int = grammar.UNSET_USES
     story: StoryContext | None = None
+    # What really happened, for a text on the owner's own day: written from, never contradicted.
+    about: str = ""
     # The Settings register (register.py). Each line still carries its own register label, chosen
     # by who is talking to whom, so this sets the baseline and the default asks for nothing extra.
     register: Register = DEFAULT_REGISTER
@@ -635,6 +637,12 @@ def request_message(request: TextRequest) -> str:
         f"Write {what} of {request.lines} lines.",
         _PLOT_VARIETY,
     ]
+    if request.about:
+        parts.append(
+            f"What really happened, in the learner's words: {request.about}\n"
+            "Base the text on this. Use its people, place and events, and don't add anything that "
+            "contradicts it."
+        )
     if request.language != "th":
         name = LANGUAGES[request.language].name
         parts.append(

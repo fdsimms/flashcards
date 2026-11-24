@@ -7421,6 +7421,12 @@
             "type": "array",
             "maxItems": 500,
             "title": "Words"
+          },
+          "about": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "About",
+            "default": ""
           }
         },
         "type": "object",
