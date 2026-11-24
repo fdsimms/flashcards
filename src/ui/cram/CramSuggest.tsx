@@ -15,6 +15,7 @@ import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
 import { CheckRow } from './CramBits';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 export type SuggestMode = 'words' | 'phrases';
 
@@ -41,6 +42,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
   onDone: () => void;
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const { crams, loaded: cramsLoaded } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === cramId);
@@ -198,7 +200,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
         </View>
       ) : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} {...scrollProps}>
         {!cram || !collection.loaded ? <Loading /> : null}
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
         {cram && language ? (

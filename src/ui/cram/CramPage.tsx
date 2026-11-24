@@ -3,9 +3,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
-  practiceSummary, phrasesSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
+  practiceSummary, phrasesSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
+import { cramTextAbout } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import { deleteNotesWarning } from '../../core/noteEditing';
 import { deleteNotesTitle } from '../../core/selection';
@@ -17,8 +18,8 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, Tappable } from '../kit';
-import { MIN_TAP, readable, space, type, useTheme, type Colors } from '../theme';
+import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
+import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CheckRow, Pill } from './CramBits';
 import { SelectBar } from '../SelectBar';
@@ -33,6 +34,7 @@ import { useMissedLately } from './useMissedLately';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { leaveScreen } from '../leaveScreen';
 import { DECKS_PATH } from '../tabPaths';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /** How many words the page lists before Show all. */
 const WORDS_SHOWN = 8;
@@ -40,7 +42,7 @@ const WORDS_SHOWN = 8;
 /**
  * A cram's page, the plan for the day: how practice is going and a Practice button that works any
  * time (on the lesson's day, Start the lesson leads instead); Talking points (folded, a tap opens one,
- * ⋯ edits its story or removes it); Phrases (lines kept on the cram alone, a tap opens its menu); Words (Suggest words, Add, and a pill to bring in the words missed lately);
+ * ⋯ edits its story or removes it); Phrases (lines kept on the cram alone, a tap opens its menu); Words (Suggest words, Add, and a pill to bring in the words missed lately; swiping a word left, or Select in its menu, starts selecting words to take out or delete);
  * Questions about the language; Get ready (an audio lesson, a text, Rehearse); and Start the lesson.
  * Once finished, what was used and what was typed in the lesson.
  * Opening it also puts any of its reviews scheduled after the day on the day (`capCramCards`), and
@@ -53,7 +55,8 @@ export function CramPage(props: {
   /** The register Settings holds, for the picker's Default (undefined while unknown). */
   serverRegister?: RegisterLevel;
   onEditNote: (noteId: string, onClose: () => void) => void;
-  onRead: (language: Language, words: string[]) => void;
+  /** `own` is what the cram is for (`cramTextTopic`) and what really happened (`cramTextAbout`); without a name the text is on an idea the server suggests. */
+  onRead: (language: Language, words: string[], own: { name?: string; about?: string }) => void;
   /** The note queue as the server last said it, so a card asked for shows whether it's ready, still being written or failed. */
   queued?: QueuedNote[];
   /** Opens a queued note in the note editor and takes it off the queue once saved; true when it was saved. */
@@ -63,6 +66,7 @@ export function CramPage(props: {
 }) {
   const { repo, id } = props;
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
   const { now, dayStartsAtHour: H } = useCramClock(repo);
@@ -80,6 +84,7 @@ export function CramPage(props: {
   const [showAll, setShowAll] = useState(false);
   // The talking point opened on the page, by its title: one at a time.
   const [openTalk, setOpenTalk] = useState<string>();
+  const [openWord, setOpenWord] = useState<string | null>(null);
   const [capProblem, setCapProblem] = useState<string>();
   const [problem, setProblem] = useState<string>();
   const approving = useRef(false);
@@ -152,13 +157,16 @@ export function CramPage(props: {
       },
     ]);
   };
+  // Select mode with `id` already picked: what swiping a word left does, and what Select in its menu does.
+  const selectWord = (id: string) => { setOpenWord(null); setProblem(undefined); sel.start(); sel.toggle(id); };
   const wordMenu = (note: Note) => {
     haptic.tap();
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: headword(note), options: ['Edit note', 'Take out of this cram', 'Cancel'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+      { title: headword(note), options: ['Edit note', 'Select', 'Take out of this cram', 'Cancel'], destructiveButtonIndex: 2, cancelButtonIndex: 3 },
       (i) => {
         if (i === 0) props.onEditNote(note.id, collection.reload);
-        if (i === 1) setCramTag(repo, cram, [note.id], false).then(collection.reload, (e) => setProblem(failureText(e, { what: "Couldn't take the word out.", next: 'Try again.' })));
+        if (i === 1) selectWord(note.id);
+        if (i === 2) setCramTag(repo, cram, [note.id], false).then(collection.reload, (e) => setProblem(failureText(e, { what: "Couldn't take the word out.", next: 'Try again.' })));
       },
     );
   };
@@ -269,7 +277,7 @@ export function CramPage(props: {
         </Stack.Toolbar>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }} {...scrollProps}>
         <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
@@ -365,17 +373,10 @@ export function CramPage(props: {
           </>
         ) : null}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
-          {!cram.finishedAt && listed.length && !sel.selecting ? (
-            <Tappable onPress={() => { haptic.tap(); setProblem(undefined); sel.start(); }} accessibilityRole="button" accessibilityLabel="Select words" style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l }}>
-              <Text style={{ ...type.subhead, color: c.accentInk, fontWeight: '600' }}>Select</Text>
-            </Tappable>
-          ) : null}
-        </View>
+        <SectionTitle>{`Words · ${listed.length + pending.length}`}</SectionTitle>
         {!cram.finishedAt && missed.length && !sel.selecting ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
+            <Pill label={`Add ${missed.length} missed recently`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
         {sel.selecting ? (
@@ -399,15 +400,26 @@ export function CramPage(props: {
           {!cram.finishedAt ? <NavRow icon={{ name: 'plus', color: c.accent }} label="Add a word or phrase" detail="Search your deck, or type something to say." onPress={() => go('/cram-words')} /> : null}
           {shown.map((note, i) => {
             const state = wordState(cram, note.id, (cardsOf.get(note.id) ?? []).every((x) => x.sched.state === 0));
-            return (
+            const row = (
               <NavRow
-                key={note.id}
                 first={i === 0 && !!cram.finishedAt}
                 label={headword(note) || 'Untitled'}
                 detail={meaningOf(note) || undefined}
                 badge={badgeFor(cram, note.id, state, c)}
-                onPress={() => (cram.finishedAt ? props.onEditNote(note.id, collection.reload) : wordMenu(note))}
+                // A row slid open closes on a tap, rather than opening its menu.
+                onPress={() => (cram.finishedAt ? props.onEditNote(note.id, collection.reload) : openWord === note.id ? setOpenWord(null) : wordMenu(note))}
               />
+            );
+            return cram.finishedAt ? <React.Fragment key={note.id}>{row}</React.Fragment> : (
+              <SwipeToReveal
+                key={note.id}
+                open={openWord === note.id}
+                onOpenChange={(o) => setOpenWord(o ? note.id : null)}
+                onFullSwipe={() => selectWord(note.id)}
+                action={<SwipeAction icon="checkmark.circle" label="Select" accessibilityLabel={`Select ${headword(note) || 'word'}`} onPress={() => selectWord(note.id)} />}
+              >
+                {row}
+              </SwipeToReveal>
             );
           })}
           {pending.map((r, i) => {
@@ -448,7 +460,7 @@ export function CramPage(props: {
                 label="Read a text"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : !words.length ? "Needs words you've studied at least once." : 'A short text using some of these words.'}
                 disabled={!props.readerApi || !language || !words.length}
-                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words); } }}
+                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words, { name: cramTextTopic(cram), about: cramTextAbout(cram) }); } }}
               />
               <NavRow
                 icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}

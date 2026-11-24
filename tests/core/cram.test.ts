@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
+  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isDismissedToday, isRunning,
   afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withThemes, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
-  cramLessonPhrases, LESSON_TALK_LINES, practiceOrder, preparedLines, talkLessonLines, talkScene, talkSummary, withoutTalk, withTalkAsked, withTalkStory, type CramTalk,
+  cramLessonPhrases, LESSON_TALK_LINES, practiceOrder, preparedLines, cramTextTopic, talkLessonLines, talkScene, talkSummary, withoutTalk, withTalkAsked, withTalkStory, type CramTalk,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
 } from '../../src/core/cram';
 import { makeCards } from '../../src/core/cards';
@@ -280,6 +280,16 @@ describe('noteAddedAt', () => {
   });
 });
 
+describe('isDismissedToday', () => {
+  it('holds for the study day it was dismissed on and lapses at the next day start', () => {
+    const c = cram({ dismissedOn: '2026-11-18' });
+    expect(isDismissedToday(c, WED, H)).toBe(true);
+    expect(isDismissedToday(c, new Date(2026, 10, 19, 1), H)).toBe(true);
+    expect(isDismissedToday(c, new Date(2026, 10, 19, 5), H)).toBe(false);
+    expect(isDismissedToday(cram(), WED, H)).toBe(false);
+  });
+});
+
 describe('parseCram', () => {
   it('keeps a cram\'s register and drops one it doesn\'t know', () => {
     expect(parseCram(JSON.stringify({ ...cram(), register: 'formal' }))?.register).toBe('formal');
@@ -384,6 +394,13 @@ describe('talking points', () => {
     expect(talkScene(cram({ name: 'Half marathon', themes: [talk('A'), talk('B')] }))).toBe('Half marathon');
     expect(talkScene(cram({ name: 'Thai lesson', untitled: true, themes: [talk('A'), talk('B')] }))).toBe('A');
     expect(talkScene(cram({ name: 'Thai lesson' }))).toBe('Thai lesson');
+  });
+  it("writes Read a text on what the cram is for, and leaves an untitled cram with no talking point to the caller's own idea", () => {
+    expect(cramTextTopic(cram({ name: 'Half marathon' }))).toBe('Half marathon');
+    expect(cramTextTopic(cram({ themes: [talk('Race day')] }))).toBe('Race day');
+    expect(cramTextTopic(cram({ name: 'Thai lesson', untitled: true, themes: [talk('A'), talk('B')] }))).toBe('A');
+    expect(cramTextTopic(cram({ name: 'Thai lesson', untitled: true }))).toBeUndefined();
+    expect(cramTextTopic(cram({ name: `  ${'x'.repeat(200)}  ` }))).toHaveLength(150);
   });
   it('says what a talking point holds', () => {
     expect(talkSummary(talk('A'))).toBe('2 to ask · 2 they may ask · your story');

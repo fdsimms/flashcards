@@ -694,9 +694,10 @@ export function createApi(
     updateSettings: (settings: SettingsChange) => call<Settings>('PATCH', '/api/settings', settings),
     // null while the server is still writing the text (202): ask again in a few seconds, and
     // `onStage` is told where the write has got to (undefined from a server older than stages).
-    // With `words` (the cards just studied), a text written to practice them.
-    nextText: async (topicId: number, words?: string[], onStage?: (stage: TextStage | undefined) => void) => {
-      const response = await send('POST', `/api/topics/${topicId}/next`, words?.length ? { words } : undefined);
+    // With `words` (the cards just studied), a text written to practice them, and with `about` (what
+    // really happened, at most the server's 300 characters) written from that.
+    nextText: async (topicId: number, words?: string[], onStage?: (stage: TextStage | undefined) => void, about?: string) => {
+      const response = await send('POST', `/api/topics/${topicId}/next`, words?.length ? { words, ...(about ? { about } : {}) } : undefined);
       if (response.status !== 202) return (await response.json()) as ReaderText;
       let stage: TextStage | undefined;
       try {
@@ -820,7 +821,7 @@ export function createApi(
       (await call<{ answer: string }>('POST', '/api/ask-card', { ...card, turns })).answer,
     // A fix for a flagged card, suggested by Claude on the server: only the fields that change, each as its whole new HTML,
     // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
-    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string }) =>
+    fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string; chat?: { role: 'user' | 'assistant'; content: string }[] }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
     // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
     // from: asked only on Find Thai in Add a word; the server writes nothing (core/lessonWords.ts).

@@ -5,6 +5,7 @@ import { guardedFetch } from '../connection';
 import { savePassphrase } from '../../reader/storage';
 import { Button, Card, ErrorNote, Field, Group, Help, Screen, SectionTitle, SwitchRow } from '../kit';
 import { space, type, useTheme, readable } from '../theme';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /**
  * Turning Read & Listen on or off (Settings, Read & Listen, Server). It's the one part of Franki
@@ -26,6 +27,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
   onShareCounts: (on: boolean) => void;
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
 
   return (
     <Screen title="Server">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <Help>
             Short dialogues and stories written from the words in your language decks, mostly words you already know,
