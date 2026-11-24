@@ -33,6 +33,7 @@ import { useMissedLately } from './useMissedLately';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { leaveScreen } from '../leaveScreen';
 import { DECKS_PATH } from '../tabPaths';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /** How many words the page lists before Show all. */
 const WORDS_SHOWN = 8;
@@ -63,6 +64,7 @@ export function CramPage(props: {
 }) {
   const { repo, id } = props;
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
   const { now, dayStartsAtHour: H } = useCramClock(repo);
@@ -269,7 +271,7 @@ export function CramPage(props: {
         </Stack.Toolbar>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }} {...scrollProps}>
         <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
@@ -375,7 +377,7 @@ export function CramPage(props: {
         </View>
         {!cram.finishedAt && missed.length && !sel.selecting ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
+            <Pill label={`Add ${missed.length} missed recently`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
         {sel.selecting ? (

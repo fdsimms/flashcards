@@ -120,7 +120,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
   } else if (error) {
     content = <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => void load()} /></View>;
   } else if (loading || !loaded) {
-    content = <View style={{ padding: space.l }}><Loading /></View>;
+    content = <View style={{ flex: 1, padding: space.l }}><Loading /></View>;
   } else if (!prompt) {
     const missed = loaded.sentences.flatMap((sentence, i) => (round.first[i] === false ? [sentence] : []));
     content = loaded.sentences.length ? (

@@ -61,7 +61,7 @@ export function DailyExtrasSettings() {
               <SwitchRow
                 first
                 label="Suggest extras each day"
-                hint="Short drills from the Practice tab and a text to read, picked from what you've missed lately. They don't change when your cards are due."
+                hint="Short drills from the Practice tab and a text to read, picked from what you've missed recently. They don't change when your cards are due."
                 value={prefs.on}
                 onValueChange={(on) => save({ ...prefs, on })}
               />

@@ -10,6 +10,7 @@ import { haptic } from '../haptics';
 import { Button, Field, Help, Loading, Screen } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /**
  * Editing one of a cram's phrases (its menu's Edit): the line in the language, its reading where the
@@ -18,6 +19,7 @@ import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
  */
 export function CramPhraseEdit({ repo, id, text, onDone }: { repo: NoteStore; id: string; text: string; onDone: () => void }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
@@ -62,7 +64,7 @@ export function CramPhraseEdit({ repo, id, text, onDone }: { repo: NoteStore; id
   const speech = language ? LANGUAGES[language].speech : undefined;
   return (
     <Screen title="Edit phrase" largeTitle={false} footer={<Button label="Save" busy={saving} disabled={!changed || !valid} onPress={() => { void save(); }} />}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} {...scrollProps}>
         <Field label={language ? LANGUAGES[language].name : 'Phrase'} value={nextLine} onChangeText={setLine} autoCapitalize="none" autoCorrect={false} keyboardLanguage={speech} multiline />
         {language && ROMANIZED_LESSON_LANGUAGES.includes(language) ? (
           <Field label="Reading (optional)" value={nextReading} onChangeText={setReading} autoCapitalize="none" autoCorrect={false} />

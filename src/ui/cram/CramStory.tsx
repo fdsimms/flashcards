@@ -8,6 +8,7 @@ import { readable, space } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { StoryEditor } from './StoryEditor';
 import { useTalkSize } from './talkSize';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /**
  * A kept talking point's story, edited from the cram's page (its ⋯ menu): Claude checks the new
@@ -18,6 +19,7 @@ export function CramStory({ repo, api, id, title, onDone }: { repo: AppRepo; api
   const { crams, loaded } = useCrams(repo);
   const collection = useCollection(repo);
   const [size] = useTalkSize();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const cram = crams.find((x) => x.id === id);
   const story = cram?.themes?.find((t) => t.title === title)?.story;
   const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
@@ -36,7 +38,7 @@ export function CramStory({ repo, api, id, title, onDone }: { repo: AppRepo; api
   };
   return (
     <Screen title={title} largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} {...scrollProps}>
         <StoryEditor
           story={story}
           language={language}
