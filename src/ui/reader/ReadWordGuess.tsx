@@ -1,10 +1,11 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../../reader/guess';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
 import { Collapse } from '../motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { HoverPressable } from '../hover';
 
 /**
  * What a known word's popover shows while its meaning is held back (src/reader/guess.ts): a line
@@ -27,7 +28,7 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
       <View style={{ gap: space.s, marginTop: space.xs }}>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>What does it mean?</Text>
         {mode.quiz.choices.map((choice, i) => (
-          <Pressable
+          <HoverPressable hover="lift"
             key={`${i}:${choice}`}
             onPress={() => onPick(i)}
             accessibilityRole="button"
@@ -38,7 +39,7 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
             })}
           >
             <Text style={{ ...type.body, color: c.text }}>{choice}</Text>
-          </Pressable>
+          </HoverPressable>
         ))}
         <Tappable
           onPress={onGiveUp}

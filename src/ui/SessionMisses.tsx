@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { ConfusedPair } from '../core/confusedPairs';
 import { headword } from '../core/forms';
 import { htmlToText } from '../core/html';
@@ -13,6 +13,7 @@ import { drillOfTags } from '../tools/skills';
 import { haptic } from './haptics';
 import { Icon, Tag } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { HoverPressable } from './hover';
 
 /** How many missed words the list shows before "Show all". */
 const SHOWN = 5;
@@ -103,7 +104,7 @@ export function SessionMissList({ rows, onOpen }: { rows: SessionMissRow[]; /** 
           const spoken = `${r.card ? `${r.card.question}, ${r.card.answer}` : `${r.word}, ${r.meaning}`}${r.reason ? `, missed on ${r.reason.toLowerCase()}` : ''}`;
           const cardName = r.card?.cardName;
           return (
-            <Pressable
+            <HoverPressable
               key={r.key}
               disabled={!onOpen}
               onPress={() => { haptic.tap(); onOpen?.(r.noteId); }}
@@ -128,17 +129,17 @@ export function SessionMissList({ rows, onOpen }: { rows: SessionMissRow[]; /** 
                 ) : null}
               </View>
               {onOpen ? <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" /> : null}
-            </Pressable>
+            </HoverPressable>
           );
         })}
         {rows.length > SHOWN ? (
-          <Pressable
+          <HoverPressable
             onPress={() => { haptic.select(); setAll((v) => !v); }}
             accessibilityRole="button"
             style={({ pressed }) => ({ minHeight: 44, alignItems: 'center', justifyContent: 'center', borderTopWidth: hairline, borderTopColor: c.border, backgroundColor: pressed ? c.fill : 'transparent' })}
           >
             <Text style={{ ...type.body, color: c.accentInk }}>{all ? 'Show fewer' : `Show all ${rows.length}`}</Text>
-          </Pressable>
+          </HoverPressable>
         ) : null}
       </View>
     </View>
