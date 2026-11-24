@@ -31,6 +31,7 @@ from typing import Any, cast
 
 import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
+from franki_speech.icons import icon_drawing
 from franki_speech.thai_romanization import THAI_SCHEME, is_toneless, letters_wrong
 
 from franki_reader import store
@@ -337,11 +338,12 @@ rare, or met on signs, menus, forms and in the news
 - icon: one emoji, only when the entry is a thing that can be pictured and an emoji shows exactly it \
 (an umbrella, an elephant, a key). An empty string otherwise, and whenever the nearest emoji only \
 suggests it
-- drawing: only when the entry is a thing that can be pictured and `icon` is empty: a simple line \
-drawing of it, as up to 8 SVG path `d` strings joined by `|`, for a 24 by 24 box, drawn as round \
-strokes about 1.6 wide with no fill, the way a line icon is drawn. Path data only, no markup. Draw \
-the thing by its plainest outline, large in the box. An empty string for an action, a quality or an \
-idea, and when `icon` has an emoji
+- icon_name: only when `icon` is empty and the entry is a thing that can be pictured: the name of a \
+Tabler outline icon that is exactly the entry (lowercase, words joined by hyphens: umbrella, key, \
+bike, bread). It has to be the thing itself. An icon of a related thing, a place where it happens, \
+a tool for it or a symbol of it is wrong (a stadium is not a running track, a ruler is not a mile, \
+trees are not a park). An empty string when no icon is exactly it, for an action, a quality or an \
+idea, and when `icon` has an emoji. A name that is not a Tabler icon is dropped
 - hear: "yes" if they would plausibly hear it said to them or around them in everyday speech; "no" if \
 it is met almost only in writing
 {extras}
@@ -384,7 +386,7 @@ SCHEMA: dict[str, Any] = {
                     "part_of_speech": {"type": "string"},
                     "notes": {"type": "string"},
                     "icon": {"type": "string"},
-                    "drawing": {"type": "string"},
+                    "icon_name": {"type": "string"},
                     "say": {"type": "string", "enum": ["yes", "no"]},
                     "hear": {"type": "string", "enum": ["yes", "no"]},
                     **{key: {"type": "string"} for key in _EXTRA_KEYS},
@@ -402,7 +404,7 @@ SCHEMA: dict[str, Any] = {
                     "part_of_speech",
                     "notes",
                     "icon",
-                    "drawing",
+                    "icon_name",
                     "say",
                     "hear",
                     *_EXTRA_KEYS,
@@ -485,23 +487,6 @@ def is_emoji(value: str) -> bool:
         and _EMOJI.fullmatch(value) is not None
         and any(ch not in "\u200d\ufe0f\u20e3" for ch in value)
     )
-
-
-# A line drawing, for a thing no emoji shows: SVG path `d` strings joined by `|`, for a 24 by 24
-# box, drawn as round strokes with no fill (src/core/noteIcon.ts reads it). Path data only, never
-# markup, so there is nothing to sanitize: each path starts with a move and holds only SVG's path
-# commands and numbers.
-_PATH = re.compile(r"[Mm][MmLlHhVvCcSsQqTtAaZz0-9\s,.+\-eE]*")
-MAX_PATHS = 8
-MAX_DRAWING_LENGTH = 1200
-
-
-def is_drawing(value: str) -> bool:
-    """Whether `value` is a drawing's path data and nothing else."""
-    if not value or len(value) > MAX_DRAWING_LENGTH:
-        return False
-    paths = [p.strip() for p in value.split("|")]
-    return len(paths) <= MAX_PATHS and all(_PATH.fullmatch(p) for p in paths)
 
 
 def _plain(value: object, limit: int, *, markup: bool = False) -> str | None:
@@ -591,12 +576,13 @@ def checked(
         fields["GenerateReverse"] = "y"
     if raw.get("hear") == "yes":
         fields["GenerateAudioCard"] = "y"
-    # A picture: one emoji, else a drawing's path data. Anything else is left out, never repaired.
-    icon, drawing = raw.get("icon"), raw.get("drawing")
+    # A picture: one emoji, else the path data of the Tabler icon named. A name the set doesn't have
+    # is left out, never repaired to a near one: the picture has to be exactly the thing.
+    icon, icon_name = raw.get("icon"), raw.get("icon_name")
     if isinstance(icon, str) and is_emoji(icon.strip()):
         fields["Icon"] = icon.strip()
-    elif isinstance(drawing, str) and is_drawing(drawing.strip()):
-        fields["Icon"] = drawing.strip()
+    elif isinstance(icon_name, str) and (drawing := icon_drawing(icon_name)):
+        fields["Icon"] = drawing
     # What follows is a nice-to-have: one that doesn't pass is left out, never repaired or a reason to
     # fail the word.
     part = _plain(raw.get("part_of_speech"), MAX_REGISTER)

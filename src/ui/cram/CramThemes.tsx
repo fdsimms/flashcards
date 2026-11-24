@@ -177,7 +177,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
         {cram && language ? <Help>{topic ? `Ways to talk about "${topic}", from your ${LANGUAGES[language].name} words and your recent mistakes in Practice.` : `Things to talk about, from your ${LANGUAGES[language].name} words and your recent mistakes in Practice. The cram is named after the one you pick.`}</Help> : null}
         <Card>
           <Field
-            label="What really happened? (optional)"
+            label="What I did (optional)"
             value={factsDraft}
             onChangeText={(t) => setFacts(t.slice(0, THEME_FACTS_CHARS))}
             placeholder="e.g. Ran 21 km in 2:05, legs still sore"

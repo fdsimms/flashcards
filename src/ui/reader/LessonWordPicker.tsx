@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { LESSON_MAX_WORDS } from '../../core/cram';
 import { failureText } from '../../core/failure';
@@ -15,6 +15,7 @@ import { useCollection, useCramClock } from '../useCrams';
 import { useLessonWords } from './useLessonWords';
 import { leaveScreen } from '../leaveScreen';
 import { LESSONS_PATH } from '../tabPaths';
+import { HoverPressable } from '../hover';
 
 /**
  * Choose words for an audio lesson from the decks: the language's notes, most recently added first
@@ -71,7 +72,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
         renderItem={({ item, index }) => {
           const on = hasLessonWord(words, item.text);
           return (
-            <Pressable
+            <HoverPressable
               onPress={() => toggle(item)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
@@ -87,7 +88,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
                 <Text style={{ ...withThaiLineHeight(type.body, item.text), color: c.text }}>{item.text}</Text>
                 <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{item.english}</Text>
               </View>
-            </Pressable>
+            </HoverPressable>
           );
         }}
         ListEmptyComponent={<Text style={{ ...type.footnote, color: c.textSecondary }}>{empty}</Text>}

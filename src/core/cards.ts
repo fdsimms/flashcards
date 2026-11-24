@@ -324,7 +324,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   // Anki's template puts the same word before the noun wherever it is shown (the Omnilanguage template).
   const pushEntry = (blocks: Block[], shown = entry) => pushIf(blocks, shown, undefined, true, undefined, { ...(prefix ? { prefix } : {}), gender: genderOf(t(note, 'Gender')), ...(kana && speechLang?.startsWith('ja') ? { reading: kana } : {}) });
 
-  // The note's picture (the Icon field: an emoji or a line drawing, noteIcon.ts). It goes with the meaning on an
+  // The note's picture (the Icon field: an emoji or a Tabler icon's path data, noteIcon.ts). It goes with the meaning on an
   // answer side, where the learner meets it with what it stands for, and first on the reverse card's front.
   // Never on a front that asks for the meaning: it would give the answer.
   const picture = parsePicture(t(note, 'Icon'));

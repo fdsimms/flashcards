@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { JAPANESE_FONT } from '../core/script';
 import { missedItems } from '../wanikani/session';
 import { primaryMeaning, readingGroups, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
 import { Tag } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { HoverPressable } from './hover';
 
 /** How many missed items the list shows before "Show all". */
 const SHOWN = 5;
@@ -57,13 +58,13 @@ export function WaniKaniMissList({ missed, subjects }: { missed: Missed[]; subje
           );
         })}
         {rows.length > SHOWN ? (
-          <Pressable
+          <HoverPressable
             onPress={() => { haptic.select(); setAll((v) => !v); }}
             accessibilityRole="button"
             style={({ pressed }) => ({ minHeight: 44, alignItems: 'center', justifyContent: 'center', borderTopWidth: hairline, borderTopColor: c.border, backgroundColor: pressed ? c.fill : 'transparent' })}
           >
             <Text style={{ ...type.body, color: c.accentInk }}>{all ? 'Show fewer' : `Show all ${rows.length}`}</Text>
-          </Pressable>
+          </HoverPressable>
         ) : null}
       </View>
     </View>

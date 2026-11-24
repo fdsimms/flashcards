@@ -17,6 +17,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   `🔊`), which draw at the wrong weight and size next to the system's. A button or chip is a
   `Tappable`, not a hand-styled `Pressable`, so it gives under the finger, and a tap gives back a
   haptic (`haptic`).
+- **A row or tile a screen builds from a raw `Pressable` is a `HoverPressable`** (`src/ui/hover.tsx`), so it gets the iPad and Mac pointer effect: `highlight` for a row (the default), `hover="lift"` for a tile or a choice button. The `kit.tsx` controls already have it. Leave a plain `Pressable` where an effect would be noise: a backdrop that dismisses, a tap anywhere on a card to reveal it, a word in a sentence, a chart bar.
 - **The header is the native stack's, never drawn by a screen.** `Screen` sets the title and
   header buttons; a ScrollView directly inside it takes `contentInsetAdjustmentBehavior="automatic"`
   so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status

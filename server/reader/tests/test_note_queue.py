@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from franki_speech.icons import icon_drawing
 from test_app import AUTH, started
 from test_generator import FakeClient, finish, response
 
@@ -128,25 +129,29 @@ def test_a_picture_is_kept_only_when_it_is_one_emoji() -> None:
         assert icon(not_one) is None
 
 
-def test_a_drawing_is_kept_when_there_is_no_emoji_and_only_as_path_data() -> None:
+def test_a_tabler_icon_is_kept_by_name_when_there_is_no_emoji() -> None:
     def icon(**over: object) -> str | None:
         got = check(filled("ricane", **over), {"ricane": ""}, "fr")
         assert got is not None
         return got[1].get("Icon")
 
-    umbrella = "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0"
-    assert icon(icon="", drawing=umbrella) == umbrella
+    umbrella = icon_drawing("umbrella")
+    assert umbrella
+    # The name is stored as the icon's path data, which is what the app draws.
+    assert icon(icon="", icon_name="umbrella") == umbrella
+    assert icon(icon="", icon_name=" Tabler:Umbrella ") == umbrella
     # The emoji wins when both come back.
-    assert icon(icon="☂️", drawing=umbrella) == "☂️"
+    assert icon(icon="☂️", icon_name="umbrella") == "☂️"
+    # A name the set doesn't have, path data and markup are left out, never repaired to a near icon.
     for bad in (
+        "running-track",
+        "M3 12a9 9 0 0 1 18 0z|M12 12v7a2 2 0 0 1-4 0",
         '<svg><path d="M0 0"/></svg>',
-        'M0 0" onload="x',
-        "L3 4",
-        "umbrella",
-        "M0 0|" * 9,
+        "umbrella-off",
         "",
+        None,
     ):
-        assert icon(icon="", drawing=bad) is None
+        assert icon(icon="", icon_name=bad) is None
 
 
 def test_the_owners_meaning_is_kept() -> None:

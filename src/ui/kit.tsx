@@ -21,6 +21,7 @@ import { useReduceMotion } from './motion';
 import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
+import { Hoverable } from './hover';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -73,6 +74,7 @@ export function Tappable({ style, scaleTo = 0.97, dimTo = 1, restOpacity = 1, on
   useEffect(() => { restValue.setValue(restOpacity); }, [restValue, restOpacity]);
   const dim = down.interpolate({ inputRange: [0, 1], outputRange: [1, dimTo] });
   return (
+    <Hoverable effect={rest.disabled ? 'none' : 'lift'}>
     <AnimatedPressable
       {...rest}
       onPressIn={(e) => { to(1); onPressIn?.(e); }}
@@ -85,6 +87,7 @@ export function Tappable({ style, scaleTo = 0.97, dimTo = 1, restOpacity = 1, on
         },
       ]}
     />
+    </Hoverable>
   );
 }
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -244,6 +247,7 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
   const tile = 30;
   const start = space.l + indent * space.xl;
   return (
+    <Hoverable effect={disabled ? 'none' : 'highlight'}>
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
@@ -290,6 +294,7 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
       ) : null}
       {making ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
     </Pressable>
+    </Hoverable>
   );
 }
 
@@ -312,6 +317,7 @@ export function Tag({ text, color, fill, accessibilityLabel }: TagProps) {
 export function CheckRow({ label, hint, selected, onPress, first }: { label: string; hint?: string; selected: boolean; onPress: () => void; first?: boolean }) {
   const c = useTheme();
   return (
+    <Hoverable effect="highlight">
     <Pressable
       onPress={() => { if (!selected) haptic.select(); onPress(); }}
       accessibilityRole="radio"
@@ -329,6 +335,7 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
       </View>
       {selected ? <Icon name="checkmark" size={17} color={c.accent} weight="semibold" /> : null}
     </Pressable>
+    </Hoverable>
   );
 }
 
@@ -399,6 +406,8 @@ export function SwipeToReveal({ open, onOpenChange, action, onFullSwipe, width =
     // Claim only a clearly horizontal drag, so the list still scrolls vertically.
     activeOffsetX: [-10, 10],
     failOffsetY: [-14, 14],
+    // A two-finger swipe on a trackpad opens the row too, not only a click and drag.
+    enableTrackpadTwoFingerGesture: true,
     onUpdate: (e) => {
       const base = isOpen.value ? -wide.value : 0;
       const canFull = full.value;
@@ -448,6 +457,7 @@ export function SwipeAction({ icon, label, accessibilityLabel, onPress, destruct
   const fill = destructive ? c.danger : c.accent;
   const ink = destructive ? c.onRating : c.onAccent;
   return (
+    <Hoverable effect="highlight">
     <Pressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
@@ -457,6 +467,7 @@ export function SwipeAction({ icon, label, accessibilityLabel, onPress, destruct
       <Icon name={icon} size={22} color={ink} />
       <Text style={{ ...type.footnote, color: ink, fontWeight: '600' }}>{label}</Text>
     </Pressable>
+    </Hoverable>
   );
 }
 
@@ -657,6 +668,7 @@ export function Select({ label, options, value, onChange }: { label: string; opt
   return (
     <View style={{ gap: space.xs }}>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
+      <Hoverable effect="highlight">
       <Pressable
         onPress={() => toggle(!open)}
         accessibilityRole="button"
@@ -670,14 +682,15 @@ export function Select({ label, options, value, onChange }: { label: string; opt
         <Text style={{ ...type.body, color: c.text, flex: 1 }}>{value || 'Choose'}</Text>
         <Icon name="chevron.up.chevron.down" size={14} color={c.textSecondary} weight="semibold" />
       </Pressable>
+      </Hoverable>
       {open ? (
         <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
           {options.map((o, i) => {
             const parts = o.split('::');
             const selected = o === value;
             return (
+              <Hoverable key={o} effect="highlight">
               <Pressable
-                key={o}
                 onPress={() => { haptic.select(); onChange(o); toggle(false); }}
                 accessibilityRole="button"
                 accessibilityLabel={o}
@@ -691,6 +704,7 @@ export function Select({ label, options, value, onChange }: { label: string; opt
                 <Text style={{ ...type.body, color: selected ? c.accent : c.text, flex: 1, fontWeight: selected ? '600' : undefined }}>{parts[parts.length - 1]}</Text>
                 {selected ? <Icon name="checkmark" size={16} color={c.accent} weight="semibold" /> : null}
               </Pressable>
+              </Hoverable>
             );
           })}
         </View>
@@ -765,8 +779,8 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
       {options.map((o) => {
         const selected = o.value === value;
         return (
+          <Hoverable key={o.value} effect={o.disabled ? 'none' : 'highlight'}>
           <Pressable
-            key={o.value}
             onPress={() => { if (!selected) haptic.select(); onChange(o.value); }}
             disabled={o.disabled}
             accessibilityRole="radio"
@@ -777,6 +791,7 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
           </Pressable>
+          </Hoverable>
         );
       })}
     </View>
