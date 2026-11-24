@@ -34,9 +34,10 @@ MAX_EXCLUDED = 150
 MAX_TEXT = 200
 
 SYSTEM = """\
-A learner of {language} is preparing for something and named it: it is what they want to talk \
-about or be able to say. List the {language} words they will most need for it, the ones a person \
-would actually say about it, most useful first. For each: text, the word written the way \
+A learner of {language} is preparing for a conversation lesson with a tutor and named what they \
+want to be able to talk about. List the {language} words they will most need to tell the tutor \
+about it (what happened, how it went, how they felt), the ones a person would actually say when \
+talking about it afterward, most useful first. For each: text, the word written the way \
 {language} is written (never romanization, never English), a single word or a short fixed \
 expression and not a sentence; reading, {reading}; english, the meaning in a few plain words. \
 Also give commonness, how common the word is in everyday speech ({commonness}), and register, \
