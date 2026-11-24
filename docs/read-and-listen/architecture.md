@@ -878,6 +878,37 @@ spaced languages do, with these differences:
   `languages.py` keeps a language out of the shelf and settings for a build that has no entry for
   it. Emptied on 17 November 2026, once the owner's build had both (the owner's confirmation).
 
+### Toki Pona (gloss only)
+
+Added on 24 November 2026, at the owner's request, so the example sentences on its deck's cards
+(`👅 Languages::🙂 toki pona`, Lipu Linku's jan Lakuse words) get the same tap-a-word meanings as
+every other language. It is the one language with `glosses_only=True` (`languages.py`), which means
+nothing is written, recorded or shelved in it: no voices (Azure has none), no common-word list, no
+lemmatizer (simplemma has none, so `spaced.lemma` returns the word as written and
+`common_lemmas` is empty), no grammar points, no Practice tools.
+
+- **The server keeps it out by one filter.** `TEXT_LANGUAGES` is `LANGUAGES` less the gloss-only
+  ones, and the shelf's language menu, the daily-task list, `/api/settings`' `voices`, `cast` and
+  `daily_tasks`, and the tests that walk every language's voices read it. `/api/settings` still
+  sends its `decks.tok`, which is how the app learns the deck. `PATCH /api/settings` refuses
+  `tok` as the language, a voice, a cast or a common-word count (422), so it can't become the current
+  language.
+- **The app keeps it out of `Language`.** `GlossLanguage` is `Language | 'tok'`, and only the gloss
+  path (`glossRequests`, `useCardGlosses`, the popover's play and meaning lookup) takes it. At the
+  settings boundary (`settingsFromServer`, `splitDecks`) its deck moves out of `decks`, which every
+  feature that walks the languages reads, into `glossOnlyDecks`; `CardGlossing.glossDecks` joins the
+  two for finding a card's language. Reading lines and the sense contrast keep `decks`, so they never
+  ask about it.
+- **A tapped word nothing glosses** still gets its meaning from Claude (`/api/word-meaning`, the
+  same cached call as any language), which is the one place its quality depends on Claude's Toki Pona.
+- **Add to deck works** from its popover, into its own deck, through the same note queue: it needs
+  no Toki Pona rules, since the prompt names the language, `ROMANIZED` and `EXTRAS` leave it with the
+  common fields only, and the `Language` field comes out as `toki pona`, as in the deck's own notes
+  (`test_note_queue.py`). The queue's language is a `GlossLanguage` on the app's side for this.
+  Quick add and the other lists of languages don't offer it, since they walk `decks`.
+- **A tapped word is said by the phone's English voice** when its note has no recording
+  (`GLOSS_ONLY.tok.speech`), which reads Toki Pona's spelling well enough for a single word.
+
 ### Japanese
 
 Added on 13 November 2026, by the owner's decision, with its grammar points, vocabulary check,

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { Note } from '../core/types';
 import type { Repo } from '../db/repo';
 import { mediaFileUri } from '../media/mediaFiles';
-import type { Language } from '../reader/api';
-import { LANGUAGES } from '../reader/languages';
+import type { GlossLanguage } from '../reader/api';
+import { glossInfo } from '../reader/languages';
 import { recordingIndex, wordPlayback } from '../reader/wordAudio';
 import { usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
@@ -19,7 +19,7 @@ import { trackPlayer } from './useSoundingButton';
 export function useWordAudio(repo: Repo) {
   const phone = usePhoneSpeech(repo);
   const notes = useRef<Promise<Note[]> | null>(null);
-  const indexes = useRef(new Map<Language, Map<string, string>>());
+  const indexes = useRef(new Map<GlossLanguage, Map<string, string>>());
   const player = useRef<AudioPlayer | null>(null);
   const untrack = useRef<(() => void) | null>(null);
 
@@ -31,7 +31,7 @@ export function useWordAudio(repo: Repo) {
 
   // `say`: what to speak in place of the word when there's no recording, e.g. a Japanese word's kana,
   // since a phone voice reads kanji one at a time (絶対 as ぜつ たい).
-  return useCallback(async (word: string, language: Language, say?: string) => {
+  return useCallback(async (word: string, language: GlossLanguage, say?: string) => {
     let index = indexes.current.get(language);
     if (!index) {
       // Without the notes the word is still read by the phone's voice.
@@ -53,6 +53,6 @@ export function useWordAudio(repo: Repo) {
       player.current.play();
       return;
     }
-    phone.sayWord(say ?? what.text, LANGUAGES[language].speech);
+    phone.sayWord(say ?? what.text, glossInfo(language).speech);
   }, [phone]);
 }

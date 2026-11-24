@@ -13,7 +13,7 @@ from franki_reader.coverage import check, parse_line
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, generate
-from franki_reader.languages import LANGUAGES
+from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
 from franki_reader.spaced import SpacedLexicon, common_words
@@ -395,10 +395,20 @@ def word_statuses(lexicon: Any, text: str) -> dict[str, str]:
 
 
 def test_every_language_but_thai_has_a_list_of_10000_common_words_and_voices() -> None:
-    for code, language in LANGUAGES.items():
+    for code, language in TEXT_LANGUAGES.items():
         assert language.voices["male"] and language.voices["female"]
         if code != "th":
             assert language.counts_common and len(common_words(code)) == 10_000
+
+
+def test_toki_pona_has_no_lemmatizer_or_common_list_and_its_words_are_found_as_written() -> None:
+    from franki_reader.spaced import SpacedLexicon, lemma
+
+    assert LANGUAGES["tok"].glosses_only and not LANGUAGES["tok"].counts_common
+    assert LANGUAGES["tok"].locale == ""
+    assert common_words("tok") == () and lemma("Toki", "tok") == "toki"
+    lexicon = SpacedLexicon("tok", ["toki", "pona"])
+    assert lexicon.status("Toki") == "known" and lexicon.status("sitelen") == "unknown"
 
 
 def test_greek_final_sigma_and_russian_yo_match_the_common_words() -> None:

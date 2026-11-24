@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, inDeck, ipaNote, languageNamed, meaningOf, needsMeaning, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, glossInfo, inDeck, ipaNote, isGlossOnly, languageNamed, meaningOf, needsMeaning, splitDecks, wordStatus } from '../../src/reader/languages';
 
 test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
   expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
@@ -57,4 +57,20 @@ test('only a real word with no gloss and no parts is looked up', () => {
   expect(needsMeaning({ status: 'known', gloss: null, parts: 'to enter + heart' })).toBe(false);
   expect(needsMeaning({ status: 'name', gloss: null, parts: null })).toBe(false);
   expect(needsMeaning({ status: null, gloss: null, parts: null })).toBe(false);
+});
+
+test("a gloss-only language's deck is kept apart from the languages' decks, so nothing that walks them finds it", () => {
+  const server = { th: 'Languages::Thai', en: 'Languages::English', tok: 'Languages::toki pona' };
+  expect(splitDecks(server)).toEqual({ decks: { th: 'Languages::Thai', en: 'Languages::English' }, glossOnlyDecks: { tok: 'Languages::toki pona' } });
+  // A server older than Toki Pona sends none.
+  expect(splitDecks({ th: 'Languages::Thai' })).toEqual({ decks: { th: 'Languages::Thai' } });
+});
+
+test('Toki Pona is glossed but is not a language to pick, read or hear', () => {
+  expect(isGlossOnly('tok')).toBe(true);
+  expect(isGlossOnly('th')).toBe(false);
+  expect(glossInfo('tok').name).toBe('Toki Pona');
+  expect(glossInfo('th')).toBe(LANGUAGES.th);
+  expect(Object.keys(LANGUAGES)).not.toContain('tok');
+  expect(LANGUAGE_ORDER).not.toContain('tok' as never);
 });

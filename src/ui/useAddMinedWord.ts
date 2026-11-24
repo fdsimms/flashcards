@@ -3,8 +3,8 @@ import { Alert } from 'react-native';
 import { saveNote } from '../anki/noteService';
 import { failureText } from '../core/failure';
 import type { Note } from '../core/types';
-import type { AspectPair, Language } from '../reader/api';
-import { ASPECT_LANGUAGES, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
+import type { AspectPair, GlossLanguage } from '../reader/api';
+import { hasAspectPairs, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
 import { useApp } from './AppContext';
 import { connection } from './connection';
 import { haptic } from './haptics';
@@ -16,7 +16,7 @@ export type AddWord = {
   meaning: string | null;
   deck: string;
   /** The word's own language, which decides whether a verb's aspect pair is looked up (Russian and Polish). */
-  language?: Language;
+  language?: GlossLanguage;
   pronunciation?: Pronunciation;
 };
 
@@ -78,7 +78,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
     let pair: AspectPair | null = null;
     // A phrase has no aspect. A failed lookup just opens the editor without a suggestion.
     // Offline there's no lookup to wait on: the word is held for Claude below.
-    if (api && language && !connection.cantReachHome() && ASPECT_LANGUAGES.includes(language) && !/\s/.test(word.trim())) {
+    if (api && language && !connection.cantReachHome() && hasAspectPairs(language) && !/\s/.test(word.trim())) {
       pair = await api.aspectPair(language, word).catch(() => null);
     }
     if (!pair && api && language) {

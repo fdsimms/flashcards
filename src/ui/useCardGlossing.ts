@@ -16,10 +16,20 @@ export function useCardGlossing(repo: Repo): CardGlossing | undefined {
   const playWord = useWordAudio(repo);
   const addWord = useAddMinedWord();
   const decks = settings?.decks;
-  return useMemo(() => (api && decks ? {
-    api,
-    decks,
-    onPlayWord: playWord,
-    onAddWord: (word, meaning, lang, pronunciation) => addWord({ word, meaning, deck: decks[lang], language: lang, pronunciation }),
-  } : undefined), [api, decks, playWord, addWord]);
+  const glossOnlyDecks = settings?.glossOnlyDecks;
+  return useMemo(() => {
+    if (!api || !decks) return undefined;
+    const glossDecks = { ...decks, ...glossOnlyDecks };
+    return {
+      api,
+      decks,
+      glossDecks,
+      onPlayWord: playWord,
+      // Toki Pona's word goes to the note queue like any other, into its own deck.
+      onAddWord: async (word, meaning, lang, pronunciation) => {
+        const deck = glossDecks[lang];
+        return deck ? addWord({ word, meaning, deck, language: lang, pronunciation }) : false;
+      },
+    } satisfies CardGlossing;
+  }, [api, decks, glossOnlyDecks, playWord, addWord]);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Card, Note } from '../../src/core/types';
 import type { Word } from '../../src/reader/api';
-import { dotOffsets, glossesOf, glossKey, glossRequests, keptForDisk, MAX_SENTENCES, parseKept, partsKey, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
+import { cardLanguage, dotOffsets, glossesOf, glossKey, glossRequests, keptForDisk, MAX_SENTENCES, parseKept, partsKey, sentencePieces, wordBreaks } from '../../src/reader/cardGlosses';
 
 const DECKS = { th: 'Languages::Thai', es: 'Languages::Spanish' };
 
@@ -33,6 +33,15 @@ describe('the sentences a session asks about', () => {
   it("asks about each of a note's examples, in order, so each box's words join back to its own sentence", () => {
     const several = new Map([['9', { ...note('9', 'Languages::Spanish', 'Es alta.<br>Es baja.', 'She is tall.<br>She is short.'), fields: { Entry: 'x', Meaning: 'y', Context: 'Es alta.<br>Es baja.', ContextTranslation: 'She is tall.<br>She is short.', ContextLabels: 'a<br>b' } }]]);
     expect(glossRequests([card('9')], several, DECKS)).toEqual([{ language: 'es', sentences: [{ text: 'Es alta.', english: 'She is tall.' }, { text: 'Es baja.', english: 'She is short.' }] }]);
+  });
+
+  it('asks about a gloss-only language by its own deck, which only the gloss path is given', () => {
+    const tok = new Map([['7', note('7', 'Languages::toki pona', 'sitelen ni li pona mute.', 'This writing is very good.')]]);
+    const glossDecks = { ...DECKS, tok: 'Languages::toki pona' };
+    expect(glossRequests([card('7')], tok, glossDecks)).toEqual([{ language: 'tok', sentences: [{ text: 'sitelen ni li pona mute.', english: 'This writing is very good.' }] }]);
+    // The text languages' decks alone never name it, so reading lines and the sense contrast skip it.
+    expect(cardLanguage(card('7'), tok.get('7')!, DECKS)).toBeNull();
+    expect(cardLanguage(card('7'), tok.get('7')!, glossDecks)).toBe('tok');
   });
 
   it("goes by a card's home deck, not the filtered deck it's in", () => {

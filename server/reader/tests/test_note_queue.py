@@ -308,6 +308,18 @@ def test_languages_with_no_extras_get_only_the_common_fields() -> None:
         assert fields["Language"] == {"es": "spanish", "nb": "norwegian", "en": "english"}[language]
 
 
+def test_toki_pona_words_are_written_like_english_ones_with_the_decks_language_name() -> None:
+    # No romanization, no extra fields, and the Language field the owner's toki pona notes carry.
+    fields = got_fields("tok", "jan", part_of_speech="noun", gender="m", classifier="x")
+    assert fields["Language"] == "toki pona"
+    assert set(fields) == {
+        "Meaning", "Context", "ContextTranslation", "Register", "Language", "GenerateReverse",
+        "PartOfSpeech",
+    }  # fmt: skip
+    message = request_message("tok", [("jan", "person")])
+    assert "written in Toki Pona" in message and "1. jan (the learner's meaning: person)" in message
+
+
 def test_a_spanish_or_norwegian_noun_gets_its_gender() -> None:
     assert got_fields("es", "agua", part_of_speech="noun", gender="f")["Gender"] == "f"
     assert got_fields("nb", "bil", part_of_speech="noun", gender="m")["Gender"] == "m"
