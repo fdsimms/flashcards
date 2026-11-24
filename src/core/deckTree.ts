@@ -441,11 +441,6 @@ export interface DeckRow extends DeckNode {
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
   /**
-   * Reviews due today under the deck that wait until tomorrow because a lookalike was just seen
-   * (`heldDue`): the deck list says so, since Anki on another device still counts them as due.
-   */
-  held?: number;
-  /**
    * The deck's own daily new card limit, from its preset (or the app's default), not today's: no
    * Custom Study limit for today and no vacation scaling. With `unstudied`, how many days of new
    * cards it has left (src/reader/newWords.ts). Missing from a row kept from before it was counted.
@@ -546,8 +541,7 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck, input.skillCards), cap };
     const newPerDay = input.newPerDayFor?.(node.deck) ?? input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
-    const held = heldDue(node.deck, input.cardsByDeck, input.held, input.now ?? new Date(), input.dayStartsAtHour);
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, newPerDay, ...(gate ? { gate } : {}), ...(held ? { held } : {}) };
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, newPerDay, ...(gate ? { gate } : {}) };
   });
 }
 
