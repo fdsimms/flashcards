@@ -1,6 +1,6 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { typeItAnswers } from '../../core/activeRecall';
 import { isOmnilanguage, renderCard } from '../../core/cards';
@@ -186,8 +186,6 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
         </View>
       )}
     >
-      {/* Tapping empty space shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
-      <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m, flexGrow: 1 }}>
         <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label={phrasesInRound(round.noteIds) ? "Words and phrases you've gotten so far" : "Words you've gotten so far"} />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
@@ -238,7 +236,6 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
           </>
         ) : null}
       </ScrollView>
-      </Pressable>
     </Screen>
   );
 }
