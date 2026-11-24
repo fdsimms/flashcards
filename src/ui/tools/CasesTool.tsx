@@ -208,7 +208,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
       fill
       footer={footer}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !ready ? <View style={{ padding: space.l }}><Loading /></View> : (
+      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !ready ? <View style={{ flex: 1, padding: space.l }}><Loading /></View> : (
         <PracticeCard
           questionKey={governorId(g)}
           cardKey={`${governorId(g)}|${step}`}

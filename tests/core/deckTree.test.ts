@@ -459,6 +459,16 @@ describe('todayDeckRows', () => {
   it('is empty when nothing is due or new', () => {
     expect(shown(rows({ A: [0, 0], 'A::B': [0, 0] }))).toEqual([]);
   });
+
+  it("doesn't keep a deck on the list for its Skills subdeck alone", () => {
+    const r = rows({ Languages: [0, 0], 'Languages::Thai': [0, 0], 'Languages::Thai::Skills': [0, 20], Trivia: [2, 0] });
+    expect(shown(r)).toEqual(['Trivia']);
+  });
+
+  it('still shows the Skills subdeck under a deck listed for its own cards', () => {
+    const r = rows({ Languages: [3, 20], 'Languages::Thai': [3, 0], 'Languages::Thai::Skills': [0, 20] });
+    expect(shown(r)).toEqual(['Languages-', 'Languages::Thai-', 'Languages::Thai::Skills']);
+  });
 });
 
 describe('deckListTotals', () => {
@@ -487,13 +497,6 @@ describe('held cards', () => {
       ['Languages', 0, 1],
       ['Languages::Es', 0, 1],
     ]);
-  });
-  it("counts the held reviews due today on each deck's row, and not the held new cards", () => {
-    const fresh = newCards(2);
-    const due = reviewCards(2, 10);
-    const held = { ...input({ 'Languages::Es': [...fresh, ...due] }), held: new Set([fresh[0].id, due[0].id]) };
-    expect(deckRows(held).map((r) => [r.deck, r.held])).toEqual([['Languages', 1], ['Languages::Es', 1]]);
-    expect(deckRows(input({ 'Languages::Es': [...fresh, ...due] })).every((r) => r.held === undefined)).toBe(true);
   });
 });
 

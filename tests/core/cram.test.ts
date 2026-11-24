@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isRunning,
+  addableNotes, capDays, cardsToCap, carryOver, cramLanguage, lessonIsCurrent, lessonPhrases, meaningOf, noteAddedAt, textWords, cramId, cramNotes, cramProblem, cramTag, dayName, daysUntil, finished, fullDate, isAwaitingFinish, isDismissedToday, isRunning,
   afterCardsAsked, SOLID_PASSES, standInName, themeTopic, withThemes, dayChoices, lastCramLanguage, lastMissed, missedLately, parseCram, pendingRequests, practiceLabel, practiceProgress, practiceSummary, practiceWords, runningCramTags, searchNotes,
   cramLessonPhrases, LESSON_TALK_LINES, practiceOrder, preparedLines, cramTextTopic, talkLessonLines, talkScene, talkSummary, withoutTalk, withTalkAsked, withTalkStory, type CramTalk,
   withCapture, withoutCapture, withoutQuestion, withoutRequest, withQuestion, withQuestionAsked, withRequest, wordState, withRound, type Cram,
@@ -277,6 +277,16 @@ describe('noteAddedAt', () => {
     const made = new Date(2026, 10, 18, 9).getTime();
     expect(noteAddedAt({ id: `franki:${made.toString(36)}a1b2` })).toBe(made);
     expect(noteAddedAt({ id: 'tsv:Deck:word' })).toBe(0);
+  });
+});
+
+describe('isDismissedToday', () => {
+  it('holds for the study day it was dismissed on and lapses at the next day start', () => {
+    const c = cram({ dismissedOn: '2026-11-18' });
+    expect(isDismissedToday(c, WED, H)).toBe(true);
+    expect(isDismissedToday(c, new Date(2026, 10, 19, 1), H)).toBe(true);
+    expect(isDismissedToday(c, new Date(2026, 10, 19, 5), H)).toBe(false);
+    expect(isDismissedToday(cram(), WED, H)).toBe(false);
   });
 });
 

@@ -22,7 +22,7 @@ type Data = { notes: Note[]; cards: Card[]; answers: Answer[]; noteTypes: Map<st
 
 const MODES: { value: TroubleMode; label: string }[] = [
   { value: 'most', label: 'Most missed' },
-  { value: 'lately', label: 'Missed lately' },
+  { value: 'lately', label: 'Missed recently' },
 ];
 
 /**

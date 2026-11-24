@@ -83,7 +83,7 @@ export function useDailyExtras() {
       const progress = answersToday(saved.state, extra, plan.start);
       const detail = done ? 'Done'
         : progress > 0 ? `${progress} of ${EXTRA_ANSWERS} answers`
-        : [extra.why === 'focus' ? 'Focus language' : 'Your turn today', missed ? 'you missed some lately' : ''].filter(Boolean).join(', ');
+        : [extra.why === 'focus' ? 'Focus language' : 'Your turn today', missed ? 'you missed some recently' : ''].filter(Boolean).join(', ');
       return { extra, title, detail, done };
     });
   }, [saved, plan]);

@@ -8,7 +8,8 @@ languages are listed on each study day while a text is waiting in them. Rotating
 turns, `rotate_count` of them a day, the one read least recently first: a language never read goes
 before any that was, and of those the one with most texts waiting, so a language that has just
 been started isn't passed over for its name. A rotating language read to the end today counts as
-one of today's turns, whether or not it was the one picked.
+one of today's turns, whether or not it was the one picked, and once the turns are filled by what was
+read, a pick still unread is dropped: a day has `rotate_count` rotation tasks, not one more.
 
 The picks are kept for the study day (`store.load_read_plan`), so the list stays the same as texts
 are read and written, and changing the count mid-day never takes a language away."""
@@ -68,11 +69,19 @@ def plan(
 
     daily = [r for r in readings if mode_of(r) == "daily" and (r.waiting > 0 or done(r))]
     rotating = [r for r in readings if mode_of(r) == "rotate"]
-    # Already chosen, or read on its own today: either way it has had its turn.
-    taken = [r for r in rotating if r.language in picked or done(r)]
-    room = max(0, rotate_count - len(taken))
-    turns = sorted((r for r in rotating if r not in taken and r.waiting > 0), key=_turn_order)
-    chosen = [*taken, *turns[:room]]
+    # Read to the end today, picked or not: that is the day's turn, and it stays listed as done.
+    finished = [r for r in rotating if done(r)]
+    # Picked earlier and still unread. Once the reading done today fills the count they are dropped, so
+    # reading one language on its own doesn't leave a second rotation task behind it.
+    pending = [r for r in rotating if r.language in picked and not done(r)]
+    room = max(0, rotate_count - len(finished))
+    # With nothing read yet the picks stay, even where a lower count would no longer have chosen them.
+    kept = pending[:room] if finished else pending
+    turns = sorted(
+        (r for r in rotating if r not in finished and r not in kept and r.waiting > 0),
+        key=_turn_order,
+    )
+    chosen = [*finished, *kept, *turns[: max(0, room - len(kept))]]
     return [
         Entry(r.language, r.name, mode_of(r), r.waiting, done(r))
         for r in [*daily, *sorted(chosen, key=_turn_order)]

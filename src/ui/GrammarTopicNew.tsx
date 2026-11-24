@@ -9,6 +9,7 @@ import { haptic } from './haptics';
 import { Button, ErrorNote, Help, Screen, Tappable } from './kit';
 import { TopicImagePicker, type PickedImage } from './TopicImagePicker';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Asking for a grammar topic (Your topics): a few words for a grammar idea the catalog doesn't have, in the
@@ -26,6 +27,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
   onWriting: (topic: GrammarTopic) => void;
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const dark = useColorScheme() === 'dark';
   const [title, setTitle] = useState('');
   const [have, setHave] = useState<GrammarTopicRow[]>([]);
@@ -76,7 +78,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
 
   return (
     <Screen title="New topic" largeTitle={false} footer={<Button label="Write the page" onPress={start} disabled={!ready} busy={busy} />}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.l }} {...scrollProps}>
         <View style={{ gap: space.s }}>
           <Text style={{ ...type.overline, color: c.textSecondary }}>{`What do you want to learn in ${name}?`}</Text>
           <TextInput
