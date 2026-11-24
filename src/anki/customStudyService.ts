@@ -1,6 +1,6 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from '../core/config';
 import { CUSTOM_STUDY_DECK, customStudyProblem, isLimitChange, raisedLimit, type CustomStudy } from '../core/customStudy';
-import { nextStudyDayStart, studyDayKey } from '../core/day';
+import { nextStudyDayStart, studyDayKey, studyDayStart } from '../core/day';
 import { deckLimits, deckLineage } from '../core/deckTree';
 import { ankiToday } from '../core/order';
 import { paramsForDeck } from '../core/scheduler';
@@ -61,7 +61,7 @@ export async function runCustomStudy(store: NoteStore, deck: string, study: Cust
   const day = ankiToday(now, H, cs.collectionCreated, cs.creationOffset);
   if (day === undefined) throw new CustomStudyRefused("Franki doesn't know when your Anki collection was created. Sync once, then try again.");
   const built = await store.lockAnki(() => store.withSyncConnection((db) => buildCustomStudyDeck(db, {
-    deck, sessionDeck: CUSTOM_STUDY_DECK, study, now, ctx: { today: day, dayEndSecs: Math.floor(nextStudyDayStart(now, H).getTime() / 1000) },
+    deck, sessionDeck: CUSTOM_STUDY_DECK, study, now, ctx: { today: day, dayEndSecs: Math.floor(nextStudyDayStart(now, H).getTime() / 1000), dayStartSecs: Math.floor(studyDayStart(now, H).getTime() / 1000) },
   })));
   await store.lockAnki(refresh);
   return { kind: 'deck', deck: built.deck, moved: built.moved };

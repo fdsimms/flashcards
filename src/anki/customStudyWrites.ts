@@ -75,6 +75,21 @@ export interface SelectionContext {
   today: number;
   /** When the study day ends, unix seconds: Anki's `rated:` and `added:` count whole days back from it. */
   dayEndSecs: number;
+  /** When the study day began, unix seconds: a card buried before it is unburied (`queueToday`). */
+  dayStartSecs: number;
+}
+
+/**
+ * A card's queue as Anki has it today, as SQL over `cards` (aliased `alias`): one buried before the
+ * study day began is back in the queue its type puts it in (`queueForType`). Anki unburies at each
+ * new day before it builds anything, and Franki studies such a card (`isBuried`) without writing
+ * that back, so the collection can still hold yesterday's -2 or -3. Read by the bare queue, Custom
+ * Study left out every card buried as a sibling on an earlier day.
+ */
+function queueToday(alias: string, dayStartSecs: number): string {
+  const c = alias ? `${alias}.` : '';
+  const start = Math.floor(dayStartSecs);
+  return `(CASE WHEN ${c}queue IN (-2, -3) AND ${c}mod < ${start} THEN (CASE ${c}type WHEN 0 THEN 0 WHEN 2 THEN 2 ELSE (CASE WHEN ${c}due > 1000000000 THEN 1 ELSE 3 END) END) ELSE ${c}queue END)`;
 }
 
 /**
@@ -83,7 +98,8 @@ export interface SelectionContext {
  * learning step are never taken.
  */
 export async function selectCards(db: SyncDb, deckIds: number[], study: CustomStudy, plan: FilteredPlan, ctx: SelectionContext): Promise<number[]> {
-  const where = [`c.did IN (${deckIds.map(() => '?').join(', ')})`, 'c.odid = 0', 'c.queue IN (0, 2)'];
+  const queue = queueToday('c', ctx.dayStartSecs);
+  const where = [`c.did IN (${deckIds.map(() => '?').join(', ')})`, 'c.odid = 0', `${queue} IN (0, 2)`];
   const params: (string | number)[] = [...deckIds];
   const sinceMs = (days: number) => (ctx.dayEndSecs - days * DAY_SECS) * 1000;
   switch (study.kind) {
@@ -92,7 +108,7 @@ export async function selectCards(db: SyncDb, deckIds: number[], study: CustomSt
       params.push(sinceMs(study.days));
       break;
     case 'ahead':
-      where.push('c.queue = 2', 'c.due <= ?');
+      where.push(`${queue} = 2`, 'c.due <= ?');
       params.push(ctx.today + study.days);
       break;
     case 'previewNew':
@@ -101,8 +117,8 @@ export async function selectCards(db: SyncDb, deckIds: number[], study: CustomSt
       break;
     case 'cram':
       if (study.select === 'new') where.push('c.type = 0');
-      else if (study.select === 'due') { where.push('c.queue = 2', 'c.due <= ?'); params.push(ctx.today); }
-      else if (study.select === 'review') where.push('c.queue = 2');
+      else if (study.select === 'due') { where.push(`${queue} = 2`, 'c.due <= ?'); params.push(ctx.today); }
+      else if (study.select === 'review') where.push(`${queue} = 2`);
       // A tag also matches the tags under it ("verb" and "verb::irregular"), whatever its case.
       if (study.include.length) {
         where.push(`(${study.include.map(() => "(n.tags LIKE ? ESCAPE '\\' OR n.tags LIKE ? ESCAPE '\\')").join(' OR ')})`);
@@ -199,7 +215,7 @@ export async function buildCustomStudyDeck(
       // as Anki's move_into_filtered_deck puts it; the preview queue (4) is for one shown again
       // after a delay (`previewAgain`).
       await db.run(
-        `UPDATE cards SET odid = did, odue = due, did = ?, due = CASE WHEN due > 0 THEN ? ELSE due END, queue = CASE WHEN ? THEN queue ELSE 2 END, mod = ?, usn = -1 WHERE id = ?`,
+        `UPDATE cards SET odid = did, odue = due, did = ?, due = CASE WHEN due > 0 THEN ? ELSE due END, queue = CASE WHEN ? THEN ${queueToday('', r.ctx.dayStartSecs)} ELSE 2 END, mod = ?, usn = -1 WHERE id = ?`,
         row.id, position++, plan.reschedule ? 1 : 0, nowSecs, cid,
       );
     }

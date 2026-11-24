@@ -13,7 +13,8 @@ const NOW = new Date(2026, 10, 11, 12);
 const NOW_SECS = Math.floor(NOW.getTime() / 1000);
 const TRIVIA = '🧠 Trivia';
 const THAI = '👅 Languages::🐘 ภาษาไทย';
-const CTX = { today: 2, dayEndSecs: NOW_SECS + 3600 };
+// The study day began at 4 AM, eight hours before NOW.
+const CTX = { today: 2, dayEndSecs: NOW_SECS + 3600, dayStartSecs: NOW_SECS - 8 * 3600 };
 
 async function kept(unicase = true) {
   const dir = mkdtempSync(join(tmpdir(), 'customstudy-'));
@@ -75,6 +76,18 @@ describe('Custom Study Session in the kept collection', () => {
     db.close();
   });
 
+  it('takes a card buried on an earlier day, back in the queue its type puts it in, and leaves one buried today', async () => {
+    const db = await kept();
+    // Buried as a sibling yesterday (Franki studies it, Anki would have unburied it), and by hand this morning.
+    await db.run('UPDATE cards SET queue = -2, mod = ? WHERE id = ?', CTX.dayStartSecs - 3600, 1794408858020);
+    await db.run('UPDATE cards SET queue = -3, mod = ? WHERE id = ?', CTX.dayStartSecs + 60, 1794408858030);
+    const r = await build(db, TRIVIA, cram('new'));
+    expect(r.ankiIds).toEqual(['1794408858020', '1794408858032', '1794408858031']);
+    expect(await card(db, 1794408858020)).toMatchObject({ type: 0, queue: 0, odue: 5 });
+    expect(await card(db, 1794408858030)).toMatchObject({ odid: 0, queue: -3 });
+    db.close();
+  });
+
   it('puts new cards in the review queue as a preview when the session only previews (a cram of all cards)', async () => {
     const db = await kept();
     await build(db, TRIVIA, cram('all'));
@@ -119,7 +132,7 @@ describe('Custom Study Session in the kept collection', () => {
 
   it('picks by state: due reviews, all reviews, all cards', async () => {
     const db = await kept();
-    expect((await build(db, THAI, cram('due'), { today: 3, dayEndSecs: CTX.dayEndSecs })).ankiIds).toEqual(['1794408858014']);
+    expect((await build(db, THAI, cram('due'), { ...CTX, today: 3 })).ankiIds).toEqual(['1794408858014']);
     expect((await build(db, THAI, cram('review'))).moved).toBe(2);
     // The learning card is never taken.
     expect((await build(db, THAI, cram('all'))).ankiIds.sort()).toEqual(['1794408858014', '1794408858015', '1794408858017']);
