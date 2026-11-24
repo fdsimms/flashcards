@@ -29,6 +29,11 @@ export const FRESH_DAYS = 14;
 /** The server's `MAX_FACTS`: the longest note on what really happened. */
 export const THEME_FACTS_CHARS = 300;
 
+/** What really happened, as Read a text is written from it: the cram's facts, tidied, at most what the editor keeps. */
+export function cramTextAbout(cram: Pick<Cram, 'facts'>): string | undefined {
+  return (cram.facts ?? '').replace(/\s+/g, ' ').trim().slice(0, THEME_FACTS_CHARS) || undefined;
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type ThemeKind = 'cram' | 'carried' | 'missed' | 'fresh' | 'deck';

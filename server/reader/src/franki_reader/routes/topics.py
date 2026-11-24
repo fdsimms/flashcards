@@ -60,6 +60,9 @@ class NextIn(BaseModel):
     # The cards just studied, to write a text that practices them (the app's "Read a text with
     # these words"). Each is a note's Entry, as the deck has it.
     words: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=500)
+    # What really happened, for a text about the owner's own day (a cram's "what really happened"):
+    # the text is written from it. It never tells two texts apart, only how this one is written.
+    about: str = Field(default="", max_length=300)
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -100,7 +103,9 @@ def router(ctx: AppContext) -> APIRouter:
         topic_id: int, background: BackgroundTasks, body: NextIn | None = None
     ) -> Any:
         try:
-            text = await engine.next_text(topic_id, body.words if body else ())
+            text = await engine.next_text(
+                topic_id, body.words if body else (), body.about if body else ""
+            )
         except NotFound as e:
             raise HTTPException(404, "No such topic.") from e
         except NotAvailable as e:

@@ -431,6 +431,16 @@ export function talkScene(cram: Pick<Cram, 'name' | 'untitled' | 'themes'>): str
   return themeTopic(cram) || talks[0]?.title || cram.name;
 }
 
+/**
+ * The topic Read a text writes about: what the cram is for (`talkScene`), or undefined for an
+ * untitled cram with no talking point yet, whose stand-in name ("Thai lesson") says nothing, so
+ * the caller picks an idea itself. The server's topic names are at most 150 characters.
+ */
+export function cramTextTopic(cram: Pick<Cram, 'name' | 'untitled' | 'themes'>): string | undefined {
+  if (cram.untitled && !cram.themes?.length) return undefined;
+  return talkScene(cram).replace(/\s+/g, ' ').trim().slice(0, 150) || undefined;
+}
+
 /** What a talking point (or a theme on offer) holds, as its folded card says it: "2 to ask · 2 they may ask · your story". */
 export function talkSummary(talk: { questions: unknown[]; expects?: unknown[] | null; story?: unknown }): string {
   const expects = talk.expects?.length ?? 0;

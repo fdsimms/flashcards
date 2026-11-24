@@ -30,10 +30,12 @@ function sentText(words: string[], held: boolean, approved: string[], ready: num
  * With `add` instead of `ask` it adds phrases: the same lookup and the same checked choices, but each
  * checked word is kept on the cram as a phrase (cramPhrases.ts), with no card and nothing queued.
  */
-export function CramAsk({ text, language, findWords, ask, add, queued, approve }: {
+export function CramAsk({ text, language, findWords, listed, ask, add, queued, approve }: {
   text: string;
   language: Language;
   findWords: (text: string) => Promise<LessonWordCandidate[]>;
+  /** Drops the words the screen already lists elsewhere, so a word in the deck isn't offered as new. */
+  listed?: (words: LessonWordCandidate[]) => LessonWordCandidate[];
   /** Queues the words and keeps them on the cram as being written; says 'held' when they wait for a connection. */
   ask?: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
   /** Keeps the words on the cram as phrases. Given, this is Add a phrase and `ask` is not used. */
@@ -55,7 +57,11 @@ export function CramAsk({ text, language, findWords, ask, add, queued, approve }
   const working = useRef(false);
   const typed = text.trim();
   // What's shown belongs to what's typed now: an answer for an earlier search isn't.
-  const list = candidates?.for === typed && candidates.list.length ? candidates.list : undefined;
+  const found = candidates?.for === typed && candidates.list.length ? candidates.list : undefined;
+  const shown = found ? (listed ? listed(found) : found) : undefined;
+  const list = shown?.length ? shown : undefined;
+  // Everything Claude found is already listed under the field.
+  const allListed = !!found && !list;
   const sent = done?.for === typed ? done : undefined;
   const wrong = problem?.for === typed ? problem.text : undefined;
   const picked = list && checked?.for === typed ? list.filter((w) => checked.texts.includes(w.text)) : [];
@@ -132,7 +138,9 @@ export function CramAsk({ text, language, findWords, ask, add, queued, approve }
   }
   return (
     <Card style={{ gap: space.s }}>
-      {!list ? (
+      {allListed ? (
+        <Text style={{ ...type.subhead, color: c.textSecondary }}>{`The ${name} for "${typed}" is already in your deck. Pick it below.`}</Text>
+      ) : !list ? (
         <Tappable onPress={() => void find()} disabled={busy} accessibilityRole="button" accessibilityLabel={add ? `Add ${typed}` : `Make a card for ${typed}`} scaleTo={0.98} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
           <Icon name="plus.circle.fill" size={26} color={c.accent} />
           <View style={{ flex: 1, gap: 2 }}>
