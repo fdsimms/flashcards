@@ -17,6 +17,7 @@ import { readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
 import { setThemeState, useThemeState } from './themeStore';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /** A small label in a color pair from the theme (`fill` behind `ink`). */
 export function Chip({ label, ink, fill }: { label: string; ink: string; fill: string }) {
@@ -68,6 +69,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
   onUse: (themes: CramTheme[], noteIds: string[]) => Promise<void>;
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const { suggested } = useThemeState();
   const { crams, loaded: cramsLoaded } = useCrams(repo);
   const collection = useCollection(repo);
@@ -170,7 +172,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
       largeTitle={false}
       footer={chosen.length ? <Button label={`Use ${chosen.length} ${plural(chosen.length, 'theme', 'themes')}`} busy={using} onPress={() => { void use(); }} /> : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} {...scrollProps}>
         {cram && collection.loaded && !language ? <Help>Choose the cram's language first (Edit, on its page).</Help> : null}
         {cram && language ? <Help>{topic ? `Ways to talk about "${topic}", from your ${LANGUAGES[language].name} words and what you've been missing.` : `Things to talk about, from your ${LANGUAGES[language].name} words and what you've been missing. The cram is named after the one you pick.`}</Help> : null}
         <Card>

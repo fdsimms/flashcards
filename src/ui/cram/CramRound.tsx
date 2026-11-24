@@ -27,6 +27,7 @@ import { TypedDiff } from '../TypedDiff';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { useWordAudio } from '../useWordAudio';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 const phrasesInRound = (ids: string[]) => ids.some(isPhraseRoundId);
 const onlyPhrases = (ids: string[]) => ids.every(isPhraseRoundId);
@@ -41,6 +42,7 @@ const onlyPhrases = (ids: string[]) => ids.every(isPhraseRoundId);
  */
 export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; onDone: () => void }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
@@ -188,7 +190,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
     >
       {/* Tapping empty space shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
       <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m, flexGrow: 1 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m, flexGrow: 1 }} keyboardDismissMode="interactive" {...scrollProps}>
         <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label={phrasesInRound(round.noteIds) ? "Words and phrases you've gotten so far" : "Words you've gotten so far"} />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {onPhrase ? (
