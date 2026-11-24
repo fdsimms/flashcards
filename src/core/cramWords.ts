@@ -75,6 +75,16 @@ export function suggestedWords(candidates: LessonWordCandidate[], notes: Note[],
   return out;
 }
 
+/**
+ * Add's lookup without the words the screen already lists. `have` is the notes on screen (the
+ * deck matches under the field, and the cram's own words), matched by headword as `suggestedWords`
+ * does, so a word the learner can already see and tick isn't offered a second time as new.
+ */
+export function withoutListedWords(candidates: LessonWordCandidate[], have: Note[]): LessonWordCandidate[] {
+  const keys = new Set(have.map((n) => wordKey(headword(n))));
+  return candidates.filter((c) => !keys.has(wordKey(c.text)));
+}
+
 /** What Add will do with the checked words, for its button and the line under it: "Add 3 words" and "1 from your deck. 2 new cards for Claude to write." */
 export function addSummary(checked: SuggestedWord[]): { label: string; detail: string } {
   const have = checked.filter((w) => w.note).length;
