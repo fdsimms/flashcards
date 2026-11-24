@@ -4,6 +4,10 @@ import type { Card, DeckParams, Note } from './types';
 
 /** The tag every skill card's note carries (src/tools/skills.ts writes it). */
 export const SKILL_TAG = 'skill';
+/** The subdeck skill cards are written to, under the language deck (`<deck>::Skills`, src/tools/skills.ts). */
+export const SKILLS_SUBDECK = 'Skills';
+/** Whether a deck is a language deck's skills subdeck, which the Today tab never lists on its own account. */
+export const isSkillsDeck = (deck: string): boolean => deck.endsWith(`::${SKILLS_SUBDECK}`);
 
 /**
  * Skill cards are practice for a skill, not words, so their reviews sit outside the daily limits: a review
