@@ -375,7 +375,7 @@ export function CramPage(props: {
         </View>
         {!cram.finishedAt && missed.length && !sel.selecting ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
+            <Pill label={`Add ${missed.length} missed recently`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
         {sel.selecting ? (
