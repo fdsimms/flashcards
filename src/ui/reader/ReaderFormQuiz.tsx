@@ -59,9 +59,14 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
     }
   };
 
+  // The latest text, written the moment the field reports it. With an IME (kana), the first tap on
+  // Check commits the composition while the render's `typed` is still the old value, so Check read
+  // an empty field (and was disabled) and the tap did nothing until a second one.
+  const latest = useRef('');
   const check = () => {
-    const found = checkForm(typed, word, language);
-    if (found !== 'empty') setResult(found);
+    const found = checkForm(latest.current, word, language);
+    if (found === 'empty') input.current?.focus();
+    else setResult(found);
   };
   const again = () => {
     setResult(null);
@@ -113,7 +118,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
             ref={input}
             {...keyboardLang}
             value={typed}
-            onChangeText={(t) => { setTyped(t); if (result) setResult(null); }}
+            onChangeText={(t) => { latest.current = t; setTyped(t); if (result) setResult(null); }}
             editable={!checked}
             autoFocus
             autoCapitalize="none"
@@ -172,7 +177,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
           ) : (
             <>
               <Button label="Skip" variant="secondary" onPress={() => onSettle('skipped')} style={{ flex: 1 }} />
-              <Button label="Check" onPress={check} disabled={!typed.trim()} style={{ flex: 1 }} />
+              <Button label="Check" onPress={check} style={{ flex: 1 }} />
             </>
           )}
         </View>
