@@ -77,7 +77,7 @@ describe('the app\'s SQL against attached Anki collections', () => {
       db.prepare(SQL.cardUpdate).run(...cardUpdateParams(cardUpdate(after, row, { clock: { crt, dayStartsAtHour: 4 }, now }), cid));
       db.prepare(SQL.revlogInsert).run(...revlogParams(revlogEntry(before, after, rating, { id, cid, previousIvl: row.ivl, now, takenMs: 3000 })));
       const today = ankiDayNumber(Math.floor(now.getTime() / 1000), { crt, dayStartsAtHour: 4 });
-      for (const d of decks) db.prepare(SQL.deckStatsUpdate).run(withStudied(d.common, today, studiedDelta(row.queue, 3000)), Math.floor(now.getTime() / 1000), -1, d.id);
+      for (const d of decks) db.prepare(SQL.deckStatsUpdate).run(withStudied(d.common, today, studiedDelta(row, 3000)), Math.floor(now.getTime() / 1000), -1, d.id);
       db.exec('COMMIT');
       return { cid, row, id, rating, decks };
     };
