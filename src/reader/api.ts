@@ -577,7 +577,7 @@ export type ReadingLog = {
 // name, once the word is `ready`; `error` says why a `failed` one failed.
 export type QueuedNote = {
   id: number;
-  language: Language;
+  language: GlossLanguage;
   deck: string;
   entry: string;
   meaning: string;
@@ -666,7 +666,7 @@ export function createApi(
     noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
     // These answer 202 with the queue, which `call` would drop.
     // `particle`: the learner's Thai polite ending, so a card's sentence is written as a man or a woman says it; ignored in other languages.
-    queueNotes: async (language: Language, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
+    queueNotes: async (language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
       (await send('POST', '/api/note-queue', { language, deck, entries, ...(language === 'th' && particle ? { particle } : {}) })).json() as Promise<NoteQueue>,
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { failureText } from '../core/failure';
-import type { Language, QueuedNote } from '../reader/api';
+import type { GlossLanguage, QueuedNote } from '../reader/api';
 import { reviewTarget } from '../reader/noteQueue';
 import { useApp } from './AppContext';
 
@@ -11,7 +11,7 @@ import { useApp } from './AppContext';
  * the editor too: another word is queued in its place (`add`; true takes this one off the queue), or
  * none was meant. Shared by the queue screen and a cram's Add, so both approve the same way.
  */
-export function useReviewQueued(add: (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<unknown>) {
+export function useReviewQueued(add: (language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[]) => Promise<unknown>) {
   const { openNoteEditor } = useApp();
   return useCallback((note: QueuedNote) => new Promise<boolean>((resolve) => openNoteEditor(reviewTarget(note), (result) => {
     if (result && 'chose' in result) {

@@ -65,10 +65,6 @@ const EXEMPT: Record<string, string[]> = {
   // and Add itself goes through useAddMinedWord. The one thing it saves is the card's own note with
   // a word taken out of SenseContrast, on the x's tap, with Undo. It never answers or adds a card.
   'the review screen\'s box of words a Sense rules out': ['src/ui/useSenseContrast.ts'],
-  // The hook that makes a card's example sentence tappable (Review and the cram round share it). Its
-  // Add to deck is useAddMinedWord, which opens the note editor, where saving is the approval; it
-  // imports only a language check from src/reader/ and never answers or schedules a card.
-  'the card glossing hook shared by Review and the cram round': ['src/ui/useCardGlossing.ts'],
 };
 const ALL_EXEMPT = Object.values(EXEMPT).flat();
 

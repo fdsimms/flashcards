@@ -1,7 +1,7 @@
 import { htmlToText } from '../core/html';
 import type { Note } from '../core/types';
 import { isNoForm } from '../core/wordGrammar';
-import type { AspectPair, Language, Word } from './api';
+import type { AspectPair, GlossLanguage, Language, Word } from './api';
 
 /**
  * A word's IPA and where it's from, as the server sends them (both absent from a server older than IPA), and its
@@ -19,6 +19,11 @@ export type MinedNote = { deck: string; model: string; fields: Record<string, st
 /** The languages whose verbs come in aspect pairs, kept as two linked notes (server/reader aspect.py asks only for these). */
 export const ASPECT_LANGUAGES: Language[] = ['ru', 'pl'];
 
+/** Whether `language` is one whose verbs come in aspect pairs (a gloss-only language is not). */
+export function hasAspectPairs(language: GlossLanguage): language is Language {
+  return (ASPECT_LANGUAGES as GlossLanguage[]).includes(language);
+}
+
 const AI_NOTE = 'Written by AI. Check it before saving.';
 
 /**
@@ -35,7 +40,7 @@ export function minedNote(
   deck: string,
   pronunciation?: Pronunciation,
   aspect?: AspectPair | null,
-  language?: Language,
+  language?: GlossLanguage,
 ): MinedNote {
   const ipa = pronunciation?.ipa;
   const pair = aspect?.partner && aspect.aspect ? { partner: aspect.partner, aspect: aspect.aspect } : null;

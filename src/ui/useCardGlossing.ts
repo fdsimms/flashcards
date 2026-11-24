@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Repo } from '../db/repo';
-import { isGlossOnly } from '../reader/languages';
 import { useApp } from './AppContext';
 import type { CardGlossing } from './useCardGlosses';
 import { useAddMinedWord } from './useAddMinedWord';
@@ -18,15 +17,19 @@ export function useCardGlossing(repo: Repo): CardGlossing | undefined {
   const addWord = useAddMinedWord();
   const decks = settings?.decks;
   const glossOnlyDecks = settings?.glossOnlyDecks;
-  return useMemo(() => (api && decks ? {
-    api,
-    decks,
-    glossDecks: { ...decks, ...glossOnlyDecks },
-    onPlayWord: playWord,
-    // Never offered for a gloss-only language (CardSentence), which has no deck to add a word to.
-    onAddWord: async (word, meaning, lang, pronunciation) => {
-      if (isGlossOnly(lang)) return false;
-      return addWord({ word, meaning, deck: decks[lang], language: lang, pronunciation });
-    },
-  } : undefined), [api, decks, glossOnlyDecks, playWord, addWord]);
+  return useMemo(() => {
+    if (!api || !decks) return undefined;
+    const glossDecks = { ...decks, ...glossOnlyDecks };
+    return {
+      api,
+      decks,
+      glossDecks,
+      onPlayWord: playWord,
+      // Toki Pona's word goes to the note queue like any other, into its own deck.
+      onAddWord: async (word, meaning, lang, pronunciation) => {
+        const deck = glossDecks[lang];
+        return deck ? addWord({ word, meaning, deck, language: lang, pronunciation }) : false;
+      },
+    } satisfies CardGlossing;
+  }, [api, decks, glossOnlyDecks, playWord, addWord]);
 }

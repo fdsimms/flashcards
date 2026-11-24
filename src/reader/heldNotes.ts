@@ -2,7 +2,7 @@
 // (src/ui/held.ts) and sent to the note queue when it can be (src/ui/HeldWork.tsx). Like the queue
 // itself, nothing here adds a note: each word still waits to be reviewed in the note editor once
 // Claude has filled it in. Pure, so it's tested.
-import type { Language } from './api';
+import type { GlossLanguage } from './api';
 
 export interface HeldEntry {
   entry: string;
@@ -11,7 +11,7 @@ export interface HeldEntry {
 
 /** One deck's words, sent to the queue together, as Quick add sends them. */
 export interface HeldWords {
-  language: Language;
+  language: GlossLanguage;
   deck: string;
   entries: HeldEntry[];
   /** Why the server refused them when they were last sent; tried again next time. */
@@ -19,7 +19,7 @@ export interface HeldWords {
 }
 
 /** The list with `entries` held for `deck`, a word already waiting there not held twice. */
-export function holdWords(list: readonly HeldWords[], language: Language, deck: string, entries: readonly HeldEntry[]): HeldWords[] {
+export function holdWords(list: readonly HeldWords[], language: GlossLanguage, deck: string, entries: readonly HeldEntry[]): HeldWords[] {
   const i = list.findIndex((g) => g.language === language && g.deck === deck && !g.problem);
   const group = i >= 0 ? list[i] : { language, deck, entries: [] };
   const known = new Set(group.entries.map((e) => e.entry));

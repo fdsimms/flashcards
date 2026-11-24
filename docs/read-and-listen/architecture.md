@@ -901,8 +901,12 @@ lemmatizer (simplemma has none, so `spaced.lemma` returns the word as written an
   ask about it.
 - **A tapped word nothing glosses** still gets its meaning from Claude (`/api/word-meaning`, the
   same cached call as any language), which is the one place its quality depends on Claude's Toki Pona.
-- **Add to deck isn't offered** from its popover: the note queue writes notes by language and has no
-  Toki Pona rules. The phone's English voice says a tapped word when its note has no recording
+- **Add to deck works** from its popover, into its own deck, through the same note queue: it needs
+  no Toki Pona rules, since the prompt names the language, `ROMANIZED` and `EXTRAS` leave it with the
+  common fields only, and the `Language` field comes out as `toki pona`, as in the deck's own notes
+  (`test_note_queue.py`). The queue's language is a `GlossLanguage` on the app's side for this.
+  Quick add and the other lists of languages don't offer it, since they walk `decks`.
+- **A tapped word is said by the phone's English voice** when its note has no recording
   (`GLOSS_ONLY.tok.speech`), which reads Toki Pona's spelling well enough for a single word.
 
 ### Japanese
