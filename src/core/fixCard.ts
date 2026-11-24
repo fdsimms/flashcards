@@ -1,3 +1,4 @@
+import type { AskTurn } from './askCard';
 import { AGENT_FLAG_REASONS, type AgentFlagReason } from './agentFlag';
 import { readerLanguageOf } from './leechHint';
 import type { Note } from './types';
@@ -16,6 +17,8 @@ export interface FixRequest {
   fields: Record<string, string>;
   reason: string;
   note: string;
+  /** The chat the change was asked for in (Ask Claude's Change the card); a flag sends none. */
+  chat?: AskTurn[];
 }
 
 /** What the server answers. */
@@ -40,6 +43,22 @@ export interface FixProposal {
 export function fixRequest(note: Note, reason: AgentFlagReason, text: string): FixRequest {
   const label = AGENT_FLAG_REASONS.find((r) => r.slug === reason)?.label ?? reason;
   return { language: readerLanguageOf(note), fields: note.fields, reason: label, note: text.trim() };
+}
+
+/** The reason sent with a change asked for in a chat, where there's no flag reason to name. */
+export const CHAT_REASON = 'Change asked for in a chat about the card';
+
+/** The most turns of a chat the server takes. */
+export const MAX_CHAT_TURNS = 12;
+
+/**
+ * A fix asked for from Ask Claude: the chat is the request. The latest turns are sent (the server's
+ * limit), starting at a learner's turn.
+ */
+export function chatFixRequest(note: Note, turns: AskTurn[]): FixRequest {
+  let chat = turns.slice(-MAX_CHAT_TURNS);
+  while (chat.length && chat[0].role !== 'user') chat = chat.slice(1);
+  return { language: readerLanguageOf(note), fields: note.fields, reason: CHAT_REASON, note: '', chat };
 }
 
 /** The recording and image references in a field, in order: a fix may not add, drop or move them. */

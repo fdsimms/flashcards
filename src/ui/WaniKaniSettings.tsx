@@ -6,6 +6,7 @@ import { PRODUCTION_BATCH } from '../wanikani/productionService';
 import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
 import { space, type, useTheme, readable } from './theme';
+import { useKeyboardScroll } from './useKeyboardScroll';
 
 /**
  * Turning WaniKani on (its API token) or off, and its options: how answers are given, lessons a
@@ -18,6 +19,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
   decks: string[];
 }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +92,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
 
   return (
     <Screen title="WaniKani">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <Help>
             Study your WaniKani reviews and lessons as a deck. Answers go to WaniKani, which keeps its own schedule,

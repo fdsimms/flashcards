@@ -1,6 +1,6 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { typeItAnswers } from '../../core/activeRecall';
 import { isOmnilanguage, renderCard } from '../../core/cards';
@@ -26,7 +26,10 @@ import { readable, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { useSpokenAnswer } from '../useSpokenAnswer';
+import { useCardGlossing } from '../useCardGlossing';
+import { useCardGlosses } from '../useCardGlosses';
 import { useWordAudio } from '../useWordAudio';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 const phrasesInRound = (ids: string[]) => ids.some(isPhraseRoundId);
 const onlyPhrases = (ids: string[]) => ids.every(isPhraseRoundId);
@@ -41,6 +44,7 @@ const onlyPhrases = (ids: string[]) => ids.every(isPhraseRoundId);
  */
 export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; onDone: () => void }) {
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
   const cram = crams.find((x) => x.id === id);
@@ -53,6 +57,8 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const [noteTypes, setNoteTypes] = useState<Map<string, NoteType>>(new Map());
   const [thaiSize, setThaiSize] = useState<ThaiTextSize>(DEFAULT_THAI_TEXT_SIZE);
   const playWord = useWordAudio(repo);
+  // The back's example sentence, its words tapped for their meanings as in Review, while Read & Listen is signed in.
+  const glossing = useCardGlossing(repo);
   const phone = usePhoneSpeech(repo);
   const answered = useRef(0);
   // Counts answers, so the screen resets for the next showing even when it is the same word again
@@ -80,6 +86,9 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
   const omni = !!note && isOmnilanguage(note);
   // Meaning asked, word answered: the note's reverse card, whether or not it has one.
   const reverse = { kind: 'reverse' } as Card;
+  // The cards a round shows, for useCardGlosses to ask about their sentences (a word's home deck is its note's).
+  const roundCards = useMemo(() => (round?.noteIds ?? []).filter((id) => byId.has(id)).map((id) => ({ noteId: id, kind: 'reverse' }) as Card), [round?.noteIds, byId]);
+  const glossFor = useCardGlosses(glossing, roundCards, byId);
   const rendered = note && omni ? renderCard(note, 'reverse', wanted.get(note.id)) : undefined;
   const plain = note && !omni ? missedCardText(note, noteTypes.get(note.model), 't0') : undefined;
   const answers = note && omni ? typeItAnswers(note, reverse) : [];
@@ -186,9 +195,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
         </View>
       )}
     >
-      {/* Tapping empty space shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
-      <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m, flexGrow: 1 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m, flexGrow: 1 }} keyboardDismissMode="interactive" {...scrollProps}>
         <ProgressBar value={(total - wordsLeft(round)) / Math.max(1, total)} label={phrasesInRound(round.noteIds) ? "Words and phrases you've gotten so far" : "Words you've gotten so far"} />
         <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'right' }}>{`${wordsLeft(round)} left`}</Text>
         {onPhrase ? (
@@ -214,11 +221,11 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
             {rendered ? (
               <>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>{language ? `Say it in ${languageName(language)}` : 'Say the word'}</Text>
-                <Side key={`${note.id}-front`} side={rendered.front} which="front" showHints={false} thaiSize={thaiSize} speechLang={rendered.speechLang} />
+                <Side key={`${note.id}-front`} side={rendered.front} which="front" showHints={revealed} thaiSize={thaiSize} speechLang={rendered.speechLang} />
                 {revealed ? (
                   <>
                     <View style={{ height: 1, backgroundColor: c.border }} />
-                    <Side key={`${note.id}-back`} side={rendered.back} which="back" showHints thaiSize={thaiSize} speechLang={rendered.speechLang} />
+                    <Side key={`${note.id}-back`} side={rendered.back} which="back" showHints thaiSize={thaiSize} speechLang={rendered.speechLang} gloss={glossFor(reverse, note)} />
                   </>
                 ) : null}
               </>
@@ -238,7 +245,6 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
           </>
         ) : null}
       </ScrollView>
-      </Pressable>
     </Screen>
   );
 }

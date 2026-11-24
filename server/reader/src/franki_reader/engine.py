@@ -56,7 +56,7 @@ from franki_reader.generator import (
     Usage,
     generate,
 )
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
@@ -136,6 +136,9 @@ class Job:
     # (shelf "due").
     any_words: bool = False
     story_id: int | None = None
+    # What really happened, for a text on the owner's own day (never part of `key`: an unread text
+    # already written for the same words is served as it is).
+    about: str = ""
 
     @property
     def key(self) -> _Key:
@@ -305,13 +308,16 @@ class Engine:
             return "failed"
         return "idle"
 
-    async def next_text(self, topic_id: int, words: Iterable[str] = ()) -> StoredText | None:
+    async def next_text(
+        self, topic_id: int, words: Iterable[str] = (), about: str = ""
+    ) -> StoredText | None:
         """A ready text in the current language, or None while one is being written in the
         background (started here if nothing is writing). A failed write is raised once as
         NotAvailable; asking again after that is a deliberate retry and starts a new write.
 
         With `words` (the cards just studied, from the app's "Read a text with these words"), the
-        text is one written to practice them, never one from the queue."""
+        text is one written to practice them, never one from the queue. `about` is what really
+        happened, which the text is then written from."""
         language = self.language()
         focus = focus_of(words)
         key = (topic_id, language, focus)
@@ -328,7 +334,7 @@ class Engine:
             raise NotAvailable(failure.message)
         self._check_setup(language)
         self._failures.pop(key, None)
-        self._start(Job(topic_id, language, focus))
+        self._start(Job(topic_id, language, focus, about=" ".join(about.split())))
         return None
 
     def _check_setup(self, language: Code) -> None:
@@ -435,6 +441,7 @@ class Engine:
                 form="story" if story else job.form,
                 any_words=job.any_words,
                 story=context,
+                about=job.about,
             )
             # Words due today and not reviewed yet are left out of the list and counted as unknown,
             # so the text doesn't show them before their review (`writing_lexicon`).
@@ -566,6 +573,7 @@ class Engine:
         form: Form | None = None,
         any_words: bool = False,
         story: StoryContext | None = None,
+        about: str = "",
     ) -> TextRequest:
         language = language or self.language()
         settings = store.load_settings(self.conn)
@@ -612,6 +620,7 @@ class Engine:
                 story=story,
                 register=settings.register,
                 met=met,
+                about=about,
             )
 
         if focus:
@@ -919,7 +928,7 @@ class Engine:
         if self.audio is None or self.synthesize is None or store.waiting_texts_timed(self.conn):
             return
         audio = self.audio
-        for language in LANGUAGES:
+        for language in TEXT_LANGUAGES:
             async with self._rerecord_locks.setdefault(language, asyncio.Lock()):
                 for text in store.ready_texts(self.conn, language):
                     lines = range(len(text.lines))

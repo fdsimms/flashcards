@@ -3,9 +3,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
-  practiceSummary, phrasesSummary, preparedLines, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
+  practiceSummary, phrasesSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
+import { cramTextAbout } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import { deleteNotesWarning } from '../../core/noteEditing';
 import { deleteNotesTitle } from '../../core/selection';
@@ -33,6 +34,7 @@ import { useMissedLately } from './useMissedLately';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { leaveScreen } from '../leaveScreen';
 import { DECKS_PATH } from '../tabPaths';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 
 /** How many words the page lists before Show all. */
 const WORDS_SHOWN = 8;
@@ -53,7 +55,8 @@ export function CramPage(props: {
   /** The register Settings holds, for the picker's Default (undefined while unknown). */
   serverRegister?: RegisterLevel;
   onEditNote: (noteId: string, onClose: () => void) => void;
-  onRead: (language: Language, words: string[]) => void;
+  /** `own` is what the cram is for (`cramTextTopic`) and what really happened (`cramTextAbout`); without a name the text is on an idea the server suggests. */
+  onRead: (language: Language, words: string[], own: { name?: string; about?: string }) => void;
   /** The note queue as the server last said it, so a card asked for shows whether it's ready, still being written or failed. */
   queued?: QueuedNote[];
   /** Opens a queued note in the note editor and takes it off the queue once saved; true when it was saved. */
@@ -63,6 +66,7 @@ export function CramPage(props: {
 }) {
   const { repo, id } = props;
   const c = useTheme();
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const router = useRouter();
   const { crams, loaded } = useCrams(repo);
   const { now, dayStartsAtHour: H } = useCramClock(repo);
@@ -269,7 +273,7 @@ export function CramPage(props: {
         </Stack.Toolbar>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }} {...scrollProps}>
         <PageTitle>{cram.name}</PageTitle>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[`${when}, ${fullDate(cram)}`, language ? LANGUAGES[language].name : undefined].filter(Boolean).join(' · ')}</Text>
 
@@ -375,7 +379,7 @@ export function CramPage(props: {
         </View>
         {!cram.finishedAt && missed.length && !sel.selecting ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-            <Pill label={`Add ${missed.length} missed lately`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
+            <Pill label={`Add ${missed.length} missed recently`} icon="plus" ink={c.danger} fill={c.dangerFill} onPress={addMissed} />
           </View>
         ) : null}
         {sel.selecting ? (
@@ -448,7 +452,7 @@ export function CramPage(props: {
                 label="Read a text"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : !words.length ? "Needs words you've studied at least once." : 'A short text using some of these words.'}
                 disabled={!props.readerApi || !language || !words.length}
-                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words); } }}
+                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words, { name: cramTextTopic(cram), about: cramTextAbout(cram) }); } }}
               />
               <NavRow
                 icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}

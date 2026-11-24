@@ -245,7 +245,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
         </Stack.Toolbar.Menu>
       )]}
     >
-      {loading ? <View style={{ padding: space.l }}><Loading /></View> : (
+      {loading ? <View style={{ flex: 1, padding: space.l }}><Loading /></View> : (
         <PracticeCard questionKey={browsing ? 'browse' : writing ? 'own' : scene ?? ''} cardKey={browsing ? 'browse' : writing ? 'own' : scene ?? ''} swipe={false} motion={motion} onMark={() => {}} front={front} />
       )}
     </ToolScreen>

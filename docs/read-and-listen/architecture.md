@@ -2172,7 +2172,11 @@ is. The button "Write a short note" (Omnilanguage notes only) sends the same con
 same endpoint with one more turn (`withNoteRequest`, not kept in the chat) asking for a line or
 two worth keeping. The draft, with any markdown taken off (`noteDraft`), is shown in an editable
 box, and "Add to Notes" saves what is in it under what's already in the Notes field
-(`withNotesAnswer`); tapping it is the approval. "Open in the Claude app instead" opens a
+(`withNotesAnswer`); tapping it is the approval. **"Change the card"** (any note type, while signed in)
+edits the card itself: it sends the note's fields and the latest 12 turns of the chat to
+`POST /api/fix-card` (`chatFixRequest`, `chat`), the same endpoint and checks as Fix with Claude (see
+"Fix a flagged card with Claude"), and shows each changed field old above new (`FixProposalView`, shared
+with the flag sheet). Apply saves it through `saveNote`; nothing changes before that. "Open in the Claude app instead" opens a
 claude.ai/new link with the card and the typed question in the message box, for asking on the
 learner's own Claude plan instead of the server's key; it works without Read & Listen. The prefilled
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the

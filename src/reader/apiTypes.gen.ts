@@ -2014,6 +2014,8 @@ export interface components {
              * @default
              */
             note: string;
+            /** Chat */
+            chat?: components["schemas"]["CardTurnIn"][];
         };
         /** FormExplainIn */
         FormExplainIn: {
@@ -2234,6 +2236,11 @@ export interface components {
         NextIn: {
             /** Words */
             words?: string[];
+            /**
+             * About
+             * @default
+             */
+            about: string;
         };
         /** NoteQueueIn */
         NoteQueueIn: {

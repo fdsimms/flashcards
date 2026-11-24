@@ -336,12 +336,13 @@ marked words, ideas) is in the current language, the `language` setting.
                                       {phrases: [{text, reading, english}]}. It writes nothing; the
                                       app keeps the checked ones on the cram. 503 without Claude. Its
                                       cost is kept in `call_costs` (feature "cram_phrases")
-    POST  /api/fix-card               {language?, fields: {name: html}, reason, note?} a fix for a card the
-                                      owner flagged: {changes: {field: new html}, explanation}, only the
+    POST  /api/fix-card               {language?, fields: {name: html}, reason, note?, chat?} a fix for a
+                                      card the owner flagged, or asked for in an Ask Claude chat (`chat`, the
+                                      last 12 turns): {changes: {field: new html}, explanation}, only the
                                       fields that change (none when Claude can't fix it from text). It
                                       writes nothing: the app applies it when the owner taps Apply. Asked
-                                      only on Fix with Claude now. 503 without Claude. Its cost is kept in
-                                      `call_costs` (feature "fix_card")
+                                      only on Fix with Claude now or Change the card. 503 without Claude. Its
+                                      cost is kept in `call_costs` (feature "fix_card")
     POST  /api/aspect-pair            {language, word, line?} a Russian or Polish verb's aspect and its aspect
                                       partner, written by Claude for the note editor to check, asked
                                       only on Add to deck: {aspect, partner, partner_meaning,
