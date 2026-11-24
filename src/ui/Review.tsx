@@ -1139,13 +1139,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       />
     );
   } else if (sheet?.kind === 'ask') {
+    // Read from the note each render, so a change applied in the chat shows in the next question, not the card as the sheet opened.
+    const askCard = (note && current ? cardForClaude(note, noteTypes.get(note.model), current.kind) : undefined) ?? sheet.card;
     sheetHost = (
       <AskCardSheet
         key={sheet.key}
         visible={sheets.visible}
         onDismiss={() => sheets.dismissed(sheet.key)}
-        card={sheet.card}
-        ask={askAboutCard ? (turns) => askAboutCard(sheet.card, turns) : undefined}
+        card={askCard}
+        ask={askAboutCard ? (turns) => askAboutCard(askCard, turns) : undefined}
         // Added to the note's Notes field, as an edit made in the note editor would be.
         onSaveAnswer={note && isOmnilanguage(note) ? async (answer) => {
           writes.current++;
