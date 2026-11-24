@@ -318,7 +318,7 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
         for (const b of buried) await db.runAsync(SQL.buryCard, Math.floor(now.getTime() / 1000), b.cid);
         // Counted on the deck the card is studied in and those above it, from the queue it was answered from.
         const today = ankiDayNumber(Math.floor(now.getTime() / 1000), clock);
-        const delta = studiedDelta(row.queue, entry.time);
+        const delta = studiedDelta(row, entry.time);
         // Stamped with the clock, as Anki's set_modified does: sync keeps the deck row stamped later.
         for (const d of decks) await db.runAsync(SQL.deckStatsUpdate, withStudied(d.common, today, delta), Math.floor(Date.now() / 1000), -1, d.id);
         await db.runAsync(SQL.colModified, now.getTime());

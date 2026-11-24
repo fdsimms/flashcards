@@ -91,7 +91,7 @@ function franki(server: AnkiServer, collated: boolean) {
           // Stamped with the clock, as Anki's set_modified does, even for an answer dated earlier.
           const today = ankiDayNumber(Math.floor(now.getTime() / 1000), clock);
           for (const d of decks) {
-            await db.run('UPDATE decks SET common = ?, mtime_secs = ?, usn = -1 WHERE id = ?', withStudied(d.common, today, studiedDelta(row.queue, 4000)), Math.floor(Date.now() / 1000), d.id);
+            await db.run('UPDATE decks SET common = ?, mtime_secs = ?, usn = -1 WHERE id = ?', withStudied(d.common, today, studiedDelta(row, 4000)), Math.floor(Date.now() / 1000), d.id);
           }
           await db.run(COL_MODIFIED_SQL, now.getTime());
         });
