@@ -107,7 +107,7 @@ export function ContrastTool({ tool, repo }: ToolScreenProps) {
       fill
       footer={footer}
     >
-      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !sets ? <View style={{ padding: space.l }}><Loading /></View> : !sets.length ? (
+      {error ? <View style={{ padding: space.l }}><ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /></View> : !sets ? <View style={{ flex: 1, padding: space.l }}><Loading /></View> : !sets.length ? (
         <View style={{ padding: space.l }}>
           <Card>
             <Help>{`A set comes up here once you've studied all of its words. None of the ${LANGUAGES[language].name} sets are ready yet: ${contrastSetsFor(language).map(contrastTitle).join(', ')}.`}</Help>

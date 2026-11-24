@@ -105,16 +105,21 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onNew, onNew
   const loadSeq = useRef(0);
   const load = useCallback(async () => {
     const started = loadSeq.current;
+    // The language this load's shelf is for, once it's known.
+    let shelfLanguage: Language | null = null;
     try {
       const loaded = await api.shelf();
       if (started !== loadSeq.current) return;
+      shelfLanguage = loaded.language;
       setShelf(loaded);
       setError(null);
     } catch (e) {
       if (started !== loadSeq.current) return;
       setError(e instanceof ApiError ? e.message : "Couldn't load your texts. Pull down to try again.");
     }
-    api.stories().then((r) => { if (started === loadSeq.current) setStories(r.stories); }, () => { if (started === loadSeq.current) setStories([]); });
+    // The server answers for its language at the moment it's asked, so a request that crossed a
+    // language switch comes back for the old one: it's dropped, not shown under the new shelf.
+    api.stories().then((r) => { if (started === loadSeq.current && (!shelfLanguage || r.language === shelfLanguage)) setStories(r.stories); }, () => { if (started === loadSeq.current) setStories([]); });
     api.pastTexts().then((r) => { if (started === loadSeq.current) setPast(r); }, () => { if (started === loadSeq.current) setPast([]); });
     api.markedWords().then((ws) => { if (started === loadSeq.current) setMarkedCount(ws.length); }, () => { if (started === loadSeq.current) setMarkedCount(undefined); });
   }, [api]);
@@ -147,6 +152,8 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onNew, onNew
     loadSeq.current++;
     setPicked(language);
     setShelf(null);
+    setStories([]);
+    setPast([]);
     setError(null);
     setActionError(null);
     const update = switching.current.then(() => api.updateSettings({ language }));

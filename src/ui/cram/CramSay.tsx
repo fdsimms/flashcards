@@ -14,6 +14,7 @@ import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, Tapp
 import { MIN_TAP, radius, readable, space, type, useTheme } from '../theme';
 import { SpeakButton } from '../SpeakButton';
 import { saveCram, useCollection, useCrams } from '../useCrams';
+import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Chip } from './CramThemes';
@@ -144,6 +145,7 @@ export function CramSay({ repo, api, cramId, decks, add, onTalkingPoints }: {
     }
   };
 
+  const { scrollProps, bottomPadding } = useKeyboardScroll();
   const footer = ((): React.ReactNode => {
     if (stage === 'ask' && hasAnswer(turns)) {
       return <Button label="Find what I'd want to say" busy={working === 'lines'} busyLabel="Finding what you'd say" onPress={() => { void findLines(saidFromTurns(turns)); }} variant={canAskMore(turns) || working === 'question' ? 'secondary' : 'primary'} />;
@@ -159,7 +161,7 @@ export function CramSay({ repo, api, cramId, decks, add, onTalkingPoints }: {
 
   return (
     <Screen title="Talk it through" largeTitle={false} footer={footer}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ ...readable, padding: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} {...scrollProps}>
         {stuck ? <Help>{stuck}</Help> : null}
         {ready && stage === 'start' ? (
           <>
