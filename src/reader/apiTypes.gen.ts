@@ -2234,6 +2234,11 @@ export interface components {
         NextIn: {
             /** Words */
             words?: string[];
+            /**
+             * About
+             * @default
+             */
+            about: string;
         };
         /** NoteQueueIn */
         NoteQueueIn: {

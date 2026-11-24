@@ -6,6 +6,7 @@ import {
   practiceSummary, phrasesSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
+import { cramTextAbout } from '../../core/cramThemes';
 import { failureText } from '../../core/failure';
 import { deleteNotesWarning } from '../../core/noteEditing';
 import { deleteNotesTitle } from '../../core/selection';
@@ -53,8 +54,8 @@ export function CramPage(props: {
   /** The register Settings holds, for the picker's Default (undefined while unknown). */
   serverRegister?: RegisterLevel;
   onEditNote: (noteId: string, onClose: () => void) => void;
-  /** `topic` is what the cram is for (`cramTextTopic`); without one the text is on an idea the server suggests. */
-  onRead: (language: Language, words: string[], topic?: string) => void;
+  /** `own` is what the cram is for (`cramTextTopic`) and what really happened (`cramTextAbout`); without a name the text is on an idea the server suggests. */
+  onRead: (language: Language, words: string[], own: { name?: string; about?: string }) => void;
   /** The note queue as the server last said it, so a card asked for shows whether it's ready, still being written or failed. */
   queued?: QueuedNote[];
   /** Opens a queued note in the note editor and takes it off the queue once saved; true when it was saved. */
@@ -449,7 +450,7 @@ export function CramPage(props: {
                 label="Read a text"
                 detail={!props.readerApi ? readerOff : !language ? 'Needs words in a language Read & Listen supports.' : !words.length ? "Needs words you've studied at least once." : 'A short text using some of these words.'}
                 disabled={!props.readerApi || !language || !words.length}
-                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words, cramTextTopic(cram)); } }}
+                onPress={() => { if (language) { haptic.tap(); props.onRead(language, words, { name: cramTextTopic(cram), about: cramTextAbout(cram) }); } }}
               />
               <NavRow
                 icon={{ name: 'bubble.left.and.bubble.right', color: c.accent }}

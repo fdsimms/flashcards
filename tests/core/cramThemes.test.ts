@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import type { Cram } from '../../src/core/cram';
 import {
-  combineWeakSpots, FRESH_DAYS, markWords, talkPieces, THEME_FACTS_CHARS, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
+  combineWeakSpots, cramTextAbout, FRESH_DAYS, markWords, talkPieces, THEME_FACTS_CHARS, talkOf, themeCounts, themeDeckWords, themesRequest, themesToAvoid, themeWords, weakSpots, THEME_AVOID_MAX, THEME_WEAK_CHARS, THEME_WEAK_MAX, THEME_WORDS_MAX,
   type ThemeWord,
 } from '../../src/core/cramThemes';
 import type { Card, Note } from '../../src/core/types';
@@ -197,5 +197,14 @@ describe('talkPieces', () => {
       { text: 'ภูเขา', marked: true },
       { text: 'ไหม', marked: false },
     ]);
+  });
+});
+
+describe('cramTextAbout', () => {
+  it("writes Read a text from the cram's facts, tidied and kept to what the editor allows", () => {
+    expect(cramTextAbout(cram({ facts: '  I ran with Noi,\n got a blister. ' }))).toBe('I ran with Noi, got a blister.');
+    expect(cramTextAbout(cram({ facts: '   ' }))).toBeUndefined();
+    expect(cramTextAbout(cram({}))).toBeUndefined();
+    expect(cramTextAbout(cram({ facts: 'x'.repeat(500) }))).toHaveLength(300);
   });
 });
