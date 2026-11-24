@@ -67,7 +67,7 @@ These changes go into your Anki collection as Anki would make them, so the next 
 
 ## Stats
 
-**Stats** (in the **…** menu at the top of the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days; answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, relearning, young, mature, suspended, buried); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
+**Stats** (in the **…** menu at the top of the deck list) shows today's answers, time spent, new cards and Agains; what comes due over the next 30 days, with an estimate of the new cards and returning reviews on top of it and a "What if I change my limits?" panel that tries other daily limits for each deck (it saves nothing); answers over the last 30; a calendar of the last year's answers, a square per study day, darker for more (like Anki's Calendar); cards by stage (new, learning, relearning, young, mature, suspended, buried); review cards by interval, from a day to over two years (like Anki's Card Intervals); and how often reviews were remembered, against the deck's desired retention. Pick a top-level deck at the top, or all of them. It counts your whole history from Anki, not just answers given in Franki. Tap a bar or a square to see its count.
 
 ## Backing up
 
