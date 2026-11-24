@@ -1,10 +1,11 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
 import { useSoundingButton } from '../useSoundingButton';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { HoverPressable } from '../hover';
 
 /**
  * The pieces of the reader's word popover that are tapped: the round play button beside the word
@@ -47,7 +48,7 @@ export function WordActionRow({ icon, label, accessibilityLabel, onPress, first,
 }) {
   const c = useTheme();
   return (
-    <Pressable
+    <HoverPressable
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
@@ -60,6 +61,6 @@ export function WordActionRow({ icon, label, accessibilityLabel, onPress, first,
       <Icon name={icon} size={ICON} color={c.accent} />
       <Text style={{ ...type.body, color: c.text, flex: 1 }}>{label}</Text>
       {chevron ? <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" /> : null}
-    </Pressable>
+    </HoverPressable>
   );
 }

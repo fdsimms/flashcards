@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type Language, type PastText, type StoryListItem } from '../../reader/api';
 import { bannerOverline } from '../../reader/browse';
 import { saidAs } from '../../reader/wordAudio';
@@ -19,6 +19,7 @@ import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
 import { ReadStoryCharacters } from './ReadStoryCharacters';
 import { GlossPopover, type Tapped } from './Reader';
+import { HoverPressable } from '../hover';
 
 // While its next episode is being written, check back this often.
 const POLL_MS = 10_000;
@@ -209,7 +210,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
   const detail = row.kind === 'read' ? 'Already read' : row.status;
   const writing = row.kind === 'next' && row.textId === null && row.status.startsWith('Writing');
   return (
-    <Pressable
+    <HoverPressable
       disabled={!tappable}
       onPress={() => {
         haptic.tap();
@@ -230,6 +231,6 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
         {row.kind === 'read' ? null : writing && row.kind === 'next' ? <MakingSteps steps={textSteps(row.stage)} /> : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
       </View>
       {row.kind === 'read' ? <Icon name="checkmark" size={16} color={c.goodInk} weight="bold" /> : null}
-    </Pressable>
+    </HoverPressable>
   );
 }

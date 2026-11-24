@@ -1,4 +1,5 @@
 import React from 'react';
+import { Pressable, type PressableProps } from 'react-native';
 import { GestureDetector, HoverEffect, useHoverGesture } from 'react-native-gesture-handler';
 
 /**
@@ -16,4 +17,19 @@ import { GestureDetector, HoverEffect, useHoverGesture } from 'react-native-gest
 export function Hoverable({ effect, children }: { effect: 'lift' | 'highlight' | 'none'; children: React.ReactElement }) {
   const hover = useHoverGesture({ effect: effect === 'lift' ? HoverEffect.LIFT : effect === 'highlight' ? HoverEffect.HIGHLIGHT : HoverEffect.NONE });
   return <GestureDetector gesture={hover}>{children}</GestureDetector>;
+}
+
+/**
+ * A `Pressable` that gets the pointer effect, for a row or a tile a screen builds itself (a screen
+ * reaches for `NavRow`, `CheckRow` or `Tappable` in `kit.tsx` first). A row takes the default,
+ * `highlight`; a tile or a choice button with its own fill takes `lift`. It is `none` while
+ * `disabled`. Leave a plain `Pressable` where a pointer effect would be noise: a backdrop that
+ * dismisses, a tap anywhere on a card to reveal it, a word inside a sentence, a chart bar.
+ */
+export function HoverPressable({ hover = 'highlight', ...props }: PressableProps & { hover?: 'lift' | 'highlight' }) {
+  return (
+    <Hoverable effect={props.disabled ? 'none' : hover}>
+      <Pressable {...props} />
+    </Hoverable>
+  );
 }
