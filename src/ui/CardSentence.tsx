@@ -3,6 +3,7 @@ import { PixelRatio, Pressable, Text, View, type TextStyle } from 'react-native'
 import { furiganaRuns, hasRuby, shownRuns, type FuriganaSetting } from '../core/furigana';
 import type { Segment } from '../core/highlight';
 import { dotOffsets, sentencePieces, UNDERLINE_DOT, UNDERLINE_SPACE, wordBreaks } from '../reader/cardGlosses';
+import { isGlossOnly } from '../reader/languages';
 import { saidAs } from '../reader/wordAudio';
 import { GlossPopover, type Tapped } from './reader/Reader';
 import { Ruby } from './Ruby';
@@ -136,7 +137,8 @@ export function CardSentence({ gloss, segments, style, furigana, center }: {
           if (meaning) looked.current.set(word.text, meaning);
           return meaning;
         })}
-        onAddToDeck={tapped && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
+        // A gloss-only language has no note queue to add a word through, so it's not offered.
+        onAddToDeck={tapped && !isGlossOnly(gloss.language) && !tapped.word.deck && tapped.word.status !== 'name' ? () => {
           // The popover is a modal, so it closes before the note editor opens over the card.
           const { text, gloss: meaning } = tapped.word;
           const pronunciation = { ipa: tapped.word.ipa, ipa_source: tapped.word.ipa_source, translit: tapped.word.translit };

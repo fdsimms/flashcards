@@ -1,6 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import type { AudioLesson } from '../reader/api';
+import { isGlossOnly } from '../reader/languages';
 import { useApp } from '../ui/AppContext';
 import { ReadLesson } from '../ui/reader/ReadLesson';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
@@ -25,6 +26,7 @@ export default function ReadLessonRoute() {
       onAddToDeck={reader.settings?.decks?.[lesson.language] ? () => router.push({ pathname: '/lesson-add', params: { lesson: raw! } }) : undefined}
       onPlayWord={playWord}
       onAddWord={async (word, meaning, lang, pronunciation) => {
+        if (isGlossOnly(lang)) return false; // a lesson is in a text language: this is for the types
         const wordDeck = reader.settings?.decks?.[lang];
         return wordDeck ? addWord({ word, meaning, deck: wordDeck, language: lang, pronunciation }) : false;
       }}

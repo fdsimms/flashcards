@@ -1,5 +1,5 @@
 from franki_reader.gender import full_voices, gender_problems, voice_for
-from franki_reader.languages import LANGUAGES, VOICE_SLOTS, speech_locale
+from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES, VOICE_SLOTS, speech_locale
 
 VOICES = {
     "male": "m1",
@@ -36,12 +36,12 @@ def test_a_second_voice_a_language_lacks_is_the_first_of_its_gender() -> None:
     thai = full_voices(LANGUAGES["th"].voices)
     assert thai["male2"] == thai["male"] == "th-TH-NiwatNeural"
     assert thai["female2"] == "th-TH-AcharaNeural"
-    for language in LANGUAGES.values():
+    for language in TEXT_LANGUAGES.values():
         assert list(full_voices(language.voices)) == list(VOICE_SLOTS)
 
 
 def test_each_languages_texts_are_in_its_own_voices_locale() -> None:
-    assert {code: language.locale for code, language in LANGUAGES.items()} == {
+    assert {code: language.locale for code, language in TEXT_LANGUAGES.items()} == {
         "th": "th-TH",
         "es": "es-MX",
         "de": "de-DE",

@@ -9,7 +9,7 @@ import type { Segment } from '../core/highlight';
 import { htmlToText } from '../core/html';
 import { hasThai } from '../core/script';
 import type { Card, Note } from '../core/types';
-import type { Language, Word } from './api';
+import type { GlossLanguage, Language, Word } from './api';
 import { languageOfDeck } from './practice';
 
 /** At most this many sentences are asked about in one call (the server's MAX_GLOSS_SENTENCES). */
@@ -17,10 +17,10 @@ export const MAX_SENTENCES = 1000;
 
 /** A sentence to split and gloss, or (`parts`) a card's headword to split into the words it is made of. */
 export type GlossSentence = { text: string; english: string; parts?: true };
-export type GlossRequest = { language: Language; sentences: GlossSentence[] };
+export type GlossRequest = { language: GlossLanguage; sentences: GlossSentence[] };
 
 /** How a sentence's words are kept: its language and its text as the card shows it. */
-export function glossKey(language: Language, text: string): string {
+export function glossKey(language: GlossLanguage, text: string): string {
   return `${language}\u0000${text}`;
 }
 
@@ -28,28 +28,30 @@ export function glossKey(language: Language, text: string): string {
  * How a headword's parts are kept: apart from a sentence of the same text, which is segmented
  * differently (a compound stays whole there, because it is a word).
  */
-export function partsKey(language: Language, text: string): string {
+export function partsKey(language: GlossLanguage, text: string): string {
   return glossKey(language, `\u0001${text}`);
 }
 
 /** The languages whose compounds the server splits into parts (`Lexicon.parts`): Thai, written without gaps. */
-const PARTS_LANGUAGES: ReadonlySet<Language> = new Set<Language>(['th']);
+const PARTS_LANGUAGES: ReadonlySet<GlossLanguage> = new Set<GlossLanguage>(['th']);
 
 /**
  * The headword to ask the parts of, or null: one Thai word long enough to be a compound (the
  * server's `Lexicon.parts` takes four letters or more), never a phrase.
  */
-export function partsHeadword(language: Language, note: Note): string | null {
+export function partsHeadword(language: GlossLanguage, note: Note): string | null {
   if (!PARTS_LANGUAGES.has(language)) return null;
   const text = htmlToText(note.fields.Entry ?? '');
   return text.length >= 4 && hasThai(text) && !/\s/.test(text) ? text : null;
 }
 
 /**
- * The language a card's example sentence is in: the Read & Listen language whose deck holds the
- * card's own deck (its home deck, so a card pulled into a filtered deck still counts), or null.
+ * The language a card's example sentence is in: the language whose deck holds the card's own deck
+ * (its home deck, so a card pulled into a filtered deck still counts), or null. Given the text
+ * languages' decks it is a Read & Listen language; given `glossDecks` (Toki Pona's too) it is one
+ * a sentence can be glossed in.
  */
-export function cardLanguage(card: Card, note: Note, decks: Partial<Record<Language, string>>): Language | null {
+export function cardLanguage<L extends string = Language>(card: Card, note: Note, decks: Partial<Record<L, string>>): L | null {
   return languageOfDeck(cardHomeDeck(card, note.deck), decks);
 }
 
@@ -59,9 +61,9 @@ export function cardLanguage(card: Card, note: Note, decks: Partial<Record<Langu
  * cards come up. `asked` holds the keys already asked about, which are left out.
  */
 export function glossRequests(
-  cards: Card[], notes: Map<string, Note>, decks: Partial<Record<Language, string>>, asked: ReadonlySet<string> = new Set(),
+  cards: Card[], notes: Map<string, Note>, decks: Partial<Record<GlossLanguage, string>>, asked: ReadonlySet<string> = new Set(),
 ): GlossRequest[] {
-  const out = new Map<Language, GlossRequest>();
+  const out = new Map<GlossLanguage, GlossRequest>();
   const seen = new Set(asked);
   for (const card of cards) {
     const note = notes.get(card.noteId);

@@ -15,6 +15,7 @@ from franki_reader.generator import Form
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
+    TEXT_LANGUAGES,
     Code,
     CommonCount,
     VoiceSlot,
@@ -91,14 +92,15 @@ def router(ctx: AppContext) -> APIRouter:
         common = {
             code: current.common_for(code) for code, info in LANGUAGES.items() if info.counts_common
         }
-        voices = {code: engine.voices_for(code) for code in LANGUAGES}
+        # Only the languages texts are written in have voices (a gloss-only one has none).
+        voices = {code: engine.voices_for(code) for code in TEXT_LANGUAGES}
         # What each kind of story character is given, the default where none was chosen.
         story_cast = {
             code: {
                 kind: {"voice": p.voice, "pitch": p.pitch}
                 for kind, p in cast.presets(voices[code], current.cast.get(code, {})).items()
             }
-            for code in LANGUAGES
+            for code in TEXT_LANGUAGES
         }
         return {
             **current.__dict__,
@@ -109,7 +111,7 @@ def router(ctx: AppContext) -> APIRouter:
             # Every language's mode, the default where none was chosen.
             "daily_tasks": {
                 code: current.daily_tasks.get(code, read_plan.DEFAULT_MODE)
-                for code in LANGUAGES
+                for code in TEXT_LANGUAGES
                 if code not in HIDDEN_LANGUAGES
             },
         }
@@ -120,6 +122,13 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
+        asked = (body.language, *(body.common or {}), *(body.voices or {}), *(body.cast or {}))
+        for code in (*asked, *(body.daily_tasks or {})):
+            if code and LANGUAGES[code].glosses_only:
+                raise HTTPException(
+                    422,
+                    f"{LANGUAGES[code].name} only glosses card sentences. It has no texts or voices.",
+                )
         if body.common and any(not LANGUAGES[code].counts_common for code in body.common):
             raise HTTPException(422, "Thai counts only the words in its deck.")
         # Every voice is checked first: the gender check can wait seconds on Azure's voice list, and

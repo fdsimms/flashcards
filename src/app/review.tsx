@@ -2,6 +2,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { collectionChanged } from '../core/collectionChanged';
 import { earlierDeckToStudy, nextDeckToStudy } from '../core/deckTree';
+import { isGlossOnly } from '../reader/languages';
 import { languageOfDeck } from '../reader/practice';
 import type { WordToUse } from '../reader/production';
 import { ScrollView } from 'react-native';
@@ -54,12 +55,18 @@ export default function ReviewRoute() {
   const playWord = useWordAudio(repo);
   const addWord = useAddMinedWord();
   const readerDecks = readerSettings?.decks;
+  const readerGlossOnlyDecks = readerSettings?.glossOnlyDecks;
   const glossing = useMemo<CardGlossing | undefined>(() => (readerApi && readerDecks ? {
     api: readerApi,
     decks: readerDecks,
+    glossDecks: { ...readerDecks, ...readerGlossOnlyDecks },
     onPlayWord: playWord,
-    onAddWord: (word, meaning, lang, pronunciation) => addWord({ word, meaning, deck: readerDecks[lang], language: lang, pronunciation }),
-  } : undefined), [readerApi, readerDecks, playWord, addWord]);
+    // Never offered for a gloss-only language (CardSentence), which has no deck to add to.
+    onAddWord: async (word, meaning, lang, pronunciation) => {
+      if (isGlossOnly(lang)) return false;
+      return addWord({ word, meaning, deck: readerDecks[lang], language: lang, pronunciation });
+    },
+  } : undefined), [readerApi, readerDecks, readerGlossOnlyDecks, playWord, addWord]);
   // Custom study raises limits from a screen over this one: the deck is loaded again when it closes.
   const [reloadKey, setReloadKey] = useState(0);
   const firstFocus = useRef(true);

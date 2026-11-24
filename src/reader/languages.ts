@@ -2,7 +2,7 @@
 // every other language also counts as many of its most common words as its setting says (and
 // Japanese its WaniKani words)
 // (docs/read-and-listen/architecture.md, Languages).
-import type { CommonCount, Language, Word } from './api';
+import type { CommonCount, GlossLanguage, GlossOnlyLanguage, Language, Word } from './api';
 
 type LanguageInfo = {
   name: string;
@@ -40,6 +40,32 @@ export function flaggedName(code: Language): string {
 // The language with this name, for the language picker.
 export function languageNamed(name: string): Language | undefined {
   return LANGUAGE_ORDER.find((code) => LANGUAGES[code].name === name);
+}
+
+// What a gloss-only language (Toki Pona) is shown as: its sentences are glossed and a word can be
+// tapped, so it needs the name and the text's look, but it has no flag, voice or place in a picker
+// (it isn't in `LANGUAGES` or `LANGUAGE_ORDER`, which every picker and settings page walks).
+export const GLOSS_ONLY: Record<GlossOnlyLanguage, LanguageInfo> = {
+  tok: { name: 'Toki Pona', flag: '🙂', ...SPACED, speech: 'en-US' },
+};
+
+/** The look of a language a card's sentence can be glossed in, a gloss-only one included. */
+export function glossInfo(code: GlossLanguage): LanguageInfo {
+  return isGlossOnly(code) ? GLOSS_ONLY[code] : LANGUAGES[code];
+}
+
+/** Whether `code` is a language that is only glossed: no texts, no note queue, nothing to add a word to. */
+export function isGlossOnly(code: GlossLanguage): code is GlossOnlyLanguage {
+  return code in GLOSS_ONLY;
+}
+
+/**
+ * The server's `decks` (every language's, a gloss-only one's too) as the app keeps them: the text
+ * languages' in `decks`, which features walk to find a language, and the rest in `glossOnlyDecks`.
+ */
+export function splitDecks(all: Record<string, string>): { decks: Record<Language, string>; glossOnlyDecks?: Partial<Record<GlossOnlyLanguage, string>> } {
+  const { tok, ...decks } = all;
+  return { decks: decks as Record<Language, string>, ...(tok ? { glossOnlyDecks: { tok } } : {}) };
 }
 
 export const COMMON_COUNTS: CommonCount[] = [0, 250, 500, 1000, 2000, 3000, 5000, 10000];

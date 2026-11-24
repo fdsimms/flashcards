@@ -1812,7 +1812,7 @@ export interface components {
         /** AskCardIn */
         AskCardIn: {
             /** Language */
-            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok") | null;
             /** Front */
             front: string;
             /** Back */
@@ -1845,7 +1845,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Word */
             word: string;
             /**
@@ -1865,7 +1865,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Attempt */
             attempt: string;
             /**
@@ -1915,7 +1915,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Voice */
             voice: string;
             /**
@@ -1936,7 +1936,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
         };
         /** ChoiceIn */
         ChoiceIn: {
@@ -1967,7 +1967,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Word */
             word: string;
         };
@@ -2002,7 +2002,7 @@ export interface components {
         /** FixCardIn */
         FixCardIn: {
             /** Language */
-            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok") | null;
             /** Fields */
             fields: {
                 [key: string]: string;
@@ -2096,7 +2096,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Sentences */
             sentences: components["schemas"]["GlossSentence"][];
         };
@@ -2124,7 +2124,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Title */
             title: string;
         };
@@ -2139,7 +2139,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Scene */
             scene: string;
             /** Narrator */
@@ -2164,7 +2164,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Topic
              * @default
@@ -2209,7 +2209,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Entry */
             entry: string;
             /** Meaning */
@@ -2241,7 +2241,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Deck */
             deck: string;
             /** Entries */
@@ -2298,7 +2298,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Topic
              * @default
@@ -2348,7 +2348,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Entry */
             entry: string;
             /**
@@ -2368,7 +2368,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Topic
              * @default
@@ -2398,7 +2398,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Words */
             words: string[];
         };
@@ -2417,7 +2417,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Words */
             words: string[];
         };
@@ -2437,7 +2437,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Narrator */
             narrator?: string | null;
             /** Particle */
@@ -2460,7 +2460,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Count
              * @default 10
@@ -2476,7 +2476,7 @@ export interface components {
             /** Form */
             form?: ("dialogue" | "story") | null;
             /** Language */
-            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+            language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok") | null;
             /** Decks */
             decks?: {
                 [key: string]: string;
@@ -2522,7 +2522,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Scene */
             scene: string;
             focus?: components["schemas"]["SituationFocus"] | null;
@@ -2575,7 +2575,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Gender
              * @enum {string}
@@ -2654,7 +2654,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Words */
             words: components["schemas"]["PoolIn"][];
             /** Weak Spots */
@@ -2692,7 +2692,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Image */
             image: string;
             /**
@@ -2724,7 +2724,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
             /** Shown */
@@ -2769,7 +2769,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Text */
             text: string;
             /** Particle */
@@ -2781,7 +2781,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Meaning */
             meaning: string;
         };
@@ -2796,7 +2796,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /** Word */
             word: string;
             /**
@@ -2844,7 +2844,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             /**
              * Topic
              * @default
@@ -3265,7 +3265,7 @@ export interface operations {
     shelf_api_shelf_get: {
         parameters: {
             query?: {
-                language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+                language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok") | null;
             };
             header?: {
                 authorization?: string | null;
@@ -4618,7 +4618,7 @@ export interface operations {
     list_grammar_topics_api_grammar_topics_get: {
         parameters: {
             query: {
-                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             };
             header?: {
                 authorization?: string | null;
@@ -4857,7 +4857,7 @@ export interface operations {
     situation_scenes_api_situations_scenes_get: {
         parameters: {
             query: {
-                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             };
             header?: {
                 authorization?: string | null;
@@ -5034,7 +5034,7 @@ export interface operations {
     lessons_route_api_lessons_get: {
         parameters: {
             query?: {
-                language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en") | null;
+                language?: ("th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok") | null;
             };
             header?: {
                 authorization?: string | null;
@@ -6130,7 +6130,7 @@ export interface operations {
     get_forms_api_forms_get: {
         parameters: {
             query: {
-                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             };
             header?: {
                 authorization?: string | null;
@@ -6353,7 +6353,7 @@ export interface operations {
     get_vocab_check_api_vocab_check_get: {
         parameters: {
             query: {
-                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             };
             header?: {
                 authorization?: string | null;
@@ -6559,7 +6559,7 @@ export interface operations {
     get_word_suggestions_api_word_suggestions_get: {
         parameters: {
             query: {
-                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en";
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
             };
             header?: {
                 authorization?: string | null;

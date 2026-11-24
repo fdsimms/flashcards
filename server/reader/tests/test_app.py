@@ -17,7 +17,8 @@ from franki_reader import cast, store
 from franki_reader.app import MAX_WRONG, client_source, create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, TEXT_LANGUAGES, Code
+from franki_reader.lexicon import Entry
 from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
@@ -345,6 +346,7 @@ DECKS = {
     "nb": "👅 Languages::🐟 Norsk",
     "ja": "👅 Languages::🍥 日本語",
     "en": "👅 Languages::🗽 English",
+    "tok": "👅 Languages::🙂 toki pona",
 }
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {
@@ -423,7 +425,7 @@ VOICES = {
 }
 
 # Every language rotates until chosen otherwise (read_plan.DEFAULT_MODE).
-DAILY_TASKS = {code: "rotate" for code in LANGUAGES if code not in HIDDEN_LANGUAGES}
+DAILY_TASKS = {code: "rotate" for code in TEXT_LANGUAGES if code not in HIDDEN_LANGUAGES}
 
 # What the first story character of each kind is given in each language when nothing was chosen.
 CAST = {
@@ -1401,7 +1403,7 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
         "read_and_listen": {"language": "th", "name": "Thai", "waiting": 0, "last_read_at": None},
         "read_and_listen_languages": [
             {"language": code, "name": LANGUAGES[code].name, "waiting": 0, "last_read_at": None}
-            for code in LANGUAGES
+            for code in TEXT_LANGUAGES
             if code not in HIDDEN_LANGUAGES
         ],
         "study_days": [
@@ -1668,6 +1670,35 @@ def test_glosses_split_a_cards_sentences_in_the_order_sent() -> None:
     assert "".join(w["text"] for w in second) == "ทอนครับ"
 
 
+def test_glosses_work_for_toki_pona_with_no_lemmatizer_voices_or_common_list() -> None:
+    conn = store.connect(":memory:")
+    entries = [Entry(1, "toki", "language; to say", "mature"), Entry(2, "pona", "good", "mature")]
+    store.save_snapshot(conn, entries, NOW, "tok")
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    body = {"language": "tok", "sentences": [{"text": "toki pona", "english": "good language"}]}
+    out = c.post("/api/glosses", json=body, headers=AUTH).json()
+    assert out["ready"] is True
+    words = out["sentences"][0]
+    assert [w["text"] for w in words] == ["toki", " ", "pona"]
+    assert [w["gloss"] for w in words if w["status"]] == ["language; to say", "good"]
+    assert all(w["status"] == "known" for w in words if w["status"])
+
+
+def test_toki_pona_only_glosses_so_it_has_no_voices_shelf_or_daily_task() -> None:
+    c = client()
+    settings = c.get("/api/settings", headers=AUTH).json()
+    assert settings["decks"]["tok"] == "👅 Languages::🙂 toki pona"
+    for key in ("voices", "cast", "common", "daily_tasks"):
+        assert "tok" not in settings[key]
+    shelf = c.get("/api/shelf", headers=AUTH).json()
+    assert "tok" not in [language["code"] for language in shelf["languages"]]
+    for change in ({"language": "tok"}, {"common": {"tok": 250}}, {"daily_tasks": {"tok": "off"}}):
+        refused = c.patch("/api/settings", json=change, headers=AUTH)
+        assert refused.status_code == 422
+        assert "only glosses card sentences" in refused.json()["detail"]
+
+
 def test_glosses_arent_ready_for_a_language_whose_deck_hasnt_been_read() -> None:
     out = client().post(
         "/api/glosses",
@@ -1913,7 +1944,7 @@ def test_a_sample_or_scene_counts_as_a_recording_and_needs_azure() -> None:
 def test_every_language_has_a_scene() -> None:
     from franki_reader.cast_samples import SCENES, sample_line
 
-    assert set(SCENES) == set(LANGUAGES)
+    assert set(SCENES) == set(TEXT_LANGUAGES)
     assert all(all(line.strip() for line in lines) for lines in SCENES.values())
     assert sample_line("th", "male") != sample_line("th", "female")
 
