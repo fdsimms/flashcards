@@ -15,6 +15,7 @@ import type { Subject } from '../wanikani/subjects';
 import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
 import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
 import type { WaniKaniStats } from '../wanikani/stats';
+import type { Api as ReaderApi } from '../reader/api';
 import type { AppRepo } from './AppContext';
 import { guardedFetch, useBackOnline } from './connection';
 import { useWaniKaniStats } from './useWaniKaniStats';
@@ -91,7 +92,11 @@ export interface WaniKaniState {
  * the deck list's counts, answers waiting to be sent, and production notes. Off, and silent on
  * the network, until a token is entered in WaniKani's settings.
  */
-export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): WaniKaniState {
+/** `readerApi` is Read & Listen's, while it's on: production notes ask it which glosses are different senses. */
+export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number, readerApi: ReaderApi | null): WaniKaniState {
+  // Read through a ref, so `produce` keeps its identity when Read & Listen signs in or out.
+  const readerApiRef = useRef(readerApi);
+  readerApiRef.current = readerApi;
   const [token, setToken] = useState<string | null>();
   const [prefs, setPrefsState] = useState<WaniKaniPrefs>(DEFAULT_PREFS);
   const [user, setUser] = useState<WaniKaniUser | null>(null);
@@ -223,6 +228,7 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number): Wani
       const result = await makeProductionNotes({
         store: repo, api,
         media: { exists: hasMedia, read: readMedia, write: writeMedia, recorded: (n) => media.recorded(n), setPending: (n, s) => media.setPending(n, s) },
+        senses: readerApiRef.current ? readerApiRef.current.wanikaniSenses : undefined,
       }, { deck, maxLevel, made: stored.current.made });
       for (const id of result.made) stored.current.made.add(id);
       if (result.made.length) persist();

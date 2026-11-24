@@ -492,6 +492,8 @@ export type WordSuggestion = Schemas['WordSuggestionOut'];
 export type WordSuggestions = Schemas['WordSuggestionsOut'];
 /** A cram's themes (server cram_themes.py), what's asked for them and one of them. */
 export type CramThemes = Schemas['ThemesOut'];
+export type SensesRequest = Schemas['SensesIn'];
+export type SensesAnswer = Schemas['SensesOut'];
 export type CramThemesRequest = Schemas['ThemesIn'];
 /** What Suggest words sends: what the cram is for, what really happened, the learner's steer and the words to leave out (`cramWordsRequest`). */
 export type CramWordsRequest = Schemas['WordsIn'];
@@ -842,6 +844,9 @@ export function createApi(
     // and why. Asked only on Fix with Claude now; the server writes nothing, the app applies it on Apply (core/fixCard.ts).
     fixCard: (body: { language?: Language; fields: Record<string, string>; reason: string; note?: string; chat?: { role: 'user' | 'assistant'; content: string }[] }) =>
       call<{ changes: Record<string, string>; explanation: string }>('POST', '/api/fix-card', body),
+    // Which of WaniKani words' glosses are different senses, asked before a batch of production
+    // notes is saved (src/wanikani/production.ts, `sensesAsked`); only the words with two or three come back.
+    wanikaniSenses: (body: SensesRequest) => call<SensesAnswer>('POST', '/api/wanikani-senses', body),
     // The Thai words a phrase typed for an audio lesson (romanization, Thai or English) could mean, for the learner to pick
     // from: asked only on Find Thai in Add a word; the server writes nothing (core/lessonWords.ts).
     // `particle`: the learner's Thai polite ending, so a sentence comes back as a man or a woman says it; ignored in other languages.

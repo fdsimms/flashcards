@@ -305,6 +305,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const busy = useRef(false);
   // The card's motion (SwipeCard's): an answer flashes its color. An undone card just appears.
   const cardMotion = useRef<CardMotion | null>(null);
+  // The offstage card's (below), so a card not on screen never takes over the flash.
+  const offstageMotion = useRef<CardMotion | null>(null);
   const rating = useRef(false);
   // The card last answered, as it was shown. `busy` is cleared before React has drawn the next card,
   // so a tap landing in between still sees this one: it mustn't be answered twice from its old state.
@@ -503,9 +505,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   };
   const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont, thaiSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // The next card's question, loaded out of sight while this one is studied, so a template card
-  // comes up without a blank card while its page loads (only after a template card, which has the WebView to load it beside).
-  // Not while settling: that queue still has the card just answered in it.
-  const ahead = page && queue && !settle ? upNext(queue, current) : undefined;
+  // comes up without a blank card while its page loads. After a native card too (a Basic skill card in a
+  // Languages deck comes after word cards): the WebView slot below is then kept offstage just to hold it.
+  // A drill card draws natively (SkillDrillCard), so it has no page to load. Not while settling: that
+  // queue still has the card just answered in it.
+  const upcoming = queue && !settle ? upNext(queue, current) : undefined;
+  const upcomingNote = upcoming && notes.get(upcoming.noteId);
+  const ahead = upcomingNote && !drillOfTags(upcomingNote.tags) ? upcoming : undefined;
   const aheadPage = useMemo(
     () => templatePage(ahead, ''),
     [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont, thaiSize], // eslint-disable-line react-hooks/exhaustive-deps
@@ -1649,15 +1655,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </SwipeCard>
       ) : null}
       {page && !drill ? <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} style={{ marginTop: space.m }} /> : null}
-      {page && !drill ? (
-        <SwipeCard enabled={false} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
+      {(page && !drill) || aheadPage ? (
+        <SwipeCard enabled={false} offstage={!page || !!drill} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={page && !drill ? cardMotion : offstageMotion} onRate={answer}>
           {/* One WebView for both sides, so Show answer loads the back into it with the front still showing, rather than
               blanking the card while a new one starts. Keyed to the card and the answers given, so a card shown
               again (after Again, or an undo) starts fresh instead of showing its back while its front loads.
               The second, hidden, is keyed as the next card will be once this one is answered: when that card comes
-              up, React keeps that WebView, already loaded, and shows it. */}
+              up, React keeps that WebView, already loaded, and shows it. While a native or drill card is on screen
+              this card is offstage and holds only that second one, in the same place, so it's kept the same way. */}
           {[
-            <CardWebView key={`${current.id}:${turn}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${turn}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} />,
+            page && !drill ? <CardWebView key={`${current.id}:${turn}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${turn}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} /> : null,
             ahead && aheadPage ? <CardWebView key={`${ahead.id}:${turn + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
           ]}
         </SwipeCard>

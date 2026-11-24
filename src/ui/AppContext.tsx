@@ -180,7 +180,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useAutoBackup(repo ?? undefined, decks, dayStartsAtHour);
   useVacationRefresh(refresh);
   useCramCap(repo, decks);
-  const wanikani = useWaniKani(repo, dayStartsAtHour);
+  const wanikani = useWaniKani(repo, dayStartsAtHour, reader.api);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);
   const openNoteEditor = useCallback((target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => {
