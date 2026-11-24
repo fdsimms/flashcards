@@ -10,6 +10,7 @@ import { lineText } from '../../reader/lineDrill';
 import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
+import { useOutputWake } from '../useOutputWake';
 import { Button, Card, ErrorNote, Help, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
@@ -49,8 +50,14 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
   const insets = useSafeAreaInsets();
   // Its own player, as the check's: playing a line here isn't more of the reading.
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
-  const onPlay = (line: number) => {
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake). Only the latest tap plays.
+  const wake = useOutputWake();
+  const playing = useRef(0);
+  const onPlay = async (line: number) => {
     if (!text.lines[line]?.audio) return;
+    const mine = ++playing.current;
+    await wake();
+    if (mine !== playing.current) return;
     player.replace(api.audioSource(text.id, line, speedFor(prefs(), text.language)));
     player.play();
   };

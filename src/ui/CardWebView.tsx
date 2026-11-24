@@ -9,6 +9,7 @@ import { START_AUTOPLAY } from '../core/template';
 import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
 import { space, type, useTheme } from './theme';
+import { useOutputWake } from './useOutputWake';
 
 let pageCount = 0;
 
@@ -55,10 +56,15 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
   // Pages finished loading, counted. Autoplay starts once a page is both loaded and shown, whichever
   // comes last; telling a page that has already started again does nothing (cardDocument).
   const [loads, setLoads] = useState(0);
+  // Bluetooth headphones that have been quiet lose the start of the next sound, all of a word (useOutputWake),
+  // so the page's sounds start once the link is awake. A page hidden or reloaded meanwhile doesn't start.
+  const wake = useOutputWake();
   useEffect(() => {
     if (hidden || loads === 0) return;
-    view.current?.injectJavaScript(START_AUTOPLAY);
+    let live = true;
+    void wake().then(() => { if (live) view.current?.injectJavaScript(START_AUTOPLAY); });
     onShown?.();
+    return () => { live = false; };
   }, [hidden, loads]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

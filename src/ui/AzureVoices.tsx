@@ -8,6 +8,7 @@ import type { Api, AzureVoice } from '../reader/api';
 import { isMultilingual, voiceNotes, voiceTag } from '../reader/storyCast';
 import { CheckRow, Help } from './kit';
 import { useTheme } from './theme';
+import { useOutputWake } from './useOutputWake';
 
 /**
  * Azure's voices, as Read & Listen's server lists and speaks them: for Read & Listen's speakers
@@ -42,10 +43,14 @@ export function useAzureVoices(api: Api | null, language: string | undefined) {
  */
 export function useAzureSample(api: Api | null) {
   const player = useRef<AudioPlayer | null>(null);
+  const latest = useRef(0);
+  const wake = useOutputWake();
   const [error, setError] = useState<string>();
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
   const play = useCallback(async (text: string, voice: string, language?: string) => {
     if (!api) return;
+    // Only the latest sample plays: one still loading or waiting on the headphones gives way to a newer one.
+    const mine = ++latest.current;
     setError(undefined);
     player.current?.pause();
     try {
@@ -55,13 +60,16 @@ export function useAzureSample(api: Api | null) {
         file.create({ overwrite: true });
         await file.write(bytes);
       }
+      // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+      await wake();
+      if (mine !== latest.current) return;
       player.current ??= createAudioPlayer();
       player.current.replace({ uri: file.uri });
       player.current.play();
     } catch (e) {
       setError(sampleErrorText(e));
     }
-  }, [api]);
+  }, [api, wake]);
   return { play, error };
 }
 

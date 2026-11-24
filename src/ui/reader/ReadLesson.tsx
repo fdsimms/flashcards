@@ -7,6 +7,7 @@ import { atEnd, clock, progressOf, SKIP_SECONDS, skipTo } from '../../reader/les
 import { scriptOf } from '../../reader/lessonScript';
 import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
+import { useOutputWake } from '../useOutputWake';
 import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
@@ -39,6 +40,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
   const c = useTheme();
   const host = useReaderPlayerHost();
   const player = host.player;
+  const wake = useOutputWake();
   // Where Up Next stopped this lesson, if it's the one there: Play starts from it.
   const queued = useAudioQueue().queue.now;
   const resumeAt = queued?.kind === 'lesson' && queued.lesson.id === lesson.id ? queued.resume ?? 0 : 0;
@@ -145,6 +147,8 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     }
     await takeOver();
     if (atEnd(status.currentTime, status.duration)) await player.seekTo(0);
+    // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+    await wake();
     player.play();
   };
   const skip = (by: number) => {

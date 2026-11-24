@@ -1,6 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutputWake } from './useOutputWake';
 import { ActivityIndicator, Alert, AppState, ScrollView } from 'react-native';
 import {
   azureVoiceName, chosenVoice, deckLanguages, defaultRate, voiceQuality, voicesIn, VOICE_RATES,
@@ -138,6 +139,8 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
   const lang = languages?.find((l) => l.key === languageKey);
   const azure = useAzureVoices(api, lang?.key);
   const sample = useAzureSample(api);
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+  const wake = useOutputWake();
   const [query, setQuery] = useState('');
   if (!lang) {
     return (
@@ -158,7 +161,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
 
   const listen = (voice: string | undefined, speed: number) => {
     const v = voices.find((x) => x.identifier === voice);
-    void stopSpeechIfRunning().then(() => Speech.speak(lang.sample ?? lang.name, { language: v?.language ?? lang.lang, voice, rate: speed }));
+    void stopSpeechIfRunning().then(wake).then(() => Speech.speak(lang.sample ?? lang.name, { language: v?.language ?? lang.lang, voice, rate: speed }));
   };
 
   return (

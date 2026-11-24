@@ -1,5 +1,5 @@
 import { useAudioPlayer } from 'expo-audio';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { Api, Language, ReaderText, TextLine } from '../../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../../reader/check';
@@ -14,6 +14,7 @@ import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from 
 import { Reveal } from '../motion';
 import { PlayPill } from '../PlayButton';
 import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
+import { useOutputWake } from '../useOutputWake';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
@@ -200,8 +201,14 @@ const KIND_LABEL: Record<CheckQuestion['kind'], string> = { text: 'About the tex
 function useLinePlayer(api: Api, text: ReaderText, rate: number) {
   const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   useTrackedPlayer(player);
-  return (line: number, at = rate) => {
+  // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake). Only the latest tap plays.
+  const wake = useOutputWake();
+  const latest = useRef(0);
+  return async (line: number, at = rate) => {
     if (!text.lines[line]?.audio) return;
+    const mine = ++latest.current;
+    await wake();
+    if (mine !== latest.current) return;
     player.replace(api.audioSource(text.id, line, at));
     player.play();
   };

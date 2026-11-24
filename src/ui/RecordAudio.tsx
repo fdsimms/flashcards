@@ -1,5 +1,6 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import React, { useEffect, useRef, useState } from 'react';
+import { useOutputWake } from './useOutputWake';
 import { Alert } from 'react-native';
 import { makeRecording, recordNote, sendRecording, type RecordDeps, type Recording } from '../anki/recordService';
 import { isOmnilanguage, speechLangFor } from '../core/cards';
@@ -69,6 +70,7 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
   const problem = useConnectionProblem();
   const player = useRef<AudioPlayer | null>(null);
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
+  const wake = useOutputWake();
 
   if (!isOmnilanguage(note) || !needsRecording(note)) return null;
   const lang = languageName(languageKey(speechLangFor(note)!));
@@ -85,6 +87,8 @@ export function RecordAudio({ recorder, note, settings, onRecorded }: {
       onRecorded(r);
       const uri = mediaFileUri(r.name);
       if (uri) {
+        // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+        await wake();
         player.current ??= createAudioPlayer();
         player.current.replace({ uri });
         player.current.play();

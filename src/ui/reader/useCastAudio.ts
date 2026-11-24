@@ -1,6 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutputWake } from '../useOutputWake';
 import { failureText } from '../../core/failure';
 import type { Api } from '../../reader/api';
 
@@ -13,6 +14,7 @@ import type { Api } from '../../reader/api';
 export function useCastAudio(api: Api | null) {
   const player = useRef<AudioPlayer | null>(null);
   const latest = useRef(0);
+  const wake = useOutputWake();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
@@ -30,6 +32,9 @@ export function useCastAudio(api: Api | null) {
         await file.write(bytes);
       }
       if (mine !== latest.current) return;
+      // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+      await wake();
+      if (mine !== latest.current) return;
       player.current ??= createAudioPlayer();
       player.current.replace({ uri: file.uri });
       player.current.play();
@@ -38,6 +43,6 @@ export function useCastAudio(api: Api | null) {
     } finally {
       if (mine === latest.current) setBusy(false);
     }
-  }, [api]);
+  }, [api, wake]);
   return { play, busy, error };
 }
