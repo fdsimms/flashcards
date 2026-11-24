@@ -1659,7 +1659,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
-              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}

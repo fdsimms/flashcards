@@ -221,7 +221,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
             {rendered ? (
               <>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>{language ? `Say it in ${languageName(language)}` : 'Say the word'}</Text>
-                <Side key={`${note.id}-front`} side={rendered.front} which="front" showHints={false} thaiSize={thaiSize} speechLang={rendered.speechLang} />
+                <Side key={`${note.id}-front`} side={rendered.front} which="front" showHints={revealed} thaiSize={thaiSize} speechLang={rendered.speechLang} />
                 {revealed ? (
                   <>
                     <View style={{ height: 1, backgroundColor: c.border }} />
