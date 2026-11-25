@@ -55,15 +55,17 @@ class Writer:
         self.skip = skip
         self.fail = fail
         self.senses = senses or {}
-        self.asked: list[list[tuple[str, str]]] = []
+        self.asked: list[list[tuple[str, str]]] = []  # (word, its line in English)
+        self.lines: list[list[str]] = []  # each word's line in the language, as sent
 
-    async def __call__(self, language: str, asked: list[tuple[str, str]]) -> Any:
-        self.asked.append(list(asked))
+    async def __call__(self, language: str, asked: list[tuple[str, str, str]]) -> Any:
+        self.asked.append([(w, english) for w, english, _ in asked])
+        self.lines.append([line for _, _, line in asked])
         if self.fail:
             raise MeaningsFailed("down")
         words = [
             {"n": n, "word": w, "meaning": self.senses.get((w, english), f"meaning of {w}")}
-            for n, (w, english) in enumerate(asked, 1)
+            for n, (w, english, _) in enumerate(asked, 1)
             if w not in self.skip
         ]
         return words, Usage(1_000_000, 0, 0, 0)  # $2
@@ -110,8 +112,26 @@ def test_a_word_with_no_gloss_is_asked_about_once_with_a_line_it_is_in() -> None
 
 
 def test_the_request_numbers_each_word_with_its_line() -> None:
-    message = request_message("nb", [("varm", "Warm food!"), ("varm", "A warm day.")])
-    assert "1. varm | Warm food!" in message and "2. varm | A warm day." in message
+    message = request_message(
+        "nb", [("varm", "Warm food!", "Varm mat!"), ("varm", "A warm day.", "")]
+    )
+    # The line in the language is sent between the word and its English, so the model can see which
+    # part of the English the word stands for; a word with no known line is listed without it.
+    assert "1. varm | Varm mat! | Warm food!" in message
+    assert "2. varm | A warm day." in message
+
+
+def test_a_word_is_asked_with_its_own_line_as_well_as_its_english() -> None:
+    conn = store.connect(":memory:")
+    text = stored_text(conn)
+    lexicon = lexicon_from(DECK, "nb", 1000)
+    asked = missing([text], lexicon, {"mat": "food"})
+    assert all(w.line for w in asked)
+    writer = Writer()
+    asyncio.run(fill(conn, writer, "nb", [text], lexicon, {"mat": "food"}, lambda: NOW))
+    assert all(writer.lines[0])
+    sentences = missing_in_sentences([("Varm mat!", "Warm food!")], lexicon, {"mat": "food"}, {})
+    assert [(w.word, w.line) for w in sentences] == [("varm", "Varm mat!")]
 
 
 def test_fill_keeps_the_meanings_with_the_text_and_that_text_never_asks_again() -> None:
@@ -176,7 +196,7 @@ def test_an_answer_is_placed_by_its_number_and_must_match_its_word() -> None:
     lexicon = lexicon_from(DECK, "nb", 1000)
     n = {w.word: i for i, w in enumerate(missing([text], lexicon, {"mat": "food"}), 1)}
 
-    async def write(language: str, words: list[tuple[str, str]]) -> Any:
+    async def write(language: str, words: list[tuple[str, str, str]]) -> Any:
         return [
             {"n": n["varm"], "word": "Varm", "meaning": "warm — hot"},
             {"n": n["hei"], "word": "og", "meaning": "and"},  # the wrong word for its number
@@ -290,7 +310,7 @@ def test_a_failed_call_keeps_its_cost_and_its_words_are_asked_again() -> None:
     text = stored_text(conn)
     lexicon = lexicon_from(DECK, "nb", 1000)
 
-    async def refused(language: str, asked: list[tuple[str, str]]) -> Any:
+    async def refused(language: str, asked: list[tuple[str, str, str]]) -> Any:
         raise MeaningsFailed("No meanings (refusal)", BILLED)
 
     with pytest.raises(MeaningsFailed):
@@ -320,7 +340,7 @@ def test_a_failing_pass_shows_its_cost_in_the_costs() -> None:
     store.save_snapshot(conn, DECK, NOW, "nb")
     text = stored_text(conn)
 
-    async def cut_off(language: str, asked: list[tuple[str, str]]) -> Any:
+    async def cut_off(language: str, asked: list[tuple[str, str, str]]) -> Any:
         raise MeaningsFailed("No meanings (max_tokens)", BILLED)
 
     engine = Engine(conn, None, None, lambda: NOW, random.Random(1), write_meanings=cut_off)
@@ -339,7 +359,7 @@ def test_claude_meanings_keeps_the_usage_of_an_answer_it_cant_use(
 ) -> None:
     write = claude_meanings(FakeClient(response(stop_reason, text)))  # type: ignore[arg-type]
     with pytest.raises(MeaningsFailed) as failed:
-        finish(write("nb", [("varm", "Warm food!")]))
+        finish(write("nb", [("varm", "Warm food!", "Varm mat!")]))
     assert failed.value.usage.output_tokens == 900  # the call is still paid for
 
 
@@ -352,8 +372,8 @@ def test_a_cards_sentence_asks_about_the_words_nothing_glosses_with_its_english(
         {},
     )
     assert asked == [
-        Wanted("varm", "Warm food!", None, "Varm mat!"),
-        Wanted("og", "Food and water.", None, "Mat og vann."),
+        Wanted("varm", "Warm food!", None, "Varm mat!", "Varm mat!"),
+        Wanted("og", "Food and water.", None, "Mat og vann.", "Mat og vann."),
     ]
 
 
@@ -400,7 +420,7 @@ def test_the_register_claude_gives_is_kept_with_the_text_and_only_from_the_list(
     lexicon = lexicon_from(DECK, "nb", 1000)
     n = {w.word: i for i, w in enumerate(missing([text], lexicon, {"mat": "food"}), 1)}
 
-    async def write(language: str, words: list[tuple[str, str]]) -> Any:
+    async def write(language: str, words: list[tuple[str, str, str]]) -> Any:
         return [
             {"n": n["varm"], "word": "varm", "meaning": "warm", "register": "neutral"},
             {"n": n["hei"], "word": "hei", "meaning": "hi", "register": "casual"},

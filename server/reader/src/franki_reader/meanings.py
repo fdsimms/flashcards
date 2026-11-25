@@ -4,7 +4,7 @@ A common word counts as known without being in the deck (spaced.py), so the mode
 gloss it, and a tap on it had no meaning to show; nor is a compound known by splitting into deck
 entries (เข้าใจ, from เข้า and ใจ), whose parts' meanings are often not its own. After a text is
 written, the words in it with no gloss from the text or the deck are glossed in one Claude call, each
-with the English of the line it's in, and the answers are kept with that text (`texts.meanings`), so
+with the line it's in and its English, and the answers are kept with that text (`texts.meanings`), so
 a word shows the sense it has there: Spanish vino is "came" in one text and "wine" in the next. A tap
 never makes a call, except a tap on a word with no meaning at all, which asks for that one word
 (`Engine.define_word`, `/api/word-meaning`) and keeps the answer, replacing an empty one. A card's
@@ -45,12 +45,16 @@ MAX_TOKENS = 8000
 
 _SYSTEM = """\
 You give English meanings of {language} words for an English-speaking learner reading a short text. \
-Each word is listed with the English translation of one line it appears in, so you can tell which \
-sense is meant."""
+Each word is listed with the line it appears in and that line's English translation, so you can \
+tell which sense is meant and which part of the translation, if any, the word stands for."""
 
 _REQUEST = """\
 For each numbered word below, give its meaning in English as it is used in that line, in one to four \
-words (a verb as "to go", a past or inflected form as its own meaning: "went", "warm (neuter)"). A \
+words (a verb as "to go", a past or inflected form as its own meaning: "went", "warm (neuter)"). The \
+English is a free translation of the line, so the word may have no counterpart in it, and a nearby \
+word's translation is not this word's meaning: a word that only links others (a preposition, a \
+particle) means what it does in the line ("about"), not a noun beside it. Read the line itself, not \
+only its translation. A \
 word can be listed more than once, with different lines: give each the meaning its own line uses. A \
 compound means what the whole word means, not what its parts mean. Leave out a preposition or \
 auxiliary that goes with the word in the line: "hoods", not "in hoods"; "eaten", not "has eaten". Give \
@@ -59,7 +63,8 @@ word exactly as listed. Plain text only: no `|`, no asterisks, no em dashes. Als
 the word is where it is used in that line, one of casual, neutral, formal or slang, or an empty \
 string when you are not confident native speakers use it that way. Most everyday words are neutral.
 
-Words, each numbered and followed by the English of a line it is in:
+Words, each numbered and followed by a line it is in, then that line in English (the line is left \
+out when it isn't known):
 {words}"""
 
 SCHEMA: dict[str, Any] = {
@@ -98,9 +103,9 @@ class MeaningsUnavailable(Exception):
     """No Claude key is set on the server, so nothing can write a meaning."""
 
 
-# Writes the meanings for (word, line in English) pairs, numbered from 1 in the request, and what
-# that cost.
-WriteMeanings = Callable[[Code, list[tuple[str, str]]], Awaitable[tuple[list[Any], Usage]]]
+# Writes the meanings for (word, line in English, line in the language) triples, numbered from 1 in
+# the request, and what that cost. The line in the language is "" when it isn't known.
+WriteMeanings = Callable[[Code, list[tuple[str, str, str]]], Awaitable[tuple[list[Any], Usage]]]
 
 
 def key(word: str) -> str:
@@ -111,12 +116,15 @@ def key(word: str) -> str:
 @dataclass(frozen=True)
 class Wanted:
     """A word to ask the meaning of: as kept (`key`), with the English of the line it's in, and the
-    text it's asked for, or the card sentence it's asked for (`sentence`, as the card shows it)."""
+    text it's asked for, or the card sentence it's asked for (`sentence`, as the card shows it).
+    `line` is that line in the language itself, which the model needs to see which part of the
+    English the word stands for ("" when it isn't known, as for a bare tap)."""
 
     word: str
     english: str
     text_id: int | None = None
     sentence: str | None = None
+    line: str = ""
 
 
 def missing(texts: Iterable[StoredText], lexicon: Checker, deck: dict[str, str]) -> list[Wanted]:
@@ -136,7 +144,7 @@ def missing(texts: Iterable[StoredText], lexicon: Checker, deck: dict[str, str])
                     continue
                 seen.add(word)
                 if gloss_for(piece, own, lexicon, deck) is None:
-                    found.append(Wanted(word, line.english, text.id))
+                    found.append(Wanted(word, line.english, text.id, None, line.text))
     return found
 
 
@@ -160,7 +168,7 @@ def missing_in_sentences(
                 continue
             seen.add(word)
             if gloss_for(piece, {}, lexicon, deck) is None:
-                found.append(Wanted(word, english, None, sentence))
+                found.append(Wanted(word, english, None, sentence, sentence))
     return found
 
 
@@ -173,9 +181,12 @@ def _clean(value: object) -> str:
     return value if value and len(value) <= MAX_MEANING else ""
 
 
-def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
+def request_message(language: Code, asked: list[tuple[str, str, str]]) -> str:
     return _REQUEST.format(
-        words="\n".join(f"{n}. {word} | {english}" for n, (word, english) in enumerate(asked, 1))
+        words="\n".join(
+            f"{n}. {word} | {line} | {english}" if line else f"{n}. {word} | {english}"
+            for n, (word, english, line) in enumerate(asked, 1)
+        )
     )
 
 
@@ -211,7 +222,7 @@ async def fill_words(
     if not asked:
         return 0
     try:
-        raw, used = await write(language, [(w.word, w.english) for w in asked])
+        raw, used = await write(language, [(w.word, w.english, w.line) for w in asked])
     except MeaningsFailed as e:
         if e.usage != Usage():
             store.save_meaning_batch(conn, language, {}, now(), e.usage.cost_usd())
@@ -261,7 +272,7 @@ def claude_meanings(client: anthropic.AsyncAnthropic) -> WriteMeanings:
         "format": {"type": "json_schema", "schema": SCHEMA},
     }
 
-    async def write(language: Code, asked: list[tuple[str, str]]) -> tuple[list[Any], Usage]:
+    async def write(language: Code, asked: list[tuple[str, str, str]]) -> tuple[list[Any], Usage]:
         messages = [{"role": "user", "content": request_message(language, asked)}]
         try:
             response = await client.beta.messages.create(
