@@ -6,6 +6,13 @@ import { Tappable } from '../kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
 
+/** A cover's kind, small over its title ("Story", "Series"). */
+export const COVER_KIND = { ...type.overline, fontSize: 11 } as const;
+/** A cover's title. */
+export const COVER_TITLE = { fontSize: 19, fontWeight: '800', lineHeight: 22 } as const;
+/** A series' title at the head of its banner on the shelf and of its own page. */
+export const SERIES_TITLE = { fontSize: 30, fontWeight: '800', lineHeight: 34 } as const;
+
 /** The tint a cover takes: from what it's about (a story's or a text's id), so it keeps its color wherever it shows. */
 export function useCoverTint(key: string | number): string {
   const c = useTheme();
@@ -50,8 +57,8 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
       })}
     >
       <View style={{ gap: space.xs + 2, paddingRight: corner ? 22 + space.s : 0 }}>
-        <Text style={{ ...type.overline, fontSize: 11, color: c.textSecondary }}>{kind}</Text>
-        <Text style={{ fontSize: 19, fontWeight: '800', lineHeight: 22, color: c.text }}>{title}</Text>
+        <Text style={{ ...COVER_KIND, color: c.textSecondary }}>{kind}</Text>
+        <Text style={{ ...COVER_TITLE, color: c.text }}>{title}</Text>
         {subtitle ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{subtitle}</Text> : null}
       </View>
       {corner ? <View style={{ position: 'absolute', top: space.m + 2, right: space.m + 2 }}>{corner}</View> : null}

@@ -9,7 +9,7 @@
 
 import { OfflineError } from '../core/connection';
 import { Refusal } from '../core/failure';
-import type { DrillQuestionIn } from '../core/grammarDrills';
+import type { DrillQuestionIn, GrammarAnswer } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
 import { splitDecks } from './languages';
@@ -152,6 +152,23 @@ export type GrammarPoint = { id: string; name: string; note: string; example: st
 // practiced or known, to suggest when that goes up; missing from a server older than the Grammar dial.
 export type GrammarStretch = { uses: number; next: { id: string; name: string } | null };
 export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[]; stretch?: GrammarStretch };
+
+// An automatic grammar swap (the server's rotation.py), for the shelf's notice: `graduated` moved to
+// Know it after `texts` texts read over `days` study days and `drill_right` of the latest
+// `drill_asked` practice answers right; `started` took its place (null when none was left).
+// A point the app's catalog doesn't have comes back null.
+export type GrammarRotationPoint = { id: string; name: string };
+export type GrammarRotation = {
+  id: number;
+  language: Language;
+  graduated: GrammarRotationPoint | null;
+  started: GrammarRotationPoint | null;
+  texts: number;
+  days: number;
+  drill_right: number;
+  drill_asked: number;
+  at: string;
+};
 
 // A grammar point a text marks: written to practice or avoid, a known one worked in for review,
 // or one never marked that turned up.
@@ -697,6 +714,15 @@ export function createApi(
     deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
+    // The phone's practice answers (grammar_answers), so the server can tell when a practiced point is learned; one sent twice is kept once.
+    sendGrammarAnswers: (answers: GrammarAnswer[]) =>
+      call<{ saved: number }>('POST', '/api/grammar/answers', {
+        answers: answers.map((a) => ({ point: a.pointId, drill: a.drillId, kind: a.kind, correct: a.correct, answered_at: a.answeredAt })),
+      }),
+    // Automatic swaps not closed or undone yet, for the shelf's notice. A 409 from undo says which point was changed since.
+    grammarRotations: () => call<{ rotations: GrammarRotation[] }>('GET', '/api/grammar/rotations'),
+    dismissRotation: (id: number) => call<void>('POST', `/api/grammar/rotations/${id}/dismiss`),
+    undoRotation: (id: number) => call<void>('POST', `/api/grammar/rotations/${id}/undo`),
     setGrammar: (id: string, state: GrammarChoice) =>
       call<GrammarList>('PUT', `/api/grammar/${id}`, { state }),
     // "I know through N_" (Japanese): points at that JLPT level or easier become Know it unless practiced, harder ones Don't know it.

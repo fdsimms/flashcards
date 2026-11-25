@@ -19,6 +19,7 @@ import { LessonTranscript } from './LessonTranscript';
 import { LoopTextIcon, StartOverIcon } from './PlayerIcons';
 import { LessonTurnPanel } from './LessonTurnPanel';
 import { LessonTurnSettings } from './LessonTurnSettings';
+import { PlayCircle } from './PlayCircle';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
@@ -242,14 +243,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
               <Icon name="play.fill" size={16} color={c.onAccent} />
             </Tappable>
           ) : (
-            <Tappable
-              onPress={toggle}
-              accessibilityRole="button"
-              accessibilityLabel={status.playing ? 'Pause' : 'Play'}
-              style={{ width: 68, height: 68, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Icon name={status.playing ? 'pause.fill' : 'play.fill'} size={30} color={c.onAccent} />
-            </Tappable>
+            <PlayCircle playing={status.playing} onPress={toggle} accessibilityLabel={status.playing ? 'Pause' : 'Play'} />
           )}
           <Tappable onPress={() => skip(SKIP_SECONDS)} accessibilityRole="button" accessibilityLabel={`Forward ${SKIP_SECONDS} seconds`} style={round}>
             <Icon name="goforward.15" size={30} color={c.text} />

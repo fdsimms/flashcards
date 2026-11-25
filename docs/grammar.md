@@ -60,7 +60,9 @@ for texts and then never found.
 
 **The owner's choices** (Practice, Don't know it, Know it, not set) are stored on the server, as
 before (docs/read-and-listen/architecture.md, Grammar). The catalog is what a point is; the server
-holds what the owner has decided about it.
+holds what the owner has decided about it. One change is made without asking: a practiced point
+that has been learned moves to Know it and the next takes its place, shown on the shelf with Undo
+(docs/read-and-listen/architecture.md, Grammar, Rotation).
 
 ## Not Anki notes
 
@@ -102,7 +104,8 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
    pattern). It opens from the Grammar screen (a point's name), an Explain chip and the Forms drill's
    grammar line ("More about ..."; the drill's link shows only while Read & Listen is on, as the
    page needs its server). **Know it is suggested, never set**: at least `KNOW_IT_ANSWERS` (20)
-   answers at `KNOW_IT_SHARE` (90%) or more, for a point not already Know it (`suggestKnowIt`).
+   answers at `KNOW_IT_SHARE` (90%) or more, for a point not already Know it (`suggestKnowIt`). A
+   practiced point also moves to Know it by itself once learned, by the server's own rule (Rotation).
    "Not yet" is kept on the phone (`grammarHintsDismissed`, beside Forms practice's own results),
    and from then only answers given since count, so it comes back once 20 new ones clear the bar.
 5. **Spaced grammar drills** (built 12 November 2026; the owner chose from a mock). The Practice

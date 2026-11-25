@@ -23,6 +23,7 @@ export default function ReadRoute() {
       onOpenedLanguage={() => router.setParams({ language: '' })}
       onPlayWord={playWord}
       onOpen={(open) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', ...open }) } })}
+      onGrammarPoint={(id) => router.push({ pathname: '/read-grammar-point', params: { id } })}
       onNew={() => router.push('/read-write')}
       onNewSeries={() => router.push({ pathname: '/read-write', params: { kind: 'series' } })}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'read' } })}
