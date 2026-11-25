@@ -275,23 +275,30 @@ _NAME = re.compile(r"~([^~]+)~")
 
 def segment_line(line: str, lexicon: Checker) -> list[tuple[str, bool]]:
     """A model line's pieces as `lexicon.segment` splits its plain text, each with whether the
-    model marked it as part of a name. A piece counts as a name only when it lies wholly inside a
-    marked name, so a segmenter that joins a name's last syllable to the next word marks neither,
-    and a word that is spelled like the name elsewhere in the line (มะลิ, jasmine) is left alone.
+    model marked it as part of a name. The text is segmented in stretches cut at each name's edges,
+    so the segmenter can't join a name to the word beside it when the two happen to spell a
+    dictionary word (ข้าง + ต้น, "beside Ton", is not ข้างต้น, "aforementioned"). A word that is
+    spelled like the name elsewhere in the line (มะลิ, jasmine) is left alone.
     The pieces of one name (สม, ชาย) come back as a single piece."""
     plain, _ = parse_line(line, lexicon.spaced)
-    pieces = lexicon.segment(plain)
     spans: list[tuple[int, int]] = []
     unstarred = line.replace("*", "")
-    if "".join(pieces) == plain:
-        for m in _NAME.finditer(unstarred):
-            name = _join(m.group(1), lexicon.spaced).strip()
-            if not name:
-                continue
-            before = len(_join(unstarred[: m.start()], lexicon.spaced))
-            at = plain.find(name, max(0, before - 1))
-            if at >= 0:
-                spans.append((at, at + len(name)))
+    for m in _NAME.finditer(unstarred):
+        name = _join(m.group(1), lexicon.spaced).strip()
+        if not name:
+            continue
+        before = len(_join(unstarred[: m.start()], lexicon.spaced))
+        at = plain.find(name, max(0, before - 1))
+        if at >= 0 and all(at >= e for _, e in spans):
+            spans.append((at, at + len(name)))
+    pieces: list[str] = []
+    pos = 0
+    for start, end in [*spans, (len(plain), len(plain))]:
+        pieces += lexicon.segment(plain[pos:start]) if start > pos else []
+        pieces += lexicon.segment(plain[start:end]) if end > start else []
+        pos = end
+    if "".join(pieces) != plain:  # a segmenter that drops text: no names, as before
+        pieces, spans = lexicon.segment(plain), []
     out: list[tuple[str, bool]] = []
     last: int | None = None  # the span the previous piece was in, so a name stays one piece
     pos = 0
