@@ -59,7 +59,12 @@ about the same length.
 - answer: the position of the right answer in choices, counting from 0
 
 Use only words that are in the text or that a learner at this level surely knows, and keep the \
-answers short, a few words each{spacing}. Plain text: no `|`, no asterisks, no tildes, no em \
+answers short, a few words each{spacing}. The exception is a "why" question: its answers are a \
+whole reason in one clause, built from the line's own words, that gives the cause and says how it \
+leads to what the question asks about, not just a bare fact (for "why does she only come at \
+night", "because the man in the black hat wants her ring, so she only comes when it is dark" and \
+not just "because of the man in the black hat"). The wrong answers to a \
+"why" question are the same length and shape. Plain text: no `|`, no asterisks, no tildes, no em \
 dashes."""
 
 SCHEMA: dict[str, Any] = {
