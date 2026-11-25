@@ -8,6 +8,7 @@ import {
   addWord, asTyped, counts, MAX_QUEUED, parseWordList, splitLine, wordState,
   type FoundWord, type QuickWord, type WordState,
 } from '../core/quickAdd';
+import { QUEUED_MODEL } from '../reader/noteQueue';
 import { deckShortName } from './deckShortName';
 import { haptic } from './haptics';
 import { Button, Card, Chip, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable } from './kit';
@@ -32,8 +33,6 @@ export interface QuickAddDeck {
   languageName?: string;
 }
 
-/** Claude's notes are always this type (the note queue's `reviewTarget`), so a queued word's duplicate check asks about it. */
-const QUEUED_MODEL = 'Omnilanguage';
 
 type Mode = 'one' | 'list';
 
@@ -367,7 +366,7 @@ function WordRow({ word, first, state, filled, language, inDeck, refusal, onRemo
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TAP + space.m, paddingLeft: space.l }}>
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 2, paddingVertical: space.s }}>
+      <View style={{ flex: 1, gap: space.xs, paddingVertical: space.s }}>
         <Text style={{ ...withThaiLineHeight(type.body, word.entry), color: c.text }}>{word.entry}</Text>
         {line ? <Text style={{ ...type.footnote, color }}>{line}</Text> : null}
         {state === 'inDeck' && !refusal ? (
@@ -438,7 +437,7 @@ function FoundWords({ found, language, added, onAdd }: {
               style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.m, paddingVertical: space.s, paddingHorizontal: space.l }}
             >
               {i === 0 ? null : <Divider inset={space.l} />}
-              <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flex: 1, gap: space.xs }}>
                 <Text style={{ ...withThaiLineHeight(type.body, w.entry), color: c.text }}>{w.entry}</Text>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.note ? `${w.meaning} (${w.note})` : w.meaning}</Text>
               </View>

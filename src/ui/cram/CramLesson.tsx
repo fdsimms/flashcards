@@ -195,7 +195,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
                     accessibilityHint={language ? 'Long press to hear it.' : undefined}
                     scaleTo={0.96}
                     style={{
-                      flexGrow: 1, flexBasis: '45%', minHeight: 72, gap: 2, padding: space.m, borderRadius: radius.m, borderWidth: 1.5,
+                      flexGrow: 1, flexBasis: '45%', minHeight: 72, gap: space.xs, padding: space.m, borderRadius: radius.m, borderWidth: 1.5,
                       backgroundColor: on ? c.goodFill : c.surface, borderColor: on ? c.countDue : c.border,
                     }}
                   >
@@ -254,7 +254,7 @@ function LessonTalk({ talk, open, onToggle, onAsked, language, size, say, overli
   const asked = new Set(talk.asked ?? []);
   return (
     <Card style={{ gap: space.s }}>
-      <Tappable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={talk.title} style={{ gap: 2, minHeight: 44, justifyContent: 'center' }}>
+      <Tappable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={talk.title} style={{ gap: space.xs, minHeight: 44, justifyContent: 'center' }}>
         <Text style={overline}>{talk.title.toUpperCase()}</Text>
         {!open ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{talkSummary(talk)}</Text> : null}
       </Tappable>

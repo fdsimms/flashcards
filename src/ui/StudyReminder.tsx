@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, Linking, ScrollView, Text, useWindowDimensions } from 'react-native';
 import { failureText } from '../core/failure';
 import { REMINDER_MINUTES, type ReminderPrefs } from '../core/reminder';
-import { Card, Group, Help, Loading, Screen, SwitchRow } from './kit';
+import { Card, Group, Help, Loading, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import { badgeAllowed, notificationsAllowed, reminderTime, saveReminder, useReminderPrefs } from './studyReminder';
 import { space, type, useTheme, readable } from './theme';
 import { Wheel, WheelBand, wheelScale } from './tools/Wheel';
@@ -58,7 +58,7 @@ export function StudyReminder() {
 
   return (
     <Screen title="Study reminder" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: SECTION_GAP }}>
         {!prefs ? <Loading /> : (
           <>
             <Group>
@@ -79,27 +79,32 @@ export function StudyReminder() {
                 onValueChange={turnBadge}
               />
             </Group>
-            {prefs.on ? (
-              <Card style={{ alignItems: 'center', gap: space.s }}>
-                <Text style={{ ...type.subhead, color: c.textSecondary, alignSelf: 'flex-start' }}>Time</Text>
-                <WheelBand>
-                  <Wheel label="Hour" count={24} value={prefs.hour} format={hourLabel} width={88 * wheelScale(fontScale)} onChange={(hour) => save({ ...prefs, hour })} />
-                  <Text maxFontSizeMultiplier={2} style={{ ...type.title, fontSize: 28, color: c.text, paddingBottom: 3 }}>:</Text>
-                  <Wheel
-                    label="Minute"
-                    count={REMINDER_MINUTES.length}
-                    value={minuteIndex}
-                    format={(i) => String(REMINDER_MINUTES[i]).padStart(2, '0')}
-                    width={64 * wheelScale(fontScale)}
-                    onChange={(i) => save({ ...prefs, minute: REMINDER_MINUTES[i] })}
-                  />
-                </WheelBand>
-              </Card>
-            ) : null}
-            <Help>
-              The numbers are from the last time Franki was open, so answers given in Anki since then aren't counted. If you
-              haven't opened Franki that day, the reminder has no number.
-            </Help>
+            <Section
+              footer={(
+                <Help>
+                  The numbers are from the last time Franki was open, so answers given in Anki since then aren't counted. If you
+                  haven't opened Franki that day, the reminder has no number.
+                </Help>
+              )}
+            >
+              {prefs.on ? (
+                <Card style={{ alignItems: 'center', gap: space.s }}>
+                  <Text style={{ ...type.subhead, color: c.textSecondary, alignSelf: 'flex-start' }}>Time</Text>
+                  <WheelBand>
+                    <Wheel label="Hour" count={24} value={prefs.hour} format={hourLabel} width={88 * wheelScale(fontScale)} onChange={(hour) => save({ ...prefs, hour })} />
+                    <Text maxFontSizeMultiplier={2} style={{ ...type.title, fontSize: 28, color: c.text, paddingBottom: 3 }}>:</Text>
+                    <Wheel
+                      label="Minute"
+                      count={REMINDER_MINUTES.length}
+                      value={minuteIndex}
+                      format={(i) => String(REMINDER_MINUTES[i]).padStart(2, '0')}
+                      width={64 * wheelScale(fontScale)}
+                      onChange={(i) => save({ ...prefs, minute: REMINDER_MINUTES[i] })}
+                    />
+                  </WheelBand>
+                </Card>
+              ) : null}
+            </Section>
           </>
         )}
       </ScrollView>

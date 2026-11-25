@@ -158,7 +158,7 @@ export function AnswerExtras(props: {
             <Help>{`It looks a lot like ${props.word}, which may have given the answer away.`}</Help>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flex: 1, gap: space.xs }}>
               <Text style={{ ...type.body, color: c.text }}>Show this card again sooner</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Good brings it back in ${offer.soonerGood}, not ${offer.plainGood}`}</Text>
             </View>

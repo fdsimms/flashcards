@@ -109,7 +109,7 @@ function StoryRow({ story, first, onPress }: { story: StoryListItem; first: bool
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
     >
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 3 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.text }}>{name}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{place}</Text>
         {writing ? (

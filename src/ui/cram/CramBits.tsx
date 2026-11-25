@@ -72,7 +72,7 @@ export function CheckRow({ label, detail, checked, onPress, first, big, color, t
     >
       {first ? null : <Divider inset={space.l} />}
       <Icon name={checked ? 'checkmark.circle.fill' : 'circle'} size={big ? 26 : 22} color={checked ? color ?? c.accent : c.textTertiary} weight="regular" />
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...(big ? type.headline : type.body), ...labelSize, color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
         {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
       </View>

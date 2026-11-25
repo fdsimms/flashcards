@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { QueuedNote } from '../../src/reader/api';
-import { approvalDraft, bannerOf, counts, firstReady, isRetrying, isWorking, needsChoice, queuedFor, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
+import { alreadyInDeck, approvalDraft, wordInDeck, bannerOf, droppedNotice, counts, firstReady, isRetrying, isWorking, needsChoice, queuedFieldNames, queuedFor, quickAddDecks, reviewTarget } from '../../src/reader/noteQueue';
 import { createNoteQueueStore } from '../../src/reader/noteQueueStore';
+import type { Note } from '../../src/core/types';
 
 const note = (over: Partial<QueuedNote> = {}): QueuedNote => ({
   id: 1, language: 'fr', deck: 'Languages::Français', entry: 'ricane', meaning: '', state: 'ready', fields: {}, error: '', ...over,
@@ -133,11 +134,14 @@ describe('the store', () => {
     const off = store.subscribe(() => { calls++; });
     store.set({ queue: { available: true, items: [note()] }, error: null });
     expect(store.get().queue?.items).toHaveLength(1);
+    store.set({ dropped: [{ entry: 'kot', deck: 'Polski' }] });
+    store.set({ queue: null, error: null });
+    expect(store.get().dropped).toEqual([{ entry: 'kot', deck: 'Polski' }]);
     store.clear();
-    expect(store.get()).toEqual({ queue: null, error: null });
+    expect(store.get()).toEqual({ queue: null, error: null, dropped: [] });
     off();
     store.set({ queue: null, error: 'x' });
-    expect(calls).toBe(2);
+    expect(calls).toBe(4);
   });
 });
 
@@ -192,5 +196,68 @@ describe('a word typed the way it sounds', () => {
 
   it('is approved under its spelling', () => {
     expect(approvalDraft(typed({ spelling: 'огурец' }), ['Entry', 'Meaning'], []).fields).toEqual({ Entry: 'огурец', Meaning: 'cucumber' });
+  });
+});
+
+describe('alreadyInDeck', () => {
+  const types = new Map([['Omnilanguage', { fields: ['Entry', 'Meaning', 'Context'] }]]);
+  const thai = 'Languages::ภาษาไทย';
+  const inDeck = (entry: string, over: Partial<Note> = {}): Note => ({ id: `n-${entry}`, deck: thai, model: 'Omnilanguage', fields: { Entry: entry, Meaning: '', Context: '' }, tags: [], ...over });
+  const queued = (id: number, entry: string, over: Partial<QueuedNote> = {}) => note({ id, entry, language: 'th', deck: thai, ...over });
+
+  it('finds a ready word whose Entry the deck already has, with the deck that has it', () => {
+    const notes = [inDeck('เลือก'), inDeck('ตอนนั้น')];
+    const found = alreadyInDeck([queued(1, 'เลือก'), queued(2, 'ตอนนั้น'), queued(3, 'ใหม่')], notes, types);
+    expect(found.map((f) => [f.note.id, f.deck])).toEqual([[1, thai], [2, thai]]);
+  });
+
+  it('checks the word as it will be saved: its real spelling, not what was typed', () => {
+    expect(alreadyInDeck([queued(1, 'leuak', { spelling: 'เลือก' })], [inDeck('เลือก')], types)).toHaveLength(1);
+  });
+
+  it('leaves out words still being filled in, failed ones, and ones that could be another word', () => {
+    const notes = [inDeck('เลือก')];
+    expect(alreadyInDeck([
+      queued(1, 'เลือก', { state: 'waiting' }),
+      queued(2, 'เลือก', { state: 'failed' }),
+      queued(3, 'leuak', { spelling: 'เลือก', alternatives: [{ spelling: 'เหลือ', meaning: 'to remain' }] }),
+    ], notes, types)).toEqual([]);
+  });
+
+  it("doesn't count a note of another type", () => {
+    expect(alreadyInDeck([queued(1, 'เลือก')], [inDeck('เลือก', { model: 'Basic', fields: { Front: 'เลือก', Back: '' } })], types)).toEqual([]);
+  });
+
+  it("falls back to the fields Claude wrote when the collection doesn't have the note type", () => {
+    expect(queuedFieldNames(queued(1, 'เลือก', { fields: { Meaning: 'to choose' } }), new Map())).toEqual(['Entry', 'Meaning']);
+    expect(alreadyInDeck([queued(1, 'เลือก')], [inDeck('เลือก')], new Map())).toHaveLength(1);
+  });
+});
+
+describe('wordInDeck', () => {
+  const note = (id: string, deck: string, entry: string, model = 'Omnilanguage'): Note => ({ id, deck, model, fields: { Entry: entry, Meaning: '' }, tags: [] });
+  const notes = [note('1', 'Languages::ภาษาไทย', 'เลือก'), note('2', 'Languages::Polski', 'kot'), note('3', 'Trivia', 'ตอนนั้น', 'Basic')];
+
+  it('finds a word the deck already has, as a queued note would be checked', () => {
+    expect(wordInDeck(notes, 'Languages::ภาษาไทย', 'เลือก')).toBe('Languages::ภาษาไทย');
+    expect(wordInDeck(notes, 'Languages::Polski', 'Kot')).toBe('Languages::Polski');
+  });
+
+  it("doesn't count another type's note or a new word", () => {
+    expect(wordInDeck(notes, 'Languages::ภาษาไทย', 'ตอนนั้น')).toBeUndefined();
+    expect(wordInDeck(notes, 'Languages::ภาษาไทย', 'ใหม่')).toBeUndefined();
+  });
+});
+
+describe('droppedNotice', () => {
+  it('says which words were taken off, one line per deck', () => {
+    expect(droppedNotice([{ entry: 'เลือก', deck: 'ภาษาไทย' }])).toEqual(['เลือก was already in ภาษาไทย, so it was taken off the queue.']);
+    expect(droppedNotice([
+      { entry: 'เลือก', deck: 'ภาษาไทย' }, { entry: 'ตอนนั้น', deck: 'ภาษาไทย' }, { entry: 'kot', deck: 'Polski' }, { entry: 'ได้', deck: 'ภาษาไทย' }, { entry: 'เลือก', deck: 'ภาษาไทย' },
+    ])).toEqual([
+      'เลือก, ตอนนั้น and ได้ were already in ภาษาไทย, so they were taken off the queue.',
+      'kot was already in Polski, so it was taken off the queue.',
+    ]);
+    expect(droppedNotice([])).toEqual([]);
   });
 });

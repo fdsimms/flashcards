@@ -5,7 +5,7 @@ import { DECK_OPTIONS_LIST, SETTINGS_PAGES, searchSettings, type SettingsEntry }
 import type { Repo } from '../db/repo';
 import { useFontSettings } from './AppFont';
 import { fontOption } from '../core/fonts';
-import { Group, Help, NavRow, Screen, SectionTitle } from './kit';
+import { Group, Help, NavRow, Screen, SECTION_GAP, Section } from './kit';
 import { space, useTheme, readable } from './theme';
 
 /**
@@ -48,7 +48,7 @@ export function Settings({ repo, backupText, wanikaniOn, onAnki, onBackup, onWan
   return (
     <Screen title="Settings">
       <Stack.SearchBar placeholder="Search settings" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {query.trim() ? (
           found.length ? (
             <Group>
@@ -63,20 +63,23 @@ export function Settings({ repo, backupText, wanikaniOn, onAnki, onBackup, onWan
               <NavRow icon={{ name: 'externaldrive.fill', color: c.teal }} label="Backup" detail={backupText ?? 'Save or restore everything in Franki'} onPress={onBackup} />
               <NavRow icon={{ name: 'character.ja', color: c.violet }} label="WaniKani" detail={wanikaniOn ? 'On' : 'Off. Study your WaniKani reviews and lessons as a deck'} onPress={onWaniKani} />
             </Group>
-            <SectionTitle>By page</SectionTitle>
-            <Group>
-              {SETTINGS_PAGES.map((p, i) => <NavRow key={p.id} first={i === 0} label={p.title} detail={p.summary} onPress={() => onPage(p.id)} />)}
-            </Group>
-            <SectionTitle>By deck</SectionTitle>
-            <Group>
-              <NavRow first label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
-            </Group>
-            <SectionTitle>Everywhere</SectionTitle>
-            <Group>
-              <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(shownFont).label} onPress={onFont} />
-              <NavRow label="Voices" detail="Which voice reads and records each language" onPress={onVoices} />
-              <NavRow label="Speaking" loading={speaking === undefined} detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
-            </Group>
+            <Section title="By page">
+              <Group>
+                {SETTINGS_PAGES.map((p, i) => <NavRow key={p.id} first={i === 0} label={p.title} detail={p.summary} onPress={() => onPage(p.id)} />)}
+              </Group>
+            </Section>
+            <Section title="By deck">
+              <Group>
+                <NavRow first label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
+              </Group>
+            </Section>
+            <Section title="Everywhere">
+              <Group>
+                <NavRow first label="Font" detail={fontSettings.random ? 'A different one each time the app opens' : fontOption(shownFont).label} onPress={onFont} />
+                <NavRow label="Voices" detail="Which voice reads and records each language" onPress={onVoices} />
+                <NavRow label="Speaking" loading={speaking === undefined} detail={speaking === undefined ? undefined : speaking ? 'On. Answer by speaking' : 'Off. Answer by speaking instead of typing'} onPress={onSpeaking} />
+              </Group>
+            </Section>
           </>
         )}
       </ScrollView>

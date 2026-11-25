@@ -103,7 +103,7 @@ export function NaturalResult({ state, ask }: ReturnType<typeof useNaturalCheck>
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{reason}</Text>
       {alternative ? (
-        <View style={{ backgroundColor: c.accentFill, borderRadius: radius.s, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, gap: 2 }}>
+        <View style={{ backgroundColor: c.accentFill, borderRadius: radius.s, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, gap: space.xs }}>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>A native speaker would more likely say</Text>
           <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }} selectable>{alternative}</Text>
         </View>

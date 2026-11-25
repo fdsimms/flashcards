@@ -103,7 +103,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={[cand.text, cand.reading, cand.english].filter(Boolean).join(', ')}
                     scaleTo={0.98}
-                    style={{ gap: 2, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+                    style={{ gap: space.xs, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
                   >
                     <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>

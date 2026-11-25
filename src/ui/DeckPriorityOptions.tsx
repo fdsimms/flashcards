@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Text } from 'react-native';
 import { DEFAULT_PRIORITY_DAYS, DEFAULT_PRIORITY_PERCENT, MAX_PRIORITY_DAYS, parsePriorityNumber, priorityMatchCount, prioritySettings, tagCounts } from '../core/priority';
 import type { DeckSettings, Note } from '../core/types';
-import { Card, Field, Group, Help, SectionTitle, SwitchRow } from './kit';
+import { Card, Field, Group, Help, Section, SwitchRow } from './kit';
 import { TagTokenField } from './TagTokenField';
 import { type, useTheme } from './theme';
 
@@ -36,14 +36,19 @@ export function DeckPriorityOptions({ deck, all, notes, onChange }: {
 
   return (
     <>
-      <SectionTitle>Tagged cards first</SectionTitle>
-      <Group>
-        <SwitchRow first label="Study tagged cards first" value={p.on} onValueChange={(v) => onChange({ priorityFirst: v })} />
-      </Group>
-      <Help>
-        New cards with any of these tags come before the deck's other new cards, until you've studied them or for the days
-        set below. They take up to the share of new cards set below, within the same daily limit. Reviews keep their order.
-      </Help>
+      <Section
+        title="Tagged cards first"
+        footer={(
+          <Help>
+            New cards with any of these tags come before the deck's other new cards, until you've studied them or for the days
+            set below. They take up to the share of new cards set below, within the same daily limit. Reviews keep their order.
+          </Help>
+        )}
+      >
+        <Group>
+          <SwitchRow first label="Study tagged cards first" value={p.on} onValueChange={(v) => onChange({ priorityFirst: v })} />
+        </Group>
+      </Section>
       {p.on ? (
         <Card>
           <TagTokenField label="Tags" tags={p.tags} onChange={(tags) => onChange({ priorityTag: tags.join(' ') })} counts={counts} placeholder="Add a tag" />

@@ -27,7 +27,7 @@ export function LessonTranscript({ entries, seconds, onSeek }: { entries: readon
         const now = ms >= e.start && ms < e.end;
         const turn = e.kind === 'turn';
         const row = (
-          <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2, backgroundColor: now ? c.accentFill : undefined, opacity: now || i >= heard.length - 3 ? 1 : 0.6 }}>
+          <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs, backgroundColor: now ? c.accentFill : undefined, opacity: now || i >= heard.length - 3 ? 1 : 0.6 }}>
             {i === 0 ? null : <Divider inset={space.l} />}
             <Text style={{ ...type.caption, fontWeight: now ? '600' : '400', color: now ? c.accentInk : c.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 }}>{speakerLabel(e)}</Text>
             <Text style={{ ...type.body, color: turn ? c.accentInk : c.text, fontStyle: turn ? 'italic' : 'normal' }}>{turn ? 'Your turn' : e.text}</Text>

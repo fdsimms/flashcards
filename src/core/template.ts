@@ -502,6 +502,10 @@ function tapSound(file) { if (player) player.pause(); if (window.ReactNativeWebV
 function speakTts(i) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ tts: i })); }
 ${opts.autoplay ? AUTOPLAY_SCRIPT : ''}
 var autoplayed = false;
+// As Anki's reviewer does, a back that repeats a tall front (an image) opens at the line above the answer, not at the top.
+function showAnswer() { var a = document.getElementById('answer'); if (a && a.scrollIntoView) a.scrollIntoView(); }
+showAnswer();
+window.addEventListener('load', showAnswer);
 window.startAutoplay = function () {
   if (autoplayed) return;
   autoplayed = true;

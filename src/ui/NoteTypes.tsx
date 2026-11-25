@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { noteTypeSummary } from '../core/noteTypeEdits';
 import type { NoteType } from '../core/types';
 import type { Repo } from '../db/repo';
-import { ErrorNote, Group, Help, Loading, NavRow, Screen } from './kit';
+import { ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP } from './kit';
 import { readable, space } from './theme';
 
 /** Settings, Decks and cards, Note types: the collection's note types, each opening its own screen. */
@@ -29,13 +29,14 @@ export function NoteTypes({ repo, onOpen }: { repo: Repo; onOpen: (name: string)
 
   return (
     <Screen title="Note types">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: space.m, ...readable }}>
-        {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : !rows ? <Loading /> : rows.length ? (
-          <Group>
-            {rows.map((r, i) => <NavRow key={r.type.name} first={i === 0} label={r.type.name} detail={noteTypeSummary(r.type, r.notes)} onPress={() => onOpen(r.type.name)} />)}
-          </Group>
-        ) : <Help>No note types yet. They come with a deck imported or synced from Anki.</Help>}
-        {rows?.length ? <Help>Change how a note type's cards look. Changes reach Anki at the next sync. Fields and card types are added in Anki.</Help> : null}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: space.l, gap: SECTION_GAP, ...readable }}>
+        <Section footer={rows?.length ? <Help>Change how a note type's cards look. Changes reach Anki at the next sync. Fields and card types are added in Anki.</Help> : undefined}>
+          {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : !rows ? <Loading /> : rows.length ? (
+            <Group>
+              {rows.map((r, i) => <NavRow key={r.type.name} first={i === 0} label={r.type.name} detail={noteTypeSummary(r.type, r.notes)} onPress={() => onOpen(r.type.name)} />)}
+            </Group>
+          ) : <Help>No note types yet. They come with a deck imported or synced from Anki.</Help>}
+        </Section>
       </ScrollView>
     </Screen>
   );

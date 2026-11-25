@@ -9,7 +9,7 @@ import { auditionVoices, audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, 
 import { searchVoices } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from '../AzureVoices';
 import { haptic } from '../haptics';
-import { Button, Chip, ErrorNote, Group, Help, Screen, SectionTitle } from '../kit';
+import { Button, Chip, ErrorNote, Group, Help, Screen, Section, SECTION_GAP } from '../kit';
 import { PitchButton } from './ReadCastKind';
 import { readable, space, type, useTheme } from '../theme';
 import { useCastAudio } from './useCastAudio';
@@ -78,7 +78,7 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
   return (
     <Screen title="Audition">
       <Stack.SearchBar placeholder="Search voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
@@ -86,42 +86,50 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
           <Chip label={`All ${people} voices`} selected={filter === 'all'} onPress={() => setFilter('all')} />
           <Chip label="Multilingual" selected={filter === 'multilingual'} onPress={() => setFilter('multilingual')} />
         </View>
-        <SectionTitle>Pitch</SectionTitle>
-        <Group>
-          <View style={{ padding: space.l, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <PitchButton icon="minus" label="Lower the pitch" disabled={pitch <= PITCH_MIN} onPress={() => nudge(-PITCH_STEP)} />
-            <Text accessibilityLiveRegion="polite" style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{pitchLabel(pitch)}</Text>
-            <PitchButton icon="plus" label="Raise the pitch" disabled={pitch >= PITCH_MAX} onPress={() => nudge(PITCH_STEP)} />
-          </View>
-        </Group>
-        <SectionTitle>Voices</SectionTitle>
-        {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {options ? (
-          <Group accessibilityRole="radiogroup">
-            <AzureVoiceRows
-              voices={options}
-              selected={voice}
-              onChoose={(v) => {
-                if (!v) return;
-                clearTimeout(timer.current);
-                setVoice(v.voice);
-                hear(v.voice, pitch);
-              }}
-            />
+        <Section
+          title="Pitch"
+        >
+          <Group>
+            <View style={{ padding: space.l, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <PitchButton icon="minus" label="Lower the pitch" disabled={pitch <= PITCH_MIN} onPress={() => nudge(-PITCH_STEP)} />
+              <Text accessibilityLiveRegion="polite" style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{pitchLabel(pitch)}</Text>
+              <PitchButton icon="plus" label="Raise the pitch" disabled={pitch >= PITCH_MAX} onPress={() => nudge(PITCH_STEP)} />
+            </View>
           </Group>
-        ) : null}
-        {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
-        {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${filter === 'multilingual' ? 'Multilingual ' : ''}${people} voices in ${LANGUAGES[language].name}.`}</Help> : null}
-        {options ? <AzureVoiceTerms voices={options} /> : null}
-        <Button
-          label={`Use ${azureVoiceName(voice)} at ${pitchLabel(pitch)} for ${label}`}
-          onPress={use}
-          busy={saving}
-          disabled={!listed}
-        />
-        <Help>
-          {`Tap a voice to hear a line at this pitch. Using it changes the ${label.toLowerCase()} for characters given a voice from now on, not ones who already have one.`}
-        </Help>
+        </Section>
+        <Section
+          title="Voices"
+          footer={(
+            <Help>
+              {`Tap a voice to hear a line at this pitch. Using it changes the ${label.toLowerCase()} for characters given a voice from now on, not ones who already have one.`}
+            </Help>
+          )}
+        >
+          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {options ? (
+            <Group accessibilityRole="radiogroup">
+              <AzureVoiceRows
+                voices={options}
+                selected={voice}
+                onChoose={(v) => {
+                  if (!v) return;
+                  clearTimeout(timer.current);
+                  setVoice(v.voice);
+                  hear(v.voice, pitch);
+                }}
+              />
+            </Group>
+          ) : null}
+          {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
+          {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${filter === 'multilingual' ? 'Multilingual ' : ''}${people} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+          {options ? <AzureVoiceTerms voices={options} /> : null}
+          <Button
+            label={`Use ${azureVoiceName(voice)} at ${pitchLabel(pitch)} for ${label}`}
+            onPress={use}
+            busy={saving}
+            disabled={!listed}
+          />
+        </Section>
       </ScrollView>
     </Screen>
   );

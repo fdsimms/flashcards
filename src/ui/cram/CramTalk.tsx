@@ -36,7 +36,7 @@ export function CramTalk({ repo, talk, language, size, open, onToggle, onMenu }:
   return (
     <Card style={{ gap: space.s }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-        <Tappable onPress={() => { haptic.select(); onToggle(); }} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={talk.title} style={{ flex: 1, gap: 2, minHeight: 44, justifyContent: 'center' }}>
+        <Tappable onPress={() => { haptic.select(); onToggle(); }} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={talk.title} style={{ flex: 1, gap: space.xs, minHeight: 44, justifyContent: 'center' }}>
           <Text style={overline}>{talk.title.toUpperCase()}</Text>
           {!open ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{talkSummary(talk)}</Text> : null}
         </Tappable>
