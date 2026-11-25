@@ -16,10 +16,13 @@ import { suggestTags, tagCounts } from '../core/priority';
 import { addDraftChanged, asEdited, checksDuplicate, deleteNoteWarning, duplicateOf, editTextToField, fieldToEditText, notesStillThere, parseTags, startNoteFor } from '../core/noteEditing';
 import type { WordChoice } from '../core/quickAdd';
 import type { Note, NoteType } from '../core/types';
+import { CARD_SWITCHES, hasCardSwitches, SWITCH_FIELDS, switchOn, withSwitch } from '../core/noteSwitches';
+import { parsePicture } from '../core/noteIcon';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
-import { Button, Card, Chip, Field, Help, Loading, Screen, Select } from './kit';
+import { Button, Card, Chip, Field, Group, Help, Loading, Screen, Select, SectionTitle, SwitchRow } from './kit';
+import { NoteIcon } from './NoteIcon';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
 import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -178,6 +181,9 @@ export function NoteEditor(props: {
 
   const stored = useMemo(() => Object.fromEntries(fieldNames.map((f) => [f, editTextToField(fields[f] ?? '')])), [fieldNames, fields]);
   const draftNote: Note = { id: original?.id ?? '', deck, model, fields: stored, tags: parseTags(tags) };
+  // An Omnilanguage note's three card switches are toggles, not fields holding "y" (noteSwitches.ts). They stay as set for the next note of Save and add another.
+  const showSwitches = isOmnilanguage(draftNote) && hasCardSwitches(fieldNames);
+  const keptNow = useMemo(() => (showSwitches ? new Set([...kept, ...SWITCH_FIELDS]) : kept), [kept, showSwitches]);
   // A new note joins the running crams in its own language. Those tags were worked out from the deck
   // and Language field it started with, so when either changes the language, the crams' tags put
   // there are swapped for the new language's; any other tag, typed or kept, stays.
@@ -225,14 +231,14 @@ export function NoteEditor(props: {
       if (another) {
         // The form starts over in the same deck and note type with the same tags, the kept fields
         // still filled in; the note just added counts for the duplicate warning and the tag suggestions.
-        const next = nextNoteFields(fieldNames, fields, kept);
+        const next = nextNoteFields(fieldNames, fields, keptNow);
         setNotes((all) => [...all, saved]);
-        for (const f of fieldNames) if (!kept.has(f)) selections.current.delete(f);
+        for (const f of fieldNames) if (!keptNow.has(f)) selections.current.delete(f);
         setFields(next);
         setStart({ fields: next, tags });
         setAdded((n) => n + 1);
         props.onSaved?.(saved);
-        const first = fieldNames.find((f) => !kept.has(f));
+        const first = fieldNames.find((f) => !keptNow.has(f));
         if (first) requestAnimationFrame(() => inputs.current.get(first)?.focus());
         return;
       }
@@ -338,7 +344,27 @@ export function NoteEditor(props: {
             )}
           </Card>
           <Card>
-            {fieldNames.map((name) => (
+            {fieldNames.map((name) => {
+              if (showSwitches && SWITCH_FIELDS.includes(name)) return null;
+              const picture = name === 'Icon' ? parsePicture(fields.Icon ?? '') : null;
+              // A picture the card can draw is shown as that picture, with a way to clear it. A value that isn't one stays a text field, so it can be fixed or removed.
+              if (picture) {
+                return (
+                  <View key={name} style={{ gap: space.s }}>
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>Picture</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.l }}>
+                      <View style={{ width: 84, height: 84, borderRadius: radius.m, ...smooth, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}>
+                        <NoteIcon picture={picture} size={64} label="The note's picture" />
+                      </View>
+                      <Button label="Remove picture" variant="secondary" onPress={() => { setFields((f) => ({ ...f, Icon: '' })); setError(undefined); }} />
+                    </View>
+                    {'fieldNotes' in props.target && props.target.fieldNotes?.[name] ? (
+                      <Text style={{ ...type.footnote, color: c.warning }}>{props.target.fieldNotes[name]}</Text>
+                    ) : null}
+                  </View>
+                );
+              }
+              return (
               <View key={name} style={{ gap: space.s }}>
                 <Field
                   ref={(r) => { inputs.current.set(name, r); }}
@@ -372,7 +398,8 @@ export function NoteEditor(props: {
                   <Text style={{ ...type.footnote, color: c.warning }}>{props.target.fieldNotes[name]}</Text>
                 ) : null}
               </View>
-            ))}
+              );
+            })}
             <View style={{ gap: space.s }}>
               <Field label="Tags" value={tags} onChangeText={setTags} onFocus={() => { setTagsFocused(true); setFocused(null); }} autoCapitalize="none" autoCorrect={false} placeholder="Separated by spaces" />
               {tagsFocused && suggestedTags.length ? (
@@ -391,6 +418,23 @@ export function NoteEditor(props: {
               />
             ) : null}
           </Card>
+          {showSwitches ? (
+            <>
+              <SectionTitle>Cards to make</SectionTitle>
+              <Group>
+                {CARD_SWITCHES.map((sw, i) => (
+                  <SwitchRow
+                    key={sw.field}
+                    first={i === 0}
+                    label={sw.label}
+                    hint={sw.hint}
+                    value={switchOn(fields, sw)}
+                    onValueChange={(on) => { setFields((f) => withSwitch(f, sw, on)); setError(undefined); }}
+                  />
+                ))}
+              </Group>
+            </>
+          ) : null}
           {duplicate ? (
             <Text style={{ ...type.subhead, color: c.warning }}>
               {untiered(duplicate.deck)} already has a note with this {fieldNames[0]}, so this note can't be saved.
