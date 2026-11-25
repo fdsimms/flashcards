@@ -4,6 +4,7 @@ import { markedParts } from '../reader/grammar';
 import { haptic } from './haptics';
 import { Button, Card, Icon, Tappable } from './kit';
 import { hairline, space, type, useTheme } from './theme';
+import { PlayPill } from './PlayButton';
 import { TranslationRow } from './TranslationRow';
 
 /** One example as a tile shows it: the line, its translation, and where it's from. */
@@ -12,8 +13,10 @@ export interface ExampleTile {
   english: string;
   /** The parts of the line to underline. */
   words: string[];
-  /** A text it came from, opened by a tap; or a plain label for a sentence that came from no text. */
-  source: { title: string; onOpen: () => void } | { label: string };
+  /** A text it came from, opened by a tap; or a plain label for a sentence that came from no text; or nothing to say. */
+  source?: { title: string; onOpen: () => void } | { label: string };
+  /** Plays the line aloud, shown as a play button beside it (a grammar lesson's examples). */
+  onPlay?: () => void;
 }
 
 /**
@@ -44,11 +47,14 @@ function Tile({ example: e }: { example: ExampleTile }) {
   const source = e.source;
   return (
     <Card style={{ gap: space.m }}>
-      <Text style={{ ...type.callout, color: c.text, lineHeight: 26 }}>
-        {markedParts(e.line, e.words).map((part, j) => (part.marked
-          ? <Text key={j} style={{ textDecorationLine: 'underline', textDecorationColor: c.accent }}>{part.text}</Text>
-          : part.text))}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        {e.onPlay ? <PlayPill label="Play this line" onPlay={e.onPlay} /> : null}
+        <Text style={{ ...type.callout, color: c.text, lineHeight: 26, flex: 1 }}>
+          {markedParts(e.line, e.words).map((part, j) => (part.marked
+            ? <Text key={j} style={{ textDecorationLine: 'underline', textDecorationColor: c.accent }}>{part.text}</Text>
+            : part.text))}
+        </Text>
+      </View>
       {shown ? (
         <TranslationRow>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>{e.english}</Text>
@@ -64,7 +70,7 @@ function Tile({ example: e }: { example: ExampleTile }) {
           <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
         </Tappable>
       )}
-      {'title' in source ? (
+      {!source ? null : 'title' in source ? (
         <Tappable
           onPress={() => { haptic.tap(); source.onOpen(); }}
           accessibilityRole="link"

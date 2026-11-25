@@ -16,11 +16,11 @@ const UNDONE_MS = 5000;
 /**
  * The shelf's notice when a practiced grammar point was learned and the next one started in its
  * place (the server's rotation.py; the card the owner picked from the mock, 25 November 2026): what
- * is practiced now and why the last point moved on, with the new point's page and Undo. Close keeps
+ * is practiced now and why the last point moved on, with the new point's lesson and Undo. Close keeps
  * the swap and drops the notice. Undo puts both points back, and is refused, saying why, once
  * either was changed on the Grammar screen.
  */
-export function ReadGrammarRotation({ api, onOpenPoint }: { api: Api; onOpenPoint: (id: string) => void }) {
+export function ReadGrammarRotation({ api, onOpenLesson }: { api: Api; onOpenLesson: (id: string) => void }) {
   const c = useTheme();
   const { repo } = useApp();
   const { rotations, drop } = useGrammarRotations(api, repo);
@@ -80,7 +80,7 @@ export function ReadGrammarRotation({ api, onOpenPoint }: { api: Api; onOpenPoin
             </View>
             <View style={{ flexDirection: 'row', gap: space.m, flexWrap: 'wrap' }}>
               {copy!.open && r.started ? (
-                <HeaderAction label={copy!.open} accessibilityLabel={`Open ${r.started.name}`} onPress={() => onOpenPoint(r.started!.id)} />
+                <HeaderAction label={copy!.open} accessibilityLabel={`Open the lesson on ${r.started.name}`} onPress={() => onOpenLesson(r.started!.id)} />
               ) : null}
               <HeaderAction
                 label="Undo"

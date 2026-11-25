@@ -1106,6 +1106,17 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   with the reason once either was changed by hand. When no point is left, the learned one still
   moves on and the card says the list is used up. The owner's own choices are otherwise untouched,
   and nothing here schedules or grades a card.
+- **Lesson** (25 November 2026, the owner, picked from a mock: one page over three steps). What
+  meets a point when it starts being practiced, opened from the rotation card's Open lesson and a
+  point's page (`ReadGrammarLesson.tsx`, `/read-grammar-lesson`): the catalog's explanation, then
+  example lines written from the known words, each with its English behind a tap and a play button
+  (an Azure recording from the clip cache, `clips.speak_clip`, recorded again once the cache drops
+  it; the phone's voice when there's none), then "Practice 5 questions", a short round of the
+  point's drills. Claude writes the examples once a point (`grammar_lessons.py`, asked for on first
+  open, kept in `grammar_lessons`; `POST` writes fresh ones), and code keeps an example only if it
+  passes Your topics' checks, the point's own finder finds the point in it, and in Thai it fits the
+  woman's voice that reads it (`gender.thai_fits`). The cost is kept as "grammar_lessons". Nothing
+  here grades a card.
 - **Finding points.** Thai points are words, matched on the coverage segmentation; the segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,

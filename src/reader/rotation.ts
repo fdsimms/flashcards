@@ -42,7 +42,7 @@ const DRILLS_NAMED = 5;
 export interface RotationCopy {
   title: string;
   body: string;
-  /** The button that opens the point that started, or null when none did. */
+  /** The button that opens the started point's lesson, or null when none started. */
   open: string | null;
 }
 
@@ -63,7 +63,7 @@ export function rotationCopy(r: GrammarRotation): RotationCopy | null {
       open: null,
     };
   }
-  return { title: `Now practicing ${r.started.name}`, body: moved, open: `See ${shortName(r.started.name)}` };
+  return { title: `Now practicing ${r.started.name}`, body: moved, open: 'Open lesson' };
 }
 
 /** The line that replaces the notice after Undo. */

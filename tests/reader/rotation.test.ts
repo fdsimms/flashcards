@@ -56,7 +56,7 @@ describe('the rotation notice', () => {
     expect(rotationCopy(swap())).toEqual({
       title: 'Now practicing จะ (will)',
       body: 'เคย (have ever) moved to Know it after 8 texts and 9 of your last 10 practice questions right.',
-      open: 'See จะ',
+      open: 'Open lesson',
     });
   });
 
