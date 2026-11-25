@@ -860,7 +860,9 @@ _STORY_RULES = (
     "Open in the new scene: don't introduce the characters or the setting again, and don't retell "
     "what happened before (the reader has just been shown it). Don't repeat a beat from the last "
     "episodes either, such as a character staying silent or holding the same object in the same "
-    "place. Make something interesting happen that moves the story toward the season's end."
+    "place. Make something interesting happen that moves the story toward the season's end. "
+    "Where it fits the story, let more than one thing happen, so the episode moves on by more "
+    "than a single step; a quieter episode is fine when the story calls for one."
 )
 
 

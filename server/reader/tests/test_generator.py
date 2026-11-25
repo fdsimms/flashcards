@@ -538,6 +538,7 @@ def test_a_story_episode_is_told_not_to_retell_and_where_the_season_is_going() -
     assert '"plan"' in first and f"seasons of {SEASON_EPISODES} episodes" in first
     mid = ask(4, "Noi finds out who Ton's uncle is.")
     assert "Don't repeat a beat" in mid and "don't retell" in mid
+    assert "Where it fits the story, let more than one thing happen" in mid
     # The decision is the choices' job; the text ends on a moment, not on "she must decide".
     assert "never on a line saying a character must decide" in mid
     assert "season's plan so far: Noi finds out who Ton's uncle is." in mid
