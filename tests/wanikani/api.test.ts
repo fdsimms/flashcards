@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { createWaniKaniApi, outcomeRequest, parseUser, problemForStatus, query, startedSince, WaniKaniError } from '../../src/wanikani/api';
+import { createPacer } from '../../src/wanikani/pace';
 import { parseAssignment } from '../../src/wanikani/subjects';
 import { assignmentResource, kanjiResource, vocabResource } from './fixtures';
 
 type Call = { url: string; init?: RequestInit };
 
-function fakeFetch(routes: (url: string, init?: RequestInit) => { status?: number; body: unknown }) {
+function fakeFetch(routes: (url: string, init?: RequestInit) => { status?: number; body: unknown; headers?: Record<string, string> }) {
   const calls: Call[] = [];
   const fn = async (url: string, init?: RequestInit) => {
     calls.push({ url, init });
-    const { status = 200, body } = routes(url, init);
-    return { ok: status < 400, status, json: async () => body, arrayBuffer: async () => new Uint8Array([1, 2]).buffer } as Response;
+    const { status = 200, body, headers = {} } = routes(url, init);
+    return { ok: status < 400, status, headers: new Headers(headers), json: async () => body, arrayBuffer: async () => new Uint8Array([1, 2]).buffer } as Response;
   };
   return { fn, calls };
 }
@@ -168,5 +169,29 @@ describe('reading the account', () => {
       assignmentResource(2, 2, { started_at: new Date(2026, 10, 12, 3).toISOString() }),
     ].map((r) => parseAssignment(r)!);
     expect(startedSince(a, since.getTime())).toBe(1);
+  });
+});
+
+describe('the rate limit', () => {
+  const user = { data: { username: 'me', level: 14, current_vacation_started_at: null } };
+  // A pacer whose waits are recorded rather than slept.
+  const pacer = (slept: number[]) => createPacer(Date.now, async (ms) => { slept.push(ms); });
+
+  it('waits for the reset and tries a refused request once more', async () => {
+    let n = 0;
+    const reset = String(Math.floor(Date.now() / 1000) + 20);
+    const { fn, calls } = fakeFetch(() => (++n === 1 ? { status: 429, body: {}, headers: { 'RateLimit-Reset': reset } } : { body: user }));
+    const slept: number[] = [];
+    expect((await createWaniKaniApi('t', fn, pacer(slept)).user()).username).toBe('me');
+    expect(calls).toHaveLength(2);
+    expect(slept).toHaveLength(1);
+    expect(slept[0]).toBeGreaterThan(15_000);
+    expect(slept[0]).toBeLessThanOrEqual(21_000);
+  });
+
+  it('says so when it is refused again', async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 429, body: {} }));
+    await expect(createWaniKaniApi('t', fn, pacer([])).user()).rejects.toEqual(new WaniKaniError('rateLimited', 429));
+    expect(calls).toHaveLength(2);
   });
 });

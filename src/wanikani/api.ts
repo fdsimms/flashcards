@@ -1,6 +1,7 @@
 import type { ReviewBatch, StageCounts } from './stats';
 import { parseAssignment, parseSubject, type Assignment, type Subject } from './subjects';
 import { parseSrsSystem, type SrsSystem } from './srs';
+import { createPacer, retryDelay, type Pacer } from './pace';
 import type { Outcome } from './session';
 
 /**
@@ -158,9 +159,28 @@ export interface WaniKaniApi {
   download(url: string): Promise<Uint8Array>;
 }
 
-/** `fetchFn` has no default: the app's goes through the connection guard (`guardedFetch`, src/ui/connection.ts). */
-export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
+/**
+ * `fetchFn` has no default: the app's goes through the connection guard (`guardedFetch`, src/ui/connection.ts).
+ * Every request to the API is spaced by `pacer` (pace.ts), and one refused for the rate limit is tried once more after the reset.
+ */
+export function createWaniKaniApi(token: string, fetchFn: Fetch, pacer: Pacer = createPacer()): WaniKaniApi {
   async function request(url: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
+    let response = await attempt(url, init);
+    if (response.status === 429) {
+      pacer.hold(retryDelay(response.headers?.get('RateLimit-Reset'), Date.now()));
+      response = await attempt(url, init);
+    }
+    if (!response.ok) throw new WaniKaniError(problemForStatus(response.status), response.status);
+    try {
+      return await response.json();
+    } catch {
+      throw new WaniKaniError('unavailable');
+    }
+  }
+
+  async function attempt(url: string, init: { method?: string; body?: unknown }): Promise<Response> {
+    // The wait comes before the timeout starts: time spent waiting for a slot isn't WaniKani being slow.
+    await pacer.wait();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let response: Response;
@@ -181,12 +201,7 @@ export function createWaniKaniApi(token: string, fetchFn: Fetch): WaniKaniApi {
     } finally {
       clearTimeout(timeout);
     }
-    if (!response.ok) throw new WaniKaniError(problemForStatus(response.status), response.status);
-    try {
-      return await response.json();
-    } catch {
-      throw new WaniKaniError('unavailable');
-    }
+    return response;
   }
 
   /** Every page of a collection. */

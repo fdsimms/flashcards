@@ -11,14 +11,14 @@ import { audioFileName, audioFor, suggestedDeck } from '../wanikani/production';
 import { makeProductionNotes } from '../wanikani/productionService';
 import type { Outcome } from '../wanikani/session';
 import { skipWord, unskipWord, withoutSkipped, type SkippedWord } from '../wanikani/skipped';
-import type { Subject } from '../wanikani/subjects';
+import type { Assignment, Subject } from '../wanikani/subjects';
 import { DEFAULT_SRS, type SrsSystem } from '../wanikani/srs';
 import { clearOffline, clearToken, keepAudio, loadPrefs, loadSnapshot, loadState, loadToken, savePrefs, saveSnapshot, saveState, saveToken } from '../wanikani/storage';
 import type { WaniKaniStats } from '../wanikani/stats';
 import type { Api as ReaderApi } from '../reader/api';
 import type { AppRepo } from './AppContext';
 import { guardedFetch, useBackOnline } from './connection';
-import { useWaniKaniStats } from './useWaniKaniStats';
+import { FORCED_AGAIN_MS, useWaniKaniStats } from './useWaniKaniStats';
 
 /** The deck list asks again at most this often; opening WaniKani or pulling to sync asks right away. */
 const COUNTS_EVERY_MS = 60_000;
@@ -122,6 +122,9 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number, reade
   const lastProduction = useRef(0);
   const flushing = useRef<Promise<void> | null>(null);
   const producing = useRef(false);
+  // The words at Guru a production run read. While runs leave words waiting, the next runs make the
+  // rest from this list rather than reading every page of it again (each refresh, once a minute).
+  const backlog = useRef<{ api: WaniKaniApi; at: number; list: Assignment[] } | null>(null);
 
   useEffect(() => {
     Promise.all([loadToken(), loadPrefs(), loadState(), loadSnapshot()]).then(([t, p, s, copy]) => {
@@ -225,18 +228,27 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number, reade
     lastProduction.current = Date.now();
     try {
       const media = repo.mediaSyncState();
+      const passedVocabulary = async (level: number) => {
+        const kept = backlog.current;
+        if (kept && kept.api === api && Date.now() - kept.at < PRODUCTION_EVERY_MS) return kept.list;
+        const list = await api.passedVocabulary(level);
+        backlog.current = { api, at: Date.now(), list };
+        return list;
+      };
       const result = await makeProductionNotes({
-        store: repo, api,
+        store: repo, api: { passedVocabulary, subjects: api.subjects, download: api.download },
         media: { exists: hasMedia, read: readMedia, write: writeMedia, recorded: (n) => media.recorded(n), setPending: (n, s) => media.setPending(n, s) },
         senses: readerApiRef.current ? readerApiRef.current.wanikaniSenses : undefined,
       }, { deck, maxLevel, made: stored.current.made });
       for (const id of result.made) stored.current.made.add(id);
       if (result.made.length) persist();
       setProduction({ waiting: result.waiting, refused: result.refused });
-      // More words than one batch: the next refresh makes the next lot.
+      // More words than one batch: the next refresh makes the next lot, from the same list.
       if (result.waiting && !result.refused) lastProduction.current = 0;
+      else backlog.current = null;
     } catch {
       // WaniKani or the collection couldn't be reached: tried again at the next refresh.
+      backlog.current = null;
     } finally {
       producing.current = false;
     }
@@ -291,7 +303,8 @@ export function useWaniKani(repo: AppRepo | null, dayStartsAtHour: number, reade
   const makeCopy = useCallback(async (u: WaniKaniUser, apprentice: number, started: number, force: boolean) => {
     if (!api || !stored.current || copying.current) return;
     const gen = generation.current;
-    if (!force && snapshot.current && Date.now() - lastCopy.current < COPY_EVERY_MS) return;
+    // Even a forced copy isn't made again moments after the last: closing a session forces one just after the reviews-to-lessons step did.
+    if (snapshot.current && Date.now() - lastCopy.current < (force ? FORCED_AGAIN_MS : COPY_EVERY_MS)) return;
     copying.current = true;
     lastCopy.current = Date.now();
     // Answers sent before this read began are already out of what it reads; later ones stay listed.
