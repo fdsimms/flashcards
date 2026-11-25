@@ -135,6 +135,11 @@ def router(ctx: AppContext) -> APIRouter:
                         naive_utc(d.starts_at),
                         naive_utc(d.starts_at + timedelta(days=1)),
                     ),
+                    "reading_seconds_by_language": store.reading_seconds_by_language(
+                        engine.conn,
+                        naive_utc(d.starts_at),
+                        naive_utc(d.starts_at + timedelta(days=1)),
+                    ),
                 }
                 for d in due.study_days
             ],

@@ -1412,12 +1412,14 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
                 "cards": 120,
                 "answer_seconds": 1500,
                 "reading_seconds": 0,
+                "reading_seconds_by_language": {},
             },
             {
                 "starts_at": "2026-10-19T04:00:00+00:00",
                 "cards": 40,
                 "answer_seconds": 600,
                 "reading_seconds": 0,
+                "reading_seconds_by_language": {},
             },
         ],
         "read_and_listen_today": [],
@@ -1540,6 +1542,8 @@ def test_status_adds_reading_time_to_the_study_day_it_was_logged_on() -> None:
 
     # NOW is 09:00 on the 19th, in the study day that started at 04:00.
     assert [d["reading_seconds"] for d in days] == [0, 300]
+    # The helper's topic is Thai: the split names the language the time was spent in.
+    assert [d["reading_seconds_by_language"] for d in days] == [{}, {"th": 300}]
 
 
 def test_franki_reports_its_counts_and_status_shows_todays() -> None:

@@ -16,7 +16,8 @@ Each route's code is in routes/, one module per area; create_app builds them her
                                       done}] (the languages that get a reading task today,
                                       chosen by read_plan.py),
                                       study_days: [{starts_at, cards, answer_seconds,
-                                      reading_seconds}] (the last 7 study days, today last),
+                                      reading_seconds, reading_seconds_by_language: {code:
+                                      seconds}] (the last 7 study days, today last),
                                       franki: {due, new, reported_at} or null (Franki's own deck
                                       list counts, progress gates included, when it reported
                                       them since today's study day began)}

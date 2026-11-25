@@ -1522,6 +1522,22 @@ def reading_seconds(conn: sqlite3.Connection, start: datetime, end: datetime) ->
     return int(row[0])
 
 
+def reading_seconds_by_language(
+    conn: sqlite3.Connection, start: datetime, end: datetime
+) -> dict[str, int]:
+    """`reading_seconds`, split by the language of the text each session was on (a language with
+    no time is left out), so another app can count one language's reading without the rest."""
+    return {
+        language: int(seconds)
+        for language, seconds in conn.execute(
+            """SELECT x.language, SUM(r.seconds) FROM readings r JOIN texts x ON x.id = r.text_id
+               WHERE r.logged_at >= ? AND r.logged_at < ? GROUP BY x.language""",
+            (start.isoformat(), end.isoformat()),
+        )
+        if seconds
+    }
+
+
 FRANKI_COUNTS_KEY = "franki_counts"
 
 
