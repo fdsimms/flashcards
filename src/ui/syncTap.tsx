@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
+import { progressText } from '../anki/sync/progress';
 import { Reveal } from './motion';
 import { hairline, lift, radius, space, type, useTheme } from './theme';
+import { useSyncProgress } from './useSyncProgress';
 
 /** Sync as a screen with a sync button gets it: present when sync is on. */
 export interface SyncProp {
@@ -44,15 +46,21 @@ export function useSyncTap(sync: SyncProp | undefined, also?: () => Promise<unkn
   return { shown: !!sync && tapped, busy, tap, pulling, pull };
 }
 
-/** "Syncing…" over the list, not in it, so the rows don't move when it comes and goes; taps pass through. */
+/**
+ * "Syncing…" over the list, not in it, so the rows don't move when it comes and goes; taps pass through.
+ * Once the sync reports a phase it says that instead ("Syncing images and sounds, 340 of 1,200"), the
+ * same words as the Sync screen (`progressText`), read from the progress store so only the pill redraws.
+ */
 export function SyncingPill({ top }: { top: number }) {
   const c = useTheme();
+  const progress = useSyncProgress();
+  const text = progress ? progressText(progress).replace(/\.$/, '') : 'Syncing…';
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: top + space.s, left: 0, right: 0, alignItems: 'center' }}>
       <Reveal rise={-8}>
-      <View accessibilityRole="progressbar" accessibilityLabel="Syncing" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m, ...lift(c, 'high') }}>
+      <View accessibilityRole="progressbar" accessibilityLabel={text} style={{ maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: space.s, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m, ...lift(c, 'high') }}>
         <ActivityIndicator size="small" color={c.textSecondary} />
-        <Text style={{ ...type.footnote, color: c.text }}>Syncing…</Text>
+        <Text numberOfLines={1} style={{ ...type.footnote, color: c.text, flexShrink: 1, fontVariant: ['tabular-nums'] }}>{text}</Text>
       </View>
       </Reveal>
     </View>
