@@ -498,6 +498,9 @@ and use at most 4 different names in a text.
 - Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
 who it is the first time (เด็ก|ผู้ชาย|ชื่อ|~ต้น~, "a boy named Ton"), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
+- A name fits where the person is from: someone from another country has a name from that \
+country, never a Thai one (a man from England is James, not ต้น). Give a Thai name only to a \
+person from Thailand.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
 สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
 break and nowhere else: never between words of the same clause, never before a particle like \
@@ -585,6 +588,9 @@ and use at most 4 different names in a text.
 - Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
+- A name fits where the person is from: someone from another country has a name from that \
+country, never a {name} one (a man from England is James, not a {name} name). A {name} name \
+means a person from where {name} is spoken.
 - Give "title_english", a natural English translation of the title.
 - Give "english", a natural English translation of each line.
 - Give "register" for each line: how a native speaker would say it in that situation: \

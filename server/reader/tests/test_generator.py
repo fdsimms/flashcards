@@ -745,6 +745,11 @@ def test_the_prompts_state_the_name_limit() -> None:
         assert f"at most {MAX_NAMES} different names" in system_prompt(ENTRIES, language)
 
 
+def test_the_prompts_match_a_name_to_where_the_person_is_from() -> None:
+    for language in ("th", "es"):
+        assert "A name fits where the person is from" in system_prompt(ENTRIES, language)
+
+
 def test_a_draft_hiding_words_as_names_is_never_kept_as_the_closest() -> None:
     names = "|".join(f"~ชื่อ{i}~" for i in range(MAX_NAMES + 1))
     too_many = draft(f"{names}|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
