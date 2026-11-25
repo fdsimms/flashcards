@@ -702,7 +702,22 @@ def connect(path: Path | str) -> sqlite3.Connection:
     with conn:
         # A text left pending by a restart mid-audio: its missing lines are made on request.
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
+        _clean_titles(conn)
     return conn
+
+
+def _clean_titles(conn: sqlite3.Connection) -> None:
+    """Takes the line markup out of titles kept before the generator did (ทาง|ป่า on the shelf): a
+    `|` is a space in a spaced language and nothing in Thai or Japanese, and `*` and `~` go."""
+    unspaced = tuple(code for code, info in LANGUAGES.items() if not info.spaced)
+    for table in ("texts", "stories"):
+        conn.execute(
+            f"UPDATE {table} SET title = TRIM(REPLACE(REPLACE(REPLACE(title, '|',"
+            f" CASE WHEN language IN ({', '.join('?' for _ in unspaced)}) THEN '' ELSE ' ' END),"
+            " '*', ''), '~', ''))"
+            " WHERE INSTR(title, '|') OR INSTR(title, '*') OR INSTR(title, '~')",
+            unspaced,
+        )
 
 
 # ==== Lexicon ====

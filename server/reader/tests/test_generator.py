@@ -947,3 +947,64 @@ def test_story_request_quotes_the_last_episodes_ending() -> None:
     assert "> The cake is not done yet." in msg
     none = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")))
     assert "How the last episode ended" not in none
+
+
+def test_a_title_written_like_a_line_loses_its_markup() -> None:
+    barred = {**draft("ฉัน|กิน"), "title": "ทาง|*ป่า*"}
+    assert run(ScriptedModel(barred), TextRequest("food")).title == "ทางป่า"
+    series = {**_episode_draft(), "series": "ร้าน|~มะลิ~"}
+    assert run(ScriptedModel(series), _episode()).series == "ร้านมะลิ"
+
+
+def test_name_spellings_count_the_episodes_using_each_most_used_first() -> None:
+    from franki_reader.generator import name_spellings
+
+    episodes = [
+        ["~มะลิ~|กิน", "~ต้น~|กิน|กับ|~มะลิ~"],
+        ["~มาลี~|กิน", "~ต้น~|ยิ้ม"],
+        ["~มะลิ~|ไป"],
+    ]
+    assert name_spellings(episodes, spaced=False) == (("มะลิ", 2), ("ต้น", 2), ("มาลี", 1))
+    assert name_spellings([["~Anna|Maria~|isst"]], spaced=True) == (("Anna Maria", 1),)
+
+
+def test_a_later_episode_is_told_the_name_spellings_and_titles_before_it() -> None:
+    from franki_reader.generator import StoryContext
+
+    sent = request_message(
+        TextRequest(
+            "a stall",
+            story=StoryContext(
+                3, "", "Noi's stall", names=(("มะลิ", 2), ("มาลี", 1)), titles=("แหวน", "เรือ")
+            ),
+        )
+    )
+    assert "มะลิ (2), มาลี (1)" in sent and "never a new spelling" in sent
+    assert "titles: แหวน, เรือ" in sent and "a title of its own" in sent
+    plain = request_message(TextRequest("a stall", story=StoryContext(2, "", "Noi's stall")))
+    assert "spelling" not in plain and "a title of its own" not in plain
+
+
+def test_the_finale_resolves_in_a_scene_rather_than_a_report() -> None:
+    from franki_reader.generator import SEASON_EPISODES, StoryContext
+
+    finale = request_message(
+        TextRequest("a stall", story=StoryContext(SEASON_EPISODES, "", "Noi's stall"))
+    )
+    assert "in a scene the reader sees" in finale and "rather than being reported" in finale
+
+
+def test_quotations_and_grammar_are_asked_not_to_be_forced() -> None:
+    from franki_reader.generator import StoryContext
+
+    sent = request_message(
+        TextRequest("a stall", story=StoryContext(2, "", "Noi's stall"), practice=("th.ever",))
+    )
+    assert 'rather than opening line after line with "X said"' in sent
+    assert "never add one to a line that is complete without it" in sent
+
+
+def test_the_thai_prompt_fits_particles_to_who_is_talking_and_verbs_to_their_nouns() -> None:
+    prompt = system_prompt([])
+    assert "A parent talking to their own child" in prompt and "out of habit" in prompt
+    assert "นั่ง|เรือ" in prompt and "ขี่ only for" in prompt

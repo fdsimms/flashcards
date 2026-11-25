@@ -46,6 +46,7 @@ from franki_reader.generator import (
     MODEL,
     STORY_EFFORT,
     STORY_ENDING_LINES,
+    STORY_RECAPS,
     Ask,
     Form,
     Generated,
@@ -55,6 +56,7 @@ from franki_reader.generator import (
     TextRequest,
     Usage,
     generate,
+    name_spellings,
 )
 from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
@@ -1143,6 +1145,10 @@ class Engine:
                 f"{c['name']}: {c['facts'][-1]['text']}" for c in story.characters if c["facts"]
             ),
             taken=self._names_taken(story),
+            names=name_spellings(
+                ([ln.text for ln in t.lines] for t in told), LANGUAGES[story.language].spaced
+            ),
+            titles=tuple(dict.fromkeys(t.title for t in told if t.title))[-STORY_RECAPS:],
         )
 
     def _names_taken(self, story: Story) -> tuple[str, ...]:

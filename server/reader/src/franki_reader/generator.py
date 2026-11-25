@@ -20,7 +20,7 @@ conversation (append-only, so the model's thinking stays valid across turns).
 
 import json
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Iterable
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal, cast
 
@@ -43,7 +43,7 @@ from franki_reader.cast import (
 )
 from franki_reader.characters import CHARACTERS
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.coverage import MINIMUM, Checker, Coverage, check
+from franki_reader.coverage import MINIMUM, Checker, Coverage, check, line_names, parse_line
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
@@ -197,6 +197,12 @@ class StoryContext:
     # The names the language's other stories already use, one entry per story, so this one's
     # characters don't repeat them (a second series came out with the first one's Mali).
     taken: tuple[str, ...] = ()
+    # The names the earlier episodes mark in their lines, each spelling with how many episodes
+    # used it, most used first. The cast, recaps and voices are all in English, so without these an
+    # episode spelled a name afresh (มะลิ, then มาลี; ไฝ, then ฝ้าย and ไฟ, "fire").
+    names: tuple[tuple[str, int], ...] = ()
+    # The latest episodes' titles, so a new one doesn't repeat one (two episodes were แหวนสองวง).
+    titles: tuple[str, ...] = ()
 
     @property
     def season(self) -> int:
@@ -469,7 +475,10 @@ from a sentence that isn't Thai.
 any that isn't with a listed word or a simpler way of saying it, unless the line needs that word to \
 be grammatical. Getting this right first time matters more than a clever text.
 - Write natural Thai, the way a Thai speaker would say it, never a word-for-word translation of an \
-English phrase or idiom. If an English idea has no plain Thai equivalent, say something else.
+English phrase or idiom. If an English idea has no plain Thai equivalent, say something else. Pair \
+each verb with the nouns Thai uses it with (นั่ง|เรือ and นั่ง|รถ for riding in a boat or a car; \
+ขี่ only for a bicycle, a motorbike or a horse), and say that a person does something where Thai \
+does, not a part of them (เขา|ยิ้ม, not หน้า|ของ|เขา|ยิ้ม).
 - A dialogue is natural, everyday spoken Thai between two speakers, A and B. In "roles", give \
 each speaker a first name, written in Latin letters, that suits the speaker and the language, like \
 "Nok" and "Somchai". Where the situation gives them a job (waiter, shopkeeper, doctor, teacher), put it \
@@ -477,13 +486,19 @@ before the name, like "Waiter Nok". A friend, relative or stranger is only a nam
 different names.
 - In "genders", say whether A and B are a man or a woman ("male" or "female"). The learner hears a \
 man's voice for a man and a woman's voice for a woman, so every line has to fit its speaker. A man \
-says ครับ and ผม; a woman says ค่ะ (statements) or คะ (questions) and ดิฉัน, never ครับ or ผม. \
+says ผม and ครับ; a woman says ฉัน (ดิฉัน when formal) and ค่ะ (statements) or คะ (questions), \
+never ครับ or ผม. \
 Choose each speaker's gender to suit the situation and vary it from text to text: a man and a \
 woman, two men or two women. In a story, set both to "none".
 - In "characters", pick the picture shown beside each speaker: parent, grandparent, child, friend, \
 waiter, shopkeeper, doctor, teacher, traveler, or person for anyone else. Pick the one nearest \
 the role, and "none" for both in a story. The picture is drawn as a man or a woman from "genders", \
 so a parent is a father or a mother. Prefer two different characters.
+- Polite particles follow who is talking to whom, in a dialogue and in a story's quotations \
+alike: ครับ, and ค่ะ or คะ, to a stranger, a customer, an elder or anyone the speaker is being \
+polite to. A parent talking to their own child calls themselves แม่ or พ่อ and ends with นะ or จ้ะ, \
+or with no particle; children and close friends often leave the particle out. Never add ครับ or ค่ะ \
+to a line out of habit.
 - A story is told by a narrator: every line's speaker is N, each line is one or two simple \
 sentences, and the story has a beginning, something that happens, and an end. Keep the language \
 plain, since description pulls in words the learner may not know. Leave both roles empty.
@@ -705,7 +720,9 @@ def request_message(request: TextRequest) -> str:
     if request.practice:
         parts.append(
             f"Grammar to practice: use each of these at least {grammar.PRACTICE_USES} times, "
-            "where it fits naturally:\n" + _grammar_list(request.practice)
+            "where it fits naturally. Use a point only where a native speaker would in that "
+            "line: never add one to a line that is complete without it, and write a different "
+            "line rather than bend one to fit it:\n" + _grammar_list(request.practice)
         )
     if request.avoid:
         parts.append(
@@ -787,7 +804,11 @@ def _speakers_ask(story: StoryContext) -> str:
         "Voices: the learner hears each character in a voice of their own, and the narrator in "
         "another. Put what a character says aloud in quotation marks inside the narrator's line, "
         "the language's usual pair of these: « » or “ ” or „ “ or 「 」. Use quotation marks for "
-        'nothing else, and none for thoughts. Then in the line\'s "quotes" list who says each '
+        "nothing else, and none for thoughts. Vary how a quotation comes in: once it's clear who "
+        "is talking, let one follow what the character does (she looked at the ring and smiled, "
+        "then the quotation) or stand on its own, and use asked, answered or called where they "
+        'fit, rather than opening line after line with "X said". Then in the line\'s "quotes" '
+        "list who says each "
         "quotation, in the order they appear, by name; a line with none has an empty list. In "
         '"speakers" list each character who speaks in this episode and has no voice yet: "name" '
         '(a short name or label, the same every time, like Аня or Hoarse voice), "gender" '
@@ -855,6 +876,41 @@ def _taken_names(story: StoryContext) -> str:
     )
 
 
+def name_spellings(episodes: Iterable[Iterable[str]], spaced: bool) -> tuple[tuple[str, int], ...]:
+    """Each name the episodes mark in their lines (as the model wrote them, `~มะลิ~`), with how
+    many episodes used that spelling: most used first, then in the order they first appeared."""
+    counts: dict[str, int] = {}
+    for lines in episodes:
+        for name in dict.fromkeys(n for line in lines for n in line_names(line, spaced)):
+            counts[name] = counts.get(name, 0) + 1
+    return tuple(sorted(counts.items(), key=lambda kv: -kv[1]))
+
+
+def _name_spellings(story: StoryContext) -> str:
+    """Tells a later episode how the earlier ones wrote the characters' names, so a returning
+    character keeps one spelling."""
+    if not story.names:
+        return ""
+    return (
+        "How the earlier episodes write the characters' names in the lines, with how many "
+        "episodes used each spelling: "
+        + ", ".join(f"{name} ({n})" for name, n in story.names)
+        + ". Write a returning character's name exactly as most episodes did, every time, and "
+        "never a new spelling of a name already here.\n"
+    )
+
+
+def _earlier_titles(story: StoryContext) -> str:
+    """The latest episodes' titles, so this one's is its own."""
+    if not story.titles:
+        return ""
+    return (
+        "The latest episodes' titles: "
+        + ", ".join(story.titles)
+        + ". Give this episode a title of its own, not one of these.\n"
+    )
+
+
 def _story_intro(story: StoryContext) -> str:
     last = SEASON_EPISODES
     plan_ask = (
@@ -907,8 +963,11 @@ def _story_intro(story: StoryContext) -> str:
         if story.season_episode == last:
             place += (
                 " This is the season finale: bring what has been building to its climax and "
-                "resolve the season's main question, with no cliffhanger. The choices at the end "
-                "are what the next season could be about."
+                "resolve the season's main question, with no cliffhanger. Resolve it in a scene the "
+                "reader sees: what was hidden is explained concretely, what happens to anyone who "
+                "worked against the characters happens in the lines rather than being reported "
+                "afterward, and a character's big decision has a reason the reader is shown. The "
+                "choices at the end are what the next season could be about."
             )
         elif story.season_episode == last - 1:
             place += " The next episode is the finale, so bring the story to its turning point."
@@ -920,8 +979,10 @@ def _story_intro(story: StoryContext) -> str:
     return (
         f"{place}\n{plan}{picked}{ending}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
+        f"{_name_spellings(story)}"
         f"{_taken_names(story)}"
         f"The story so far, a recap of each episode:\n{so_far}\n"
+        f"{_earlier_titles(story)}"
         f"{_STORY_RULES}\n"
         f'{_RECAP_ASK} {plan_ask} Leave "series" and "cast" empty.'
     )
@@ -952,7 +1013,8 @@ def grammar_problems(
             misses += grammar.PRACTICE_USES - n
             problems.append(
                 f"Use the {grammar.POINTS[pid].name} at least {grammar.PRACTICE_USES} times; "
-                f"this draft uses it {n} {'time' if n == 1 else 'times'}."
+                f"this draft uses it {n} {'time' if n == 1 else 'times'}. Add a line where a "
+                "native speaker would use it, rather than forcing it into a line that has none."
             )
     for pid in request.avoid:
         if used := found[pid]:
@@ -1139,7 +1201,8 @@ def _assess(
             for g in draft["glosses"]
             if isinstance(g.get("translit"), str) and g["translit"].strip()
         }
-        title = draft["title"]
+        # The model sometimes writes the title like a line (ทาง|ป่า), and the shelf showed the bars.
+        title = parse_line(str(draft["title"]), lexicon.spaced)[0].strip()
         title_english = str(draft.get("title_english") or "").strip()
         roles = {k: str(v).strip() for k, v in draft.get("roles", {}).items() if str(v).strip()}
         genders = {
@@ -1155,6 +1218,7 @@ def _assess(
         recap, series, cast_, plan = (
             str(draft.get(k) or "").strip() for k in ("recap", "series", "cast", "plan")
         )
+        series = parse_line(series, lexicon.spaced)[0].strip()
         choices = _choices(draft, request)
         recap_line, recap_english = _recap_line(draft, request)
         speakers = parse_speakers(draft.get("speakers")) if request.story is not None else ()
