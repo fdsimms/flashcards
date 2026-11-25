@@ -2800,6 +2800,8 @@ export interface components {
             language?: string | null;
             /** Reading */
             reading?: string | null;
+            /** Ipa */
+            ipa?: string | null;
         };
         /** StoryIn */
         StoryIn: {

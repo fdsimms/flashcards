@@ -175,7 +175,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
              tested; storage.ts keeps the passphrase in the Keychain)
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, production notes (pure, tested; storage.ts keeps the token in the Keychain)
-src/tools    the Practice tab's tools (similar words, which word fits, sentences, situations, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
+src/tools    the Practice tab's tools (similar words, hearing sounds, which word fits, sentences, situations, time, dates, money, numbers, counting, script, grammar): the list (tools.ts), each tool's logic, and each
              language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts and extrasStorage.ts. Daily extras (extras.ts) plan the Today tab's strip of drills and texts from the miss tallies; screens are DailyExtras.tsx and DailyExtrasSettings.tsx. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). Skill cards (skills.ts) are the one way practice reaches the collection: Add
@@ -274,7 +274,7 @@ microphone while offline. WaniKani talks to api.wanikani.com only once its token
 notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
 recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
 outbox and are sent later, and the copy leaves out items answered since it was made. Recording a card with an Azure voice (`src/core/recording.ts`) goes
-through Read & Listen's server, so it's off while Read & Listen is. The three Japanese fonts
+through Read & Listen's server, as do Hearing sounds' recordings (kept on the phone once made), so both are off while Read & Listen is. The three Japanese fonts
 (Settings, Font) are too large to bundle: each is downloaded from jsDelivr, version-pinned, only when its row is
 tapped, and kept in the documents folder (`src/core/fontDownloads.ts`). A
 future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting

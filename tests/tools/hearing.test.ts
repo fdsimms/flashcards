@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { AzureVoice, Language } from '../../src/reader/api';
 import {
   allWords, clipName, drawHearing, HEARING, hearingPatterns, hearingVoices, MAX_VOICES, questionKey, roundResults, soundById, soundOf,
-  soundsOf, spokenText, targetsFor, TONE_QUESTION_SHARE, TONE_SET, validFocus, weakestSound, type HearingLanguage,
+  hearingFromMisses, hearingPracticeLabel, needsRecording, practicedByHearing, soundsOf, spokenText, targetsFor, TONE_QUESTION_SHARE, TONE_SET,
+  validFocus, voiceKey, weakestSound, type HearingLanguage,
 } from '../../src/tools/hearing';
 import { toneOfRoman } from '../../src/tools/thai/script';
 import { TOOLS } from '../../src/tools/tools';
@@ -24,7 +25,7 @@ describe('the word sets', () => {
       expect(set.words.length).toBeGreaterThanOrEqual(2);
       expect(new Set(set.words.map((w) => w.word)).size).toBe(set.words.length);
       // Two words a voice is given alike can't be told apart by ear.
-      expect(new Set(set.words.map((w) => spokenText(w) + (w.reading ?? ''))).size).toBe(set.words.length);
+      expect(new Set(set.words.map(voiceKey)).size).toBe(set.words.length);
       for (const w of set.words) {
         expect(w.roman.trim()).not.toBe('');
         expect(w.meaning.trim()).not.toBe('');
@@ -56,6 +57,30 @@ describe('the word sets', () => {
         expect(w.word.normalize('NFD').replace(/́/g, '')).toBe(spokenText(w).normalize('NFD'));
       }
     }
+  });
+
+  it('gives each word of a Russian stress pair its IPA, stressed where its mark is', () => {
+    for (const set of HEARING.ru!.sets.filter((s) => s.sound === 'stress')) {
+      expect(new Set(set.words.map(spokenText)).size).toBe(1);
+      for (const w of set.words) {
+        expect(needsRecording(w)).toBe(true);
+        // The same syllable is stressed in both: as many vowels come before the marked one in the
+        // word as before the ˈ in its IPA.
+        const letters = [...w.word.normalize('NFD')];
+        const mark = letters.indexOf('\u0301');
+        const beforeMark = letters.slice(0, mark - 1).filter((ch) => /[аеёиоуыэюя]/.test(ch)).length;
+        const beforeStress = [...w.ipa!.split('ˈ')[0]].filter((ch) => /[aeiouɐəʊɪɨɛɔæ]/.test(ch)).length;
+        expect(mark).toBeGreaterThan(0);
+        expect(beforeStress).toBe(beforeMark);
+      }
+    }
+  });
+
+  it('leaves the stress pairs out when only the phone can play them', () => {
+    const ru = HEARING.ru!;
+    expect(targetsFor(ru, { kind: 'group', id: 'stress' }).length).toBeGreaterThan(0);
+    expect(targetsFor(ru, { kind: 'group', id: 'stress' }, false)).toEqual([]);
+    for (const [s] of targetsFor(ru, { kind: 'all' }, false)) expect(ru.sets[s].sound).not.toBe('stress');
   });
 
   it('gives a Japanese reading only with the kanji it reads, in kana that matches the word shown', () => {
@@ -161,5 +186,26 @@ describe('the voices', () => {
     const words = allWords(thai);
     expect(words.filter((w) => w.word === 'ข้าว')).toHaveLength(1);
     expect(new Set(words.map((w) => w.word)).size).toBe(words.length);
+  });
+});
+
+describe("a session's misses", () => {
+  const languages: Record<string, Language> = { a: 'th', b: 'th', c: 'th', d: 'pl', e: 'th' };
+  const languageOf = (id: string) => languages[id];
+
+  it('opens Thai words missed on tone or vowel length on that group, once each by its latest reason', () => {
+    const practice = hearingFromMisses([
+      { noteId: 'a', miss: 'tone' }, { noteId: 'b', miss: 'tone' }, { noteId: 'c', miss: 'vowel-length' },
+      { noteId: 'e', miss: 'tone' }, { noteId: 'e', miss: 'meaning' }, { noteId: 'd', miss: 'spelling' },
+    ], languageOf);
+    expect(practice).toEqual([{ language: 'th', group: 'tones', count: 2 }, { language: 'th', group: 'vowels', count: 1 }]);
+    expect(practice.map(hearingPracticeLabel)).toEqual(['Practice hearing tones', 'Practice hearing vowel length']);
+  });
+
+  it('takes only the reasons it practices, in the languages it has', () => {
+    expect(practicedByHearing('th', 'tone')).toBe(true);
+    expect(practicedByHearing('th', 'spelling')).toBe(false);
+    expect(practicedByHearing('ru', 'stress')).toBe(false);
+    expect(practicedByHearing(undefined, 'tone')).toBe(false);
   });
 });

@@ -88,7 +88,9 @@ export default function ReviewRoute() {
       onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'decks' } })}
       onPracticeForms={(request) => router.push({ pathname: '/forms-drill', params: { request: JSON.stringify(request) } })}
-      onPracticeMixups={(request) => router.push({ pathname: '/tool', params: { id: 'mixups', notes: JSON.stringify(request.noteIds), mode: request.mode, language: request.language } })}
+      onPracticeMisses={(request) => router.push({ pathname: '/tool', params: request.tool === 'hearing'
+        ? { id: 'hearing', language: request.language, group: request.group }
+        : { id: 'mixups', notes: JSON.stringify(request.noteIds), mode: request.mode, language: request.language } })}
     />
   );
 }

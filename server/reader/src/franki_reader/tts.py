@@ -84,6 +84,7 @@ class Speech(Protocol):
         rate: float = 1.0,
         language: str | None = None,
         reading: str | None = None,
+        ipa: str | None = None,
     ) -> bytes: ...
 
 

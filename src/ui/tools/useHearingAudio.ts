@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Repo } from '../../db/repo';
 import type { Api, Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { allWords, clipName, hearingVoices, HEARING, spokenText, type HearingWord } from '../../tools/hearing';
+import { allWords, clipName, hearingVoices, HEARING, needsRecording, spokenText, type HearingWord } from '../../tools/hearing';
 import { useOutputWake } from '../useOutputWake';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 import { trackPlayer } from '../useSoundingButton';
@@ -16,7 +16,9 @@ const folder = () => new Directory(Paths.document, 'hearing');
 /** Which voice a word was played in: one of the Azure voices, or the phone's own, and why. */
 export type HeardIn =
   | { kind: 'voice'; index: number; of: number }
-  | { kind: 'phone'; why: 'off' | 'unreachable' | 'no-voices' };
+  | { kind: 'phone'; why: 'off' | 'unreachable' | 'no-voices' }
+  /** Not played: a word only a recording can say (`needsRecording`) had none, and the server couldn't make one. */
+  | { kind: 'none' };
 
 /** A word as the phone's voice is given it: in kana for Japanese (a phone voice reads kanji one at a time), and a Russian word without its stress mark. */
 const phoneText = (w: HearingWord): string => w.reading ?? w.say ?? w.word;
@@ -52,7 +54,7 @@ async function clipFor(api: Api | null, language: Language, word: HearingWord, v
   const file = new File(folder(), clipName(word, voice));
   if (file.exists) return file;
   if (!api) return undefined;
-  const bytes = await api.speech(spokenText(word), voice, 1, LANGUAGES[language].speech, word.reading);
+  const bytes = await api.speech(spokenText(word), voice, 1, LANGUAGES[language].speech, word.reading, word.ipa);
   folder().create({ idempotent: true, intermediates: true });
   file.create({ overwrite: true });
   file.write(bytes);
@@ -147,6 +149,8 @@ export function useHearingAudio(repo: Repo, api: Api | null, language: Language)
         return { kind: 'voice', index, of: list.length };
       }
     }
+    // The phone's voice would say the spelling, which for this word could be either of the pair.
+    if (needsRecording(word)) return { kind: 'none' };
     void phone.sayWord(phoneText(word), LANGUAGES[language].speech);
     return { kind: 'phone', why: !api ? 'off' : list?.length || unreachable ? 'unreachable' : 'no-voices' };
   }, [api, language, list, unreachable, phone, wake]);

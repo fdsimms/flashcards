@@ -29,6 +29,12 @@ export interface HearingWord {
   say?: string;
   /** A Japanese word's reading in kana, for Read & Listen's server to say in place of the kanji. */
   reading?: string;
+  /**
+   * The word as IPA, which Read & Listen's server has Azure say in place of the text: for a word
+   * whose spelling doesn't say how it's said (за́мок or замо́к, both written замок to a voice). Such a
+   * word can't be played in the phone's voice, which would say the spelling (`needsRecording`).
+   */
+  ipa?: string;
 }
 
 /** One sound to tell apart, e.g. Polish sz or ś. */
@@ -134,11 +140,16 @@ function groupOf(language: HearingLanguage, set: HearingSet): string | undefined
   return set.sound === TONE_SET ? 'tones' : language.sounds.find((s) => s.id === set.sound)?.group;
 }
 
-/** Each target a focus allows, as [set, word] indexes: a group's sets' words, or the words standing for one sound. */
-export function targetsFor(language: HearingLanguage, focus: HearingFocus): [number, number][] {
+/**
+ * Each target a focus allows, as [set, word] indexes: a group's sets' words, or the words standing
+ * for one sound. Without Azure's recordings (`recorded` false: only the phone's voice), a set with a
+ * word the phone can't say is left out (`needsRecording`).
+ */
+export function targetsFor(language: HearingLanguage, focus: HearingFocus, recorded = true): [number, number][] {
   const targets: [number, number][] = [];
   language.sets.forEach((set, s) => {
     if (focus.kind === 'group' && groupOf(language, set) !== focus.id) return;
+    if (!recorded && set.words.some(needsRecording)) return;
     set.words.forEach((word, w) => {
       if (focus.kind === 'sound' && soundOf(set, word) !== focus.id) return;
       targets.push([s, w]);
@@ -152,8 +163,8 @@ export function targetsFor(language: HearingLanguage, focus: HearingFocus): [num
  * from a tone set is asked for its tone `TONE_QUESTION_SHARE` of the time. Undefined when the focus
  * holds nothing (a group the language doesn't have).
  */
-export function drawHearing(language: HearingLanguage, focus: HearingFocus, previous: string | undefined, random: () => number): HearingQuestion | undefined {
-  const targets = targetsFor(language, focus);
+export function drawHearing(language: HearingLanguage, focus: HearingFocus, previous: string | undefined, random: () => number, recorded = true): HearingQuestion | undefined {
+  const targets = targetsFor(language, focus, recorded);
   if (!targets.length) return undefined;
   const pickOne = (): HearingQuestion => {
     const [set, target] = targets[Math.floor(random() * targets.length)];
@@ -234,14 +245,68 @@ export function hearingVoices(voices: AzureVoice[], language: Language): string[
 /** What a voice is given for a word: `say` where it has one, else the word itself. */
 export const spokenText = (w: HearingWord): string => w.say ?? w.word;
 
-/** The file a word's recording in a voice is kept in, named as a card's recording would be (recording.ts). */
+/** Everything a recording of a word is made from: two words with the same key sound the same to a voice. */
+export const voiceKey = (w: HearingWord): string => [spokenText(w), w.reading ?? '', w.ipa ?? ''].join('\n');
+
+/** Whether a word can only be played from an Azure recording: the phone's voice can't be told how to say it. */
+export const needsRecording = (w: HearingWord): boolean => !!w.ipa;
+
+/** The file a word's recording in a voice is kept in, named as a card's recording would be (recording.ts), its reading and IPA included. */
 export function clipName(w: HearingWord, voice: string): string {
-  return recordingName(spokenText(w), voice, 1, w.reading);
+  return recordingName(spokenText(w), voice, 1, [w.reading, w.ipa].filter(Boolean).join('\n') || undefined);
 }
 
 /** Every word a language has, once each, for recording them all ahead. */
 export function allWords(language: HearingLanguage): HearingWord[] {
   const seen = new Map<string, HearingWord>();
-  for (const set of language.sets) for (const w of set.words) if (!seen.has(spokenText(w) + (w.reading ?? ''))) seen.set(spokenText(w) + (w.reading ?? ''), w);
+  for (const set of language.sets) for (const w of set.words) if (!seen.has(voiceKey(w))) seen.set(voiceKey(w), w);
   return [...seen.values()];
+}
+
+/**
+ * Review's miss reasons that Hearing sounds practices, by language: the reason's key to the group
+ * that trains it. A Thai word missed on its tone or its vowel's length is practiced here rather
+ * than among the deck's own sound-alikes (mixups.ts, By ear), which most Thai words don't have.
+ */
+export const HEARING_FOR_MISS: Partial<Record<Language, Record<string, string>>> = {
+  th: { tone: 'tones', 'vowel-length': 'vowels' },
+};
+
+/** Whether a miss is one Hearing sounds practices. */
+export function practicedByHearing(language: Language | undefined, miss: string | undefined): boolean {
+  return !!language && !!miss && !!HEARING_FOR_MISS[language]?.[miss] && !!HEARING[language];
+}
+
+export interface HearingPractice {
+  language: Language;
+  /** The group to open on (Tones, Vowel length). */
+  group: string;
+  /** How many of the session's words were missed this way. */
+  count: number;
+}
+
+/**
+ * What a study session's misses offer Hearing sounds: one round for each language and group that
+ * words were missed on, in the order first missed. Each note once, with the reason from its latest
+ * miss, as Similar words counts them.
+ */
+export function hearingFromMisses(misses: readonly { noteId: string; miss?: string }[], languageOf: (noteId: string) => Language | undefined): HearingPractice[] {
+  const latest = new Map<string, string | undefined>();
+  for (const m of misses) { latest.delete(m.noteId); latest.set(m.noteId, m.miss); }
+  const out: HearingPractice[] = [];
+  for (const [id, miss] of latest) {
+    const language = languageOf(id);
+    if (!language || !practicedByHearing(language, miss)) continue;
+    const group = HEARING_FOR_MISS[language]![miss!];
+    const found = out.find((p) => p.language === language && p.group === group);
+    if (found) found.count++;
+    else out.push({ language, group, count: 1 });
+  }
+  return out;
+}
+
+/** The button that opens one: "Practice hearing tones". */
+export function hearingPracticeLabel(p: HearingPractice): string {
+  const label = HEARING[p.language]?.groups.find((g) => g.id === p.group)?.label ?? p.group;
+  return `Practice hearing ${label.toLowerCase()}`;
 }

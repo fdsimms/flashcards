@@ -9363,6 +9363,19 @@
               }
             ],
             "title": "Reading"
+          },
+          "ipa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ipa"
           }
         },
         "type": "object",

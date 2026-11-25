@@ -779,6 +779,7 @@ class FakeSpeech:
     def __init__(self) -> None:
         self.spoken: list[tuple[str, str, float, str | None]] = []
         self.readings: list[str | None] = []
+        self.ipas: list[str | None] = []
 
     async def voices(self) -> list[dict[str, Any]]:
         return [
@@ -819,9 +820,11 @@ class FakeSpeech:
         rate: float = 1.0,
         language: str | None = None,
         reading: str | None = None,
+        ipa: str | None = None,
     ) -> bytes:
         self.spoken.append((text, voice, rate, language))
         self.readings.append(reading)
+        self.ipas.append(ipa)
         return b"ID3" + text.encode()
 
 
@@ -920,6 +923,20 @@ def test_a_japanese_card_is_recorded_from_its_reading_where_sudachi_reads_it_oth
     assert speech.readings == ["こんにち", None, None, None]
 
 
+def test_a_word_can_be_said_from_its_ipa() -> None:
+    speech = FakeSpeech()
+    c = voice_client(speech)
+    dmitry = "ru-RU-DmitryNeural"
+    body = {"text": "замок", "voice": dmitry, "ipa": "zɐˈmok"}
+    assert c.post("/api/speech", json=body, headers=AUTH).status_code == 200
+    c.post("/api/speech", json={"text": "замок", "voice": dmitry}, headers=AUTH)
+    assert speech.ipas == ["zɐˈmok", None]
+    # The text is still what's billed and what the voice is given around the IPA.
+    assert speech.spoken[0][0] == "замок"
+    too_long = {"text": "замок", "voice": dmitry, "ipa": "z" * 201}
+    assert c.post("/api/speech", json=too_long, headers=AUTH).status_code == 422
+
+
 def test_conjugates_japanese_verbs_for_the_forms_field() -> None:
     c = voice_client(FakeSpeech())
     body = {"verbs": [{"entry": "帰る", "reading": "かえる"}, {"entry": "劇団"}]}
@@ -970,6 +987,7 @@ def test_a_cards_recording_counts_in_the_costs_and_a_failed_one_doesnt() -> None
         rate: float = 1.0,
         language: str | None = None,
         reading: str | None = None,
+        ipa: str | None = None,
     ) -> bytes:
         raise SpeechError("Azure didn't answer.")
 

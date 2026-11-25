@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { hasThai, japaneseFont, thaiTextStyle } from '../../core/script';
 import {
-  drawHearing, HEARING, hearingPatterns, questionKey, ROUND_LENGTH, roundResults, soundById, soundOf, validFocus, weakestSound,
+  drawHearing, HEARING, hearingPatterns, targetsFor, questionKey, ROUND_LENGTH, roundResults, soundById, soundOf, validFocus, weakestSound,
   type HearingAnswer, type HearingFocus, type HearingLanguage, type HearingQuestion, type HearingWord, type SoundResult,
 } from '../../tools/hearing';
 import { toneOfRoman, TONE_NAMES, type Tone } from '../../tools/thai/script';
@@ -27,6 +27,7 @@ type Picked = { choice: number | Tone | null };
 function voiceLine(heard: HeardIn | null): string | undefined {
   if (!heard) return undefined;
   if (heard.kind === 'voice') return heard.of > 1 ? `Voice ${heard.index + 1} of ${heard.of}. Play it again for another voice.` : undefined;
+  if (heard.kind === 'none') return "Couldn't play this word: it needs its recording, and Read & Listen couldn't be reached. Choose I don't know to go on.";
   if (heard.why === 'off') return "Only the phone's voice. Turn on Read & Listen to hear each word in 3 or 4 voices.";
   if (heard.why === 'unreachable') return "Only the phone's voice: Read & Listen couldn't be reached. Words recorded before still play in their voices.";
   return "Only the phone's voice: Read & Listen has no voices for this language.";
@@ -41,19 +42,28 @@ function voiceLine(heard: HeardIn | null): string | undefined {
  * answer is tallied against its sound (useMarks), so the sounds missed lately come up more. Nothing
  * here grades a card.
  */
-export function HearingTool({ tool, repo, readerApi }: ToolScreenProps) {
+export function HearingTool({ tool, repo, readerApi, params }: ToolScreenProps) {
   const c = useTheme();
-  const [language, setLanguage] = useToolLanguage(tool);
+  const [savedLanguage, setLanguage] = useToolLanguage(tool);
+  // Opened from Review's session end on a language and group (Thai tones): those, until another is chosen here.
+  const opened = useMemo(() => tool.languages.find((l) => l === params.language), [tool.languages, params.language]);
+  const [openedLanguage, setOpenedLanguage] = useState(opened);
+  const language = openedLanguage ?? savedLanguage;
   const def = HEARING[language] as HearingLanguage;
   const [groups, setGroups] = useToolPref('hearingGroups');
-  // One sound on its own, from a round's results; cleared by choosing a group or another language.
-  const [soundFocus, setSoundFocus] = useState<{ language: string; id: string } | null>(null);
-  const focus: HearingFocus = validFocus(def, soundFocus?.language === language
-    ? { kind: 'sound', id: soundFocus.id }
+  // A focus not saved as the language's choice: the group Review opened on, or one sound from a
+  // round's results. Cleared by choosing sounds in the menu or another language.
+  const [override, setOverride] = useState<{ language: string; focus: HearingFocus } | null>(
+    () => (opened && params.group ? { language: opened, focus: { kind: 'group', id: params.group } } : null),
+  );
+  const focus: HearingFocus = validFocus(def, override?.language === language
+    ? override.focus
     : groups[language] ? { kind: 'group', id: groups[language]! } : { kind: 'all' });
   const scope = `${language}|${focus.kind}:${focus.kind === 'all' ? '' : focus.id}`;
 
   const audio = useHearingAudio(repo, readerApi, language);
+  // Only the phone's voice: a set it can't say (Russian stress) isn't asked.
+  const recorded = audio.voiceCount > 0;
   const marks = useMarks(tool.id, language);
   const retries = useRetries<HearingQuestion>();
   const [question, setQuestion] = useState<HearingQuestion | undefined>();
@@ -75,7 +85,8 @@ export function HearingTool({ tool, repo, readerApi }: ToolScreenProps) {
 
   const ask = (current: HearingQuestion | undefined) => {
     const previous = current ? questionKey(current) : undefined;
-    const draw = () => marks.pick(() => drawHearing(def, focus, previous, Math.random) as HearingQuestion, (q) => hearingPatterns(def, q), questionKey);
+    if (!targetsFor(def, focus, recorded).length) { setQuestion(undefined); return; }
+    const draw = () => marks.pick(() => drawHearing(def, focus, previous, Math.random, recorded) as HearingQuestion, (q) => hearingPatterns(def, q), questionKey);
     const q = retries.next(scope, previous, draw);
     setQuestion(q);
     setPicked(null);
@@ -112,9 +123,9 @@ export function HearingTool({ tool, repo, readerApi }: ToolScreenProps) {
   const newRound = (f: HearingFocus) => {
     setAnswers([]);
     setResults(null);
-    if (f.kind === 'sound') setSoundFocus({ language, id: f.id });
+    if (f.kind === 'sound') setOverride({ language, focus: f });
     else {
-      setSoundFocus(null);
+      setOverride(null);
       const nextGroups = { ...groups };
       if (f.kind === 'group') nextGroups[language] = f.id;
       else delete nextGroups[language];
@@ -213,6 +224,14 @@ export function HearingTool({ tool, repo, readerApi }: ToolScreenProps) {
         <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center' }}>{`${Math.min(answers.length + (answered ? 0 : 1), ROUND_LENGTH)} of ${ROUND_LENGTH}`}</Text>
       </View>
     );
+  } else if (audio.ready) {
+    // Nothing to ask: the sounds chosen are ones only Azure's recordings can say.
+    body = (
+      <View style={{ padding: space.l }}>
+        <Card><Help>{"These sounds need Azure's recordings, since the phone's voice can't say them apart. Turn on Read & Listen, or choose other sounds in the menu."}</Help></Card>
+      </View>
+    );
+    footer = <View />;
   } else {
     body = <View />;
     footer = <View />;
@@ -222,7 +241,7 @@ export function HearingTool({ tool, repo, readerApi }: ToolScreenProps) {
     <ToolScreen
       tool={tool}
       language={language}
-      onLanguage={(l) => { setLanguage(l); setSoundFocus(null); }}
+      onLanguage={(l) => { setLanguage(l); setOpenedLanguage(undefined); setOverride(null); }}
       shown={answered}
       onRandomize={() => { if (!results) next(); }}
       onShow={() => choose(null)}
