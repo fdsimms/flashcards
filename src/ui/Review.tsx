@@ -125,6 +125,8 @@ import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './k
 import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
 import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
+import { MissMnemonicCover, useMissMnemonic } from './MissMnemonic';
+import { missMnemonic } from '../core/missMnemonic';
 import { AnswerTimer } from './AnswerTimer';
 import { useTimebox } from './useTimebox';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -299,6 +301,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
   const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
+  // A missed card's mnemonic, held over the next card until Continue (MissMnemonic.tsx).
+  const missCover = useMissMnemonic();
   // Anki's session time limit, from the collection's settings (useTimebox.ts).
   useTimebox(collection.timeLimitSecs, history.length, onDone);
   // Set while an answer or an undo is being written. A second tap during the await would
@@ -805,6 +809,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
       if (!redo && !preview) stopSuggestion.answered(cur, nt, rating, when);
+      missCover.show(missMnemonic(nt, rating, !!preview) ?? null);
       lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
       // screen (`settling`). Not while the last answer is still settling (that queue still has its
@@ -1722,6 +1727,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </View>
       ) : null}
     </Screen>
+    {missCover.shown ? <MissMnemonicCover shown={missCover.shown} onContinue={() => { shownAt.current = Date.now(); missCover.hide(); }} /> : null}
     </View>
     </>
   );
