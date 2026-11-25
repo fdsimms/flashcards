@@ -168,6 +168,23 @@ class Lexicon:
                 out.append(particle)
             else:
                 out.append(token)
+        return self._prefer_known_boundary(out)
+
+    def _prefer_known_boundary(self, tokens: list[str]) -> list[str]:
+        """Two words can also be cut at another place with the same word count (สองวง is สอ + งวง
+        to newmm, trunk being a word). When the cut it chose isn't two deck entries and another cut
+        of the same letters is, take that one."""
+        out: list[str] = []
+        for token in tokens:
+            if out:
+                joined = out[-1] + token
+                if not (out[-1] in self.known and token in self.known):
+                    for i in range(1, len(joined)):
+                        a, b = joined[:i], joined[i:]
+                        if a in self.known and b in self.known:
+                            out[-1], token = a, b
+                            break
+            out.append(token)
         return out
 
     def status(self, token: str) -> Status:

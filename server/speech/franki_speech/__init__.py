@@ -64,6 +64,13 @@ _THAI_CONJUNCTION = re.compile(
     r"(?<=[\u0e00-\u0e7f])\s+(?=(?:แต่(?![ละง])|และ|หรือ|เพราะ|ถ้า|แล้ว(?!แต่)|เมื่อ(?!วาน)))"
 )
 
+# Quotation marks are never said, and Azure's voices have no reading for them: one is sometimes
+# voiced as a stray sound at the end of the quote ("nuuu" after คะ», most of all in the slow
+# recording, where it is drawn out) or takes the last word with it. Only the words are sent. Word
+# timings are found by each word's text (the reader's timing.py), so removing the marks leaves the
+# highlight where it was.
+_QUOTE_MARKS = re.compile('[«»‹›“”„‟「」『』"]')
+
 # Thai words Azure's voices misread, each with a respelling it reads correctly, spoken in the word's
 # place with SSML's <sub alias>. Add a word here when a recording gets it wrong. The respellings are
 # unverified against a live key: listen to the re-recorded line and adjust the alias if it's still off.
@@ -397,15 +404,20 @@ def _voice_element(part: Part, rate: float, language: str | None) -> str:
         # in ph, around the text it replaces. Unchecked against a live key: if Azure refuses it,
         # look here first. It replaces the text, so the Japanese and Thai rewrites below don't apply.
         ph = escape(part.ipa, {"'": "&apos;"})
-        body = f"<phoneme alphabet='ipa' ph='{ph}'>{body}</phoneme>"
+        body = f"<phoneme alphabet='ipa' ph='{ph}'>{_QUOTE_MARKS.sub('', body)}</phoneme>"
     elif part.reading and spoken_in.split("-")[0] == "ja":
         alias = escape(part.reading, {"'": "&apos;"})
-        body = f"<sub alias='{alias}'>{body}</sub>"
+        body = f"<sub alias='{alias}'>{_QUOTE_MARKS.sub('', body)}</sub>"
     elif spoken_in.split("-")[0] == "th":
         body = _THAI_CONJUNCTION.sub("", body)
         body = _THAI_BREAK.sub(THAI_PAUSE, body)
+        # After the pause rules, which read the marks as they were written: a space before an opening
+        # mark gets no break, as before.
+        body = _QUOTE_MARKS.sub("", body)
         for word, alias in THAI_PRONUNCIATIONS.items():
             body = body.replace(word, f"<sub alias='{alias}'>{word}</sub>")
+    else:
+        body = _QUOTE_MARKS.sub("", body)
     pitch = f" pitch='{part.pitch:+d}%'" if part.pitch else ""
     body = f"<prosody rate='{pct:+d}%'{pitch}>{body}</prosody>"
     if spoken_in != locale:

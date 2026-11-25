@@ -138,6 +138,12 @@ def test_empty_text_does_not_pass() -> None:
     assert not check([], Lexicon(["ฉัน"])).meets()
 
 
+def test_a_tie_between_two_cuts_goes_to_the_one_made_of_deck_entries() -> None:
+    # newmm cuts สองวง as สอ + งวง (trunk); with สอง and วง in the deck, that is the reading.
+    lexicon = Lexicon(["แหวน", "สอง", "วง", "เหมือนกัน"])
+    assert lexicon.segment("แหวนสองวงเหมือนกัน") == ["แหวน", "สอง", "วง", "เหมือนกัน"]
+
+
 @pytest.mark.parametrize(
     ("line", "expected"),
     [
