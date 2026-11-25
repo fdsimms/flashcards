@@ -16,7 +16,7 @@ import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonScrubber } from './LessonScrubber';
 import { LineScrubber } from './LineScrubber';
 import type { ReaderSource } from './Reader';
-import { PlayCircle } from './PlayCircle';
+import { PlayCircle } from '../PlayCircle';
 
 /**
  * Now Playing, opened from the tab bar's player: what Up Next is playing (useAudioQueue.ts), with

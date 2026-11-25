@@ -4,11 +4,13 @@ import type { RatingValue } from '../../core/scheduler';
 import type { Repo } from '../../db/repo';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable } from '../kit';
+import { Button, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { PLAY_BUTTON_CLEARANCE, PlayButton } from '../PlayButton';
+import { PlayCircle } from '../PlayCircle';
 import { SwipeCard, type CardMotion } from '../SwipeCard';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { useSoundingButton } from '../useSoundingButton';
 import { AnswerContent, Status, type Answer } from './ToolScreen';
 
 /**
@@ -108,18 +110,12 @@ export function SayFooter({ shown, missed, onShow, onNext, onMark }: { shown: bo
 /** A listening question: a large play button to hear it again, what to do, and the tool's answer field under them. */
 export function ListenPrompt({ label, hint, onPlay, wave, children }: { label: string; hint: string; onPlay: () => void; /** A sound wave over the button, for a word heard rather than a time or an amount. */ wave?: boolean; children?: React.ReactNode }) {
   const c = useTheme();
+  const button = useSoundingButton();
   return (
     <View style={{ gap: space.l }}>
       <View style={{ alignItems: 'center', gap: space.m }}>
         {wave ? <SoundWave /> : null}
-        <Tappable
-          onPress={() => { haptic.tap(); onPlay(); }}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="speaker.wave.2.fill" size={32} color={c.onAccent} />
-        </Tappable>
+        <PlayCircle playing={button.playing} onPress={() => button.tap(onPlay)} accessibilityLabel={button.playing ? 'Pause' : label} />
         <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{hint}</Text>
       </View>
       {children}

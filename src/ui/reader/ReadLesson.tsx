@@ -19,7 +19,7 @@ import { LessonTranscript } from './LessonTranscript';
 import { LoopTextIcon, StartOverIcon } from './PlayerIcons';
 import { LessonTurnPanel } from './LessonTurnPanel';
 import { LessonTurnSettings } from './LessonTurnSettings';
-import { PlayCircle } from './PlayCircle';
+import { PlayCircle } from '../PlayCircle';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back

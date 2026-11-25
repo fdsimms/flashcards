@@ -67,7 +67,7 @@ import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Ta
 import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
-import { PlayCircle } from './PlayCircle';
+import { PlayCircle } from '../PlayCircle';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
