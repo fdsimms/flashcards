@@ -37,7 +37,7 @@ function number(n: number, gender: Gender): string {
 const pl = (text: string, note?: string): Phrase => ({ text, ...(note ? { note } : {}) });
 
 export const POLISH_COUNTING: CountingLanguage = {
-  nouns: NOUNS.map((x) => ({ cue: pl(x.forms[0]), meaning: x.meaning })),
+  nouns: NOUNS.map((x) => ({ cue: pl(x.forms[0]), meaning: x.meaning, gender: x.gender })),
   say: (noun, n) => {
     const { forms, gender } = NOUNS[noun];
     return { everyday: pl(`${number(n, gender)} ${polishCountForm(n, ...forms)}`), also: [] };

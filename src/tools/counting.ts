@@ -24,6 +24,15 @@ export interface CountNoun {
   cue: Phrase;
   /** In English, under it. */
   meaning: string;
+  /** Its gender, for a language where the number agrees with it (Polish and Russian one and two); shown with the meaning (`nounGloss`). */
+  gender?: 'm' | 'f' | 'n';
+}
+
+const GENDER_NAMES = { m: 'masculine', f: 'feminine', n: 'neuter' } as const;
+
+/** What goes under a noun on a counting card: its meaning in English, and its gender where the language has one to show. */
+export function nounGloss(noun: CountNoun): string {
+  return [noun.meaning, noun.gender && GENDER_NAMES[noun.gender]].filter(Boolean).join(' · ');
 }
 
 /** A number with a noun, said in one language. */

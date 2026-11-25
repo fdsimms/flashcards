@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Button, Help } from '../kit';
-import { space, type, useTheme } from '../theme';
+import { radius, smooth, space, type, useTheme } from '../theme';
 
 export type KeepState = 'idle' | 'saving' | 'kept' | 'failed';
 
@@ -15,7 +15,7 @@ export function SituationKeep({ count, state, onKeep }: { count: number; state: 
   const what = `${count} ${count === 1 ? 'correction' : 'corrections'}`;
   if (state === 'kept') {
     return (
-      <View style={{ backgroundColor: c.goodFill, borderRadius: 12, padding: space.m }}>
+      <View style={{ backgroundColor: c.goodFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
         <Text style={{ ...type.subhead, color: c.goodInk }}>{`Kept ${what}. Your next theme ideas will use them.`}</Text>
       </View>
     );
