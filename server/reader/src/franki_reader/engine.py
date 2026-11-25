@@ -37,6 +37,7 @@ from franki_reader import (
     forms,
     grammar,
     meanings,
+    rotation,
     store,
 )
 from franki_reader.coverage import Checker, Coverage, parse_line
@@ -585,6 +586,7 @@ class Engine:
         start_of_today = study_day_start(self.clock(), rollover, self.zone)
         practiced = store.practiced_days(self.conn, start_of_today, language, rollover, self.zone)
         today = store.practiced_since(self.conn, start_of_today, language)
+        self.rotate_grammar(language)
         chosen = store.load_grammar(self.conn)
         mine = [p.id for p in grammar.points_for(language)]
         practice = tuple(p for p in mine if chosen.get(p) == "practice")
@@ -862,6 +864,78 @@ class Engine:
         return exposure.exposure(
             self.conn, self.snapshot(language)[1], language, self.grammar_cache
         )
+
+    def grammar_progress(self, point_id: str) -> rotation.Progress:
+        """How far a practiced point has come toward moving on (rotation.py)."""
+        rollover = self.rollover()
+        since = store.practice_since(self.conn).get(point_id)
+        reads = store.practiced_reads(
+            self.conn, point_id, datetime.fromisoformat(since) if since else None
+        )
+        days = {study_day(at, rollover, self.zone) for at in reads}
+        answers = store.recent_grammar_answers(self.conn, point_id, rotation.DRILL_WINDOW)
+        return rotation.progress(len(reads), len(days), answers)
+
+    def rotate_grammar(self, language: Code) -> list[store.Rotation]:
+        """Moves each of the language's practiced points that has been learned to Know it, and
+        starts the easiest point not yet practiced or known in its place (rotation.py). Run before
+        a text is written, so the swap applies to it; each one is kept for the shelf's notice."""
+        made: list[store.Rotation] = []
+        for point in grammar.points_for(language):
+            choices = store.load_grammar(self.conn)
+            if choices.get(point.id) != "practice":
+                continue
+            progress = self.grammar_progress(point.id)
+            if not rotation.graduates(progress):
+                continue
+            nxt = grammar.next_to_learn(language, {**choices, point.id: "normal"})
+            changes: dict[str, store.GrammarState | None] = {point.id: "normal"}
+            if nxt is not None:
+                changes[nxt.id] = "practice"
+            now = self.clock()
+            store.set_grammar_many(self.conn, changes, now)
+            swap = store.Rotation(
+                0,
+                language,
+                point.id,
+                nxt.id if nxt else "",
+                choices.get(nxt.id, "") if nxt else "",
+                now,
+                progress.texts,
+                progress.days,
+                progress.drill_right,
+                progress.drill_asked,
+                "new",
+            )
+            made.append(replace(swap, id=store.add_rotation(self.conn, swap)))
+            log.info("Grammar rotated: %s learned, %s started", point.id, swap.started or "none")
+        return made
+
+    def undo_rotation(self, rotation_id: int) -> str | None:
+        """Takes a swap back: the learned point is practiced again (its count starts over) and the
+        started one goes back to what it was. A reason when it can't be, because either point has
+        been changed since; None when done."""
+        swap = store.get_rotation(self.conn, rotation_id)
+        if swap is None or swap.state == "undone":
+            return "That change has already been undone."
+        choices = store.load_grammar(self.conn)
+        moved = [
+            pid
+            for pid, now in ((swap.graduated, "normal"), (swap.started, "practice"))
+            if pid and choices.get(pid) != now
+        ]
+        if moved:
+            names = " and ".join(grammar.POINTS[p].name for p in moved if p in grammar.POINTS)
+            return f"{names} changed since. Set them on the Grammar screen."
+        changes: dict[str, store.GrammarState | None] = {swap.graduated: "practice"}
+        if swap.started:
+            was = swap.started_was
+            changes[swap.started] = (
+                "avoid" if was == "avoid" else "normal" if was == "normal" else None
+            )
+        store.set_grammar_many(self.conn, changes, self.clock())
+        store.set_rotation_state(self.conn, rotation_id, "undone")
+        return None
 
     def review_points(self, language: Code | None = None) -> tuple[str, ...]:
         """The known grammar points the next text is asked to work in (exposure.py)."""

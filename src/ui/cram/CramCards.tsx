@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { studyDayKey } from '../../core/day';
 import type { NoteStore } from '../../anki/noteService';
 import { cramNotes, dayName, daysUntil, isAwaitingFinish, isDismissedToday, isRunning, practiceLabel, practiceSummary, type Cram } from '../../core/cram';
 import { haptic } from '../haptics';
+import { HoverPressable } from '../hover';
 import { Button, Card, Icon, Tappable } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { saveCram, useCollection, useCramClock, useCrams } from '../useCrams';
@@ -39,10 +40,10 @@ function CramCard({ repo, cram, now, dayStartsAtHour: H }: { repo: NoteStore; cr
     return (
       <Card style={{ borderColor: c.accent }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`How did ${cram.name} go? Opens the cram.`} style={{ flex: 1, gap: space.xs }}>
+          <HoverPressable onPress={open} accessibilityRole="button" accessibilityLabel={`How did ${cram.name} go? Opens the cram.`} style={({ pressed }) => ({ flex: 1, gap: space.xs, opacity: pressed ? 0.6 : 1 })}>
             <Text style={{ ...type.headline, color: c.text }}>{`How did ${cram.name} go?`}</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Check off the words you used. The rest go into your next cram.</Text>
-          </Pressable>
+          </HoverPressable>
           {dismissButton}
         </View>
         <Button label="Check off words" onPress={() => { haptic.tap(); router.push({ pathname: '/cram-lesson', params: { id: cram.id } }); }} />
@@ -55,14 +56,14 @@ function CramCard({ repo, cram, now, dayStartsAtHour: H }: { repo: NoteStore; cr
   return (
     <Card style={{ borderColor: c.accent }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.s }}>
-        <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`Cram for ${cram.name}, ${dayName(cram, now, H)}. ${summary} Opens the cram.`} style={{ flex: 1, gap: space.xs }}>
+        <HoverPressable onPress={open} accessibilityRole="button" accessibilityLabel={`Cram for ${cram.name}, ${dayName(cram, now, H)}. ${summary} Opens the cram.`} style={({ pressed }) => ({ flex: 1, gap: space.xs, opacity: pressed ? 0.6 : 1 })}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.s }}>
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>{`Cram for ${cram.name}`}</Text>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{dayName(cram, now, H)}</Text>
             <Icon name="chevron.right" size={13} color={c.textTertiary} weight="semibold" />
           </View>
           {summary ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{summary}</Text> : null}
-        </Pressable>
+        </HoverPressable>
         {dismissButton}
       </View>
       {collection.loaded && (ids.length || cram.phrases?.length) ? (

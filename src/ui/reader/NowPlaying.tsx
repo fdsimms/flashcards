@@ -16,6 +16,7 @@ import { useReaderPlayerHost } from '../useReaderPlayer';
 import { LessonScrubber } from './LessonScrubber';
 import { LineScrubber } from './LineScrubber';
 import type { ReaderSource } from './Reader';
+import { PlayCircle } from './PlayCircle';
 
 /**
  * Now Playing, opened from the tab bar's player: what Up Next is playing (useAudioQueue.ts), with
@@ -153,15 +154,7 @@ export function NowPlaying() {
           {lesson
             ? control('gobackward.15', `Back ${SKIP_SECONDS} seconds`, () => host.skip(-1), !queue.live)
             : control('chevron.left', 'Previous line', () => host.skip(-1), !queue.live)}
-          <Tappable
-            onPress={tap(queue.toggle)}
-            accessibilityRole="button"
-            accessibilityLabel={yourTurn ? 'Continue' : queue.playing ? 'Pause' : 'Play'}
-            scaleTo={0.92}
-            style={{ width: 68, height: 68, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name={queue.playing && !yourTurn ? 'pause.fill' : 'play.fill'} size={30} color={c.onAccent} weight="bold" />
-          </Tappable>
+          <PlayCircle playing={queue.playing && !yourTurn} onPress={tap(queue.toggle)} accessibilityLabel={yourTurn ? 'Continue' : queue.playing ? 'Pause' : 'Play'} />
           {lesson
             ? control('goforward.15', `Forward ${SKIP_SECONDS} seconds`, () => host.skip(1), !queue.live)
             : control('chevron.right', 'Next line', () => host.skip(1), !queue.live)}

@@ -7,7 +7,7 @@ import sqlite3
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
-from datetime import date, datetime, timedelta, tzinfo
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any, Literal
 
@@ -389,6 +389,35 @@ CREATE TABLE IF NOT EXISTS grammar_topic_writes (
     language TEXT NOT NULL,
     created_at TEXT NOT NULL,
     cost_usd REAL NOT NULL DEFAULT 0
+);
+
+-- Practice questions answered on the phone (src/db's grammar_answers), sent here so the server can
+-- tell when a practiced point has been learned (rotation.py). A copy: the phone keeps its own, and
+-- the same answer sent twice is kept once.
+CREATE TABLE IF NOT EXISTS grammar_answers (
+    point_id TEXT NOT NULL,
+    drill_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    correct INTEGER NOT NULL,
+    answered_at TEXT NOT NULL,
+    PRIMARY KEY (point_id, drill_id, answered_at)
+);
+
+-- Each automatic swap of a practiced point (rotation.py): `graduated` moved to Know it and
+-- `started` (empty when there was none left) to Practice from `started_was` ('' for not set).
+-- `state` is new until the owner closes the notice (dismissed) or takes it back (undone).
+CREATE TABLE IF NOT EXISTS grammar_rotations (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    graduated TEXT NOT NULL,
+    started TEXT NOT NULL,
+    started_was TEXT NOT NULL,
+    at TEXT NOT NULL,
+    texts INTEGER NOT NULL,
+    days INTEGER NOT NULL,
+    drill_right INTEGER NOT NULL,
+    drill_asked INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'new'
 );
 """
 
@@ -2372,18 +2401,167 @@ def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
 
 
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:
-    choices = load_grammar(conn)
-    choices[point_id] = state
-    with conn:
-        _set_meta(conn, "grammar", json.dumps(choices))
+    set_grammar_many(conn, {point_id: state})
 
 
-def set_grammar_many(conn: sqlite3.Connection, changes: Mapping[str, GrammarState]) -> None:
-    """Several points' choices in one write, so a level that sets ten of them never half applies."""
+def set_grammar_many(
+    conn: sqlite3.Connection, changes: Mapping[str, GrammarState | None], at: datetime | None = None
+) -> None:
+    """Several points' choices in one write, so a level that sets ten of them never half applies.
+    None takes a point back to not set. A point that starts being practiced is stamped with `at`
+    (now when not given), so rotation counts only the texts written since (`practice_since`)."""
     choices = load_grammar(conn)
-    choices.update(changes)
+    since = practice_since(conn)
+    stamp = (at or datetime.now(UTC).replace(tzinfo=None)).isoformat()
+    for pid, state in changes.items():
+        if state == "practice" and choices.get(pid) != "practice":
+            since[pid] = stamp
+        elif state != "practice":
+            since.pop(pid, None)
+        if state is None:
+            choices.pop(pid, None)
+        else:
+            choices[pid] = state
     with conn:
         _set_meta(conn, "grammar", json.dumps(choices))
+        _set_meta(conn, "grammar_since", json.dumps(since))
+
+
+def practice_since(conn: sqlite3.Connection) -> dict[str, str]:
+    """When each practiced point last started being practiced (naive UTC, ISO), by point id. A
+    point practiced before 25 November 2026 has none, and counts every text that practiced it."""
+    raw = _get_meta(conn, "grammar_since")
+    return json.loads(raw) if raw else {}
+
+
+def practiced_reads(
+    conn: sqlite3.Connection, point_id: str, since: datetime | None
+) -> list[datetime]:
+    """When each text written to practice `point_id` (since `since`, when given) was first read to
+    the end: one time a text, for rotation's count of texts and study days."""
+    rows = conn.execute(
+        """SELECT x.created_at, x.grammar, MIN(r.logged_at) FROM texts x
+           JOIN readings r ON r.text_id = x.id AND r.finished = 1 GROUP BY x.id"""
+    ).fetchall()
+    out = []
+    for created, raw, read_at in rows:
+        if since is not None and datetime.fromisoformat(created) < since:
+            continue
+        if point_id in json.loads(raw).get("practice", []):
+            out.append(datetime.fromisoformat(read_at))
+    return out
+
+
+@dataclass(frozen=True)
+class GrammarAnswer:
+    """One practice question answered on the phone (`POST /api/grammar/answers`)."""
+
+    point_id: str
+    drill_id: str
+    kind: str
+    correct: bool
+    answered_at: str  # as the phone sent it, an ISO time
+
+
+def add_grammar_answers(conn: sqlite3.Connection, answers: Iterable[GrammarAnswer]) -> int:
+    """Keeps the answers the phone sent, once each however often it sends them; how many were new."""
+    with conn:
+        before = conn.total_changes
+        conn.executemany(
+            "INSERT OR IGNORE INTO grammar_answers (point_id, drill_id, kind, correct, answered_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            [(a.point_id, a.drill_id, a.kind, int(a.correct), a.answered_at) for a in answers],
+        )
+        return conn.total_changes - before
+
+
+def recent_grammar_answers(conn: sqlite3.Connection, point_id: str, limit: int) -> list[bool]:
+    """Whether each of the point's latest `limit` answers was right, latest first."""
+    rows = conn.execute(
+        "SELECT correct FROM grammar_answers WHERE point_id = ? ORDER BY answered_at DESC LIMIT ?",
+        (point_id, limit),
+    ).fetchall()
+    return [bool(r[0]) for r in rows]
+
+
+@dataclass(frozen=True)
+class Rotation:
+    """An automatic swap of a practiced point (rotation.py; the grammar_rotations table)."""
+
+    id: int
+    language: Code
+    graduated: str
+    started: str  # "" when no point was left to start
+    started_was: str  # "", "avoid" or "normal": what `started` was before
+    at: datetime
+    texts: int
+    days: int
+    drill_right: int
+    drill_asked: int
+    state: str  # new, dismissed or undone
+
+
+_ROTATION_COLUMNS = "id, language, graduated, started, started_was, at, texts, days, drill_right, drill_asked, state"
+
+
+def _rotation(row: tuple[Any, ...]) -> Rotation:
+    rid, language, graduated, started, was, at, texts, days, right, asked, state = row
+    return Rotation(
+        rid,
+        language,
+        graduated,
+        started,
+        was,
+        datetime.fromisoformat(at),
+        texts,
+        days,
+        right,
+        asked,
+        state,
+    )
+
+
+def add_rotation(conn: sqlite3.Connection, rotation: Rotation) -> int:
+    with conn:
+        cur = conn.execute(
+            "INSERT INTO grammar_rotations (language, graduated, started, started_was, at, texts,"
+            " days, drill_right, drill_asked, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                rotation.language,
+                rotation.graduated,
+                rotation.started,
+                rotation.started_was,
+                rotation.at.isoformat(),
+                rotation.texts,
+                rotation.days,
+                rotation.drill_right,
+                rotation.drill_asked,
+                rotation.state,
+            ),
+        )
+    return int(cur.lastrowid or 0)
+
+
+def new_rotations(conn: sqlite3.Connection, language: Code) -> list[Rotation]:
+    """The language's swaps the owner hasn't closed or taken back yet, oldest first."""
+    rows = conn.execute(
+        f"SELECT {_ROTATION_COLUMNS} FROM grammar_rotations WHERE language = ? AND state = 'new'"
+        " ORDER BY id",
+        (language,),
+    ).fetchall()
+    return [_rotation(r) for r in rows]
+
+
+def get_rotation(conn: sqlite3.Connection, rotation_id: int) -> Rotation | None:
+    row = conn.execute(
+        f"SELECT {_ROTATION_COLUMNS} FROM grammar_rotations WHERE id = ?", (rotation_id,)
+    ).fetchone()
+    return _rotation(row) if row else None
+
+
+def set_rotation_state(conn: sqlite3.Connection, rotation_id: int, state: str) -> None:
+    with conn:
+        conn.execute("UPDATE grammar_rotations SET state = ? WHERE id = ?", (state, rotation_id))
 
 
 def finished_texts(conn: sqlite3.Connection, language: Code) -> list[tuple[StoredText, datetime]]:
