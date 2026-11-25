@@ -16,7 +16,7 @@ import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
-import { countEnding, type CountQuestion } from './counting';
+import { countEnding, nounGloss, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 import { CONTRAST_SETS, CONTRAST_STEP_PREFIX, GAP_SHOWN, contrastKey, contrastSet, contrastTitle, drawSentence, showSentence, type ContrastQuestion } from './contrasts';
 
@@ -285,7 +285,7 @@ export function questionText(q: DrillQuestion, language?: Language): string {
 export function questionNote(q: DrillQuestion, language?: Language): string | undefined {
   if (q.kind !== 'count') return undefined;
   const noun = language && COUNTING[language]?.nouns[q.question.noun];
-  return noun ? [noun.cue.roman, noun.meaning].filter(Boolean).join(' · ') : undefined;
+  return noun ? [noun.cue.roman, nounGloss(noun)].filter(Boolean).join(' · ') : undefined;
 }
 
 /** A question's answer in `language`: the usual way to say it, the other ways heard, and a formal or written form where there is one. */

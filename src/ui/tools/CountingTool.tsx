@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { choiceText, COUNT_MAXES, countChoices, countKey, knownCountNouns, missingCounters, randomCount, type CountMode, type CountQuestion } from '../../tools/counting';
+import { choiceText, COUNT_MAXES, countChoices, countKey, knownCountNouns, missingCounters, nounGloss, randomCount, type CountMode, type CountQuestion } from '../../tools/counting';
 import { knownHeadwords, languageOfDeck } from '../../tools/skills';
 import type { Phrase } from '../../tools/phrase';
 import { toolPrefs } from '../../tools/storage';
@@ -126,7 +126,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         {noun ? <Text selectable style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
       </View>
       {noun?.cue.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
-      {noun?.meaning ? <Text style={{ ...type.subhead, color: c.text }}>{noun.meaning}</Text> : null}
+      {noun ? <Text style={{ ...type.subhead, color: c.text }}>{nounGloss(noun)}</Text> : null}
     </View>
   );
 

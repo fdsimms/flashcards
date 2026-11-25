@@ -552,8 +552,8 @@ describe('counting things drills', () => {
     const q = { kind: 'count' as const, question: { noun: 0, n: 5 } };
     expect(questionText(q, 'pl')).toBe('5 kot');
     expect(questionText(q, 'ru')).toBe('5 кот');
-    expect(questionNote(q, 'pl')).toBe('cat');
-    expect(questionNote(q, 'ru')).toBe('kot · cat');
+    expect(questionNote(q, 'pl')).toBe('cat · masculine');
+    expect(questionNote(q, 'ru')).toBe('kot · cat · masculine');
     expect(questionNote({ kind: 'money', amount: 100 }, 'pl')).toBeUndefined();
     expect(drillAnswer(q, 'pl')?.everyday.text).toBe('pięć kotów');
     expect(drillAnswer(q, 'ru')?.everyday.text).toBe('пять котов');
