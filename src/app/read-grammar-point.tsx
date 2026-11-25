@@ -4,8 +4,7 @@ import { grammarPoint } from '../core/grammar';
 import { exampleSource } from '../reader/grammar';
 import { useApp } from '../ui/AppContext';
 import { ReadGrammarPoint } from '../ui/reader/ReadGrammarPoint';
-import { useAddMinedWord } from '../ui/useAddMinedWord';
-import { useWordAudio } from '../ui/useWordAudio';
+import { useGrammarGlossing } from '../ui/useGrammarGlossing';
 
 /** A grammar point's page, for the point named by the `id` parameter (docs/grammar.md, step 4). */
 export default function ReadGrammarPointRoute() {
@@ -13,8 +12,7 @@ export default function ReadGrammarPointRoute() {
   const { repo, reader } = useApp();
   const { id } = useLocalSearchParams<{ id: string }>();
   // A tapped word in the explanation: played, or added to its language's deck as the reader's words are.
-  const playWord = useWordAudio(repo);
-  const addWord = useAddMinedWord();
+  const glossing = useGrammarGlossing();
   // What the page reads from the phone: notes and Forms practice, and when Not yet was chosen.
   const practice = useMemo(() => ({
     load: async () => {
@@ -32,13 +30,7 @@ export default function ReadGrammarPointRoute() {
   return (
     <ReadGrammarPoint
       api={reader.api}
-      glossing={{
-        onPlayWord: playWord,
-        onAddWord: async (word, meaning, lang, pronunciation) => {
-          const wordDeck = reader.settings?.decks?.[lang];
-          return wordDeck ? addWord({ word, meaning, deck: wordDeck, language: lang, pronunciation }) : false;
-        },
-      }}
+      glossing={glossing}
       practice={practice}
       id={id}
       dayStartsAtHour={reader.dayStartsAtHour}
@@ -46,6 +38,7 @@ export default function ReadGrammarPointRoute() {
       onOpenPoint={(next) => router.push({ pathname: '/read-grammar-point', params: { id: next } })}
       onPracticeForms={(practiceDeck, groups) => router.push({ pathname: '/forms-practice', params: { deck: practiceDeck, groups: JSON.stringify(groups) } })}
       onDrill={(point) => router.push({ pathname: '/tool', params: { id: 'grammar', points: JSON.stringify([point]) } })}
+      onLesson={(point) => router.push({ pathname: '/read-grammar-lesson', params: { id: point } })}
       onOpenText={(example) => router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'past', text: exampleSource(example) }) } })}
     />
   );

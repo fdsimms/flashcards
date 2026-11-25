@@ -153,6 +153,12 @@ export type GrammarPoint = { id: string; name: string; note: string; example: st
 export type GrammarStretch = { uses: number; next: { id: string; name: string } | null };
 export type GrammarList = { max_practice: number; points: GrammarPoint[]; least?: string[]; stretch?: GrammarStretch };
 
+// A grammar point's lesson (the server's grammar_lessons.py): example lines Claude wrote from the
+// known words, each with its recording's key for `situationAudio` (null when it couldn't be recorded).
+// While `writing`, ask again; `failed` comes with a `note` to show, and so can `ready` when a rewrite failed.
+export type GrammarLessonExample = { line: string; english: string; words: string[]; audio: string | null };
+export type GrammarLesson = { status: 'writing' | 'ready' | 'failed'; note: string; examples: GrammarLessonExample[] };
+
 // An automatic grammar swap (the server's rotation.py), for the shelf's notice: `graduated` moved to
 // Know it after `texts` texts read over `days` study days and `drill_right` of the latest
 // `drill_asked` practice answers right; `started` took its place (null when none was left).
@@ -714,6 +720,11 @@ export function createApi(
     deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
+    // The grammar points Claude wrote, every language's, for `setWrittenPoints` (read with `parseWrittenPoints`).
+    writtenPoints: () => call<{ points: unknown[] }>('GET', '/api/grammar/written'),
+    // A point's lesson; asking for one that has none starts writing it. Rewrite asks for fresh examples.
+    grammarLesson: (id: string) => call<GrammarLesson>('GET', `/api/grammar/${encodeURIComponent(id)}/lesson`),
+    rewriteGrammarLesson: (id: string) => call<GrammarLesson>('POST', `/api/grammar/${encodeURIComponent(id)}/lesson`),
     // The phone's practice answers (grammar_answers), so the server can tell when a practiced point is learned; one sent twice is kept once.
     sendGrammarAnswers: (answers: GrammarAnswer[]) =>
       call<{ saved: number }>('POST', '/api/grammar/answers', {

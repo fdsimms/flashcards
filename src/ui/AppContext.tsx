@@ -39,6 +39,7 @@ import { noteAddedAt } from '../core/cram';
 import { ankiToday } from '../core/order';
 import { reviewOpen } from './reviewOpen';
 import { useSync } from './useSync';
+import { useWrittenPoints } from './useWrittenPoints';
 import { DECKS_PATH, TODAY_PATH } from './tabPaths';
 import { loadVacation, useVacationRefresh } from './vacationPrefs';
 import { useWaniKani, type WaniKaniState } from './useWaniKani';
@@ -173,6 +174,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useConnection(syncSettings?.enabled ? normalizeEndpoint(syncSettings.server) : undefined);
   const reader = useReader(syncSettings?.enabled ? syncSettings.server : undefined, dayStartsAtHour);
+  useWrittenPoints(reader.api);
   useAppLanguageSync(reader);
   useCountsReport(reader, decks, dayStartsAtHour);
   useCramsReport(reader, repo, dayStartsAtHour);

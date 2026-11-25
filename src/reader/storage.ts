@@ -136,3 +136,25 @@ export function saveAnswersSentThrough(at: string): void {
     // Sent again next time; the server keeps each answer once.
   }
 }
+
+const WRITTEN_POINTS_FILE = 'reader-written-points.json';
+
+/** The phone's copy of the grammar points Claude wrote (`GET /api/grammar/written`), raw, or null. */
+export async function loadWrittenPointsCopy(): Promise<unknown> {
+  try {
+    const f = new File(Paths.document, WRITTEN_POINTS_FILE);
+    return f.exists ? JSON.parse(await f.text()) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveWrittenPointsCopy(points: unknown[]): void {
+  try {
+    const f = new File(Paths.document, WRITTEN_POINTS_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(points));
+  } catch {
+    // Read from the server again next launch.
+  }
+}

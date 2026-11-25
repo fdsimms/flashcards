@@ -5,6 +5,11 @@ import { loadStats, saveStats } from '../wanikani/storage';
 
 /** The stats are read again at most this often, unless a screen asks for them. */
 const STATS_EVERY_MS = 5 * 60_000;
+/**
+ * A read that's forced (a session closing, the stats screen opening) still isn't made again this soon
+ * after the last: what it would read is moments old, and the requests count against WaniKani's rate limit (pace.ts).
+ */
+export const FORCED_AGAIN_MS = 30_000;
 
 /**
  * WaniKani's stage counts, the level's progress and the reviews coming up, for the row's stage bar
@@ -30,7 +35,7 @@ export function useWaniKaniStats(api: WaniKaniApi | null) {
 
   const read = useCallback(async (user: WaniKaniUser, apprentice: number, force = false) => {
     if (!api || reading.current) return;
-    if (!force && Date.now() - last.current < STATS_EVERY_MS) return;
+    if (Date.now() - last.current < (force ? FORCED_AGAIN_MS : STATS_EVERY_MS)) return;
     reading.current = true;
     last.current = Date.now();
     try {

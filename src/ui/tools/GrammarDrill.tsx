@@ -38,7 +38,7 @@ interface Answered {
 /** The language a prompt's sentence is read in. */
 const promptSpeech = (p: DrillPrompt) => LANGUAGES[grammarPoint(p.pointId)?.language ?? 'es'].speech;
 
-export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Repo; points: string[]; onDone: () => void }) {
+export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDone }: { api: Api; repo: Repo; points: string[]; /** Questions in the round. */ count?: number; onDone: () => void }) {
   // The keyboard's height pads the whole screen, not just the list, so Check and Next in the footer stay above it.
   const { scrollProps, bottomPadding: keyboard } = useKeyboardScroll();
   const insets = useSafeAreaInsets();
@@ -65,7 +65,7 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
   const load = async () => {
     setError(null);
     try {
-      const [set, saved] = await Promise.all([api.drills(points, DRILL_QUESTIONS), repo.formsAnswerMode()]);
+      const [set, saved] = await Promise.all([api.drills(points, count), repo.formsAnswerMode()]);
       setMode(saved);
       setNote(missingNote(set.missing, set.writing));
       setPrompts(drillPrompts(set.questions));

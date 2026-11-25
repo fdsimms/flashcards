@@ -85,6 +85,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
         api={readerApi}
         repo={repo}
         points={drilling}
+        // A grammar lesson opens a short round (`count`); the Grammar tool's own rounds are the usual length.
+        count={opened && params.count ? Number(params.count) || undefined : undefined}
         onDone={() => { if (opened) onClose(); else setDrilling(null); }}
       />
     );

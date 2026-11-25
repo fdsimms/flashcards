@@ -8,11 +8,13 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from franki_reader import clips as clips_module
 from franki_reader import (
     drills,
     exposure,
     form_primers,
     grammar,
+    grammar_lessons,
     store,
 )
 from franki_reader.difficulty import EASIER_FLOOR, HARDER_FLOOR, STANDARD_FLOOR
@@ -20,7 +22,7 @@ from franki_reader.languages import (
     LANGUAGES,
     Code,
 )
-from franki_reader.routes.context import AppContext
+from franki_reader.routes.context import NO_CLAUDE, AppContext
 from franki_reader.routes.views import instant, seen_json
 
 
@@ -82,6 +84,8 @@ def router(ctx: AppContext) -> APIRouter:
     authed = ctx.authed
     engine = ctx.engine
     write_drills = ctx.write_drills
+    write_grammar_lesson = ctx.write_grammar_lesson
+    clips = ctx.clips
     # Points whose drill questions are being written, shared by every request (drills.top_up).
     drills_writing: set[str] = set()
 
@@ -171,6 +175,27 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return {"saved": saved}
 
+    @routes.get("/api/grammar/written", dependencies=authed)
+    async def grammar_written() -> dict[str, Any]:
+        """The grammar points Claude wrote (written_points.py), every language's, in the catalog's
+        own fields, for the app to put beside the catalog it bundles."""
+        return {
+            "points": [
+                {
+                    "id": p.id,
+                    "language": p.language,
+                    "name": p.name,
+                    "note": p.note,
+                    "example": p.example,
+                    "explanation": p.explanation,
+                    "related": list(p.related),
+                    "level": p.level,
+                    "word_named": p.word_named,
+                }
+                for p in store.written_points(engine.conn)
+            ]
+        }
+
     @routes.get("/api/grammar/rotations", dependencies=authed)
     async def grammar_rotations() -> dict[str, Any]:
         """The language's automatic grammar swaps not closed or undone yet, for the shelf."""
@@ -191,6 +216,60 @@ def router(ctx: AppContext) -> APIRouter:
         if (why := engine.undo_rotation(rotation_id)) is not None:
             raise HTTPException(409, why)
         return {"ok": True}
+
+    async def lesson_json(point: grammar.Point, background: BackgroundTasks) -> dict[str, Any]:
+        """A point's lesson as the app shows it: its examples, each with its recording's key for
+        `/api/situations/audio/{key}` (recorded again when the clip cache has dropped it, None when
+        it can't be), or the write under way or failed. Asking for a lesson that has none starts
+        one."""
+        lesson = store.get_grammar_lesson(engine.conn, point.id)
+        if lesson is None:
+            if write_grammar_lesson is None:
+                raise HTTPException(503, NO_CLAUDE.replace("check your writing", "write a lesson"))
+            start_lesson(point.id, background)
+            return {"status": "writing", "note": "", "examples": []}
+        examples = []
+        for ex in lesson.examples:
+            key, chars = await clips_module.speak_clip(
+                engine, clips, point.language, grammar_lessons.VOICE_GENDER, ex["line"]
+            )
+            if chars:
+                store.save_call_cost(
+                    engine.conn, "grammar_lessons", point.language, engine.clock(), 0.0, chars
+                )
+            examples.append({**ex, "audio": key})
+        return {"status": lesson.status, "note": lesson.note, "examples": examples}
+
+    def start_lesson(point_id: str, background: BackgroundTasks) -> None:
+        if write_grammar_lesson is None:
+            return
+        if store.start_grammar_lesson(engine.conn, point_id, engine.clock()):
+            background.add_task(
+                grammar_lessons.write_lesson,
+                engine.conn,
+                engine.snapshot,
+                write_grammar_lesson,
+                point_id,
+                engine.clock(),
+            )
+
+    @routes.get("/api/grammar/{point_id}/lesson", dependencies=authed)
+    async def get_grammar_lesson(point_id: str, background: BackgroundTasks) -> dict[str, Any]:
+        point = grammar.POINTS.get(point_id)
+        if point is None:
+            raise HTTPException(404, "No such grammar point.")
+        return await lesson_json(point, background)
+
+    @routes.post("/api/grammar/{point_id}/lesson", dependencies=authed)
+    async def rewrite_grammar_lesson(point_id: str, background: BackgroundTasks) -> dict[str, Any]:
+        """Writes the lesson's examples again (after a failure, or for fresh ones)."""
+        point = grammar.POINTS.get(point_id)
+        if point is None:
+            raise HTTPException(404, "No such grammar point.")
+        if write_grammar_lesson is None:
+            raise HTTPException(503, NO_CLAUDE.replace("check your writing", "write a lesson"))
+        start_lesson(point.id, background)
+        return await lesson_json(point, background)
 
     @routes.get("/api/grammar/{point_id}", dependencies=authed)
     async def get_grammar_point(

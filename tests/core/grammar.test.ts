@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { explanationParagraphs, GRAMMAR_POINTS, grammarPoint, grammarPointForForms, grammarPointsFor, type GrammarLanguage } from '../../src/core/grammar';
+import { explanationParagraphs, GRAMMAR_POINTS, grammarPoint, grammarPointForForms, grammarPointsFor, parseWrittenPoints, setWrittenPoints, type GrammarLanguage } from '../../src/core/grammar';
 import type { Language } from '../../src/reader/api';
 
 // The catalog's languages are Read & Listen's: tsc fails here if one list gains a language the other hasn't.
@@ -89,5 +89,28 @@ describe("each point's page", () => {
     ]);
     expect(grammarPoint('es.preterite')?.related).toEqual(['es.imperfect', 'es.present_perfect']);
     expect(grammarPoint('es.nope')).toBeUndefined();
+  });
+});
+
+describe('points Claude wrote', () => {
+  const sent = [
+    { id: 'th.c1', language: 'th', name: 'ให้ (let)', note: 'Letting someone', example: 'แม่ให้ฉันไป', explanation: '**ให้** ...', related: [], level: 11, word_named: true },
+    { id: 'th.ever', language: 'th', name: 'Not this', note: 'x', example: 'x' }, // a catalog id
+    { id: 'xx.c1', language: 'xx', name: 'Nope', note: 'x', example: 'x' }, // no such language
+    { name: 'No id' },
+  ];
+
+  it('reads only well-formed points in a known language', () => {
+    expect(parseWrittenPoints(sent).map((p) => p.id)).toEqual(['th.c1', 'th.ever']);
+    expect(parseWrittenPoints(null)).toEqual([]);
+  });
+
+  it('puts them beside the catalog, never in place of a catalog point', () => {
+    setWrittenPoints(parseWrittenPoints(sent));
+    expect(grammarPoint('th.c1')).toMatchObject({ name: 'ให้ (let)', written: true, wordNamed: true, forms: [] });
+    expect(grammarPoint('th.ever')?.name).toBe('เคย (have ever)');
+    expect(grammarPointsFor('th').at(-1)?.id).toBe('th.c1');
+    setWrittenPoints([]);
+    expect(grammarPoint('th.c1')).toBeUndefined();
   });
 });

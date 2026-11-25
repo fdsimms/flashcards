@@ -6,24 +6,18 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from franki_reader import clips as clips_module
 from franki_reader import (
     situations,
     store,
 )
 from franki_reader.languages import (
-    LANGUAGES,
     Code,
 )
 from franki_reader.reader import render_sentence
 from franki_reader.register import Register
 from franki_reader.routes.context import NO_CLAUDE, AppContext
 from franki_reader.suggestions import suggest
-from franki_reader.tts import (
-    SLOW_RATE,
-    ClipCache,
-    TtsFailed,
-    billed_chars,
-)
 
 
 class SituationRoles(BaseModel):
@@ -121,26 +115,7 @@ def router(ctx: AppContext) -> APIRouter:
     async def speak_clip(
         language: Code, gender: str, line: str, slow: bool = False
     ) -> tuple[str | None, int]:
-        """One of their lines spoken in the voice for their gender: the clip's key (None when
-        there's no text to speech or Azure failed) and the characters Azure billed for it. The slow
-        clip (`tts.SLOW_RATE`) is its own, under its own key."""
-        if clips is None or engine.synthesize is None:
-            return None, 0
-        voice = engine.voices_for(language)["female" if gender == "female" else "male"]
-        key = ClipCache.key(line, f"{voice}@slow{SLOW_RATE}" if slow else voice)
-        if clips.path(key) is not None:
-            return key, 0
-        locale = LANGUAGES[language].locale
-        try:
-            spoken = await (
-                engine.synthesize(line, voice, locale, rate=SLOW_RATE)
-                if slow
-                else engine.synthesize(line, voice, locale)
-            )
-        except TtsFailed:
-            return None, 0
-        clips.write(key, spoken.audio, engine.clock())
-        return key, billed_chars(line)
+        return await clips_module.speak_clip(engine, clips, language, gender, line, slow)
 
     @routes.post("/api/situations/turn", dependencies=authed)
     async def situation_turn(body: SituationIn) -> dict[str, Any]:

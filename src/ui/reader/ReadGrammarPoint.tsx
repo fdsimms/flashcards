@@ -13,6 +13,7 @@ import { haptic } from '../haptics';
 import { grammarTag } from '../grammarTag';
 import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tag, Tappable } from '../kit';
 import { MakingCard } from '../MakingCard';
+import { WrittenByClaude } from '../WrittenByClaude';
 import { hairline, radius, space, type, useTheme, readable, smooth } from '../theme';
 
 /**
@@ -23,7 +24,7 @@ import { hairline, radius, space, type, useTheme, readable, smooth } from '../th
  * comes through `practice` rather than the repo, which Read & Listen's code never imports
  * (tests/reader/noGrading.test.ts): it only reads, and keeps when Not yet was chosen.
  */
-export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill, onOpenText }: {
+export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStartsAtHour, practiceDeck, onOpenPoint, onPracticeForms, onDrill, onLesson, onOpenText }: {
   api: Api;
   /** What a tapped word in the explanation does: play it, add it to the deck. */
   glossing: Omit<ExplanationGlossing, 'api'>;
@@ -39,6 +40,8 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
   onPracticeForms: (deck: string, groups: string[]) => void;
   /** Opens a grammar drill on this point (the Practice tab's Grammar tool). */
   onDrill: (id: string) => void;
+  /** Opens the point's lesson: example lines to hear, then a few questions (ReadGrammarLesson). */
+  onLesson: (id: string) => void;
   /** Opens the text an example line came from. */
   onOpenText: (example: GrammarExample) => void;
 }) {
@@ -125,6 +128,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
   const related = point.related.map((r) => grammarPoint(r)).filter((r) => r !== undefined);
   const kinds = practiceKinds(point);
   const practice = [
+    { label: 'Lesson', detail: 'Example lines to hear, then a few questions.', onPress: () => onLesson(id) },
     ...(kinds.includes('questions') ? [{ label: 'Practice questions', detail: 'Name the grammar point in lines you read, and fill gaps.', onPress: () => onDrill(id) }] : []),
     ...(kinds.includes('contrast') ? [{ label: 'Which one fits?', detail: 'Choose between this word and similar ones.', onPress: () => onDrill(id) }] : []),
     ...(kinds.includes('forms') && practiceDeck ? [{ label: 'Forms practice', detail: `Conjugate ${point.forms.join(' and ')} verbs.`, onPress: () => onPracticeForms(practiceDeck, point.forms) }] : []),
@@ -140,6 +144,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
   return (
     <Screen title={point.name}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
+        {point.written ? <WrittenByClaude /> : null}
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!page && !error ? <MakingCard title="Loading the page" detail="Getting the explanation and examples" /> : null}
         {page ? (

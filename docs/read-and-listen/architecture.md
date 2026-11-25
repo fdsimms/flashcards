@@ -1106,6 +1106,34 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   with the reason once either was changed by hand. When no point is left, the learned one still
   moves on and the card says the list is used up. The owner's own choices are otherwise untouched,
   and nothing here schedules or grades a card.
+- **Lesson** (25 November 2026, the owner, picked from a mock: one page over three steps). What
+  meets a point when it starts being practiced, opened from the rotation card's Open lesson and a
+  point's page (`ReadGrammarLesson.tsx`, `/read-grammar-lesson`): the catalog's explanation, then
+  example lines written from the known words, each with its English behind a tap and a play button
+  (an Azure recording from the clip cache, `clips.speak_clip`, recorded again once the cache drops
+  it; the phone's voice when there's none), then "Practice 5 questions", a short round of the
+  point's drills. Claude writes the examples once a point (`grammar_lessons.py`, asked for on first
+  open, kept in `grammar_lessons`; `POST` writes fresh ones), and code keeps an example only if it
+  passes Your topics' checks, the point's own finder finds the point in it, and in Thai it fits the
+  woman's voice that reads it (`gender.thai_fits`). The cost is kept as "grammar_lessons". Nothing
+  here grades a card.
+- **Points Claude writes** (25 November 2026, the owner, from the rotation design: Claude writes the
+  next point when the list runs out). When a language has at most `LEFT` (1) point neither practiced
+  nor known, the engine asks Claude for the next one in the background (`Engine._maybe_write_point`,
+  from `rotate_grammar`), at most `PER_DAY` (1) a study day. Claude proposes the point and describes
+  its finder as data (`grammar.FinderSpec`: marker words or phrases, longer words that merely start
+  with one, and neighbors that rule a match out, the shape every Thai finder already has), with
+  example lines and look-alike lines (`written_points.py`). Code keeps the point only when at least
+  3 examples pass Your topics' checks and its finder finds every one, it finds nothing in a
+  look-alike, and no point the language has already finds most of the examples. A kept point is
+  stored in `written_points` (id `<language>.c<n>`, level after the hardest), registered beside the
+  catalog whenever the store opens (`grammar.register`), and from then on chosen, found, drilled,
+  rotated and taught like the catalog's. A swap that found no point left keeps its slot open, and the
+  next text starts the new point in it, showing the card again (`Engine._fill_open_slot`). The app
+  reads them from `GET /api/grammar/written` and keeps a copy (`useWrittenPoints`,
+  `setWrittenPoints`), and a written point's page and lesson say "Written by Claude", as Your topics
+  do, since code can't check its explanation. Japanese is never written for: its finders need
+  Sudachi. The cost is kept as "written_points".
 - **Finding points.** Thai points are words, matched on the coverage segmentation; the segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,

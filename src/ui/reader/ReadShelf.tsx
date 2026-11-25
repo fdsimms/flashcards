@@ -47,15 +47,15 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarPoint, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
+export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLesson, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
   /** The language the settings already name, so the header shows it while the shelf loads. */
   knownLanguage?: Language;
   /** Says a practice word aloud from its popover. */
   onPlayWord: (word: string, language: Language, say?: string) => void;
   onOpen: (open: OpenText) => void;
-  /** A grammar point's page, from the notice when practiced grammar rotates. */
-  onGrammarPoint: (id: string) => void;
+  /** A grammar point's lesson, from the notice when practiced grammar rotates. */
+  onGrammarLesson: (id: string) => void;
   /** Opens having a series, dialogue or story written. */
   onNew: () => void;
   /** Opens having a series written, past the choice of kind. */
@@ -262,7 +262,7 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarPoi
         {shelf ? (
           <>
             <View style={{ paddingHorizontal: space.l, gap: space.m }}>
-              <ReadGrammarRotation api={api} onOpenPoint={onGrammarPoint} />
+              <ReadGrammarRotation api={api} onOpenLesson={onGrammarLesson} />
               <ReadReviewFirst language={shelf.language} onReview={onReview} />
             </View>
             <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNewSeries} offline={!!problem} />
