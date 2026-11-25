@@ -17,7 +17,7 @@ import { failureText, NOT_IN_ANKI } from '../core/failure';
 
 /**
  * Making, renaming, moving and deleting decks from the deck list (src/anki/deckService.ts): "New
- * deck" in the toolbar (a sheet of its own, NewDeck.tsx), a menu on each deck's row (Suspend all and Unsuspend all included), and dragging a row (DeckDrag.tsx). A new name is asked for in the system's text prompt;
+ * deck" in the toolbar (a sheet of its own, NewDeck.tsx), a menu on each deck's row (Deck counts, Suspend all and Unsuspend all included), and dragging a row (DeckDrag.tsx). A new name is asked for in the system's text prompt;
  * a name that's refused (taken, empty, inside the deck itself) asks again, saying why.
  */
 export function useDeckActions(onOptions: (deck: string) => void) {
@@ -120,6 +120,7 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     if (action === 'rename') rename(deck);
     if (action === 'options') onOptions(deck);
     if (action === 'export') shareDeckNotes(repo, deck).catch((e) => Alert.alert("Couldn't export the notes", failureText(e, { next: 'Try again.' })));
+    if (action === 'counts') router.push({ pathname: '/deck-counts', params: { deck } });
     if (action === 'suspend') setSuspended(deck, true);
     if (action === 'unsuspend') setSuspended(deck, false);
     if (action === 'delete') remove(deck);
@@ -128,9 +129,9 @@ export function useDeckActions(onOptions: (deck: string) => void) {
   /** The sheet the ⋯ button on a deck's row opens: the same choices as the long-press menu. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
-    const options = ['Quick add', 'Add note', 'Rename', 'Deck options', 'Export notes', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
-    const actions: DeckAction[] = ['quick', 'note', 'rename', 'options', 'export', 'suspend', 'unsuspend', 'delete'];
-    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 8, destructiveButtonIndex: 7 }, (i) => {
+    const options = ['Quick add', 'Add note', 'Rename', 'Deck options', 'Export notes', 'Deck counts', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
+    const actions: DeckAction[] = ['quick', 'note', 'rename', 'options', 'export', 'counts', 'suspend', 'unsuspend', 'delete'];
+    ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 9, destructiveButtonIndex: 8 }, (i) => {
       if (i < actions.length) act(deck, actions[i]);
     });
   }, [act]);

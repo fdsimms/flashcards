@@ -374,6 +374,33 @@ def test_a_story_keeps_its_cast_and_each_episode_hears_the_ones_before() -> None
     assert [t.episode for t in store.episodes(e.conn, story_id)] == [1, 2]
 
 
+def test_the_next_episode_hears_the_name_spellings_and_titles_so_far() -> None:
+    first = {
+        **IN_RANGE,
+        "title": "ทาง|ป่า",
+        "series": "Noi's stall",
+        "lines": [{**IN_RANGE["lines"][0], "text": "~นก~|" + IN_RANGE["lines"][0]["text"]}]
+        + IN_RANGE["lines"][1:],
+    }
+    model = ScriptedModel(first, IN_RANGE)
+    e = engine(model)
+
+    async def start() -> int:
+        story = e.start_story("a noodle stall")
+        await settle(e)
+        return story.id
+
+    story_id = run(start)
+    episode = store.waiting_episode(e.conn, story_id)
+    assert episode is not None and episode.title == "ทางป่า"
+    e.record_reading(episode.id, reading(None))
+    calls = model.calls
+    run(e.top_up)
+    asked = model.messages_seen[calls][0]["content"]
+    assert "used each spelling: นก (1)." in asked
+    assert "The latest episodes' titles: ทางป่า." in asked
+
+
 def test_a_story_keeps_what_each_episode_tells_of_its_characters() -> None:
     first = {
         **IN_RANGE,

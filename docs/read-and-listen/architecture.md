@@ -1535,6 +1535,14 @@ next episode is the top of the shelf.
   owner: a second series reused the first one's protagonist). The model invents names with no
   view of the other series, so `engine._names_taken` gathers each other story's character names and
   cast sentence, running or ended, and `_taken_names` asks for names none of them has.
+- **A later episode is told how the earlier ones spelled the names, and their titles** (25 November
+  2026, the owner, after an audit of the Thai stories). The cast, recaps, ending and voices are all
+  in English, so each episode spelled a name afresh: Mali as มะลิ and มาลี, Fai as ไฝ, ฝ้าย and ไฟ
+  ("fire"). `generator.name_spellings` counts the spellings the earlier episodes' lines mark
+  (`~name~`), and `_name_spellings` asks for a returning character's name exactly as most episodes
+  wrote it. The latest `STORY_RECAPS` titles are sent too (`_earlier_titles`), since two episodes
+  came out as แหวนสองวง. A title or series name written like a line (ทาง|ป่า) has its markup taken
+  out (`parse_line`), and `store._clean_titles` cleans the ones kept before.
 - **The last episode's ending is quoted too** (added 19 November 2026). A recap is one or two
   sentences, so it dropped small state: an episode ended with the cake still baking and the next
   opened with it burnt. The next request now also quotes the previous episode's last
@@ -1570,7 +1578,10 @@ next episode is the top of the shelf.
   (`stories.plan`, replaced each episode, an episode that gives none leaves the last) and sent with
   the next request. The request says which episode of the season this is, that the next one is the
   finale, or that this one is the finale (resolve the main question, no cliffhanger, the choices
-  being what the next season could be about). The episode after a finale opens a new season with the
+  being what the next season could be about). Since 25 November 2026 the finale is also asked to
+  resolve it in a scene, whatever kind of question it is (a mystery, a romance, a contest): a
+  season ended with its villain "gone far away" in one line of a police officer's. The ask says
+  nothing about secrets or villains, since not every story has one. The episode after a finale opens a new season with the
   same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
