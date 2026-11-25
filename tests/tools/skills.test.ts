@@ -3,6 +3,7 @@ import {
   CONTRAST_STEPS, COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
   heardRight, holdable, questionNote, cleanWeeks, coverable, coveringSteps, nextMonth, STOP_SUGGESTED_AFTER, languageOfDeck, missingByCard, skillDrafts, skillFrontKey, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
+import { CLASS_COLORS } from '../../src/tools/thai/letters';
 import { stepNeeds } from '../../src/tools/skillWords';
 import { countEnding } from '../../src/tools/counting';
 import { COUNTING } from '../../src/tools/tools';
@@ -131,6 +132,9 @@ describe('skill cards in the collection', () => {
     const [ko] = skillDrafts('th', 'Thai', ['consonants']);
     expect(ko.fields.Front).toContain('[anki:tts lang=th_TH]กอ ไก่[/anki:tts]');
     expect(ko.fields.Back).not.toContain('[anki:tts');
+    // The answer is in the class's color, and the question isn't, which would give it away.
+    expect(ko.fields.Back).toContain(`color:${CLASS_COLORS.mid}`);
+    expect(ko.fields.Front).not.toContain(CLASS_COLORS.mid);
     // A vowel's length can be heard, so reading it on the front would give the answer away.
     const vowels = skillDrafts('th', 'Thai', ['vowels']);
     expect(vowels.every((d) => !d.fields.Front.includes('[anki:tts') && d.fields.Back.includes('[anki:tts lang=th_TH]'))).toBe(true);

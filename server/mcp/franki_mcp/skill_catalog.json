@@ -1624,7 +1624,7 @@
      "notes": [
       {
        "front": "<div style=\"font-size:64px\">ก</div><div>[anki:tts lang=th_TH]กอ ไก่[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>gaaw gài · ไก่, chicken</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>gaaw gài · ไก่, chicken</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1634,7 +1634,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">จ</div><div>[anki:tts lang=th_TH]จอ จาน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>jaaw jaan · จาน, plate</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>jaaw jaan · จาน, plate</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1644,7 +1644,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ด</div><div>[anki:tts lang=th_TH]ดอ เด็ก[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>daaw dèk · เด็ก, child</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>daaw dèk · เด็ก, child</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1654,7 +1654,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ต</div><div>[anki:tts lang=th_TH]ตอ เต่า[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>dtaaw dtào · เต่า, turtle</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>dtaaw dtào · เต่า, turtle</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1664,7 +1664,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฎ</div><div>[anki:tts lang=th_TH]ดอ ชฎา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>daaw chá-daa · ชฎา, a dancer's crown</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>daaw chá-daa · ชฎา, a dancer's crown</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1674,7 +1674,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฏ</div><div>[anki:tts lang=th_TH]ตอ ปฏัก[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>dtaaw bpà-dtàk · ปฏัก, a goad</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>dtaaw bpà-dtàk · ปฏัก, a goad</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1684,7 +1684,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">บ</div><div>[anki:tts lang=th_TH]บอ ใบไม้[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>baaw bai-máai · ใบไม้, leaf</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>baaw bai-máai · ใบไม้, leaf</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1694,7 +1694,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ป</div><div>[anki:tts lang=th_TH]ปอ ปลา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>bpaaw bplaa · ปลา, fish</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>bpaaw bplaa · ปลา, fish</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1704,7 +1704,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">อ</div><div>[anki:tts lang=th_TH]ออ อ่าง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>aaw àang · อ่าง, basin</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>aaw àang · อ่าง, basin</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1714,7 +1714,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ข</div><div>[anki:tts lang=th_TH]ขอ ไข่[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>khǎaw khài · ไข่, egg</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>khǎaw khài · ไข่, egg</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1724,7 +1724,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฃ</div><div>[anki:tts lang=th_TH]ขอ ฃวด[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>khǎaw khùat · ฃวด, bottle</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>khǎaw khùat · ฃวด, bottle</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1734,7 +1734,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฉ</div><div>[anki:tts lang=th_TH]ฉอ ฉิ่ง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>chǎaw chìng · ฉิ่ง, small cymbals</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>chǎaw chìng · ฉิ่ง, small cymbals</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1744,7 +1744,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ถ</div><div>[anki:tts lang=th_TH]ถอ ถุง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>thǎaw thǔng · ถุง, bag</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>thǎaw thǔng · ถุง, bag</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1754,7 +1754,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฐ</div><div>[anki:tts lang=th_TH]ถอ ฐาน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>thǎaw thǎan · ฐาน, base</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>thǎaw thǎan · ฐาน, base</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1764,7 +1764,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ผ</div><div>[anki:tts lang=th_TH]ผอ ผึ้ง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>phǎaw phûeng · ผึ้ง, bee</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>phǎaw phûeng · ผึ้ง, bee</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1774,7 +1774,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฝ</div><div>[anki:tts lang=th_TH]ฝอ ฝา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>fǎaw fǎa · ฝา, lid</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>fǎaw fǎa · ฝา, lid</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1784,7 +1784,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ศ</div><div>[anki:tts lang=th_TH]สอ ศาลา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw sǎa-laa · ศาลา, open pavilion</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw sǎa-laa · ศาลา, open pavilion</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1794,7 +1794,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ษ</div><div>[anki:tts lang=th_TH]สอ ฤๅษี[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw ruue-sǐi · ฤๅษี, hermit</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw ruue-sǐi · ฤๅษี, hermit</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1804,7 +1804,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ส</div><div>[anki:tts lang=th_TH]สอ เสือ[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw sǔea · เสือ, tiger</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw sǔea · เสือ, tiger</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1814,7 +1814,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ห</div><div>[anki:tts lang=th_TH]หอ หีบ[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>hǎaw hìip · หีบ, chest, box</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>hǎaw hìip · หีบ, chest, box</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1824,7 +1824,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ค</div><div>[anki:tts lang=th_TH]คอ ควาย[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw khwaai · ควาย, buffalo</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw khwaai · ควาย, buffalo</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1834,7 +1834,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฅ</div><div>[anki:tts lang=th_TH]คอ ฅน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw khon · ฅน, person</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw khon · ฅน, person</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1844,7 +1844,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฆ</div><div>[anki:tts lang=th_TH]คอ ระฆัง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw rá-khang · ระฆัง, bell</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw rá-khang · ระฆัง, bell</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1854,7 +1854,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ง</div><div>[anki:tts lang=th_TH]งอ งู[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>ngaaw nguu · งู, snake</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>ngaaw nguu · งู, snake</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1864,7 +1864,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ช</div><div>[anki:tts lang=th_TH]ชอ ช้าง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>chaaw cháang · ช้าง, elephant</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>chaaw cháang · ช้าง, elephant</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1874,7 +1874,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ซ</div><div>[anki:tts lang=th_TH]ซอ โซ่[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>saaw sôo · โซ่, chain</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>saaw sôo · โซ่, chain</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1884,7 +1884,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฌ</div><div>[anki:tts lang=th_TH]ชอ เฌอ[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>chaaw chəə · เฌอ, tree</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>chaaw chəə · เฌอ, tree</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1894,7 +1894,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ญ</div><div>[anki:tts lang=th_TH]ยอ หญิง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>yaaw yǐng · หญิง, woman</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>yaaw yǐng · หญิง, woman</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1904,7 +1904,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฑ</div><div>[anki:tts lang=th_TH]ทอ มณโฑ[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw mon-thoo · มณโฑ, Montho, a queen in the Ramakien</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw mon-thoo · มณโฑ, Montho, a queen in the Ramakien</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1914,7 +1914,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฒ</div><div>[anki:tts lang=th_TH]ทอ ผู้เฒ่า[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw phûu-thâo · ผู้เฒ่า, elder</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw phûu-thâo · ผู้เฒ่า, elder</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1924,7 +1924,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ณ</div><div>[anki:tts lang=th_TH]นอ เณร[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>naaw neen · เณร, novice monk</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>naaw neen · เณร, novice monk</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1934,7 +1934,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ท</div><div>[anki:tts lang=th_TH]ทอ ทหาร[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw thá-hǎan · ทหาร, soldier</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw thá-hǎan · ทหาร, soldier</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1944,7 +1944,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ธ</div><div>[anki:tts lang=th_TH]ทอ ธง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw thong · ธง, flag</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw thong · ธง, flag</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1954,7 +1954,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">น</div><div>[anki:tts lang=th_TH]นอ หนู[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>naaw nǔu · หนู, mouse</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>naaw nǔu · หนู, mouse</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1964,7 +1964,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">พ</div><div>[anki:tts lang=th_TH]พอ พาน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>phaaw phaan · พาน, footed tray</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>phaaw phaan · พาน, footed tray</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1974,7 +1974,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฟ</div><div>[anki:tts lang=th_TH]ฟอ ฟัน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>faaw fan · ฟัน, tooth</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>faaw fan · ฟัน, tooth</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1984,7 +1984,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ภ</div><div>[anki:tts lang=th_TH]พอ สำเภา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>phaaw sǎm-phao · สำเภา, junk (sailing ship)</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>phaaw sǎm-phao · สำเภา, junk (sailing ship)</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1994,7 +1994,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ม</div><div>[anki:tts lang=th_TH]มอ ม้า[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>maaw máa · ม้า, horse</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>maaw máa · ม้า, horse</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2004,7 +2004,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ย</div><div>[anki:tts lang=th_TH]ยอ ยักษ์[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>yaaw yák · ยักษ์, giant</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>yaaw yák · ยักษ์, giant</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2014,7 +2014,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ร</div><div>[anki:tts lang=th_TH]รอ เรือ[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>raaw ruea · เรือ, boat</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>raaw ruea · เรือ, boat</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2024,7 +2024,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ล</div><div>[anki:tts lang=th_TH]ลอ ลิง[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>laaw ling · ลิง, monkey</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>laaw ling · ลิง, monkey</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2034,7 +2034,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ว</div><div>[anki:tts lang=th_TH]วอ แหวน[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>waaw wǎen · แหวน, ring</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>waaw wǎen · แหวน, ring</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2044,7 +2044,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฬ</div><div>[anki:tts lang=th_TH]ลอ จุฬา[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>laaw jù-laa · จุฬา, a kind of kite</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>laaw jù-laa · จุฬา, a kind of kite</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2054,7 +2054,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ฮ</div><div>[anki:tts lang=th_TH]ฮอ นกฮูก[/anki:tts]</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>haaw nók-hûuk · นกฮูก, owl</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>haaw nók-hûuk · นกฮูก, owl</div>",
        "tags": [
         "skill",
         "skill::consonants",

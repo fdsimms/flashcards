@@ -9,7 +9,8 @@ import { hairline, radius, smooth, space, type, useTheme } from '../theme';
  * is null when the answer was shown without picking.
  */
 export function OptionChoices<T extends string>({ options, right, picked, onChoose }: {
-  options: { value: T; label: string }[];
+  /** `dot` is a small colored dot before the label (a class's color). */
+  options: { value: T; label: string; dot?: string }[];
   right: T;
   picked: { choice: T | null } | null;
   onChoose: (value: T) => void;
@@ -17,7 +18,7 @@ export function OptionChoices<T extends string>({ options, right, picked, onChoo
   const c = useTheme();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-      {options.map(({ value, label }) => {
+      {options.map(({ value, label, dot }) => {
         const isRight = !!picked && value === right;
         const isWrong = picked?.choice === value && value !== right;
         return (
@@ -35,6 +36,7 @@ export function OptionChoices<T extends string>({ options, right, picked, onChoo
               borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
             }}
           >
+            {dot ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: dot }} /> : null}
             <Text style={{ ...type.subhead, color: c.text, fontWeight: isRight ? '600' : '400' }}>{label}</Text>
             {isRight ? <Icon name="checkmark.circle.fill" size={16} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={16} color={c.danger} /> : null}

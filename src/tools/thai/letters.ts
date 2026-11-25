@@ -10,6 +10,13 @@ import type { ToneClass } from './script';
 
 export const CLASS_NAMES: Record<ToneClass, string> = { mid: 'Middle', high: 'High', low: 'Low' };
 export const CLASSES: ToneClass[] = ['mid', 'high', 'low'];
+/**
+ * A class's color: teal, rose, indigo. None is red, green or blue like a card count, and none is a
+ * tone's color (toneLow...), so a class is never read as a count or a tone. One value per class, not
+ * one per theme, because a skill card's Back is plain HTML that can't tell which theme it is shown in
+ * (about 3:1 or better on both a white and a near-black card, enough for large bold text and a dot).
+ */
+export const CLASS_COLORS: Record<ToneClass, string> = { mid: '#3a9a96', high: '#d0527f', low: '#6b76d6' };
 
 export interface Consonant {
   letter: string;

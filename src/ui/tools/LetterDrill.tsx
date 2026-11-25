@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import type { Language } from '../../reader/api';
 import type { Phrase } from '../../tools/phrase';
 import { randomWord } from '../../tools/script';
-import { CLASS_NAMES, CLASSES, CONSONANTS, consonantPatterns, consonantSteps, VOWELS, vowelPatterns, vowelSteps, vowelSyllable } from '../../tools/thai/letters';
+import { CLASS_COLORS, CLASS_NAMES, CLASSES, CONSONANTS, consonantPatterns, consonantSteps, VOWELS, vowelPatterns, vowelSteps, vowelSyllable } from '../../tools/thai/letters';
 import { haptic } from '../haptics';
 import { LANGUAGES } from '../../reader/languages';
 import { Button } from '../kit';
@@ -20,7 +20,7 @@ import { useRetries } from './useRetries';
 export type LetterMode = 'consonants' | 'vowels';
 
 const LENGTHS = [{ value: 'short', label: 'Short' }, { value: 'long', label: 'Long' }] as const;
-const CLASS_OPTIONS = CLASSES.map((cls) => ({ value: cls, label: CLASS_NAMES[cls] }));
+const CLASS_OPTIONS = CLASSES.map((cls) => ({ value: cls, label: CLASS_NAMES[cls], dot: CLASS_COLORS[cls] }));
 
 /**
  * Thai's letters in Reading the script: a consonant to place in its class (middle, high or low),

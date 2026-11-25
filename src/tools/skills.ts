@@ -13,7 +13,7 @@ import { clockText, randomTime, type ClockTime, type MinuteStep, type TimeSaying
 import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts, type DateScope } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
-import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { CLASS_COLORS, CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
 import { countEnding, type CountQuestion } from './counting';
@@ -495,7 +495,7 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
         drafts.push({
           fields: {
             Front: `<div style="font-size:64px">${esc(c.letter)}</div>${thaiSpeech(c.say)}<div>Which class?</div>`,
-            Back: `<div><b>${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
+            Back: `<div><b style="color:${CLASS_COLORS[c.cls]}">● ${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
           },
           tags: [SKILL_TAG, `${SKILL_TAG}::consonants`, lang],
           suspended: false,
