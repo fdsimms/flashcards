@@ -95,8 +95,10 @@ async function source(api: WaniKaniApi, wanikani: WaniKaniState): Promise<Source
 }
 
 /**
- * Studies WaniKani, as a deck: today's reviews, or, when none are up or after they're done and
- * "Start lessons" is tapped, today's lessons. The two are never mixed in one session. Answers are typed or rated
+ * Studies WaniKani, as a deck: today's reviews, then, once they're done and the answers are sent and
+ * the counts read again, today's lessons (the Apprentice limit is checked against that fresh count, so
+ * the reviews just finished are counted). The two are separate sessions on screen but one flow: lessons
+ * follow the reviews without a tap. Answers are typed or rated
  * (WaniKani's options), checked here, and sent to WaniKani as each item finishes, the latest held
  * back so it can be undone (src/wanikani/session.ts). WaniKani does the scheduling.
  */
@@ -109,7 +111,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const [study, setStudy] = useState<Study | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loads, setLoads] = useState(0);
-  // Reviews and lessons are separate sessions: the lessons one is started from the end of the reviews.
+  // Reviews and lessons are separate sessions: the lessons one follows the reviews on its own (see "from reviews into lessons").
   const [lessonsOnly, setLessonsOnly] = useState(false);
   const [kind, setKind] = useState<'reviews' | 'lessons'>('reviews');
   // What the lessons are, once this session is done: how many are offered, and whether the Apprentice limit holds them back.
@@ -247,6 +249,39 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   const subject = item ? subjects.get(item.subjectId) : undefined;
   const progress = question && session ? session.progress[question.assignmentId] : undefined;
   const left = session ? remaining(session) : { reviews: 0, lessons: 0 };
+
+  // ==== from reviews into lessons ====
+  // When the last review is answered: send what's held, read WaniKani again, and only then decide how many
+  // lessons fit under the Apprentice limit. The counts the session was built from are from before these
+  // reviews, so using them said "25 of 25" when the reviews had just moved items to Guru.
+  const advancing = useRef<Study | null>(null);
+  // Not the effect's own cleanup: replacing the study above re-runs the effect, which must not cancel this read.
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+  const [advanced, setAdvanced] = useState(false);
+  useEffect(() => {
+    if (!api || !study || question || kind !== 'reviews' || advancing.current === study) return;
+    // The held answer goes now, so Undo ends for it: the study is replaced by the flushed one, which is not run again.
+    const flushed = studyFlush(study);
+    advancing.current = flushed.study;
+    setStudy(flushed.study);
+    (async () => {
+      send(flushed.send);
+      await wanikani.refresh(true);
+      try {
+        const src = await source(api, wanikani);
+        const lessons = withoutSkipped(src.lessons, wanikani.skipped);
+        const offered = lessonsToday(lessons.length, prefs.newPerDay, src.started);
+        const count = lessonsToday(lessons.length, prefs.newPerDay, src.started, src.apprentice, prefs.maxApprentice);
+        if (!mounted.current) return;
+        setNext({ lessons: count, held: count === 0 && offered > 0, apprentice: src.apprentice });
+        if (count > 0) setLessonsOnly(true);
+      } catch {
+        // Not reached: the done screen stays, and the next visit reads the counts again.
+      }
+      if (mounted.current) setAdvanced(true);
+    })();
+  }, [study, question, kind]); // eslint-disable-line react-hooks/exhaustive-deps
   const lesson = question?.kind === 'lesson';
   const asksMeaning = question?.kind === 'meaning' || question?.kind === 'both';
   const asksReading = question?.kind === 'reading' || question?.kind === 'both';
@@ -335,7 +370,6 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The session last answered from: two taps before a re-render would both answer it, sending the
   // held answer to WaniKani and logging it twice.
   const answeredFrom = useRef<Study | null>(null);
-  const starting = useRef(false);
   // The card washes green or red as an answer is given, as Review's does.
   const answerFlash = useAnswerFlash();
   const answer = (correct: boolean) => {
@@ -663,24 +697,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
 
   if (!question || !item || !subject) {
     const done = study.session.finished.length;
-    // Lessons wait for a tap rather than following the reviews on their own. Held answers are sent
-    // and counts read again first, so the Apprentice limit is checked against the reviews just done.
-    const startLessons = async () => {
-      // A second tap before the re-render would send the held answer again.
-      if (starting.current) return;
-      starting.current = true;
-      send(studyFlush(study).send);
-      setStudy(null);
-      await wanikani.refresh(true);
-      setLessonsOnly(true);
-    };
-    const offer = kind === 'reviews' && next.lessons > 0;
-    const footer = offer ? (
-      <>
-        <Button label={`Start ${next.lessons} ${next.lessons === 1 ? 'lesson' : 'lessons'}`} onPress={startLessons} />
-        <Button label="Back to decks" variant="secondary" onPress={onDone} />
-      </>
-    ) : <Button label="Back to decks" onPress={onDone} />;
+    // While the counts are read again for the lessons that follow, there is nothing to tap.
+    const checking = kind === 'reviews' && !advanced;
+    const footer = checking ? undefined : <Button label="Back to decks" onPress={onDone} />;
     return (
       <Screen title={title} largeTitle={false} toolbar={toolbar} footer={footer}>
         <Reveal style={{ flex: 1 }}>
