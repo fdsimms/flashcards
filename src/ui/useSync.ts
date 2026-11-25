@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, type AlertButton } from 'react-native';
+import { syncProgress } from '../anki/sync/progress';
 import { fullSyncPrompt, reportText, syncErrorText, type FullSyncQuestion } from '../anki/sync/runSync';
 import { syncNow } from '../anki/syncService';
 import type { AnkiLink, SyncSettings } from '../db/ankiLink';
@@ -73,13 +74,14 @@ export function useSync(repo: (Repo & AnkiLink) | null, onSynced: () => void) {
         return "Couldn't reach your server. Franki will sync once it answers.";
       }
       connection.report(origin, true);
-      return reportText(await syncNow(repo, choose));
+      return reportText(await syncNow(repo, choose, syncProgress.set));
     } catch (e) {
       if (origin && e instanceof SyncError && e.kind === 'network') connection.report(origin, false);
       return syncErrorText(e);
     } finally {
       running.current = false;
       release();
+      syncProgress.set(null);
       setSyncing(false);
       try {
         await reload();

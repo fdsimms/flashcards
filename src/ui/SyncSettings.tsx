@@ -1,16 +1,19 @@
 import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, Text, type TextInputInstance } from 'react-native';
+import { Alert, ScrollView, Text, View, type TextInputInstance } from 'react-native';
+import { progressFraction, progressText } from '../anki/sync/progress';
 import { syncErrorText, syncStatusText } from '../anki/sync/runSync';
 import { signIn, turnOffSync } from '../anki/syncService';
 import { failureText } from '../core/failure';
 import type { AnkiLink, SyncSettings as Settings } from '../db/ankiLink';
-import { Button, Card, Field, Help, MessageList, Screen, SECTION_GAP } from './kit';
+import { Button, Card, Field, Help, MessageList, ProgressBar, Screen, SECTION_GAP } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
+import { useSyncProgress } from './useSyncProgress';
 
 /**
  * Setting up sync with an Anki sync server, and syncing by hand. Off until signed in. Sync itself
- * (and its progress) belongs to the app (useSync), since it also runs when the app opens and closes.
+ * belongs to the app (useSync), since it also runs when the app opens and closes; what it is doing
+ * right now comes from `useSyncProgress`, a store of its own so a count ticking redraws only this screen.
  */
 export function SyncSettings(props: {
   repo: AnkiLink;
@@ -22,6 +25,8 @@ export function SyncSettings(props: {
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const s = props.settings;
+  const progress = useSyncProgress();
+  const fraction = progress ? progressFraction(progress) : undefined;
   const [server, setServer] = useState(s?.server ?? '');
   const [user, setUser] = useState(s?.user ?? '');
   const [password, setPassword] = useState('');
@@ -85,14 +90,21 @@ export function SyncSettings(props: {
         {s?.enabled ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Syncing with {s.server.replace(/^https?:\/\//, '').replace(/\/$/, '')}</Text>
-            <Text style={{ ...type.body, color: s.lastError ? c.warning : c.textSecondary }}>
-              Signed in as {s.user}. {syncStatusText(s, new Date())}
-            </Text>
+            {props.syncing && progress ? (
+              <View style={{ gap: space.s }}>
+                <Text accessibilityLiveRegion="polite" style={{ ...type.body, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{progressText(progress)}</Text>
+                {fraction !== undefined ? <ProgressBar value={fraction} label="Progress of the sync" /> : null}
+              </View>
+            ) : (
+              <Text style={{ ...type.body, color: s.lastError ? c.warning : c.textSecondary }}>
+                Signed in as {s.user}. {syncStatusText(s, new Date())}
+              </Text>
+            )}
             <Help>
               Franki syncs when you open it, when you finish studying a deck, and when you leave the app, except in the middle of studying, so Undo still works when you come back. Images and sounds
               added in Anki come down with each sync.
             </Help>
-            <Button label="Sync now" onPress={syncNow} busy={props.syncing} />
+            <Button label="Sync now" onPress={syncNow} busy={props.syncing} busyLabel="Syncing" />
             <Button label="Turn off sync" variant="destructive" onPress={turnOff} disabled={props.syncing} />
           </Card>
         ) : (

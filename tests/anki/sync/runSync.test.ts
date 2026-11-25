@@ -4,6 +4,7 @@ import type { SyncOutcome } from '../../../src/anki/sync/collectionSync';
 import * as collectionSync from '../../../src/anki/sync/collectionSync';
 import { isRetryable, runSync, syncErrorText, type SyncDeps } from '../../../src/anki/sync/runSync';
 import { SyncError } from '../../../src/anki/sync/protocol';
+import type { SyncProgress } from '../../../src/anki/sync/progress';
 
 const client = new SyncClient('https://anki.example', 'k', async () => { throw new Error('no network in this test'); });
 
@@ -50,6 +51,26 @@ describe('one sync, start to finish', () => {
     const a = deps(full());
     expect((await runSync(a.d)).collection).toBe('downloaded');
     expect(a.calls).toEqual(['lock', 'download', 'unlock', 'media 7']);
+  });
+
+  it('reports each phase as it goes: the collection, then a download or an upload, and the media counts it passes on', async () => {
+    const phases = (over: Partial<SyncDeps> = {}) => {
+      const seen: string[] = [];
+      return { seen, over: { onProgress: (p: SyncProgress) => seen.push(p.phase), ...over } };
+    };
+    const a = phases();
+    await runSync(deps({ kind: 'synced', received: false, sent: 0, mediaUsn: 7 }, a.over).d);
+    expect(a.seen).toEqual(['collection']);
+    const b = phases();
+    await runSync(deps(full(), b.over).d);
+    expect(b.seen).toEqual(['collection', 'download']);
+    const c = phases({ unsentAnswers: async () => 5 });
+    await runSync(deps(full({ downloadOk: false }), c.over).d);
+    expect(c.seen).toEqual(['collection', 'upload']);
+    // Media reports its own counts through the function it is handed.
+    const d = phases({ syncMedia: async (_usn, report) => { report?.({ phase: 'media', done: 1, total: 2 }); return { downloaded: 1, deleted: 0, skipped: [], uploaded: 0 }; } });
+    await runSync(deps({ kind: 'noChanges', mediaUsn: 7 }, d.over).d);
+    expect(d.seen).toEqual(['collection', 'media']);
   });
 
   it('uploads without asking when the server has nothing', async () => {
