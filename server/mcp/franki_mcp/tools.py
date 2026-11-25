@@ -127,6 +127,41 @@ def _stage(card: Card) -> str:
     return {0: "new", 1: "learning", 2: "review", 3: "relearning"}.get(card.type, "unknown")
 
 
+def _totals_by_deck(col: Collection) -> dict[str, dict[str, dict[str, int]]]:
+    """Every deck's notes and cards by state, subdecks rolled up into their parents. A card counts in its
+    home deck (a filtered deck's cards in the deck they came from), as `get_stats`' search does. The states
+    are `get_stats`' (new means new and not suspended or buried), except that a skill card (its note is
+    tagged `skill`) is counted only under `skills`, in any state. A state with nothing in it is left out.
+    A note counts once per state, however many of its cards are in it."""
+    names: dict[int, str] = {}
+    cards: dict[str, dict[str, int]] = {}
+    notes: dict[str, dict[str, set[int]]] = {}
+    for nid, did, odid, queue, ctype, ivl, tags in col.db.all(
+            "select c.nid, c.did, c.odid, c.queue, c.type, c.ivl, n.tags from cards c join notes n on n.id = c.nid"):
+        home = odid or did
+        if home not in names:
+            names[home] = _deck_name(col, home)
+        if "skill" in tags.split():
+            state = "skills"
+        elif queue == -1:
+            state = "suspended"
+        elif queue in (-2, -3):
+            state = "buried"
+        elif ctype == 0:
+            state = "new"
+        elif ctype == 2:
+            state = "mature" if ivl >= MATURE_DAYS else "young"
+        else:
+            state = "learning"
+        parts = names[home].split("::")
+        for i in range(1, len(parts) + 1):
+            deck = "::".join(parts[:i])
+            by_card = cards.setdefault(deck, {})
+            by_card[state] = by_card.get(state, 0) + 1
+            notes.setdefault(deck, {}).setdefault(state, set()).add(nid)
+    return {deck: {state: {"notes": len(notes[deck][state]), "cards": n} for state, n in by_card.items()} for deck, by_card in cards.items()}
+
+
 def _due(col: Collection, card: Card) -> str | int | None:
     """When a card is next due: a date (or date and time, for a learning step), or its position if new."""
     if card.queue == QUEUE_TYPE_NEW:
@@ -350,16 +385,21 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=READ)
     async def list_decks() -> dict[str, Any]:
         """Every deck, with how many new, learning and review cards are due in it today (subdecks
-        included, within the deck's daily limits, as Anki's deck list shows them)."""
+        included, within the deck's daily limits, as Anki's deck list shows them), and its `totals`: the
+        notes and cards in each state (new = new and not suspended, learning, young, mature, suspended,
+        buried; skill cards apart under skills), subdecks included and not limited by the day. A state with none is left out. A note
+        counts in every state one of its cards is in."""
 
         def run(col: Collection) -> dict[str, Any]:
             decks = []
+            totals = _totals_by_deck(col)
 
             def walk(node, parent: str = "") -> None:
                 for child in node.children:
                     name = f"{parent}::{child.name}" if parent else child.name
                     decks.append({"deck": name, "deck_id": child.deck_id, "new": child.new_count,
-                                  "learning": child.learn_count, "review": child.review_count})
+                                  "learning": child.learn_count, "review": child.review_count,
+                                  "totals": totals.get(name, {})})
                     walk(child, name)
 
             walk(col.sched.deck_due_tree())

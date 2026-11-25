@@ -25,6 +25,21 @@ async def test_lists_decks_and_note_types(client):
     assert types["Cloze"]["is_cloze"]
 
 
+async def test_deck_totals_match_a_search_and_roll_up_into_parents(client):
+    decks = {d["deck"]: d for d in (await call(client, "list_decks"))["decks"]}
+    waiting = await call(client, "find_notes", query=f'"deck:{TRIVIA}" is:new -is:suspended -is:buried')
+    assert decks[TRIVIA]["totals"]["new"]["notes"] == waiting["total"] > 0
+    # A card in a filtered deck counts in the deck it came from: Peru's card is one of these.
+    assert decks[TRIVIA]["totals"]["new"]["cards"] >= decks[TRIVIA]["totals"]["new"]["notes"]
+    parent = THAI.split("::")[0]
+    assert decks[parent]["totals"]["new"]["notes"] >= decks[THAI]["totals"]["new"]["notes"]
+    # Skill cards are counted under their own state and in no other.
+    skilled = await call(client, "find_notes", query=f'"deck:{TRIVIA}" tag:skill')
+    assert decks[TRIVIA]["totals"].get("skills", {"notes": 0})["notes"] == skilled["total"]
+    # A state with nothing in it is left out rather than listed as zero.
+    assert all(v["cards"] > 0 for d in decks.values() for v in d["totals"].values())
+
+
 async def test_finds_and_reads_notes(client):
     found = await call(client, "find_notes", query='"deck:🧠 Trivia" Capital')
     assert found["total"] == 4  # Peru's card sits in a filtered deck but its home is Trivia

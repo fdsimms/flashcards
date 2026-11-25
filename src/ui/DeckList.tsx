@@ -2,6 +2,7 @@ import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { leadingEmoji } from '../core/deckBadge';
+import { totalsLine } from '../core/deckTotals';
 import { useDeckTint } from './useDeckTint';
 import { siblingStep, type DeckMove } from '../core/deckOrder';
 import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
@@ -18,7 +19,7 @@ import { HoverPressable } from './hover';
 export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
 /** What a deck's long-press menu and its ⋯ button offer besides studying it. */
-export type DeckAction = 'quick' | 'note' | 'rename' | 'options' | 'export' | 'suspend' | 'unsuspend' | 'delete';
+export type DeckAction = 'quick' | 'note' | 'rename' | 'options' | 'export' | 'counts' | 'suspend' | 'unsuspend' | 'delete';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
 export function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
@@ -90,7 +91,7 @@ function DeckChip({ row }: { row: ShownRow }) {
 /** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
 export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
-export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options, export, suspend or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options, export, counts, suspend or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
   /** Room at the right edge for the show/hide button, so every row's counts line up whether or not it has subdecks. */
@@ -128,7 +129,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
   const parts = row.deck.split('::');
   const inDeck = row.depth >= (editing ? 1 : 2) ? `in ${parts[parts.length - 2]}` : '';
   // A detail line (WaniKani's level) goes under the name too; the card counts were dropped to save space.
-  const line = detail ? detail.text : inDeck;
+  const line = detail ? detail.text : [inDeck, row.totals ? totalsLine(row.totals) : ''].filter(Boolean).join(' · ');
   const badge = leadingEmoji(row.name);
   // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;
@@ -139,7 +140,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       accessibilityRole={editing ? undefined : 'button'}
       accessible={!editing}
       // The label replaces the text inside, so it says the lines under the name too.
-      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(' · ', ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine].filter(Boolean).join('. ')}
+      accessibilityLabel={[`${row.name}: ${row.due} due, ${row.fresh} new`, line.replace(/ · /g, ', '), belowLabel, gateLine && atCap ? `${gateLine}, new cards wait` : gateLine].filter(Boolean).join('. ')}
       accessibilityActions={onStep ? [{ name: 'moveUp', label: 'Move up' }, { name: 'moveDown', label: 'Move down' }] : undefined}
       onAccessibilityAction={(e) => onStep?.(e.nativeEvent.actionName === 'moveUp' ? -1 : 1)}
       style={({ pressed }) => ({
@@ -297,6 +298,7 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
           <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
           <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
           <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
+          <Link.MenuAction icon="chart.bar" onPress={() => onAction('counts')}>Deck counts</Link.MenuAction>
           <Link.MenuAction icon="pause.circle" onPress={() => onAction('suspend')}>Suspend all</Link.MenuAction>
           <Link.MenuAction icon="play.circle" onPress={() => onAction('unsuspend')}>Unsuspend all</Link.MenuAction>
           <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
@@ -349,7 +351,7 @@ export function DeckList(props: {
   onNewDeck: () => void;
   /** Quick add (QuickAdd.tsx), from the header's + button. */
   onQuickAdd: () => void;
-  /** The ⋯ button on a deck's row: add a note, rename, options, export, suspend or unsuspend all, delete (DeckActions.tsx). */
+  /** The ⋯ button on a deck's row: add a note, rename, options, export, counts, suspend or unsuspend all, delete (DeckActions.tsx). */
   onDeckMenu: (deck: string) => void;
   /** One of those, chosen from the menu a long press on the row opens. */
   onDeckAction: (deck: string, action: DeckAction) => void;
