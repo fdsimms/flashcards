@@ -1060,7 +1060,8 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   language, 1 to 4, 2 by default, `PUT /api/grammar/stretch`), which the generator reads in place of
   `UNSET_USES`; a rating never moves it. Harder also suggests the easiest point (the catalog's
   `level`) that isn't practiced or known, with a Practice it button that sets it to Practice, so
-  the owner approves every change and nothing is scheduled or graded. Not a second rating: it sits
+  the owner approves that change (Rotation, below, is the one made without asking) and nothing is
+  scheduled or graded. Not a second rating: it sits
   with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
   still moves only the words. Texts already on the shelf keep the allowance they were written with.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
@@ -1087,6 +1088,24 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   shows each point's counts and the same 2 points ("Seen least of what you know", each with a
   Practice button), from the same `review_points`, so it names what the next texts are asked for.
   Seen is never learned: nothing here schedules or grades a card.
+- **Rotation** (25 November 2026, the owner, after an audit found เคย and กำลัง required in every Thai
+  text for weeks and lines bent to fit them; picked from a design page and a mock). A practiced point
+  that has been learned moves to Know it by itself, and the language's easiest point not practiced or
+  known (`grammar.next_to_learn`, what the dial suggests, Don't know it included) takes its place.
+  Learned (`rotation.py`) is `TEXTS` (8) texts read to the end that were written to practice it,
+  over `DAYS` (4) study days, with `DRILL_PASS` (80%) of its latest `DRILL_WINDOW` (10) practice
+  answers right; with fewer than `DRILL_MIN` (5) answers it takes `TEXTS_UNDRILLED` (12) texts.
+  Only texts written since the point last started being practiced count (`store.practice_since`,
+  stamped by every change that sets Practice), so a point taken back starts over. The practice
+  answers live on the phone, so the app sends them (`POST /api/grammar/answers`, from a "sent
+  through" mark, after a drill round and when the shelf opens; the server keeps each once). The
+  engine swaps before a text is written (`Engine.rotate_grammar`, in `_request`), so the text
+  already practices the new point, and keeps each swap (`grammar_rotations`). The shelf shows it
+  as a card (`ReadGrammarRotation.tsx`): what is practiced now and why the last point moved on,
+  with the new point's page and Undo. Close keeps the swap. Undo puts both back, and is refused
+  with the reason once either was changed by hand. When no point is left, the learned one still
+  moves on and the card says the list is used up. The owner's own choices are otherwise untouched,
+  and nothing here schedules or grades a card.
 - **Finding points.** Thai points are words, matched on the coverage segmentation; the segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,

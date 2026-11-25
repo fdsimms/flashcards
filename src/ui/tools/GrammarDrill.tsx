@@ -8,6 +8,7 @@ import { grammarPoint, noteWithExample } from '../../core/grammar';
 import { DRILL_QUESTIONS, drillPrompts, missingNote, type DrillPrompt } from '../../core/grammarDrills';
 import type { Repo } from '../../db/repo';
 import { ApiError, type Api } from '../../reader/api';
+import { sendGrammarAnswers } from '../reader/useGrammarRotation';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
@@ -73,6 +74,10 @@ export function GrammarDrill({ api, repo, points, onDone }: { api: Api; repo: Re
     }
   };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A finished round's answers go to Read & Listen's server, which moves a practiced point on once
+  // it's learned (src/reader/rotation.ts); one left partway goes when the shelf next opens.
+  const finished = !!prompts && prompts.length > 0 && index >= prompts.length;
+  useEffect(() => { if (finished) void sendGrammarAnswers(api, repo); }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const title = points.length === 1 ? grammarPoint(points[0])?.name ?? 'Grammar' : 'Grammar';
   if (error) {

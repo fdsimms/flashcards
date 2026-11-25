@@ -5501,6 +5501,228 @@
         }
       }
     },
+    "/api/grammar/answers": {
+      "post": {
+        "summary": "Grammar Answers",
+        "description": "Practice answers from the phone, so rotation can tell when a point is learned. Sent again\nafter a failure, so one already kept is skipped; a point this server doesn't know is too.",
+        "operationId": "grammar_answers_api_grammar_answers_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrammarAnswersIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Grammar Answers Api Grammar Answers Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/rotations": {
+      "get": {
+        "summary": "Grammar Rotations",
+        "description": "The language's automatic grammar swaps not closed or undone yet, for the shelf.",
+        "operationId": "grammar_rotations_api_grammar_rotations_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Grammar Rotations Api Grammar Rotations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/rotations/{rotation_id}/dismiss": {
+      "post": {
+        "summary": "Dismiss Rotation",
+        "operationId": "dismiss_rotation_api_grammar_rotations__rotation_id__dismiss_post",
+        "parameters": [
+          {
+            "name": "rotation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rotation Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Dismiss Rotation Api Grammar Rotations  Rotation Id  Dismiss Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grammar/rotations/{rotation_id}/undo": {
+      "post": {
+        "summary": "Undo Rotation",
+        "operationId": "undo_rotation_api_grammar_rotations__rotation_id__undo_post",
+        "parameters": [
+          {
+            "name": "rotation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rotation Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Undo Rotation Api Grammar Rotations  Rotation Id  Undo Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grammar/{point_id}": {
       "get": {
         "summary": "Get Grammar Point",
@@ -7066,6 +7288,60 @@
           "sentences"
         ],
         "title": "GlossesIn"
+      },
+      "GrammarAnswerIn": {
+        "properties": {
+          "point": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Point"
+          },
+          "drill": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Drill"
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Kind"
+          },
+          "correct": {
+            "type": "boolean",
+            "title": "Correct"
+          },
+          "answered_at": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Answered At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "point",
+          "drill",
+          "kind",
+          "correct",
+          "answered_at"
+        ],
+        "title": "GrammarAnswerIn"
+      },
+      "GrammarAnswersIn": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/GrammarAnswerIn"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "title": "Answers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answers"
+        ],
+        "title": "GrammarAnswersIn"
       },
       "GrammarChoice": {
         "properties": {
