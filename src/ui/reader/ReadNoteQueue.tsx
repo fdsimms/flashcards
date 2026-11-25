@@ -8,7 +8,7 @@ import { counts, droppedNotice, firstReady, isRetrying, isWorking, needsChoice }
 import type { DroppedWord } from '../../reader/noteQueueStore';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
-import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
@@ -153,7 +153,6 @@ export function ReadNoteQueue({ queue, error, dropped, held, getItems, onReview,
   onRemove: (id: number) => Promise<void>;
   onRefresh: () => void;
 }) {
-  const c = useTheme();
   const [problem, setProblem] = useState<string | null>(null);
   const [approving, setApproving] = useState(false);
   /** Queue id to the reason the last "Approve all" didn't add it. Replaced on each approval. */
@@ -286,7 +285,7 @@ export function ReadNoteQueue({ queue, error, dropped, held, getItems, onReview,
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
         {droppedNotice(dropped).map((line) => <Help key={line}>{line}</Help>)}
-        {!queue && !error ? <ActivityIndicator color={c.accent} style={{ padding: space.xl }} /> : null}
+        {!queue && !error ? <Loading /> : null}
         {held.map((group, g) => (
           <View key={`held-${g}`} style={{ gap: space.s }}>
             <SectionTitle>{`${group.problem ? "Couldn't send to Claude" : 'Waiting to send'} (${group.entries.length})`}</SectionTitle>

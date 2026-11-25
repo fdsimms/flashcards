@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import {
   ApiError, type Api, type DifficultyLevel, type Progress, type Settings, type SettingsChange, type StretchWords,
 } from '../../reader/api';
@@ -10,7 +10,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { DEFAULT_REGISTER, REGISTER_LEVELS, type RegisterLevel } from '../../reader/registerLevel';
 import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
-import { Card, ErrorNote, Group, Help, NavRow, Screen, Section, SECTION_GAP, Segments, Select } from '../kit';
+import { Card, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, Select } from '../kit';
 import { CommonWords } from './ReadCommonWords';
 import { space, type, useTheme, readable } from '../theme';
 
@@ -34,7 +34,6 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   /** The vocabulary check, which suggests the common-words setting. */
   onVocabCheck: () => void;
 }) {
-  const c = useTheme();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [grammar, setGrammar] = useState<string | null>(null);
@@ -103,7 +102,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
         keyboardShouldPersistTaps="handled"
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {!settings && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {!settings && !error ? <Loading /> : null}
 
         {settings && language ? (
           <>

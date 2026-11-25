@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { noteWithExample } from '../../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../../reader/api';
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '../../reader/grammar';
-import { Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tag, Tappable } from '../kit';
+import { Card, ErrorNote, HeaderAction, Help, Icon, Loading, Screen, Segments, Tag, Tappable } from '../kit';
 import { haptic } from '../haptics';
 import { ReadGrammarLevel } from './ReadGrammarLevel';
 import { hairline, space, type, useTheme, readable } from '../theme';
@@ -64,7 +64,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
           {`Practice: used at least twice in every text, at most ${max} at a time. Know it: used freely, and the ones you've seen least are worked into texts. Don't know it: kept out of texts. Not set: at most 2 uses in a text, underlined and explained. Applies to texts written from now on.`}
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {points === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {points === null && !error ? <Loading /> : null}
         {points && points.length === 0 ? <Help>There are no grammar points for this language yet.</Help> : null}
         {points ? <ReadGrammarLevel api={api} points={points} onList={setList} /> : null}
         {points && points.length > 0 ? (

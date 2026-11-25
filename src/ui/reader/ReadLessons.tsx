@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
+import { Alert, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Language, type LessonReview } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
-import { Button, Card, ErrorNote, Field, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
 import { LessonMakingRow } from './LessonMakingRow';
 import { LessonReviewCard } from './LessonReviewCard';
 import { LessonTopics } from './LessonTopics';
@@ -15,7 +15,7 @@ import { useConnectionProblem } from '../connection';
 import { useLessonDownloads } from './useLessonDownloads';
 import { lessonItem } from '../../reader/audioQueue';
 import { useQueueMenu } from '../useQueueMenu';
-import { space, useTheme, readable } from '../theme';
+import { space, readable } from '../theme';
 
 /**
  * Audio lessons (docs/read-and-listen/architecture.md, Audio lessons): a scene typed in, a guided
@@ -34,7 +34,6 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   particle: Particle;
   onOpen: (lesson: AudioLesson) => void;
 }) {
-  const c = useTheme();
   const [lessons, setLessons] = useState<AudioLesson[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +171,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
           {' '}It takes about a minute, and the spoken parts cost a few cents.
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {lessons === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {lessons === null && !error ? <Loading /> : null}
         {problem ? <Help>{problem === 'offline' ? "You're offline, so only lessons on this iPhone are listed." : "Couldn't reach your server, so only lessons on this iPhone are listed."}</Help> : null}
         {lessons !== null && lessons.length === 0 && !problem ? <Help>No lessons yet. Type a scene above to make your first.</Help> : null}
         {lessons !== null && lessons.length > 0 ? (

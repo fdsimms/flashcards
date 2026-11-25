@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, ScrollView, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { azureVoiceName } from '../../core/voices';
 import type { Api, AzureVoice } from '../../reader/api';
 import { saveNarrator } from '../../reader/lessonStorage';
 import { narratorVoices, sampleLine, searchVoices, type Gender } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from '../AzureVoices';
-import { ErrorNote, Group, Help, Screen, Section, Segments } from '../kit';
+import { ErrorNote, Group, Help, Loading, Screen, Section, Segments } from '../kit';
 import { space, type, useTheme, readable } from '../theme';
 
 /**
@@ -54,7 +54,7 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
-        {!azure.voices && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {!azure.voices && !azure.error ? <Loading /> : null}
         <Section footer={<Help>The narrator speaks a lesson's English. Tap a voice to hear it. Applies to lessons you make from now on.</Help>}>
           {options && !searching ? (
             <Segments<Gender>

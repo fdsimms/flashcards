@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../../reader/api';
 import { pastItem } from '../../reader/audioQueue';
 import { useApp } from '../AppContext';
-import { ErrorNote, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
+import { ErrorNote, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
 import { useAudioQueue } from '../useAudioQueue';
 import { useQueueMenu } from '../useQueueMenu';
-import { space, useTheme, readable } from '../theme';
+import { space, readable } from '../theme';
 
 /**
  * Texts read to the end, newest first. Opening
@@ -23,7 +23,6 @@ function shortDate(iso: string): string {
 }
 
 export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (text: PastText) => void; onListen: (text: PastText) => void }) {
-  const c = useTheme();
   const [texts, setTexts] = useState<PastText[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +51,7 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {texts === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {texts === null && !error ? <Loading /> : null}
         {texts !== null && texts.length === 0 ? (
           <Help>No past texts yet. Texts you finish show up here, to read or listen to again.</Help>
         ) : null}
