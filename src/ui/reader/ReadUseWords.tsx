@@ -12,6 +12,7 @@ import { WritingFirstTry, WritingResult } from './ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
+import { withThaiLineHeight } from '../../core/script';
 
 /**
  * Use today's words (reader/production.ts): after a review session, each word learned in it, one at a
@@ -111,7 +112,7 @@ export function ReadUseWords({ api, language, words, onPlay, onDone }: {
           <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`Word ${at + 1} of ${words.length}`}</Text>
           <Card style={{ alignItems: 'center', gap: space.xs, paddingVertical: space.l }}>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Write a sentence with</Text>
-            <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{word.word}</Text>
+            <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...withThaiLineHeight(type.cardFront, word.word), color: c.text, textAlign: 'center' }}>{word.word}</Text>
             <Text style={{ ...type.body, color: c.textSecondary, textAlign: 'center' }}>{word.meaning}</Text>
           </Card>
           {check && firstTry ? (

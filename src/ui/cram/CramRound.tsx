@@ -11,7 +11,7 @@ import { failureText } from '../../core/failure';
 import { headword } from '../../core/forms';
 import { readerLanguageOf } from '../../core/leechHint';
 import { missedCardText } from '../../core/missedCard';
-import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize } from '../../core/script';
+import { DEFAULT_THAI_TEXT_SIZE, type ThaiTextSize, withThaiLineHeight } from '../../core/script';
 import { wantedLines } from '../../core/synonyms';
 import { compareTypedAnswer } from '../../core/typedCompare';
 import type { Card, Note, NoteType } from '../../core/types';
@@ -206,7 +206,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
               {revealed ? (
                 <>
                   <View style={{ height: 1, backgroundColor: c.border }} />
-                  <Text style={{ ...type.title, color: c.text }}>{phrase.text}</Text>
+                  <Text style={{ ...withThaiLineHeight(type.title, phrase.text), color: c.text }}>{phrase.text}</Text>
                   {phrase.reading ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{phrase.reading}</Text> : null}
                 </>
               ) : null}

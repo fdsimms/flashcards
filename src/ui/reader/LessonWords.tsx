@@ -6,6 +6,7 @@ import type { LessonWord } from '../../core/lessonWords';
 import { haptic } from '../haptics';
 import { Button, Icon, Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
+import { withThaiLineHeight } from '../../core/script';
 
 /**
  * The New lesson card's "Words to teach" part: the words chosen so far, each with a button to take
@@ -30,7 +31,7 @@ export function LessonWords({ words, onRemove, onClear }: { words: LessonWord[];
                 scaleTo={0.95}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
               >
-                <Text style={{ ...type.subhead, color: c.accentInk }}>{w.text}</Text>
+                <Text style={{ ...withThaiLineHeight(type.subhead, w.text), color: c.accentInk }}>{w.text}</Text>
                 <Text style={{ ...type.caption, color: c.textSecondary }}>{w.english}</Text>
                 <Icon name="xmark" size={11} color={c.textSecondary} />
               </Tappable>
