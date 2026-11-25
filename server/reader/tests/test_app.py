@@ -1271,6 +1271,23 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     assert last_time["recap"] == "Noi opens." and last_time["line"]["english"] == "I eat."
 
 
+def test_the_shelf_and_stories_answer_writing_when_a_story_has_no_episode_waiting() -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    story = store.start_story(conn, "th", "", NOW)
+    c = started(create_app(engine, "open sesame"))
+    # The first answer already says it's being written, not that it isn't yet.
+    shelf = c.get("/api/shelf", headers=AUTH).json()["story"]
+    assert shelf["next"] is None and shelf["writing"] is True
+    deadline = time.time() + 10
+    while c.get(f"/api/stories/{story.id}", headers=AUTH).json()["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    listed = c.get("/api/stories", headers=AUTH).json()["stories"]
+    assert [(s["id"], s["writing"]) for s in listed] == [(story.id, False)]
+
+
 def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is_read() -> None:
     choices = [
         {"text": "ฉัน|กิน", "english": "I eat."},

@@ -122,6 +122,9 @@ def router(ctx: AppContext) -> APIRouter:
         # read: the reader's language stays, and nothing is topped up for it.
         if language is not None:
             return shelf_json(engine, language)
+        # Started before the shelf is built, so a story with no episode waiting reads "Writing
+        # episode N" in this answer, not "not written yet" with the writing begun after it.
+        engine.start_missing_episodes()
         background.add_task(engine.top_up)
         return shelf_json(engine)
 
@@ -145,7 +148,9 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.get("/api/stories", dependencies=authed)
     async def stories(background: BackgroundTasks) -> dict[str, Any]:
-        # The reader's language's stories, running and ended.
+        # The reader's language's stories, running and ended. Started before the answer is built, as
+        # for the shelf.
+        engine.start_missing_episodes()
         background.add_task(engine.top_up)
         return stories_json(engine)
 
@@ -156,6 +161,8 @@ def router(ctx: AppContext) -> APIRouter:
         found = store.get_story(engine.conn, story_id)
         if found is None:
             raise HTTPException(404, "No such series.")
+        # A story with nothing waiting reads "not written yet" here, so opening its page starts it.
+        engine.start_missing_episodes()
         return listed_story_json(engine, found, card=True)
 
     @routes.post("/api/stories/{story_id}/pin", status_code=204, dependencies=authed)

@@ -26,7 +26,7 @@ describe('the Stories list', () => {
     expect(storyNext(story({ next: episode(2) }))).toEqual({ text: 'Episode 2 is ready', ready: true });
     expect(storyNext(story({ writing: true }))).toEqual({ text: 'Writing episode 2', ready: false });
     expect(storyNext(story({ failed: 'The model was busy.' }))?.text).toBe("Couldn't write episode 2. The server tries again in half an hour.");
-    expect(storyNext(story())?.text).toBe('Pull down to check for episode 2');
+    expect(storyNext(story())?.text).toBe("Episode 2 isn't written yet");
     expect(storyNext(story({ running: false }))).toBeNull();
   });
 

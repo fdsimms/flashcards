@@ -521,6 +521,55 @@ def test_top_up_writes_each_running_story_its_next_episode() -> None:
     assert store.waiting_episode(e.conn, ended.id) is None
 
 
+def test_start_missing_episodes_shows_the_story_writing_before_it_finishes() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    story = store.start_story(e.conn, "th", "", NOW)
+
+    async def scenario() -> list[int | None]:
+        e.start_missing_episodes()
+        # What a shelf request built right now would say: writing, not "not written yet".
+        writing = [j.story_id for j in e.writing("th")]
+        e.start_missing_episodes()  # a second ask doesn't start a second write
+        await settle(e)
+        return writing
+
+    assert run(scenario) == [story.id]
+    assert store.waiting_episode(e.conn, story.id) is not None
+    assert [t.episode for t in store.episodes(e.conn, story.id)] == [1]
+
+
+def test_start_missing_episodes_does_nothing_without_a_key() -> None:
+    e = engine(None)
+    store.start_story(e.conn, "th", "", NOW)
+    e.start_missing_episodes()  # no exception
+    assert e.writing("th") == []
+
+
+def test_a_top_up_that_arrives_mid_pass_makes_the_pass_go_round_again() -> None:
+    e = engine(ScriptedModel(IN_RANGE))
+    passes = 0
+    later: list[int] = []
+    original = e._top_up_pass
+
+    async def pass_() -> None:
+        nonlocal passes
+        passes += 1
+        if passes == 1:
+            await original()
+            # An episode was just read after the story check: the call for it lands mid-pass.
+            later.append(store.start_story(e.conn, "th", "", NOW).id)
+            await e.top_up()
+        else:
+            await original()
+
+    e._top_up_pass = pass_  # type: ignore[method-assign]
+    run(e.top_up)
+    assert passes == 2
+    assert store.waiting_episode(e.conn, later[0]) is not None
+    run(e.top_up)  # nothing left over: one pass
+    assert passes == 3
+
+
 def test_top_up_stops_quietly_without_a_key() -> None:
     e = engine(None)
     store.add_topic(e.conn, "Food stall", NOW)

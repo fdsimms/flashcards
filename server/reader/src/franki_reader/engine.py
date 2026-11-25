@@ -223,6 +223,8 @@ class Engine:
         # All by topic and language: a topic can be writing in one language and failed in another.
         self._topic_locks: dict[tuple[int, Code], asyncio.Lock] = {}
         self._topping_up = asyncio.Lock()
+        # Set by a top_up that arrived mid-pass, so the pass runs again (top_up).
+        self._top_up_again = False
         # Per language: which voice change the running re-record belongs to, and its lock.
         self._rerecord_gen: dict[Code, int] = {}
         self._rerecord_locks: dict[Code, asyncio.Lock] = {}
@@ -1031,35 +1033,62 @@ class Engine:
         """Refreshes the current language's lexicon if it's a day old and writes each running
         story's next episode if it has none waiting (so a story left unread writes nothing more). Nothing else is written unasked: the shelf holds only
         texts the owner asked for. Only the current language, so having several doesn't multiply
-        the spending. Runs after a response is sent; a second call while one is running does
-        nothing. The first pass also re-records the texts waiting to be read with word timings
-        (`time_waiting_texts`). A missing key or word list stops it quietly."""
+        the spending. Runs after a response is sent. A call while a pass is running doesn't start a
+        second one, but it isn't dropped either: the running pass goes round once more when it
+        finishes, because the call usually follows a change the pass may already have gone past
+        (an episode just read). The first pass also re-records the texts waiting to be read with
+        word timings (`time_waiting_texts`). A missing key or word list stops it quietly."""
         if self._topping_up.locked():
+            self._top_up_again = True
             return
         async with self._topping_up:
-            self.drop_old_slow_audio()
-            await self.time_waiting_texts()
-            language = self.language()
-            await self.refresh_lexicon(language)
-            # Texts written before their common words were glossed, newest first, a batch a pass.
-            recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
-            await self.fill_meanings(recent, language)
-            await self.fill_ipa(recent, language)
-            # Texts written before word forms were picked, or before their prepositions were, newest
-            # first, a few a pass.
-            stale = [
-                t for t in recent if t.forms is None or not forms.is_current(language, t.forms)
-            ]
-            await self.fill_forms(stale[:BACKFILL_FORMS])
-            try:
-                self._check_setup(language)
-            except NotAvailable as e:
-                log.info("Not topping up: %s", e)
-                return
-            for story in store.stories(self.conn, language, running_only=True):
-                episode = Job(story.topic_id, language, reason="story", story_id=story.id)
-                if self._idle(episode) and not self._episode_waiting(story):
-                    await self._write(episode)
+            self._top_up_again = True
+            while self._top_up_again:
+                self._top_up_again = False
+                await self._top_up_pass()
+
+    async def _top_up_pass(self) -> None:
+        self.drop_old_slow_audio()
+        await self.time_waiting_texts()
+        language = self.language()
+        await self.refresh_lexicon(language)
+        # Texts written before their common words were glossed, newest first, a batch a pass.
+        recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
+        await self.fill_meanings(recent, language)
+        await self.fill_ipa(recent, language)
+        # Texts written before word forms were picked, or before their prepositions were, newest
+        # first, a few a pass.
+        stale = [t for t in recent if t.forms is None or not forms.is_current(language, t.forms)]
+        await self.fill_forms(stale[:BACKFILL_FORMS])
+        try:
+            self._check_setup(language)
+        except NotAvailable as e:
+            log.info("Not topping up: %s", e)
+            return
+        for episode in self._missing_episodes(language):
+            if self._idle(episode):
+                await self._write(episode)
+
+    def start_missing_episodes(self) -> None:
+        """Starts writing each running story's missing next episode now, without waiting for it,
+        so the shelf that asked says "Writing episode N" instead of nothing. `top_up` does the
+        same after a response; this is the part that has to be in the response."""
+        language = self.language()
+        try:
+            self._check_setup(language)
+        except NotAvailable:
+            return
+        for episode in self._missing_episodes(language):
+            if self._idle(episode):
+                self._start(episode)
+
+    def _missing_episodes(self, language: Code) -> list[Job]:
+        """The jobs for the running stories with no episode waiting."""
+        return [
+            Job(story.topic_id, language, reason="story", story_id=story.id)
+            for story in store.stories(self.conn, language, running_only=True)
+            if not self._episode_waiting(story)
+        ]
 
     def _idle(self, job: Job) -> bool:
         return job.key not in self._writing and not self._cooling_down(job.key)

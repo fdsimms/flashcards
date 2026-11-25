@@ -24,7 +24,7 @@ describe('browsing Read & Listen', () => {
     expect(bannerLine({ ...base, next: episode(2) })).toBe('Episode 2 · La cage ouverte · 4 min');
     expect(bannerLine({ ...base, writing: true })).toBe('Writing episode 2');
     expect(bannerLine({ ...base, failed: 'Busy.' })).toBe("Couldn't write episode 2. The server tries again in half an hour.");
-    expect(bannerLine(base)).toBe('Pull down to check for episode 2');
+    expect(bannerLine(base)).toBe("Episode 2 isn't written yet");
     expect(bannerOverline(base)).toBe('Series · Season 1');
     expect(bannerOverline({})).toBe('Series');
   });

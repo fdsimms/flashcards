@@ -14,7 +14,7 @@ export function bannerLine(story: ShelfStory): string {
   const n = story.read + 1;
   if (story.writing) return `Writing episode ${n}`;
   if (story.failed) return `Couldn't write episode ${n}. The server tries again in half an hour.`;
-  return `Pull down to check for episode ${n}`;
+  return `Episode ${n} isn't written yet`;
 }
 
 /** The banner's overline: "Series · Season 1", or just "Series" from a server older than seasons. */

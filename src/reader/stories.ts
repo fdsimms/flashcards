@@ -24,7 +24,7 @@ export function storyNext(story: StoryListItem): { text: string; ready: boolean 
   if (story.next) return { text: `Episode ${n} is ready`, ready: true };
   if (story.writing) return { text: `Writing episode ${n}`, ready: false };
   if (story.failed) return { text: `Couldn't write episode ${n}. The server tries again in half an hour.`, ready: false };
-  return { text: `Pull down to check for episode ${n}`, ready: false };
+  return { text: `Episode ${n} isn't written yet`, ready: false };
 }
 
 
