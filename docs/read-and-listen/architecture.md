@@ -1516,6 +1516,13 @@ next episode is the top of the shelf.
   is read (the top-up goes through them all), so a story left unread writes nothing more and each has
   at most one episode waiting. Only the pinned story's episode is downloaded for offline. Play all
   never includes an episode (Shelf, Browse).
+  **The next episode is started by the request that asks for it** (25 November 2026): the shelf,
+  the Stories list and a story's page start a running story's missing episode before building their
+  answer (`start_missing_episodes`), so the card says "Writing episode N" at once, not "isn't written
+  yet" with the write begun after the answer. A `top_up` that arrives while another is running sets a
+  flag and the running pass goes round once more, because the call that matters (the one after an
+  episode is read) used to be dropped when it landed mid-pass, leaving nothing to write the episode
+  until the shelf was next opened.
 - **Continuity is carried in words, not in the conversation.** The first episode's request asks the
   model to invent two to four named characters and a place, and to return the story's name
   (`series`, in the text's language like a title, so the shelf card reads in the language being
