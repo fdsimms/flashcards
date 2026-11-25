@@ -2,6 +2,7 @@ import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, compareDeckNames, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
 import { boostCap, type Boost } from './priority';
+import { deckTotals, type DeckTotals } from './deckTotals';
 import { isInProgress } from './progress';
 import { isSkillsDeck, skillCardIds } from './skillTag';
 import { dueMs, isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
@@ -438,6 +439,8 @@ export interface DeckRow extends DeckNode {
   unstudied: number;
   /** Every card in the deck and its subdecks, suspended or buried too: 0 is a deck with nothing in it yet. Missing from a row kept from before it was counted. */
   cards?: number;
+  /** The deck's and its subdecks' cards and notes by state (`deckTotals`). Missing from a row kept from before it was counted. */
+  totals?: DeckTotals;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
   /**
@@ -526,6 +529,13 @@ export function deckListTotals(rows: DeckRow[]): { due: number; fresh: number } 
 export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], position?: (deck: string) => number | undefined): DeckRow[] {
   // A tier subdeck has no row of its own, but its cards still count in every deck above it: the counts
   // below are taken over all of `input`, not over the rows that are shown.
+  const byHome = new Map<string, Card[]>();
+  for (const [deck, cards] of input.cardsByDeck) {
+    for (const c of cards) {
+      const h = input.homeDeckOf ? input.homeDeckOf(c) : deck;
+      (byHome.get(h) ?? byHome.set(h, []).get(h)!).push(c);
+    }
+  }
   return deckTree([...input.cardsByDeck.keys(), ...listed], position).filter((node) => !isTierDeck(node.deck)).map((node) => {
     const q = treeQueue(node.deck, input);
     let total = 0;
@@ -541,7 +551,11 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck, input.skillCards), cap };
     const newPerDay = input.newPerDayFor?.(node.deck) ?? input.paramsFor?.(node.deck)?.newPerDay ?? NEW_PER_DAY;
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, newPerDay, ...(gate ? { gate } : {}) };
+    // By the deck a card came from, not a filtered deck it's in: a deck's totals are its own notes.
+    const home: Card[] = [];
+    for (const [deck, cards] of byHome) if (isInDeck(deck, node.deck)) for (const c of cards) home.push(c);
+    const totals = deckTotals(home, input.skillCards, input.now ?? new Date(), input.dayStartsAtHour);
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(gate ? { gate } : {}) };
   });
 }
 
