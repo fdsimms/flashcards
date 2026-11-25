@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
+from .decks import deck_id
 from .downloads import AudioFetcher, DownloadError, linked_filename
 from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
@@ -62,6 +63,10 @@ MATURE_DAYS = 21
 # value mapping a deck's id to its cap, which Anki keeps and syncs though it doesn't know it.
 PROGRESS_GATES_KEY = "frankiProgressGates"
 MAX_GATE_CAP = 5000  # MAX_GATE_CAP in src/core/progress.ts
+# Franki's daily goals (`DeckSettings.dailyGoal`, src/anki/dailyGoals.ts): deck id to cards a day. Each
+# study day Franki sets a goal deck's gate cap, or (ungated) the deck's own new cards per day, to keep to it.
+DAILY_GOALS_KEY = "frankiDailyGoals"
+MAX_DAILY_GOAL = 9999  # MAX_DAILY_GOAL in src/core/dailyGoal.ts
 # The Azure voice each language's new notes are recorded with: a collection config value mapping a
 # language code ("th") to {voice, rate, locale}. The app writes it when an Azure voice is chosen in
 # Settings > Voices (`AUDIO_VOICES_KEY` in src/anki/audioVoices.ts), and `set_audio_voice` writes it too,
@@ -188,11 +193,8 @@ def search_text(text: str) -> str:
 
 
 def _deck_id(col: Collection, name: str) -> int:
-    did = col.decks.id_for_name(name)
-    if not did:
-        names = sorted(n.name for n in col.decks.all_names_and_ids())
-        raise ToolError(f'There\'s no deck called "{name}". Decks: {", ".join(names)}. Create it with create_deck first if it\'s new.')
-    return did
+    """The deck `name` finds, its emoji and parents optional (`decks.deck_id`)."""
+    return deck_id(col, name, missing="Create it with create_deck first if it's new.")
 
 
 def _repeats_in_language(col: Collection, nt: dict[str, Any], note: Note) -> bool:
@@ -670,8 +672,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             if action == "unbury_deck":
                 if not deck:
                     raise ToolError("unbury_deck needs deck.")
-                s.unbury_deck(_deck_id(col, deck))
-                return {"unburied_in": deck}
+                did = _deck_id(col, deck)
+                s.unbury_deck(did)
+                return {"unburied_in": col.decks.name(did)}
             if action == "set_flag":
                 if flag is None or not 0 <= flag <= 7:
                     raise ToolError("set_flag needs flag, 0 to 7.")
@@ -681,7 +684,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                     raise ToolError("change_deck needs deck.")
                 did = _deck_id(col, deck)
                 if col.decks.is_filtered(did):
-                    raise ToolError(f'"{deck}" is a filtered deck, and Anki doesn\'t let cards be moved into one by hand. Move them to a regular deck instead.')
+                    raise ToolError(f'"{col.decks.name(did)}" is a filtered deck, and Anki doesn\'t let cards be moved into one by hand. Move them to a regular deck instead.')
                 return {"changed": col.set_deck(ids, did).count}
             if action == "set_due_date":
                 if not days:
@@ -769,10 +772,11 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         Show the user the question and wait for their answer before present_card(show_answer=true)."""
 
         def run(col: Collection) -> dict[str, Any]:
-            col.decks.select(_deck_id(col, deck))
+            did = _deck_id(col, deck)
+            col.decks.select(did)
             queued = col.sched.get_queued_cards(fetch_limit=1)
             if not queued.cards:
-                return {"card": None, "message": f"Nothing is due in {deck} right now."}
+                return {"card": None, "message": f"Nothing is due in {col.decks.name(did)} right now."}
             card = Card(col, backend_card=queued.cards[0].card)
             shown_at.clear()  # only the card on screen is answered
             shown_at[card.id] = time.time()
@@ -834,9 +838,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         remembered (not Again) over the last 30 days, mature cards (interval 21+ days) apart."""
 
         def run(col: Collection) -> dict[str, Any]:
-            search = f'"deck:{search_text(deck)}"' if deck else ""
-            if deck:
-                _deck_id(col, deck)
+            # The deck's full name, so a name given without its emoji or parents searches the deck it found.
+            name = col.decks.name(_deck_id(col, deck)) if deck else None
+            search = f'"deck:{search_text(name)}"' if name else ""
             cids = list(col.find_cards(search))
             ids = ",".join(map(str, cids)) or "0"
             db = col.db
@@ -866,7 +870,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 return {"reviews": total, "remembered_percent": round(100 * passed / total) if total else None}
 
             return {
-                "deck": deck or "all decks", "cards": stage,
+                "deck": name or "all decks", "cards": stage,
                 "today": {"answers": answered, "minutes": round(ms / 60000)},
                 "due": {"overdue": overdue, "next_7_days": due_week},
                 "last_30_days": {"all_reviews": rate(False), "mature_reviews": rate(True)},
@@ -875,6 +879,17 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         return await cm.read(run)
 
     # ---- FSRS and limits ----
+
+    def _daily_goals(col: Collection) -> dict[str, int]:
+        """Each deck's daily goal by deck id, as Franki reads them (a value that isn't a goal is left out)."""
+        raw = col.get_config(DAILY_GOALS_KEY, {}) or {}
+        return {i: g for i, g in raw.items() if isinstance(g, int) and not isinstance(g, bool) and 1 <= g <= MAX_DAILY_GOAL}
+
+    def _goal_set_limits(col: Collection, names: list[str]) -> list[str]:
+        """Of these decks, the ones whose new cards per day Franki sets itself each study day: a daily goal and no gate."""
+        goals, gates = _daily_goals(col), col.get_config(PROGRESS_GATES_KEY, {}) or {}
+        ids = {n.name: str(n.id) for n in col.decks.all_names_and_ids()}
+        return [n for n in names if ids.get(n) in goals and ids.get(n) not in gates]
 
     def _preset(col: Collection, deck: str) -> tuple[dict[str, Any], list[str]]:
         conf = col.decks.config_dict_for_deck_id(_deck_id(col, deck))
@@ -885,11 +900,14 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=READ)
     async def get_fsrs_settings(deck: str) -> dict[str, Any]:
         """A deck's options preset: its FSRS parameters, desired retention, daily limits and the
-        other decks that share it."""
+        other decks that share it. `new_per_day_set_by_daily_goal` lists the decks on it whose new
+        cards per day Franki sets itself each study day (a daily goal on Deck options), which
+        new_per_day here doesn't reach."""
 
         def run(col: Collection) -> dict[str, Any]:
             conf, sharing = _preset(col, deck)
             return {
+                "new_per_day_set_by_daily_goal": _goal_set_limits(col, sharing),
                 "preset": conf["name"], "decks_sharing_it": sharing, "fsrs_enabled": bool(col.get_config("fsrs", False)),
                 "params": conf.get("fsrsParams6") or conf.get("fsrsParams5") or conf.get("fsrsWeights") or [],
                 "desired_retention": conf.get("desiredRetention"),
@@ -933,7 +951,11 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             # A deck filed into frequency tiers (tiers.py): its tiers' presets keep these parameters.
             if params is not None:
                 share_params(col, conf)
-            return {"preset": conf["name"], "decks_affected": sharing}
+            out: dict[str, Any] = {"preset": conf["name"], "decks_affected": sharing}
+            # A deck kept to a daily goal sets its own new cards per day, which wins over the preset's.
+            if new_per_day is not None and (kept := _goal_set_limits(col, sharing)):
+                out["new_per_day_set_by_daily_goal"] = kept
+            return out
 
         return await cm.write(run)
 
@@ -993,12 +1015,22 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     @server.tool(annotations=READ)
     async def get_progress_gates() -> dict[str, Any]:
         """The decks with a Franki progress gate: new cards come in only while fewer than `cap` cards
-        in the deck and its subdecks are in progress (started, and not yet scheduled a week or more out)."""
+        in the deck and its subdecks are in progress (started, and not yet scheduled a week or more out).
+        `daily_goals` lists the decks kept to a daily goal (cards a day, reviews and new together),
+        set on Franki's Deck options: each study day Franki sets such a deck's gate cap, or without a
+        gate its own new cards per day, to the most that keeps the next 30 days at or under the goal."""
 
         def run(col: Collection) -> dict[str, Any]:
             names = {str(n.id): n.name for n in col.decks.all_names_and_ids()}
             gates = col.get_config(PROGRESS_GATES_KEY, {}) or {}
-            return {"gates": sorted(({"deck": names[i], "cap": cap} for i, cap in gates.items() if i in names), key=lambda g: g["deck"])}
+            goals = _daily_goals(col)
+            return {
+                "gates": sorted(({"deck": names[i], "cap": cap} for i, cap in gates.items() if i in names), key=lambda g: g["deck"]),
+                "daily_goals": sorted((
+                    {"deck": names[i], "goal": goal, "sets": "gate cap" if i in gates else "new cards per day"}
+                    for i, goal in goals.items() if i in names
+                ), key=lambda g: g["deck"]),
+            }
 
         return await cm.read(run)
 
@@ -1009,7 +1041,9 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         progress, and never more in a day than its own preset's new cards per day (raise that with
         set_fsrs_settings, or the gate can't admit more than the daily limit). Gate a language's top
         deck, not its subdecks: under a gate only the gated deck's own daily limit counts. Franki
-        picks the change up at its next sync."""
+        picks the change up at its next sync. A deck kept to a daily goal (get_progress_gates) has its
+        cap set again by Franki each study day: the result lists those in `cap_set_by_daily_goal`, and
+        the goal is changed on Franki's Deck options."""
         if cap is not None and not 1 <= cap <= MAX_GATE_CAP:
             raise ToolError(f"cap must be a whole number from 1 to {MAX_GATE_CAP}, or left out to turn the gate off.")
 
@@ -1025,7 +1059,12 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 else:
                     gates[i] = cap
             col.set_config(PROGRESS_GATES_KEY, gates)
-            return {"cap": cap, "decks": [col.decks.name(int(i)) for i in ids]}
+            out: dict[str, Any] = {"cap": cap, "decks": [col.decks.name(int(i)) for i in ids]}
+            # Franki works these decks' value out again each study day, so this cap lasts until then.
+            goals = _daily_goals(col)
+            if cap is not None and (kept := [col.decks.name(int(i)) for i in ids if i in goals]):
+                out["cap_set_by_daily_goal"] = kept
+            return out
 
         return await cm.write(run)
 

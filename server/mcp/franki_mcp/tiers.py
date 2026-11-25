@@ -31,6 +31,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
+from .decks import deck_id
 from .frequency import entry_ranks, entry_word
 from .presets import TIER_PRESET_KEY, copy_params
 from .reader import ReaderClient
@@ -113,10 +114,7 @@ def _presets_current(col: Collection, did: int, deck: str, settings: Settings) -
 def _gather(col: Collection, deck: str, settings: Settings) -> tuple[str, list[tuple[int, str, list[tuple[int, str]]]], dict[str, Any], bool]:
     """The deck's name as Anki spells it, its notes as (id, word, [(card id, the deck it's in)]), the cards
     left alone and why (`_left_alone`), and whether its tier subdecks and presets are already as `settings` say."""
-    did = col.decks.id_for_name(deck)
-    if not did:
-        names = sorted(n.name for n in col.decks.all_names_and_ids())
-        raise ToolError(f'There\'s no deck called "{deck}". Decks: {", ".join(names)}.')
+    did = deck_id(col, deck)
     deck = col.decks.name(did)
     wanted = {deck}
     wanted.update(n.name for n in col.decks.all_names_and_ids() if n.name.startswith(deck + "::") and TIER_NAME.match(n.name[len(deck) + 2 :]))
@@ -228,10 +226,7 @@ def _untier(col: Collection, deck: str, apply: bool) -> dict[str, Any]:
     removed only once nothing is in it (a card in a filtered deck still counts), so no card is ever deleted
     with it. The presets made for the tiers stay, unused and with daily filing off: Anki makes every device do a
     full sync when a preset is deleted, so that is left to the user, and filing the deck again reuses them."""
-    did = col.decks.id_for_name(deck)
-    if not did:
-        names = sorted(n.name for n in col.decks.all_names_and_ids())
-        raise ToolError(f'There\'s no deck called "{deck}". Decks: {", ".join(names)}.')
+    did = deck_id(col, deck)
     deck = col.decks.name(did)
     tiers = sorted((n.name, n.id) for n in col.decks.all_names_and_ids() if n.name.startswith(deck + "::") and TIER_NAME.match(n.name[len(deck) + 2 :]))
     if not tiers:
