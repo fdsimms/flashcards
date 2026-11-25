@@ -730,7 +730,10 @@ _CHOICES_ASK = (
     "options for what happens next, each one line of the story's language written like the text "
     '(| between words, only words the learner knows) with its English in "english". Make the '
     "options lead to clearly different next episodes, and gloss any word in them that isn't on "
-    "the list, as for the lines. The decision belongs in the choices, not in the text: end the "
+    "the list, as for the lines. Write each option about the story's characters in the third "
+    'person, by name, the way the narrator tells it ("Fai waits here for the police"): never '
+    "as the reader or a character speaking, so no I, we, us, our or you. "
+    "The decision belongs in the choices, not in the text: end the "
     "text on a concrete moment (something heard, seen or said, or someone arriving), and never "
     "on a line saying a character must decide, choose or work out what to do. That wording "
     "closed episode after episode."
