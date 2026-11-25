@@ -409,6 +409,7 @@ from franki_reader import (
     vocab_check,
     wanikani_senses,
     word_lookup,
+    written_points,
 )
 from franki_reader.collection import AnkiDeck, SyncSettings
 from franki_reader.cram_themes import WriteThemes
@@ -646,6 +647,7 @@ def production_app() -> FastAPI:
     write_drills: drills.WriteDrills | None = None
     write_topic: grammar_topics.WriteTopic | None = None
     write_grammar_lesson: grammar_lessons.WriteLesson | None = None
+    write_point: written_points.WritePoint | None = None
     read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
@@ -683,6 +685,7 @@ def production_app() -> FastAPI:
         write_drills = drills.claude_drills(client)
         write_topic = grammar_topics.claude_topics(client)
         write_grammar_lesson = grammar_lessons.claude_lessons(client)
+        write_point = written_points.claude_points(client)
         read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
@@ -761,6 +764,7 @@ def production_app() -> FastAPI:
         write_forms=write_forms,
         write_ipa=write_ipa,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
+        write_point=write_point,
     )
     engine.count_existing_audio()
     return create_app(

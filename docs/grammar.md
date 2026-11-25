@@ -56,7 +56,10 @@ Each point has:
 Each point's **finder** stays code, in `grammar.py`, `grammar_europe.py` and `grammar_japanese.py`,
 keyed by id. The server
 won't start if a point has no finder or a finder has no point (`_load`), so a point can't be offered
-for texts and then never found.
+for texts and then never found. A point Claude writes once a language's catalog is nearly
+used up is the exception: its finder is data (`grammar.FinderSpec`, marker words and the neighbors
+that rule a match out), checked against its own examples before it is kept
+(docs/read-and-listen/architecture.md, Grammar, Points Claude writes).
 
 **The owner's choices** (Practice, Don't know it, Know it, not set) are stored on the server, as
 before (docs/read-and-listen/architecture.md, Grammar). The catalog is what a point is; the server

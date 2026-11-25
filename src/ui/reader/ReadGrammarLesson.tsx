@@ -7,6 +7,7 @@ import type { Api, GrammarLesson, GrammarLessonExample, Language } from '../../r
 import { GrammarExamples } from '../GrammarExamples';
 import { Button, ErrorNote, Help, Loading, Screen, SectionTitle, Card } from '../kit';
 import { MakingCard } from '../MakingCard';
+import { WrittenByClaude } from '../WrittenByClaude';
 import { space, type, useTheme, readable } from '../theme';
 import { useOutputWake } from '../useOutputWake';
 import { useTrackedPlayer } from '../useSoundingButton';
@@ -102,6 +103,7 @@ export function ReadGrammarLesson({ api, id, glossing, onSay, onPractice }: {
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{point.note}</Text>
+        {point.written ? <WrittenByClaude /> : null}
 
         <View style={{ gap: space.s }}>
           <SectionTitle>About it</SectionTitle>

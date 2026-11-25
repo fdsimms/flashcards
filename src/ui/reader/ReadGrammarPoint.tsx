@@ -13,6 +13,7 @@ import { haptic } from '../haptics';
 import { grammarTag } from '../grammarTag';
 import { Card, ErrorNote, Group, HeaderAction, Help, NavRow, Screen, SectionTitle, Segments, Tag, Tappable } from '../kit';
 import { MakingCard } from '../MakingCard';
+import { WrittenByClaude } from '../WrittenByClaude';
 import { hairline, radius, space, type, useTheme, readable, smooth } from '../theme';
 
 /**
@@ -143,6 +144,7 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
   return (
     <Screen title={point.name}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
+        {point.written ? <WrittenByClaude /> : null}
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {!page && !error ? <MakingCard title="Loading the page" detail="Getting the explanation and examples" /> : null}
         {page ? (
