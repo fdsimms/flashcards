@@ -241,7 +241,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                     >
                       {i ? <Divider inset={space.l} /> : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>
-                        <Text selectable style={{ ...type.callout, color: c.text, flexShrink: 1 }}>{m.item.word}</Text>
+                        <Text selectable style={{ ...withThaiLineHeight(type.callout, m.item.word), color: c.text, flexShrink: 1 }}>{m.item.word}</Text>
                         <Text style={{ ...type.callout, color: c.textSecondary, flexShrink: 1, textAlign: 'right' }}>{m.item.meaning}</Text>
                       </View>
                       <Text style={{ ...type.footnote, color: c.textSecondary }}>
