@@ -15,13 +15,13 @@ import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSum
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
-import { Cover, CoverRow, useCoverTint } from './Cover';
+import { COVER_KIND, COVER_TITLE, Cover, CoverRow, SERIES_TITLE, useCoverTint } from './Cover';
 import { PracticeWordRow } from './PracticeWordPill';
 import { GlossPopover, type Tapped } from './Reader';
 import { MakingSteps } from '../MakingCard';
 import { currentStep, textSteps } from '../../reader/making';
 import { SkeletonList } from '../Skeleton';
-import { radius, smooth, space, type, useTheme, readable } from '../theme';
+import { radius, smooth, space, type, useTheme, readable, type Colors } from '../theme';
 import { useConnectionProblem } from '../connection';
 import { prefs } from '../../reader/storage';
 import { useDownloads, useSaving } from './readerDownloads';
@@ -339,14 +339,19 @@ function QuickTextCover({ text, saved, onPress, onLongPress }: { text: ShelfText
   );
 }
 
+/** The dashed outline of a cover that isn't there yet: one being written, or the way to write one. */
+function placeholderCover(c: Colors) {
+  return { width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge } as const;
+}
+
 /** A text being written: shown where it'll land, and not tappable until it does. */
 function WritingCover({ title, form, stage }: { title: string; form: Form; stage?: TextStage | null }) {
   const c = useTheme();
   return (
-    <View accessible accessibilityLabel={`${title}. ${currentStep(textSteps(stage))}.`} style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, justifyContent: 'space-between' }}>
+    <View accessible accessibilityLabel={`${title}. ${currentStep(textSteps(stage))}.`} style={{ ...placeholderCover(c), justifyContent: 'space-between' }}>
       <View style={{ gap: space.xs + 2 }}>
-        <Text style={{ ...type.overline, fontSize: 11, color: c.textSecondary }}>{form === 'story' ? 'Story' : 'Dialogue'}</Text>
-        <Text style={{ fontSize: 19, fontWeight: '800', lineHeight: 22, color: c.text }}>{title}</Text>
+        <Text style={{ ...COVER_KIND, color: c.textSecondary }}>{form === 'story' ? 'Story' : 'Dialogue'}</Text>
+        <Text style={{ ...COVER_TITLE, color: c.text }}>{title}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
         <ActivityIndicator size="small" color={c.textSecondary} />
@@ -364,7 +369,7 @@ function NewCover({ onPress }: { onPress: () => void }) {
       onPress={() => { haptic.tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel="New series, dialogue or story"
-      style={{ width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge, alignItems: 'center', justifyContent: 'center', gap: space.s }}
+      style={{ ...placeholderCover(c), alignItems: 'center', justifyContent: 'center', gap: space.s }}
     >
       <Icon name="plus" size={24} color={c.textSecondary} />
       <Text style={{ ...type.subhead, fontWeight: '600', color: c.textSecondary, textAlign: 'center' }}>{"Tap to write a new text."}</Text>
@@ -426,9 +431,9 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
   if (!story) {
     if (offline) return null;
     return (
-      <View style={{ marginHorizontal: space.l, padding: space.l, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.m }}>
+      <View style={{ marginHorizontal: space.l, padding: space.l + 4, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.m }}>
         <Text style={{ ...type.overline, color: c.accentInk }}>Series</Text>
-        <Text style={{ fontSize: 28, fontWeight: '800', color: c.text }}>Start a series</Text>
+        <Text style={{ ...SERIES_TITLE, color: c.text }}>Start a series</Text>
         <Help>A story told in episodes. Each one picks up where the last ended, with the same people and places, and is written from the words in your deck.</Help>
         <Button label="Start a series" onPress={onNew} />
       </View>
@@ -438,7 +443,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
   return (
     <View style={{ marginHorizontal: space.l, padding: space.l + 4, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.s }}>
       <Text style={{ ...type.overline, color: c.accentInk }}>{bannerOverline(story)}</Text>
-      <Text accessibilityRole="header" style={{ fontSize: 30, fontWeight: '800', lineHeight: 34, color: c.text }}>{story.title || 'Your series'}</Text>
+      <Text accessibilityRole="header" style={{ ...SERIES_TITLE, color: c.text }}>{story.title || 'Your series'}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
         <Text style={{ ...type.subhead, color: c.textSecondary, flexShrink: 1 }}>{bannerLine(story)}</Text>
         {saved ? <SavedMark state={saved} /> : null}

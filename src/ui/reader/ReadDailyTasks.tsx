@@ -8,7 +8,7 @@ import { clampRotateCount, DAILY_MODES, dailyModeOf, ROTATE_COUNT_RANGE } from '
 import { flaggedName, LANGUAGE_ORDER } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Divider, ErrorNote, Group, Help, Icon, Screen, Section, SECTION_GAP, Tappable } from '../kit';
-import { MIN_TAP, readable, space, type, useTheme } from '../theme';
+import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 
 /**
  * The daily reading tasks: which languages dundundun adds a Read & Listen task for each day. Each
@@ -134,7 +134,8 @@ export function ReadDailyTasks({ api, onSettings }: {
                     disabled={count <= ROTATE_COUNT_RANGE.min}
                     accessibilityRole="button"
                     accessibilityLabel="One fewer rotating language a day"
-                    style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center', opacity: count <= ROTATE_COUNT_RANGE.min ? 0.4 : 1 }}
+                    hitSlop={space.xs}
+                    style={{ width: 36, height: 36, borderRadius: radius.s, ...smooth, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center', opacity: count <= ROTATE_COUNT_RANGE.min ? 0.4 : 1 }}
                   >
                     <Icon name="minus" size={16} color={c.text} weight="semibold" />
                   </Tappable>
@@ -144,7 +145,8 @@ export function ReadDailyTasks({ api, onSettings }: {
                     disabled={count >= ROTATE_COUNT_RANGE.max}
                     accessibilityRole="button"
                     accessibilityLabel="One more rotating language a day"
-                    style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center', opacity: count >= ROTATE_COUNT_RANGE.max ? 0.4 : 1 }}
+                    hitSlop={space.xs}
+                    style={{ width: 36, height: 36, borderRadius: radius.s, ...smooth, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center', opacity: count >= ROTATE_COUNT_RANGE.max ? 0.4 : 1 }}
                   >
                     <Icon name="plus" size={16} color={c.text} weight="semibold" />
                   </Tappable>

@@ -67,6 +67,7 @@ import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Ta
 import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
+import { PlayCircle } from './PlayCircle';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -1387,15 +1388,7 @@ function PlayerBar({ playing, current, total, skippable, onSkip, onSeekLine, rat
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const repeating = repeat > 1;
   const play = (
-    <Tappable
-      onPress={() => { haptic.tap(); onToggle(); }}
-      accessibilityRole="button"
-      accessibilityLabel={playing ? 'Pause' : 'Play'}
-      scaleTo={0.92}
-      style={{ width: 52, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent }}
-    >
-      <Icon name={playing ? 'pause.fill' : 'play.fill'} size={22} color={c.onAccent} weight="semibold" />
-    </Tappable>
+    <PlayCircle size="bar" playing={playing} onPress={() => { haptic.tap(); onToggle(); }} accessibilityLabel={playing ? 'Pause' : 'Play'} />
   );
   const repeatNote = repeat === Infinity ? 'Repeating this line' : `Repeating this line (${Math.min(played, repeat)} of ${repeat})`;
   const loopNote = repeating ? `${repeatNote}. Looping the whole text.` : 'Looping the whole text';

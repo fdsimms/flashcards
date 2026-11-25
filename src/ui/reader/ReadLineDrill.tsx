@@ -26,6 +26,7 @@ import { useSelfRecording } from '../useSelfRecording';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
+import { PlayCircle } from './PlayCircle';
 
 const AUDIO_MODE = LISTENING_MODE;
 
@@ -156,14 +157,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
             </Card>
           ) : (
             <Card style={{ alignItems: 'center', gap: space.m, paddingVertical: space.l }}>
-              <Tappable
-                onPress={() => hearButton.tap(() => play())}
-                accessibilityRole="button"
-                accessibilityLabel={hearButton.playing ? 'Pause' : 'Play the line again'}
-                style={{ width: 72, height: 72, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Icon name={hearButton.playing ? 'pause.fill' : 'play.fill'} size={28} color={c.onAccent} />
-              </Tappable>
+              <PlayCircle playing={hearButton.playing} onPress={() => hearButton.tap(() => play())} accessibilityLabel={hearButton.playing ? 'Pause' : 'Play the line again'} />
               {hasSlow(prefs(), text.language) ? <View style={{ flexDirection: 'row', gap: space.s }}>
                 <Chip label="Slow" selected={rate === SLOW_RATE} onPress={() => { setRate(SLOW_RATE); play(SLOW_RATE); }} />
                 <Chip label="Normal" selected={rate === NORMAL_RATE} onPress={() => { setRate(NORMAL_RATE); play(NORMAL_RATE); }} />
