@@ -479,3 +479,25 @@ def test_a_decks_register_survives_the_snapshot() -> None:
     entries = [Entry(1, "ฉัน", "I", "mature", register="casual"), Entry(2, "เรา", "we", "young")]
     save_snapshot(conn, entries, NOW)
     assert [e.register for e in load_snapshot(conn)[0]] == ["casual", ""]
+
+
+def test_titles_kept_with_line_markup_are_cleaned_when_the_store_opens(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from test_generator import GOOD, MANGO, ScriptedModel, run
+
+    from franki_reader.generator import TextRequest
+
+    path = tmp_path / "reader.db"
+    conn = connect(path)
+    generated = run(ScriptedModel(GOOD), TextRequest("food", (MANGO,)))
+    topic = add_topic(conn, "food", NOW)
+    thai = save_text(conn, topic.id, generated, [], 0.95, NOW)
+    german = save_text(conn, topic.id, generated, [], 0.95, NOW, language="de")
+    clean = save_text(conn, topic.id, generated, [], 0.95, NOW)
+    for text_id, title in ((thai, "ทาง|*ป่า*"), (german, "Im|~Wald~"), (clean, "At the stall")):
+        conn.execute("UPDATE texts SET title = ? WHERE id = ?", (title, text_id))
+    conn.commit()
+    conn.close()
+
+    reopened = connect(path)
+    titles = {i: get_text(reopened, i).title for i in (thai, german, clean)}  # type: ignore[union-attr]
+    assert titles == {thai: "ทางป่า", german: "Im Wald", clean: "At the stall"}
