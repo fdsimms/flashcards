@@ -15,7 +15,7 @@ import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
 import { cleanWeeks, DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Group, HeaderAction, Help, Icon, Screen, SwitchRow } from './kit';
+import { Button, Card, Group, HeaderAction, Help, Icon, Screen, SECTION_GAP, Section, SwitchRow } from './kit';
 import { hairline, radius, readable, space, type, useTheme } from './theme';
 
 /**
@@ -189,20 +189,19 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
         />
       ) : undefined}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: SECTION_GAP }}>
         {!found ? (
           <Card><Help>{"This deck's name doesn't say which language it's in. Skill cards need a deck named after its language, e.g. Thai or Polski."}</Help></Card>
         ) : !groups.length ? (
           <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
         ) : (
           <>
-            {sections.map((sec) => (
-              <View key={sec.title} style={{ gap: space.s }}>
-                <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs }}>{sec.title}</Text>
+            {sections.map((sec, si) => (
+              <Section key={sec.title} title={sec.title} footer={si === sections.length - 1 ? <Help>{"The bar shows how well you know each skill. A drill card comes back at least once a week. When a step asks everything the steps before it did, those are set aside once it's going well."}</Help> : undefined}>
                 <Card style={{ gap: 0, paddingVertical: space.xs }}>
                   {sec.rows.map((row, i) => (
                     <View key={row.title} accessible={!row.action} accessibilityLabel={`${row.title}. ${row.detail}${row.meter !== undefined ? `. ${row.meter} percent` : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
-                      <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flex: 1, gap: space.xs }}>
                         <Text style={{ ...type.body, color: row.locked || row.covered || row.action?.kind === 'start' ? c.textSecondary : c.text }}>{row.title}</Text>
                         <Text style={{ ...type.footnote, color: row.clean ? c.goodInk : c.textSecondary }}>{row.detail}</Text>
                       </View>
@@ -220,63 +219,78 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                     </View>
                   ))}
                 </Card>
-              </View>
+              </Section>
             ))}
-            {sections.length ? <Help>{"The bar shows how well you know each skill. A drill card comes back at least once a week. When a step asks everything the steps before it did, those are set aside once it's going well."}</Help> : null}
-            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: sections.length ? space.m : 0 }}>Skill cards</Text>
-            <Group>
-              <SwitchRow
-                first
-                label="Skill cards"
-                hint={`Turn off to suspend every skill card in ${subdeck} and stop adding more. Turning it back on resumes them.`}
-                value={settings.on}
-                onValueChange={(on) => void setOn(on)}
-              />
-            </Group>
-            <Text style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.xs, marginTop: space.m }}>Skills in this deck</Text>
-            <Help>{`Skill cards go into ${subdeck} and come up in your reviews like any other card. A drill card asks a few questions, then you rate it. Each step starts once you know the one before. Turning a skill off stops new cards. Ones already added stay.`}</Help>
-            {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
-              <Help>{canWords
-                ? `These skills also add the words their drills use (months, day numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you know its words well, with each one's next review a week or more away.`
-                : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added its words and know them well.`}</Help>
-            ) : null}
-            {groups.some((g) => g.id === 'contrast' && !settings.off.includes(g.id)) ? (
-              <Help>A Which word fits card starts once you know each of its words well.</Help>
-            ) : null}
-            <Group>
-              {groups.map((g, i) => (
+            <Section title="Skill cards">
+              <Group>
                 <SwitchRow
-                  key={g.id}
-                  first={i === 0}
-                  label={g.title}
-                  hint={g.detail}
-                  value={!settings.off.includes(g.id)}
-                  onValueChange={(on) => void save({ ...settings, off: on ? settings.off.filter((o) => o !== g.id) : [...settings.off, g.id].sort() })}
+                  first
+                  label="Skill cards"
+                  hint={`Turn off to suspend every skill card in ${subdeck} and stop adding more. Turning it back on resumes them.`}
+                  value={settings.on}
+                  onValueChange={(on) => void setOn(on)}
                 />
-              ))}
-            </Group>
-            <Group>
-              <SwitchRow
-                first
-                label="Add new skill cards automatically"
-                hint="After each sync, your server adds new cards for the skills that are on. When this is off, add them with the button below."
-                value={settings.auto}
-                onValueChange={(auto) => void save({ ...settings, auto })}
-              />
-            </Group>
-            {!settings.on ? (
-              <Help>Skill cards are paused. Nothing is added until you turn them back on.</Help>
-            ) : settings.auto && (missing || missingWords) ? (
-              <Help>{`${addNouns(missing, missingWords)} will be added by your server after your next sync.`}</Help>
-            ) : null}
-            {sample ? (
-              <Card style={{ gap: space.xs }}>
-                <Text style={{ ...type.overline, color: c.textSecondary }}>In Anki on your computer, a drill card reads</Text>
-                <Text style={{ ...type.headline, color: c.text }}>{`${found.name} · ${sample.title}`}</Text>
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>{`${sample.selfCheck} Then you rate it yourself.`}</Text>
-              </Card>
-            ) : null}
-            <Help>{`${subdeck} uses Anki's Default options preset, as any new deck does. To give it its own limits, change its preset in Anki on your computer.`}</Help>
+              </Group>
+            </Section>
+            <Section
+              title="Skills in this deck"
+              footer={(
+                <>
+                  <Help>{`Skill cards go into ${subdeck} and come up in your reviews like any other card. A drill card asks a few questions, then you rate it. Each step starts once you know the one before. Turning a skill off stops new cards. Ones already added stay.`}</Help>
+                  {groups.some((g) => ['time', 'numbers', 'dates', 'money'].includes(g.id) && !settings.off.includes(g.id)) ? (
+                    <Help>{canWords
+                      ? `These skills also add the words their drills use (months, day numbers, currency) to ${subdeck}${missingWords ? ` (${missingWords} now)` : ''}, and a few come up as new cards each day. A drill waits until you know its words well, with each one's next review a week or more away.`
+                      : `Your collection has no ${SKILL_WORD_NOTE_TYPE} note type, so the words these drills use can't be added${unwritable ? ` (${unwritable} words)` : ''}. A drill waits until you've added its words and know them well.`}</Help>
+                  ) : null}
+                  {groups.some((g) => g.id === 'contrast' && !settings.off.includes(g.id)) ? (
+                    <Help>A Which word fits card starts once you know each of its words well.</Help>
+                  ) : null}
+                </>
+              )}
+            >
+              <Group>
+                {groups.map((g, i) => (
+                  <SwitchRow
+                    key={g.id}
+                    first={i === 0}
+                    label={g.title}
+                    hint={g.detail}
+                    value={!settings.off.includes(g.id)}
+                    onValueChange={(on) => void save({ ...settings, off: on ? settings.off.filter((o) => o !== g.id) : [...settings.off, g.id].sort() })}
+                  />
+                ))}
+              </Group>
+            </Section>
+            <Section
+              footer={(
+                <>
+                  {!settings.on ? (
+                    <Help>Skill cards are paused. Nothing is added until you turn them back on.</Help>
+                  ) : settings.auto && (missing || missingWords) ? (
+                    <Help>{`${addNouns(missing, missingWords)} will be added by your server after your next sync.`}</Help>
+                  ) : null}
+                </>
+              )}
+            >
+              <Group>
+                <SwitchRow
+                  first
+                  label="Add new skill cards automatically"
+                  hint="After each sync, your server adds new cards for the skills that are on. When this is off, add them with the button below."
+                  value={settings.auto}
+                  onValueChange={(auto) => void save({ ...settings, auto })}
+                />
+              </Group>
+            </Section>
+            <Section footer={<Help>{`${subdeck} uses Anki's Default options preset, as any new deck does. To give it its own limits, change its preset in Anki on your computer.`}</Help>}>
+              {sample ? (
+                <Card style={{ gap: space.xs }}>
+                  <Text style={{ ...type.overline, color: c.textSecondary }}>In Anki on your computer, a drill card reads</Text>
+                  <Text style={{ ...type.headline, color: c.text }}>{`${found.name} · ${sample.title}`}</Text>
+                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{`${sample.selfCheck} Then you rate it yourself.`}</Text>
+                </Card>
+              ) : null}
+            </Section>
             {skillCount ? <Button label="Delete skill cards…" variant="destructive" onPress={confirmDelete} /> : null}
           </>
         )}

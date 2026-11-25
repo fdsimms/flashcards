@@ -8,7 +8,7 @@ import { audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH
 import { searchVoices } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from '../AzureVoices';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Section, SECTION_GAP, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCastAudio } from './useCastAudio';
 
@@ -99,37 +99,43 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
   return (
     <Screen title={label}>
       <Stack.SearchBar placeholder="Search voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
-        <SectionTitle>Voice</SectionTitle>
-        {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {options ? (
-          <Group accessibilityRole="radiogroup">
-            <AzureVoiceRows voices={options} selected={voice} onChoose={(v) => { if (v) choose(v.voice); }} />
+        <Section
+          title="Voice"
+        >
+          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {options ? (
+            <Group accessibilityRole="radiogroup">
+              <AzureVoiceRows voices={options} selected={voice} onChoose={(v) => { if (v) choose(v.voice); }} />
+            </Group>
+          ) : null}
+          {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
+          {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+          {options ? <AzureVoiceTerms voices={options} /> : null}
+          <Group>
+            <NavRow first label="Audition voices" detail="Play one line in each voice to compare them" onPress={onAudition} />
           </Group>
-        ) : null}
-        {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
-        {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
-        {options ? <AzureVoiceTerms voices={options} /> : null}
-        <Group>
-          <NavRow first label="Audition voices" detail="Play one line in each voice to compare them" onPress={onAudition} />
-        </Group>
-        <SectionTitle>Pitch</SectionTitle>
-        <Group>
-          <View style={{ padding: space.l, gap: space.m }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <PitchButton icon="minus" label="Lower the pitch" disabled={pitch <= PITCH_MIN} onPress={() => nudge(-PITCH_STEP)} />
-              <Text accessibilityLiveRegion="polite" style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{pitchLabel(pitch)}</Text>
-              <PitchButton icon="plus" label="Raise the pitch" disabled={pitch >= PITCH_MAX} onPress={() => nudge(PITCH_STEP)} />
+        </Section>
+        <Section
+          title="Pitch"
+        >
+          <Group>
+            <View style={{ padding: space.l, gap: space.m }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <PitchButton icon="minus" label="Lower the pitch" disabled={pitch <= PITCH_MIN} onPress={() => nudge(-PITCH_STEP)} />
+                <Text accessibilityLiveRegion="polite" style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{pitchLabel(pitch)}</Text>
+                <PitchButton icon="plus" label="Raise the pitch" disabled={pitch >= PITCH_MAX} onPress={() => nudge(PITCH_STEP)} />
+              </View>
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 6, borderRadius: 3, backgroundColor: c.fill, marginHorizontal: space.xs, marginTop: space.s }}>
+                <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(at, zero) * 100}%`, width: `${Math.abs(at - zero) * 100}%`, backgroundColor: c.accent, borderRadius: 3 }} />
+                <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
+              </View>
             </View>
-            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 6, borderRadius: 3, backgroundColor: c.fill, marginHorizontal: space.xs, marginTop: space.s }}>
-              <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(at, zero) * 100}%`, width: `${Math.abs(at - zero) * 100}%`, backgroundColor: c.accent, borderRadius: 3 }} />
-              <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
-            </View>
-          </View>
-        </Group>
+          </Group>
+        </Section>
         <Button label="Hear a sample" onPress={() => {
           clearTimeout(timer.current);
           // A pitch still waiting to settle is saved with the sample rather than only played.

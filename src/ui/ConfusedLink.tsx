@@ -41,7 +41,7 @@ function WordRow({ word, onPress, label, children }: { word: MixupWord; onPress?
       accessibilityLabel={label}
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + 12, paddingHorizontal: space.m, paddingVertical: space.s }}
     >
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[word.roman, word.meaning].filter(Boolean).join(' · ')}</Text>
       </View>

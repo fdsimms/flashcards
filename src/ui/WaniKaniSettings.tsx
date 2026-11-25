@@ -3,7 +3,7 @@ import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { problemText, WaniKaniError } from '../wanikani/api';
 import { APPRENTICE_LIMIT_CHOICES, NEW_PER_DAY_CHOICES, parseLimit } from '../wanikani/prefs';
 import { PRODUCTION_BATCH } from '../wanikani/productionService';
-import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, SectionTitle, SwitchRow } from './kit';
+import { Button, Card, CheckRow, ErrorNote, Field, Group, Help, NavRow, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import type { WaniKaniState } from './useWaniKani';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -92,7 +92,7 @@ export function WaniKaniSettings({ wanikani, decks }: {
 
   return (
     <Screen title="WaniKani">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <Help>
             Study your WaniKani reviews and lessons as a deck. Answers go to WaniKani, which keeps its own schedule,
@@ -130,109 +130,128 @@ export function WaniKaniSettings({ wanikani, decks }: {
           </Card>
         )}
 
-        <SectionTitle>Answers</SectionTitle>
-        <Group>
-          <SwitchRow
-            first
-            label="Type the meaning"
-            hint="As on WaniKani. When off, you see the answer and rate it Again or Good. Again sends WaniKani one wrong answer."
-            value={prefs.typeMeaning}
-            onValueChange={(typeMeaning) => setPrefs({ typeMeaning })}
-          />
-          <SwitchRow
-            label="Type the reading"
-            hint="Romaji turns into kana as you type. When off, you see the answer and rate it."
-            value={prefs.typeReading}
-            onValueChange={(typeReading) => setPrefs({ typeReading })}
-          />
-        </Group>
-        <Group>
-          <SwitchRow
-            first
-            label="Ask meaning and reading separately"
-            hint="Ask for the meaning and the reading as two questions, as on WaniKani."
-            value={prefs.separate}
-            onValueChange={(separate) => setPrefs({ separate })}
-          />
-          <SwitchRow
-            label="Play audio with the answer"
-            hint="WaniKani's recording of a word, when its reading is shown."
-            value={prefs.autoplay}
-            onValueChange={(autoplay) => setPrefs({ autoplay })}
-          />
-          <SwitchRow
-            label="Animate level ups"
-            hint="Fade in the popup when a word moves to a new stage. Reduce Motion in iOS Settings turns this off too."
-            value={prefs.stageAnimation}
-            onValueChange={(stageAnimation) => setPrefs({ stageAnimation })}
-          />
-        </Group>
+        <Section title="Answers">
+          <Group>
+            <SwitchRow
+              first
+              label="Type the meaning"
+              hint="As on WaniKani. When off, you see the answer and rate it Again or Good. Again sends WaniKani one wrong answer."
+              value={prefs.typeMeaning}
+              onValueChange={(typeMeaning) => setPrefs({ typeMeaning })}
+            />
+            <SwitchRow
+              label="Type the reading"
+              hint="Romaji turns into kana as you type. When off, you see the answer and rate it."
+              value={prefs.typeReading}
+              onValueChange={(typeReading) => setPrefs({ typeReading })}
+            />
+          </Group>
+          <Group>
+            <SwitchRow
+              first
+              label="Ask meaning and reading separately"
+              hint="Ask for the meaning and the reading as two questions, as on WaniKani."
+              value={prefs.separate}
+              onValueChange={(separate) => setPrefs({ separate })}
+            />
+            <SwitchRow
+              label="Play audio with the answer"
+              hint="WaniKani's recording of a word, when its reading is shown."
+              value={prefs.autoplay}
+              onValueChange={(autoplay) => setPrefs({ autoplay })}
+            />
+            <SwitchRow
+              label="Animate level ups"
+              hint="Fade in the popup when a word moves to a new stage. Reduce Motion in iOS Settings turns this off too."
+              value={prefs.stageAnimation}
+              onValueChange={(stageAnimation) => setPrefs({ stageAnimation })}
+            />
+          </Group>
+        </Section>
 
-        <SectionTitle>Lessons per day</SectionTitle>
-        <Group accessibilityRole="radiogroup">
-          {NEW_PER_DAY_CHOICES.map((n, i) => (
-            <CheckRow key={n} first={i === 0} label={n ? String(n) : 'None'} selected={prefs.newPerDay === n} onPress={() => setPrefs({ newPerDay: n })} />
-          ))}
-          <CheckRow label={customLessonsOn ? `Custom: ${prefs.newPerDay}` : 'Custom'} hint="Enter any number." selected={customLessonsOn} onPress={customLessons} />
-        </Group>
-        <Help>
-          {`Lessons done on wanikani.com count toward the day's lessons too.${wanikani.on ? ` ${wanikani.startedToday} done today.` : ''}`}
-        </Help>
+        <Section
+          title="Lessons per day"
+          footer={(
+            <Help>
+              {`Lessons done on wanikani.com count toward the day's lessons too.${wanikani.on ? ` ${wanikani.startedToday} done today.` : ''}`}
+            </Help>
+          )}
+        >
+          <Group accessibilityRole="radiogroup">
+            {NEW_PER_DAY_CHOICES.map((n, i) => (
+              <CheckRow key={n} first={i === 0} label={n ? String(n) : 'None'} selected={prefs.newPerDay === n} onPress={() => setPrefs({ newPerDay: n })} />
+            ))}
+            <CheckRow label={customLessonsOn ? `Custom: ${prefs.newPerDay}` : 'Custom'} hint="Enter any number." selected={customLessonsOn} onPress={customLessons} />
+          </Group>
+        </Section>
 
-        <SectionTitle>Apprentice limit</SectionTitle>
-        <Group accessibilityRole="radiogroup">
-          {APPRENTICE_LIMIT_CHOICES.map((n, i) => (
-            <CheckRow key={n ?? 'none'} first={i === 0} label={n === null ? 'No limit' : String(n)} selected={prefs.maxApprentice === n} onPress={() => setPrefs({ maxApprentice: n })} />
-          ))}
-          <CheckRow
-            label={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice) ? `Custom: ${prefs.maxApprentice}` : 'Custom'}
-            hint="Enter any number."
-            selected={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice)}
-            onPress={customLimit}
-          />
-        </Group>
-        <Help>
-          {`Stop offering lessons once this many items are at Apprentice. Reviews always show.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
-        </Help>
+        <Section
+          title="Apprentice limit"
+          footer={(
+            <Help>
+              {`Stop offering lessons once this many items are at Apprentice. Reviews always show.${wanikani.on && wanikani.apprentice !== null ? ` ${wanikani.apprentice} at Apprentice now.` : ''}`}
+            </Help>
+          )}
+        >
+          <Group accessibilityRole="radiogroup">
+            {APPRENTICE_LIMIT_CHOICES.map((n, i) => (
+              <CheckRow key={n ?? 'none'} first={i === 0} label={n === null ? 'No limit' : String(n)} selected={prefs.maxApprentice === n} onPress={() => setPrefs({ maxApprentice: n })} />
+            ))}
+            <CheckRow
+              label={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice) ? `Custom: ${prefs.maxApprentice}` : 'Custom'}
+              hint="Enter any number."
+              selected={prefs.maxApprentice !== null && !APPRENTICE_LIMIT_CHOICES.includes(prefs.maxApprentice)}
+              onPress={customLimit}
+            />
+          </Group>
+        </Section>
 
         {wanikani.skipped.length ? (
-          <>
-            <SectionTitle>Skipped words</SectionTitle>
-            <Group>
-              {wanikani.skipped.map((w, i) => (
-                <NavRow
-                  key={w.subjectId}
-                  first={i === 0}
-                  label={w.characters || w.meaning}
-                  detail={w.characters ? w.meaning : undefined}
-                  onPress={() => bringBack(w.subjectId, w.characters || w.meaning)}
-                />
-              ))}
-            </Group>
-            <Help>These words don't come up in lessons or reviews on this iPhone. WaniKani still lists them, so they stay on wanikani.com. Tap one to bring it back.</Help>
-          </>
+          <Section
+            title="Skipped words"
+            footer={<Help>These words don't come up in lessons or reviews on this iPhone. WaniKani still lists them, so they stay on wanikani.com. Tap one to bring it back.</Help>}
+          >
+              <Group>
+                {wanikani.skipped.map((w, i) => (
+                  <NavRow
+                    key={w.subjectId}
+                    first={i === 0}
+                    label={w.characters || w.meaning}
+                    detail={w.characters ? w.meaning : undefined}
+                    onPress={() => bringBack(w.subjectId, w.characters || w.meaning)}
+                  />
+                ))}
+              </Group>
+          </Section>
         ) : null}
 
-        <SectionTitle>Production cards</SectionTitle>
-        <Group>
-          <SwitchRow
-            first
-            label="Make production cards"
-            hint="When a word reaches Guru, it gets an English to Japanese card in your Anki deck, with WaniKani's recording. They're scheduled like your other cards, not by WaniKani."
-            value={prefs.production}
-            onValueChange={(production) => setPrefs({ production })}
-          />
-          {prefs.production ? (
-            <NavRow label="Deck" detail={wanikani.productionDeck ?? 'Choose a deck'} onPress={chooseDeck} />
-          ) : null}
-        </Group>
-        {prefs.production && wanikani.production.refused ? <ErrorNote message={`Couldn't make production cards. ${wanikani.production.refused}`} /> : null}
-        {prefs.production && !wanikani.productionDeck ? (
-          <Help>Choose the deck production cards go in. They're Omnilanguage notes with only the Reverse card.</Help>
-        ) : null}
-        {prefs.production && wanikani.production.waiting ? (
-          <Help>{`${wanikani.production.waiting} more ${wanikani.production.waiting === 1 ? 'word is' : 'words are'} waiting. Franki makes ${PRODUCTION_BATCH} at a time, each time it checks WaniKani.`}</Help>
-        ) : null}
+        <Section
+          title="Production cards"
+          footer={(
+            <>
+              {prefs.production && !wanikani.productionDeck ? (
+                <Help>Choose the deck production cards go in. They're Omnilanguage notes with only the Reverse card.</Help>
+              ) : null}
+              {prefs.production && wanikani.production.waiting ? (
+                <Help>{`${wanikani.production.waiting} more ${wanikani.production.waiting === 1 ? 'word is' : 'words are'} waiting. Franki makes ${PRODUCTION_BATCH} at a time, each time it checks WaniKani.`}</Help>
+              ) : null}
+            </>
+          )}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Make production cards"
+              hint="When a word reaches Guru, it gets an English to Japanese card in your Anki deck, with WaniKani's recording. They're scheduled like your other cards, not by WaniKani."
+              value={prefs.production}
+              onValueChange={(production) => setPrefs({ production })}
+            />
+            {prefs.production ? (
+              <NavRow label="Deck" detail={wanikani.productionDeck ?? 'Choose a deck'} onPress={chooseDeck} />
+            ) : null}
+          </Group>
+          {prefs.production && wanikani.production.refused ? <ErrorNote message={`Couldn't make production cards. ${wanikani.production.refused}`} /> : null}
+        </Section>
       </ScrollView>
     </Screen>
   );

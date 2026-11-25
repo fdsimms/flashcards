@@ -22,7 +22,7 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 /** A small label in a color pair from the theme (`fill` behind `ink`). */
 export function Chip({ label, ink, fill }: { label: string; ink: string; fill: string }) {
   return (
-    <View style={{ borderRadius: radius.pill, paddingVertical: 2, paddingHorizontal: space.s + 1, backgroundColor: fill }}>
+    <View style={{ borderRadius: radius.pill, paddingVertical: space.xs, paddingHorizontal: space.s + 1, backgroundColor: fill }}>
       <Text style={{ ...type.footnote, color: ink, fontWeight: '600' }}>{label}</Text>
     </View>
   );

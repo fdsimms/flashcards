@@ -110,7 +110,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                     onPress={() => { haptic.tap(); onPlay(opened); }}
                     accessibilityRole="button"
                     accessibilityLabel={`Line ${opened + 1}. Play it`}
-                    style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: 2 }}
+                    style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}
                   >
                     <Text style={{ ...type.overline, color: c.textSecondary }}>{`Line ${opened + 1}`}</Text>
                     <Text style={{ ...readFont, color: c.text }}>{lineText(text.lines[opened])}</Text>

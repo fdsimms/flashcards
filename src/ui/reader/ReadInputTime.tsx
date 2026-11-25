@@ -29,7 +29,7 @@ export function ReadInputTime({ api }: { api: Api }) {
   return (
     <Reveal>
       <Card style={{ gap: space.m }}>
-        <View style={{ gap: 2 }}>
+        <View style={{ gap: space.xs }}>
           <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>This week</Text>
           <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Time reading and listening, last ${time.days} days`}</Text>
         </View>

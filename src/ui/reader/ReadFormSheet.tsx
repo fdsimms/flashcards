@@ -112,7 +112,7 @@ export function ReadFormSheet({ api, language, word, onClose }: { api: Api; lang
               <Text style={{ ...type.overline, color: c.textSecondary }}>Examples</Text>
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m }}>
                 {primer.examples.map((e, i) => (
-                  <View key={i} style={{ paddingVertical: space.s, gap: 2, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
+                  <View key={i} style={{ paddingVertical: space.s, gap: space.xs, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
                     <Marked text={e.text} style={{ ...type.body, color: c.text }} />
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>{e.english}</Text>
                   </View>

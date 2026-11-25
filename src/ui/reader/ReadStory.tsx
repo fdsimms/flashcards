@@ -225,7 +225,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
       <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: ready ? c.accent : c.fill, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ ...type.subhead, fontWeight: '700', color: ready ? c.onAccent : c.textSecondary }}>{row.episode}</Text>
       </View>
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.text }}>{row.title}</Text>
         {row.kind === 'read' ? null : writing && row.kind === 'next' ? <MakingSteps steps={textSteps(row.stage)} /> : <Text style={{ ...type.footnote, color: ready ? c.countDue : c.textSecondary }}>{detail}</Text>}
       </View>

@@ -36,7 +36,7 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showE
           const selected = chosen === i;
           if (!onChoose && !selected) return null;
           const look = {
-            borderWidth: 1, borderRadius: radius.m, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m, gap: 2,
+            borderWidth: 1, borderRadius: radius.m, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m, gap: space.xs,
             borderColor: selected ? c.accent : c.border, backgroundColor: selected ? c.accentFill : undefined,
           } as const;
           const body = (

@@ -6,7 +6,7 @@ import type { Api, Language, Settings, VoiceSlot } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { sampleLine, searchVoices, slotInfo, voicesForSlot } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from '../AzureVoices';
-import { ErrorNote, Group, Help, Screen } from '../kit';
+import { ErrorNote, Group, Help, Screen, Section } from '../kit';
 import { space, useTheme, readable } from '../theme';
 
 /**
@@ -53,16 +53,17 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
         {error ? <ErrorNote message={error} /> : null}
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
-        {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {options ? (
-          <Group accessibilityRole="radiogroup">
-            <AzureVoiceRows voices={options} selected={chosen ?? selected} onChoose={(v) => { if (v) choose(v.voice); }} />
-          </Group>
-        ) : null}
-        {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
-        {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
-        {options ? <AzureVoiceTerms voices={options} /> : null}
-        <Help>{`Choosing a voice plays a line in it. Only ${gender === 'male' ? "men's" : "women's"} voices are listed here.`}</Help>
+        <Section footer={<Help>{`Choosing a voice plays a line in it. Only ${gender === 'male' ? "men's" : "women's"} voices are listed here.`}</Help>}>
+          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {options ? (
+            <Group accessibilityRole="radiogroup">
+              <AzureVoiceRows voices={options} selected={chosen ?? selected} onChoose={(v) => { if (v) choose(v.voice); }} />
+            </Group>
+          ) : null}
+          {options && searching && options.length === 0 ? <Help>{`No voices match "${query.trim()}".`}</Help> : null}
+          {options && !searching && options.length === 0 ? <Help>{`Azure lists no ${gender === 'male' ? "men's" : "women's"} voices in ${LANGUAGES[language].name}.`}</Help> : null}
+          {options ? <AzureVoiceTerms voices={options} /> : null}
+        </Section>
       </ScrollView>
     </Screen>
   );

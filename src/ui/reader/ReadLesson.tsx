@@ -326,7 +326,7 @@ function PhraseRow({ text, english, speaker, first, gloss }: { text: string; eng
   const c = useTheme();
   const look = { ...type.body, color: c.text };
   return (
-    <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2 }}>
+    <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs }}>
       {first ? null : <Divider inset={space.l} />}
       {gloss ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>

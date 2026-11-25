@@ -444,7 +444,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
                 >
                   <Text style={{ ...type.subhead, color: c.textSecondary, width: 130 }}>{asked}</Text>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1, gap: space.xs }}>
                     <Text style={{ ...type.headline, color: c.text }}>{a.prompt.answers[0]}</Text>
                     {a.verdict === 'almost' && a.counted ? <Text style={{ ...type.footnote, color: c.warning }}>Accent missed, counted as right</Text> : null}
                     {!isRight(a) ? <Text style={{ ...type.footnote, color: c.danger }}>{`You answered “${a.given}”`}</Text> : null}

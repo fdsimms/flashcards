@@ -247,7 +247,7 @@ function MissedSentence({ question }: { question: DrillQuestion }) {
   const shown = found && showSentence(found.set, question.index, found.language);
   if (!shown) return null;
   return (
-    <View style={{ alignSelf: 'stretch', gap: 2, backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
+    <View style={{ alignSelf: 'stretch', gap: space.xs, backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
       <Text selectable style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.fill}</Text>{shown.after}</Text>
       <Text selectable style={{ ...type.footnote, color: c.textSecondary }}>{shown.english}</Text>
     </View>

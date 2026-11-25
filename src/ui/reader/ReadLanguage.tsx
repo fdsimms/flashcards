@@ -10,12 +10,12 @@ import { LANGUAGES } from '../../reader/languages';
 import { DEFAULT_REGISTER, REGISTER_LEVELS, type RegisterLevel } from '../../reader/registerLevel';
 import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
-import { Card, ErrorNote, Group, Help, NavRow, Screen, SectionTitle, Segments, Select } from '../kit';
+import { Card, ErrorNote, Group, Help, NavRow, Screen, Section, SECTION_GAP, Segments, Select } from '../kit';
 import { CommonWords } from './ReadCommonWords';
 import { space, type, useTheme, readable } from '../theme';
 
 /** The card a change was made in, where its failure is shown. */
-type Section = 'words' | 'stretch' | 'difficulty' | 'register';
+type FailureArea = 'words' | 'stretch' | 'difficulty' | 'register';
 
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
@@ -40,7 +40,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   const [grammar, setGrammar] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A change that failed, shown in the card it was made in rather than at the top, out of sight.
-  const [failed, setFailed] = useState<{ at: Section; message: string } | null>(null);
+  const [failed, setFailed] = useState<{ at: FailureArea; message: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -60,7 +60,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
 
   // Each change is numbered, so only the latest one's answer (or failure) is shown.
   const settingSeq = useRef(0);
-  const change = async (update: SettingsChange, at: Section) => {
+  const change = async (update: SettingsChange, at: FailureArea) => {
     if (!settings) return;
     const before = settings;
     const mine = ++settingSeq.current;
@@ -93,13 +93,13 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   const language = settings?.language;
   const name = language ? LANGUAGES[language].name : '';
   const voices = language ? settings?.voices?.[language] : undefined;
-  const failure = (at: Section) => (failed?.at === at ? <ErrorNote message={failed.message} /> : null);
+  const failure = (at: FailureArea) => (failed?.at === at ? <ErrorNote message={failed.message} /> : null);
 
   return (
     <Screen title={name ? `${name} settings` : 'Settings'}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}
+        contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: SECTION_GAP }}
         keyboardShouldPersistTaps="handled"
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
@@ -107,74 +107,89 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
 
         {settings && language ? (
           <>
-            <SectionTitle>Words and voices</SectionTitle>
-            <Card>
-              {/* `decks` is missing from a server older than the deck setting. */}
-              {settings.decks ? (
-                <>
-                  <Select
-                    label="Deck"
-                    options={deckNames.includes(settings.decks[language]) ? deckNames : [settings.decks[language], ...deckNames]}
-                    value={settings.decks[language]}
-                    onChange={(deck) => change({ decks: { [language]: deck } }, 'words')}
-                  />
-                  <Help>Words come from this deck and its subdecks. Texts already waiting were written from the old one.</Help>
-                </>
-              ) : null}
-              <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } }, 'words')} />
-              {failure('words')}
-            </Card>
-            <Group>
-              {/* Thai counts only its deck, so it has no common words to check. */}
-              {settings.common?.[language] !== undefined ? (
-                <NavRow first label="Vocabulary check" detail="20 questions to see how many common words you know" onPress={onVocabCheck} />
-              ) : null}
-              <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
-              <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
-            </Group>
+            <Section
+              title="Words and voices"
+            >
+              <Card>
+                {/* `decks` is missing from a server older than the deck setting. */}
+                {settings.decks ? (
+                  <>
+                    <Select
+                      label="Deck"
+                      options={deckNames.includes(settings.decks[language]) ? deckNames : [settings.decks[language], ...deckNames]}
+                      value={settings.decks[language]}
+                      onChange={(deck) => change({ decks: { [language]: deck } }, 'words')}
+                    />
+                    <Help>Words come from this deck and its subdecks. Texts already waiting were written from the old one.</Help>
+                  </>
+                ) : null}
+                <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } }, 'words')} />
+                {failure('words')}
+              </Card>
+              <Group>
+                {/* Thai counts only its deck, so it has no common words to check. */}
+                {settings.common?.[language] !== undefined ? (
+                  <NavRow first label="Vocabulary check" detail="20 questions to see how many common words you know" onPress={onVocabCheck} />
+                ) : null}
+                <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
+                <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
+              </Group>
+            </Section>
 
-            <SectionTitle>Practice words</SectionTitle>
-            <Card>
-              <Segments<StretchWords>
-                options={[{ value: 'topic', label: 'Fit the text' }, { value: 'any', label: 'Any word' }]}
-                value={settings.stretch_words}
-                onChange={(stretch_words) => change({ stretch_words }, 'stretch')}
-              />
-              {failure('stretch')}
-              <Help>
-                {settings.stretch_words === 'topic'
-                  ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it.'
-                  : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies to texts written from now on."}
-              </Help>
-            </Card>
+            <Section
+              title="Practice words"
+            >
+              <Card>
+                <Segments<StretchWords>
+                  options={[{ value: 'topic', label: 'Fit the text' }, { value: 'any', label: 'Any word' }]}
+                  value={settings.stretch_words}
+                  onChange={(stretch_words) => change({ stretch_words }, 'stretch')}
+                />
+                {failure('stretch')}
+                <Help>
+                  {settings.stretch_words === 'topic'
+                    ? 'Picked from your newer cards and the ones you reviewed today, to fit each text. A card due today is used only after you review it.'
+                    : "Any of your newer cards and the ones you reviewed today, even ones that don't fit the text. A card due today is used only after you review it. Applies to texts written from now on."}
+                </Help>
+              </Card>
+            </Section>
 
-            <SectionTitle>Register</SectionTitle>
-            <Card>
-              <Segments<RegisterLevel>
-                options={REGISTER_LEVELS.map((l) => ({ value: l.value, label: l.label }))}
-                value={settings.register ?? DEFAULT_REGISTER}
-                onChange={(register) => change({ register }, 'register')}
-              />
-              {failure('register')}
-              <Help>
-                {`${REGISTER_LEVELS.find((l) => l.value === (settings.register ?? DEFAULT_REGISTER))!.help} Applies to the texts, lessons, talking points and scenes Claude writes from now on. A cram or a scene can choose its own.`}
-              </Help>
-            </Card>
+            <Section
+              title="Register"
+            >
+              <Card>
+                <Segments<RegisterLevel>
+                  options={REGISTER_LEVELS.map((l) => ({ value: l.value, label: l.label }))}
+                  value={settings.register ?? DEFAULT_REGISTER}
+                  onChange={(register) => change({ register }, 'register')}
+                />
+                {failure('register')}
+                <Help>
+                  {`${REGISTER_LEVELS.find((l) => l.value === (settings.register ?? DEFAULT_REGISTER))!.help} Applies to the texts, lessons, talking points and scenes Claude writes from now on. A cram or a scene can choose its own.`}
+                </Help>
+              </Card>
+            </Section>
 
             {progress ? (
               <>
-                <SectionTitle>Text difficulty</SectionTitle>
-                <Card style={{ gap: space.s }}>
-                  <Segments<DifficultyLevel>
-                    options={LEVEL_OPTIONS}
-                    value={levelOf(progress.next.floor)}
-                    onChange={chooseDifficulty}
-                  />
-                  {failure('difficulty')}
-                  <Help>{LEVEL_HELP}</Help>
-                </Card>
-                <SectionTitle>Reading stats</SectionTitle>
-                <ProgressCard progress={progress} />
+                <Section
+                  title="Text difficulty"
+                >
+                  <Card style={{ gap: space.s }}>
+                    <Segments<DifficultyLevel>
+                      options={LEVEL_OPTIONS}
+                      value={levelOf(progress.next.floor)}
+                      onChange={chooseDifficulty}
+                    />
+                    {failure('difficulty')}
+                    <Help>{LEVEL_HELP}</Help>
+                  </Card>
+                </Section>
+                <Section
+                  title="Reading stats"
+                >
+                  <ProgressCard progress={progress} />
+                </Section>
               </>
             ) : null}
           </>

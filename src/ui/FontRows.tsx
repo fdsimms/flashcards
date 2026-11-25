@@ -39,7 +39,7 @@ export function FontRow({ id, selected, choice, detail, unavailable, download, o
       style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
     >
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.body, fontFamily: name, fontWeight: name ? undefined : '600', color: c.text }}>{option.label}</Text>
         {detail ? <Text style={{ ...type.footnote, fontFamily: regular, color: c.textSecondary }}>{option.hint}</Text> : null}
         {detail ? <Text style={{ ...type.footnote, fontFamily: regular, color: c.accentInk }}>{coverageLine(id)}</Text> : null}

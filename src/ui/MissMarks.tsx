@@ -43,7 +43,7 @@ export function AgainSplit({ interval, reasons, suggested, onAnswer }: {
         scaleTo={0.95}
         dimTo={0.85}
         // Left padding the width of the divider and chevron, so the words sit in the middle of the whole button, as on Good.
-        style={{ flex: 1, paddingVertical: space.s, paddingLeft: CHEVRON_WIDTH + hairline, alignItems: 'center', justifyContent: 'center', gap: 2 }}
+        style={{ flex: 1, paddingVertical: space.s, paddingLeft: CHEVRON_WIDTH + hairline, alignItems: 'center', justifyContent: 'center', gap: space.xs }}
       >
         {/* The interval sits above the label, as on the other buttons. */}
         <Text style={{ ...type.footnote, color: c.onRating, fontVariant: ['tabular-nums'] }}>{interval}</Text>

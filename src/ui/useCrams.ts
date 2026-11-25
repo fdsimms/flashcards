@@ -84,7 +84,7 @@ export function useCramClock(repo: NoteStore): { now: Date; dayStartsAtHour: num
  * Every note and card, read each time the screen comes into view (a word added in the note editor,
  * a card answered in Review), after Review's answers are written. `cramNotes` picks a cram's.
  */
-export function useCollection(repo: NoteStore): { notes: Note[]; cards: Card[]; loaded: boolean; problem?: unknown; reload: () => void } {
+export function useCollection(repo: Pick<NoteStore, 'listNotes' | 'listCards'>): { notes: Note[]; cards: Card[]; loaded: boolean; problem?: unknown; reload: () => void } {
   const [state, setState] = useState<{ notes: Note[]; cards: Card[]; loaded: boolean; problem?: unknown }>({ notes: [], cards: [], loaded: false });
   const seq = useRef(0);
   const reload = useCallback(() => {

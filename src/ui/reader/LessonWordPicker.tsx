@@ -84,7 +84,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
             >
               {index === 0 ? null : <Divider inset={space.m} />}
               <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
-              <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flex: 1, gap: space.xs }}>
                 <Text style={{ ...withThaiLineHeight(type.body, item.text), color: c.text }}>{item.text}</Text>
                 <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{item.english}</Text>
               </View>
