@@ -11,6 +11,7 @@ import { Field, Icon, Tappable } from '../kit';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import { CalendarMonth, dateLabel, dateWords } from './CalendarMonth';
 import { RuleLine, Status, Ways } from './ToolScreen';
+import { withThaiLineHeight } from '../../core/script';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
@@ -286,7 +287,7 @@ export function TapFront({ quiz, saying, date, weekStartsOn }: { quiz: DateQuiz;
   return (
     <View style={{ gap: space.l, width: '100%' }}>
       <View style={{ gap: space.xs, alignItems: 'center' }}>
-        <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{saying.everyday.text}</Text>
+        <Text selectable style={{ ...withThaiLineHeight(type.cardBack, saying.everyday.text), color: c.text, textAlign: 'center' }}>{saying.everyday.text}</Text>
         {answered && saying.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{saying.everyday.roman}</Text> : null}
       </View>
       <CalendarMonth
