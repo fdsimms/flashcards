@@ -1,7 +1,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, AppState, Keyboard, Linking, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
+import { ActionSheetIOS, Alert, AppState, Keyboard, Linking, Pressable, ScrollView, Text, TextInput, useColorScheme, View, type TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { studyDayStart } from '../core/day';
 import { checkMeaning, checkReading, type Verdict } from '../wanikani/answers';
@@ -22,7 +22,7 @@ import { localAudioUri } from '../wanikani/storage';
 import { madeOf, SUBJECT_TYPE_NAMES, withComponents, type Assignment, type Subject } from '../wanikani/subjects';
 import { useKeyboardInset } from './useKeyboardInset';
 import { haptic } from './haptics';
-import { Button, Count, ErrorNote, Icon, ProgressBar, Screen, Tappable } from './kit';
+import { Button, Count, ErrorNote, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { LessonsPausedNote } from './LessonsPausedNote';
 import { Reveal } from './motion';
 import { CardSurface } from './Review';
@@ -630,9 +630,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   if (!study || error) {
     return (
       <Screen title={title} largeTitle={false} footer={error ? <Button label="Back to decks" variant="secondary" onPress={onDone} /> : undefined}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl, gap: space.m }}>
-          {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : <ActivityIndicator color={c.accent} />}
-        </View>
+        <Loading error={error} onRetry={() => setLoads((n) => n + 1)} />
       </Screen>
     );
   }

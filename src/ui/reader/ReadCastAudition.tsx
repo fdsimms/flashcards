@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { azureVoiceName } from '../../core/voices';
 import type { Api, CastKind, CastVoice, Language, Settings } from '../../reader/api';
@@ -9,7 +9,7 @@ import { auditionVoices, audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, 
 import { searchVoices } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from '../AzureVoices';
 import { haptic } from '../haptics';
-import { Button, Chip, ErrorNote, Group, Help, Screen, Section, SECTION_GAP } from '../kit';
+import { Button, Chip, ErrorNote, Group, Help, Loading, Screen, Section, SECTION_GAP } from '../kit';
 import { PitchButton } from './ReadCastKind';
 import { readable, space, type, useTheme } from '../theme';
 import { useCastAudio } from './useCastAudio';
@@ -105,7 +105,7 @@ export function ReadCastAudition({ api, language, kind, current, onSettings, onS
             </Help>
           )}
         >
-          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {!options && !azure.error ? <Loading /> : null}
           {options ? (
             <Group accessibilityRole="radiogroup">
               <AzureVoiceRows
