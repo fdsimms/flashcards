@@ -585,7 +585,7 @@
         "Entry": "ครึ่ง",
         "Meaning": "half",
         "Language": "thai",
-        "PartOfSpeech": "adjective",
+        "PartOfSpeech": "noun",
         "GenerateReverse": "y"
        },
        "tags": [
@@ -11555,7 +11555,7 @@
         "Entry": "半",
         "Meaning": "half",
         "Language": "japanese",
-        "PartOfSpeech": "adjective",
+        "PartOfSpeech": "noun",
         "GenerateReverse": "y"
        },
        "tags": [
@@ -14960,7 +14960,7 @@
         "Entry": "wpół",
         "Meaning": "half",
         "Language": "polish",
-        "PartOfSpeech": "adjective",
+        "PartOfSpeech": "adverb",
         "GenerateReverse": "y"
        },
        "tags": [
@@ -18053,7 +18053,7 @@
         "Entry": "половина",
         "Meaning": "half",
         "Language": "russian",
-        "PartOfSpeech": "adjective",
+        "PartOfSpeech": "noun",
         "GenerateReverse": "y"
        },
        "tags": [

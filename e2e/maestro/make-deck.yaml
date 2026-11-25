@@ -1,0 +1,16 @@
+# First-run path: a fresh install opens on Today, the Decks tab offers "Make a deck", and a deck
+# made there shows in the list. Selectors are visible text and accessibility labels (the app sets
+# no testIDs): the tab labels in src/app/(tabs)/_layout.tsx, NoDecksCard's buttons in DeckList.tsx,
+# and NewDeck.tsx's "Name" field and "Make deck" button.
+appId: com.fdsimms.franki
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: allow
+- tapOn: "Decks"
+- tapOn: "Make a deck"
+# The name field is focused on open (autoFocus).
+- inputText: "Spanish"
+- tapOn: "Make deck"
+- assertVisible: "Spanish"

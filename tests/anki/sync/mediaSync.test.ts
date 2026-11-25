@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { SyncClient, type HttpPost } from '../../../src/anki/sync/client';
 import { mediaAction, pullMedia, pushMedia, syncMedia, type MediaState } from '../../../src/anki/sync/mediaSync';
+import type { SyncProgress } from '../../../src/anki/sync/progress';
 import { sha1Hex } from '../../../src/anki/sha1';
 import type { MediaChange } from '../../../src/anki/sync/protocol';
 import { zstdUnwrap, zstdWrap } from '../../../src/anki/zstd';
@@ -99,6 +100,29 @@ describe('pulling media from the server', () => {
     expect(l.last()).toBe(6);
   });
 
+  it('reports how far through the server\'s changes it is, never past the total, ending at it', async () => {
+    const s = server(
+      [[['a.mp3', 3, 'ha'], ['b.mp3', 4, 'hb'], ['gone.jpg', 5, '']], [['c.mp3', 6, 'hc']]],
+      { 'a.mp3': 'A', 'b.mp3': 'B', 'c.mp3': 'C' },
+    );
+    const l = local({ 'gone.jpg': 'x' }, { 'gone.jpg': 'g' }, 2);
+    const seen: SyncProgress[] = [];
+    await pullMedia(s.client, l.state, l.folder, 6, (p) => seen.push(p));
+    const done = seen.map((p) => (p.phase === 'media' ? p.done : -1));
+    expect(seen.every((p) => p.phase === 'media' && p.total === 4)).toBe(true);
+    expect(done[0]).toBe(0);
+    expect(done[done.length - 1]).toBe(4);
+    expect(done).toEqual([...done].sort((x, y) => x - y));
+    expect(Math.max(...done)).toBeLessThanOrEqual(4);
+  });
+
+  it('says nothing when there is nothing to pull', async () => {
+    const l = local({}, {}, 9);
+    const seen: SyncProgress[] = [];
+    await pullMedia(server([], {}).client, l.state, l.folder, 9, (p) => seen.push(p));
+    expect(seen).toEqual([]);
+  });
+
   it('asks again for what the server left out of a reply', async () => {
     const names = ['a', 'b', 'c'];
     const s = server([names.map((n, i) => [n, i + 1, `h${n}`] as MediaChange)], { a: 'A', b: 'B', c: 'C' }, 2);
@@ -126,6 +150,22 @@ describe('sending media made here', () => {
     expect(l.rec.get('rec.mp3')).toBe(sha1Hex(strToU8('AUDIO')));
     expect([...l.pending.keys()]).toEqual([]);
     expect(l.last()).toBe(6);
+  });
+
+  it('reports files sent out of the files waiting, a request at a time', async () => {
+    const names = Array.from({ length: 30 }, (_, i) => `f${i}.mp3`);
+    const s = server([], {});
+    const l = local(Object.fromEntries(names.map((n) => [n, n])), {}, 0, Object.fromEntries(names.map((n) => [n, 'x'])));
+    const seen: SyncProgress[] = [];
+    await pushMedia(s.client, l.state, l.folder, (p) => seen.push(p));
+    expect(seen).toEqual([
+      { phase: 'mediaSend', done: 0, total: 30 },
+      { phase: 'mediaSend', done: 25, total: 30 },
+      { phase: 'mediaSend', done: 30, total: 30 },
+    ]);
+    const none: SyncProgress[] = [];
+    await pushMedia(s.client, local({}).state, local({}).folder, (p) => none.push(p));
+    expect(none).toEqual([]);
   });
 
   it("leaves its usn when another device's change came in between, so the next pull still fetches it", async () => {

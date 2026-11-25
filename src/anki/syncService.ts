@@ -10,6 +10,7 @@ import { fileSink, keptCollectionFile, workFolder } from './files';
 import { normalizeEndpoint, SyncClient, type HttpPost } from './sync/client';
 import { downloadCollection, markDownloaded, prepareForUpload, uploadCollection, type SqlValue } from './sync/collectionSync';
 import { syncMedia } from './sync/mediaSync';
+import { throttledProgress, type SyncProgress } from './sync/progress';
 import { SyncError } from './sync/protocol';
 import { collectionChanged } from '../core/collectionChanged';
 import { reviewWrites } from '../core/writeQueue';
@@ -88,12 +89,17 @@ export async function turnOffSync(repo: AnkiLink): Promise<void> {
 }
 
 /** A downloaded collection, checked and stamped as synced, in a work folder ready to be kept. */
-async function receiveCollection(client: SyncClient): Promise<File> {
+async function receiveCollection(client: SyncClient, onProgress?: (p: SyncProgress) => void): Promise<File> {
   const work = workFolder('anki-sync-download');
   const file = new File(work, 'collection.anki2');
   const sink = fileSink(file);
   try {
-    await downloadCollection(client, (chunk) => sink.write(chunk));
+    let bytes = 0;
+    await downloadCollection(client, (chunk) => {
+      bytes += chunk.length;
+      onProgress?.({ phase: 'download', bytes });
+      return sink.write(chunk);
+    });
   } finally {
     await sink.close();
   }
@@ -142,16 +148,17 @@ async function readiedCopy(at: number): Promise<File> {
 export async function syncNow(
   repo: Repo & AnkiLink,
   choose: (q: FullSyncQuestion) => Promise<'download' | 'upload' | null>,
+  onProgress?: (p: SyncProgress) => void,
 ): Promise<SyncReport> {
   try {
-    return await syncOnce(repo, choose);
+    return await syncOnce(repo, choose, onProgress);
   } catch (e) {
     // A one-off hiccup (a file or database briefly busy, a dropped request) mostly works a moment
     // later, and a failure recorded now shows as a banner until the next run clears it. So a
     // retryable failure is tried once more before it's recorded.
     if (!isRetryable(e)) throw e;
     await new Promise((resolve) => setTimeout(resolve, RETRY_AFTER_MS));
-    return await syncOnce(repo, choose);
+    return await syncOnce(repo, choose, onProgress);
   }
 }
 
@@ -161,7 +168,10 @@ const RETRY_AFTER_MS = 2000;
 async function syncOnce(
   repo: Repo & AnkiLink,
   choose: (q: FullSyncQuestion) => Promise<'download' | 'upload' | null>,
+  onProgress?: (p: SyncProgress) => void,
 ): Promise<SyncReport> {
+  // A thousand-file sync reports far more often than a screen needs to redraw.
+  const progress = onProgress && throttledProgress(onProgress);
   // Answers Review is still writing go first, so the sync sends them and doesn't read around them.
   await reviewWrites.idle();
   const settings = await repo.syncSettings();
@@ -171,13 +181,14 @@ async function syncOnce(
   try {
     const report = await runSync({
       client,
+      onProgress: progress,
       lock: repo.lockAnki,
       hasCollection: async () => (await repo.keptCollection()) !== null,
       withCollection: (fn) => repo.withSyncConnection(fn),
       unsentAnswers: async () => (await repo.ankiStatus()).unsent,
       unsentEdits: () => repo.ankiUnsentEdits(),
       download: async () => {
-        const file = await receiveCollection(client);
+        const file = await receiveCollection(client, progress);
         await adoptDownloadedCollection(repo, file);
         collectionChanged.bump();
       },
@@ -195,7 +206,7 @@ async function syncOnce(
         await refreshFromKeptCollection(repo);
         collectionChanged.bump();
       },
-      syncMedia: (usn) => syncMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia, read: readMedia }, usn),
+      syncMedia: (usn, report) => syncMedia(client, repo.mediaSyncState(), { exists: hasMedia, write: writeMedia, remove: removeMedia, read: readMedia }, usn, report),
       choose,
     });
     await repo.saveSyncSettings({
