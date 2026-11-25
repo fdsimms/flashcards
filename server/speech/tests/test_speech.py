@@ -96,6 +96,17 @@ def test_ssml_sets_the_speed() -> None:
     assert "<prosody rate='-20%'>" in ssml("x", VOICE, 0.8)
 
 
+def test_ssml_leaves_quotation_marks_out_of_what_is_spoken() -> None:
+    # Azure voiced the closing mark as a stray sound at the end of a quote, drawn out when slow.
+    th = ssml_parts([Part("«คุณเป็นใครคะ»", "th-TH-PremwadeeNeural")], 0.65)
+    assert "«" not in th and "»" not in th and "คุณเป็นใครคะ</prosody>" in th
+    assert ssml('He said "no" and “yes”', VOICE) == ssml("He said no and yes", VOICE)
+    assert ssml("„Daj mi ją”.", VOICE) == ssml("Daj mi ją.", VOICE)
+    assert "ph='x'>ab</phoneme>" in ssml_parts([Part("«a»b", "th-TH-PremwadeeNeural", ipa="x")])
+    # Thai's pauses are still found from the text as written: no break before an opening mark.
+    assert "<break" not in ssml("ว่า «ฉันไม่รู้»", "th-TH-PremwadeeNeural")
+
+
 MULTI = "en-US-AvaMultilingualNeural"
 
 
@@ -406,7 +417,9 @@ def test_a_line_of_several_voices_is_one_request_with_a_voice_element_for_each()
         ]
     )
     assert out.count("<speak") == 1 and out.count("<voice") == 2
-    assert "<voice name='ru-RU-DmitryNeural'><prosody rate='+0%'>«Мама" in out
+    assert (
+        "<voice name='ru-RU-DmitryNeural'><prosody rate='+0%'>Мама, туда нельзя! — говорит " in out
+    )
     assert "<voice name='ru-RU-DariyaNeural'><prosody rate='+0%' pitch='+20%'>Аня" in out
     assert out.index("Dmitry") < out.index("Dariya")
     assert "xml:lang='ru-RU'" in out
