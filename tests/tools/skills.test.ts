@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTRAST_STEPS, COUNT_STEPS, DATE_STEPS, DRILL_STEPS, drawQuestion, drawRound, DRILL_QUESTIONS, missesToCarry, MONEY_STEPS, questionText, drillAnswer, drillOfTags, drillStep, hasDrills, NUMBER_STEPS, questionKey, releasable, SKILL_TAG,
-  heardRight, holdable, questionNote, cleanWeeks, coverable, coveringSteps, nextMonth, STOP_SUGGESTED_AFTER, languageOfDeck, missingByCard, skillDrafts, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
+  heardRight, holdable, questionNote, cleanWeeks, coverable, coveringSteps, nextMonth, STOP_SUGGESTED_AFTER, languageOfDeck, missingByCard, skillDrafts, skillFrontKey, skillLanguageDeck, skillOffer, skillWordDrafts, stepWaits, knownHeadwords, knownIn, skillGroups, skillSections, suggestedRating, TIME_STEPS, type SkillCardInfo,
 } from '../../src/tools/skills';
 import { stepNeeds } from '../../src/tools/skillWords';
 import { countEnding } from '../../src/tools/counting';
@@ -125,6 +125,22 @@ describe('skill cards in the collection', () => {
     expect(drafts.every((d) => !d.suspended && d.tags.includes('skill::consonants'))).toBe(true);
     expect(new Set(drafts.map((d) => d.fields.Front)).size).toBe(44);
     expect(skillDrafts('pl', 'Polish', ['consonants'])).toEqual([]);
+  });
+
+  it('has the phone read a consonant\'s name on its front and a vowel\'s example word on its back', () => {
+    const [ko] = skillDrafts('th', 'Thai', ['consonants']);
+    expect(ko.fields.Front).toContain('[anki:tts lang=th_TH]กอ ไก่[/anki:tts]');
+    expect(ko.fields.Back).not.toContain('[anki:tts');
+    // A vowel's length can be heard, so reading it on the front would give the answer away.
+    const vowels = skillDrafts('th', 'Thai', ['vowels']);
+    expect(vowels.every((d) => !d.fields.Front.includes('[anki:tts') && d.fields.Back.includes('[anki:tts lang=th_TH]'))).toBe(true);
+  });
+
+  it('counts a card as already added with or without its audio tag', () => {
+    const [ko] = skillDrafts('th', 'Thai', ['consonants']);
+    const old = '<div style="font-size:64px">ก</div><div>Which class?</div>';
+    expect(skillFrontKey(ko.fields.Front)).toBe(old);
+    expect(skillFrontKey(old)).toBe(old);
   });
 
   it('gives each language its own first field, so the same step in two languages is two notes', () => {
