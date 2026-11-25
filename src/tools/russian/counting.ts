@@ -36,7 +36,7 @@ function number(n: number, gender: Gender): string {
 const ru = (text: string, note?: string): Phrase => ({ text, roman: russianTranslit(text), ...(note ? { note } : {}) });
 
 export const RUSSIAN_COUNTING: CountingLanguage = {
-  nouns: NOUNS.map((x) => ({ cue: ru(x.forms[0]), meaning: x.meaning })),
+  nouns: NOUNS.map((x) => ({ cue: ru(x.forms[0]), meaning: x.meaning, gender: x.gender })),
   say: (noun, n) => {
     const { forms, gender } = NOUNS[noun];
     return { everyday: ru(`${number(n, gender)} ${countForm(n, ...forms)}`), also: [] };
