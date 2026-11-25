@@ -1,6 +1,6 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { grammarPoint } from '../../core/grammar';
 import { DRILL_POINTS, dueWhen, grammarListGroups, type DrillState, type GrammarAnswer, type GrammarListRow } from '../../core/grammarDrills';
@@ -11,7 +11,7 @@ import { topicLine } from '../../reader/topics';
 import { toolLanguage } from '../../tools/tools';
 import { loadToolPrefs, saveToolPrefs, toolPrefs } from '../../tools/storage';
 import { grammarTag } from '../grammarTag';
-import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, SwipeAction, SwipeToReveal, Tag } from '../kit';
+import { Button, Card, ErrorNote, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal, Tag } from '../kit';
 import { Reveal } from '../motion';
 import { space, type, useTheme, readable } from '../theme';
 import { GrammarDrill } from './GrammarDrill';
@@ -135,7 +135,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
         ) : error ? (
           <ErrorNote message={error} onRetry={load} />
         ) : !groups ? (
-          <ActivityIndicator color={c.accent} />
+          <Loading />
         ) : (
           <>
             {groups.due.length ? (

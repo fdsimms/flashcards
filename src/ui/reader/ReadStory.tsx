@@ -222,7 +222,7 @@ function EpisodeLine({ row, first, onOpen, onReadAgain }: { row: EpisodeRow; fir
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent', opacity: tappable ? 1 : 0.6 })}
     >
       {first ? null : <Divider inset={space.l + 30 + space.m} />}
-      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: ready ? c.accent : c.fill, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 30, height: 30, borderRadius: radius.pill, backgroundColor: ready ? c.accent : c.fill, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ ...type.subhead, fontWeight: '700', color: ready ? c.onAccent : c.textSecondary }}>{row.episode}</Text>
       </View>
       <View style={{ flex: 1, gap: space.xs }}>

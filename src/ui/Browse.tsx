@@ -239,7 +239,7 @@ function MarkerChip({ marker }: { marker: NoteMarker }) {
   const dot = marker.kind === 'suspended' ? c.textTertiary : marker.kind === 'buried' ? c.violet : marker.kind === 'leech' ? c.warning : c.flags[marker.flag ?? 0];
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
+      <View style={{ width: 8, height: 8, borderRadius: radius.pill, backgroundColor: dot }} />
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{markerText(marker)}</Text>
     </View>
   );

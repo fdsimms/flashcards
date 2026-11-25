@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../core/failure';
 import { explanationParagraphs } from '../core/grammar';
 import { ApiError, type Api, type GrammarTopic } from '../reader/api';
 import { TOPIC_POLL_MS, topicWriting } from '../reader/topics';
 import { GrammarExamples } from './GrammarExamples';
-import { Button, Card, ErrorNote, Group, Help, NavRow, Screen, SectionTitle } from './kit';
+import { Button, Card, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle } from './kit';
 import { MakingCard } from './MakingCard';
 import { hairline, space, type, useTheme, readable } from './theme';
 import { WrittenByClaude } from './WrittenByClaude';
@@ -89,7 +89,7 @@ export function GrammarTopicPage({ api, id, onSituations, onDeleted }: {
     <Screen title={topic?.title ?? ''} largeTitle={false}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.l }}>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {!topic && !error ? <ActivityIndicator color={c.accent} /> : null}
+        {!topic && !error ? <Loading /> : null}
 
         {topic && !hasPage && topic.status === 'writing' ? (
           <MakingCard title={topic.title} detail="Writing the page. Each example is checked against the words you know." />

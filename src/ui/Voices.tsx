@@ -2,7 +2,7 @@ import { Stack, useFocusEffect } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOutputWake } from './useOutputWake';
-import { ActivityIndicator, Alert, AppState, ScrollView } from 'react-native';
+import { Alert, AppState, ScrollView } from 'react-native';
 import {
   azureVoiceName, chosenVoice, deckLanguages, defaultRate, voiceQuality, voicesIn, VOICE_RATES,
   type DeckLanguage, type PhoneVoice, type VoiceChoice, type VoiceSettings,
@@ -15,7 +15,7 @@ import type { Api } from '../reader/api';
 import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments } from './kit';
-import { space, useTheme, readable } from './theme';
+import { space, readable } from './theme';
 import { stopSpeechIfRunning } from './usePhoneSpeech';
 
 const DOWNLOAD_HELP =
@@ -102,7 +102,6 @@ function summary(lang: DeckLanguage, voices: PhoneVoice[], settings: VoiceSettin
 
 /** Settings > Voices: each language the decks are read aloud in, with its voice and speed. */
 export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (key: string) => void }) {
-  const c = useTheme();
   const { languages, voices, settings, error, retry } = useVoiceChoices(repo);
   return (
     <Screen title="Voices">
@@ -128,7 +127,7 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
             <Help>None of your decks are read aloud yet. A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter.</Help>
           ) : error ? (
             <ErrorNote message={error} onRetry={retry} />
-          ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
+          ) : <Loading />}
         </Section>
       </ScrollView>
     </Screen>
@@ -141,7 +140,6 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
  * reads a word from the decks with it.
  */
 export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; api: Api | null; languageKey: string }) {
-  const c = useTheme();
   const { languages, voices, settings, choose, error, retry } = useVoiceChoices(repo);
   const lang = languages?.find((l) => l.key === languageKey);
   const azure = useAzureVoices(api, lang?.key);
@@ -181,7 +179,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
           ) : azure.error ? (
             <ErrorNote message={azure.error} onRetry={azure.retry} />
           ) : !azure.voices ? (
-            <ActivityIndicator color={c.accent} style={{ marginVertical: space.l }} />
+            <Loading />
           ) : (
             <>
               <Group accessibilityRole="radiogroup">

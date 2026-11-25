@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { failureText } from '../../core/failure';
 import type { Api, Language, Settings, VoiceSlot } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { sampleLine, searchVoices, slotInfo, voicesForSlot } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from '../AzureVoices';
-import { ErrorNote, Group, Help, Screen, Section } from '../kit';
-import { space, useTheme, readable } from '../theme';
+import { ErrorNote, Group, Help, Loading, Screen, Section } from '../kit';
+import { space, readable } from '../theme';
 
 /**
  * One of a language's voice slots: the voices of its gender to choose from, the chosen one checked.
@@ -22,7 +22,6 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
   /** The settings as the server has them after a change, for the rest of the app. */
   onSettings: (settings: Settings) => void;
 }) {
-  const c = useTheme();
   const { label, gender } = slotInfo(slot);
   const [chosen, setChosen] = useState<string>();
   const [error, setError] = useState<string>();
@@ -54,7 +53,7 @@ export function ReadVoicePick({ api, language, slot, selected, onSettings }: {
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
         <Section footer={<Help>{`Choosing a voice plays a line in it. Only ${gender === 'male' ? "men's" : "women's"} voices are listed here.`}</Help>}>
-          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {!options && !azure.error ? <Loading /> : null}
           {options ? (
             <Group accessibilityRole="radiogroup">
               <AzureVoiceRows voices={options} selected={chosen ?? selected} onChoose={(v) => { if (v) choose(v.voice); }} />

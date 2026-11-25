@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { failureText } from '../../core/failure';
 import { azureVoiceName } from '../../core/voices';
 import type { Api, Language, Settings, Speakers } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../../reader/voiceSlots';
-import { ErrorNote, Group, Help, NavRow, Screen, Section, SECTION_GAP } from '../kit';
-import { space, useTheme, readable } from '../theme';
+import { ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP } from '../kit';
+import { space, readable } from '../theme';
 
 /**
  * The Azure voices a language's texts are read in, by gender: a man's and a woman's, and a second
@@ -25,7 +25,6 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
   /** Opens the voices of a story's characters; none from a server that doesn't have them yet. */
   onCast?: () => void;
 }) {
-  const c = useTheme();
   const name = LANGUAGES[language].name;
   const [error, setError] = useState<string>();
   // Bumped by Try again, to ask for the settings again.
@@ -50,7 +49,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
     <Screen title={`${name} voices`}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : null}
-        {!known && voices === undefined && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {!known && voices === undefined && !error ? <Loading /> : null}
         {outdated ? <ErrorNote message="Your Read & Listen server hasn't been updated for this yet. It updates itself within about 15 minutes of a new version, so try again then." /> : null}
         {known ? (
           <Section

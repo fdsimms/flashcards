@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { useReduceMotion } from './motion';
-import { useTheme } from './theme';
+import { radius, useTheme } from './theme';
 
 export const MARK = 18;
 
@@ -20,7 +20,7 @@ export function WorkingMark({ color }: { color?: string }) {
   }, [reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: MARK, height: MARK, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tint }} />
+      <View style={{ width: 10, height: 10, borderRadius: radius.pill, backgroundColor: tint }} />
       <Animated.View
         style={{
           position: 'absolute', width: MARK, height: MARK, borderRadius: MARK / 2, borderWidth: 2,

@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import type { Api, CastKind, CastVoice, Language, Settings } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
@@ -8,7 +8,7 @@ import { audioKey, castInfo, clampPitch, pitchLabel, PITCH_MAX, PITCH_MIN, PITCH
 import { searchVoices } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureVoices } from '../AzureVoices';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Section, SECTION_GAP, Tappable } from '../kit';
+import { Button, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Section, SECTION_GAP, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCastAudio } from './useCastAudio';
 
@@ -106,7 +106,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
         <Section
           title="Voice"
         >
-          {!options && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+          {!options && !azure.error ? <Loading /> : null}
           {options ? (
             <Group accessibilityRole="radiogroup">
               <AzureVoiceRows voices={options} selected={voice} onChoose={(v) => { if (v) choose(v.voice); }} />
@@ -131,7 +131,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
               </View>
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 6, borderRadius: 3, backgroundColor: c.fill, marginHorizontal: space.xs, marginTop: space.s }}>
                 <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(at, zero) * 100}%`, width: `${Math.abs(at - zero) * 100}%`, backgroundColor: c.accent, borderRadius: 3 }} />
-                <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
+                <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
               </View>
             </View>
           </Group>

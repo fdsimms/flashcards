@@ -165,7 +165,7 @@ function Dots({ results, total, at }: { results: boolean[]; total: number; at?: 
   return (
     <View accessible accessibilityLabel={`${results.filter(Boolean).length} of ${results.length} right so far`} style={{ flexDirection: 'row', gap: space.xs + 2, justifyContent: 'center' }}>
       {Array.from({ length: total }, (_, i) => (
-        <View key={i} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i < results.length ? (results[i] ? c.good : c.again) : 'transparent', borderWidth: i === at ? 2 : i < results.length ? 0 : 1, borderColor: i === at ? c.accent : c.textTertiary }} />
+        <View key={i} style={{ width: 10, height: 10, borderRadius: radius.pill, backgroundColor: i < results.length ? (results[i] ? c.good : c.again) : 'transparent', borderWidth: i === at ? 2 : i < results.length ? 0 : 1, borderColor: i === at ? c.accent : c.textTertiary }} />
       ))}
     </View>
   );

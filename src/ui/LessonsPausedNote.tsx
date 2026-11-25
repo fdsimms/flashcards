@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Card, Icon } from './kit';
-import { smooth, space, type, useTheme } from './theme';
+import { radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * Said under "Reviews done" when the Apprentice limit is holding lessons back: how many items are
@@ -23,7 +23,7 @@ export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; l
         style={{ gap: space.m }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-          <View style={{ width: 36, height: 36, borderRadius: 10, ...smooth, alignItems: 'center', justifyContent: 'center', backgroundColor: c.warningFill }}>
+          <View style={{ width: 36, height: 36, borderRadius: radius.s + 2, ...smooth, alignItems: 'center', justifyContent: 'center', backgroundColor: c.warningFill }}>
             <Icon name="pause.fill" size={16} color={c.warningInk} weight="semibold" />
           </View>
           <Text style={{ ...type.headline, color: c.text }}>Lessons paused</Text>
@@ -33,7 +33,7 @@ export function LessonsPausedNote({ apprentice, limit }: { apprentice: number; l
             <Text style={{ color: c.warningInk, fontVariant: ['tabular-nums'] }}>{apprentice}</Text> at Apprentice
           </Text>
           <View style={{ height: 10, justifyContent: 'center' }}>
-            <View style={{ height: 10, borderRadius: 5, ...smooth, overflow: 'hidden', flexDirection: 'row', backgroundColor: c.fill }}>
+            <View style={{ height: 10, borderRadius: radius.pill, ...smooth, overflow: 'hidden', flexDirection: 'row', backgroundColor: c.fill }}>
               <View style={{ width: withinLimit, backgroundColor: c.warning }} />
               {over ? <View style={{ flex: 1, backgroundColor: c.warningInk }} /> : null}
             </View>

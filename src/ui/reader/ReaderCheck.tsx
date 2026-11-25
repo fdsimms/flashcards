@@ -18,7 +18,7 @@ import { useOutputWake } from '../useOutputWake';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
-import { PlayCircle } from './PlayCircle';
+import { PlayCircle } from '../PlayCircle';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end

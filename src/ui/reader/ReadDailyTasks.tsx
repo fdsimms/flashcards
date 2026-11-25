@@ -2,12 +2,12 @@ import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, useColorScheme, View } from 'react-native';
+import { ScrollView, Text, useColorScheme, View } from 'react-native';
 import { ApiError, type Api, type DailyTaskMode, type Language, type Settings, type SettingsChange } from '../../reader/api';
 import { clampRotateCount, DAILY_MODES, dailyModeOf, ROTATE_COUNT_RANGE } from '../../reader/dailyTasks';
 import { flaggedName, LANGUAGE_ORDER } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Divider, ErrorNote, Group, Help, Icon, Screen, Section, SECTION_GAP, Tappable } from '../kit';
+import { Divider, ErrorNote, Group, Help, Icon, Loading, Screen, Section, SECTION_GAP, Tappable } from '../kit';
 import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 
 /**
@@ -79,7 +79,7 @@ export function ReadDailyTasks({ api, onSettings }: {
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: SECTION_GAP }}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {!settings && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {!settings && !error ? <Loading /> : null}
         {settings && !supported ? (
           <Help>Your Read & Listen server hasn't been updated for this yet. It updates itself within about 15 minutes of a new version, so open this again then.</Help>
         ) : null}

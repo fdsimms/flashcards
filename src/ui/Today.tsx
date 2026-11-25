@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Animated, Easing, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { deckListTotals, todayDeckRows, type DeckRow } from '../core/deckTree';
 import { todayProgress } from '../core/todaySummary';
 import { EmptyDeckCard } from './EmptyDeckCard';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
-import { Group, Icon, Screen } from './kit';
+import { Group, Icon, Loading, Screen } from './kit';
 import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
@@ -187,7 +187,7 @@ export function Today(props: {
           <NewWordsCards />
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.crams}
-          {!anyDecks ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : <NoDecksCard onImport={props.onImport} />) : (
+          {!anyDecks ? (props.loaded === false ? <Loading /> : <NoDecksCard onImport={props.onImport} />) : (
             groups.map((g) => (
               <Group key={g[0].deck}>
                 {g.map((row, i) => (

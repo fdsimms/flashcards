@@ -1,6 +1,6 @@
 import { Link, Stack, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
+import { Animated, Easing, LayoutAnimation, Pressable, RefreshControl, ScrollView, Text, View, type GestureResponderEvent } from 'react-native';
 import { leadingEmoji } from '../core/deckBadge';
 import { totalsLine } from '../core/deckTotals';
 import { useDeckTint } from './useDeckTint';
@@ -9,7 +9,7 @@ import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Icon, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, Card, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
@@ -157,7 +157,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           accessibilityLabel={`Delete ${row.name}`}
           scaleTo={0.85}
           hitSlop={space.s}
-          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
         >
           <Icon name="minus" size={12} color={c.onRating} weight="bold" />
         </Tappable>
@@ -433,7 +433,7 @@ export function DeckList(props: {
             <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
           ) : null}
           {props.extra?.node}
-          {groups.length === 0 ? (props.loaded === false ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : (
+          {groups.length === 0 ? (props.loaded === false ? <Loading /> : (
             <NoDecksCard onImport={props.onImport} />
           )) : (
             groups.map((g, gi) => (

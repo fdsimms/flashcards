@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { ApiError, type Api, type MarkedWord } from '../../reader/api';
 import { ipaNote, meaningOf, wordStatus } from '../../reader/languages';
 import { ReadKanji } from './ReadKanji';
 import { ReadWordTitle } from './ReadWordTitle';
-import { Button, Card, ErrorNote, Help, Screen } from '../kit';
+import { Button, Card, ErrorNote, Help, Loading, Screen } from '../kit';
 import { hairline, space, type, useTheme, readable } from '../theme';
 
 /**
@@ -62,7 +62,7 @@ export function ReadWords({ api, mining }: {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
-        {words === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
+        {words === null && !error ? <Loading /> : null}
         {words !== null && words.length === 0 ? <Help>No marked words. While reading, tap a word and choose Mark as unknown.</Help> : null}
         {words !== null && words.length > 0 ? (
           <>
