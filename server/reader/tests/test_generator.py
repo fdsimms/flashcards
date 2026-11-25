@@ -495,6 +495,18 @@ def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -
     assert result.translits == {"ทอน": "thɔɔn"}
 
 
+def test_a_story_lists_the_names_other_stories_use() -> None:
+    from franki_reader.generator import StoryContext
+
+    taken = ("Mali, Ton (Mali runs a coffee shop.)",)
+    first = request_message(TextRequest("", story=StoryContext(1, "", taken=taken)))
+    assert "Mali, Ton (Mali runs a coffee shop.)" in first and "other stories" in first
+    later = request_message(TextRequest("", story=StoryContext(2, "", "Noi", taken=taken)))
+    assert "Mali, Ton" in later
+    alone = request_message(TextRequest("", story=StoryContext(1, "")))
+    assert "other stories" not in alone
+
+
 def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     from franki_reader.generator import StoryContext
 
