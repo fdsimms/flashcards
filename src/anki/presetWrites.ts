@@ -1,6 +1,6 @@
 import type { PresetOptions } from '../core/presetOptions';
 import { DECK_CONFIG_FIELDS as F, deckName, readDeckConfig, readDeckKind } from './collection';
-import { floatField, packedFloatsField, uint, withFields, withUint, decodeMessage, type Field } from './protobuf';
+import { floatField, packedFloatsField, uint, withField, withFields, withUint, decodeMessage, type Field } from './protobuf';
 import type { SyncDb } from './sync/collectionSync';
 import { COL_MODIFIED_SQL } from './writeback';
 
@@ -28,6 +28,31 @@ export async function setAnkiNewMix(db: SyncDb, presetId: number, newMix: number
   if (!row) return false;
   if ((uint(decodeMessage(row.config), F.newMix) ?? 0) === newMix) return true;
   await writeConfig(db, presetId, withUint(row.config, F.newMix, newMix), now);
+  return true;
+}
+
+/** Deck.KindContainer.normal, and Deck.Normal's own daily new card limit (proto/anki/decks.proto: `optional uint32 new_limit = 7`). */
+const KIND_NORMAL = 1;
+const NORMAL_NEW_LIMIT = 7;
+
+/**
+ * Sets a deck's own daily new card limit (Anki's deck options, "This deck"), which wins over its
+ * preset's, as the daily goal does (src/core/dailyGoal.ts) so the other decks on the preset keep
+ * theirs. The deck's bytes are edited in place, so everything else in it survives; the field is
+ * optional, so 0 is written as 0 (no new cards), not left out. False when Anki has no such normal deck.
+ */
+export async function setAnkiDeckNewLimit(db: SyncDb, deck: string, limit: number, now: Date): Promise<boolean> {
+  const native = deck.split('::').join('\x1f');
+  const row = (await db.all<{ id: number; name: string; kind: Uint8Array }>('SELECT id, name, kind FROM decks NOT INDEXED')).find((r) => r.name === native);
+  const normal = row ? decodeMessage(row.kind).get(KIND_NORMAL)?.[0] : undefined;
+  if (!row || normal?.wire !== 2) return false;
+  if (readDeckKind(row.kind)?.newLimit === limit) return true;
+  const bytes = withFields(normal.value, { [NORMAL_NEW_LIMIT]: [{ wire: 0, value: BigInt(limit) }] });
+  const kind = withField(row.kind, KIND_NORMAL, bytes);
+  await db.transaction(async () => {
+    await db.run('UPDATE decks SET kind = ?, mtime_secs = ?, usn = -1 WHERE id = ?', kind, Math.floor(now.getTime() / 1000), row.id);
+    await db.run(COL_MODIFIED_SQL, now.getTime());
+  });
   return true;
 }
 

@@ -2,6 +2,7 @@ import type { Picture } from './noteIcon';
 import type { AppFont } from './fonts';
 import type { Segment } from './highlight';
 import type { GrammarCell } from './wordGrammar';
+import type { GoalResult } from './dailyGoal';
 
 /**
  * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
@@ -294,6 +295,14 @@ export interface NoteType {
 export interface DeckSettings {
   /** Progress gate: new cards only while fewer than this many cards here are below Guru. */
   gateCap?: number;
+  /**
+   * Cards a day, reviews and new together, that Franki keeps this deck to by setting its gate's cap
+   * or its own daily new card limit each study day (`src/core/dailyGoal.ts`). Kept in the
+   * collection for a deck Anki has, like `gateCap` (`src/anki/dailyGoals.ts`).
+   */
+  dailyGoal?: number;
+  /** The latest day's tuning for `dailyGoal`, this phone's own, for Deck options to show. */
+  goalTuned?: GoalResult;
   /**
    * Subdecks hidden on the deck list, for a deck Anki doesn't have. A deck in the kept collection
    * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).

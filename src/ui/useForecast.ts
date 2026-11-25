@@ -4,8 +4,7 @@ import type { DeckLimits } from '../core/deckTree';
 import { forecastSteps, type Forecast, type ForecastInput } from '../core/forecast';
 import { ankiToday } from '../core/order';
 import { studiedToday } from '../core/queue';
-import type { Card, CollectionSettings, DeckParams, DeckSettings, Note } from '../core/types';
-import type { VacationPrefs } from '../core/vacation';
+import type { Card, DeckParams, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { loadHeld } from './lookalikeHold';
@@ -20,25 +19,34 @@ import { loadVacation } from './vacationPrefs';
 export type ForecastBase = Pick<ForecastInput, 'notes' | 'cards' | 'params' | 'collection' | 'studied' | 'settings' | 'vacation' | 'held' | 'now'>;
 
 export function useForecastBase(repo: Repo & AnkiLink, data: { notes: Note[]; cards: Card[]; params: Map<string, DeckParams>; now: Date } | undefined): ForecastBase | undefined {
-  const [loaded, setLoaded] = useState<{ source: unknown; extra: { collection: CollectionSettings; studied: ForecastBase['studied']; settings: Map<string, DeckSettings>; vacation: VacationPrefs; held: Set<string> } }>();
+  const [loaded, setLoaded] = useState<{ source: unknown; base: ForecastBase }>();
   useEffect(() => {
     if (!data) return;
     let live = true;
-    (async () => {
-      const collection = await repo.collectionSettings();
-      const dayStart = studyDayStart(data.now, collection.dayStartsAtHour);
-      const [reviews, revlog, settings, vacation] = await Promise.all([repo.listReviews(dayStart), repo.ankiReviewLog(dayStart), repo.listDeckSettings(), loadVacation()]);
-      const ankiDay = ankiToday(data.now, collection.dayStartsAtHour, collection.collectionCreated, collection.creationOffset);
-      const ankiCounters = ankiDay === undefined ? undefined : await repo.ankiDeckStudied(ankiDay);
-      const studied = studiedToday({ notes: data.notes, cards: data.cards, reviews, revlog, now: data.now, dayStartsAtHour: collection.dayStartsAtHour, ankiCounters: ankiCounters?.length ? ankiCounters : undefined });
-      // Today's lookalike holds, as the deck list reads them, so today's count is the one the deck opens with.
-      const held = await loadHeld(repo, { notes: data.notes, cards: data.cards, settings, now: data.now, dayStartsAtHour: collection.dayStartsAtHour });
-      if (live) setLoaded({ source: data, extra: { collection, studied, settings, vacation, held } });
-    })().catch(() => undefined); // Without these the bars stay what is scheduled, which is still true.
+    loadForecastBase(repo, data)
+      .then((base) => { if (live) setLoaded({ source: data, base }); })
+      .catch(() => undefined); // Without these the bars stay what is scheduled, which is still true.
     return () => { live = false; };
   }, [repo, data]);
   if (!data || !loaded || loaded.source !== data) return undefined;
-  return { notes: data.notes, cards: data.cards, params: data.params, now: data.now, ...loaded.extra };
+  return loaded.base;
+}
+
+/**
+ * Reads what the forecast needs besides the notes and cards (Stats', or the daily goal's,
+ * src/ui/dailyGoals.ts), the way the deck list reads it, so the forecast's limits are the ones the
+ * deck list opens with.
+ */
+export async function loadForecastBase(repo: Repo & AnkiLink, data: { notes: Note[]; cards: Card[]; params: Map<string, DeckParams>; now: Date }): Promise<ForecastBase> {
+  const collection = await repo.collectionSettings();
+  const dayStart = studyDayStart(data.now, collection.dayStartsAtHour);
+  const [reviews, revlog, settings, vacation] = await Promise.all([repo.listReviews(dayStart), repo.ankiReviewLog(dayStart), repo.listDeckSettings(), loadVacation()]);
+  const ankiDay = ankiToday(data.now, collection.dayStartsAtHour, collection.collectionCreated, collection.creationOffset);
+  const ankiCounters = ankiDay === undefined ? undefined : await repo.ankiDeckStudied(ankiDay);
+  const studied = studiedToday({ notes: data.notes, cards: data.cards, reviews, revlog, now: data.now, dayStartsAtHour: collection.dayStartsAtHour, ankiCounters: ankiCounters?.length ? ankiCounters : undefined });
+  // Today's lookalike holds, as the deck list reads them, so today's count is the one the deck opens with.
+  const held = await loadHeld(repo, { notes: data.notes, cards: data.cards, settings, now: data.now, dayStartsAtHour: collection.dayStartsAtHour });
+  return { notes: data.notes, cards: data.cards, params: data.params, now: data.now, collection, studied, settings, vacation, held };
 }
 
 /** How long the what-if inputs sit still before the forecast is run again, so a run of taps on a stepper is one run. */

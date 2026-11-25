@@ -21,6 +21,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from .collection import CollectionManager
+from .decks import deck_id
 from .reader import ReaderClient
 
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
@@ -84,10 +85,7 @@ def register(server: MCPServer, cm: CollectionManager, client: ReaderClient) -> 
         deck to place the new ones."""
 
         def gather(col: Collection) -> tuple[list[tuple[int, str, list[int]]], dict[str, int]]:
-            did = col.decks.id_for_name(deck)
-            if not did:
-                names = sorted(n.name for n in col.decks.all_names_and_ids())
-                raise ToolError(f'There\'s no deck called "{deck}". Decks: {", ".join(names)}.')
+            did = deck_id(col, deck)
             name = col.decks.name(did)
             escaped = re.sub(r'([\\"*_])', r"\\\1", name)
             cids = list(col.find_cards(f'"deck:{escaped}" is:new -is:suspended -is:buried'))

@@ -42,6 +42,8 @@ export interface ForecastDay {
   scheduled: number;
   /** Cards studied that day because of what was studied before it: new cards started, and reviews that came back. */
   expected: number;
+  /** New cards started that day (part of `expected`). */
+  introduced: number;
 }
 
 export interface Forecast {
@@ -169,14 +171,14 @@ export function* forecastSteps(input: ForecastInput): Generator<ForecastDay, For
         (daysOfNote.get(c.noteId) ?? daysOfNote.set(c.noteId, []).get(c.noteId)!).push(at0);
       }
     }
-    const day: ForecastDay = { key: studyDayKey(dayStart, h), start: dayStart, scheduled: 0, expected: 0 };
+    const day: ForecastDay = { key: studyDayKey(dayStart, h), start: dayStart, scheduled: 0, expected: 0, introduced: 0 };
     for (const root of input.roots) {
       const q = treeQueue(root, tree);
       for (const card of [...q.due, ...q.fresh]) {
         const i = indexOf.get(card.id);
         if (i === undefined) continue;
         const wasNew = card.sched.state === 0;
-        if (wasNew) newStarted++;
+        if (wasNew) { newStarted++; day.introduced++; }
         if (!wasNew && !answered.has(card.id)) day.scheduled++; else day.expected++;
         answered.add(card.id);
         const params = paramsOf(card);
