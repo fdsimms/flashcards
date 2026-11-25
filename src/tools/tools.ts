@@ -8,6 +8,7 @@ import { sayFrenchMoney } from './french/money';
 import { sayFrenchNumber } from './french/number';
 import { sayFrenchTime } from './french/time';
 import { CASE_LANGUAGES } from './cases';
+import { HEARING } from './hearing';
 import { GERMAN_COUNTING } from './german/counting';
 import { sayGermanDate } from './german/date';
 import { sayGermanMoney } from './german/money';
@@ -70,7 +71,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'contrast' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
+export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -177,6 +178,14 @@ export const TOOLS: ToolInfo[] = [
     title: 'Similar words',
     summary: 'Tell apart look-alikes, sound-alikes and words you link as mixed up.',
     languages: TOOL_LANGUAGES,
+  },
+  {
+    // Hand-written sets of words differing by one sound (hearing.ts), each played in several voices:
+    // which was it? Azure's voices through Read & Listen's server, else the phone's one voice.
+    id: 'hearing',
+    title: 'Hearing sounds',
+    summary: 'Hear a word in different voices and pick which one it was.',
+    languages: withSayer(HEARING),
   },
   {
     // Hand-written sentences that only one word of a set fits (contrasts.ts): จน or จนกว่า. Also skill cards in Review.
