@@ -14,7 +14,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
-import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, SectionTitle, Segments } from './kit';
+import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments } from './kit';
 import { space, useTheme, readable } from './theme';
 import { stopSpeechIfRunning } from './usePhoneSpeech';
 
@@ -106,23 +106,30 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
   const { languages, voices, settings, error, retry } = useVoiceChoices(repo);
   return (
     <Screen title="Voices">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        {languages?.length ? (
-          <Group>
-            {languages.map((l, i) => (
-              <NavRow key={l.key} first={i === 0} label={l.name} facts={summary(l, voices, settings)} onPress={() => onLanguage(l.key)} />
-            ))}
-          </Group>
-        ) : languages ? (
-          <Help>None of your decks are read aloud yet. A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter.</Help>
-        ) : error ? (
-          <ErrorNote message={error} onRetry={retry} />
-        ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
-        <Help>
-          Each language has an Azure voice and an iPhone voice. Cards with a recording play it. Cards without one
-          are read by the iPhone voice, and new notes are recorded with the Azure voice.
-        </Help>
-        <Help>{DOWNLOAD_HELP}</Help>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
+        <Section
+          footer={(
+            <>
+              <Help>
+                Each language has an Azure voice and an iPhone voice. Cards with a recording play it. Cards without one
+                are read by the iPhone voice, and new notes are recorded with the Azure voice.
+              </Help>
+              <Help>{DOWNLOAD_HELP}</Help>
+            </>
+          )}
+        >
+          {languages?.length ? (
+            <Group>
+              {languages.map((l, i) => (
+                <NavRow key={l.key} first={i === 0} label={l.name} facts={summary(l, voices, settings)} onPress={() => onLanguage(l.key)} />
+              ))}
+            </Group>
+          ) : languages ? (
+            <Help>None of your decks are read aloud yet. A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter.</Help>
+          ) : error ? (
+            <ErrorNote message={error} onRetry={retry} />
+          ) : <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />}
+        </Section>
       </ScrollView>
     </Screen>
   );
@@ -167,65 +174,74 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
   return (
     <Screen title={lang.name}>
       {api ? <Stack.SearchBar placeholder="Search Azure voices" autoCapitalize="none" onChangeText={(e) => setQuery(e.nativeEvent.text)} /> : null}
-      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        <SectionTitle>Recordings</SectionTitle>
-        {!api ? (
-          <Help>Recording cards with Azure voices uses Read & Listen. Turn it on in Settings, Read & Listen.</Help>
-        ) : azure.error ? (
-          <ErrorNote message={azure.error} onRetry={azure.retry} />
-        ) : !azure.voices ? (
-          <ActivityIndicator color={c.accent} style={{ marginVertical: space.l }} />
-        ) : (
-          <>
-            <Group accessibilityRole="radiogroup">
-              <AzureVoiceRows
-                voices={searchVoices(azure.voices, query)}
-                selected={choice?.azureVoice}
-                none={query.trim() ? undefined : { label: 'No Azure voice', hint: 'Notes aren\'t recorded. Cards without audio are read aloud with the iPhone voice below' }}
-                onChoose={(v) => {
-                  if (v) sample.play(lang.sample ?? lang.name, v.voice, lang.sample ? lang.lang : undefined);
-                  choose(lang.key, { azureVoice: v?.voice });
-                }}
-              />
-            </Group>
-            {query.trim() && !searchVoices(azure.voices, query).length ? <Help>{`No Azure voices match "${query.trim()}".`}</Help> : null}
-            {sample.error ? <ErrorNote message={sample.error} /> : null}
-            <AzureVoiceTerms voices={azure.voices} />
-            <Help>
-              {`New ${lang.name} notes are recorded in this voice. To record existing ones, use Record audio in the note editor or the deck's options. Only Omnilanguage notes are recorded.`}
-            </Help>
-          </>
-        )}
-        <SectionTitle>iPhone voice speed</SectionTitle>
-        <Segments
-          options={VOICE_RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))}
-          value={rate}
-          onChange={(r) => { listen(current, r); choose(lang.key, { rate: r }); }}
-        />
-        <SectionTitle>iPhone voice</SectionTitle>
-        {choice?.voice && !current ? (
-          <Help>{`${choice.voiceName ?? 'The voice chosen before'} isn't on this iPhone anymore, so iOS picks one. Download it again or choose another.`}</Help>
-        ) : null}
-        <Group accessibilityRole="radiogroup">
-          <CheckRow
-            first
-            label="Automatic"
-            hint={`iOS picks its voice for ${lang.name}`}
-            selected={!current}
-            onPress={() => { listen(undefined, rate); choose(lang.key, { voice: undefined, voiceName: undefined }); }}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
+        <Section title="Recordings">
+          {!api ? (
+            <Help>Recording cards with Azure voices uses Read & Listen. Turn it on in Settings, Read & Listen.</Help>
+          ) : azure.error ? (
+            <ErrorNote message={azure.error} onRetry={azure.retry} />
+          ) : !azure.voices ? (
+            <ActivityIndicator color={c.accent} style={{ marginVertical: space.l }} />
+          ) : (
+            <>
+              <Group accessibilityRole="radiogroup">
+                <AzureVoiceRows
+                  voices={searchVoices(azure.voices, query)}
+                  selected={choice?.azureVoice}
+                  none={query.trim() ? undefined : { label: 'No Azure voice', hint: 'Notes aren\'t recorded. Cards without audio are read aloud with the iPhone voice below' }}
+                  onChoose={(v) => {
+                    if (v) sample.play(lang.sample ?? lang.name, v.voice, lang.sample ? lang.lang : undefined);
+                    choose(lang.key, { azureVoice: v?.voice });
+                  }}
+                />
+              </Group>
+              {query.trim() && !searchVoices(azure.voices, query).length ? <Help>{`No Azure voices match "${query.trim()}".`}</Help> : null}
+              {sample.error ? <ErrorNote message={sample.error} /> : null}
+              <AzureVoiceTerms voices={azure.voices} />
+              <Help>
+                {`New ${lang.name} notes are recorded in this voice. To record existing ones, use Record audio in the note editor or the deck's options. Only Omnilanguage notes are recorded.`}
+              </Help>
+            </>
+          )}
+        </Section>
+        <Section title="iPhone voice speed">
+          <Segments
+            options={VOICE_RATES.map((r) => ({ value: r, label: `${r.toFixed(1)}×`, accessibilityLabel: `Speed ${r}` }))}
+            value={rate}
+            onChange={(r) => { listen(current, r); choose(lang.key, { rate: r }); }}
           />
-          {inLanguage.map((v) => (
+        </Section>
+        <Section
+          title="iPhone voice"
+          footer={(
+            <>
+              {inLanguage.length ? null : <Help>{`This iPhone has no ${lang.name} voice yet.`}</Help>}
+              <Help>{`Choosing a voice or speed plays a sample. ${DOWNLOAD_HELP}`}</Help>
+            </>
+          )}
+        >
+          {choice?.voice && !current ? (
+            <Help>{`${choice.voiceName ?? 'The voice chosen before'} isn't on this iPhone anymore, so iOS picks one. Download it again or choose another.`}</Help>
+          ) : null}
+          <Group accessibilityRole="radiogroup">
             <CheckRow
-              key={v.identifier}
-              label={v.name}
-              hint={`${voiceQuality(v)}, ${v.language}`}
-              selected={current === v.identifier}
-              onPress={() => { listen(v.identifier, rate); choose(lang.key, { voice: v.identifier, voiceName: v.name }); }}
+              first
+              label="Automatic"
+              hint={`iOS picks its voice for ${lang.name}`}
+              selected={!current}
+              onPress={() => { listen(undefined, rate); choose(lang.key, { voice: undefined, voiceName: undefined }); }}
             />
-          ))}
-        </Group>
-        {inLanguage.length ? null : <Help>{`This iPhone has no ${lang.name} voice yet.`}</Help>}
-        <Help>{`Choosing a voice or speed plays a sample. ${DOWNLOAD_HELP}`}</Help>
+            {inLanguage.map((v) => (
+              <CheckRow
+                key={v.identifier}
+                label={v.name}
+                hint={`${voiceQuality(v)}, ${v.language}`}
+                selected={current === v.identifier}
+                onPress={() => { listen(v.identifier, rate); choose(lang.key, { voice: v.identifier, voiceName: v.name }); }}
+              />
+            ))}
+          </Group>
+        </Section>
       </ScrollView>
     </Screen>
   );

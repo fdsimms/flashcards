@@ -187,7 +187,7 @@ function KindTile({ tintKey, icon, title, detail, onPress }: { tintKey: string; 
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m + 2, padding: space.l, borderRadius: radius.l + 2, ...smooth, backgroundColor: useCoverTint(tintKey) }}
     >
       <Icon name={icon} size={28} color={c.accentInk} />
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.headline, fontSize: 19, color: c.text }}>{title}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 20 }}>{detail}</Text>
       </View>

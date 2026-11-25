@@ -3,8 +3,7 @@ import { Alert, View } from 'react-native';
 import { failureText } from '../core/failure';
 import { autoBackupList, AUTO_BACKUP_KEEP, AUTO_BACKUP_MINUTES } from '../db/autoBackup';
 import { autoBackupFiles, onAutoBackupsChanged, saveAutoBackup, useAutoBackupOn } from './autoBackup';
-import { Group, Help, NavRow, SectionTitle, SwitchRow } from './kit';
-import { space } from './theme';
+import { Group, Help, NavRow, SECTION_GAP, Section, SwitchRow } from './kit';
 
 /**
  * Backup's automatic backups: the switch, and the ones kept on this iPhone, newest first. Tapping
@@ -36,7 +35,7 @@ export function AutoBackups({ dayStartsAtHour, onRestore, disabled }: {
   const keep = `Franki keeps the latest ${AUTO_BACKUP_KEEP.latest}, then one a day for ${AUTO_BACKUP_KEEP.daily} days, one a week for ${AUTO_BACKUP_KEEP.weekly} weeks and one a month for ${AUTO_BACKUP_KEEP.monthly} months.`;
 
   return (
-    <View style={{ gap: space.m }}>
+    <View style={{ gap: SECTION_GAP }}>
       <Group>
         <SwitchRow
           first
@@ -47,20 +46,21 @@ export function AutoBackups({ dayStartsAtHour, onRestore, disabled }: {
         />
       </Group>
       {list.rows.length ? (
-        <>
-          <SectionTitle>On this iPhone</SectionTitle>
+        <Section
+          title="On this iPhone"
+          footer={(
+            <Help>
+              {list.summary} {keep} They hold your decks, cards and review history, but not images or sounds. If you lose this
+              iPhone you lose them too, so use Back up now to keep one somewhere else.
+            </Help>
+          )}
+        >
           <Group accessibilityRole="list">
             {list.rows.map((r, i) => (
               <NavRow key={r.name} first={i === 0} label={r.label} detail={r.size} disabled={disabled} onPress={() => onRestore(r.name, r.label)} />
             ))}
           </Group>
-          <View style={{ paddingHorizontal: space.xs }}>
-            <Help>
-              {list.summary} {keep} They hold your decks, cards and review history, but not images or sounds. If you lose this
-              iPhone you lose them too, so use Back up now to keep one somewhere else.
-            </Help>
-          </View>
-        </>
+        </Section>
       ) : null}
     </View>
   );

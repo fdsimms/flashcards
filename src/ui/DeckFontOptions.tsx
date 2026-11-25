@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
 import { deckCardFonts } from '../core/deckTree';
 import { availableFonts, isAvailable } from '../core/fontDownloads';
 import { CYCLE_FONTS, deckFontMode, fontCovers, fontsCovering, missingScripts, poolForMode, SCRIPT_NAMES, togglePoolFont, type DeckFontMode, type Script } from '../core/fonts';
 import { useFontSettings } from './AppFont';
 import type { DeckSettings } from '../core/types';
 import { FontRow } from './FontRows';
-import { Group, Help, SectionTitle, Segments } from './kit';
-import { space } from './theme';
+import { Group, Help, Section, Segments } from './kit';
 
 /**
  * Deck options for the font a deck's cards are set in. "Deck font" fixes one font for the deck's cards.
@@ -34,18 +32,30 @@ export function DeckFontOptions({ deck, all, scripts, onChange }: {
   const blocked = covering.length === 0 && pool.length === 0;
   const need = scripts.map((x) => SCRIPT_NAMES[x]).join(' and ');
   return (
-    <>
-      <View style={{ gap: space.s }}>
-        <SectionTitle>Card fonts</SectionTitle>
-        <Segments<DeckFontMode>
-          options={[{ value: 'app', label: 'App font' }, { value: 'deck', label: 'Deck font', disabled: blocked }, { value: 'random', label: 'Randomize', disabled: blocked }]}
-          value={mode}
-          onChange={(v) => {
-            setRandomizing(v === 'random');
-            onChange({ cardFonts: poolForMode(v, pool, covering) });
-          }}
-        />
-      </View>
+    <Section
+      title="Card fonts"
+      footer={(
+        <Help>
+          {mode === 'random'
+            ? `Each card gets one of the checked fonts instead of the app font, and keeps it until you start another review session. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
+            : mode === 'deck'
+            ? `Every card in this deck uses the selected font instead of the app font. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
+            : covering.length === 0
+              ? coveringNotDownloaded
+                ? `Download a font that covers ${need} in Settings, Font to set this deck's font. Until then it uses the app font, unless its card template sets one.`
+                : `No font covers ${need}, so this deck can't use its own font. It uses the app font (Settings, Font), unless its card template sets one.`
+              : "Cards in this deck use the app font (Settings, Font), unless their card template sets one."}
+        </Help>
+      )}
+    >
+      <Segments<DeckFontMode>
+        options={[{ value: 'app', label: 'App font' }, { value: 'deck', label: 'Deck font', disabled: blocked }, { value: 'random', label: 'Randomize', disabled: blocked }]}
+        value={mode}
+        onChange={(v) => {
+          setRandomizing(v === 'random');
+          onChange({ cardFonts: poolForMode(v, pool, covering) });
+        }}
+      />
       {mode !== 'app' ? (
         <Group accessibilityRole={mode === 'deck' ? 'radiogroup' : 'list'}>
           {CYCLE_FONTS.map((id, i) => (
@@ -62,17 +72,6 @@ export function DeckFontOptions({ deck, all, scripts, onChange }: {
           ))}
         </Group>
       ) : null}
-      <Help>
-        {mode === 'random'
-          ? `Each card gets one of the checked fonts instead of the app font, and keeps it until you start another review session. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
-          : mode === 'deck'
-          ? `Every card in this deck uses the selected font instead of the app font. ${need ? `Fonts that can't draw ${need} are dimmed. ` : ''}Applies to this deck and its subdecks, unless a subdeck sets its own.`
-          : covering.length === 0
-            ? coveringNotDownloaded
-              ? `Download a font that covers ${need} in Settings, Font to set this deck's font. Until then it uses the app font, unless its card template sets one.`
-              : `No font covers ${need}, so this deck can't use its own font. It uses the app font (Settings, Font), unless its card template sets one.`
-            : "Cards in this deck use the app font (Settings, Font), unless their card template sets one."}
-      </Help>
-    </>
+    </Section>
   );
 }

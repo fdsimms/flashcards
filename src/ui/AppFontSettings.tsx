@@ -5,7 +5,7 @@ import { APP_FONT_OPTIONS, FONT_GROUPS, fontOption, togglePoolFont, type AppFont
 import { failureText } from '../core/failure';
 import { useFontSettings } from './AppFont';
 import { FontRow } from './FontRows';
-import { Group, Help, Screen, SectionTitle, SwitchRow } from './kit';
+import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import { space, readable } from './theme';
 
 /**
@@ -45,7 +45,7 @@ export function AppFontSettings() {
 
   return (
     <Screen title="Font">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         <Group>
           <SwitchRow
             first
@@ -56,8 +56,7 @@ export function AppFontSettings() {
           />
         </Group>
         {FONT_GROUPS.map((g) => (
-          <React.Fragment key={g.id}>
-            <SectionTitle>{g.title}</SectionTitle>
+          <Section key={g.id} title={g.title}>
             <Group accessibilityRole={settings.random ? 'list' : 'radiogroup'}>
               {APP_FONT_OPTIONS.filter((o) => o.group === g.id).map((o, i) => (
                 <FontRow
@@ -73,21 +72,26 @@ export function AppFontSettings() {
                 />
               ))}
             </Group>
-          </React.Fragment>
+          </Section>
         ))}
-        <Group>
-          <SwitchRow
-            first
-            label="Use on cards"
-            hint="Card fronts and backs use this font too. A deck with its own card font uses that instead."
-            value={settings.onCards}
-            onValueChange={(onCards) => change({ ...settings, onCards })}
-          />
-        </Group>
-        <Help>
-          The Japanese fonts are large, so each downloads the first time you pick it and can be removed to free the space. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
-          {settings.random && font !== settings.font ? ` Right now the app is in ${APP_FONT_OPTIONS.find((o) => o.id === font)?.label}.` : ''}
-        </Help>
+        <Section
+          footer={(
+            <Help>
+              The Japanese fonts are large, so each downloads the first time you pick it and can be removed to free the space. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
+              {settings.random && font !== settings.font ? ` Right now the app is in ${APP_FONT_OPTIONS.find((o) => o.id === font)?.label}.` : ''}
+            </Help>
+          )}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Use on cards"
+              hint="Card fronts and backs use this font too. A deck with its own card font uses that instead."
+              value={settings.onCards}
+              onValueChange={(onCards) => change({ ...settings, onCards })}
+            />
+          </Group>
+        </Section>
       </ScrollView>
     </Screen>
   );

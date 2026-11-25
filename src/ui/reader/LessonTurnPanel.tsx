@@ -54,7 +54,7 @@ function TakeRow({ label, detail, icon, onPress, hint, first }: { label: string;
     <Tappable onPress={() => { haptic.tap(); onPress(); }} accessibilityRole="button" accessibilityLabel={`${label}, ${detail}`} accessibilityHint={hint} scaleTo={0.99}>
       <View style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}>
         {first ? null : <Divider inset={space.l} />}
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, gap: space.xs }}>
           <Text style={{ ...type.body, color: c.text }}>{label}</Text>
           <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
         </View>

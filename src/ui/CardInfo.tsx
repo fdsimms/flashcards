@@ -67,7 +67,7 @@ function HistoryRow({ entry, first }: { entry: HistoryEntry; first?: boolean }) 
     <View
       accessible
       accessibilityLabel={`${dateTime(entry.at)}. ${what}${detail ? `. ${detail}` : ''}`}
-      style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: 2 }}
+      style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs }}
     >
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>

@@ -244,7 +244,7 @@ function CaseChoices({ cases, onChoose }: { cases: GovernedCase[]; onChoose: (k:
                 accessibilityLabel={caseName(k)}
                 scaleTo={0.97}
                 style={{
-                  flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: 1, paddingHorizontal: space.xs, paddingVertical: space.xs + 2,
+                  flex: 1, minHeight: 60, alignItems: 'center', justifyContent: 'center', gap: space.xs, paddingHorizontal: space.xs, paddingVertical: space.xs + 2,
                   backgroundColor: c.surface, borderRadius: radius.m + 2, ...smooth, borderWidth: hairline, borderColor: c.border,
                 }}
               >

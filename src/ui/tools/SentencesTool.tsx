@@ -143,7 +143,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                 <Text style={{ ...type.overline, color: c.textSecondary }}>To go over</Text>
                 {missed.map((m) => (
                   <Tappable key={m.sentence} onPress={() => { haptic.tap(); answer.speak({ text: m.sentence }); }} accessibilityRole="button" accessibilityLabel={`Play ${m.sentence}`} scaleTo={0.99} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.xs }}>
-                    <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flex: 1, gap: space.xs }}>
                       <Text style={{ ...type.subhead, color: c.text }}>{m.english}</Text>
                       <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{m.sentence}</Text>
                     </View>

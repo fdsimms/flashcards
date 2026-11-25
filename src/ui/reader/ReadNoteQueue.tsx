@@ -65,7 +65,7 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
           accessibilityLabel={`${note.spelling ? `${note.entry}, written ${note.spelling}` : note.entry}. ${meaning ? `${meaning}. ` : ''}${label}. ${note.state === 'ready' ? 'Review' : note.state === 'failed' && !retrying ? 'Fill in by hand' : ''}`}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
         >
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...withThaiLineHeight(type.headline, word), color: c.text }}>{word}</Text>
             {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
             <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{note.deck}</Text>
@@ -109,7 +109,7 @@ function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; mea
   const c = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
-      <View accessible accessibilityLabel={`${entry}. ${meaning ? `${meaning}. ` : ''}Not sent yet`} style={{ flex: 1, gap: 2, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l, justifyContent: 'center' }}>
+      <View accessible accessibilityLabel={`${entry}. ${meaning ? `${meaning}. ` : ''}Not sent yet`} style={{ flex: 1, gap: space.xs, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l, justifyContent: 'center' }}>
         <Text style={{ ...withThaiLineHeight(type.headline, entry), color: c.text }}>{entry}</Text>
         {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
         <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{deck}</Text>

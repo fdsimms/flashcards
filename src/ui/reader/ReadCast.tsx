@@ -4,7 +4,7 @@ import { failureText } from '../../core/failure';
 import type { Api, CastKind, CastVoice, Language, Settings } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { audioKey, CAST_KINDS, castDetail, resetChange } from '../../reader/storyCast';
-import { Button, ErrorNote, Group, Help, NavRow, Screen, SectionTitle } from '../kit';
+import { Button, ErrorNote, Group, Help, NavRow, Screen, Section, SECTION_GAP } from '../kit';
 import { space, readable } from '../theme';
 import { useCastAudio } from './useCastAudio';
 
@@ -52,26 +52,31 @@ export function ReadCast({ api, language, cast, narrator, onSettings, onPick }: 
 
   return (
     <Screen title="Series characters">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {error ? <ErrorNote message={error} /> : null}
         {audio.error ? <ErrorNote message={audio.error} /> : null}
         <Button label="Play the scene" onPress={scene} busy={audio.busy} accessibilityLabel={`Play a scene in ${name} read by the narrator and two characters`} />
-        <SectionTitle>Characters</SectionTitle>
-        <Group>
-          {CAST_KINDS.map((k, i) => (
-            <NavRow
-              key={k.kind}
-              first={i === 0}
-              label={k.label}
-              detail={castDetail(cast[k.kind])}
-              onPress={() => onPick(k.kind)}
-              action={{ icon: 'play.fill', label: `Hear ${k.label}`, onPress: () => hear(k.kind, k.gender) }}
-            />
-          ))}
-        </Group>
-        <Help>
-          {`The first character of each kind in a series gets the voice chosen here and keeps it in every episode. A second of the same kind gets a different voice. Characters who already have a voice keep it. The narrator uses the man's voice.`}
-        </Help>
+        <Section
+          title="Characters"
+          footer={(
+            <Help>
+              {`The first character of each kind in a series gets the voice chosen here and keeps it in every episode. A second of the same kind gets a different voice. Characters who already have a voice keep it. The narrator uses the man's voice.`}
+            </Help>
+          )}
+        >
+          <Group>
+            {CAST_KINDS.map((k, i) => (
+              <NavRow
+                key={k.kind}
+                first={i === 0}
+                label={k.label}
+                detail={castDetail(cast[k.kind])}
+                onPress={() => onPick(k.kind)}
+                action={{ icon: 'play.fill', label: `Hear ${k.label}`, onPress: () => hear(k.kind, k.gender) }}
+              />
+            ))}
+          </Group>
+        </Section>
         <Button label="Reset to defaults" variant="secondary" onPress={reset} busy={resetting} />
       </ScrollView>
     </Screen>

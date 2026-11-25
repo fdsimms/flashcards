@@ -153,7 +153,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 accessibilityLabel={`${label}${under ? `. ${under}` : ''}${right ? '. Right answer' : wrongPick ? '. Your answer' : ''}`}
                 scaleTo={0.98}
                 style={{
-                  minHeight: MIN_TAP, justifyContent: 'center', gap: 2, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
+                  minHeight: MIN_TAP, justifyContent: 'center', gap: space.xs, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
                   borderRadius: radius.m, ...smooth,
                   backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
                   borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
@@ -234,7 +234,7 @@ function Evidence({ line, index, word, textStyle, onPlay }: { line: TextLine; in
     <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{`From line ${index + 1}`}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-        <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flex: 1, gap: space.xs }}>
           <LineWords line={line} word={word} textStyle={textStyle} />
           <TranslationRow><Text style={{ ...type.footnote, color: c.textSecondary }}>{line.english}</Text></TranslationRow>
         </View>
@@ -296,7 +296,7 @@ export function CheckCard({ text, questions, picks, onStart }: {
         return (
           <View key={q.key} accessible style={{ flexDirection: 'row', gap: space.s, paddingVertical: space.xs }}>
             <Icon name={ok ? 'checkmark.circle.fill' : 'xmark.circle.fill'} size={18} color={ok ? c.good : c.danger} />
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flex: 1, gap: space.xs }}>
               <Text style={{ ...type.callout, color: c.text }}>{summary(q, text)}</Text>
               {ok ? null : (
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>

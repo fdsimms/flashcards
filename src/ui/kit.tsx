@@ -266,7 +266,7 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
           <Icon name={icon.name} size={17} color={c.onRating} />
         </View>
       ) : null}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         {/* Only the name dims when disabled: the detail says why, so it stays readable. */}
         <Text style={{ ...type.body, color: disabled ? c.textTertiary : c.text }}>{label}</Text>
         {facts ? facts.map((f) => (
@@ -329,7 +329,7 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
       })}
     >
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.body, color: c.text }}>{label}</Text>
         {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
       </View>
@@ -353,7 +353,7 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
       style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
     >
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.body, color: c.text }}>{label}</Text>
         {hint ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text> : null}
       </View>
@@ -581,10 +581,33 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
   );
 }
 
-/** A small all-caps label over a group of rows. */
-export function SectionTitle({ children }: { children: React.ReactNode }) {
+function Overline({ children, paddingTop }: { children: React.ReactNode; paddingTop?: number }) {
   const c = useTheme();
-  return <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.l, paddingTop: space.s }}>{children}</Text>;
+  return <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary, paddingHorizontal: space.l, paddingTop }}>{children}</Text>;
+}
+
+/** A small all-caps label over a group of rows, for a page whose children are all spaced the same (see `Section`). */
+export function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <Overline paddingTop={space.s}>{children}</Overline>;
+}
+
+/** The gap between `Section`s in a page's scroll content: wider than the 8 inside one, so each reads as a unit. */
+export const SECTION_GAP = space.xl;
+
+/**
+ * A title, the group of rows it names and the line explaining them, kept 8 apart so they read as one
+ * unit. A page made of `Section`s sets `gap: SECTION_GAP` on its scroll content, so the space between
+ * units is wider than the space inside one. A flat column at one gap can't say which block a `Help`
+ * line belongs to: it is as far from the group above as from the one below.
+ */
+export function Section({ title, footer, children }: { title?: string; /** The `Help` for the rows above it, lined up with their text. */ footer?: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <View style={{ gap: space.s }}>
+      {title ? <Overline>{title}</Overline> : null}
+      {children}
+      {footer ? <View style={{ paddingHorizontal: space.l, gap: space.s }}>{footer}</View> : null}
+    </View>
+  );
 }
 
 /** A line explaining a control or a screen, in the quieter color. */
