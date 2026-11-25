@@ -195,6 +195,11 @@ describe('cardDocument, by language', () => {
 });
 
 describe('cardDocument', () => {
+  it('scrolls to the answer line, so a back that repeats a tall image still shows the answer', () => {
+    const doc = cardDocument('<img src="a.jpg"><hr id=answer>John Tyler', { css: '', ord: 0, dark: false, autoplay: false });
+    expect(doc).toContain("document.getElementById('answer')");
+    expect(doc).toContain("addEventListener('load', showAnswer)");
+  });
   it('wraps the card with its CSS, Anki body classes and sound buttons', () => {
     const doc = cardDocument('Hi [sound:hello.mp3]', { css: '.card { color: red; }', ord: 1, dark: true, autoplay: true });
     expect(doc).toContain('<body class="card card2 nightMode night_mode">');
@@ -246,8 +251,8 @@ describe('autoplay', () => {
     const page = cardDocument('<audio src="a.mp3" autoplay></audio>', { css: '', ord: 0, dark: false, autoplay: false });
     let plays = 0;
     const media = { play: () => { plays++; return Promise.resolve(); } };
-    const document = { querySelectorAll: (sel: string) => (sel === '[data-autoplay]' ? [media] : []) };
-    const window: { startAutoplay?: () => void } = {};
+    const document = { getElementById: () => null, querySelectorAll: (sel: string) => (sel === '[data-autoplay]' ? [media] : []) };
+    const window: { startAutoplay?: () => void; addEventListener?: () => void } = { addEventListener: () => {} };
     const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
     new Function('document', 'Audio', 'window', script)(document, undefined, window);
     expect(plays).toBe(0);
@@ -265,10 +270,10 @@ describe('autoplay', () => {
       players.push(this);
     }
     const files = [...page.matchAll(/data-sound="([^"]+)"/g)].map((m) => m[1]);
-    const document = { querySelectorAll: (sel: string) => (sel === '[data-sound]' ? files.map((sound) => ({ dataset: { sound } })) : []) };
+    const document = { getElementById: () => null, querySelectorAll: (sel: string) => (sel === '[data-sound]' ? files.map((sound) => ({ dataset: { sound } })) : []) };
     const script = page.match(/<script>\nvar player[\s\S]*?<\/script>/)![0].replace(/<\/?script>/g, '');
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const window: { startAutoplay?: () => void; ReactNativeWebView?: typeof app } = { ReactNativeWebView: app };
+    const window: { startAutoplay?: () => void; ReactNativeWebView?: typeof app; addEventListener?: () => void } = { ReactNativeWebView: app, addEventListener: () => {} };
     const { playSound, tapSound } = new Function('document', 'Audio', 'window', `${script}; return { playSound, tapSound };`)(document, Audio, window) as Record<'playSound' | 'tapSound', (f: string) => void>;
     const start = () => new Function('window', START_AUTOPLAY)(window);
     if (shown) start();
