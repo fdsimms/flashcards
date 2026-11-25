@@ -1731,7 +1731,8 @@ in the current language, with when one was last read to the end. Nothing else le
 - **Study time** (`study_days`): the last 7 study days, each with the cards answered on it on every
   device and the time Anki logged for them (the review log's `time`, capped by each preset's
   maximum answer seconds), and the seconds spent in Read & Listen (`readings.seconds`), every
-  language. A study day is the 24 hours before a cutoff, as Anki's own statistics count them.
+  language, plus the same split by language (`reading_seconds_by_language`), so a per-language
+  task can count its own language's reading. A study day is the 24 hours before a cutoff, as Anki's own statistics count them.
 - **Franki's own counts** (`franki`): Anki can't count new cards the way Franki does, so the app
   sends its deck list's totals (`deckListTotals`, the header's numbers) after each recount while
   its "Share today's counts and crams" setting is on (`useCountsReport`, off by default), to
