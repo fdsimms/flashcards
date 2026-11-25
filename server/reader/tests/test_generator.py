@@ -495,6 +495,18 @@ def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -
     assert result.translits == {"ทอน": "thɔɔn"}
 
 
+def test_a_story_lists_the_names_other_stories_use() -> None:
+    from franki_reader.generator import StoryContext
+
+    taken = ("Mali, Ton (Mali runs a coffee shop.)",)
+    first = request_message(TextRequest("", story=StoryContext(1, "", taken=taken)))
+    assert "Mali, Ton (Mali runs a coffee shop.)" in first and "other stories" in first
+    later = request_message(TextRequest("", story=StoryContext(2, "", "Noi", taken=taken)))
+    assert "Mali, Ton" in later
+    alone = request_message(TextRequest("", story=StoryContext(1, "")))
+    assert "other stories" not in alone
+
+
 def test_a_story_episode_asks_to_carry_the_story_on() -> None:
     from franki_reader.generator import StoryContext
 
@@ -731,6 +743,11 @@ def test_too_many_names_go_back_to_the_model() -> None:
 def test_the_prompts_state_the_name_limit() -> None:
     for language in ("th", "es"):
         assert f"at most {MAX_NAMES} different names" in system_prompt(ENTRIES, language)
+
+
+def test_the_prompts_match_a_name_to_where_the_person_is_from() -> None:
+    for language in ("th", "es"):
+        assert "A name fits where the person is from" in system_prompt(ENTRIES, language)
 
 
 def test_a_draft_hiding_words_as_names_is_never_kept_as_the_closest() -> None:

@@ -194,6 +194,9 @@ class StoryContext:
     speakers: tuple[Speaker, ...] = ()
     # The characters recorded so far, as "Name: what's known", for X-Ray (xray.py).
     known: tuple[str, ...] = ()
+    # The names the language's other stories already use, one entry per story, so this one's
+    # characters don't repeat them (a second series came out with the first one's Mali).
+    taken: tuple[str, ...] = ()
 
     @property
     def season(self) -> int:
@@ -495,6 +498,9 @@ and use at most 4 different names in a text.
 - Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
 who it is the first time (เด็ก|ผู้ชาย|ชื่อ|~ต้น~, "a boy named Ton"), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
+- A name fits where the person is from: someone from another country has a name from that \
+country, never a Thai one (a man from England is James, not ต้น). Give a Thai name only to a \
+person from Thailand.
 - Where a clause or sentence ends, put a space instead of |, as Thai is written: \
 สวัสดี|ครับ ไป|ไหน|มา|ครับ. The voice pauses at each space, so put one at every clause or sentence \
 break and nowhere else: never between words of the same clause, never before a particle like \
@@ -582,6 +588,9 @@ and use at most 4 different names in a text.
 - Introduce every name where it first appears, so the learner never meets one out of nowhere: say \
 who it is the first time (a girl named Kasia, a dog called Burek), and use the name for that same \
 person afterward. Never call someone "the boy" and then switch to a name with nothing linking them.
+- A name fits where the person is from: someone from another country has a name from that \
+country, never a {name} one (a man from England is James, not a {name} name). A {name} name \
+means a person from where {name} is spoken.
 - Give "title_english", a natural English translation of the title.
 - Give "english", a natural English translation of each line.
 - Give "register" for each line: how a native speaker would say it in that situation: \
@@ -834,6 +843,18 @@ _STORY_RULES = (
 )
 
 
+def _taken_names(story: StoryContext) -> str:
+    """Tells the model the names other stories use, so a new character gets a different one."""
+    if not story.taken:
+        return ""
+    return (
+        "These characters are in the learner's other stories. Give every new character a name "
+        "none of them has, and don't reuse a name from this list for a different person:\n"
+        + "\n".join(f"- {t}" for t in story.taken)
+        + "\n"
+    )
+
+
 def _story_intro(story: StoryContext) -> str:
     last = SEASON_EPISODES
     plan_ask = (
@@ -848,6 +869,7 @@ def _story_intro(story: StoryContext) -> str:
             f"text at a time, in seasons of {last} episodes that each build to a finale. {about} "
             "Invent two to four characters with names and a place they keep coming back to, and "
             "end the episode with something that can carry on next time. "
+            f"{_taken_names(story)}"
             'In "series", give the story a short name in the language of the text, like its title, '
             'with no English. In "cast", describe the characters '
             f"and the setting in one or two English sentences. {_RECAP_ASK} {plan_ask}"
@@ -898,6 +920,7 @@ def _story_intro(story: StoryContext) -> str:
     return (
         f"{place}\n{plan}{picked}{ending}"
         f"Characters and setting: {story.cast or 'as in the earlier episodes'}\n"
+        f"{_taken_names(story)}"
         f"The story so far, a recap of each episode:\n{so_far}\n"
         f"{_STORY_RULES}\n"
         f'{_RECAP_ASK} {plan_ask} Leave "series" and "cast" empty.'

@@ -1113,7 +1113,20 @@ class Engine:
             known=tuple(
                 f"{c['name']}: {c['facts'][-1]['text']}" for c in story.characters if c["facts"]
             ),
+            taken=self._names_taken(story),
         )
+
+    def _names_taken(self, story: Story) -> tuple[str, ...]:
+        """What the language's other stories, running or ended, call their characters: the name
+        written in the lines and the cast sentence, which has it in Latin letters as well."""
+        taken: list[str] = []
+        for other in store.stories(self.conn, story.language):
+            if other.id == story.id:
+                continue
+            names = list(dict.fromkeys([*other.voices, *(c["name"] for c in other.characters)]))
+            if names or other.cast:
+                taken.append(", ".join(names) + (f" ({other.cast})" if other.cast else ""))
+        return tuple(taken)
 
     def relisten(
         self, language: Code | None = None, listens: int = DEFAULT_LISTENS
