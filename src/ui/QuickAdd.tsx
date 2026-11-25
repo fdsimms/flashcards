@@ -8,6 +8,7 @@ import {
   addWord, asTyped, counts, MAX_QUEUED, parseWordList, splitLine, wordState,
   type FoundWord, type QuickWord, type WordState,
 } from '../core/quickAdd';
+import { QUEUED_MODEL } from '../reader/noteQueue';
 import { deckShortName } from './deckShortName';
 import { haptic } from './haptics';
 import { Button, Card, Chip, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable } from './kit';
@@ -32,8 +33,6 @@ export interface QuickAddDeck {
   languageName?: string;
 }
 
-/** Claude's notes are always this type (the note queue's `reviewTarget`), so a queued word's duplicate check asks about it. */
-const QUEUED_MODEL = 'Omnilanguage';
 
 type Mode = 'one' | 'list';
 

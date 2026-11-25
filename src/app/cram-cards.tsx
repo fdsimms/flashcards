@@ -18,6 +18,7 @@ export default function CramCardsRoute() {
     <CramMakeCards
       repo={repo}
       id={id}
+      deckFor={(language) => options.find((o) => o.language === language)?.deck}
       findWords={async (language, text) => api.lessonWords(language, text, await loadParticle())}
       queue={async (language, entries) => {
         const deck = options.find((o) => o.language === language)?.deck;

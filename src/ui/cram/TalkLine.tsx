@@ -13,6 +13,8 @@ import { space, type, useTheme } from '../theme';
  * A talking point's line in the cram's language with its English: tapped, it's read aloud (`onSay`).
  * A word the learner hadn't studied when it was written (`unknown`) is underlined with dots, and a tap
  * on it says what it means underneath, or that it isn't in the deck yet when no meaning was kept.
+ * Dotted means not studied yet, not missing from the deck: a new card the deck already has is dotted
+ * too, so a screen that offers to add a dotted word checks the deck first (`useWordInDeck`).
  * The dots are drawn under the word's measured box, as on a card's sentence (`CardSentence`), because the
  * platform's dotted underline ran through the letters of Thai text.
  * Without a language the line is drawn in the body text and isn't read.

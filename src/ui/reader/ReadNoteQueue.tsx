@@ -4,7 +4,8 @@ import { failureText } from '../../core/failure';
 import { withThaiLineHeight } from '../../core/script';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
-import { counts, firstReady, isRetrying, isWorking, needsChoice } from '../../reader/noteQueue';
+import { counts, droppedNotice, firstReady, isRetrying, isWorking, needsChoice } from '../../reader/noteQueue';
+import type { DroppedWord } from '../../reader/noteQueueStore';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
 import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Screen, SectionTitle, Tappable } from '../kit';
@@ -132,11 +133,13 @@ function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; mea
  * "Approve all" adds every ready note as written, after an alert naming how many. This screen writes
  * nothing to the deck itself: both ways save through its props (CLAUDE.md, Read & Listen).
  */
-export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApproveAll, onRetry, onRemove, onRemoveHeld, onRefresh }: {
+export function ReadNoteQueue({ queue, error, dropped, held, getItems, onReview, onApproveAll, onRetry, onRemove, onRemoveHeld, onRefresh }: {
   /** Null until the server has answered. */
   queue: NoteQueue | null;
   /** The last problem reaching the server, if the last ask failed. */
   error: string | null;
+  /** Words taken off the queue because the deck already had them (useNoteQueue), said once here. */
+  dropped: DroppedWord[];
   /** Words added while offline, sent to the server when the connection comes back (useNoteQueue). */
   held: HeldWords[];
   onRemoveHeld: (deck: string, entry: string) => void;
@@ -282,6 +285,7 @@ export function ReadNoteQueue({ queue, error, held, getItems, onReview, onApprov
         ) : null}
         {error ? <ErrorNote message={error} onRetry={onRefresh} /> : null}
         {problem ? <ErrorNote message={problem} /> : null}
+        {droppedNotice(dropped).map((line) => <Help key={line}>{line}</Help>)}
         {!queue && !error ? <ActivityIndicator color={c.accent} style={{ padding: space.xl }} /> : null}
         {held.map((group, g) => (
           <View key={`held-${g}`} style={{ gap: space.s }}>

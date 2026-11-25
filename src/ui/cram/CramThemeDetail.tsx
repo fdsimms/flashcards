@@ -12,6 +12,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { usePhoneSpeech } from '../usePhoneSpeech';
+import { useWordInDeck } from '../useWordInDeck';
 import { StoryEditor } from './StoryEditor';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
@@ -84,6 +85,7 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
   const c = useTheme();
   const phone = usePhoneSpeech(repo);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const inDeck = useWordInDeck(repo);
   const [problem, setProblem] = useState<string>();
   const [busy, setBusy] = useState<string>();
   const info = LANGUAGES[language];
@@ -131,18 +133,22 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
             <Text style={overline}>{`WORTH LEARNING · ${theme.new_words.length} NEW`}</Text>
             {theme.new_words.map((w) => {
               const done = added.has(w.word);
+              // Already in the deck (a new card not studied yet): nothing to send to Claude.
+              const have = !done && inDeck(deck, w.word);
               return (
                 <Tappable
                   key={w.word}
                   onPress={() => { void addWord(w.word, w.english); }}
-                  disabled={done || !deck || !!busy}
+                  disabled={done || have || !deck || !!busy}
                   accessibilityRole="button"
-                  accessibilityLabel={done ? `${w.word} added` : `Add ${w.word}`}
+                  accessibilityLabel={done ? `${w.word} added` : have ? `${w.word}, already in your deck` : `Add ${w.word}`}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 44 }}
                 >
                   <Text style={{ ...talkTextStyle(info, size, 0.75), color: c.text }}>{w.word}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{w.english}</Text>
-                  <Icon name={done ? 'checkmark.circle.fill' : 'plus.circle'} size={24} color={done ? c.goodInk : deck ? c.accentInk : c.textTertiary} />
+                  {have ? <Text style={{ ...type.footnote, color: c.textSecondary }}>In your deck</Text> : (
+                    <Icon name={done ? 'checkmark.circle.fill' : 'plus.circle'} size={24} color={done ? c.goodInk : deck ? c.accentInk : c.textTertiary} />
+                  )}
                 </Tappable>
               );
             })}
