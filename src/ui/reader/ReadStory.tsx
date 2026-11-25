@@ -13,7 +13,7 @@ import { haptic } from '../haptics';
 import { Button, Divider, ErrorNote, Group, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
-import { useCoverTint } from './Cover';
+import { SERIES_TITLE, useCoverTint } from './Cover';
 import { PracticeWordRow } from './PracticeWordPill';
 import { ReadSeasonHeader } from './ReadSeasonHeader';
 import { ReadRecap } from './ReadRecap';
@@ -138,7 +138,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
           <>
             <View style={{ padding: space.l + 4, borderRadius: radius.xl, ...smooth, backgroundColor: tint, gap: space.s }}>
               <Text style={{ ...type.overline, color: c.accentInk }}>{overline}</Text>
-              <Text accessibilityRole="header" style={{ fontSize: 32, fontWeight: '800', lineHeight: 36, color: c.text }}>{name}</Text>
+              <Text accessibilityRole="header" style={{ ...SERIES_TITLE, color: c.text }}>{name}</Text>
               {story.about ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21 }}>{story.about}</Text> : null}
               <Text style={{ ...type.subhead, color: c.textSecondary }}>{storyPlace(story)}</Text>
               {next && next.stretch.length > 0 ? (

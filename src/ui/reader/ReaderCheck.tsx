@@ -18,6 +18,7 @@ import { useOutputWake } from '../useOutputWake';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
+import { PlayCircle } from './PlayCircle';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -100,14 +101,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
           {q.kind === 'listen' ? (
             <View style={{ alignItems: 'center', gap: space.s }}>
               <Text style={{ ...type.headline, color: c.text, textAlign: 'center' }}>Which line did you hear?</Text>
-              <Tappable
-                onPress={() => listenButton.tap(() => play(q.line))}
-                accessibilityRole="button"
-                accessibilityLabel={listenButton.playing ? 'Pause' : 'Play the line again'}
-                style={{ width: 64, height: 64, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Icon name={listenButton.playing ? 'pause.fill' : 'play.fill'} size={24} color={c.onAccent} />
-              </Tappable>
+              <PlayCircle playing={listenButton.playing} onPress={() => listenButton.tap(() => play(q.line))} accessibilityLabel={listenButton.playing ? 'Pause' : 'Play the line again'} />
               {slowOffered ? (
                 <Segments
                   style={{ alignSelf: 'stretch' }}
