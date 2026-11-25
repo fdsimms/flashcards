@@ -5560,6 +5560,55 @@
         }
       }
     },
+    "/api/grammar/written": {
+      "get": {
+        "summary": "Grammar Written",
+        "description": "The grammar points Claude wrote (written_points.py), every language's, in the catalog's\nown fields, for the app to put beside the catalog it bundles.",
+        "operationId": "grammar_written_api_grammar_written_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Grammar Written Api Grammar Written Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grammar/rotations": {
       "get": {
         "summary": "Grammar Rotations",

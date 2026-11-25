@@ -720,6 +720,8 @@ export function createApi(
     deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
     // Every language's choices by point id (a point not set isn't listed), for Forms practice.
     grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
+    // The grammar points Claude wrote, every language's, for `setWrittenPoints` (read with `parseWrittenPoints`).
+    writtenPoints: () => call<{ points: unknown[] }>('GET', '/api/grammar/written'),
     // A point's lesson; asking for one that has none starts writing it. Rewrite asks for fresh examples.
     grammarLesson: (id: string) => call<GrammarLesson>('GET', `/api/grammar/${encodeURIComponent(id)}/lesson`),
     rewriteGrammarLesson: (id: string) => call<GrammarLesson>('POST', `/api/grammar/${encodeURIComponent(id)}/lesson`),

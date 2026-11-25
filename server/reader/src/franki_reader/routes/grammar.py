@@ -175,6 +175,27 @@ def router(ctx: AppContext) -> APIRouter:
         )
         return {"saved": saved}
 
+    @routes.get("/api/grammar/written", dependencies=authed)
+    async def grammar_written() -> dict[str, Any]:
+        """The grammar points Claude wrote (written_points.py), every language's, in the catalog's
+        own fields, for the app to put beside the catalog it bundles."""
+        return {
+            "points": [
+                {
+                    "id": p.id,
+                    "language": p.language,
+                    "name": p.name,
+                    "note": p.note,
+                    "example": p.example,
+                    "explanation": p.explanation,
+                    "related": list(p.related),
+                    "level": p.level,
+                    "word_named": p.word_named,
+                }
+                for p in store.written_points(engine.conn)
+            ]
+        }
+
     @routes.get("/api/grammar/rotations", dependencies=authed)
     async def grammar_rotations() -> dict[str, Any]:
         """The language's automatic grammar swaps not closed or undone yet, for the shelf."""

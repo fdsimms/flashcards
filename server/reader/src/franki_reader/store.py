@@ -403,6 +403,16 @@ CREATE TABLE IF NOT EXISTS grammar_answers (
     PRIMARY KEY (point_id, drill_id, answered_at)
 );
 
+-- Grammar points Claude wrote once a language's catalog was nearly all practiced or known
+-- (written_points.py): the point as JSON (name, note, example, explanation, level, word_named, and
+-- `spec`, its finder as data). Registered beside the catalog's whenever the store opens.
+CREATE TABLE IF NOT EXISTS written_points (
+    id TEXT PRIMARY KEY,
+    language TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 -- A grammar point's lesson (grammar_lessons.py): its example lines as JSON
 -- ([{line, english, words}]), written once and kept. `status` is writing, ready or failed; `note`
 -- is what to tell the owner about a write that failed.
@@ -743,6 +753,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # A text left pending by a restart mid-audio: its missing lines are made on request.
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
         _clean_titles(conn)
+    register_written_points(conn)
     return conn
 
 
@@ -2011,6 +2022,7 @@ CallFeature = Literal[
     "rare_words",
     "word_lookup",
     "grammar_lessons",
+    "written_points",
 ]
 
 
@@ -2496,6 +2508,49 @@ def recent_grammar_answers(conn: sqlite3.Connection, point_id: str, limit: int) 
     return [bool(r[0]) for r in rows]
 
 
+def written_points(conn: sqlite3.Connection, language: Code | None = None) -> list[grammar.Point]:
+    """The points Claude wrote, in the order they were written, for one language or all."""
+    rows = conn.execute(
+        "SELECT id, language, data FROM written_points"
+        + (" WHERE language = ?" if language else "")
+        + " ORDER BY created_at, id",
+        (language,) if language else (),
+    ).fetchall()
+    return [grammar.written_point(pid, lang, json.loads(data)) for pid, lang, data in rows]
+
+
+def register_written_points(conn: sqlite3.Connection) -> None:
+    """Puts every point Claude wrote beside the catalog's (`grammar.register`)."""
+    for point in written_points(conn):
+        grammar.register(point)
+
+
+def save_written_point(
+    conn: sqlite3.Connection, point_id: str, language: Code, data: Mapping[str, Any], now: datetime
+) -> grammar.Point:
+    """Keeps a point Claude wrote and registers it; returns it."""
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO written_points (id, language, data, created_at)"
+            " VALUES (?, ?, ?, ?)",
+            (point_id, language, json.dumps(data, ensure_ascii=False), now.isoformat()),
+        )
+    point = grammar.written_point(point_id, language, data)
+    grammar.register(point)
+    return point
+
+
+def call_count_since(
+    conn: sqlite3.Connection, feature: CallFeature, language: str, since: datetime
+) -> int:
+    """How many calls for `feature` in `language` were kept since `since` (`call_costs`)."""
+    row = conn.execute(
+        "SELECT COUNT(*) FROM call_costs WHERE feature = ? AND language = ? AND created_at >= ?",
+        (feature, language, since.isoformat()),
+    ).fetchone()
+    return int(row[0])
+
+
 @dataclass(frozen=True)
 class GrammarLesson:
     """A grammar point's lesson as kept (grammar_lessons.py)."""
@@ -2619,6 +2674,28 @@ def get_rotation(conn: sqlite3.Connection, rotation_id: int) -> Rotation | None:
         f"SELECT {_ROTATION_COLUMNS} FROM grammar_rotations WHERE id = ?", (rotation_id,)
     ).fetchone()
     return _rotation(row) if row else None
+
+
+def open_rotation(conn: sqlite3.Connection, language: Code) -> Rotation | None:
+    """The language's latest swap that started nothing because no point was left, still standing
+    (not undone), if its slot hasn't been filled since."""
+    row = conn.execute(
+        f"SELECT {_ROTATION_COLUMNS} FROM grammar_rotations WHERE language = ? AND started = ''"
+        " AND state != 'undone' ORDER BY id DESC LIMIT 1",
+        (language,),
+    ).fetchone()
+    return _rotation(row) if row else None
+
+
+def fill_rotation(
+    conn: sqlite3.Connection, rotation_id: int, started: str, started_was: str
+) -> None:
+    """Records the point started in a swap's empty slot, and shows its notice again."""
+    with conn:
+        conn.execute(
+            "UPDATE grammar_rotations SET started = ?, started_was = ?, state = 'new' WHERE id = ?",
+            (started, started_was, rotation_id),
+        )
 
 
 def set_rotation_state(conn: sqlite3.Connection, rotation_id: int, state: str) -> None:

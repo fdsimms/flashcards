@@ -30,6 +30,8 @@ export interface GrammarPointInfo {
    * can't name the point or ask for its word, since the learner already knows it: see `drillOptions`.
    */
   wordNamed: boolean;
+  /** Written by Claude when the catalog ran out (the server's written_points.py), not in the bundled catalog. */
+  written?: boolean;
 }
 
 type CatalogEntry = Omit<GrammarPointInfo, 'language' | 'forms' | 'wordNamed'> & { language: string; forms?: string[]; word_named?: boolean };
@@ -46,9 +48,44 @@ export function noteWithExample(p: { note: string; example: string }): string {
   return `${p.note}. Example: ${p.example}`;
 }
 
-/** A language's points, in the catalog's order. */
+// The points Claude wrote, as Read & Listen's server last listed them (setWrittenPoints).
+let writtenPoints: readonly GrammarPointInfo[] = [];
+
+/**
+ * Puts the points Claude wrote beside the catalog's, replacing the last list, so a point's page,
+ * lesson and drills find them as they find the catalog's. One with a catalog point's id is left out.
+ */
+export function setWrittenPoints(points: readonly GrammarPointInfo[]): void {
+  const catalog = new Set(GRAMMAR_POINTS.map((p) => p.id));
+  writtenPoints = points.filter((p) => !catalog.has(p.id)).map((p) => ({ ...p, written: true }));
+}
+
+const LANGUAGE_CODES: readonly string[] = ['th', 'es', 'de', 'fr', 'ru', 'el', 'pl', 'nb', 'ja', 'en'];
+
+/** The written points in what `GET /api/grammar/written` sends (or the phone's copy of it); anything malformed is left out. */
+export function parseWrittenPoints(raw: unknown): GrammarPointInfo[] {
+  if (!Array.isArray(raw)) return [];
+  const text = (v: unknown) => (typeof v === 'string' ? v : null);
+  const out: GrammarPointInfo[] = [];
+  for (const p of raw) {
+    const id = text(p?.id), name = text(p?.name), note = text(p?.note), example = text(p?.example);
+    if (!id || !name || note === null || example === null || !LANGUAGE_CODES.includes(p?.language)) continue;
+    out.push({
+      id, name, note, example,
+      language: p.language as GrammarLanguage,
+      forms: [],
+      explanation: text(p.explanation) ?? '',
+      related: Array.isArray(p.related) ? p.related.filter((r: unknown): r is string => typeof r === 'string') : [],
+      wordNamed: p.word_named === true,
+      written: true,
+    });
+  }
+  return out;
+}
+
+/** A language's points, in the catalog's order, then the ones Claude wrote. */
 export function grammarPointsFor(language: string): GrammarPointInfo[] {
-  return GRAMMAR_POINTS.filter((p) => p.language === language);
+  return [...GRAMMAR_POINTS, ...writtenPoints].filter((p) => p.language === language);
 }
 
 /** The point a Forms group belongs to ("preterite" in Spanish is es.preterite), if any. */
@@ -57,9 +94,9 @@ export function grammarPointForForms(language: string, group: string): GrammarPo
   return grammarPointsFor(language).find((p) => p.forms.some((f) => f.toLocaleLowerCase() === wanted));
 }
 
-/** A point by id, if the catalog has it. */
+/** A point by id, if the catalog has it or Claude wrote it. */
 export function grammarPoint(id: string): GrammarPointInfo | undefined {
-  return GRAMMAR_POINTS.find((p) => p.id === id);
+  return GRAMMAR_POINTS.find((p) => p.id === id) ?? writtenPoints.find((p) => p.id === id);
 }
 
 /** One run of an explanation's text; `language` marks words in the language being learned, shown apart. */

@@ -24,7 +24,7 @@ import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast, get_args
+from typing import Any, Literal, cast, get_args
 
 from franki_reader import grammar_europe, grammar_japanese
 from franki_reader.coverage import Checker, is_word, parse_line
@@ -66,6 +66,9 @@ class Point:
     # How it works, in the catalog's markdown-ish format (`**word**` for the language's words), for
     # a grammar lesson's request (grammar_lessons.py); the app shows its own bundled copy.
     explanation: str = ""
+    # Written by Claude when the catalog ran out (written_points.py), not part of the catalog: its
+    # finder comes from a spec, and the app labels it.
+    written: bool = False
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -512,9 +515,112 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
     )
 
 
-_ALL = _load(CATALOG, _FINDERS)
+_ALL: list[Point] = list(_load(CATALOG, _FINDERS))
 
 POINTS: dict[str, Point] = {p.id: p for p in _ALL}
+
+
+# ==== Points Claude wrote ====
+
+
+@dataclass(frozen=True)
+class FinderSpec:
+    """A finder described as data, for a point Claude wrote (written_points.py): the point's marker
+    words or phrases, and the neighbors that rule a match out, the shape `_thai` gives every Thai
+    point here. `not_these`: words that merely start with a marker (Thai). `not_before` and
+    `not_after`: a word right after or before the marker that means it's another sense.
+    `not_first`: never the line's first word."""
+
+    markers: tuple[str, ...]
+    not_these: tuple[str, ...] = ()
+    not_before: tuple[str, ...] = ()
+    not_after: tuple[str, ...] = ()
+    not_first: bool = False
+
+
+# Languages whose points can be found from marker words alone; Japanese's finders need Sudachi's
+# morphemes, so Claude doesn't write points for it.
+SPEC_LANGUAGES: frozenset[Code] = frozenset({"th", "es", "de", "fr", "ru", "el", "pl", "nb", "en"})
+
+
+def finder_from_spec(language: Code, spec: FinderSpec) -> Finder:
+    """The finder a spec describes. Thai uses `_thai`, as the catalog's Thai points do; a spaced
+    language matches each marker's words in a row, lowercased as `words` gives them."""
+    if language == "th":
+        thai = [
+            _thai(
+                m,
+                *spec.not_these,
+                not_first=spec.not_first,
+                not_before=spec.not_before,
+                not_after=spec.not_after,
+            )
+            for m in spec.markers
+        ]
+        return lambda ws: sorted({span for f in thai for span in f(ws)})
+    phrases = [tuple(m.lower().split()) for m in spec.markers if m.split()]
+    before = {w.lower() for w in spec.not_before}
+    after = {w.lower() for w in spec.not_after}
+
+    def find(ws: list[str]) -> list[Span]:
+        out: set[Span] = set()
+        for phrase in phrases:
+            n = len(phrase)
+            for i in range(len(ws) - n + 1):
+                if tuple(ws[i : i + n]) != phrase:
+                    continue
+                if (
+                    (spec.not_first and i == 0)
+                    or (i + n < len(ws) and ws[i + n] in before)
+                    or (i > 0 and ws[i - 1] in after)
+                ):
+                    continue
+                out.add((i, i + n))
+        return sorted(out)
+
+    return find
+
+
+def written_point(point_id: str, language: Code, data: Mapping[str, Any]) -> Point:
+    """A point Claude wrote, from what store.written_points keeps."""
+    spec = data["spec"]
+    return Point(
+        point_id,
+        language,
+        str(data["name"]),
+        str(data["note"]),
+        str(data["example"]),
+        finder_from_spec(
+            language,
+            FinderSpec(
+                tuple(spec.get("markers", ())),
+                tuple(spec.get("not_these", ())),
+                tuple(spec.get("not_before", ())),
+                tuple(spec.get("not_after", ())),
+                bool(spec.get("not_first", False)),
+            ),
+        ),
+        tuple(data.get("related", ())),
+        False,
+        int(data["level"]),
+        0,
+        bool(data.get("word_named", False)),
+        str(data.get("explanation", "")),
+        True,
+    )
+
+
+def register(point: Point) -> None:
+    """Adds a point Claude wrote beside the catalog's (or replaces one with its id), so it can be
+    chosen, found, drilled and rotated like any other until the server stops."""
+    POINTS[point.id] = point
+    _ALL[:] = [p for p in _ALL if p.id != point.id] + [point]
+
+
+def unregister(point_id: str) -> None:
+    """Takes a point Claude wrote back out (a test's cleanup); the catalog's are never removed."""
+    POINTS.pop(point_id, None)
+    _ALL[:] = [p for p in _ALL if p.id != point_id]
 
 
 def points_for(language: Code) -> list[Point]:

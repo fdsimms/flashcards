@@ -1117,6 +1117,23 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   passes Your topics' checks, the point's own finder finds the point in it, and in Thai it fits the
   woman's voice that reads it (`gender.thai_fits`). The cost is kept as "grammar_lessons". Nothing
   here grades a card.
+- **Points Claude writes** (25 November 2026, the owner, from the rotation design: Claude writes the
+  next point when the list runs out). When a language has at most `LEFT` (1) point neither practiced
+  nor known, the engine asks Claude for the next one in the background (`Engine._maybe_write_point`,
+  from `rotate_grammar`), at most `PER_DAY` (1) a study day. Claude proposes the point and describes
+  its finder as data (`grammar.FinderSpec`: marker words or phrases, longer words that merely start
+  with one, and neighbors that rule a match out, the shape every Thai finder already has), with
+  example lines and look-alike lines (`written_points.py`). Code keeps the point only when at least
+  3 examples pass Your topics' checks and its finder finds every one, it finds nothing in a
+  look-alike, and no point the language has already finds most of the examples. A kept point is
+  stored in `written_points` (id `<language>.c<n>`, level after the hardest), registered beside the
+  catalog whenever the store opens (`grammar.register`), and from then on chosen, found, drilled,
+  rotated and taught like the catalog's. A swap that found no point left keeps its slot open, and the
+  next text starts the new point in it, showing the card again (`Engine._fill_open_slot`). The app
+  reads them from `GET /api/grammar/written` and keeps a copy (`useWrittenPoints`,
+  `setWrittenPoints`), and a written point's page and lesson say "Written by Claude", as Your topics
+  do, since code can't check its explanation. Japanese is never written for: its finders need
+  Sudachi. The cost is kept as "written_points".
 - **Finding points.** Thai points are words, matched on the coverage segmentation; the segmenter
   sometimes joins one onto the next word (กำลังกิน), so a word starting with the point counts, with
   listed look-alikes left out (ต้องการ, "want", isn't ต้อง, "must"). Spanish points are verb forms,

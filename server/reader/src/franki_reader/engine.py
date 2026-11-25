@@ -39,6 +39,7 @@ from franki_reader import (
     meanings,
     rotation,
     store,
+    written_points,
 )
 from franki_reader.coverage import Checker, Coverage, parse_line
 from franki_reader.difficulty import Difficulty, after_reading, nearest_floor
@@ -187,6 +188,7 @@ class Engine:
         write_forms: forms.WriteForms | None = None,
         write_ipa: ai_ipa.WriteIpa | None = None,
         synthesize_parts: SynthesizeParts | None = None,
+        write_point: written_points.WritePoint | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -236,6 +238,9 @@ class Engine:
         self._stages: dict[_Key, TextStage] = {}  # where each of those has got to
         self._failures: dict[_Key, _Failure] = {}
         self._tasks: set[asyncio.Task[None]] = set()
+        # Claude's writer of new grammar points, and the languages it's writing one for now.
+        self.write_point = write_point
+        self._writing_points: set[Code] = set()
 
     # ==== Lexicon ====
 
@@ -909,7 +914,57 @@ class Engine:
             )
             made.append(replace(swap, id=store.add_rotation(self.conn, swap)))
             log.info("Grammar rotated: %s learned, %s started", point.id, swap.started or "none")
+        if not made:
+            self._fill_open_slot(language)
+        self._maybe_write_point(language)
         return made
+
+    def _fill_open_slot(self, language: Code) -> None:
+        """Starts the next point in the slot a swap left empty because no point was left, once
+        there is one (Claude wrote it since): the swap's notice then says what is practiced now."""
+        swap = store.open_rotation(self.conn, language)
+        if swap is None:
+            return
+        choices = store.load_grammar(self.conn)
+        practiced = [p for p in grammar.points_for(language) if choices.get(p.id) == "practice"]
+        nxt = grammar.next_to_learn(language, choices)
+        if nxt is None or len(practiced) >= grammar.MAX_PRACTICE:
+            return
+        store.set_grammar_many(self.conn, {nxt.id: "practice"}, self.clock())
+        store.fill_rotation(self.conn, swap.id, nxt.id, choices.get(nxt.id, ""))
+        log.info("Grammar rotated: %s started in the slot %s left", nxt.id, swap.graduated)
+
+    def _maybe_write_point(self, language: Code) -> None:
+        """Has Claude write the language's next grammar point in the background when it's short of
+        points to learn (written_points.py), at most `PER_DAY` a study day, one at a time."""
+        write = self.write_point
+        if write is None or language in self._writing_points:
+            return
+        if not written_points.needs_point(language, store.load_grammar(self.conn)):
+            return
+        start = study_day_start(self.clock(), self.rollover(), self.zone)
+        if (
+            store.call_count_since(self.conn, "written_points", language, start)
+            >= written_points.PER_DAY
+        ):
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # outside the server's loop (a test, a script): nothing to run it on
+        self._writing_points.add(language)
+
+        async def run() -> None:
+            try:
+                await written_points.write_point(
+                    self.conn, self.snapshot, write, language, self.clock()
+                )
+            finally:
+                self._writing_points.discard(language)
+
+        task = loop.create_task(run())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     def undo_rotation(self, rotation_id: int) -> str | None:
         """Takes a swap back: the learned point is practiced again (its count starts over) and the
