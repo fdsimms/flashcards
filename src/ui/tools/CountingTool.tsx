@@ -18,6 +18,7 @@ import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage
 import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
+import { withThaiLineHeight } from '../../core/script';
 
 const MODES: { value: CountMode; label: string }[] = [{ value: 'say', label: 'Say it' }, { value: 'pick', label: 'Pick' }];
 
@@ -122,7 +123,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
     <View style={{ alignItems: 'center', gap: space.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.l }}>
         <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 48, fontVariant: ['tabular-nums'], color: c.text }}>{question?.n}</Text>
-        {noun ? <Text selectable style={{ ...type.cardFront, color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
+        {noun ? <Text selectable style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
       </View>
       {noun?.cue.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
       {noun?.meaning ? <Text style={{ ...type.subhead, color: c.text }}>{noun.meaning}</Text> : null}

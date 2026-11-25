@@ -22,6 +22,7 @@ import { Chip } from './CramThemes';
 import { setThemeState } from './themeStore';
 import { TalkLine } from './TalkLine';
 import { useTalkSize } from './talkSize';
+import { withThaiLineHeight } from '../../core/script';
 
 type Stage = 'start' | 'ask' | 'write' | 'result';
 type AddWords = (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
@@ -208,7 +209,7 @@ function Chat({ turns, draft, onDraft, onSend, asking, spoken }: {
       <View style={{ gap: space.s }}>
         {turns.map((t, i) => (
           <View key={i} style={{ maxWidth: '85%', alignSelf: t.asker === 'claude' ? 'flex-start' : 'flex-end', borderRadius: radius.l, paddingVertical: space.s + 1, paddingHorizontal: space.m, backgroundColor: t.asker === 'claude' ? c.surface : c.accentFill, borderWidth: t.asker === 'claude' ? 1 : 0, borderColor: c.border }}>
-            <Text style={{ ...type.callout, color: c.text }}>{t.text}</Text>
+            <Text style={{ ...withThaiLineHeight(type.callout, t.text), color: c.text }}>{t.text}</Text>
           </View>
         ))}
         {asking ? <Text style={{ ...type.subhead, color: c.textSecondary }}>Thinking of a question</Text> : null}
