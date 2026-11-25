@@ -131,7 +131,7 @@ export function ReadCastKind({ api, language, kind, current, onSettings, onAudit
               </View>
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: 6, borderRadius: 3, backgroundColor: c.fill, marginHorizontal: space.xs, marginTop: space.s }}>
                 <View style={{ position: 'absolute', top: 0, bottom: 0, left: `${Math.min(at, zero) * 100}%`, width: `${Math.abs(at - zero) * 100}%`, backgroundColor: c.accent, borderRadius: 3 }} />
-                <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: 11, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
+                <View style={{ position: 'absolute', top: -8, left: `${at * 100}%`, marginLeft: -11, width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.surface, borderWidth: hairline, borderColor: c.controlEdge }} />
               </View>
             </View>
           </Group>

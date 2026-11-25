@@ -252,7 +252,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
             <View key={i} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs + 2 }}>
               {(b.chips ?? []).map((chip) => (
                 <View key={chip} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingHorizontal: space.m - 1, paddingVertical: space.xs }}>
-                  {b.gender && chip === GENDER_WORDS[b.gender] ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: genderColor(c, b.gender) }} /> : null}
+                  {b.gender && chip === GENDER_WORDS[b.gender] ? <View style={{ width: 8, height: 8, borderRadius: radius.pill, backgroundColor: genderColor(c, b.gender) }} /> : null}
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{chip}</Text>
                 </View>
               ))}

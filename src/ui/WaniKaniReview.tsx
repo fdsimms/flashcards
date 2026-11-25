@@ -779,7 +779,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             scaleTo={0.92}
             style={{ position: 'absolute', right: space.xs, top: 0, bottom: 0, width: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
           >
-            <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkLine }}>
+            <View style={{ width: 34, height: 34, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkLine }}>
               <Icon name="ellipsis" size={18} color={c.onRating} weight="bold" />
             </View>
           </Tappable>
