@@ -4,7 +4,7 @@ import type { Language } from '../reader/api';
 import type { Note, NoteType } from '../core/types';
 import { headword } from '../core/forms';
 import { setAsideOf, SKILL_COVERED_TAG, SKILL_STOPPED_TAG } from '../core/skillTag';
-import { drillOfTags, stepWaits, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillWordDrafts, type SkillDraft, type SkillGroup } from '../tools/skills';
+import { drillOfTags, stepWaits, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillFrontKey, skillWordDrafts, type SkillDraft, type SkillGroup } from '../tools/skills';
 import { knownAmong, SKILL_WORD_NOTE_TYPE, type SkillWordDraft } from '../tools/skillWords';
 import { ensureDeck } from './deckService';
 import { deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from './noteService';
@@ -78,7 +78,7 @@ export async function addSkillCards(store: NoteStore & Pick<AnkiLink, 'setAnkiCa
   let skipped = 0;
   for (const [i, d] of drafts.entries()) {
     add.onProgress?.(i, drafts.length + wordDrafts.length);
-    if (have.has(d.fields.Front)) { skipped++; continue; }
+    if (have.has(skillFrontKey(d.fields.Front))) { skipped++; continue; }
     try {
       const note = await saveNote(store, { deck, model: SKILL_NOTE_TYPE, fields: { ...emptyFields(basic.fields), ...d.fields }, tags: d.tags }, now);
       added++;
@@ -118,12 +118,12 @@ function emptyFields(fields: string[]): Record<string, string> {
 
 /** The first fields of the skill cards already in the collection, which is how a card counts as added. */
 export const haveFronts = (notes: Iterable<Note>): Set<string> =>
-  new Set([...notes].filter((n) => n.model === SKILL_NOTE_TYPE && n.tags.includes(SKILL_TAG)).map((n) => n.fields.Front));
+  new Set([...notes].filter((n) => n.model === SKILL_NOTE_TYPE && n.tags.includes(SKILL_TAG)).map((n) => skillFrontKey(n.fields.Front)));
 
 /** What adding `groups` would still write: the cards the deck hasn't got. The server's daily job works out the same (skills.py). */
 export const missingDrafts = (notes: Iterable<Note>, language: Language, languageName: string, groups: SkillGroup[]): SkillDraft[] => {
   const have = haveFronts(notes);
-  return skillDrafts(language, languageName, groups).filter((d) => !have.has(d.fields.Front));
+  return skillDrafts(language, languageName, groups).filter((d) => !have.has(skillFrontKey(d.fields.Front)));
 };
 
 /** The skill notes in a deck and the decks under it. */

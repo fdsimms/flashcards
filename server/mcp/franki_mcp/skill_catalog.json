@@ -1623,8 +1623,8 @@
      "title": "Consonant classes",
      "notes": [
       {
-       "front": "<div style=\"font-size:64px\">ก</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>gaaw gài · ไก่, chicken</div>",
+       "front": "<div style=\"font-size:64px\">ก</div><div>[anki:tts lang=th_TH]กอ ไก่[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>gaaw gài · ไก่, chicken</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1633,8 +1633,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">จ</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>jaaw jaan · จาน, plate</div>",
+       "front": "<div style=\"font-size:64px\">จ</div><div>[anki:tts lang=th_TH]จอ จาน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>jaaw jaan · จาน, plate</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1643,8 +1643,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ด</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>daaw dèk · เด็ก, child</div>",
+       "front": "<div style=\"font-size:64px\">ด</div><div>[anki:tts lang=th_TH]ดอ เด็ก[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>daaw dèk · เด็ก, child</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1653,8 +1653,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ต</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>dtaaw dtào · เต่า, turtle</div>",
+       "front": "<div style=\"font-size:64px\">ต</div><div>[anki:tts lang=th_TH]ตอ เต่า[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>dtaaw dtào · เต่า, turtle</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1663,8 +1663,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฎ</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>daaw chá-daa · ชฎา, a dancer's crown</div>",
+       "front": "<div style=\"font-size:64px\">ฎ</div><div>[anki:tts lang=th_TH]ดอ ชฎา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>daaw chá-daa · ชฎา, a dancer's crown</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1673,8 +1673,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฏ</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>dtaaw bpà-dtàk · ปฏัก, a goad</div>",
+       "front": "<div style=\"font-size:64px\">ฏ</div><div>[anki:tts lang=th_TH]ตอ ปฏัก[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>dtaaw bpà-dtàk · ปฏัก, a goad</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1683,8 +1683,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">บ</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>baaw bai-máai · ใบไม้, leaf</div>",
+       "front": "<div style=\"font-size:64px\">บ</div><div>[anki:tts lang=th_TH]บอ ใบไม้[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>baaw bai-máai · ใบไม้, leaf</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1693,8 +1693,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ป</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>bpaaw bplaa · ปลา, fish</div>",
+       "front": "<div style=\"font-size:64px\">ป</div><div>[anki:tts lang=th_TH]ปอ ปลา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>bpaaw bplaa · ปลา, fish</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1703,8 +1703,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">อ</div><div>Which class?</div>",
-       "back": "<div><b>Middle class</b></div><div>aaw àang · อ่าง, basin</div>",
+       "front": "<div style=\"font-size:64px\">อ</div><div>[anki:tts lang=th_TH]ออ อ่าง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#3a9a96\">● Middle class</b></div><div>aaw àang · อ่าง, basin</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1713,8 +1713,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ข</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>khǎaw khài · ไข่, egg</div>",
+       "front": "<div style=\"font-size:64px\">ข</div><div>[anki:tts lang=th_TH]ขอ ไข่[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>khǎaw khài · ไข่, egg</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1723,8 +1723,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฃ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>khǎaw khùat · ฃวด, bottle</div>",
+       "front": "<div style=\"font-size:64px\">ฃ</div><div>[anki:tts lang=th_TH]ขอ ฃวด[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>khǎaw khùat · ฃวด, bottle</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1733,8 +1733,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฉ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>chǎaw chìng · ฉิ่ง, small cymbals</div>",
+       "front": "<div style=\"font-size:64px\">ฉ</div><div>[anki:tts lang=th_TH]ฉอ ฉิ่ง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>chǎaw chìng · ฉิ่ง, small cymbals</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1743,8 +1743,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ถ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>thǎaw thǔng · ถุง, bag</div>",
+       "front": "<div style=\"font-size:64px\">ถ</div><div>[anki:tts lang=th_TH]ถอ ถุง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>thǎaw thǔng · ถุง, bag</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1753,8 +1753,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฐ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>thǎaw thǎan · ฐาน, base</div>",
+       "front": "<div style=\"font-size:64px\">ฐ</div><div>[anki:tts lang=th_TH]ถอ ฐาน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>thǎaw thǎan · ฐาน, base</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1763,8 +1763,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ผ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>phǎaw phûeng · ผึ้ง, bee</div>",
+       "front": "<div style=\"font-size:64px\">ผ</div><div>[anki:tts lang=th_TH]ผอ ผึ้ง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>phǎaw phûeng · ผึ้ง, bee</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1773,8 +1773,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฝ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>fǎaw fǎa · ฝา, lid</div>",
+       "front": "<div style=\"font-size:64px\">ฝ</div><div>[anki:tts lang=th_TH]ฝอ ฝา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>fǎaw fǎa · ฝา, lid</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1783,8 +1783,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ศ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw sǎa-laa · ศาลา, open pavilion</div>",
+       "front": "<div style=\"font-size:64px\">ศ</div><div>[anki:tts lang=th_TH]สอ ศาลา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw sǎa-laa · ศาลา, open pavilion</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1793,8 +1793,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ษ</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw ruue-sǐi · ฤๅษี, hermit</div>",
+       "front": "<div style=\"font-size:64px\">ษ</div><div>[anki:tts lang=th_TH]สอ ฤๅษี[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw ruue-sǐi · ฤๅษี, hermit</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1803,8 +1803,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ส</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>sǎaw sǔea · เสือ, tiger</div>",
+       "front": "<div style=\"font-size:64px\">ส</div><div>[anki:tts lang=th_TH]สอ เสือ[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>sǎaw sǔea · เสือ, tiger</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1813,8 +1813,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ห</div><div>Which class?</div>",
-       "back": "<div><b>High class</b></div><div>hǎaw hìip · หีบ, chest, box</div>",
+       "front": "<div style=\"font-size:64px\">ห</div><div>[anki:tts lang=th_TH]หอ หีบ[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#d0527f\">● High class</b></div><div>hǎaw hìip · หีบ, chest, box</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1823,8 +1823,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ค</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw khwaai · ควาย, buffalo</div>",
+       "front": "<div style=\"font-size:64px\">ค</div><div>[anki:tts lang=th_TH]คอ ควาย[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw khwaai · ควาย, buffalo</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1833,8 +1833,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฅ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw khon · ฅน, person</div>",
+       "front": "<div style=\"font-size:64px\">ฅ</div><div>[anki:tts lang=th_TH]คอ ฅน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw khon · ฅน, person</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1843,8 +1843,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฆ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>khaaw rá-khang · ระฆัง, bell</div>",
+       "front": "<div style=\"font-size:64px\">ฆ</div><div>[anki:tts lang=th_TH]คอ ระฆัง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>khaaw rá-khang · ระฆัง, bell</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1853,8 +1853,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ง</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>ngaaw nguu · งู, snake</div>",
+       "front": "<div style=\"font-size:64px\">ง</div><div>[anki:tts lang=th_TH]งอ งู[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>ngaaw nguu · งู, snake</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1863,8 +1863,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ช</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>chaaw cháang · ช้าง, elephant</div>",
+       "front": "<div style=\"font-size:64px\">ช</div><div>[anki:tts lang=th_TH]ชอ ช้าง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>chaaw cháang · ช้าง, elephant</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1873,8 +1873,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ซ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>saaw sôo · โซ่, chain</div>",
+       "front": "<div style=\"font-size:64px\">ซ</div><div>[anki:tts lang=th_TH]ซอ โซ่[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>saaw sôo · โซ่, chain</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1883,8 +1883,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฌ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>chaaw chəə · เฌอ, tree</div>",
+       "front": "<div style=\"font-size:64px\">ฌ</div><div>[anki:tts lang=th_TH]ชอ เฌอ[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>chaaw chəə · เฌอ, tree</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1893,8 +1893,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ญ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>yaaw yǐng · หญิง, woman</div>",
+       "front": "<div style=\"font-size:64px\">ญ</div><div>[anki:tts lang=th_TH]ยอ หญิง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>yaaw yǐng · หญิง, woman</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1903,8 +1903,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฑ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw mon-thoo · มณโฑ, Montho, a queen in the Ramakien</div>",
+       "front": "<div style=\"font-size:64px\">ฑ</div><div>[anki:tts lang=th_TH]ทอ มณโฑ[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw mon-thoo · มณโฑ, Montho, a queen in the Ramakien</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1913,8 +1913,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฒ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw phûu-thâo · ผู้เฒ่า, elder</div>",
+       "front": "<div style=\"font-size:64px\">ฒ</div><div>[anki:tts lang=th_TH]ทอ ผู้เฒ่า[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw phûu-thâo · ผู้เฒ่า, elder</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1923,8 +1923,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ณ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>naaw neen · เณร, novice monk</div>",
+       "front": "<div style=\"font-size:64px\">ณ</div><div>[anki:tts lang=th_TH]นอ เณร[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>naaw neen · เณร, novice monk</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1933,8 +1933,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ท</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw thá-hǎan · ทหาร, soldier</div>",
+       "front": "<div style=\"font-size:64px\">ท</div><div>[anki:tts lang=th_TH]ทอ ทหาร[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw thá-hǎan · ทหาร, soldier</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1943,8 +1943,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ธ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>thaaw thong · ธง, flag</div>",
+       "front": "<div style=\"font-size:64px\">ธ</div><div>[anki:tts lang=th_TH]ทอ ธง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>thaaw thong · ธง, flag</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1953,8 +1953,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">น</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>naaw nǔu · หนู, mouse</div>",
+       "front": "<div style=\"font-size:64px\">น</div><div>[anki:tts lang=th_TH]นอ หนู[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>naaw nǔu · หนู, mouse</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1963,8 +1963,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">พ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>phaaw phaan · พาน, footed tray</div>",
+       "front": "<div style=\"font-size:64px\">พ</div><div>[anki:tts lang=th_TH]พอ พาน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>phaaw phaan · พาน, footed tray</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1973,8 +1973,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฟ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>faaw fan · ฟัน, tooth</div>",
+       "front": "<div style=\"font-size:64px\">ฟ</div><div>[anki:tts lang=th_TH]ฟอ ฟัน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>faaw fan · ฟัน, tooth</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1983,8 +1983,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ภ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>phaaw sǎm-phao · สำเภา, junk (sailing ship)</div>",
+       "front": "<div style=\"font-size:64px\">ภ</div><div>[anki:tts lang=th_TH]พอ สำเภา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>phaaw sǎm-phao · สำเภา, junk (sailing ship)</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -1993,8 +1993,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ม</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>maaw máa · ม้า, horse</div>",
+       "front": "<div style=\"font-size:64px\">ม</div><div>[anki:tts lang=th_TH]มอ ม้า[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>maaw máa · ม้า, horse</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2003,8 +2003,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ย</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>yaaw yák · ยักษ์, giant</div>",
+       "front": "<div style=\"font-size:64px\">ย</div><div>[anki:tts lang=th_TH]ยอ ยักษ์[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>yaaw yák · ยักษ์, giant</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2013,8 +2013,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ร</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>raaw ruea · เรือ, boat</div>",
+       "front": "<div style=\"font-size:64px\">ร</div><div>[anki:tts lang=th_TH]รอ เรือ[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>raaw ruea · เรือ, boat</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2023,8 +2023,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ล</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>laaw ling · ลิง, monkey</div>",
+       "front": "<div style=\"font-size:64px\">ล</div><div>[anki:tts lang=th_TH]ลอ ลิง[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>laaw ling · ลิง, monkey</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2033,8 +2033,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ว</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>waaw wǎen · แหวน, ring</div>",
+       "front": "<div style=\"font-size:64px\">ว</div><div>[anki:tts lang=th_TH]วอ แหวน[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>waaw wǎen · แหวน, ring</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2043,8 +2043,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฬ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>laaw jù-laa · จุฬา, a kind of kite</div>",
+       "front": "<div style=\"font-size:64px\">ฬ</div><div>[anki:tts lang=th_TH]ลอ จุฬา[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>laaw jù-laa · จุฬา, a kind of kite</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2053,8 +2053,8 @@
        "suspended": false
       },
       {
-       "front": "<div style=\"font-size:64px\">ฮ</div><div>Which class?</div>",
-       "back": "<div><b>Low class</b></div><div>haaw nók-hûuk · นกฮูก, owl</div>",
+       "front": "<div style=\"font-size:64px\">ฮ</div><div>[anki:tts lang=th_TH]ฮอ นกฮูก[/anki:tts]</div><div>Which class?</div>",
+       "back": "<div><b style=\"color:#6b76d6\">● Low class</b></div><div>haaw nók-hûuk · นกฮูก, owl</div>",
        "tags": [
         "skill",
         "skill::consonants",
@@ -2071,7 +2071,7 @@
      "notes": [
       {
        "front": "<div style=\"font-size:64px\">กะ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>ga · A, as in \"cup\". Example: จะ (jà), will.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>ga · A, as in \"cup\". Example: จะ (jà), will.</div><div>[anki:tts lang=th_TH]จะ[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2081,7 +2081,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กิ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gi · I, as in \"sit\". Example: คิด (khít), think.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>gi · I, as in \"sit\". Example: คิด (khít), think.</div><div>[anki:tts lang=th_TH]คิด[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2091,7 +2091,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กึ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gue · Example: ตึก (dtùek), building.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>gue · Example: ตึก (dtùek), building.</div><div>[anki:tts lang=th_TH]ตึก[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2101,7 +2101,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กุ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gu · U, as in \"put\". Example: สุข (sùk), happy.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>gu · U, as in \"put\". Example: สุข (sùk), happy.</div><div>[anki:tts lang=th_TH]สุข[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2111,7 +2111,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกะ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>ge · E, as in \"bed\". Example: เด็ก (dèk), child.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>ge · E, as in \"bed\". Example: เด็ก (dèk), child.</div><div>[anki:tts lang=th_TH]เด็ก[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2121,7 +2121,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">แกะ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gae · A, as in \"cat\". Example: และ (láe), and.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>gae · A, as in \"cat\". Example: และ (láe), and.</div><div>[anki:tts lang=th_TH]และ[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2131,7 +2131,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">โกะ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>go · Example: โต๊ะ (dtó), table.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>go · Example: โต๊ะ (dtó), table.</div><div>[anki:tts lang=th_TH]โต๊ะ[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2141,7 +2141,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกาะ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gaw · Aw, as in \"saw\", cut short. Example: เกาะ (gàw), island.</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
+       "back": "<div><b>Short</b></div><div>gaw · Aw, as in \"saw\", cut short. Example: เกาะ (gàw), island.</div><div>[anki:tts lang=th_TH]เกาะ[/anki:tts]</div><div>A short vowel with nothing after it makes the syllable dead, so with no tone mark its tone follows the dead-syllable rule.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2151,7 +2151,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กา</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gaa · A, as in \"father\". Example: มา (maa), come.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gaa · A, as in \"father\". Example: มา (maa), come.</div><div>[anki:tts lang=th_TH]มา[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2161,7 +2161,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กี</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gii · Ee, as in \"see\". Example: ดี (dii), good.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gii · Ee, as in \"see\". Example: ดี (dii), good.</div><div>[anki:tts lang=th_TH]ดี[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2171,7 +2171,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กือ</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>guue · Example: ซื้อ (súue), buy.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>guue · Example: ซื้อ (súue), buy.</div><div>[anki:tts lang=th_TH]ซื้อ[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2181,7 +2181,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กู</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>guu · Oo, as in \"moon\". Example: ดู (duu), watch.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>guu · Oo, as in \"moon\". Example: ดู (duu), watch.</div><div>[anki:tts lang=th_TH]ดู[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2191,7 +2191,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เก</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gee · Ay, as in \"say\", held steady. Example: เพลง (phleeng), song.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gee · Ay, as in \"say\", held steady. Example: เพลง (phleeng), song.</div><div>[anki:tts lang=th_TH]เพลง[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2201,7 +2201,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">แก</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gaae · A, as in \"cat\", held longer. Example: แม่ (mâae), mother.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gaae · A, as in \"cat\", held longer. Example: แม่ (mâae), mother.</div><div>[anki:tts lang=th_TH]แม่[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2211,7 +2211,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">โก</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>goo · O, as in \"go\", held steady. Example: โทร (thoo), phone, call.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>goo · O, as in \"go\", held steady. Example: โทร (thoo), phone, call.</div><div>[anki:tts lang=th_TH]โทร[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2221,7 +2221,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กอ</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gaaw · Aw, as in \"saw\". Example: พ่อ (phâaw), father.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gaaw · Aw, as in \"saw\". Example: พ่อ (phâaw), father.</div><div>[anki:tts lang=th_TH]พ่อ[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2231,7 +2231,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกอ</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>gəə · Er, as in \"her\". Example: เธอ (thəə), she, you.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>gəə · Er, as in \"her\". Example: เธอ (thəə), she, you.</div><div>[anki:tts lang=th_TH]เธอ[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2241,7 +2241,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กัว</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>guua · Example: ตัว (dtuua), body, classifier for animals.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>guua · Example: ตัว (dtuua), body, classifier for animals.</div><div>[anki:tts lang=th_TH]ตัว[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2251,7 +2251,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกีย</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>giia · Example: เรียน (riian), study.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>giia · Example: เรียน (riian), study.</div><div>[anki:tts lang=th_TH]เรียน[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2261,7 +2261,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกือ</div><div>Short or long?</div>",
-       "back": "<div><b>Long</b></div><div>guea · Example: เรือ (ruea), boat.</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Long</b></div><div>guea · Example: เรือ (ruea), boat.</div><div>[anki:tts lang=th_TH]เรือ[/anki:tts]</div><div>A long vowel makes the syllable live, so with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2271,7 +2271,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">กำ</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gam · Um, as in \"drum\". Example: ทำ (tham), do, make.</div><div>A short vowel, but it ends in m, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Short</b></div><div>gam · Um, as in \"drum\". Example: ทำ (tham), do, make.</div><div>[anki:tts lang=th_TH]ทำ[/anki:tts]</div><div>A short vowel, but it ends in m, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2281,7 +2281,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ไก</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\". Example: ไม่ (mâi), not.</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\". Example: ไม่ (mâi), not.</div><div>[anki:tts lang=th_TH]ไม่[/anki:tts]</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2291,7 +2291,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">ใก</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\", the same sound as ไ. Example: ใช่ (châi), yes, that's right.</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Short</b></div><div>gai · I, as in \"Thai\", the same sound as ไ. Example: ใช่ (châi), yes, that's right.</div><div>[anki:tts lang=th_TH]ใช่[/anki:tts]</div><div>A short vowel, but it ends in i, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",
@@ -2301,7 +2301,7 @@
       },
       {
        "front": "<div style=\"font-size:64px\">เกา</div><div>Short or long?</div>",
-       "back": "<div><b>Short</b></div><div>gao · Ow, as in \"now\". Example: เขา (khǎo), he, she, they.</div><div>A short vowel, but it ends in o, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
+       "back": "<div><b>Short</b></div><div>gao · Ow, as in \"now\". Example: เขา (khǎo), he, she, they.</div><div>[anki:tts lang=th_TH]เขา[/anki:tts]</div><div>A short vowel, but it ends in o, which makes the syllable live: with no tone mark it keeps its class's own tone.</div>",
        "tags": [
         "skill",
         "skill::vowels",

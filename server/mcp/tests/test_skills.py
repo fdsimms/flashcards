@@ -125,6 +125,13 @@ async def test_settings_are_saved_in_the_collection_for_franki(client, desktop, 
     assert "no skill 'nope'" in await call_error(client, "set_skill_cards", deck="Thai", skills_off=["nope"])
 
 
+def test_a_card_counts_as_added_with_or_without_its_audio_tag():
+    old = '<div style="font-size:64px">ก</div><div>Which class?</div>'
+    new = '<div style="font-size:64px">ก</div><div>[anki:tts lang=th_TH]กอ ไก่[/anki:tts]</div><div>Which class?</div>'
+    assert skills.front_key(new) == old
+    assert skills.front_key(old) == old
+
+
 async def test_the_hourly_job_adds_only_for_decks_that_are_on_and_automatic(client, cm, thai):
     assert await skills.auto_add(cm) == 0  # automatic is off by default
     await call(client, "set_skill_cards", deck="Thai", auto=True, skills_off=["money"])

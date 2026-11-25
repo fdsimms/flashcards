@@ -13,7 +13,7 @@ import { clockText, randomTime, type ClockTime, type MinuteStep, type TimeSaying
 import { CASE_LANGUAGES, caseName, caseRule, governorId } from './cases';
 import { randomDate, weekdayOf, type CalendarDate, type DateParts, type DateScope } from './date';
 import { CURRENCIES, randomAmount, type MoneyMax } from './money';
-import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
+import { CLASS_COLORS, CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
 import { countEnding, type CountQuestion } from './counting';
@@ -467,6 +467,16 @@ export interface SkillDraft {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/** A Thai play button: the phone's voice reads `text` (Anki's [anki:tts], so Anki on a computer reads it too). */
+const thaiSpeech = (text: string) => `<div>[anki:tts lang=th_TH]${esc(text)}[/anki:tts]</div>`;
+
+/**
+ * A skill card's Front with its [anki:tts] tags taken out: how a card counts as already added
+ * (`haveFronts`, and skills.py's `_have_fronts`), so audio added to a card later never makes the
+ * deck's existing cards look missing and written a second time.
+ */
+export const skillFrontKey = (front: string): string => front.replace(/<div>\[anki:tts[^\]]*\][\s\S]*?\[\/anki:tts\]<\/div>/g, '');
+
 /** A Which word fits card's back on Anki on the computer, where there's no drill: each word's rule, to check a sentence against. Nothing for another step. */
 function contrastRules(step: DrillStep): string {
   if (step.group !== 'contrast') return '';
@@ -484,8 +494,8 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
       for (const c of CONSONANTS) {
         drafts.push({
           fields: {
-            Front: `<div style="font-size:64px">${esc(c.letter)}</div><div>Which class?</div>`,
-            Back: `<div><b>${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
+            Front: `<div style="font-size:64px">${esc(c.letter)}</div>${thaiSpeech(c.say)}<div>Which class?</div>`,
+            Back: `<div><b style="color:${CLASS_COLORS[c.cls]}">● ${CLASS_NAMES[c.cls]} class</b></div><div>${esc(c.name)} · ${esc(c.word)}, ${esc(c.meaning)}</div>`,
           },
           tags: [SKILL_TAG, `${SKILL_TAG}::consonants`, lang],
           suspended: false,
@@ -500,7 +510,7 @@ export function skillDrafts(language: Language, languageName: string, groups: Sk
         drafts.push({
           fields: {
             Front: `<div style="font-size:64px">${esc(v.shown)}</div><div>Short or long?</div>`,
-            Back: `<div><b>${v.long ? 'Long' : 'Short'}</b></div><div>${esc(vowelSyllable(v))} · ${esc(sound)}</div>${why.length ? `<div>${esc(why.join(' '))}</div>` : ''}`,
+            Back: `<div><b>${v.long ? 'Long' : 'Short'}</b></div><div>${esc(vowelSyllable(v))} · ${esc(sound)}</div>${thaiSpeech(v.example.text)}${why.length ? `<div>${esc(why.join(' '))}</div>` : ''}`,
           },
           tags: [SKILL_TAG, `${SKILL_TAG}::vowels`, lang],
           suspended: false,

@@ -118,6 +118,15 @@ def language_of_deck(name: str) -> str | None:
     return None
 
 
+_TTS_DIV = re.compile(r"<div>\[anki:tts[^\]]*\].*?\[/anki:tts\]</div>", re.DOTALL)
+
+
+def front_key(front: str) -> str:
+    """A Front with its [anki:tts] tags taken out: how a card counts as already added, so audio put on
+    a card later never makes the deck's existing cards look missing. The app's `skillFrontKey`."""
+    return _TTS_DIV.sub("", front)
+
+
 def _groups(language: str) -> list[dict[str, Any]]:
     return CATALOG["languages"][language]["groups"]
 
@@ -127,7 +136,7 @@ def _have_fronts(col: Collection) -> set[str]:
     out: set[str] = set()
     for nid in col.find_notes(f'"note:{search_text(NOTE_TYPE)}" tag:{TAG} {NOT_WORDS}'):
         try:
-            out.add(col.get_note(nid)["Front"])
+            out.add(front_key(col.get_note(nid)["Front"]))
         except KeyError:
             continue
     return out
@@ -135,7 +144,7 @@ def _have_fronts(col: Collection) -> set[str]:
 
 def _missing(col: Collection, language: str, off: tuple[str, ...]) -> list[dict[str, Any]]:
     have = _have_fronts(col)
-    return [n for g in _groups(language) if g["id"] not in off for n in g["notes"] if n["front"] not in have]
+    return [n for g in _groups(language) if g["id"] not in off for n in g["notes"] if front_key(n["front"]) not in have]
 
 
 def _norm_word(w: str) -> str:
@@ -257,7 +266,7 @@ def _state(col: Collection, deck_id: int, name: str, language: str) -> dict[str,
     skills = [
         {
             "id": g["id"], "title": g["title"], "on": g["id"] not in s.off,
-            "cards": len(g["notes"]), "missing": sum(1 for n in g["notes"] if n["front"] not in have),
+            "cards": len(g["notes"]), "missing": sum(1 for n in g["notes"] if front_key(n["front"]) not in have),
             "words_missing": sum(1 for w in g["words"] if _norm_word(w["fields"]["Entry"]) not in headwords),
         }
         for g in _groups(language)
