@@ -29,7 +29,7 @@ export function aspectToCheck(note: Note, card: Pick<Card, 'kind'>): Aspect | un
 }
 
 /** Whether a note is in a language whose verbs have an aspect to ask about (`ASPECT_LANGUAGES`). */
-function hasAspectLanguage(note: Note): boolean {
+export function hasAspectLanguage(note: Note): boolean {
   return isOmnilanguage(note) && ASPECT_LANGUAGES.includes(speechLangFor(note)?.split('-')[0] ?? '');
 }
 

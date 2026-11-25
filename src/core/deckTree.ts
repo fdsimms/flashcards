@@ -1,6 +1,7 @@
 import { NEW_PER_DAY, REVIEWS_PER_DAY } from './config';
 import { nextStudyDayStart, studyDayKey } from './day';
 import { ankiToday, compareDeckNames, DEFAULT_ORDER, gatherNew, inFilteredOrder, isBehind, mix, REVIEW, sortNew, sortReviews, type SortContext } from './order';
+import { aspectPartners, groupPartners } from './aspectPairs';
 import { boostCap, type Boost } from './priority';
 import { deckTotals, type DeckTotals } from './deckTotals';
 import { isInProgress } from './progress';
@@ -163,6 +164,12 @@ export interface TreeQueueInput {
    * Franki's own: without it the mix is Anki's, which interleaves subdecks (the queue vectors).
    */
   batchBySubdeck?: boolean;
+  /**
+   * Each aspect-pair verb's partner note (`aspectPartners`, set by `queueInput`): a new card whose partner's
+   * card of the same kind is also new brings it in beside it, so a pair starts the same day. Without it,
+   * nothing is paired.
+   */
+  partnerOf?: Map<string, string>;
 }
 
 function sumStudied(root: string, studied: Map<string, StudiedToday>): StudiedToday {
@@ -273,6 +280,10 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   /** Whether every deck on the card's path still has room for it. */
   const hasRoom = (card: Card, kind: 'review' | 'new'): boolean =>
     pathOf(deckOfCard.get(card.id)!).every((d) => nodes.get(d)![kind] > 0);
+  /** Gives back the room `admit` took, for a card a pair's partner replaces. */
+  const release = (card: Card, kind: 'review' | 'new'): void => {
+    for (const d of pathOf(deckOfCard.get(card.id)!)) nodes.get(d)![kind]++;
+  };
   const admit = (card: Card, kind: 'review' | 'new'): boolean => {
     const path = pathOf(deckOfCard.get(card.id)!);
     if (!hasRoom(card, kind)) return false;
@@ -344,7 +355,36 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const boosted = boost ? newCards.filter((c) => boost.noteIds.has(c.noteId)) : [];
   const firstNew = boosted.length ? gatherFresh(boosted, boostCap(boost!.percent, nodes.get(root)!.new)) : [];
   const firstIds = new Set(firstNew.map((c) => c.id));
-  const fresh = previewDeck ? [] : [...firstNew, ...gatherFresh(newCards.filter((c) => !firstIds.has(c.id)))];
+  const gatheredNew = previewDeck ? [] : [...firstNew, ...gatherFresh(newCards.filter((c) => !firstIds.has(c.id)))];
+  // Aspect pairs start together: a new card's partner (the same kind, also new, not left out by a hold or a bury) joins it.
+  // The partner takes a free place if the limits leave one, else the place of the lowest-priority card that isn't half
+  // of a pair, and only when every card gathered is half of a pair does it go one over the daily limit (the owner's
+  // choice, 2026-11-25), so a pair never starts a day apart.
+  const partnerOf = input.partnerOf;
+  let gathered = [...gatheredNew];
+  if (partnerOf?.size) {
+    const inFresh = new Set(gathered.map((c) => c.id));
+    const pairedNow = (c: Card) => { const pn = partnerOf.get(c.noteId); return !!pn && gathered.some((g) => g.noteId === pn && g.kind === c.kind); };
+    for (const c of [...gathered]) {
+      const pn = partnerOf.get(c.noteId);
+      const other = pn ? newCards.find((x) => x.noteId === pn && x.kind === c.kind) : undefined;
+      if (!other || inFresh.has(other.id) || !inFresh.has(c.id) || heldBack(other, 'new')) continue;
+      let victim: Card | undefined;
+      if (!hasRoom(other, 'new')) {
+        victim = [...gathered].reverse().find((g) => g.id !== c.id && !pairedNow(g) && !firstIds.has(g.id));
+        if (victim) {
+          release(victim, 'new');
+          // Still no room on the partner's own decks: keep the victim and go over instead.
+          if (!hasRoom(other, 'new')) { admit(victim, 'new'); victim = undefined; }
+        }
+      }
+      admit(other, 'new');
+      inFresh.add(other.id);
+      if (victim) { inFresh.delete(victim.id); gathered = gathered.filter((g) => g.id !== victim!.id); }
+      gathered.push(other);
+    }
+  }
+  const fresh = partnerOf?.size ? groupPartners(sortNew(gathered, order.newSortOrder, ctx), partnerOf) : gathered;
 
   // ---- presentation ----
   const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);
@@ -359,11 +399,13 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const inBranch = (cards: Card[], b: string) => (branches.length > 1 ? cards.filter((c) => branchOf(c) === b) : cards);
   const main = rootFiltered || !input.batchBySubdeck ? mix(mix(reviews, interday, order.interdayLearningMix), fresh, order.newMix)
     : branches.flatMap((b) => mix(mix(inBranch(reviews, b), inBranch(interday, b), order.interdayLearningMix), inBranch(fresh, b), order.newMix));
+  // The mix spreads new cards among the reviews, which would part a pair: put a partner back beside its card.
+  const pairedMain = partnerOf?.size ? groupPartners(main, partnerOf, new Set(fresh.map((c) => c.id))) : main;
   return {
     due: [...learnNow, ...interday, ...reviews, ...learnAhead],
     fresh,
-    order: [...learnNow, ...main, ...learnAhead],
-    main,
+    order: [...learnNow, ...pairedMain, ...learnAhead],
+    main: pairedMain,
   };
 }
 
@@ -427,6 +469,7 @@ export function queueInput(a: {
     boostFor: a.boostFor,
     vacation,
     batchBySubdeck: a.batchBySubdeck,
+    partnerOf: aspectPartners(a.notes),
   };
 }
 
