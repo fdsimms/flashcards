@@ -2,10 +2,16 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { activeMisses, missReasonsFor, missReminder } from '../../src/core/misses';
-import { isSenseMiss, lastMissedSenses, numberedSenses, senseCountLabel, senseMissKey, senseReminder, sensesGot } from '../../src/core/senseMarks';
+import { carriedRecalled, isSenseMiss, lastMissedSenses, numberedSenses, senseCountLabel, senseMissKey, senseReminder, sensesGot } from '../../src/core/senseMarks';
 import { omniNote } from '../support/fixtures';
 
 describe('senseMarks', () => {
+  it('carries the senses the latest answer recalled, and nothing when none was missed', () => {
+    expect(carriedRecalled(3, [2])).toEqual([1, 3]);
+    expect(carriedRecalled(2, [1, 2])).toEqual([]);
+    expect(carriedRecalled(2, [])).toEqual([]);
+  });
+
   it('reads the senses of a Meaning that numbers them, and none of one that does not', () => {
     expect(numberedSenses('1. train\n2. move (in a game)\n3) draft (of air)')).toEqual(['train', 'move (in a game)', 'draft (of air)']);
     expect(numberedSenses('fame; glory')).toEqual([]);
