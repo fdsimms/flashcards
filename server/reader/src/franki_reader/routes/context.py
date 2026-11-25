@@ -14,6 +14,7 @@ from franki_reader import (
     cram_words,
     drills,
     fix_card,
+    grammar_lessons,
     grammar_topics,
     lesson_words,
     note_queue,
@@ -65,6 +66,7 @@ class AppContext:
     play: situations.Play | None
     give_feedback: situations.GiveFeedback | None
     write_topic: grammar_topics.WriteTopic | None
+    write_grammar_lesson: grammar_lessons.WriteLesson | None
     read_topic_image: topic_image.ReadTopic | None
     clips: ClipCache | None
     write_lesson: WritePlan | None

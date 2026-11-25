@@ -63,6 +63,9 @@ class Point:
     # Japanese's ている): tapping the point gives its answer away, so a drill never asks which point
     # a line uses and sets its gap questions against its related word_named points (drills.py).
     word_named: bool = False
+    # How it works, in the catalog's markdown-ish format (`**word**` for the language's words), for
+    # a grammar lesson's request (grammar_lessons.py); the app shows its own bundled copy.
+    explanation: str = ""
 
 
 def words(plain: str, lexicon: Checker) -> list[str]:
@@ -503,6 +506,7 @@ def _load(catalog: Path, finders: dict[str, Finder]) -> tuple[Point, ...]:
             int(e["level"]),
             int(e.get("jlpt", 0)),
             e.get("word_named", False),
+            str(e.get("explanation", "")),
         )
         for e in entries
     )

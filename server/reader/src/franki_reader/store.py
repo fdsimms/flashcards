@@ -403,6 +403,17 @@ CREATE TABLE IF NOT EXISTS grammar_answers (
     PRIMARY KEY (point_id, drill_id, answered_at)
 );
 
+-- A grammar point's lesson (grammar_lessons.py): its example lines as JSON
+-- ([{line, english, words}]), written once and kept. `status` is writing, ready or failed; `note`
+-- is what to tell the owner about a write that failed.
+CREATE TABLE IF NOT EXISTS grammar_lessons (
+    point_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    examples TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL
+);
+
 -- Each automatic swap of a practiced point (rotation.py): `graduated` moved to Know it and
 -- `started` (empty when there was none left) to Practice from `started_was` ('' for not set).
 -- `state` is new until the owner closes the notice (dismissed) or takes it back (undone).
@@ -1999,6 +2010,7 @@ CallFeature = Literal[
     "topic_image",
     "rare_words",
     "word_lookup",
+    "grammar_lessons",
 ]
 
 
@@ -2482,6 +2494,56 @@ def recent_grammar_answers(conn: sqlite3.Connection, point_id: str, limit: int) 
         (point_id, limit),
     ).fetchall()
     return [bool(r[0]) for r in rows]
+
+
+@dataclass(frozen=True)
+class GrammarLesson:
+    """A grammar point's lesson as kept (grammar_lessons.py)."""
+
+    point_id: str
+    status: str  # writing, ready or failed
+    note: str
+    examples: list[dict[str, Any]]  # [{line, english, words}]
+
+
+def get_grammar_lesson(conn: sqlite3.Connection, point_id: str) -> GrammarLesson | None:
+    row = conn.execute(
+        "SELECT status, note, examples FROM grammar_lessons WHERE point_id = ?", (point_id,)
+    ).fetchone()
+    return GrammarLesson(point_id, row[0], row[1], json.loads(row[2])) if row else None
+
+
+def start_grammar_lesson(conn: sqlite3.Connection, point_id: str, now: datetime) -> bool:
+    """Marks the lesson writing, keeping any examples it has; False when it already is, so one write
+    runs at a time."""
+    with conn:
+        cur = conn.execute(
+            "INSERT INTO grammar_lessons (point_id, status, updated_at) VALUES (?, 'writing', ?)"
+            " ON CONFLICT (point_id) DO UPDATE SET status = 'writing', note = '',"
+            " updated_at = excluded.updated_at WHERE grammar_lessons.status != 'writing'",
+            (point_id, now.isoformat()),
+        )
+    return cur.rowcount > 0
+
+
+def save_grammar_lesson(
+    conn: sqlite3.Connection, point_id: str, examples: list[dict[str, Any]]
+) -> None:
+    with conn:
+        conn.execute(
+            "UPDATE grammar_lessons SET status = 'ready', note = '', examples = ? WHERE point_id = ?",
+            (json.dumps(examples, ensure_ascii=False), point_id),
+        )
+
+
+def fail_grammar_lesson(conn: sqlite3.Connection, point_id: str, note: str) -> None:
+    """A failed write: the examples it had are kept, so a lesson that was ready stays usable."""
+    with conn:
+        conn.execute(
+            "UPDATE grammar_lessons SET status = CASE WHEN examples = '[]' THEN 'failed'"
+            " ELSE 'ready' END, note = ? WHERE point_id = ?",
+            (note, point_id),
+        )
 
 
 @dataclass(frozen=True)

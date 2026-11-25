@@ -393,6 +393,7 @@ from franki_reader import (
     drills,
     fix_card,
     forms,
+    grammar_lessons,
     grammar_topics,
     lesson_topics,
     lesson_words,
@@ -501,6 +502,7 @@ def create_app(
     write_topic: grammar_topics.WriteTopic | None = None,
     read_topic_image: topic_image.ReadTopic | None = None,
     clips: ClipCache | None = None,
+    write_grammar_lesson: grammar_lessons.WriteLesson | None = None,
     write_lesson: WritePlan | None = None,
     write_given_lesson: WriteGiven | None = None,
     write_lesson_topics: WriteTopics | None = None,
@@ -598,6 +600,7 @@ def create_app(
         write_topic=write_topic,
         read_topic_image=read_topic_image,
         clips=clips,
+        write_grammar_lesson=write_grammar_lesson,
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
         write_lesson_topics=write_lesson_topics,
@@ -642,6 +645,7 @@ def production_app() -> FastAPI:
     give_feedback: situations.GiveFeedback | None = None
     write_drills: drills.WriteDrills | None = None
     write_topic: grammar_topics.WriteTopic | None = None
+    write_grammar_lesson: grammar_lessons.WriteLesson | None = None
     read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
@@ -678,6 +682,7 @@ def production_app() -> FastAPI:
         give_feedback = situations.claude_feedback(client)
         write_drills = drills.claude_drills(client)
         write_topic = grammar_topics.claude_topics(client)
+        write_grammar_lesson = grammar_lessons.claude_lessons(client)
         read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
@@ -782,6 +787,7 @@ def production_app() -> FastAPI:
         read_topic_image=read_topic_image,
         # Beside the texts' audio: a text's folder is its id, so "situations" can't be one.
         clips=ClipCache(settings.audio_dir / "situations"),
+        write_grammar_lesson=write_grammar_lesson,
         write_lesson=write_lesson,
         write_given_lesson=write_given_lesson,
         write_lesson_topics=write_lesson_topics,
