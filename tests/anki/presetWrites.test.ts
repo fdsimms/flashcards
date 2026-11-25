@@ -2,9 +2,9 @@ import { copyFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readDeckConfig } from '../../src/anki/collection';
+import { readDeckConfig, readDeckKind } from '../../src/anki/collection';
 import { decodeMessage, uint } from '../../src/anki/protobuf';
-import { readAnkiPreset, setAnkiNewMix, setAnkiPresetOptions } from '../../src/anki/presetWrites';
+import { readAnkiPreset, setAnkiDeckNewLimit, setAnkiNewMix, setAnkiPresetOptions } from '../../src/anki/presetWrites';
 import { deckConfigJson } from '../../src/anki/sync/deckConfigRow';
 import { nodeSyncDb } from '../support/syncDb';
 
@@ -102,6 +102,44 @@ describe("a preset's limits, steps, maximum interval and retention in the kept c
     expect(await setAnkiPresetOptions(db, id, (await readAnkiPreset(db, id))!.options, NOW)).toBe(true);
     expect(await preset(db)).toMatchObject({ usn: 0 });
     expect(await setAnkiPresetOptions(db, 12345, (await readAnkiPreset(db, id))!.options, NOW)).toBe(false);
+    db.close();
+  });
+});
+
+describe("a deck's own daily new card limit in the kept collection", () => {
+  const deckRow = async (db: Awaited<ReturnType<typeof kept>>, name: string) =>
+    (await db.all<{ id: number; name: string; kind: Uint8Array; usn: number; mtime_secs: number }>('SELECT id, name, kind, usn, mtime_secs FROM decks NOT INDEXED')).find((d) => d.name === name.split('::').join('\x1f'))!;
+
+  it('sets the deck’s own limit, leaves its preset and the other decks on it alone, and marks the deck unsent', async () => {
+    const db = await kept();
+    await db.run('UPDATE decks SET usn = 0');
+    const before = await deckRow(db, '👅 Languages');
+    const presetBefore = await preset(db);
+    expect(await setAnkiDeckNewLimit(db, '👅 Languages', 6, NOW)).toBe(true);
+    const def = (await readAnkiPreset(db, 1))!;
+    expect(def.decks.find((d) => d.name === '👅 Languages')!.own).toEqual({ newPerDay: 6 });
+    expect(def.decks.find((d) => d.name === '🧠 Trivia')!.own).toEqual({ newPerDay: 3 });
+    expect(await preset(db)).toEqual(presetBefore);
+    const after = await deckRow(db, '👅 Languages');
+    expect(after).toMatchObject({ usn: -1, mtime_secs: Math.floor(NOW.getTime() / 1000) });
+    expect(readDeckKind(after.kind)).toEqual({ ...readDeckKind(before.kind), newLimit: 6 });
+    expect((await db.first<{ mod: number }>('SELECT mod FROM col'))!.mod).toBe(NOW.getTime());
+    db.close();
+  });
+
+  it('writes 0 as no new cards rather than leaving the limit out, and changes nothing when it is already set', async () => {
+    const db = await kept();
+    expect(await setAnkiDeckNewLimit(db, '🧠 Trivia', 0, NOW)).toBe(true);
+    expect(readDeckKind((await deckRow(db, '🧠 Trivia')).kind)?.newLimit).toBe(0);
+    await db.run('UPDATE decks SET usn = 0');
+    expect(await setAnkiDeckNewLimit(db, '🧠 Trivia', 0, new Date(2026, 10, 12, 12))).toBe(true);
+    expect((await deckRow(db, '🧠 Trivia')).usn).toBe(0);
+    db.close();
+  });
+
+  it('is false for a deck Anki does not have', async () => {
+    const db = await kept();
+    expect(await setAnkiDeckNewLimit(db, 'Nope', 5, NOW)).toBe(false);
     db.close();
   });
 });

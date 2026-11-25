@@ -73,3 +73,13 @@ export function senseCountLabel(count: number): string | null {
 export function sensesGot(senses: readonly string[], missed: readonly number[]): string[] {
   return senses.filter((_, i) => !missed.includes(i + 1));
 }
+
+/**
+ * The senses to show as recalled when the card comes back: the ones its latest answer did not miss,
+ * as numbers from 1. None when nothing was missed (no mark, nothing to carry over). Display only: a
+ * recalled sense is never kept with the answer.
+ */
+export function carriedRecalled(count: number, missed: readonly number[]): number[] {
+  if (!missed.length) return [];
+  return Array.from({ length: count }, (_, i) => i + 1).filter((n) => !missed.includes(n));
+}

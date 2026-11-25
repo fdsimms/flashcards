@@ -150,6 +150,15 @@ limit still holds. With one place left the pair splits, and the other half start
 are offered and where they sit, never a schedule: after the first answer the two cards are scheduled independently. It enters
 through `queueInput` (`partnerOf`), so the deck list and the review screen agree.
 
+**A daily goal sets a deck's new cards, never its reviews** (`DeckSettings.dailyGoal`, Deck options;
+`src/core/dailyGoal.ts`): once each study day (`useDailyGoals`, or at once when the goal changes) the deck is
+played forward `GOAL_DAYS` with the Stats forecast at candidate values, and the largest value that keeps every
+day at or under the goal is set: a gated deck's cap, else the deck's own daily new limit (Anki's "This deck",
+`saveDeckNewLimit`, so the other decks on its preset keep theirs), or Deck options' own limit for a deck with no
+preset (`goalTarget`). A goal the scheduled reviews already exceed sets new cards to none (`over`). The goal is
+kept in the collection like the gate (`frankiDailyGoals`, `src/anki/dailyGoals.ts`); the day's result is the
+phone's own (`goalTuned`). While a goal is on, Deck options shows the value it sets rather than offering it.
+
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
 (`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and

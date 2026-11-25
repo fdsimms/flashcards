@@ -59,6 +59,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'deckOptions', page: 'settings', label: 'Deck options', keywords: ['per deck', 'each deck', 'subdeck'], route: DECK_OPTIONS_LIST },
 
   // A deck's own options (src/ui/DeckOptions.tsx and the parts beside it), found by name.
+  { id: 'deckDailyGoal', page: 'deck', label: 'Keep to a daily goal', keywords: ['cards a day', 'workload', 'study load', 'new cards', 'optimize', 'tune'], route: DECK_OPTIONS_LIST },
   { id: 'deckGate', page: 'deck', label: 'Limit cards in progress', keywords: ['progress gate', 'cap', 'maximum', 'new cards'], route: DECK_OPTIONS_LIST },
   { id: 'deckNewOrder', page: 'deck', label: 'New cards', keywords: ['order', 'frequency', 'sort'], route: DECK_OPTIONS_LIST },
   { id: 'deckCustomStudy', page: 'deck', label: 'Custom study', keywords: ['study more', 'extra', 'limit'], route: DECK_OPTIONS_LIST },

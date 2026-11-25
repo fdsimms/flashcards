@@ -157,6 +157,14 @@ async def test_stats_and_fsrs(client):
     assert opt["applied"] is False
 
 
+async def test_finds_a_deck_without_its_emoji_or_parents(client):
+    # The name as the deck list says it, without the emoji and the deck above, finds the one deck it means.
+    assert (await call(client, "get_stats", deck="ภาษาไทย"))["deck"] == THAI
+    assert (await call(client, "get_stats", deck="languages::ภาษาไทย"))["deck"] == THAI
+    assert (await call(client, "get_stats", deck="trivia"))["deck"] == TRIVIA
+    assert 'no deck called "Nowhere"' in await call_error(client, "get_stats", deck="Nowhere")
+
+
 async def test_a_deck_can_leave_a_shared_preset(client, desktop):
     before = await call(client, "get_fsrs_settings", deck=TRIVIA)
     shared = before["decks_sharing_it"]
@@ -181,7 +189,7 @@ async def test_a_deck_can_leave_a_shared_preset(client, desktop):
 
 
 async def test_progress_gates_are_kept_in_the_collection(client, desktop):
-    assert (await call(client, "get_progress_gates"))["gates"] == []
+    assert await call(client, "get_progress_gates") == {"gates": [], "daily_goals": []}
     out = await call(client, "set_progress_gate", decks=[THAI, TRIVIA], cap=40)
     assert out["decks"] == [THAI, TRIVIA]
     assert (await call(client, "get_progress_gates"))["gates"] == [{"deck": THAI, "cap": 40}, {"deck": TRIVIA, "cap": 40}]
@@ -197,6 +205,26 @@ async def test_progress_gates_are_kept_in_the_collection(client, desktop):
         assert col.get_config("frankiProgressGates") == {str(col.decks.id_for_name(THAI)): 40}
     finally:
         col.close()
+
+
+async def test_daily_goals_are_reported_where_they_set_a_value(client, cm):
+    def keep_to_goals(col):
+        ids = {n.name: str(n.id) for n in col.decks.all_names_and_ids()}
+        col.set_config("frankiDailyGoals", {ids[THAI]: 120, ids[TRIVIA]: 40, "999": 5})
+        col.set_config("frankiProgressGates", {ids[TRIVIA]: 10})
+
+    await cm.write(keep_to_goals)
+    out = await call(client, "get_progress_gates")
+    assert out["daily_goals"] == [
+        {"deck": THAI, "goal": 120, "sets": "new cards per day"},
+        {"deck": TRIVIA, "goal": 40, "sets": "gate cap"},
+    ]
+    # A cap set by hand on a goal deck lasts until Franki's next tuning, and the result says so.
+    assert (await call(client, "set_progress_gate", decks=[TRIVIA], cap=30))["cap_set_by_daily_goal"] == [TRIVIA]
+    assert "cap_set_by_daily_goal" not in await call(client, "set_progress_gate", decks=[TRIVIA])
+    assert THAI in (await call(client, "get_fsrs_settings", deck=THAI))["new_per_day_set_by_daily_goal"]
+    assert (await call(client, "set_fsrs_settings", deck=THAI, new_per_day=8))["new_per_day_set_by_daily_goal"] == [THAI]
+    assert "new_per_day_set_by_daily_goal" not in await call(client, "set_fsrs_settings", deck=THAI, desired_retention=0.9)
 
 
 async def test_media_reaches_the_server(client, cm, desktop):

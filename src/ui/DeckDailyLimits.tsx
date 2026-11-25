@@ -12,17 +12,24 @@ const REVIEW_CHOICES = [100, 200, 500, 9999];
  * collection): kept in Franki (`DeckSettings.newPerDay` / `reviewsPerDay`) and read by the queue through
  * `queueInput`'s `ownLimitsFor`. A deck with a preset sets them in Anki options instead.
  */
-export function DeckDailyLimits({ settings, onChange }: { settings: DeckSettings; onChange: (patch: Partial<DeckSettings>) => void }) {
+export function DeckDailyLimits({ settings, onChange, newSetByGoal }: {
+  settings: DeckSettings;
+  onChange: (patch: Partial<DeckSettings>) => void;
+  /** The daily goal sets the new card limit each day (src/core/dailyGoal.ts), so it's shown, not offered. */
+  newSetByGoal?: boolean;
+}) {
   const fresh = settings.newPerDay ?? NEW_PER_DAY;
   const reviews = settings.reviewsPerDay ?? REVIEWS_PER_DAY;
   return (
     <>
       <Section title="New cards a day">
-        <Segments
-          options={[...new Set([...NEW_CHOICES, fresh])].sort((a, b) => a - b).map((n) => ({ value: n, label: String(n) }))}
-          value={fresh}
-          onChange={(newPerDay) => { haptic.select(); onChange({ newPerDay }); }}
-        />
+        {newSetByGoal ? <Help>{fresh}, set by your daily goal. Turn the goal off to set it yourself.</Help> : (
+          <Segments
+            options={[...new Set([...NEW_CHOICES, fresh])].sort((a, b) => a - b).map((n) => ({ value: n, label: String(n) }))}
+            value={fresh}
+            onChange={(newPerDay) => { haptic.select(); onChange({ newPerDay }); }}
+          />
+        )}
       </Section>
       <Section
         title="Most reviews a day"
