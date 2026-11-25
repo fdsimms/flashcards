@@ -80,14 +80,14 @@ describe('treeQueue with aspect pairs', () => {
     const q = run([cardsOf(read)[0], ...filler, cardsOf(readP)[0]], 2, [read, readP]);
     expect(q.fresh.map((c) => c.noteId)).toEqual(['a', 'b']);
   });
-  it('never offers more than the daily limit for a pair', () => {
+  it('keeps to the daily limit when an unpaired card can give up its place', () => {
     const q = run([cardsOf(read)[0], ...filler, cardsOf(readP)[0]], 3, [read, readP]);
     expect(q.fresh).toHaveLength(3);
     expect(q.fresh.map((c) => c.noteId)).toContain('b');
   });
-  it('leaves a pair split when only one place is left, rather than going past the limit', () => {
+  it('goes one over the limit rather than split a pair, when every card gathered is half of a pair', () => {
     const q = run([cardsOf(read)[0], ...filler, cardsOf(readP)[0]], 1, [read, readP]);
-    expect(q.fresh.map((c) => c.noteId)).toEqual(['a']);
+    expect(q.fresh.map((c) => c.noteId)).toEqual(['a', 'b']);
   });
   it('adds nothing for a verb whose partner has no card to offer', () => {
     const q = run([cardsOf(read)[0], ...filler], 1, [read, readP]);

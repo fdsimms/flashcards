@@ -146,7 +146,8 @@ reaches first; a deck's own Anki limits and retention (Deck.Normal) still win ov
 **A Russian or Polish aspect pair starts on the same day** (`aspectPartners`, `groupPartners`, `src/core/aspectPairs.ts`): two
 verb notes that name each other in AspectPartner are partners, and in `treeQueue` a new card whose partner's card of the same
 kind is also new brings it in, beside it, in the place of the lowest-priority new card that isn't half of a pair, so the daily
-limit still holds. With one place left the pair splits, and the other half starts the next day. It changes only which new cards
+limit usually holds. When every card gathered is half of a pair, the partner goes one over the limit rather than start
+a day apart (the owner's choice, 25 November 2026). It changes only which new cards
 are offered and where they sit, never a schedule: after the first answer the two cards are scheduled independently. It enters
 through `queueInput` (`partnerOf`), so the deck list and the review screen agree.
 

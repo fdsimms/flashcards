@@ -357,7 +357,8 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
   const gatheredNew = previewDeck ? [] : [...firstNew, ...gatherFresh(newCards.filter((c) => !firstIds.has(c.id)))];
   // Aspect pairs start together: a new card's partner (the same kind, also new, not left out by a hold or a bury) joins it.
   // The partner takes a free place if the limits leave one, else the place of the lowest-priority card that isn't half
-  // of a pair, so a pair never goes past the daily limit and never starts a day apart for lack of room.
+  // of a pair, and only when every card gathered is half of a pair does it go one over the daily limit (the owner's
+  // choice, 2026-11-25), so a pair never starts a day apart.
   const partnerOf = input.partnerOf;
   let gathered = [...gatheredNew];
   if (partnerOf?.size) {
@@ -370,9 +371,11 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
       let victim: Card | undefined;
       if (!hasRoom(other, 'new')) {
         victim = [...gathered].reverse().find((g) => g.id !== c.id && !pairedNow(g) && !firstIds.has(g.id));
-        if (!victim) continue;
-        release(victim, 'new');
-        if (!hasRoom(other, 'new')) { admit(victim, 'new'); continue; }
+        if (victim) {
+          release(victim, 'new');
+          // Still no room on the partner's own decks: keep the victim and go over instead.
+          if (!hasRoom(other, 'new')) { admit(victim, 'new'); victim = undefined; }
+        }
       }
       admit(other, 'new');
       inFresh.add(other.id);
