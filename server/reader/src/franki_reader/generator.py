@@ -964,10 +964,10 @@ def _story_intro(story: StoryContext) -> str:
             place += (
                 " This is the season finale: bring what has been building to its climax and "
                 "resolve the season's main question, with no cliffhanger. Resolve it in a scene the "
-                "reader sees: what was hidden is explained concretely, what happens to anyone who "
-                "worked against the characters happens in the lines rather than being reported "
-                "afterward, and a character's big decision has a reason the reader is shown. The "
-                "choices at the end are what the next season could be about."
+                "reader sees, whatever kind of question it is: the moment that answers it happens "
+                "in the lines rather than being reported afterward by a character, and a "
+                "character's big decision has a reason the reader is shown. The choices at the end "
+                "are what the next season could be about."
             )
         elif story.season_episode == last - 1:
             place += " The next episode is the finale, so bring the story to its turning point."

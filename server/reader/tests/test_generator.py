@@ -992,6 +992,8 @@ def test_the_finale_resolves_in_a_scene_rather_than_a_report() -> None:
         TextRequest("a stall", story=StoryContext(SEASON_EPISODES, "", "Noi's stall"))
     )
     assert "in a scene the reader sees" in finale and "rather than being reported" in finale
+    # Not every story is a mystery: the finale asks for no secret or villain.
+    assert "hidden" not in finale and "worked against" not in finale
 
 
 def test_quotations_and_grammar_are_asked_not_to_be_forced() -> None:

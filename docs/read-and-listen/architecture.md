@@ -1579,8 +1579,9 @@ next episode is the top of the shelf.
   the next request. The request says which episode of the season this is, that the next one is the
   finale, or that this one is the finale (resolve the main question, no cliffhanger, the choices
   being what the next season could be about). Since 25 November 2026 the finale is also asked to
-  resolve it in a scene: a season whose mystery had run eight episodes ended with the villain
-  "gone far away" in one line of a police officer's and the secret told in one line. The episode after a finale opens a new season with the
+  resolve it in a scene, whatever kind of question it is (a mystery, a romance, a contest): a
+  season ended with its villain "gone far away" in one line of a police officer's. The ask says
+  nothing about secrets or villains, since not every story has one. The episode after a finale opens a new season with the
   same cast and a new problem, and is sent no plan. Every episode's request also says to open in the
   new scene, not retell what happened or repeat a beat from the last episodes. A story that was
   already running has no plan until its next episode writes one.
