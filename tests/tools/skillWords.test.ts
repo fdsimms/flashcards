@@ -53,6 +53,8 @@ describe('the word lists', () => {
       const time = (hour: number, minute: number): DrillQuestion => ({ kind: 'time', time: { hour, minute } });
       const half = groupWords('time', l).find((w) => w.meaning === 'half');
       if (half) expect(said(time(3, 30), l), `${l} half`).toContain(stem(half.entry));
+      // The word is written to the deck with its own part of speech: wpół is an adverb, not an adjective.
+      if (half && l === 'pl') expect(half.pos).toBe('adverb');
       const quarter = groupWords('time', l).find((w) => w.meaning === 'quarter');
       if (quarter) expect(said(time(3, 15), l) + said(time(3, 45), l), `${l} quarter`).toContain(stem(quarter.entry));
       const currency = groupWords('money', l).find((w) => !w.pos);
