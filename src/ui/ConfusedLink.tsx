@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isOmnilanguage } from '../core/cards';
 import { partnerIndex, partnerSummary, type ConfusedPair } from '../core/confusedPairs';
@@ -53,14 +53,15 @@ function WordRow({ word, onPress, label, children }: { word: MixupWord; onPress?
 /**
  * Opens over the review screen to link `note` to the word it was mixed up with: the words that
  * sound or look close to it first, and a search for any other word in the same language. Also lists
- * what it's already linked to, each with Unlink. It's iOS's own page sheet, so a swipe down closes it.
+ * what it's already linked to, each with Unlink. It's a centered card over a dimmed screen, so it is only as
+ * tall as its content; a tap outside it closes it.
  */
 export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, onDismiss, onLink, onUnlink, onClose }: {
   note: Note;
   notes: Map<string, Note>;
   cards: Card[];
   pairs: ConfusedPair[];
-  /** False while the sheet is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
+  /** False while the modal is on its way out: it stays mounted until iOS reports it gone (`onDismiss`), so Review shows the next sheet only then (src/core/sheetQueue.ts). */
   visible?: boolean;
   onDismiss?: () => void;
   /** Links the note to `partnerId`; throws when it can't be saved, and the sheet says why. */
@@ -103,12 +104,18 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, o
   const word = headword(note);
   const gloss = [text(note.fields.Transliteration), text(note.fields.Meaning)].filter(Boolean).join(' · ');
   return (
-    <Modal visible={visible} onDismiss={onDismiss} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} backdropColor={c.surface}>
+    <Modal visible={visible} onDismiss={onDismiss} animationType="fade" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={{ flex: 1, justifyContent: 'center', backgroundColor: c.scrim, paddingHorizontal: space.l, paddingTop: insets.top + space.m, paddingBottom: insets.bottom + space.m }}
+      >
+        {/* A tap on the dimmed area closes it; the × and Not now do the same for VoiceOver. */}
+        <Pressable accessible={false} onPress={onClose} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+        <View style={{ flexShrink: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth, overflow: 'hidden' }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-        style={{ flex: 1, backgroundColor: c.surface }}
-        contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.xl, paddingBottom: Math.max(insets.bottom, space.l), gap: space.m }}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={{ padding: space.l, gap: space.m }}
       >
         <SheetHeader onClose={onClose}>
           <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>{`Which word did you mix up with ${word}?`}</Text>
@@ -167,6 +174,8 @@ export function ConfusedLinkSheet({ note, notes, cards, pairs, visible = true, o
         {error ? <ErrorNote message={error} /> : null}
         <Button label="Not now" variant="secondary" onPress={onClose} />
       </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
