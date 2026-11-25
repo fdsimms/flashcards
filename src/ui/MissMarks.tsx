@@ -33,7 +33,7 @@ export function AgainSplit({ interval, reasons, suggested, onAnswer }: {
     );
   };
   return (
-    <View style={{ flex: 1, flexDirection: 'row', minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again, ...(suggested ? { borderWidth: 3, borderColor: c.text } : null) }}>
+    <View style={{ flex: 1, flexDirection: 'row', minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, overflow: 'hidden', backgroundColor: c.again, borderWidth: 3, borderColor: suggested ? c.text : 'transparent' }}>
       <Tappable
         onPress={() => onAnswer()}
         onLongPress={choose}

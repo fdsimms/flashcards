@@ -1392,7 +1392,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           style={{
             flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
             alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: b.color,
-            ...(suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
+            // The border is always there, transparent unless suggested, so outlining a button doesn't change its size.
+            borderWidth: 3, borderColor: suggested === b.r ? c.text : 'transparent',
           }}
         >
           {/* The interval sits above the label, as in Anki, so the eye lands on when it's next due. */}
