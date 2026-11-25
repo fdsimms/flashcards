@@ -5,7 +5,7 @@ import { GOAL_DAYS, parseDailyGoal, type GoalResult, type GoalTarget } from '../
 import { failureText } from '../core/failure';
 import type { DeckSettings } from '../core/types';
 import { Bars } from './StatsBars';
-import { Card, Field, Group, Help, SwitchRow } from './kit';
+import { Card, Field, Group, Help, Section, SwitchRow } from './kit';
 import { radius, space, type, useTheme } from './theme';
 
 /** Where the line under the switch is shown before a goal is set. */
@@ -76,7 +76,7 @@ export function DeckDailyGoal({ settings, target, onChange, retune }: {
     : 'how many new cards this deck shows';
   const tuned = settings.goalTuned && settings.goalTuned.goal === settings.dailyGoal ? settings.goalTuned : undefined;
   return (
-    <>
+    <Section footer={on && tuned && !busy ? <Help>{summary(tuned, target)}</Help> : undefined}>
       <Group>
         <SwitchRow
           first
@@ -103,8 +103,7 @@ export function DeckDailyGoal({ settings, target, onChange, retune }: {
             : tuned ? <Outcome result={tuned} /> : null}
         </Card>
       ) : null}
-      {on && tuned && !busy ? <Help>{summary(tuned, target)}</Help> : null}
-    </>
+    </Section>
   );
 }
 

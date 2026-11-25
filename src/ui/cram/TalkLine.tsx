@@ -13,6 +13,8 @@ import { space, type, useTheme } from '../theme';
  * A talking point's line in the cram's language with its English: tapped, it's read aloud (`onSay`).
  * A word the learner hadn't studied when it was written (`unknown`) is underlined with dots, and a tap
  * on it says what it means underneath, or that it isn't in the deck yet when no meaning was kept.
+ * Dotted means not studied yet, not missing from the deck: a new card the deck already has is dotted
+ * too, so a screen that offers to add a dotted word checks the deck first (`useWordInDeck`).
  * The dots are drawn under the word's measured box, as on a card's sentence (`CardSentence`), because the
  * platform's dotted underline ran through the letters of Thai text.
  * Without a language the line is drawn in the body text and isn't read.
@@ -36,9 +38,10 @@ export function TalkLine({ text, english, language, size, unknown = [], onSay, m
   // Each marked word's width once laid out, which its dots are spread across.
   const [widths, setWidths] = useState<Record<number, number>>({});
   const line = info ? { ...talkTextStyle(info, size, scale), color: muted ? c.textSecondary : c.text } : { ...type.body, color: muted ? c.textSecondary : c.text };
-  const gloss = { ...type.footnote, fontSize: scaledFontSize(type.footnote.fontSize, size), color: c.textSecondary };
+  const glossSize = scaledFontSize(type.footnote.fontSize, size);
+  const gloss = { ...type.footnote, fontSize: glossSize, lineHeight: Math.round(glossSize * (type.footnote.lineHeight / type.footnote.fontSize)), color: c.textSecondary };
   // The dots sit just under the glyphs: the line's leading below them is split evenly, so skip half of what the glyph box doesn't use.
-  const lift = Math.max(0, Math.round((('lineHeight' in line ? line.lineHeight : line.fontSize * 1.3) - line.fontSize * 1.2) / 2));
+  const lift = Math.max(0, Math.round((line.lineHeight - line.fontSize * 1.2) / 2));
   const toggle = (word: string) => { haptic.select(); setOpen(open === word ? undefined : word); };
   const meaning = open ? unknown.find((u) => u.word.toLowerCase() === open.toLowerCase()) : undefined;
   return (
@@ -48,7 +51,7 @@ export function TalkLine({ text, english, language, size, unknown = [], onSay, m
       accessibilityRole="button"
       accessibilityLabel={`Hear ${text}`}
       scaleTo={0.99}
-      style={{ gap: 2, paddingVertical: space.xs }}
+      style={{ gap: space.xs, paddingVertical: space.xs }}
     >
       {runs.some((r) => r.marked) ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' }}>

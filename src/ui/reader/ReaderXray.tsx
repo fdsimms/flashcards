@@ -25,7 +25,7 @@ export function XrayCard({ character }: { character: StoryCharacter }) {
       <View style={{ width: 38, height: 38, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ ...type.headline, color: c.accentInk }}>{badgeLetter(character.name)}</Text>
       </View>
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.text }}>{character.name}</Text>
         <Text style={{ ...type.subhead, color: c.textBody }}>{character.description}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{firstSeen(character)}</Text>

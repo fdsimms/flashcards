@@ -81,7 +81,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
                 {practicing.map((p) => (
                   <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-                      <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flex: 1, gap: space.xs }}>
                         <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
                         {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
                       </View>
@@ -105,7 +105,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
             {least.map((p) => (
               <View key={p.id} style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1, gap: space.xs }}>
                     <Text style={{ ...type.subhead, fontWeight: '600', color: c.text }}>{p.name}</Text>
                     {p.seen ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{seenLine(p.seen, p.state, now, dayStartsAtHour, true)}</Text> : null}
                   </View>

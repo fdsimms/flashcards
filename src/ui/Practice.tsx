@@ -7,7 +7,7 @@ import { LANGUAGES, flaggedName } from '../reader/languages';
 import { TOOLS, TOOL_LANGUAGES, listLanguage, type ToolInfo } from '../tools/tools';
 import { FLAG_IMAGES } from './flagImages';
 import { useConnectionProblem } from './connection';
-import { Group, NavRow, Screen } from './kit';
+import { Group, NavRow, Screen, SECTION_GAP } from './kit';
 import { Reveal } from './motion';
 import { space, useTheme, readable } from './theme';
 import { TOOL_SCREENS } from './tools';
@@ -50,7 +50,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
         </>
       )}
     >
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {/* Crams are about the decks' own words, in any language, so they sit apart from the tools. */}
         <Group>
           <NavRow first icon={{ name: 'calendar', color: c.accent }} label="Cram" detail="Plan and practice for a day coming up, like a lesson with a tutor." onPress={onCram} />

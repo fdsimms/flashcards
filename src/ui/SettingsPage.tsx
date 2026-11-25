@@ -7,7 +7,7 @@ import { THAI_TEXT_CHOICES, type ThaiTextSize } from '../core/script';
 import type { FuriganaMode } from '../core/furigana';
 import { DECK_OPTIONS_LIST, settingsPage, type SettingsPageId } from '../core/settingsPages';
 import type { Repo } from '../db/repo';
-import { Group, Help, NavRow, Screen, SwitchRow } from './kit';
+import { Group, Help, NavRow, Screen, SECTION_GAP, Section, SwitchRow } from './kit';
 import { reminderTime, useReminderPrefs } from './studyReminder';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
 import { vacationDetail } from './vacationNotice';
@@ -33,7 +33,7 @@ export function SettingsPage({ page, repo, readerOn, dailySummary, lessonRows, o
 }) {
   return (
     <Screen title={settingsPage(page)?.title ?? 'Settings'}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {page === 'today' ? <TodayRows onOpen={onOpen} /> : null}
         {page === 'decks' ? <DeckRows repo={repo} onOpen={onOpen} /> : null}
         {page === 'read' ? <ReadRows readerOn={readerOn} dailySummary={dailySummary} onOpen={onOpen} /> : null}
@@ -99,36 +99,37 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
       <Group>
         <NavRow first label="Answer buttons" loading={buttons === undefined} detail={ANSWER_BUTTON_CHOICES.find((x) => x.value === buttons)?.label} onPress={() => onOpen('/answer-buttons')} />
       </Group>
-      <Group>
-        <SwitchRow
-          first
-          label="Swipe to answer"
-          hint="After the answer is shown, drag the card right for Good or left for Again."
-          value={!!swipe}
-          onValueChange={(on) => save(() => repo.saveSwipeToRate(on), () => setSwipe(on))}
-        />
-        <SwitchRow
-          label="Show romanization and translation"
-          hint="Show them on the answer without a tap."
-          value={!!hints}
-          onValueChange={(on) => save(() => repo.saveShowCardHints(on), () => setHints(on))}
-        />
-        <SwitchRow
-          label="Ask for your own mnemonic"
-          hint="The first time you see a new word, ask for a mnemonic of your own. It's shown on the back after that."
-          value={!!hook}
-          onValueChange={(on) => save(() => repo.saveAskOwnHook(on), () => setHook(on))}
-        />
-        <SwitchRow
-          label="Show number of meanings"
-          hint="On the front of a card, show how many meanings the answer has (e.g. 2 meanings)."
-          value={!!senseCount}
-          onValueChange={(on) => save(() => repo.saveShowSenseCount(on), () => setSenseCount(on))}
-        />
-        <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={() => onOpen('/thai-text-size')} />
-        <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
-      </Group>
-      <Help>These apply to Omnilanguage cards. Other note types use the answer buttons and their own templates.</Help>
+      <Section footer={<Help>These apply to Omnilanguage cards. Other note types use the answer buttons and their own templates.</Help>}>
+        <Group>
+          <SwitchRow
+            first
+            label="Swipe to answer"
+            hint="After the answer is shown, drag the card right for Good or left for Again."
+            value={!!swipe}
+            onValueChange={(on) => save(() => repo.saveSwipeToRate(on), () => setSwipe(on))}
+          />
+          <SwitchRow
+            label="Show romanization and translation"
+            hint="Show them on the answer without a tap."
+            value={!!hints}
+            onValueChange={(on) => save(() => repo.saveShowCardHints(on), () => setHints(on))}
+          />
+          <SwitchRow
+            label="Ask for your own mnemonic"
+            hint="The first time you see a new word, ask for a mnemonic of your own. It's shown on the back after that."
+            value={!!hook}
+            onValueChange={(on) => save(() => repo.saveAskOwnHook(on), () => setHook(on))}
+          />
+          <SwitchRow
+            label="Show number of meanings"
+            hint="On the front of a card, show how many meanings the answer has (e.g. 2 meanings)."
+            value={!!senseCount}
+            onValueChange={(on) => save(() => repo.saveShowSenseCount(on), () => setSenseCount(on))}
+          />
+          <NavRow label="Thai text size" loading={thaiSize === undefined} detail={THAI_TEXT_CHOICES.find((x) => x.value === thaiSize)?.label} onPress={() => onOpen('/thai-text-size')} />
+          <NavRow label="Furigana" loading={furigana === undefined} detail={furigana === 'off' ? 'Off' : furigana === 'all' ? 'Every kanji' : furigana ? 'Not learned' : undefined} onPress={() => onOpen('/furigana')} />
+        </Group>
+      </Section>
       <Group>
         <NavRow first label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
         <NavRow label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />

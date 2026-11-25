@@ -139,7 +139,7 @@ function Row({ label, detail, trailing, first }: { label: string; detail: string
       accessibilityLabel={`${label}. ${detail}${trailing ? ` Answer: ${trailing}` : ''}`}
       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingVertical: space.s, borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}
     >
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...type.headline, color: c.text }}>{label}</Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
       </View>

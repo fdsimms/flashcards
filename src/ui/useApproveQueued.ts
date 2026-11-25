@@ -6,7 +6,7 @@ import { failureText } from '../core/failure';
 import { readerLanguageOf } from '../core/leechHint';
 import type { Note } from '../core/types';
 import type { QueuedNote } from '../reader/api';
-import { approvalDraft, reviewTarget } from '../reader/noteQueue';
+import { approvalDraft, queuedFieldNames } from '../reader/noteQueue';
 import { useApp } from './AppContext';
 import { afterSave, useVoiceSettings } from './RecordAudio';
 import { cramsNow, loadCrams } from './useCrams';
@@ -38,9 +38,7 @@ export function useApproveQueued(remove: (id: number) => Promise<void>): (notes:
     const savedNotes: Note[] = [];
     let done = 0;
     for (const note of notes) {
-      const target = reviewTarget(note);
-      const fromType = noteTypes.get(target.model)?.fields;
-      const names = fromType?.length ? fromType : Object.keys(target.fields);
+      const names = queuedFieldNames(note, noteTypes);
       try {
         const draft = approvalDraft(note, names, []);
         const crams = runningCramTags(allCrams, allNotes, readerLanguageOf({ id: '', ...draft }), new Date(), dayStartsAtHour);

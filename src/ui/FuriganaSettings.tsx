@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { FURIGANA_MODES, furiganaRuns, shownRuns, type FuriganaMode } from '../core/furigana';
 import { JAPANESE_FONT } from '../core/script';
 import type { Repo } from '../db/repo';
-import { Card, CheckRow, Group, Help, Screen } from './kit';
+import { Card, CheckRow, Group, Help, Screen, Section, SECTION_GAP } from './kit';
 import { Ruby } from './Ruby';
 import { space, type, useTheme, readable } from './theme';
 
@@ -32,24 +32,29 @@ export function FuriganaSettings({ repo, wanikaniOn }: { repo: Repo; wanikaniOn:
   const shown = shownRuns(EXAMPLE, mode ?? 'off', EXAMPLE_LEARNED, '劇団');
   return (
     <Screen title="Furigana">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        <Group accessibilityRole="radiogroup">
-          {FURIGANA_MODES.map((m, i) => (
-            <CheckRow key={m.value} first={i === 0} label={m.label} selected={mode === m.value} onPress={() => void choose(m.value)} />
-          ))}
-        </Group>
-        <Card style={{ alignItems: 'center' }}>
-          <Ruby runs={shown} style={{ ...type.cardFront, fontFamily: JAPANESE_FONT, color: c.text }} rubyColor={c.textSecondary} center />
-        </Card>
-        <Help>
-          Shows a Japanese word's reading above its kanji once the answer is shown, on the word and in its example
-          sentence. The front of a card never shows it, since the reading is often the answer.
-          {mode === 'unlearned'
-            ? wanikaniOn
-              ? " Hides the reading over kanji you've taken to Guru in WaniKani, and over words you learned there. In this example, you know 団."
-              : " Enter your WaniKani token in Settings, WaniKani to use this. Until then it shows a reading over every kanji."
-            : ''}
-        </Help>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
+        <Section
+          footer={(
+            <Help>
+              Shows a Japanese word's reading above its kanji once the answer is shown, on the word and in its example
+              sentence. The front of a card never shows it, since the reading is often the answer.
+              {mode === 'unlearned'
+                ? wanikaniOn
+                  ? " Hides the reading over kanji you've taken to Guru in WaniKani, and over words you learned there. In this example, you know 団."
+                  : " Enter your WaniKani token in Settings, WaniKani to use this. Until then it shows a reading over every kanji."
+                : ''}
+            </Help>
+          )}
+        >
+          <Group accessibilityRole="radiogroup">
+            {FURIGANA_MODES.map((m, i) => (
+              <CheckRow key={m.value} first={i === 0} label={m.label} selected={mode === m.value} onPress={() => void choose(m.value)} />
+            ))}
+          </Group>
+          <Card style={{ alignItems: 'center' }}>
+            <Ruby runs={shown} style={{ ...type.cardFront, fontFamily: JAPANESE_FONT, color: c.text }} rubyColor={c.textSecondary} center />
+          </Card>
+        </Section>
       </ScrollView>
     </Screen>
   );

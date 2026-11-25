@@ -11,7 +11,7 @@ import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
 import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
-import { Button, Card, Help, MessageList, Screen } from './kit';
+import { Button, Card, Help, MessageList, Screen, SECTION_GAP } from './kit';
 import { importWordList } from './wordListImport';
 import { space, type, useTheme, readable } from './theme';
 
@@ -209,7 +209,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
   const sentLine = status?.lastSentAt ? ` Last sent ${new Date(status.lastSentAt).toLocaleDateString()}.` : '';
   return (
     <Screen title="Anki">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: SECTION_GAP }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Sync with your Anki server</Text>
           <Help>

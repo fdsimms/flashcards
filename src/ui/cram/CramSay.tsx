@@ -17,6 +17,7 @@ import { saveCram, useCollection, useCrams } from '../useCrams';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { usePhoneSpeech } from '../usePhoneSpeech';
+import { useWordInDeck } from '../useWordInDeck';
 import { Chip } from './CramThemes';
 import { setThemeState } from './themeStore';
 import { TalkLine } from './TalkLine';
@@ -252,6 +253,7 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
   const [size] = useTalkSize();
   const info = LANGUAGES[language];
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const inDeck = useWordInDeck(repo);
   const [busy, setBusy] = useState<string>();
   const [problem, setProblem] = useState<string>();
   const lacking = useMemo(() => missingWords(result.lines), [result]);
@@ -272,7 +274,7 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
   };
   return (
     <>
-      <Help>From what you said, in the {info.name} you already know. A dotted word is one you don't have yet.</Help>
+      <Help>From what you said, in the {info.name} you already know. A dotted word is one you haven't studied yet.</Help>
       <Card style={{ gap: space.m }}>
         {result.lines.map((line, i) => {
           const chips = sayChips(line);
@@ -295,18 +297,22 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
           <Text style={{ ...type.footnote, color: c.textSecondary, fontWeight: '600' }}>{`WORDS YOU REACHED FOR · ${lacking.length}`}</Text>
           {lacking.map((w) => {
             const done = added.has(w.word);
+            // Already in the deck (a new card not studied yet): nothing to send to Claude.
+            const have = !done && inDeck(deck, w.word);
             return (
               <Tappable
                 key={w.word}
                 onPress={() => { void addWord(w.word, w.english); }}
-                disabled={done || !deck || !!busy}
+                disabled={done || have || !deck || !!busy}
                 accessibilityRole="button"
-                accessibilityLabel={done ? `${w.word} added` : `Add ${w.word}`}
+                accessibilityLabel={done ? `${w.word} added` : have ? `${w.word}, already in your deck` : `Add ${w.word}`}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
               >
                 <Text style={{ ...talkTextStyle(info, size, 0.75), color: c.text }}>{w.word}</Text>
                 <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>{w.english}</Text>
-                <Icon name={done ? 'checkmark.circle.fill' : 'plus.circle'} size={24} color={done ? c.goodInk : deck ? c.accentInk : c.textTertiary} />
+                {have ? <Text style={{ ...type.footnote, color: c.textSecondary }}>In your deck</Text> : (
+                  <Icon name={done ? 'checkmark.circle.fill' : 'plus.circle'} size={24} color={done ? c.goodInk : deck ? c.accentInk : c.textTertiary} />
+                )}
               </Tappable>
             );
           })}

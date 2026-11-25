@@ -207,7 +207,7 @@ function DragList({ items, openRow, onOpenRow, onDragging, onMove, onRemove, onP
               >
                 {i === 0 || lifted ? null : <View style={{ position: 'absolute', top: 0, left: space.l, right: 0, height: 0.5, backgroundColor: c.border }} />}
                 <Image source={FLAG_IMAGES[languageOf(item)]} style={{ width: 28, height: 28, borderRadius: radius.pill }} />
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, gap: space.xs }}>
                   <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{titleOf(item)}</Text>
                   <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{itemDetail(item)}</Text>
                 </View>

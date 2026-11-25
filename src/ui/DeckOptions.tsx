@@ -1,6 +1,6 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, Text } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { DEFAULT_GATE_CAP } from '../core/config';
 import { failureText } from '../core/failure';
 import { groupByDeck, inProgressCount } from '../core/deckTree';
@@ -27,7 +27,7 @@ import { DeckNewCardOrder } from './DeckNewCardOrder';
 import { DeckBatchOptions } from './DeckBatchOptions';
 import { DeckPriorityOptions } from './DeckPriorityOptions';
 import { DeckRecordings } from './DeckRecordings';
-import { Card, Field, Group, Help, Loading, NavRow, PageTitle, Screen, SwitchRow } from './kit';
+import { Card, Field, Group, Help, Loading, NavRow, PageTitle, Screen, SECTION_GAP, Section, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -136,40 +136,48 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
   // The goal sets the cap each day, so it's shown and not edited while the goal is on.
   const capByGoal = on && settings?.dailyGoal !== undefined;
   const name = deck.split('::').pop();
+  // The daily goal comes first, right under the title, when the deck can have one; the gate it may set follows.
+  const goalShown = !filtered && !!target;
+  const gateSection = !settings ? null : (
+    <Section footer={inProgress !== undefined ? (
+      <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
+    ) : undefined}>
+      <Group>
+        <SwitchRow
+          first
+          label="Limit cards in progress"
+          hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
+          value={on}
+          onValueChange={toggle}
+        />
+      </Group>
+      {on ? (
+        <Card>
+          <Field
+            label="Maximum cards in progress"
+            value={capText}
+            onChangeText={(v) => { setCapText(v); setError(undefined); }}
+            onEndEditing={commitCap}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            error={!!error}
+            editable={!capByGoal}
+          />
+          {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
+          {capByGoal ? <Help>Set by your daily goal. Turn the goal off to set it yourself.</Help> : null}
+        </Card>
+      ) : null}
+    </Section>
+  );
   return (
     <Screen>
       {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
-        <PageTitle>{name ?? ''}</PageTitle>
-        {filtered ? null : <DeckDailyGoal settings={settings} target={target} onChange={(patch) => save({ ...settings, ...patch })} retune={retune} />}
-        <Group>
-          <SwitchRow
-            first
-            label="Limit cards in progress"
-            hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
-            value={on}
-            onValueChange={toggle}
-          />
-        </Group>
-        {on ? (
-          <Card>
-            <Field
-              label="Maximum cards in progress"
-              value={capText}
-              onChangeText={(v) => { setCapText(v); setError(undefined); }}
-              onEndEditing={commitCap}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              error={!!error}
-              editable={!capByGoal}
-            />
-            {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
-            {capByGoal ? <Help>Set by your daily goal. Turn the goal off to set it yourself.</Help> : null}
-          </Card>
-        ) : null}
-        {inProgress !== undefined ? (
-          <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
-        ) : null}
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+        <View style={{ gap: space.m }}>
+          <PageTitle>{name ?? ''}</PageTitle>
+          {goalShown ? <DeckDailyGoal settings={settings} target={target} onChange={(patch) => save({ ...settings, ...patch })} retune={retune} /> : gateSection}
+        </View>
+        {goalShown ? gateSection : null}
         {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}
         {!filtered && !hasPreset && settings ? <DeckDailyLimits settings={settings} onChange={(patch) => save({ ...settings, ...patch })} newSetByGoal={settings.dailyGoal !== undefined && target === 'own'} /> : null}
         {filtered ? null : (

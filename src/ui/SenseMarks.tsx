@@ -59,7 +59,7 @@ export function MarkableSenses({ senses, marking, size }: { senses: string[]; ma
             }}
           >
             <Text style={{ ...size, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{n}.</Text>
-            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: space.xs }}>
               <Text style={{ ...size, color: c.text }}>{sense}</Text>
               {before ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>

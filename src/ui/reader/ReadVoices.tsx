@@ -5,7 +5,7 @@ import { azureVoiceName } from '../../core/voices';
 import type { Api, Language, Settings, Speakers } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { hasVoiceSlots, sharesVoice, VOICE_SLOTS } from '../../reader/voiceSlots';
-import { ErrorNote, Group, Help, NavRow, Screen } from '../kit';
+import { ErrorNote, Group, Help, NavRow, Screen, Section, SECTION_GAP } from '../kit';
 import { space, useTheme, readable } from '../theme';
 
 /**
@@ -48,12 +48,26 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
 
   return (
     <Screen title={`${name} voices`}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
         {error ? <ErrorNote message={error} onRetry={() => setAttempt((n) => n + 1)} /> : null}
         {!known && voices === undefined && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
         {outdated ? <ErrorNote message="Your Read & Listen server hasn't been updated for this yet. It updates itself within about 15 minutes of a new version, so try again then." /> : null}
         {known ? (
-          <>
+          <Section
+            footer={(
+              <>
+                <Help>
+                  {`Texts use these voices for their speakers, with the second voice when both speakers are men or both are women. A story's narrator uses the man's voice.`}
+                </Help>
+                {sharesVoice(voices) ? (
+                  <Help>{`A second voice that's the same as the first reads two men, or two women, in the same voice. Choose a different one to tell them apart.`}</Help>
+                ) : null}
+                <Help>
+                  {`Texts waiting to be read are recorded again in the new voices; a text you've already read keeps its audio.`}
+                </Help>
+              </>
+            )}
+          >
             <Group>
               {VOICE_SLOTS.map((s, i) => (
                 <NavRow key={s.slot} first={i === 0} label={s.label} detail={azureVoiceName(voices[s.slot])} onPress={() => onPick(s.slot)} />
@@ -64,16 +78,7 @@ export function ReadVoices({ api, language, voices, onSettings, onPick, onCast }
                 <NavRow first label="Series characters" detail="Voices for the people in a series" onPress={onCast} />
               </Group>
             ) : null}
-            <Help>
-              {`Texts use these voices for their speakers, with the second voice when both speakers are men or both are women. A story's narrator uses the man's voice.`}
-            </Help>
-            {sharesVoice(voices) ? (
-              <Help>{`A second voice that's the same as the first reads two men, or two women, in the same voice. Choose a different one to tell them apart.`}</Help>
-            ) : null}
-            <Help>
-              {`Texts waiting to be read are recorded again in the new voices; a text you've already read keeps its audio.`}
-            </Help>
-          </>
+          </Section>
         ) : null}
       </ScrollView>
     </Screen>

@@ -143,7 +143,7 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
                         style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingLeft: space.l }}
                       >
                         <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={24} color={on ? c.accent : c.controlEdge} />
-                        <View style={{ flex: 1, gap: 2 }}>
+                        <View style={{ flex: 1, gap: space.xs }}>
                           <Text style={{ ...withThaiLineHeight(type.body, w.word), color: c.text }}>{w.word}</Text>
                           {detail ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text> : null}
                         </View>

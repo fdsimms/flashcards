@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { NEW_CARD_ORDERS, newCardOrderNote, newCardOrderOf, type NewCardOrder } from '../core/newCardOrder';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { Group, Help, CheckRow, SectionTitle } from './kit';
+import { Group, Help, CheckRow, Section } from './kit';
 
 /**
  * Deck options for where new cards go among reviews. It is the Anki preset's "New/review order",
@@ -41,14 +41,12 @@ export function DeckNewCardOrder({ repo, deck }: { repo: Repo & AnkiLink; deck: 
 
   if (!order) return null;
   return (
-    <>
-      <SectionTitle>New cards</SectionTitle>
+    <Section title="New cards" footer={<Help>{newCardOrderNote(order.sharedWith.length)}</Help>}>
       <Group accessibilityRole="radiogroup">
         {NEW_CARD_ORDERS.map((o, i) => (
           <CheckRow key={o.mix} first={i === 0} label={o.label} hint={o.hint} selected={order.mix === o.mix} onPress={() => choose(o.mix)} />
         ))}
       </Group>
-      <Help>{newCardOrderNote(order.sharedWith.length)}</Help>
-    </>
+    </Section>
   );
 }

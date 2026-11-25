@@ -117,7 +117,7 @@ export function SessionMissList({ rows, onOpen }: { rows: SessionMissRow[]; /** 
                 backgroundColor: pressed ? c.fill : 'transparent',
               })}
             >
-              <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flex: 1, gap: space.xs }}>
                 {r.card ? <Text numberOfLines={2} style={{ ...type.footnote, color: c.textSecondary }}>{r.card.question}</Text> : null}
                 <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{r.card ? r.card.answer : r.word}</Text>
                 {!r.card && r.meaning ? <Text numberOfLines={2} style={{ ...type.subhead, color: c.textSecondary }}>{r.meaning}</Text> : null}

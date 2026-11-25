@@ -69,7 +69,7 @@ export function ReadWords({ api, mining }: {
             <Card style={{ paddingVertical: 0, gap: 0 }}>
               {words.map((w, i) => (
                 <View key={w.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, borderTopWidth: i === 0 ? 0 : hairline, borderTopColor: c.border }}>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1, gap: space.xs }}>
                     <ReadWordTitle text={w.word} pronunciation={w} titleStyle={{ fontWeight: '400' }} />
                     {w.lemma ? <Text style={{ ...type.footnote, color: c.textSecondary }}>Dictionary form: {w.lemma}</Text> : null}
                     <Text style={{ ...type.body, color: c.text }}>{meaningOf(w)}</Text>
