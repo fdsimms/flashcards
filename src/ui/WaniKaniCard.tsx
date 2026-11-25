@@ -177,7 +177,7 @@ function ToolButton({ icon, label, onPress }: { icon: React.ComponentProps<typeo
       scaleTo={0.9}
       style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
     >
-      <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkWell }}>
+      <View style={{ width: 30, height: 30, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkWell }}>
         <Icon name={icon} size={15} color={c.onWkSoft} />
       </View>
     </Tappable>

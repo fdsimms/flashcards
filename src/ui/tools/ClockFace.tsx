@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { clockText, type ClockTime } from '../../tools/time';
-import { useTheme } from '../theme';
+import { radius, useTheme } from '../theme';
 
 /**
  * An analog clock showing `time`, drawn from Views: each tick and hand sits in a layer the size of
@@ -47,7 +47,7 @@ export function ClockFace({ time, size }: { time: ClockTime; size: number }) {
       })}
       {hand(hours * 30, size * 0.24, 5, c.text)}
       {hand(time.minute * 6, size * 0.37, 3, c.accent)}
-      <View style={{ position: 'absolute', left: mid - 4, top: mid - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent }} />
+      <View style={{ position: 'absolute', left: mid - 4, top: mid - 4, width: 8, height: 8, borderRadius: radius.pill, backgroundColor: c.accent }} />
     </View>
   );
 }

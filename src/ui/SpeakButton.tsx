@@ -40,15 +40,15 @@ function HeroSpeak({ spoken, label }: { spoken: Spoken; label: string }) {
   const ring = spoken.listening ? c.danger : c.accent;
   return (
     <View style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
-      <View pointerEvents="none" style={{ position: 'absolute', top: -9, right: -9, bottom: -9, left: -9, borderRadius: 60, borderWidth: 1, borderColor: ring, opacity: 0.35 }} />
-      <View pointerEvents="none" style={{ position: 'absolute', top: -18, right: -18, bottom: -18, left: -18, borderRadius: 70, borderWidth: 1, borderColor: ring, opacity: 0.15 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: -9, right: -9, bottom: -9, left: -9, borderRadius: radius.pill, borderWidth: 1, borderColor: ring, opacity: 0.35 }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: -18, right: -18, bottom: -18, left: -18, borderRadius: radius.pill, borderWidth: 1, borderColor: ring, opacity: 0.15 }} />
       <Tappable
         onPress={() => (spoken.listening ? spoken.stop() : void spoken.start())}
         accessibilityRole="button"
         accessibilityLabel={spoken.listening ? 'Stop listening' : label}
         accessibilityState={{ busy: spoken.listening }}
         scaleTo={0.95}
-        style={{ width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: spoken.listening ? c.danger : c.accent }}
+        style={{ width: 84, height: 84, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: spoken.listening ? c.danger : c.accent }}
       >
         <Icon name={spoken.listening ? 'stop.fill' : 'mic.fill'} size={34} color={spoken.listening ? c.onRating : c.onAccent} />
       </Tappable>

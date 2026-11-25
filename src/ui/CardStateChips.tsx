@@ -28,7 +28,7 @@ export function CardStateChips({ chip, leech, mnemonic = false, style }: { chip?
           {chip.kind === 'new' ? <Icon name="sparkle" size={12} color={c.countNew} /> : chip.step ? (
             <View style={{ flexDirection: 'row', gap: 3 }}>
               {Array.from({ length: chip.step.of }, (_, i) => (
-                <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: i < chip.step!.at ? c.countLearn : 'transparent', borderWidth: i < chip.step!.at ? 0 : 1.5, borderColor: c.countLearn }} />
+                <View key={i} style={{ width: 6, height: 6, borderRadius: radius.pill, backgroundColor: i < chip.step!.at ? c.countLearn : 'transparent', borderWidth: i < chip.step!.at ? 0 : 1.5, borderColor: c.countLearn }} />
               ))}
             </View>
           ) : <Icon name="arrow.triangle.2.circlepath" size={12} color={c.countLearn} />}

@@ -157,7 +157,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
           accessibilityLabel={`Delete ${row.name}`}
           scaleTo={0.85}
           hitSlop={space.s}
-          style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
         >
           <Icon name="minus" size={12} color={c.onRating} weight="bold" />
         </Tappable>

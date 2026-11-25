@@ -26,7 +26,7 @@ import { useSelfRecording } from '../useSelfRecording';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
-import { PlayCircle } from './PlayCircle';
+import { PlayCircle } from '../PlayCircle';
 
 const AUDIO_MODE = LISTENING_MODE;
 
