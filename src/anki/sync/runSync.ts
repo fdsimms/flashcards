@@ -1,6 +1,7 @@
 import type { SyncClient } from './client';
 import { serverMeta, syncCollection, type SyncDb, type SyncOutcome } from './collectionSync';
 import type { MediaSyncResult } from './mediaSync';
+import type { SyncProgress } from './progress';
 import { SyncError } from './protocol';
 
 /**
@@ -47,8 +48,10 @@ export interface SyncDeps {
   upload(): Promise<void>;
   /** Re-reads the kept collection into Franki's decks after a sync changed it. */
   refresh(): Promise<void>;
-  /** Media both ways: the server's changes, then files made here (`syncMedia`). */
-  syncMedia(serverUsn: number): Promise<MediaSyncResult>;
+  /** Media both ways: the server's changes, then files made here (`syncMedia`). It reports its own counts to `onProgress`. */
+  syncMedia(serverUsn: number, onProgress?: (p: SyncProgress) => void): Promise<MediaSyncResult>;
+  /** Told which phase the sync is in, and how far along where that's countable. A full download reports its bytes through the same function from `download`. */
+  onProgress?: (p: SyncProgress) => void;
   /** Asks which side to keep; null cancels. Automatic syncs that can't ask return null. */
   choose(q: FullSyncQuestion): Promise<'download' | 'upload' | null>;
 }
@@ -63,11 +66,12 @@ export interface SyncReport {
 }
 
 export async function runSync(deps: SyncDeps): Promise<SyncReport> {
+  deps.onProgress?.({ phase: 'collection' });
   const phase = await deps.lock(() => syncTheCollection(deps));
   const { report, mediaUsn } = phase;
   if (report.collection === 'cancelled' || report.collection === 'serverEmpty') return report;
   try {
-    report.media = await deps.syncMedia(mediaUsn);
+    report.media = await deps.syncMedia(mediaUsn, deps.onProgress);
   } catch (e) {
     report.mediaError = e instanceof Error ? e.message : String(e);
   }
@@ -95,6 +99,7 @@ async function syncTheCollection(deps: SyncDeps): Promise<{ report: SyncReport; 
       break;
     case 'downloadNeeded':
       report.sent = outcome.sent;
+      deps.onProgress?.({ phase: 'download', bytes: 0 });
       await deps.download();
       report.collection = 'downloaded';
       break;
@@ -107,8 +112,8 @@ async function syncTheCollection(deps: SyncDeps): Promise<{ report: SyncReport; 
       else if (!outcome.uploadOk || (unsent === 0 && edits === 0 && outcome.reason !== 'local')) pick = 'download';
       else pick = await deps.choose({ uploadOk: outcome.uploadOk, downloadOk: outcome.downloadOk, unsent, edits, reason: outcome.reason });
       if (!pick) return { report: { collection: 'cancelled', sent: 0 }, mediaUsn: outcome.mediaUsn };
-      if (pick === 'download') { await deps.download(); report.collection = 'downloaded'; }
-      else { await deps.upload(); report.collection = 'uploaded'; }
+      if (pick === 'download') { deps.onProgress?.({ phase: 'download', bytes: 0 }); await deps.download(); report.collection = 'downloaded'; }
+      else { deps.onProgress?.({ phase: 'upload' }); await deps.upload(); report.collection = 'uploaded'; }
       break;
     }
   }

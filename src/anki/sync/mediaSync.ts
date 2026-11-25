@@ -2,6 +2,7 @@ import { unzipSync, zipSync } from 'fflate';
 import { utf8Decode, utf8Encode } from '../protobuf';
 import { sha1Hex } from '../sha1';
 import type { SyncClient } from './client';
+import type { SyncProgress } from './progress';
 import { MEDIA_FILES_PER_REQUEST, MEDIA_UPLOAD_TARGET_BYTES, SyncError, type MediaChange } from './protocol';
 
 /**
@@ -76,11 +77,16 @@ export function mediaAction(change: MediaChange, recorded: string | undefined, p
   return 'download';
 }
 
-export async function pullMedia(client: SyncClient, state: MediaState, folder: MediaFolder, serverUsn: number): Promise<MediaPullResult> {
+export async function pullMedia(client: SyncClient, state: MediaState, folder: MediaFolder, serverUsn: number, onProgress?: (p: SyncProgress) => void): Promise<MediaPullResult> {
   const result: MediaPullResult = { downloaded: 0, deleted: 0, skipped: [] };
   let lastUsn = await state.lastUsn();
   if (lastUsn === serverUsn) return result;
   const pending = await state.pending();
+  // Every change the server numbers is one usn, so the work to do is known before the first batch: the usns between here and the server's.
+  const startUsn = lastUsn;
+  const total = serverUsn - startUsn;
+  const report = (done: number) => { if (total > 0) onProgress?.({ phase: 'media', done: Math.min(total, Math.max(0, done)), total }); };
+  report(0);
 
   for (;;) {
     const batch = await client.media<MediaChange[]>('mediaChanges', { lastUsn });
@@ -103,6 +109,7 @@ export async function pullMedia(client: SyncClient, state: MediaState, folder: M
       }
     }
 
+    const downloadedBefore = result.downloaded;
     let names = [...toDownload.keys()];
     while (names.length) {
       const zip = await client.callBytes('msync/downloadFiles', utf8Encode(JSON.stringify({ files: names.slice(0, MEDIA_FILES_PER_REQUEST) })));
@@ -117,6 +124,8 @@ export async function pullMedia(client: SyncClient, state: MediaState, folder: M
         if (pending.has(name)) { await state.setPending(name, null); pending.delete(name); }
         got.add(name);
         result.downloaded++;
+        // Within a batch, each file saved counts as one of its changes; the batch's last usn settles it below.
+        report(lastUsn - startUsn + Math.min(result.downloaded - downloadedBefore, batch.length));
       }
       // The server sends fewer when the files are large; ask again for the rest.
       if (!got.size) throw new SyncError('server', `The server sent none of the media files asked for (${names.slice(0, 3).join(', ')}).`);
@@ -125,6 +134,7 @@ export async function pullMedia(client: SyncClient, state: MediaState, folder: M
 
     lastUsn = batch[batch.length - 1][1];
     await state.setLastUsn(lastUsn);
+    report(lastUsn - startUsn);
   }
   return result;
 }
@@ -139,8 +149,10 @@ export async function pullMedia(client: SyncClient, state: MediaState, folder: M
  * A file that's gone, empty, or named in a way Anki would refuse (not NFC, a "/") is taken off
  * the list rather than sent, as Anki drops such entries.
  */
-export async function pushMedia(client: SyncClient, state: MediaState, folder: MediaReader): Promise<MediaPushResult> {
+export async function pushMedia(client: SyncClient, state: MediaState, folder: MediaReader, onProgress?: (p: SyncProgress) => void): Promise<MediaPushResult> {
   const result: MediaPushResult = { uploaded: 0 };
+  const total = (await state.pending()).size;
+  if (total) onProgress?.({ phase: 'mediaSend', done: 0, total });
   for (;;) {
     const pending = [...(await state.pending()).keys()];
     if (!pending.length) return result;
@@ -167,13 +179,14 @@ export async function pushMedia(client: SyncClient, state: MediaState, folder: M
       await state.setPending(f.name, null);
     }
     result.uploaded += taken.length;
+    onProgress?.({ phase: 'mediaSend', done: Math.min(total, result.uploaded), total });
     const lastUsn = await state.lastUsn();
     if (lastUsn + taken.length === serverUsn) await state.setLastUsn(serverUsn);
   }
 }
 
 /** A whole media sync, as Anki runs one: the server's changes first, then Franki's own. */
-export async function syncMedia(client: SyncClient, state: MediaState, folder: MediaFolder & MediaReader, serverUsn: number): Promise<MediaSyncResult> {
-  const pulled = await pullMedia(client, state, folder, serverUsn);
-  return { ...pulled, ...(await pushMedia(client, state, folder)) };
+export async function syncMedia(client: SyncClient, state: MediaState, folder: MediaFolder & MediaReader, serverUsn: number, onProgress?: (p: SyncProgress) => void): Promise<MediaSyncResult> {
+  const pulled = await pullMedia(client, state, folder, serverUsn, onProgress);
+  return { ...pulled, ...(await pushMedia(client, state, folder, onProgress)) };
 }
