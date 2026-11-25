@@ -250,7 +250,7 @@ export function PickChoices({ quiz }: { quiz: DateQuiz }) {
               borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: border,
             }}
           >
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flex: 1, gap: space.xs }}>
               <Text style={{ ...type.body, lineHeight: 26, color: c.text }}>{o.phrase.text}</Text>
               {answered && o.phrase.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{o.phrase.roman}</Text> : null}
             </View>

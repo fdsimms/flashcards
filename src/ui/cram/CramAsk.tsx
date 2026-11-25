@@ -143,7 +143,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
       ) : !list ? (
         <Tappable onPress={() => void find()} disabled={busy} accessibilityRole="button" accessibilityLabel={add ? `Add ${typed}` : `Make a card for ${typed}`} scaleTo={0.98} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
           <Icon name="plus.circle.fill" size={26} color={c.accent} />
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.headline, color: c.text }}>{add ? `Add "${typed}"` : `Make a card for "${typed}"`}</Text>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{busy ? `Finding the ${name}` : add ? `Claude finds the ${name}.` : `Claude finds the ${name} and writes a card. Approve it and it joins the cram.`}</Text>
           </View>
@@ -167,7 +167,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
                 <View style={{ paddingTop: 4 }}>
                   <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flex: 1, gap: space.xs }}>
                   <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
                   <CandidateChips word={cand} />

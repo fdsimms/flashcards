@@ -54,8 +54,8 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
 function Stat({ value, label, color, fill }: { value: number; label: string; color: string; fill: string }) {
   const c = useTheme();
   return (
-    <View style={{ minWidth: 44, alignItems: 'center', gap: 2 }}>
-      <View style={{ minWidth: 40, alignItems: 'center', borderRadius: radius.pill, ...smooth, paddingHorizontal: space.xs + 2, paddingVertical: 2, backgroundColor: value ? fill : 'transparent' }}>
+    <View style={{ minWidth: 44, alignItems: 'center', gap: space.xs }}>
+      <View style={{ minWidth: 40, alignItems: 'center', borderRadius: radius.pill, ...smooth, paddingHorizontal: space.s, paddingVertical: space.xs, backgroundColor: value ? fill : 'transparent' }}>
         <CountingText value={value} style={{ ...type.headline, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
       </View>
       <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
@@ -162,7 +162,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
         </Tappable>
       ) : null}
       {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : null}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text numberOfLines={2} style={{ ...(row.depth === 0 ? type.headline : type.callout), color: c.text }}>{badge.rest}</Text>
         {line ? <Text style={{ ...type.footnote, color: detail?.warning ? c.warning : c.textSecondary }}>{line}</Text> : null}
         {below}

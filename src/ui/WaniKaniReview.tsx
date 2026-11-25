@@ -637,7 +637,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
       <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top, paddingBottom: keyboardPad }}>
         <Screen title={compact ? countTitle : title} largeTitle={false} toolbar={returnToolbar} footer={returnFooter}>
           {countRow}
-          <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+          <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.s }} />
           {/* Tapping the card shows the answer. Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); revealReturn(); }} style={{ flex: 1 }}>
           <CardSurface color={subjectColor(c, returnSubject.type)} top={cardTop}>
@@ -800,7 +800,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           </Text>
         ) : null}
         {droppedNote()}
-        <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.xs }} />
+        <ProgressBar value={sessionProgress(study.session)} style={{ marginHorizontal: space.l, marginTop: space.s }} />
         {/* Tapping the card shows the answer where the footer says Show answer (not a typed question, a lesson or the rating step). Not an accessibility element itself: Show answer is the control VoiceOver uses. */}
         <Pressable accessible={false} disabled={!tapToShow} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
         <CardSurface color={subjectColor(c, subject.type)} top={cardTop}>
@@ -847,7 +847,7 @@ function RateButton({ label, detail, color, onPress }: { label: string; detail: 
       accessibilityLabel={`${label}. ${detail}`}
       scaleTo={0.95}
       dimTo={0.85}
-      style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: color }}
+      style={{ flex: 1, minHeight: 60, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s, alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: color }}
     >
       <Text style={{ ...type.caption, color: c.onRating }}>{detail}</Text>
       <Text style={{ ...type.headline, color: c.onRating }}>{label}</Text>

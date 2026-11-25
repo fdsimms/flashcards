@@ -202,7 +202,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                 <Card style={{ gap: 0, paddingVertical: space.xs }}>
                   {sec.rows.map((row, i) => (
                     <View key={row.title} accessible={!row.action} accessibilityLabel={`${row.title}. ${row.detail}${row.meter !== undefined ? `. ${row.meter} percent` : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
-                      <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flex: 1, gap: space.xs }}>
                         <Text style={{ ...type.body, color: row.locked || row.covered || row.action?.kind === 'start' ? c.textSecondary : c.text }}>{row.title}</Text>
                         <Text style={{ ...type.footnote, color: row.clean ? c.goodInk : c.textSecondary }}>{row.detail}</Text>
                       </View>

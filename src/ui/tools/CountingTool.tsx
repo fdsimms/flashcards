@@ -225,7 +225,7 @@ function Choices({ choices, correct, picked, byReading, onChoose }: {
               borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
             }}
           >
-            <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flex: 1, gap: space.xs }}>
               <Text style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
               {answered && p.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
             </View>

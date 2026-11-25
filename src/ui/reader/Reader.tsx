@@ -1043,7 +1043,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             ) : null}
             {source.kind === 'shelf' && !problem ? (
               <Card style={{ gap: space.m }}>
-                <View style={{ gap: 2 }}>
+                <View style={{ gap: space.xs }}>
                   <Text style={{ ...type.headline, color: c.text }}>For the next ones</Text>
                   <Help>Applies to texts written from now on.</Help>
                 </View>

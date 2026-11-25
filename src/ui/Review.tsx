@@ -1391,7 +1391,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           restOpacity={suggestedRating && suggestedRating !== b.r ? 0.55 : 1}
           style={{
             flex: 1, minHeight: FOOTER_BUTTON_HEIGHT, borderRadius: radius.m + 2, ...smooth, paddingVertical: space.s,
-            alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: b.color,
+            alignItems: 'center', justifyContent: 'center', gap: space.xs, backgroundColor: b.color,
             ...(suggested === b.r ? { borderWidth: 3, borderColor: c.text } : null),
           }}
         >
@@ -1652,8 +1652,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           {cardParams?.showTimer ? <AnswerTimer key={showing} revealed={revealed} params={cardParams} /> : null}
         </View>
       ) : null}
-      {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.xs }} /> : null}
-      {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.xs }}>{timing.line}</Text> : null}
+      {queue ? <ProgressBar value={progressRef.current} style={{ marginHorizontal: space.l, marginTop: space.s }} /> : null}
+      {timing.line ? <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center', marginHorizontal: space.l, marginTop: space.s }}>{timing.line}</Text> : null}
       {drill && skill.question ? (
         <SwipeCard enabled={swipeOn && revealed} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           <SkillDrillCard skill={skill} revealed={revealed} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />

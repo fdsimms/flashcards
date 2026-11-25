@@ -220,7 +220,7 @@ function Choice({ word, state, onPress, onPlay }: {
     >
       {state === 'right' ? <Icon name="checkmark.circle.fill" size={20} color={c.countDue} /> : null}
       {state === 'wrong' ? <Icon name="xmark.circle.fill" size={20} color={c.danger} /> : null}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
         {state === 'open' ? null : (
           <>

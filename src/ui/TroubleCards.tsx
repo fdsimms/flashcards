@@ -221,14 +221,14 @@ function Row({ row, mode, noteType, first, last, onPress }: { row: TroubleRow; m
       })}
     >
       {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, gap: space.xs }}>
         <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>
           {front || '(empty)'}{back ? <Text style={{ color: c.textSecondary }}>{`  ${back}`}</Text> : null}
         </Text>
         <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
       </View>
       {row.card.flag === AGENT_FLAG ? <Icon name="flag.fill" size={15} color={c.flags[AGENT_FLAG]} /> : null}
-      <View style={{ minWidth: 32, alignItems: 'center', paddingHorizontal: space.s, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: c.dangerFill }}>
+      <View style={{ minWidth: 32, alignItems: 'center', paddingHorizontal: space.s, paddingVertical: space.xs, borderRadius: radius.pill, backgroundColor: c.dangerFill }}>
         <Text style={{ ...type.subhead, fontWeight: '600', color: c.danger, fontVariant: ['tabular-nums'] }}>{row.misses.toLocaleString()}</Text>
       </View>
     </HoverPressable>

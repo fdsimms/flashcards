@@ -116,7 +116,7 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
             {preset.decks.map((d) => {
               const note = ownValuesNote(d.own);
               return (
-                <View key={d.name} style={{ gap: 2 }}>
+                <View key={d.name} style={{ gap: space.xs }}>
                   <Text style={{ ...type.subhead, color: c.text }}>{d.name}</Text>
                   {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
                 </View>

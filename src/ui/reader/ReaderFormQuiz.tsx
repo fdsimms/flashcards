@@ -98,7 +98,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
           {after}
         </Text>
 
-        <View style={{ gap: 2 }}>
+        <View style={{ gap: space.xs }}>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>Fill in the blank with the right form of this word:</Text>
           <Text style={{ ...type.cardBack, color: c.accent }}>
             {word.lemma}

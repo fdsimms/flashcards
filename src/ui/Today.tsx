@@ -41,7 +41,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
       {caughtUp ? (
         <>
           <Icon name="checkmark.circle.fill" size={34} color={c.countDue} weight="regular" effect="bounce" />
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.headline, color: c.text }}>All caught up</Text>
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is due today.</Text>
           </View>

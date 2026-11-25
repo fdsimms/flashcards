@@ -237,7 +237,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
                       key={m.item.word}
                       accessible
                       accessibilityLabel={`${m.item.word}, ${m.item.meaning}. ${m.picked ? `You chose ${m.picked}.` : 'Skipped.'}`}
-                      style={{ gap: 2, minHeight: MIN_TAP, justifyContent: 'center', paddingVertical: space.m, paddingHorizontal: space.l }}
+                      style={{ gap: space.xs, minHeight: MIN_TAP, justifyContent: 'center', paddingVertical: space.m, paddingHorizontal: space.l }}
                     >
                       {i ? <Divider inset={space.l} /> : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.m }}>

@@ -309,7 +309,7 @@ export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phras
           scaleTo={0.99}
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
         >
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: space.xs }}>
             <Text style={{ ...type.body, color: c.text, ...ja(p.text) }}>{p.text}</Text>
             {p.roman || p.note ? (
               <Text style={{ ...type.footnote, color: c.textSecondary, ...ja(p.roman ?? '') }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>

@@ -213,7 +213,7 @@ function Story({ repo, theme, language, words, size, toolbar, check }: {
               <Text style={{ ...talkTextStyle(info, size, 1), color: c.text }}>
                 {runs.map((r, i) => (r.marked ? <Text key={i} style={{ backgroundColor: c.accentFill, color: c.accentInk }}>{r.text}</Text> : r.text))}
               </Text>
-              {story.english ? <Text style={{ ...type.subhead, fontSize: scaledFontSize(type.subhead.fontSize, size), color: c.textSecondary }}>{story.english}</Text> : null}
+              {story.english ? <Text style={{ ...type.subhead, fontSize: scaledFontSize(type.subhead.fontSize, size), lineHeight: Math.round(scaledFontSize(type.subhead.fontSize, size) * (type.subhead.lineHeight / type.subhead.fontSize)), color: c.textSecondary }}>{story.english}</Text> : null}
               {words.length ? <Help>The highlighted words are from your deck.</Help> : null}
             </Card>
             <Button label="Edit the story" variant="secondary" onPress={() => { haptic.tap(); setEditing(true); }} />

@@ -281,12 +281,14 @@ export function lift(c: Colors, depth: 'low' | 'high' = 'low') {
 export const type = {
   largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
   title: { fontSize: 22, fontWeight: '700' },
-  headline: { fontSize: 17, fontWeight: '600' },
-  body: { fontSize: 17 },
-  callout: { fontSize: 16 },
-  subhead: { fontSize: 15 },
-  footnote: { fontSize: 13 },
-  caption: { fontSize: 12 },
+  // The sizes below carry iOS's own line heights, so wrapped text isn't set at the font's default leading.
+  // A style that spreads one and changes `fontSize` has to set its own `lineHeight` too, or the lines overlap.
+  headline: { fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  body: { fontSize: 17, lineHeight: 22 },
+  callout: { fontSize: 16, lineHeight: 21 },
+  subhead: { fontSize: 15, lineHeight: 20 },
+  footnote: { fontSize: 13, lineHeight: 18 },
+  caption: { fontSize: 12, lineHeight: 16 },
   /** A small all-caps label over a group or a field on a card. */
   overline: { fontSize: 12, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
   /** The word or question on a card. */
