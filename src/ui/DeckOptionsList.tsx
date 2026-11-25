@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
 import type { DeckNode } from '../core/deckTree';
-import { Group, Help, Loading, NavRow, Screen } from './kit';
+import { Group, Help, Loading, NavRow, Screen, Section } from './kit';
 import { space, readable } from './theme';
 
 /**
@@ -19,14 +19,13 @@ export function DeckOptionsList({ decks, loaded, onOpen }: {
     <Screen title="Deck options">
       {!decks.length && !loaded ? <Loading /> : (
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-          {decks.length ? (
-            <>
+          <Section footer={decks.length ? <Help>Each opens the same options as Options on the deck's own menu.</Help> : undefined}>
+            {decks.length ? (
               <Group>
                 {decks.map((d, i) => <NavRow key={d.deck} first={i === 0} indent={d.depth} label={d.name} onPress={() => onOpen(d.deck)} />)}
               </Group>
-              <Help>Each opens the same options as Options on the deck's own menu.</Help>
-            </>
-          ) : <Help>No decks yet. Import a deck or sync with Anki, and its options will be here.</Help>}
+            ) : <Help>No decks yet. Import a deck or sync with Anki, and its options will be here.</Help>}
+          </Section>
         </ScrollView>
       )}
     </Screen>

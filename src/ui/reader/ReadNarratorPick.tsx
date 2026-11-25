@@ -6,7 +6,7 @@ import type { Api, AzureVoice } from '../../reader/api';
 import { saveNarrator } from '../../reader/lessonStorage';
 import { narratorVoices, sampleLine, searchVoices, type Gender } from '../../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from '../AzureVoices';
-import { ErrorNote, Group, Help, Screen, Segments } from '../kit';
+import { ErrorNote, Group, Help, Screen, Section, Segments } from '../kit';
 import { space, type, useTheme, readable } from '../theme';
 
 /**
@@ -55,28 +55,29 @@ export function ReadNarratorPick({ api, current, serverDefault }: {
         {azure.error ? <ErrorNote message={azure.error} onRetry={azure.retry} /> : null}
         {sample.error ? <ErrorNote message={sample.error} /> : null}
         {!azure.voices && !azure.error ? <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} /> : null}
-        {options && !searching ? (
-          <Segments<Gender>
-            options={[{ value: 'male', label: 'Men' }, { value: 'female', label: 'Women' }]}
-            value={gender}
-            onChange={setGender}
-          />
-        ) : null}
-        {options && searching && !options.length ? (
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>No voices match "{query.trim()}".</Text>
-        ) : null}
-        {options && options.length ? (
-          <Group accessibilityRole="radiogroup">
-            <AzureVoiceRows
-              voices={options}
-              selected={chosen || undefined}
-              onChoose={choose}
-              none={searching ? undefined : { label: 'Default', hint: serverDefault ? azureVoiceName(serverDefault) : "The server's own voice" }}
+        <Section footer={<Help>The narrator speaks a lesson's English. Tap a voice to hear it. Applies to lessons you make from now on.</Help>}>
+          {options && !searching ? (
+            <Segments<Gender>
+              options={[{ value: 'male', label: 'Men' }, { value: 'female', label: 'Women' }]}
+              value={gender}
+              onChange={setGender}
             />
-          </Group>
-        ) : null}
-        {options ? <AzureVoiceTerms voices={options} /> : null}
-        <Help>The narrator speaks a lesson's English. Tap a voice to hear it. Applies to lessons you make from now on.</Help>
+          ) : null}
+          {options && searching && !options.length ? (
+            <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>No voices match "{query.trim()}".</Text>
+          ) : null}
+          {options && options.length ? (
+            <Group accessibilityRole="radiogroup">
+              <AzureVoiceRows
+                voices={options}
+                selected={chosen || undefined}
+                onChoose={choose}
+                none={searching ? undefined : { label: 'Default', hint: serverDefault ? azureVoiceName(serverDefault) : "The server's own voice" }}
+              />
+            </Group>
+          ) : null}
+          {options ? <AzureVoiceTerms voices={options} /> : null}
+        </Section>
       </ScrollView>
     </Screen>
   );
