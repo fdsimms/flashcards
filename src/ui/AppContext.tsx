@@ -20,6 +20,7 @@ import { boostFor } from '../core/priority';
 import { applyPriorityStamps } from '../db/priorityStamps';
 import { loadHeld } from './lookalikeHold';
 import { useCramCap } from './useCrams';
+import { useDailyGoals } from './dailyGoals';
 import { useCollapsedDecks, type CollapsedDecks } from './useCollapsedDecks';
 import { useConnection } from './connection';
 import { useAppLanguageSync } from './useAppLanguage';
@@ -180,6 +181,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useAutoBackup(repo ?? undefined, decks, dayStartsAtHour);
   useVacationRefresh(refresh);
   useCramCap(repo, decks);
+  useDailyGoals(repo, decks, refresh);
   const wanikani = useWaniKani(repo, dayStartsAtHour, reader.api);
 
   const editorClose = useRef<((result?: NoteEditorResult) => void) | null>(null);

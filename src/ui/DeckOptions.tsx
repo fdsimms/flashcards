@@ -10,13 +10,17 @@ import { deckHasAspectLanguage } from '../core/aspectCheck';
 import { deckHasForms } from '../core/forms';
 import { newCardOrderOf } from '../core/newCardOrder';
 import { paramsForDeck } from '../core/scheduler';
-import type { DeckSettings, Note } from '../core/types';
+import { goalTarget } from '../core/dailyGoal';
+import type { DeckParams, DeckSettings, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { RecordDeps } from '../anki/recordService';
 import { deckScripts } from '../core/fontScripts';
 import type { Script } from '../core/fonts';
+import { useApp } from './AppContext';
+import { DeckDailyGoal } from './DeckDailyGoal';
 import { DeckDailyLimits } from './DeckDailyLimits';
+import { tuneDeck } from './dailyGoals';
 import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckNewCardOrder } from './DeckNewCardOrder';
@@ -51,6 +55,9 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
   const [aspectApplies, setAspectApplies] = useState(false);
   // Whether any note in the deck lists forms, which Forms practice needs.
   const [formsApply, setFormsApply] = useState(false);
+  // Every deck's Anki settings, for what a daily goal can set here (`goalTarget`).
+  const [params, setParams] = useState<Map<string, DeckParams>>(new Map());
+  const { refresh } = useApp();
   const saving = useRef(Promise.resolve());
 
   useEffect(() => {
@@ -64,6 +71,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
       setAllNotes(notes);
       setAspectApplies(deckHasAspectLanguage(deck, notes));
       setFormsApply(deckHasForms(deck, notes));
+      setParams(params);
       const s = all.get(deck) ?? {};
       setAll(all);
       setSettings(s);
@@ -85,13 +93,23 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
       });
   };
 
+  // A daily goal's value worked out again once the saves before it have landed, then the screen
+  // and the deck list read back, so the cap above and the deck's counts show what it set.
+  const retune = async () => {
+    await saving.current;
+    try { await tuneDeck(repo, deck); } finally { setAttempt((n) => n + 1); refresh().catch(() => undefined); }
+  };
+
   const toggle = (on: boolean) => {
     if (!settings) return;
-    if (!on) { save({ ...settings, gateCap: undefined }); setError(undefined); return; }
+    // With a daily goal, the gate decides what the goal sets: work today's value out again for it.
+    const goal = settings.dailyGoal !== undefined;
+    if (!on) { save({ ...settings, gateCap: undefined }); setError(undefined); if (goal) retune().catch(() => undefined); return; }
     const parsed = parseGateCap(capText);
     save({ ...settings, gateCap: 'cap' in parsed ? parsed.cap : DEFAULT_GATE_CAP });
     if (!('cap' in parsed)) setCapText(String(DEFAULT_GATE_CAP));
     setError(undefined);
+    if (goal) retune().catch(() => undefined);
   };
 
   const commitCap = () => {
@@ -114,43 +132,54 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
   });
 
   const on = settings?.gateCap !== undefined;
+  const target = settings ? goalTarget(deck, settings, params) : undefined;
+  // The goal sets the cap each day, so it's shown and not edited while the goal is on.
+  const capByGoal = on && settings?.dailyGoal !== undefined;
   const name = deck.split('::').pop();
+  // The daily goal comes first, right under the title, when the deck can have one; the gate it may set follows.
+  const goalShown = !filtered && !!target;
+  const gateSection = !settings ? null : (
+    <Section footer={inProgress !== undefined ? (
+      <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
+    ) : undefined}>
+      <Group>
+        <SwitchRow
+          first
+          label="Limit cards in progress"
+          hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
+          value={on}
+          onValueChange={toggle}
+        />
+      </Group>
+      {on ? (
+        <Card>
+          <Field
+            label="Maximum cards in progress"
+            value={capText}
+            onChangeText={(v) => { setCapText(v); setError(undefined); }}
+            onEndEditing={commitCap}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            error={!!error}
+            editable={!capByGoal}
+          />
+          {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
+          {capByGoal ? <Help>Set by your daily goal. Turn the goal off to set it yourself.</Help> : null}
+        </Card>
+      ) : null}
+    </Section>
+  );
   return (
     <Screen>
       {!settings ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <View style={{ gap: space.m }}>
           <PageTitle>{name ?? ''}</PageTitle>
-          <Section footer={inProgress !== undefined ? (
-            <Help>{inProgress === 1 ? '1 card is' : `${inProgress} cards are`} in progress in this deck and its subdecks now.</Help>
-          ) : undefined}>
-            <Group>
-              <SwitchRow
-                first
-                label="Limit cards in progress"
-                hint={`Show new cards only while fewer than this many cards in this deck and its subdecks are still in progress. A card stops counting once its next review is ${GURU_INTERVAL_DAYS} days or more away, and counts again if you forget it. New cards also stay within this deck's daily new card limit. Limits set on its subdecks don't apply.`}
-                value={on}
-                onValueChange={toggle}
-              />
-            </Group>
-            {on ? (
-              <Card>
-                <Field
-                  label="Maximum cards in progress"
-                  value={capText}
-                  onChangeText={(v) => { setCapText(v); setError(undefined); }}
-                  onEndEditing={commitCap}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  error={!!error}
-                />
-                {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
-              </Card>
-            ) : null}
-          </Section>
+          {goalShown ? <DeckDailyGoal settings={settings} target={target} onChange={(patch) => save({ ...settings, ...patch })} retune={retune} /> : gateSection}
         </View>
+        {goalShown ? gateSection : null}
         {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}
-        {!filtered && !hasPreset && settings ? <DeckDailyLimits settings={settings} onChange={(patch) => save({ ...settings, ...patch })} /> : null}
+        {!filtered && !hasPreset && settings ? <DeckDailyLimits settings={settings} onChange={(patch) => save({ ...settings, ...patch })} newSetByGoal={settings.dailyGoal !== undefined && target === 'own'} /> : null}
         {filtered ? null : (
           <Group>
             {hasPreset ? <NavRow first label="Anki options" detail="Daily limits, learning steps, maximum interval and desired retention" onPress={onAnkiOptions} /> : null}
