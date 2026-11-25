@@ -12,20 +12,24 @@ import { Button, Card, Help, Icon, Loading, Screen, Tappable } from '../kit';
 import { CandidateChips } from './CramBits';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
+import { useWordInDeck } from '../useWordInDeck';
 import { WorkingMark } from '../WorkingMark';
 
 type Lookup = { state: 'finding' } | { state: 'found'; list: LessonWordCandidate[] } | { state: 'failed'; why: string };
 
 /**
  * Make cards for all, from a cram's From the lesson: every word jotted down in the lesson is looked
- * up as Find word does (one at a time, writing nothing), the first match picked for each, any of
- * which can be changed or skipped. Make cards sends the picks to the note queue in one request; the
+ * up as Find word does (one at a time, writing nothing), the first match not already in the deck picked
+ * for each, any of which can be changed or skipped. A match the deck has can't be picked, and a word
+ * whose every match is in the deck is skipped. Make cards sends the picks to the note queue in one request; the
  * cards join the cram once approved, and each jotting is replaced on the cram by its card being
  * written (`afterCardsAsked`).
  */
-export function CramMakeCards({ repo, id, findWords, queue }: {
+export function CramMakeCards({ repo, id, deckFor, findWords, queue }: {
   repo: NoteStore;
   id: string;
+  /** The deck a language's new notes go in (Read & Listen's), as `queue` sends them. */
+  deckFor: (language: Language) => string | undefined;
   findWords: (language: Language, text: string) => Promise<LessonWordCandidate[]>;
   queue: (language: Language, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
 }) {
@@ -33,6 +37,7 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
   const router = useRouter();
   const { crams } = useCrams(repo);
   const collection = useCollection(repo);
+  const inDeck = useWordInDeck(repo);
   const cram = crams.find((x) => x.id === id);
   const language = cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined;
   // The jottings as the screen opened: one jotted meanwhile waits for the next time.
@@ -75,11 +80,15 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
       </Screen>
     );
   }
+  const deck = deckFor(language);
+  const have = (cand: LessonWordCandidate) => inDeck(deck, cand.text);
+  // The match picked for a word: the learner's, else the first the deck doesn't have; -1 when skipped.
+  const pickAt = (w: string, list: LessonWordCandidate[]) => picks.get(w) ?? list.findIndex((cand) => !have(cand));
   const pickOf = (w: string) => {
     const l = lookups.get(w);
     if (l?.state !== 'found') return undefined;
-    const i = picks.get(w) ?? 0;
-    return i >= 0 ? l.list[i] : undefined;
+    const i = pickAt(w, l.list);
+    return i >= 0 && !have(l.list[i]) ? l.list[i] : undefined;
   };
   const chosen = words.flatMap((w) => { const word = pickOf(w); return word ? [{ capture: w, word }] : []; });
   const looking = words.some((w) => !lookups.get(w) || lookups.get(w)!.state === 'finding');
@@ -121,13 +130,15 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
         {words.map((w) => {
           const l = lookups.get(w);
-          const at = picks.get(w) ?? 0;
+          const at = l?.state === 'found' ? pickAt(w, l.list) : 0;
+          // Every match is already in the deck: there's no card to make, so there's nothing to include.
+          const allHave = l?.state === 'found' && l.list.every(have);
           return (
             <Card key={w} style={{ gap: space.s }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
                 <Text style={{ ...type.headline, color: c.text, flex: 1 }}>{w}</Text>
-                {l?.state === 'found' ? (
-                  <Tappable onPress={() => { haptic.select(); setPicks((m) => new Map(m).set(w, at >= 0 ? -1 : 0)); }} accessibilityRole="button" accessibilityLabel={at >= 0 ? `Skip ${w}` : `Make a card for ${w}`}>
+                {l?.state === 'found' && !allHave ? (
+                  <Tappable onPress={() => { haptic.select(); setPicks((m) => new Map(m).set(w, at >= 0 ? -1 : l.list.findIndex((cand) => !have(cand)))); }} accessibilityRole="button" accessibilityLabel={at >= 0 ? `Skip ${w}` : `Make a card for ${w}`}>
                     <Text style={{ ...type.subhead, color: c.accentInk }}>{at >= 0 ? 'Skip' : 'Include'}</Text>
                   </Tappable>
                 ) : null}
@@ -139,25 +150,29 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
                 </View>
               ) : l.state === 'failed' ? (
                 <Text style={{ ...type.subhead, color: c.textSecondary }}>{l.why}</Text>
+              ) : allHave ? (
+                <Text style={{ ...type.subhead, color: c.textSecondary }}>{l.list.length === 1 ? `${l.list[0].text} is already in your deck. It stays on the cram.` : 'Each match is already in your deck. It stays on the cram.'}</Text>
               ) : at < 0 ? (
                 <Text style={{ ...type.subhead, color: c.textSecondary }}>Skipped. It stays on the cram.</Text>
               ) : (
                 l.list.map((cand, i) => {
                   const on = i === at;
+                  const there = have(cand);
                   return (
                     <Tappable
                       key={cand.text}
                       onPress={() => { haptic.select(); setPicks((m) => new Map(m).set(w, i)); }}
+                      disabled={there}
                       accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={[cand.text, cand.reading, cand.english].filter(Boolean).join(', ')}
+                      accessibilityState={{ selected: on, disabled: there }}
+                      accessibilityLabel={[cand.text, cand.reading, cand.english, there ? 'already in your deck' : ''].filter(Boolean).join(', ')}
                       scaleTo={0.98}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
                         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
-                        <CandidateChips word={cand} />
+                        {there ? <Text style={{ ...type.footnote, color: c.textSecondary }}>In your deck</Text> : <CandidateChips word={cand} />}
                       </View>
                       {on ? <Icon name="checkmark.circle.fill" size={20} color={c.accent} /> : null}
                     </Tappable>

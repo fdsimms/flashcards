@@ -65,6 +65,10 @@ const EXEMPT: Record<string, string[]> = {
   // and Add itself goes through useAddMinedWord. The one thing it saves is the card's own note with
   // a word taken out of SenseContrast, on the x's tap, with Undo. It never answers or adds a card.
   'the review screen\'s box of words a Sense rules out': ['src/ui/useSenseContrast.ts'],
+  // The duplicate check for the note queue reads the deck's notes and imports only the Repo and NoteStore
+  // types: the queue takes off a filled-in word the deck already has (useNoteQueue), and Practice and the
+  // crams don't offer one (useWordInDeck). Neither saves a note or touches a card.
+  'the note queue\'s duplicate check, which only reads the deck': ['src/ui/useNoteQueue.ts', 'src/ui/useWordInDeck.ts'],
 };
 const ALL_EXEMPT = Object.values(EXEMPT).flat();
 

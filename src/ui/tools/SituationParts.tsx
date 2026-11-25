@@ -118,7 +118,7 @@ export function MyLine({ text, look, lang }: { text: string; look: TextLook; lan
  * Add (to the note queue, filled in there and saved in the note editor: nothing reaches the deck until
  * it's saved).
  */
-export function SituationResult({ feedback, mine, look, lang, added, onAdd, scene }: {
+export function SituationResult({ feedback, mine, look, lang, added, inDeck, onAdd, scene }: {
   feedback: SituationFeedback;
   /** The owner's lines, by their index in the conversation. */
   mine: Map<number, string>;
@@ -126,6 +126,8 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
   lang: string;
   /** Words already put in the queue (or being put there), and any that failed. */
   added: Record<string, 'adding' | 'added' | 'failed'>;
+  /** Whether the deck already has a word (a new card not studied yet), so it isn't offered (`useWordInDeck`). */
+  inDeck: (word: string) => boolean;
   /** Null when there's no deck to add to (an older server). */
   onAdd: ((word: { word: string; english: string }) => void) | null;
   /** The scene, over the ring. */
@@ -183,7 +185,8 @@ export function SituationResult({ feedback, mine, look, lang, added, onAdd, scen
                   <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.why === 'asked' ? 'You asked for it' : 'You heard it'}</Text>
                 </View>
                 {onAdd ? (
-                  state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>Added</Text> : (
+                  state === 'added' ? <Text style={{ ...type.subhead, color: c.countDue }}>Added</Text>
+                  : !state && inDeck(w.word) ? <Text style={{ ...type.footnote, color: c.textSecondary }}>In your deck</Text> : (
                     <Button variant="secondary" label={state === 'failed' ? 'Try again' : 'Add'} busy={state === 'adding'} onPress={() => onAdd(w)} style={{ minHeight: MIN_TAP, paddingVertical: space.xs }} />
                   )
                 ) : null}

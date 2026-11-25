@@ -32,6 +32,7 @@ import { WorkingMark } from '../WorkingMark';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
+import { useWordInDeck } from '../useWordInDeck';
 import { PracticeCard } from './PracticeCard';
 import { SituationKeep, type KeepState } from './SituationKeep';
 import { SituationRehearse } from './SituationRehearse';
@@ -297,6 +298,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   useTrackedPlayer(player);
   const wake = useOutputWake();
   const phone = usePhoneSpeech(repo);
+  const wordInDeck = useWordInDeck(repo);
   useEffect(() => () => { asking.current++; saying.current++; phone.stop(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Their line, aloud: Azure's recording when one was made (the setting is on), else the phone's voice
   // (also when Azure failed, so the button always plays). A slow line asks the server for a slow
@@ -442,7 +444,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
         <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1, paddingTop: header.top }}>
           <CardSurface>
             <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.m }}>
-              <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
+              <SituationResult feedback={feedback} mine={mine} look={look} lang={info.speech} added={added} inDeck={(word) => wordInDeck(deck ?? undefined, word)} onAdd={deck ? (w) => void add(w) : null} scene={chat.scene} />
               {chat.words && keepable_.length ? <SituationKeep count={keepable_.length} state={keptState} onKeep={() => void keepThese()} /> : null}
             </ScrollView>
           </CardSurface>
