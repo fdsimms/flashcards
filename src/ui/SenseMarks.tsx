@@ -19,7 +19,7 @@ export interface SenseMarking {
 
 /**
  * A numbered Meaning on the answer, each sense a row with a check and an X to say whether it was recalled
- * (src/core/senseMarks.ts). Only an X is kept; a sense left alone counts as recalled. One missed last time is
+ * (src/core/senseMarks.ts). Only an X is kept; a sense left alone counts as recalled. When the card comes back after a miss, the senses it recalled start checked. One missed last time is
  * tinted and says so until it is given a verdict. `size` is the meaning's own text style, so the rows read as
  * the Meaning they stand in for.
  */

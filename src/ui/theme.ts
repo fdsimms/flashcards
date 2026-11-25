@@ -28,6 +28,8 @@ const light = {
   /** The edge of a control whose fill alone is too faint to show its shape (a secondary button): about 3:1 on the screen and on a card, WCAG's floor for a control's boundary. */
   controlEdge: '#8c887c',
   border: '#e3dfd4',
+  /** The dimming behind a centered modal (the confused-word link). */
+  scrim: 'rgba(0, 0, 0, 0.35)',
   accent: '#876a1e',
   /** Text in the accent's gold on `accentFill` (a HeaderAction, a marked word, a practice word's pill): the accent itself is 4:1 there in light mode. */
   accentInk: '#765c18',
@@ -170,6 +172,7 @@ const dark: typeof light = {
   textDim: '#8a909b',
   controlEdge: '#6e7480',
   border: '#2a2e38',
+  scrim: 'rgba(0, 0, 0, 0.55)',
   accent: '#d4b46a',
   accentInk: '#d4b46a',
   // Gold is light in dark mode, so what sits on it is dark.
