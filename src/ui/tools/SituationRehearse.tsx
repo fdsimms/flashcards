@@ -6,7 +6,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Help, Screen, Segments } from '../kit';
 import { RegisterPicker } from '../reader/RegisterPicker';
 import { Chip } from '../cram/CramThemes';
-import { readable, space, type, useTheme } from '../theme';
+import { radius, readable, smooth, space, type, useTheme } from '../theme';
 
 /**
  * Situations opened from a cram or a theme (Rehearse): the scene is the cram's, so there's nothing to
@@ -31,7 +31,7 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
   return (
     <Screen title={title} largeTitle={false}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-        <View style={{ backgroundColor: c.surface, borderRadius: 12, padding: space.l, gap: space.s, alignItems: 'center' }}>
+        <View style={{ backgroundColor: c.surface, borderRadius: radius.m, ...smooth, padding: space.l, gap: space.s, alignItems: 'center' }}>
           <Text style={{ ...type.overline, color: c.textSecondary }}>Your scene</Text>
           <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>{rehearsal.scene}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
