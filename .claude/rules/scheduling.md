@@ -143,6 +143,14 @@ preset and every device must agree, and sync sends it (`deckConfigJson`). **Anki
 preset's daily limits, steps, maximum interval and desired retention, and list every deck the change
 reaches first; a deck's own Anki limits and retention (Deck.Normal) still win over the preset's.
 
+**A Russian or Polish aspect pair starts on the same day** (`aspectPartners`, `groupPartners`, `src/core/aspectPairs.ts`): two
+verb notes that name each other in AspectPartner are partners, and in `treeQueue` a new card whose partner's card of the same
+kind is also new brings it in, beside it, in the place of the lowest-priority new card that isn't half of a pair, so the daily
+limit usually holds. When every card gathered is half of a pair, the partner goes one over the limit rather than start
+a day apart (the owner's choice, 25 November 2026). It changes only which new cards
+are offered and where they sit, never a schedule: after the first answer the two cards are scheduled independently. It enters
+through `queueInput` (`partnerOf`), so the deck list and the review screen agree.
+
 **A daily goal sets a deck's new cards, never its reviews** (`DeckSettings.dailyGoal`, Deck options;
 `src/core/dailyGoal.ts`): once each study day (`useDailyGoals`, or at once when the goal changes) the deck is
 played forward `GOAL_DAYS` with the Stats forecast at candidate values, and the largest value that keeps every

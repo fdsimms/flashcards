@@ -1,4 +1,4 @@
-import { htmlToText } from '../core/html';
+import { fieldText as textOf, sameVerb } from '../core/aspectPairs';
 import type { Note } from '../core/types';
 import { isNoForm } from '../core/wordGrammar';
 import type { AspectPair, GlossLanguage, Language, Word } from './api';
@@ -71,13 +71,6 @@ export function minedNote(
 
 const OTHER_ASPECT = { perfective: 'imperfective', imperfective: 'perfective' } as const;
 const ASPECT_TAGS: string[] = Object.keys(OTHER_ASPECT);
-
-/** A field as plain text, for comparing two verbs written the same way. */
-function textOf(value: string | undefined): string {
-  return htmlToText(value ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
-}
-
-const sameVerb = (a: string, b: string) => a.toLocaleLowerCase() === b.toLocaleLowerCase();
 
 /** What to offer after saving one half of a pair. */
 export type PairFollowUp =
