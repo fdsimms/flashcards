@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Repo } from '../../db/repo';
-import { japaneseFont } from '../../core/script';
+import { japaneseFont, withThaiLineHeight } from '../../core/script';
 import type { Language } from '../../reader/api';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { FLAG_IMAGES } from '../flagImages';
@@ -254,7 +254,7 @@ export function AnswerContent({ answer, rule, onPlay, centered }: { answer: Answ
     <Reveal style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
         <View style={{ flex: 1, gap: space.xs }}>
-          <Text selectable style={{ ...type.cardBack, color: c.text, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
+          <Text selectable style={{ ...withThaiLineHeight(type.cardBack, answer.everyday.text), color: c.text, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
           {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
         </View>
         {centered ? null : <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />}
@@ -310,7 +310,7 @@ export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phras
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
         >
           <View style={{ flex: 1, gap: space.xs }}>
-            <Text style={{ ...type.body, color: c.text, ...ja(p.text) }}>{p.text}</Text>
+            <Text style={{ ...withThaiLineHeight(type.body, p.text), color: c.text, ...ja(p.text) }}>{p.text}</Text>
             {p.roman || p.note ? (
               <Text style={{ ...type.footnote, color: c.textSecondary, ...ja(p.roman ?? '') }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
             ) : null}

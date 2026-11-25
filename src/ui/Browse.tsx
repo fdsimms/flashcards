@@ -16,6 +16,7 @@ import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { HoverPressable } from './hover';
+import { withThaiLineHeight } from '../core/script';
 
 /** What the empty list says the search box takes, besides words. */
 const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:verb, note:Basic, is:new, flag:1, added:7, Front:kot*, "or", "-" for not, and parentheses.';
@@ -192,7 +193,7 @@ function NoteRow({ note, markers, first, last, selecting, selected, open, onOpen
       {first ? null : <Divider inset={space.l} />}
       {selecting ? <Icon name={selected ? 'checkmark.circle.fill' : 'circle'} size={22} color={selected ? c.accent : c.textTertiary} weight="regular" /> : null}
       <View style={{ flex: 1, gap: space.xs }}>
-        <Text numberOfLines={1} style={{ ...type.body, color: c.text }}>{front || '(empty)'}</Text>
+        <Text numberOfLines={1} style={{ ...withThaiLineHeight(type.body, front), color: c.text }}>{front || '(empty)'}</Text>
         {back ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{back}</Text> : null}
         <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{note.deck}</Text>
         {markers.length ? (

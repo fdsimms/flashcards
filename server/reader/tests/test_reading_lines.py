@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 from scripted import ENTRIES, IN_RANGE, ScriptedModel
 from test_app import AUTH, NOW, started
@@ -6,6 +7,7 @@ from test_engine import Clock, engine, fetch, reading, run
 
 from franki_reader import reading_lines, store
 from franki_reader.app import create_app
+from franki_reader.coverage import Lexicon
 from franki_reader.engine import Engine
 from franki_reader.lexicon import lexicon_from
 
@@ -65,3 +67,12 @@ def test_the_route_answers_by_word_and_needs_the_passphrase() -> None:
     assert c.post(
         "/api/reading-lines", json={"language": "es", "words": [MANGO]}, headers=AUTH
     ).json() == {"lines": {}}
+
+
+def test_a_name_beside_a_word_does_not_make_a_word_of_the_two() -> None:
+    # ข้าง + the name ต้น must not count as ข้างต้น (aforementioned), nor a name as the deck word.
+    lex = Lexicon(["ข้าง", "ต้น", "ข้างต้น"])
+    line = SimpleNamespace(text="เขา|อยู่|ข้าง|~ต้น~", english="He is next to Ton.")
+    text = SimpleNamespace(id=1, title="T", lines=(line,))
+    found = reading_lines.find(["ข้างต้น", "ข้าง", "ต้น"], [(text, datetime(2026, 1, 1))], lex)  # type: ignore[list-item]
+    assert list(found) == ["ข้าง"]

@@ -8,6 +8,7 @@ import { haptic } from '../haptics';
 import { Button, Card, Icon, Tappable } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 import { CandidateChips } from './CramBits';
+import { withThaiLineHeight } from '../../core/script';
 
 /** What the card says once the words are sent: where they are, one sentence for one word or for several. */
 function sentText(words: string[], held: boolean, approved: string[], ready: number): string {
@@ -168,7 +169,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
                   <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
                 </View>
                 <View style={{ flex: 1, gap: space.xs }}>
-                  <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
+                  <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
                   <CandidateChips word={cand} />
                 </View>

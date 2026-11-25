@@ -12,7 +12,7 @@ import { autoBackupPath, makeAutoBackup } from './autoBackup';
 import { AutoBackups } from './AutoBackups';
 import { saveBackupReminder, useBackupReminderOn } from './backupReminder';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Icon, MessageList, ProgressBar, Screen, SwitchRow } from './kit';
+import { Button, Card, Group, Help, Icon, MessageList, ProgressBar, Screen, SECTION_GAP, SwitchRow } from './kit';
 import { notificationsAllowed } from './studyReminder';
 import { radius, readable, smooth, space, type, useTheme } from './theme';
 
@@ -171,7 +171,7 @@ export function Backup({ store, syncOn, onBackedUp }: {
 
   return (
     <Screen title="Backup">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: SECTION_GAP }}>
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Back up</Text>
           {progress ? (

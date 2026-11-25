@@ -13,6 +13,7 @@ import { useLessonWords } from './useLessonWords';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { leaveScreen } from '../leaveScreen';
 import { LESSONS_PATH } from '../tabPaths';
+import { withThaiLineHeight } from '../../core/script';
 
 /**
  * Type a word for an audio lesson: for words from a tutor or a book that aren't in a deck. It joins
@@ -104,7 +105,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
                     scaleTo={0.98}
                     style={{ gap: space.xs, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
                   >
-                    <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
+                    <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
                     <CandidateChips word={cand} />
                   </Tappable>
@@ -129,7 +130,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
                   scaleTo={0.95}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
                 >
-                  <Text style={{ ...type.subhead, color: c.accentInk }}>{w.text}</Text>
+                  <Text style={{ ...withThaiLineHeight(type.subhead, w.text), color: c.accentInk }}>{w.text}</Text>
                   <Text style={{ ...type.caption, color: c.textSecondary }}>{w.english}</Text>
                   <Icon name="xmark" size={11} color={c.textSecondary} />
                 </Tappable>

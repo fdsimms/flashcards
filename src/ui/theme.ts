@@ -277,6 +277,8 @@ export function lift(c: Colors, depth: 'low' | 'high' = 'low') {
 /**
  * Text sizes, after iOS's own text styles. Text still grows with the system text size, so a
  * box holding text never gets a fixed height: give it padding or a minHeight instead.
+ * Most set only a size, so Text that can show a deck word spreads `withThaiLineHeight(type.x, text)`
+ * (src/core/script.ts), or Thai's lower vowels (ุ ู) and ฎ/ฏ tails are clipped.
  */
 export const type = {
   largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },

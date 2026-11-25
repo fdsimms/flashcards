@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, LayoutAnimation, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
+import { withThaiLineHeight } from '../../core/script';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
 import type { HeldWords } from '../../reader/heldNotes';
 import { counts, firstReady, isRetrying, isWorking, needsChoice } from '../../reader/noteQueue';
@@ -64,7 +65,7 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l }}
         >
           <View style={{ flex: 1, gap: space.xs }}>
-            <Text style={{ ...type.headline, color: c.text }}>{word}</Text>
+            <Text style={{ ...withThaiLineHeight(type.headline, word), color: c.text }}>{word}</Text>
             {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
             <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{note.deck}</Text>
           </View>
@@ -108,7 +109,7 @@ function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; mea
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
       <View accessible accessibilityLabel={`${entry}. ${meaning ? `${meaning}. ` : ''}Not sent yet`} style={{ flex: 1, gap: space.xs, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l, justifyContent: 'center' }}>
-        <Text style={{ ...type.headline, color: c.text }}>{entry}</Text>
+        <Text style={{ ...withThaiLineHeight(type.headline, entry), color: c.text }}>{entry}</Text>
         {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
         <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{deck}</Text>
       </View>

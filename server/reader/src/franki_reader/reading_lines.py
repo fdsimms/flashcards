@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
-from franki_reader.coverage import Checker, is_word, parse_line
+from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.store import StoredText
 
 # Lines kept for one word: enough to rotate through, few enough to send for a whole session.
@@ -47,8 +47,8 @@ def find(
         seen: set[str] = set()
         for ln in text.lines:
             plain = parse_line(ln.text, lexicon.spaced)[0]
-            for token in lexicon.segment(plain):
-                if not is_word(token):
+            for token, is_name in segment_line(ln.text, lexicon):
+                if is_name or not is_word(token):
                     continue
                 word = lexicon.entry_of(token) or token
                 if word not in wanted or word in seen:

@@ -19,6 +19,7 @@ import { phraseIsUsed, withPhraseUsed } from '../../core/cramPhrases';
 import { CheckRow } from './CramBits';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
+import { withThaiLineHeight } from '../../core/script';
 
 /**
  * Lesson mode, during the lesson itself (a video call with a tutor, say), on one screen: the talking
@@ -199,7 +200,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.xs }}>
-                      <Text style={{ ...type.title, ...inLanguage, color: on ? c.goodInk : c.text, flex: 1 }}>{word || 'Untitled'}</Text>
+                      <Text style={{ ...withThaiLineHeight(type.title, word), ...inLanguage, color: on ? c.goodInk : c.text, flex: 1 }}>{word || 'Untitled'}</Text>
                       {on ? <Icon name="checkmark.circle.fill" size={18} color={c.countDue} /> : null}
                     </View>
                     {meaning ? <Text numberOfLines={2} style={{ ...type.footnote, color: c.textSecondary }}>{meaning}</Text> : null}

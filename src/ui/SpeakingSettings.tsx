@@ -5,7 +5,7 @@ import { supportsOnDevice } from '../../modules/speech-on-device';
 import { hearingText, recognitionLocale } from '../core/speaking';
 import type { Repo } from '../db/repo';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
-import { Group, Help, Screen, SectionTitle, SwitchRow } from './kit';
+import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from './theme';
 import { supportedLocales } from './useSpokenAnswer';
 
@@ -32,42 +32,52 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
 
   return (
     <Screen title="Speaking">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-        <Group>
-          <SwitchRow
-            first
-            label="Answer by speaking"
-            hint="A microphone beside Type it, Say it back, Sentences and Situations. What you say is turned into text and compared, like typing."
-            value={!!on}
-            onValueChange={(v) => void choose(v)}
-          />
-        </Group>
-        <Help>
-          Speech is turned into text on this iPhone when iOS supports the language, and by Apple's servers otherwise.
-          You still rate each card yourself.
-        </Help>
-        <SectionTitle>On this iPhone</SectionTitle>
-        <Group>
-          {LANGUAGE_ORDER.filter((l) => l !== 'en').map((l, i) => {
-            const locale = locales ? recognitionLocale(LANGUAGES[l].speech, locales) : undefined;
-            const heard = locales ? !!locale : null;
-            return (
-              <View
-                key={l}
-                accessible
-                style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TAP + space.s, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
-              >
-                <Text style={{ ...type.body, color: c.text, flex: 1 }}>{LANGUAGES[l].name}</Text>
-                <Text style={{ ...type.subhead, color: heard ? c.countDue : c.textSecondary }}>
-                  {hearingText(heard, locale ? supportsOnDevice(locale) : null)}
-                </Text>
-              </View>
-            );
-          })}
-        </Group>
-        <Help>
-          {"Languages iOS can't recognize have no microphone. Ones that need Apple's servers have none while you're offline. Adding the language in the iPhone's Settings, General, Keyboard, Dictation may let this iPhone recognize it offline."}
-        </Help>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl, gap: SECTION_GAP }}>
+        <Section
+          footer={(
+            <Help>
+              Speech is turned into text on this iPhone when iOS supports the language, and by Apple's servers otherwise.
+              You still rate each card yourself.
+            </Help>
+          )}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Answer by speaking"
+              hint="A microphone beside Type it, Say it back, Sentences and Situations. What you say is turned into text and compared, like typing."
+              value={!!on}
+              onValueChange={(v) => void choose(v)}
+            />
+          </Group>
+        </Section>
+        <Section
+          title="On this iPhone"
+          footer={(
+            <Help>
+              {"Languages iOS can't recognize have no microphone. Ones that need Apple's servers have none while you're offline. Adding the language in the iPhone's Settings, General, Keyboard, Dictation may let this iPhone recognize it offline."}
+            </Help>
+          )}
+        >
+          <Group>
+            {LANGUAGE_ORDER.filter((l) => l !== 'en').map((l, i) => {
+              const locale = locales ? recognitionLocale(LANGUAGES[l].speech, locales) : undefined;
+              const heard = locales ? !!locale : null;
+              return (
+                <View
+                  key={l}
+                  accessible
+                  style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TAP + space.s, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+                >
+                  <Text style={{ ...type.body, color: c.text, flex: 1 }}>{LANGUAGES[l].name}</Text>
+                  <Text style={{ ...type.subhead, color: heard ? c.countDue : c.textSecondary }}>
+                    {hearingText(heard, locale ? supportsOnDevice(locale) : null)}
+                  </Text>
+                </View>
+              );
+            })}
+          </Group>
+        </Section>
       </ScrollView>
     </Screen>
   );

@@ -605,7 +605,7 @@ export function Section({ title, footer, children }: { title?: string; /** The `
     <View style={{ gap: space.s }}>
       {title ? <Overline>{title}</Overline> : null}
       {children}
-      {footer ? <View style={{ paddingHorizontal: space.l }}>{footer}</View> : null}
+      {footer ? <View style={{ paddingHorizontal: space.l, gap: space.s }}>{footer}</View> : null}
     </View>
   );
 }

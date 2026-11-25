@@ -13,6 +13,7 @@ import { CandidateChips } from './CramBits';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
+import { withThaiLineHeight } from '../../core/script';
 
 type Lookup = { state: 'finding' } | { state: 'found'; list: LessonWordCandidate[] } | { state: 'failed'; why: string };
 
@@ -155,7 +156,7 @@ export function CramMakeCards({ repo, id, findWords, queue }: {
                       style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
                     >
                       <View style={{ flex: 1, gap: space.xs }}>
-                        <Text style={{ ...type.title, color: c.text }}>{cand.text}</Text>
+                        <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
                         <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>
                         <CandidateChips word={cand} />
                       </View>

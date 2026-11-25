@@ -190,6 +190,14 @@ def test_only_the_marked_occurrence_is_a_name(lexicon: Lexicon) -> None:
     assert [(p, n) for p, n in pieces if p == "มะม่วง"] == [("มะม่วง", False), ("มะม่วง", True)]
 
 
+def test_a_name_is_not_joined_to_the_word_before_it() -> None:
+    # ข้างต้น (aforementioned) is a dictionary word, but here it is ข้าง (beside) + the name ต้น.
+    lexicon = Lexicon([*DECK, "ข้าง", "ต้น", "ข้างต้น"])
+    pieces = segment_line("เขา|อยู่|ข้าง|~ต้น~", lexicon)
+    assert pieces[-2:] == [("ข้าง", False), ("ต้น", True)]
+    assert segment_line("อยู่|ข้างต้น", lexicon)[-1] == ("ข้างต้น", False)
+
+
 def test_names_are_listed_once_in_order(lexicon: Lexicon) -> None:
     result = check(["~สมชาย~|ไป", "~มาลี~|กับ|~สมชาย~"], lexicon)
     assert result.names == ("สมชาย", "มาลี")

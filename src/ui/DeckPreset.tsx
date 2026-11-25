@@ -6,7 +6,7 @@ import { failureText } from '../core/failure';
 import { ownValuesNote, parsePresetForm, presetForm, presetIntro, RETENTION_MAX, RETENTION_MIN, type PresetForm } from '../core/presetOptions';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
-import { Button, Card, Field, Help, Loading, Screen, SectionTitle } from './kit';
+import { Button, Card, Field, Help, Loading, Screen, Section, SECTION_GAP } from './kit';
 import { readable, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -91,38 +91,42 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
   return (
     <Screen title="Anki options" footer={preset && form ? <Button label="Save" onPress={save} disabled={!changed} busy={busy} /> : undefined}>
       {!preset || !form ? <Loading error={loadError} onRetry={() => setAttempt((n) => n + 1)} /> : (
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
           <Help>{presetIntro(preset.presetName)}</Help>
-          <SectionTitle>Daily limits</SectionTitle>
-          <Card>
-            {field('newPerDay', 'New cards per day', { keyboard: 'number-pad' })}
-            {field('reviewsPerDay', 'Maximum reviews per day', { keyboard: 'number-pad' })}
-          </Card>
-          <SectionTitle>Steps</SectionTitle>
-          <Card>
-            {field('learnSteps', 'Learning steps', { placeholder: 'e.g. 1m 10m' })}
-            {field('relearnSteps', 'Relearning steps', { placeholder: 'e.g. 10m', hint: 'Use s, m, h or d after each number. Leave empty for no steps.' })}
-          </Card>
-          <SectionTitle>Scheduling</SectionTitle>
-          <Card>
-            {field('maxInterval', 'Maximum interval (days)', { keyboard: 'number-pad' })}
-            {field('desiredRetention', 'Desired retention', {
-              keyboard: 'decimal-pad',
-              hint: `Between ${RETENTION_MIN.toFixed(2)} and ${RETENTION_MAX.toFixed(2)}. Cards already scheduled keep their dates until their next review.`,
-            })}
-          </Card>
-          <SectionTitle>{preset.decks.length === 1 ? 'Applies to 1 deck' : `Applies to ${preset.decks.length} decks`}</SectionTitle>
-          <Card>
-            {preset.decks.map((d) => {
-              const note = ownValuesNote(d.own);
-              return (
-                <View key={d.name} style={{ gap: space.xs }}>
-                  <Text style={{ ...type.subhead, color: c.text }}>{d.name}</Text>
-                  {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
-                </View>
-              );
-            })}
-          </Card>
+          <Section title="Daily limits">
+            <Card>
+              {field('newPerDay', 'New cards per day', { keyboard: 'number-pad' })}
+              {field('reviewsPerDay', 'Maximum reviews per day', { keyboard: 'number-pad' })}
+            </Card>
+          </Section>
+          <Section title="Steps">
+            <Card>
+              {field('learnSteps', 'Learning steps', { placeholder: 'e.g. 1m 10m' })}
+              {field('relearnSteps', 'Relearning steps', { placeholder: 'e.g. 10m', hint: 'Use s, m, h or d after each number. Leave empty for no steps.' })}
+            </Card>
+          </Section>
+          <Section title="Scheduling">
+            <Card>
+              {field('maxInterval', 'Maximum interval (days)', { keyboard: 'number-pad' })}
+              {field('desiredRetention', 'Desired retention', {
+                keyboard: 'decimal-pad',
+                hint: `Between ${RETENTION_MIN.toFixed(2)} and ${RETENTION_MAX.toFixed(2)}. Cards already scheduled keep their dates until their next review.`,
+              })}
+            </Card>
+          </Section>
+          <Section title={preset.decks.length === 1 ? 'Applies to 1 deck' : `Applies to ${preset.decks.length} decks`}>
+            <Card>
+              {preset.decks.map((d) => {
+                const note = ownValuesNote(d.own);
+                return (
+                  <View key={d.name} style={{ gap: space.xs }}>
+                    <Text style={{ ...type.subhead, color: c.text }}>{d.name}</Text>
+                    {note ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{note}</Text> : null}
+                  </View>
+                );
+              })}
+            </Card>
+          </Section>
         </ScrollView>
       )}
     </Screen>

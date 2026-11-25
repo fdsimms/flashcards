@@ -3,7 +3,7 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { ApiError, createApi, readerAddress } from '../../reader/api';
 import { guardedFetch } from '../connection';
 import { savePassphrase } from '../../reader/storage';
-import { Button, Card, ErrorNote, Field, Group, Help, Screen, SectionTitle, SwitchRow } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from '../kit';
 import { space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
@@ -61,7 +61,7 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
 
   return (
     <Screen title="Server">
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <Card>
           <Help>
             Short dialogues and stories written from the words in your language decks, mostly words you already know,
@@ -105,15 +105,20 @@ export function ReadSettings({ syncServer, signedIn, notice, onSignedIn, onSignO
         )}
         {address && signedIn ? (
           <>
-            <SectionTitle>dundundun</SectionTitle>
-            <Group>
-              <SwitchRow first label="Share today's counts and crams" value={shareCounts} onValueChange={onShareCounts} />
-            </Group>
-            <Help>
-              Sends how many cards are due and how many new cards are left today, as the deck list shows them, to your
-              server after each sync, and each cram's name, date, and when you last practiced it. dundundun's Franki
-              tasks read them there. Nothing else is sent.
-            </Help>
+            <Section
+              title="dundundun"
+              footer={(
+                <Help>
+                  Sends how many cards are due and how many new cards are left today, as the deck list shows them, to your
+                  server after each sync, and each cram's name, date, and when you last practiced it. dundundun's Franki
+                  tasks read them there. Nothing else is sent.
+                </Help>
+              )}
+            >
+              <Group>
+                <SwitchRow first label="Share today's counts and crams" value={shareCounts} onValueChange={onShareCounts} />
+              </Group>
+            </Section>
           </>
         ) : null}
       </ScrollView>

@@ -5,7 +5,7 @@ import { LANGUAGES } from '../reader/languages';
 import { LANGUAGE_MODES, modeOf, TURNS_PER_DAY, FOCUS_EXTRAS, type ExtraPrefs, type LanguageMode } from '../tools/extras';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Group, Help, Loading, NavRow, Screen, SectionTitle, Segments, SwitchRow } from './kit';
+import { Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useDailyExtras } from './useDailyExtras';
 
@@ -54,7 +54,7 @@ export function DailyExtrasSettings() {
 
   return (
     <Screen title="Daily extras" largeTitle={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: SECTION_GAP }}>
         {!prefs ? <Loading /> : (
           <>
             <Group>
@@ -68,59 +68,73 @@ export function DailyExtrasSettings() {
             </Group>
             {prefs.on ? (
               <>
-                <SectionTitle>Languages that take a turn each day</SectionTitle>
-                <Segments
-                  options={TURNS_PER_DAY.map((n) => ({ value: n, label: String(n) }))}
-                  value={prefs.turnsPerDay}
-                  onChange={(turnsPerDay) => { haptic.select(); save({ ...prefs, turnsPerDay }); }}
-                />
-                <Help>
-                  {`A language set to Always gets ${FOCUS_EXTRAS} extras every day. The rest take turns: the one practiced longest ago goes first, and if you skip a day it's offered again.`}
-                </Help>
-
-                <SectionTitle>Languages</SectionTitle>
-                {languages.length ? (
-                  <Group>
-                    {languages.map((l, i) => (
-                      <NavRow key={l} first={i === 0} label={LANGUAGES[l].name} detail={MODE_LABEL[modeOf(prefs, l)]} onPress={() => chooseMode(prefs, l)} />
-                    ))}
-                  </Group>
-                ) : (
-                  <Help>Turn on Read & Listen (Settings, Read & Listen) and the languages you study appear here.</Help>
-                )}
-                {turns.length > 0 ? (
-                  <Help>{`Next in line for a turn: ${turns.map((l) => LANGUAGES[l].name).join(', ')}.`}</Help>
-                ) : null}
-
-                <SectionTitle>What's suggested</SectionTitle>
-                <Group>
-                  <SwitchRow first label="Drills from the Practice tab" hint="Counting things and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
-                  <SwitchRow
-                    label="A text to read"
-                    hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}
-                    value={prefs.read}
-                    onValueChange={(read) => save({ ...prefs, read })}
+                <Section
+                  title="Languages that take a turn each day"
+                  footer={(
+                    <Help>
+                      {`A language set to Always gets ${FOCUS_EXTRAS} extras every day. The rest take turns: the one practiced longest ago goes first, and if you skip a day it's offered again.`}
+                    </Help>
+                  )}
+                >
+                  <Segments
+                    options={TURNS_PER_DAY.map((n) => ({ value: n, label: String(n) }))}
+                    value={prefs.turnsPerDay}
+                    onChange={(turnsPerDay) => { haptic.select(); save({ ...prefs, turnsPerDay }); }}
                   />
-                </Group>
+                </Section>
 
-                <SectionTitle>Today</SectionTitle>
-                {items.length ? (
+                <Section
+                  title="Languages"
+                >
+                  {languages.length ? (
+                    <Group>
+                      {languages.map((l, i) => (
+                        <NavRow key={l} first={i === 0} label={LANGUAGES[l].name} detail={MODE_LABEL[modeOf(prefs, l)]} onPress={() => chooseMode(prefs, l)} />
+                      ))}
+                    </Group>
+                  ) : (
+                    <Help>Turn on Read & Listen (Settings, Read & Listen) and the languages you study appear here.</Help>
+                  )}
+                  {turns.length > 0 ? (
+                    <Help>{`Next in line for a turn: ${turns.map((l) => LANGUAGES[l].name).join(', ')}.`}</Help>
+                  ) : null}
+                </Section>
+
+                <Section
+                  title="What's suggested"
+                >
                   <Group>
-                    {items.map((item, i) => (
-                      <NavRow
-                        key={`${item.extra.language}|${item.extra.kind}`}
-                        first={i === 0}
-                        icon={item.done ? { name: 'checkmark.circle.fill', color: c.countDue } : undefined}
-                        label={item.title}
-                        detail={item.detail}
-                        onPress={async () => { setProblem(await extras.open(item.extra)); }}
-                      />
-                    ))}
+                    <SwitchRow first label="Drills from the Practice tab" hint="Counting things and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
+                    <SwitchRow
+                      label="A text to read"
+                      hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}
+                      value={prefs.read}
+                      onValueChange={(read) => save({ ...prefs, read })}
+                    />
                   </Group>
-                ) : (
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is planned for today.</Text>
-                )}
-                {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
+                </Section>
+
+                <Section
+                  title="Today"
+                >
+                  {items.length ? (
+                    <Group>
+                      {items.map((item, i) => (
+                        <NavRow
+                          key={`${item.extra.language}|${item.extra.kind}`}
+                          first={i === 0}
+                          icon={item.done ? { name: 'checkmark.circle.fill', color: c.countDue } : undefined}
+                          label={item.title}
+                          detail={item.detail}
+                          onPress={async () => { setProblem(await extras.open(item.extra)); }}
+                        />
+                      ))}
+                    </Group>
+                  ) : (
+                    <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is planned for today.</Text>
+                  )}
+                  {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
+                </Section>
               </>
             ) : null}
           </>
