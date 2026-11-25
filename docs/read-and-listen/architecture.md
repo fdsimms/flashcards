@@ -1531,6 +1531,10 @@ next episode is the top of the shelf.
   the cast, and the last 12 recaps (`STORY_RECAPS`), so the request stays short however long the
   story runs. All three fields are optional in the reply's schema and asked for only in a story's
   request.
+- **A story's request lists the names the language's other stories use** (25 November 2026, by the
+  owner: a second series reused the first one's protagonist). The model invents names with no
+  view of the other series, so `engine._names_taken` gathers each other story's character names and
+  cast sentence, running or ended, and `_taken_names` asks for names none of them has.
 - **The last episode's ending is quoted too** (added 19 November 2026). A recap is one or two
   sentences, so it dropped small state: an episode ended with the cake still baking and the next
   opened with it burnt. The next request now also quotes the previous episode's last

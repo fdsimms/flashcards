@@ -1230,6 +1230,9 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
   const insets = useSafeAreaInsets();
   // Measured on first layout (drawn invisible until then), since a long gloss wraps.
   const [popHeight, setPopHeight] = useState(0);
+  // Which side of the word the popover opened on, decided once per tap from its first measured height. Answering the quiz
+  // shrinks the popover, and re-deciding then would flip a popover that opened below the word to above it.
+  const [side, setSide] = useState<'above' | 'below' | null>(null);
   // The form chip's explanation replaces the popover while it's open.
   const [showForm, setShowForm] = useState(false);
   // A word whose meaning is held back (`tapped.guess`): whether it has been shown, and the quiz
@@ -1238,7 +1241,11 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
   const [picked, setPicked] = useState<number | null>(null);
   // The meaning looked up for the tapped word: null while it's being asked for, '' when there is none to show.
   const [looked, setLooked] = useState<string | null>('');
-  useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); }, [tapped]);
+  useEffect(() => { setPopHeight(0); setShowForm(false); setRevealed(false); setPicked(null); setSide(null); }, [tapped]);
+  useEffect(() => {
+    if (!tapped || side || popHeight <= 0) return;
+    setSide(tapped.y - POPOVER_GAP - popHeight >= insets.top + space.s ? 'above' : 'below');
+  }, [tapped, side, popHeight, insets.top]);
   useEffect(() => {
     setLooked('');
     if (!tapped || !meaningLookup || tapped.guess || !needsMeaning(tapped.word)) return;
@@ -1254,9 +1261,8 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
-  // otherwise below it, and never past the bottom edge.
-  const above = tapped.y - POPOVER_GAP - popHeight;
-  const top = Math.min(above >= insets.top + space.s ? above : tapped.y + POPOVER_GAP, height - popHeight - insets.bottom - space.s);
+  // otherwise below it, and never past the bottom edge. `side` keeps the choice made at first measure.
+  const top = Math.min(side === 'below' ? tapped.y + POPOVER_GAP : tapped.y - POPOVER_GAP - popHeight, height - popHeight - insets.bottom - space.s);
   // The IPA's and the deck icon's tooltips open above the popover's text, and below it when the popover is too near the top of the screen.
   const tipBelow = top < insets.top + 40;
   const mode = tapped.guess ?? null;
@@ -1281,11 +1287,11 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
       <View
         onLayout={(e) => setPopHeight(e.nativeEvent.layout.height)}
         onAccessibilityEscape={onClose}
-        style={{ position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 ? 1 : 0 }}
+        style={{ position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 && side ? 1 : 0 }}
       >
       {/* Springs up from the word once measured; the box that measures is the one around it. */}
       <Pop
-        ready={popHeight > 0}
+        ready={popHeight > 0 && !!side}
         style={{
           backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth,
           padding: space.l, gap: space.xs, ...lift(c, 'high'),

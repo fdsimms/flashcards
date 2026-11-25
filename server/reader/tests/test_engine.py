@@ -487,6 +487,22 @@ def test_a_new_story_runs_beside_the_old_one_which_keeps_the_card() -> None:
     assert pinned is not None and pinned.id == old
 
 
+def test_a_new_story_is_told_the_names_the_other_stories_use() -> None:
+    first = {**IN_RANGE, "series": "ร้านกาแฟของมาลี", "cast": "Mali runs a coffee shop."}
+    model = ScriptedModel(first, IN_RANGE)
+    e = engine(model)
+
+    async def scenario() -> None:
+        e.start_story("")
+        await settle(e)
+        e.start_story("")
+        await settle(e)
+
+    run(scenario)
+    assert "Mali runs a coffee shop." not in model.messages_seen[0][0]["content"]
+    assert "Mali runs a coffee shop." in model.messages_seen[1][0]["content"]
+
+
 def test_pinning_ending_and_continuing_stories() -> None:
     e = engine(ScriptedModel(IN_RANGE))
     first = store.start_story(e.conn, "th", "", NOW)

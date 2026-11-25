@@ -10,7 +10,7 @@ import { textSteps } from '../../reader/making';
 import { episodeSections, orderSections, seasonOpen, seasonsFold, seasonSummary, storyPlace, type EpisodeRow } from '../../reader/stories';
 import { loadSeasonChoices, prefs, savePrefs, saveSeasonChoices } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } from '../kit';
+import { Button, Divider, ErrorNote, Group, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
@@ -180,7 +180,6 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
                 );
               });
             })()}
-            {story.running ? <Help>Each new episode is written after you read the last one, so a series you leave alone costs nothing.</Help> : null}
           </>
         ) : null}
       </ScrollView>
