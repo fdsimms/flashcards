@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { MissAnswers } from '../core/misses';
-import { lastMissedSenses, senseMissKey, senseReminder, sensesGot } from '../core/senseMarks';
+import { carriedRecalled, lastMissedSenses, senseMissKey, senseReminder, sensesGot } from '../core/senseMarks';
 import type { RenderedCard } from '../core/types';
 import type { SenseMarking, SenseVerdict } from './SenseMarks';
 
@@ -14,21 +14,23 @@ import type { SenseMarking, SenseVerdict } from './SenseMarks';
  */
 export function useSenseMarks(turn: string | undefined, rendered: RenderedCard | undefined, answers: MissAnswers | undefined) {
   const senses = useMemo(() => rendered?.back.blocks.find((b) => b.senses)?.senses ?? [], [rendered]);
-  // The taps belong to one answer: another card, or this one shown again, starts with none.
+  const last = useMemo(() => lastMissedSenses(answers ?? [], senses.length), [answers, senses.length]);
+  // Senses recalled on the card's latest answer start checked, so only the missed one is left to say (carriedRecalled).
+  const carried = useMemo(() => new Map<number, SenseVerdict>(carriedRecalled(senses.length, last).map((n) => [n, 'got'])), [senses.length, last]);
+  // The taps belong to one answer: another card, or this one shown again, starts from the carried checks.
   const [taps, setTaps] = useState<{ turn: string; verdicts: ReadonlyMap<number, SenseVerdict> } | null>(null);
-  const verdicts = useMemo(() => (taps && taps.turn === turn ? taps.verdicts : new Map<number, SenseVerdict>()), [taps, turn]);
+  const verdicts = useMemo(() => (taps && taps.turn === turn ? taps.verdicts : carried), [taps, turn, carried]);
   // Only the missed ones are kept with the answer; "recalled" is what the row shows for a tap, and an untouched sense counts as recalled too.
   const marked = useMemo(() => new Set([...verdicts].filter(([, v]) => v === 'missed').map(([n]) => n)), [verdicts]);
   const onMark = useCallback((sense: number, verdict: SenseVerdict) => {
     if (!turn) return;
     setTaps((prev) => {
-      const next = new Map(prev && prev.turn === turn ? prev.verdicts : []);
+      const next = new Map(prev && prev.turn === turn ? prev.verdicts : carried);
       if (next.get(sense) === verdict) next.delete(sense);
       else next.set(sense, verdict);
       return { turn, verdicts: next };
     });
-  }, [turn]);
-  const last = useMemo(() => lastMissedSenses(answers ?? [], senses.length), [answers, senses.length]);
+  }, [turn, carried]);
   const marking = useMemo<SenseMarking | undefined>(() => (senses.length ? { verdicts, last, onMark } : undefined), [senses.length, verdicts, last, onMark]);
   const reminder = senseReminder(senses.length, last);
   return {

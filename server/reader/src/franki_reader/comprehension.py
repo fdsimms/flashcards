@@ -49,7 +49,8 @@ Here is the text, one line per row: its number, the line, and its English.
 
 Write {count} multiple-choice questions about what happens in it: who does something, what, \
 why, where or when. Each must be answered by one line, and must not be answerable without having \
-understood the text. Give:
+understood the text. When the text gives a reason for something someone does, make one of them \
+a "why" question about it, so the check asks for more than a fact a line states. Give:
 - line: the number of the line that answers it
 - question: the question in {language}, short and plain
 - english: the question in English
