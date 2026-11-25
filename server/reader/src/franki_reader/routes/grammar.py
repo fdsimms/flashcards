@@ -21,7 +21,7 @@ from franki_reader.languages import (
     Code,
 )
 from franki_reader.routes.context import AppContext
-from franki_reader.routes.views import seen_json
+from franki_reader.routes.views import instant, seen_json
 
 
 class GrammarChoice(BaseModel):
@@ -43,6 +43,38 @@ class DrillsIn(BaseModel):
 
 class DifficultyIn(BaseModel):
     level: Literal["harder", "standard", "easier"]
+
+
+class GrammarAnswerIn(BaseModel):
+    point: str = Field(max_length=80)
+    drill: str = Field(max_length=80)
+    kind: str = Field(max_length=20)
+    correct: bool
+    answered_at: str = Field(max_length=40)
+
+
+class GrammarAnswersIn(BaseModel):
+    answers: list[GrammarAnswerIn] = Field(max_length=2000)
+
+
+def rotation_json(swap: store.Rotation) -> dict[str, Any]:
+    """A swap for the shelf's notice, with the points' names (rotation.py)."""
+
+    def point(pid: str) -> dict[str, str] | None:
+        found = grammar.POINTS.get(pid)
+        return {"id": pid, "name": found.name} if found else None
+
+    return {
+        "id": swap.id,
+        "language": swap.language,
+        "graduated": point(swap.graduated),
+        "started": point(swap.started) if swap.started else None,
+        "texts": swap.texts,
+        "days": swap.days,
+        "drill_right": swap.drill_right,
+        "drill_asked": swap.drill_asked,
+        "at": instant(swap.at),
+    }
 
 
 def router(ctx: AppContext) -> APIRouter:
@@ -125,6 +157,41 @@ def router(ctx: AppContext) -> APIRouter:
         nothing here asks Claude."""
         return {"forms": list(form_primers.primers(language))}
 
+    @routes.post("/api/grammar/answers", dependencies=authed)
+    async def grammar_answers(body: GrammarAnswersIn) -> dict[str, Any]:
+        """Practice answers from the phone, so rotation can tell when a point is learned. Sent again
+        after a failure, so one already kept is skipped; a point this server doesn't know is too."""
+        saved = store.add_grammar_answers(
+            engine.conn,
+            (
+                store.GrammarAnswer(a.point, a.drill, a.kind, a.correct, a.answered_at)
+                for a in body.answers
+                if a.point in grammar.POINTS
+            ),
+        )
+        return {"saved": saved}
+
+    @routes.get("/api/grammar/rotations", dependencies=authed)
+    async def grammar_rotations() -> dict[str, Any]:
+        """The language's automatic grammar swaps not closed or undone yet, for the shelf."""
+        swaps = store.new_rotations(engine.conn, engine.language())
+        return {"rotations": [rotation_json(r) for r in swaps]}
+
+    @routes.post("/api/grammar/rotations/{rotation_id}/dismiss", dependencies=authed)
+    async def dismiss_rotation(rotation_id: int) -> dict[str, Any]:
+        if store.get_rotation(engine.conn, rotation_id) is None:
+            raise HTTPException(404, "No such change.")
+        store.set_rotation_state(engine.conn, rotation_id, "dismissed")
+        return {"ok": True}
+
+    @routes.post("/api/grammar/rotations/{rotation_id}/undo", dependencies=authed)
+    async def undo_rotation(rotation_id: int) -> dict[str, Any]:
+        if store.get_rotation(engine.conn, rotation_id) is None:
+            raise HTTPException(404, "No such change.")
+        if (why := engine.undo_rotation(rotation_id)) is not None:
+            raise HTTPException(409, why)
+        return {"ok": True}
+
     @routes.get("/api/grammar/{point_id}", dependencies=authed)
     async def get_grammar_point(
         point_id: str,
@@ -191,7 +258,7 @@ def router(ctx: AppContext) -> APIRouter:
         changes = grammar.level_choices(language, body.through, store.load_grammar(engine.conn))
         if not changes:
             raise HTTPException(422, f"{LANGUAGES[language].name} has no JLPT levels.")
-        store.set_grammar_many(engine.conn, changes)
+        store.set_grammar_many(engine.conn, changes, engine.clock())
         return grammar_points()
 
     @routes.put("/api/grammar/{point_id}", dependencies=authed)
@@ -215,7 +282,7 @@ def router(ctx: AppContext) -> APIRouter:
                 422,
                 f"Practice at most {grammar.MAX_PRACTICE} at a time. Set one to Know it first.",
             )
-        store.set_grammar(engine.conn, point_id, body.state)
+        store.set_grammar_many(engine.conn, {point_id: body.state}, engine.clock())
         if body.state in ("practice", "normal"):
             # Drilled from now on (docs/grammar.md, step 5): its questions are written ahead.
             background.add_task(top_up_drills, (point_id,))

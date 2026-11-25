@@ -9,6 +9,7 @@ import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
 import { ReadInputTime } from './ReadInputTime';
 import { ReadListenAgain } from './ReadListenAgain';
+import { ReadGrammarRotation } from './ReadGrammarRotation';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { useApp } from '../AppContext';
@@ -46,13 +47,15 @@ const POLL_MS = 10_000;
 
 export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 
-export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
+export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarPoint, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
   /** The language the settings already name, so the header shows it while the shelf loads. */
   knownLanguage?: Language;
   /** Says a practice word aloud from its popover. */
   onPlayWord: (word: string, language: Language, say?: string) => void;
   onOpen: (open: OpenText) => void;
+  /** A grammar point's page, from the notice when practiced grammar rotates. */
+  onGrammarPoint: (id: string) => void;
   /** Opens having a series, dialogue or story written. */
   onNew: () => void;
   /** Opens having a series written, past the choice of kind. */
@@ -258,7 +261,8 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onNew, onNew
 
         {shelf ? (
           <>
-            <View style={{ paddingHorizontal: space.l }}>
+            <View style={{ paddingHorizontal: space.l, gap: space.m }}>
+              <ReadGrammarRotation api={api} onOpenPoint={onGrammarPoint} />
               <ReadReviewFirst language={shelf.language} onReview={onReview} />
             </View>
             <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNewSeries} offline={!!problem} />

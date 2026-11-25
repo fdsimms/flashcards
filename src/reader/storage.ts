@@ -114,3 +114,25 @@ export function saveGrammarDueCopy(due: GrammarDue, day: string): void {
     // Today shows the chips once the server answers.
   }
 }
+
+const ANSWERS_SENT_FILE = 'reader-grammar-answers-sent.txt';
+
+/** When the latest practice answer the server has was given (rotation.ts), or null before any was sent. */
+export async function loadAnswersSentThrough(): Promise<string | null> {
+  try {
+    const f = new File(Paths.document, ANSWERS_SENT_FILE);
+    return f.exists ? (await f.text()).trim() || null : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveAnswersSentThrough(at: string): void {
+  try {
+    const f = new File(Paths.document, ANSWERS_SENT_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(at);
+  } catch {
+    // Sent again next time; the server keeps each answer once.
+  }
+}
