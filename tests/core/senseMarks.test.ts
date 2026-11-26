@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { activeMisses, missReasonsFor, missReminder } from '../../src/core/misses';
-import { carriedRecalled, isSenseMiss, lastMissedSenses, numberedSenses, senseCountLabel, senseMissKey, senseReminder, sensesGot } from '../../src/core/senseMarks';
+import { carriedRecalled, isSenseMiss, lastMissedSenses, numberedSenses, senseCountLabel, senseMissKey, senseReminder, senseReminderParts, sensesGot } from '../../src/core/senseMarks';
 import { omniNote } from '../support/fixtures';
 
 describe('senseMarks', () => {
@@ -49,6 +49,8 @@ describe('senseMarks', () => {
     expect(senseReminder(3, [1, 3])).toBe('3 senses. You missed two last time.');
     expect(senseReminder(2, [1, 2])).toBe('2 senses. You missed all of them last time.');
     expect(senseReminder(3, [])).toBeNull();
+    expect(senseReminderParts(2, [1])).toEqual({ title: '2 senses', detail: 'You missed one last time' });
+    expect(senseReminderParts(2, [])).toBeNull();
     expect(sensesGot(['train', 'move (in a game)', 'draft (of air)'], [2])).toEqual(['train', 'draft (of air)']);
   });
 

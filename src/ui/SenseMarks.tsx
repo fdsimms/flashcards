@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { MIN_TAP, hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** What the learner said about one sense on this answer. A sense with no verdict counts as recalled (nothing is kept for it). */
 export type SenseVerdict = 'got' | 'missed';
@@ -86,27 +86,60 @@ export function SenseCount({ text }: { text: string }) {
 }
 
 /**
- * Under the card's front when its last answer marked a sense: how many senses there are and how many
- * were missed, never which. "Show the ones you got" lists the others, for when it's not clear which
- * one is missing; each card's line starts closed (Review keys it by card).
+ * Under the card's front when its last answer marked a sense: one card saying how many senses there
+ * are and how many were missed, never which. The dots count them the same way (a check per sense got,
+ * a dashed "?" per sense missed, in that order whichever it was). "Show the ones you got" lists the
+ * others, for when it's not clear which one is missing; each card's line starts closed (Review keys it
+ * by card).
  */
-export function SenseReminder({ text, got }: { text: string; got: string[] }) {
+export function SenseReminder({ text, title, detail, got, missed }: { text: string; title: string; detail: string; got: string[]; missed: number }) {
   const c = useTheme();
   const [open, setOpen] = useState(false);
+  const dot = { width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' } as const;
   return (
-    <View style={{ alignSelf: 'center', alignItems: 'center', gap: space.xs }}>
-      <View accessible accessibilityLabel={text} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, borderRadius: radius.m, ...smooth, backgroundColor: c.highlight, paddingHorizontal: space.m, paddingVertical: space.s }}>
-        <Icon name="exclamationmark.circle.fill" size={16} color={c.warning} />
-        <Text style={{ ...type.callout, color: c.warning, fontWeight: '600', flexShrink: 1 }}>{text}</Text>
+    <View style={{ alignSelf: 'stretch', borderRadius: radius.l, ...smooth, backgroundColor: c.warningFill, paddingHorizontal: space.l, paddingVertical: space.m, gap: space.s }}>
+      <View accessible accessibilityLabel={text} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
+        <Icon name="exclamationmark.circle.fill" size={30} color={c.warning} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ ...type.callout, color: c.warningInk, fontWeight: '600' }}>{title}</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: space.xs + 2 }}>
+          {got.map((_, k) => (
+            <View key={`got${k}`} style={{ ...dot, backgroundColor: c.good }}>
+              <Icon name="checkmark" size={12} weight="bold" color={c.onRating} />
+            </View>
+          ))}
+          {Array.from({ length: missed }, (_, k) => (
+            <View key={`miss${k}`} style={{ ...dot, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.warning }}>
+              <Text style={{ ...type.caption, fontWeight: '700', color: c.warningInk }}>?</Text>
+            </View>
+          ))}
+        </View>
       </View>
       {got.length ? (
-        open ? (
-          <Text style={{ ...type.subhead, lineHeight: 21, color: c.textSecondary, textAlign: 'center' }}>You got: {got.join(', ')}</Text>
-        ) : (
-          <Tappable onPress={() => { haptic.select(); setOpen(true); }} accessibilityRole="button" style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.m }}>
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accentInk }}>Show the ones you got</Text>
+        <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.xs, gap: space.s }}>
+          <Tappable
+            onPress={() => { haptic.select(); setOpen(!open); }}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: open }}
+            accessibilityLabel={open ? 'Hide the ones you got' : 'Show the ones you got'}
+            style={{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Text style={open ? { ...type.overline, color: c.textSecondary } : { ...type.subhead, fontWeight: '600', color: c.accentInk }}>{open ? 'You got' : 'Show the ones you got'}</Text>
+            <Icon name={open ? 'chevron.up' : 'chevron.down'} size={13} weight="semibold" color={open ? c.textSecondary : c.accentInk} />
           </Tappable>
-        )
+          {open ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingBottom: space.xs }}>
+              {got.map((sense, k) => (
+                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, borderRadius: radius.m, ...smooth, backgroundColor: c.goodFill, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '100%' }}>
+                  <Icon name="checkmark" size={13} weight="bold" color={c.goodInk} />
+                  <Text style={{ ...type.callout, color: c.text, flexShrink: 1 }}>{sense}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
