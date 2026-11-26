@@ -10,7 +10,7 @@
 // answer is also kept by word on the reading (`answerQuiz`), as a record only.
 // Pure, so it's tested; Reader.tsx's GlossPopover shows it.
 import type { ReaderText, Word } from './api';
-import { CHOICES, shuffled, withAnswer, type Random } from './check';
+import { CHOICES, choiceText, shuffled, withAnswer, type Random } from './check';
 
 export type GuessKind = 'recall';
 
@@ -39,12 +39,12 @@ const fold = (s: string) => s.trim().toLocaleLowerCase();
  * popover falls back to the "Show meaning" row.
  */
 export function quizFor(word: Pick<Word, 'text' | 'gloss'>, text: Pick<ReaderText, 'lines'>, random: Random = Math.random): Quiz | null {
-  const right = word.gloss?.trim();
+  const right = word.gloss?.trim() ? choiceText(word.gloss) : null;
   if (!right) return null;
   const others = new Map<string, string>();
   for (const line of text.lines) {
     for (const w of line.words) {
-      const gloss = w.gloss?.trim();
+      const gloss = w.gloss?.trim() ? choiceText(w.gloss) : null;
       if (w.status === null || w.status === 'name' || !gloss || fold(gloss) === fold(right)) continue;
       if (!others.has(fold(gloss))) others.set(fold(gloss), gloss);
     }
