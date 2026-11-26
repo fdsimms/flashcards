@@ -1555,8 +1555,11 @@ from texts written to the deck toward native material. `server/reader/src/franki
 `src/reader/ownText.ts`.
 
 - **Pasted, not fetched.** A link would have the server fetch any page and pull the article out of
-  it, which paywalls and most news sites defeat; Safari's share sheet (#257) is the way a page will
-  come in. Up to 30,000 characters (`MAX_CHARS`), split into lines (sentences; in Thai, at spaces,
+  it, which paywalls and most news sites defeat. A page comes in through the share sheet instead
+  (#257, `targets/share/`, `src/core/shareInbox.ts`): text selected in any app, or a Safari page's
+  article, read by Safari in the page as shown (`GetPageText.js`), so a page the owner is signed in
+  to works and nothing is fetched. It opens Your own text filled in, with the language set from the
+  script where only one language is written in it. Up to 30,000 characters (`MAX_CHARS`), split into lines (sentences; in Thai, at spaces,
   short pieces kept with the line they end) and into parts of about 3,000 characters at a paragraph
   (`split_parts`), each its own text titled "Part 2 of 3", read in order.
 - **A preview before it's added** (`POST /api/own-texts/preview`): its coverage against the deck as

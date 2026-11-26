@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Keyboard, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
 import { ApiError, MAX_OWN_TITLE_CHARS, type Api, type Language, type OwnTextPreview } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import { flaggedName, LANGUAGE_ORDER, LANGUAGES } from '../../reader/languages';
+import { scriptLanguage, shareSource, type SharedItem } from '../../core/shareInbox';
 import { charCount, costText, coverageNote, listenTime, moreNewWords, newWordsTitle, partsNote, percentKnown, tooLong } from '../../reader/ownText';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Screen } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Screen, Select } from '../kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
@@ -14,20 +15,26 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
  * now: how much of it is known, the words that aren't, and what translating and recording it costs.
  * Add to shelf sends it; it's translated and recorded in the background and joins the shelf's Your
  * texts row. Changing the text or title after a check asks for another, so what's added is what was
- * shown. Opened from New text's Your own text (ReadWrite.tsx); `toolbar` is that screen's Cancel.
+ * shown. Opened from New text's Your own text (ReadWrite.tsx), or with text shared from another app
+ * (`shared`, src/core/shareInbox.ts), which fills it in and sets the language from its script.
+ * `toolbar` is that screen's Cancel.
  */
-export function ReadOwnText({ api, language, toolbar, onDone }: { api: Api; language: Language; toolbar: React.ReactNode; onDone: () => void }) {
+export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, onDone }: { api: Api; language: Language; shared?: SharedItem; toolbar: React.ReactNode; onDone: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
+  const [language, setLanguage] = useState<Language>(() => {
+    const guess = shared ? scriptLanguage(shared.text) : undefined;
+    return guess && LANGUAGE_ORDER.includes(guess) ? guess : readerLanguage;
+  });
+  const [title, setTitle] = useState(shared?.title ?? '');
+  const [text, setText] = useState(shared?.text ?? '');
   // The preview, with what it was made from, so an edit after it asks for a new one.
-  const [preview, setPreview] = useState<{ text: string; title: string; found: OwnTextPreview } | null>(null);
+  const [preview, setPreview] = useState<{ language: Language; text: string; title: string; found: OwnTextPreview } | null>(null);
   const [busy, setBusy] = useState<'check' | 'add' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const name = LANGUAGES[language].name;
-  const current = preview && preview.text === text && preview.title === title ? preview.found : null;
+  const current = preview && preview.language === language && preview.text === text && preview.title === title ? preview.found : null;
   const over = tooLong(text.trim().length);
 
   const check = async () => {
@@ -35,9 +42,9 @@ export function ReadOwnText({ api, language, toolbar, onDone }: { api: Api; lang
     Keyboard.dismiss();
     setBusy('check');
     setError(null);
-    const asked = { text, title };
+    const asked = { language, text, title };
     try {
-      const found = await api.ownTextPreview(language, asked.text, asked.title);
+      const found = await api.ownTextPreview(asked.language, asked.text, asked.title);
       setPreview({ ...asked, found });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't check the text. Try again.");
@@ -72,7 +79,15 @@ export function ReadOwnText({ api, language, toolbar, onDone }: { api: Api; lang
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >
-        <Help>{`Paste something you want to read in ${name}: an article, a chapter, song lyrics. It's translated and read aloud like the texts written for you, and you can tap any word.`}</Help>
+        {shared
+          ? <Help>{`${shareSource(shared)}. It's translated and read aloud like the texts written for you, and you can tap any word.`}</Help>
+          : <Help>{`Paste something you want to read in ${name}: an article, a chapter, song lyrics. It's translated and read aloud like the texts written for you, and you can tap any word.`}</Help>}
+        <Select
+          label="Language"
+          options={LANGUAGE_ORDER.map(flaggedName)}
+          value={flaggedName(language)}
+          onChange={(v) => { const picked = LANGUAGE_ORDER.find((l) => flaggedName(l) === v); if (picked) setLanguage(picked); }}
+        />
         <Field label="Title (optional)" placeholder="e.g. Nowy most w Krakowie" value={title} onChangeText={setTitle} maxLength={MAX_OWN_TITLE_CHARS} returnKeyType="next" />
         <View style={{ gap: space.xs }}>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>Text</Text>
@@ -96,7 +111,7 @@ export function ReadOwnText({ api, language, toolbar, onDone }: { api: Api; lang
             {over ? `${charCount(text.trim().length)}. Add a shorter part, and the rest in another go.` : `${charCount(text.trim().length)}. Paste from Safari, an email or a book.`}
           </Text>
         </View>
-        {current ? <PreviewCards preview={current} /> : preview ? <Help>You changed the text. Check it again before adding it.</Help> : null}
+        {current ? <PreviewCards preview={current} /> : preview ? <Help>You changed the text or its language. Check it again before adding it.</Help> : null}
         {error ? <ErrorNote message={error} /> : null}
       </ScrollView>
     </Screen>

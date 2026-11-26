@@ -141,7 +141,8 @@ function addAppExtensionTarget(options) {
  *
  * @param {object} options  as addAppExtensionTarget, minus `frameworks`
  * @param {{dir: string, name: string}[]} [options.resourceFolders]  folders
- *        (an `.xcassets`) copied in whole and added to the Resources phase
+ *        (an `.xcassets`) or single files (a share extension's preprocessing
+ *        script) copied in whole and added to the Resources phase
  */
 function addWatchAppTarget(options) {
   return addNativeTarget({ ...options, frameworks: [], kind: 'watch_app' });
@@ -360,6 +361,9 @@ function addNativeTarget({
     // "Resources" to correct the path against, and Expo's template has none,
     // so it throws on the missing group.
     const file = project.addFile(`${targetName}/${name}`, group.uuid, {});
+    // addFile() doesn't know a .js file's type and writes `unknown`; name it, as
+    // Xcode does, for a share extension's preprocessing script.
+    if (name.endsWith('.js')) project.pbxFileReferenceSection()[file.fileRef].lastKnownFileType = 'sourcecode.javascript';
     file.target = target.uuid;
     file.uuid = project.generateUuid();
     project.addToPbxBuildFileSection(file);

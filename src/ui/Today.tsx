@@ -10,6 +10,7 @@ import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './moti
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
+import { SharedCard, useSharedBanner } from './SharedBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, readable, smooth, space, type, useTheme } from './theme';
 import { TodaySkeleton } from './TodaySkeleton';
@@ -131,9 +132,10 @@ export function Today(props: {
   const header = useHeaderInset();
   const { banner: vocabReady } = useVocabReady();
   const noteQueue = useNoteQueueBanner();
+  const shared = useSharedBanner();
   const vacation = useVacationBanner();
   // A card that goes away (notes reviewed, a cram finished) fades out and the ones below slide up.
-  useLeaveAnimation([vocabReady, noteQueue, vacation, props.crams].filter(Boolean).length);
+  useLeaveAnimation([vocabReady, noteQueue, shared, vacation, props.crams].filter(Boolean).length);
   const groups = useMemo(() => groupByTopLevel(todayDeckRows(props.decks, props.collapsed ?? new Set())), [props.decks, props.collapsed]);
   // The deck whose row is slid open on its Options action; one at a time.
   const [openDeck, setOpenDeck] = useState<string | null>(null);
@@ -184,6 +186,7 @@ export function Today(props: {
           ) : null}
           {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
           {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
+          {shared ? <SharedCard banner={shared} /> : null}
           <NewWordsCards />
           {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
           {props.crams}
