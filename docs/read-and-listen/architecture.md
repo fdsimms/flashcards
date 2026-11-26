@@ -1546,6 +1546,35 @@ topics, favorites and constant setting changes awkward, though the texts themsel
   summary (moved off the home screen). The story that used to be here (start a new one, Read from the
   start) was removed on 18 November 2026, by the owner: the + sheet, Stories and the banner do both. The `form` setting is no longer shown: the shelf varies it.
 
+## Your own texts
+
+Decided 25 November 2026, the owner choosing from a mock: a text the owner found themselves (an
+article, a chapter, song lyrics), pasted in and read like the texts written for them, as the step
+from texts written to the deck toward native material. `server/reader/src/franki_reader/own_text.py`,
+`routes/own_texts.py`; in the app `src/ui/reader/ReadOwnText.tsx` (New text's Your own text) and
+`src/reader/ownText.ts`.
+
+- **Pasted, not fetched.** A link would have the server fetch any page and pull the article out of
+  it, which paywalls and most news sites defeat; Safari's share sheet (#257) is the way a page will
+  come in. Up to 30,000 characters (`MAX_CHARS`), split into lines (sentences; in Thai, at spaces,
+  short pieces kept with the line they end) and into parts of about 3,000 characters at a paragraph
+  (`split_parts`), each its own text titled "Part 2 of 3", read in order.
+- **A preview before it's added** (`POST /api/own-texts/preview`): its coverage against the deck as
+  it is now, counted as a written text's is, the new words most frequent first, its size, and what
+  translating and recording it will cost. Nothing is checked against a floor: it's the owner's text,
+  and the preview says when it's below the 90% the written texts keep to.
+- **Then as a written text after writing** (`POST /api/own-texts`, `Engine._make_own`): one Claude call
+  per part translates its lines (Haiku, low effort; a failed one leaves the part without English
+  rather than off the shelf, and the reader says so, `untranslated`), then meanings, IPA, forms and every line's audio, as `make_text` does
+  after writing. Stored with reason `own` under a hidden topic named after its title. No
+  comprehension questions are written.
+- **Its own row on the shelf** (`own` in `/api/shelf`, "Your texts"), never in Up next or Play all,
+  which are the texts written for the owner. It comes after them in the reading order (Next, and
+  what's downloaded for offline), and Remove works on it as on any shelf text.
+- **It counts as reading, except for the level.** Its reading time, its lines on cards ("From your
+  reading"), and the words looked up in it count as any text's do. It never moves the language's
+  difficulty (`record_reading`): that level is about texts written to it.
+
 ## Stories
 
 Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose

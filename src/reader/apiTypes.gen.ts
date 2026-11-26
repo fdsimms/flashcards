@@ -309,6 +309,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/own-texts/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_own_texts_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/own-texts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add */
+        post: operations["add_api_own_texts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/texts": {
         parameters: {
             query?: never;
@@ -2408,6 +2442,52 @@ export interface components {
             /** Particle */
             particle?: ("khrap" | "kha") | null;
         };
+        /** OwnAddedOut */
+        OwnAddedOut: {
+            /** Ids */
+            ids: number[];
+        };
+        /**
+         * OwnPreviewOut
+         * @description What adding a text would give, before it's added.
+         */
+        OwnPreviewOut: {
+            /** Title */
+            title: string;
+            /** Coverage */
+            coverage: number;
+            /** Words */
+            words: number;
+            /** New Words */
+            new_words: string[];
+            /** New Count */
+            new_count: number;
+            /** Lines */
+            lines: number;
+            /** Parts */
+            parts: number;
+            /** Characters */
+            characters: number;
+            /** Seconds */
+            seconds: number;
+            /** Cost Usd */
+            cost_usd: number;
+        };
+        /** OwnTextIn */
+        OwnTextIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Text */
+            text: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
         /** PhraseIn */
         PhraseIn: {
             /** Phrase */
@@ -3752,6 +3832,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_own_texts_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnTextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_api_own_texts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnTextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnAddedOut"];
+                };
             };
             /** @description Validation Error */
             422: {

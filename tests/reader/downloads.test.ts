@@ -76,6 +76,14 @@ describe('planTexts', () => {
     expect(plan.fetch.map((t) => t.id)).toEqual([7, 3]);
   });
 
+  it("keeps the learner's own texts too, after the shelf's, and doesn't drop them as gone", () => {
+    const own = card({ id: 8, reason: 'own' });
+    const index = { texts: [saved(8, { card: own })] };
+    const withOwn = { ...shelf([card({ id: 2 })]), own: [own, card({ id: 9, reason: 'own' })] };
+    expect(planTexts(withOwn, index).fetch.map((t) => t.id)).toEqual([2, 9]);
+    expect(planTexts(withOwn, index).drop).toEqual([]);
+  });
+
   it('drops kept texts of the shelf language that left it, and leaves other languages alone', () => {
     const index = { texts: [saved(2), saved(4), saved(5, { language: 'th' })] };
     expect(planTexts(shelf([card({ id: 2 })]), index).drop).toEqual([4]);
@@ -89,6 +97,17 @@ describe('the shelf offline', () => {
     expect(offline.texts.map((t) => t.id)).toEqual([2]);
     expect(offline.writing).toEqual([]);
     expect(offline.story).toMatchObject({ next: { id: 7 }, writing: false, stage: null });
+  });
+
+  it("keeps the learner's own texts in their own row, with or without the shelf read", () => {
+    const own = card({ id: 8, reason: 'own' });
+    const index: DownloadIndex = { ...EMPTY_INDEX, texts: [saved(2), saved(8, { card: own })], shelves: { pl: { ...shelf([card({ id: 2 })]), own: [own, card({ id: 9, reason: 'own' })] } } };
+    const offline = offlineShelf(index, new Set(), 'pl')!;
+    expect(offline.texts.map((t) => t.id)).toEqual([2]);
+    expect(offline.own?.map((t) => t.id)).toEqual([8]);
+    const unread = offlineShelf({ ...index, shelves: {} }, new Set(), 'pl')!;
+    expect(unread.texts.map((t) => t.id)).toEqual([2]);
+    expect(unread.own?.map((t) => t.id)).toEqual([8]);
   });
 
   it("drops the story's episode when it isn't kept", () => {
