@@ -5,7 +5,9 @@ import { LANGUAGES } from '../reader/languages';
 import { quickAddDecks } from '../reader/noteQueue';
 import { useApp } from '../ui/AppContext';
 import { Loading, Screen } from '../ui/kit';
+import { deckForShare, shareSource, sharedWords } from '../core/shareInbox';
 import { leaveScreen } from '../ui/leaveScreen';
+import { shareInbox } from '../ui/shareInbox';
 import { QuickAdd, type QuickAddDeck } from '../ui/QuickAdd';
 import { lastQuickAddDeck } from '../ui/lastDeck';
 import { DECKS_PATH } from '../ui/tabPaths';
@@ -14,12 +16,14 @@ import { useQuickAddNotes } from '../ui/useQuickAddNotes';
 
 /**
  * Quick add, as a sheet from the Decks header's +, a deck's long-press menu (`deck`) or the Home Screen
- * quick action. A Read & Listen language's deck, while it's on, sends words to the note queue for
+ * quick action, or with words shared from another app (`shared`, useShareInbox). A Read & Listen language's deck, while it's on, sends words to the note queue for
  * Claude to fill in; every other deck saves each word and its meaning as a note.
  */
 export default function QuickAddRoute() {
   const router = useRouter();
-  const { deck: asked } = useLocalSearchParams<{ deck?: string }>();
+  const { deck: asked, shared: sharedId } = useLocalSearchParams<{ deck?: string; shared?: string }>();
+  // Words shared from another app, opened here by useShareInbox: kept until they're added or cancelled.
+  const shared = shareInbox.get(sharedId);
   const { reader } = useApp();
   const queue = useNoteQueue(reader.api);
   const notes = useQuickAddNotes();
@@ -47,7 +51,7 @@ export default function QuickAddRoute() {
     );
   }
   const has = (d: string | null | undefined) => (d && decks.some((x) => x.deck === d) ? d : undefined);
-  const initial = has(asked) ?? has(last) ?? decks.find((d) => d.filled)?.deck ?? decks[0].deck;
+  const initial = has(asked) ?? has(shared ? deckForShare(decks, shared.text, last ?? undefined) : undefined) ?? has(last) ?? decks.find((d) => d.filled)?.deck ?? decks[0].deck;
   const languageOf = (deck: string) => quickAddDecks(reader.settings?.decks, [deck])[0]?.language;
   const api = reader.api;
 
@@ -55,6 +59,8 @@ export default function QuickAddRoute() {
     <QuickAdd
       decks={decks}
       initial={initial}
+      initialWords={shared ? sharedWords(shared.text) : undefined}
+      note={shared ? `${shareSource(shared)}.` : undefined}
       collection={collection}
       onQueue={async (deck, words) => {
         const language = languageOf(deck);
@@ -66,7 +72,10 @@ export default function QuickAddRoute() {
         return language ? api.lookUpWords(language, meaning) : [];
       } : undefined}
       onDeckChosen={lastQuickAddDeck.save}
-      onDone={() => leaveScreen(router, DECKS_PATH)}
+      onDone={() => {
+        if (shared) shareInbox.remove(shared.id);
+        leaveScreen(router, DECKS_PATH);
+      }}
     />
   );
 }

@@ -12,6 +12,7 @@ import { hairline, radius, readable, smooth, space, type, useTheme } from '../th
 import { useCoverTint } from './Cover';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { ReadOwnText } from './ReadOwnText';
+import type { SharedItem } from '../../core/shareInbox';
 
 export type NewKind = 'series' | 'dialogue' | 'story' | 'own';
 
@@ -22,7 +23,7 @@ export type NewKind = 'series' | 'dialogue' | 'story' | 'own';
  * a typed topic. Each is written in the background and shows on the home when it's ready, so the
  * sheet closes as soon as it's asked for.
  */
-export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: Api; language?: Language; kind?: NewKind; onDone: () => void }) {
+export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: { api: Api; language?: Language; kind?: NewKind; /** Text shared from another app, for Your own text. */ shared?: SharedItem; onDone: () => void }) {
   const c = useTheme();
   // Your own text needs the language it's in; without one (settings not loaded yet) the choice shows instead.
   const [kind, setKind] = useState<NewKind | null>(initialKind === 'own' && !language ? null : initialKind ?? null);
@@ -104,7 +105,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
   }
 
   if (kind === 'own' && language) {
-    return <ReadOwnText api={api} language={language} toolbar={cancel} onDone={onDone} />;
+    return <ReadOwnText api={api} language={language} shared={shared} toolbar={cancel} onDone={onDone} />;
   }
 
   if (kind === 'series') {

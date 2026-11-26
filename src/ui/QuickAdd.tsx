@@ -44,9 +44,13 @@ type Mode = 'one' | 'list';
  * meaning and is saved as a note when Add is tapped (`useQuickAddNotes`), which is the approval. Either
  * way a word the deck already has says so before Add, by the same check the save refuses it by.
  */
-export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp, onDeckChosen, onDone }: {
+export function QuickAdd({ decks, initial, initialWords, note, collection, onQueue, onSave, onLookUp, onDeckChosen, onDone }: {
   decks: QuickAddDeck[];
   initial: string;
+  /** Words already on the list: shared from another app (src/core/shareInbox.ts). */
+  initialWords?: QuickWord[];
+  /** A line over the deck, saying where those words came from. */
+  note?: string;
   collection: QuickCollection;
   /** 'held' when offline: the words wait on the phone and go to Claude when it's back (useNoteQueue). */
   onQueue: (deck: string, words: QuickWord[]) => Promise<'queued' | 'held' | undefined>;
@@ -61,7 +65,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
   const { scrollProps, bottomPadding } = useKeyboardScroll();
   const [deck, setDeck] = useState(initial);
   const [mode, setMode] = useState<Mode>('one');
-  const [words, setWords] = useState<QuickWord[]>([]);
+  const [words, setWords] = useState<QuickWord[]>(initialWords ?? []);
   const [text, setText] = useState('');
   const [meaningText, setMeaningText] = useState('');
   const [listText, setListText] = useState('');
@@ -203,6 +207,7 @@ export function QuickAdd({ decks, initial, collection, onQueue, onSave, onLookUp
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }}
         {...scrollProps}
       >
+        {note ? <Help>{note}</Help> : null}
         {decks.length > 1 ? (
           <Card>
             <Select label="Deck" options={decks.map((d) => d.deck)} value={deck} onChange={(d) => { setDeck(d); setFound(null); setLookingUp(false); setRefused({}); }} />

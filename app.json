@@ -36,6 +36,8 @@
     "plugins": [
       "expo-router",
       "./plugins/withListeningActivity",
+      "./plugins/withAppGroup",
+      "./plugins/withShareExtension",
       "expo-sharing",
       [
         "expo-font",
@@ -146,6 +148,15 @@
                 {
                   "targetName": "FrankiListening",
                   "bundleIdentifier": "com.fdsimms.franki.FrankiListening"
+                },
+                {
+                  "targetName": "FrankiShare",
+                  "bundleIdentifier": "com.fdsimms.franki.FrankiShare",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.fdsimms.franki"
+                    ]
+                  }
                 }
               ]
             }

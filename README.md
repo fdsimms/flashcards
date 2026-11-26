@@ -50,6 +50,8 @@ Franki also imports Anki's "Notes in Plain Text" export, and other text files of
 
 **Note types** (Settings, Decks and cards) lists the collection's note types. Open one to edit each card type's front and back template and the styling; Franki checks them as Anki does (a field the note type doesn't have, a front that shows no field) and says what to change. A change reaches Anki at the next sync, without replacing either collection. A change that would give notes a card they don't have yet is refused, since Anki would add those cards and Franki can't yet: make it in Anki.
 
+**From another app:** select text in Safari, Notes, a subtitle app or anywhere else, tap **Share**, then **Franki**, and choose **Read it in Read & Listen** or **Add as words**. Sharing a Safari page with nothing selected hands over the page's article. Franki opens to Your own text or Quick add with it filled in the next time you open it (a share more than an hour old waits on Today instead), and nothing is added until you add it there.
+
 Changes to an Anki note go into your Anki collection as Anki would make them, so the next sync (or Send to Anki) brings them to Anki. An edit keeps every card's schedule and adds any card the note now makes; a card it no longer makes stays in Anki, as Anki keeps it. A note added to a deck Anki doesn't have stays in Franki only.
 
 ## Decks
@@ -163,6 +165,8 @@ src/reader   Read & Listen: its server's API, the reading session, playback
 src/wanikani WaniKani: its API, the study session, answer checking, production cards
 src/anki     Anki collection packages: reading, writing answers back, packing; sync/ talks to an Anki sync server
 modules/     anki-unicase: Anki's text ordering for the phone's SQLite, so sync can write Anki's decks and note types
+targets/     the iOS extensions added at prebuild by plugins/: the listening Live Activity, and the share
+             extension (Franki in another app's share sheet)
 server/      a ready-to-run Anki sync server (Docker, with HTTPS from Caddy), the MCP for Claude, and
              Read & Listen's server
 docs/        Read & Listen's design
