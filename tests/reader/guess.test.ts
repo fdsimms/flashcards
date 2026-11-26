@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import type { ReaderText, TextLine, Word } from '../../src/reader/api';
+import { choiceText } from '../../src/reader/check';
 import { GUESS_HINT, guessKind, quizFor, tapMode } from '../../src/reader/guess';
 
 const word = (text: string, gloss: string | null, extra: Partial<Word> = {}): Word =>
@@ -40,6 +41,15 @@ test('the same gloss on another word, a name and an empty gloss are never wrong 
   const q = quizFor(WORDS[2], text(words), () => 0.5)!;
   expect(q.choices.filter((c) => c.toLowerCase() === 'eat')).toHaveLength(1);
   expect(q.choices).not.toContain('Mali');
+});
+
+test('a "(from ...)" tag on a form\'s gloss is left off every choice, so it can\'t mark the answer', () => {
+  const words = [...WORDS, word('halète', 'gasps, pants (from haleter)'), word('court', 'runs (from courir)')];
+  const q = quizFor(words[words.length - 2], text(words), () => 0.4)!;
+  expect(q.choices[q.answer]).toBe('gasps, pants');
+  expect(q.choices.some((c) => /\(from /.test(c))).toBe(false);
+  expect(choiceText('to eat')).toBe('to eat');
+  expect(choiceText('(from x)')).toBe('(from x)');
 });
 
 test('a text with fewer than three other glosses has no quiz', () => {
