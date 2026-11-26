@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AGENT_FLAG_REASONS, FLAG_NOTE_MAX, type AgentFlagReason } from '../core/agentFlag';
+import { AGENT_FLAG_REASONS, FLAG_NOTE_MAX, canFixNow, type AgentFlagReason } from '../core/agentFlag';
 import { failureText } from '../core/failure';
 import type { FixProposal } from '../core/fixCard';
 import { Button, Chip, ErrorNote, Field, SheetHeader } from './kit';
@@ -93,6 +93,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
   };
 
   const asking = phase === 'asking';
+  const fixable = !!fix && canFixNow(reason);
   const heading = phase === 'proposal'
     ? (proposal?.changes.length ? `Claude suggests ${proposal.changes.length === 1 ? 'one change' : `${proposal.changes.length} changes`}` : 'Claude found nothing to change')
     : asking ? null : word ? `Flag ${word} for Claude to check` : 'Flag for Claude to check';
@@ -108,7 +109,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
           {heading === null ? <AskingText style={{ ...type.headline, color: c.text }} /> : <Text style={{ ...type.headline, color: c.text }}>{heading}</Text>}
           {phase === 'form' ? (
             <Text style={{ ...type.footnote, color: c.textSecondary }}>
-              {fix
+              {fixable
                 ? 'Claude can suggest a fix now, or check this card later when you ask in a chat. The card gets the purple flag either way.'
                 : 'Claude checks this card when you ask in a chat, and suggests a fix for you to approve. The card gets the purple flag.'}
             </Text>
@@ -133,7 +134,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
               Up to {FLAG_NOTE_MAX} characters. Syncs to your other devices.
             </Text>
             {error ? <ErrorNote message={error} /> : null}
-            {fix ? (
+            {fixable ? (
               <>
                 <Button label="Fix with Claude now" onPress={() => void askForFix()} busy={busy} />
                 <Button label={onRemove ? 'Update flag for later' : 'Flag for later'} variant="secondary" onPress={() => void save()} disabled={busy} />
@@ -142,7 +143,14 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
                 </Text>
               </>
             ) : (
-              <Button label={onRemove ? 'Update flag' : 'Flag card'} onPress={() => void save()} busy={busy} />
+              <>
+                <Button label={onRemove ? (fix ? 'Update flag for later' : 'Update flag') : (fix ? 'Flag for later' : 'Flag card')} onPress={() => void save()} busy={busy} />
+                {fix ? (
+                  <Text style={{ ...type.footnote, color: c.textSecondary }}>
+                    Claude can't fix a recording here. Ask in a chat and it can record the text again with a voice.
+                  </Text>
+                ) : null}
+              </>
             )}
             {onRemove ? <Button label="Remove flag" variant="destructive" onPress={() => void remove()} disabled={busy} /> : null}
             <Button label="Cancel" variant="secondary" onPress={onClose} disabled={busy} />

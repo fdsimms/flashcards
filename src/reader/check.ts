@@ -41,6 +41,13 @@ export function withAnswer<T>(right: T, wrong: T[], random: Random): { choices: 
 }
 
 const fold = (s: string) => s.trim().toLocaleLowerCase();
+
+/**
+ * A gloss as a quiz choice. A form's gloss can end in "(from <dictionary form>)", which only the
+ * word being asked about has, so on one choice it marks the answer. Dropped from every choice.
+ */
+export const choiceText = (gloss: string) => gloss.replace(/\s*\(from [^)]*\)\s*$/i, '').trim() || gloss.trim();
+
 const isWord = (w: Word) => w.status !== null;
 
 function textQuestions(text: ReaderText, random: Random): CheckQuestion[] {
@@ -83,8 +90,9 @@ function wordQuestions(text: ReaderText, session: Session, random: Random): Chec
   const glosses = new Map<string, string>();
   text.lines.forEach((l, line) => l.words.forEach((w) => {
     if (!isWord(w) || w.status === 'name' || !w.gloss?.trim()) return;
-    if (!found.has(fold(w.text))) found.set(fold(w.text), { word: w.text, gloss: w.gloss.trim(), line });
-    if (!glosses.has(fold(w.gloss))) glosses.set(fold(w.gloss), w.gloss.trim());
+    const gloss = choiceText(w.gloss);
+    if (!found.has(fold(w.text))) found.set(fold(w.text), { word: w.text, gloss, line });
+    if (!glosses.has(fold(gloss))) glosses.set(fold(gloss), gloss);
   }));
   const practiced = text.lines.flatMap((l) => l.words.filter((w) => w.stretch && isWord(w)).map((w) => w.text));
   // Marked unknown first, then looked up, then the practice words.

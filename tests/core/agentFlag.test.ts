@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_FLAG, AGENT_FLAG_REASONS, cleanFlagNote, decodeFlagNote, encodeFlagNote, FLAG_NOTE_MAX, flagNoteOf, flagReasonOf, isFlagTag, withFlagReason, withoutFlag } from '../../src/core/agentFlag';
+import { AGENT_FLAG, AGENT_FLAG_REASONS, canFixNow, cleanFlagNote, decodeFlagNote, encodeFlagNote, FLAG_NOTE_MAX, flagNoteOf, flagReasonOf, isFlagTag, withFlagReason, withoutFlag } from '../../src/core/agentFlag';
 import { FLAG_NAMES } from '../../src/core/cardState';
 
 describe('agent flag', () => {
@@ -21,6 +21,11 @@ describe('agent flag', () => {
     expect(isFlagTag('FLAG::audio')).toBe(true);
     expect(isFlagTag('flagship')).toBe(false);
     expect(isFlagTag('flag')).toBe(false);
+  });
+
+  it('offers a fix now for text reasons but not for audio, which needs a new recording', () => {
+    expect(canFixNow('audio')).toBe(false);
+    for (const r of ['typo', 'translation', 'other'] as const) expect(canFixNow(r)).toBe(true);
   });
 
   it('offers reasons whose slugs are valid, distinct tag parts', () => {
