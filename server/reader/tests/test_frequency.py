@@ -1,4 +1,4 @@
-from franki_reader.frequency import EntryPlace, entry_place, rank_of
+from franki_reader.frequency import EntryPlace, entry_place, has_frequency_list, rank_of
 from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import lexicon_from
 from franki_reader.spaced import common_lemmas
@@ -101,3 +101,12 @@ def test_a_japanese_word_with_its_endings_or_affixes_is_still_a_word() -> None:
     assert entry_place("経験する", ja).rank == rank_of("経験", ja)
     for word in ("経験する", "静かな", "学生たち", "見せびらかす", "お茶"):
         assert not entry_place(word, ja).phrase, word
+
+
+def test_toki_pona_has_no_frequency_list_so_its_words_carry_no_rank() -> None:
+    from franki_reader.reader import render_parts  # noqa: F401  (the dict is built beside it)
+    from franki_reader.spaced import SpacedLexicon
+
+    assert not has_frequency_list(SpacedLexicon("tok", ["toki"]))
+    assert has_frequency_list(lexicon_from([], "es"))
+    assert has_frequency_list(lexicon_from([], "th"))

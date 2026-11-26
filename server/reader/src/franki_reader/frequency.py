@@ -15,6 +15,7 @@ from pythainlp.tokenize import word_tokenize
 from franki_reader.coverage import Checker, is_word
 from franki_reader.japanese import JapaneseLexicon, is_phrase, lemma_key
 from franki_reader.japanese import common_words as japanese_words
+from franki_reader.languages import LANGUAGES
 from franki_reader.spaced import SpacedLexicon, common_words, fold, lemma
 
 THAI = "th"
@@ -34,6 +35,13 @@ def _thai() -> dict[str, int]:
 
     lines = (_DATA / "th_common.txt").read_text(encoding="utf-8").splitlines()
     return _ranks(tuple(w for w in lines if w and not w.startswith("#")))
+
+
+def has_frequency_list(lexicon: Checker) -> bool:
+    """Whether the language has a list to rank against. A gloss-only language (Toki Pona, whose
+    whole vocabulary is about 130 words) has none, so a word's place in it means nothing."""
+    code = getattr(lexicon, "code", None)
+    return not (code in LANGUAGES and LANGUAGES[code].glosses_only)
 
 
 def rank_of(word: str, lexicon: Checker, *, nouns_are_one_word: bool = False) -> int | None:
