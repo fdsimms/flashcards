@@ -33,6 +33,20 @@ def raw_plan(**over: Any) -> dict[str, Any]:
             phrase("Oui, avec du lait.", "Yes, with milk.", "Oui,", "avec du lait."),
             phrase("Merci, au revoir.", "Thank you, goodbye.", "Merci,", "au revoir."),
         ],
+        "roleplay": [
+            {"speaker": "B", "text": "Vous désirez ?", "english": "What would you like?"},
+            {
+                "speaker": "A",
+                "text": "Bonjour, un café avec du lait.",
+                "english": "Hello, a coffee with milk.",
+            },
+            {"speaker": "B", "text": "Voilà.", "english": "Here you go."},
+            {
+                "speaker": "A",
+                "text": "Oui, un café, merci.",
+                "english": "Yes, a coffee, thank you.",
+            },
+        ],
         "mixes": [
             {"text": "Un café avec du lait, merci.", "english": "A coffee with milk, thank you."},
             {"text": "Bonjour, au revoir.", "english": "Hello, goodbye."},
@@ -52,8 +66,8 @@ def test_a_plan_with_nothing_weak_has_no_craft_problems() -> None:
 
 
 def test_asks_for_more_phrases_than_the_minimum() -> None:
-    raw = raw_plan(phrases=raw_plan()["phrases"][:3])
-    (said,) = lesson_writer.craft_problems(cleaned(raw), "fr")
+    raw = raw_plan(phrases=raw_plan()["phrases"][:3], roleplay=[])
+    said = lesson_writer.craft_problems(cleaned(raw), "fr")[0]
     assert "4 to 5 phrases, not 3" in said
 
 
@@ -169,3 +183,27 @@ def test_a_lesson_still_flagged_after_asking_again_is_kept_not_refused() -> None
     )
     assert len(asked) == 2 and len(plan.phrases) == 3
     assert used.input_tokens == 2000
+
+
+def test_no_usable_roleplay_is_asked_for_again() -> None:
+    (said,) = lesson_writer.craft_problems(cleaned(raw_plan(roleplay=[])), "fr")
+    assert said.startswith("Write a roleplay")
+
+
+def test_the_learners_own_words_are_not_asked_for_a_roleplay() -> None:
+    raw = raw_plan(roleplay=[])
+    assert lesson_writer.craft_problems(cleaned(raw), "fr", phrases=False) == []
+
+
+def test_a_flagged_roleplay_line_is_asked_for_again() -> None:
+    raw = raw_plan()
+    found = [{"kind": "roleplay", "index": 2, "problem": "Stiff."}]
+    lesson_writer.apply_review(raw, cleaned(raw), found, phrases=True)
+    assert lesson_writer.reviewed(raw) == [
+        "Roleplay line 2 (Bonjour, un café avec du lait.): Stiff."
+    ]
+
+
+def test_the_review_shows_the_roleplay() -> None:
+    said = lesson_writer.review_message("fr", "male", cleaned(raw_plan()))
+    assert "2. A: Bonjour, un café avec du lait." in said

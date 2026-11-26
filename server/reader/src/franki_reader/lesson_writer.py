@@ -62,6 +62,11 @@ what you give. Give:
   learner could say in this situation. Pieces that merely fit together are not a sentence, and
   neither are two phrases put side by side. Give fewer, or none, rather than one that fails.
   Each: text and english.
+- roleplay: {rp_low} to {rp_high} lines of a second, different conversation in {language} in the same
+  situation, between A ({a}) and B ({b}), for the learner to act out as A. A speaks first. Every one
+  of A's lines is made only of words from the phrases above, put together in a new way, and is never
+  one of the phrases as taught, a mix, or a line of the first dialogue. B's lines use very basic
+  everyday words and make A's next line the natural thing to say. Each: speaker, text, english.
 
 Rules for the phrases:
 - 2 to 8 words each, and not a lone "Yes." or "Thanks."
@@ -110,6 +115,12 @@ learner to say each phrase aloud. Give:
   english. Check each as a native speaker would: it is grammatical, it means what its english says,
   and it is something the learner could say in this situation. Fewer, or none, when the phrases
   don't make a sentence that passes.
+- roleplay: {rp_low} to {rp_high} lines of a second, different conversation in {language} in the same
+  situation, between A ({a}) and B ({b}), for the learner to act out as A. A speaks first. Every one
+  of A's lines is made only of words from the phrases above, put together in a new way, and is never
+  one of the phrases as given, a new sentence above, or a line of the first dialogue. B's lines use
+  very basic everyday words. Each: speaker, text, english. Fewer lines, or none, when the phrases
+  can't make A's lines.
 
 Rules for the parts: the phrase split in order into 1 to {parts} pieces at natural breaks, so that
 the learner can build it up from its end (the last piece first). Put back together, the parts must
@@ -153,7 +164,7 @@ def _thai_note(learner: lesson.Learner) -> str:
         " cut `parts` where a person would pause. The learner is a "
         f"{speaker}, and Thai's polite particles and \"I\" depend on the speaker's gender, so write "
         f"every line of A for a {speaker}: {_THAI_PARTICLES[learner]}. The same particle ends each of"
-        " the new sentences in `mixes`, and the dialogue's A ends polite lines with it too. B (a "
+        " the new sentences in `mixes`, and the dialogue's and the roleplay's A end polite lines with it too. B (a "
         f'{their}) uses the {their}\'s particle and "I" in the dialogue only, never in a phrase '
         "taught."
     )
@@ -178,7 +189,7 @@ def _thai_given_note(learner: lesson.Learner) -> str:
     first = "ผม" if learner == "male" else "ดิฉัน or ฉัน"
     return (
         "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
-        f" cut `parts` where a person would pause. The learner is a {speaker}: A's polite lines end"
+        f" cut `parts` where a person would pause. The learner is a {speaker}: A's polite lines (the roleplay's too) end"
         f' with {particle} and A says "I" as {first}. B (a {their}) uses the {their}\'s particle'
         ' and "I". Leave the phrases taught as given, with or without a particle.'
     )
@@ -230,7 +241,7 @@ def thai_problems(plan: lesson.Plan, learner: lesson.Learner, *, phrases: bool =
             + "; ".join(missing)
         )
     genders: dict[str, lesson.Learner] = {"A": learner, "B": lesson.other(learner)}
-    lines = [(line.speaker, line.text) for line in plan.dialogue]
+    lines = [(line.speaker, line.text) for line in (*plan.dialogue, *plan.roleplay)]
     problems += gender.gender_problems("th", lines, genders)
     for speaker, text in lines:
         said = set(lesson.tokens(text))
@@ -272,6 +283,12 @@ def craft_problems(plan: lesson.Plan, language: Code, *, phrases: bool = True) -
     ]
     if one_piece:
         out.append("These phrases need at least two parts: " + "; ".join(one_piece))
+    if not plan.roleplay:
+        out.append(
+            "Write a roleplay: a second conversation whose lines for A (at least "
+            f"{lesson.MIN_ROLEPLAY_A}) are made only of words from the phrases, put together in a new "
+            "way, and none a phrase, a mix or a line of the first dialogue as written."
+        )
     said = "".join(lesson.plain(l.text) for l in plan.dialogue)
     missing = [p.text for p in plan.phrases if lesson.plain(p.text) not in said]
     if missing:
@@ -307,6 +324,19 @@ SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
+        "roleplay": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "speaker": {"type": "string", "enum": ["A", "B"]},
+                    "text": {"type": "string"},
+                    "english": {"type": "string"},
+                },
+                "required": ["speaker", "text", "english"],
+                "additionalProperties": False,
+            },
+        },
         "phrases": {
             "type": "array",
             "items": {
@@ -321,7 +351,7 @@ SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["title", "dialogue", "phrases", "mixes"],
+    "required": ["title", "dialogue", "phrases", "mixes", "roleplay"],
     "additionalProperties": False,
 }
 
@@ -377,6 +407,8 @@ def request_message(
         a_words=A_LINE_WORDS_UNSPACED if language in ("th", "ja") else A_LINE_WORDS_SPACED,
         understand_rule="" if language == "th" else _UNDERSTAND,
         mixes=lesson.MAX_MIXES,
+        rp_low=lesson.MIN_ROLEPLAY_A * 2 - 1,
+        rp_high=lesson.MAX_ROLEPLAY,
         parts=lesson.MAX_PARTS,
         note=_language_note(language, learner, register),
         register_rule=instruction(register),
@@ -405,6 +437,8 @@ def given_request_message(
         low=4,
         high=lesson.MAX_GIVEN_DIALOGUE,
         mixes=lesson.MAX_MIXES,
+        rp_low=lesson.MIN_ROLEPLAY_A * 2 - 1,
+        rp_high=lesson.MAX_ROLEPLAY,
         parts=lesson.MAX_PARTS,
         note=note,
         register_rule=instruction(register),
@@ -530,7 +564,10 @@ Phrases taught:
 New sentences the learner will be asked for (made from the phrases' words):
 {mixes}
 
-List only real problems, each as kind ("dialogue", "phrase" or "mix"), index (the number shown) and
+Role-play (a second conversation, A is the learner's part, made from the phrases' words):
+{roleplay}
+
+List only real problems, each as kind ("dialogue", "phrase", "mix" or "roleplay"), index (the number shown) and
 problem (one plain sentence saying what is wrong and what to do). A problem is: ungrammatical or
 unnatural {language}, something nobody would say in this situation, an English meaning that doesn't
 match or that misleads when read alone, or a new sentence that is only pieces stuck together or
@@ -544,7 +581,7 @@ REVIEW_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "properties": {
-                    "kind": {"type": "string", "enum": ["dialogue", "phrase", "mix"]},
+                    "kind": {"type": "string", "enum": ["dialogue", "phrase", "mix", "roleplay"]},
                     "index": {"type": "integer"},
                     "problem": {"type": "string"},
                 },
@@ -571,6 +608,7 @@ def review_message(language: Code, learner: lesson.Learner, plan: lesson.Plan) -
         dialogue=_numbered([(f"{l.speaker}: {l.text}", l.english) for l in plan.dialogue]),
         phrases=_numbered([(p.text, p.english) for p in plan.phrases]),
         mixes=_numbered([(m.text, m.english) for m in plan.mixes]),
+        roleplay=_numbered([(f"{l.speaker}: {l.text}", l.english) for l in plan.roleplay]),
     )
 
 
@@ -593,9 +631,12 @@ def apply_review(raw: dict[str, Any], plan: lesson.Plan, found: Any, *, phrases:
         kind, index, problem = item.get("kind"), item.get("index"), item.get("problem")
         if not isinstance(index, int) or not isinstance(problem, str) or not problem.strip():
             continue
-        group = {"dialogue": plan.dialogue, "phrase": plan.phrases, "mix": plan.mixes}.get(
-            str(kind)
-        )
+        group = {
+            "dialogue": plan.dialogue,
+            "phrase": plan.phrases,
+            "mix": plan.mixes,
+            "roleplay": plan.roleplay,
+        }.get(str(kind))
         if group is None or not 1 <= index <= len(group):
             continue
         if kind == "mix":
@@ -605,6 +646,10 @@ def apply_review(raw: dict[str, Any], plan: lesson.Plan, found: Any, *, phrases:
         elif kind == "dialogue":
             notes.append(
                 f"Dialogue line {index} ({plan.dialogue[index - 1].text}): {problem.strip()}"
+            )
+        elif kind == "roleplay":
+            notes.append(
+                f"Roleplay line {index} ({plan.roleplay[index - 1].text}): {problem.strip()}"
             )
     if drop:
         raw["mixes"] = [

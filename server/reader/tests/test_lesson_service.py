@@ -52,6 +52,16 @@ def good_plan() -> dict[str, Any]:
             phrase("Merci, au revoir.", "Thank you, goodbye.", "Merci", "au revoir"),
         ],
         "mixes": [],
+        "roleplay": [
+            {
+                "speaker": "B",
+                "text": "Bonjour, vous désirez ?",
+                "english": "Hello, what would you like?",
+            },
+            {"speaker": "A", "text": "Un café, merci.", "english": "A coffee, thank you."},
+            {"speaker": "B", "text": "Voilà.", "english": "Here you go."},
+            {"speaker": "A", "text": "L'addition, merci.", "english": "The check, thank you."},
+        ],
     }
 
 
@@ -461,6 +471,19 @@ def thai_plan(*, particle: str = "ครับ", first_person: str = "ผม") -
             phrase(f"ขอบคุณ{particle}", "Thank you."),
             phrase(f"ไม่เป็นไร{particle}", "No problem."),
             phrase(coffee, "I'd like a coffee.", f"{first_person}อยากได้", f"กาแฟ{particle}"),
+        ],
+        "roleplay": [
+            {
+                "speaker": "A",
+                "text": f"สวัสดี{particle} ขอบคุณ{particle}",
+                "english": "Hello, thank you.",
+            },
+            {"speaker": "B", "text": f"ได้{other}", "english": "Sure."},
+            {
+                "speaker": "A",
+                "text": f"ขอบคุณ{particle} ไม่เป็นไร{particle}",
+                "english": "Thanks, no problem.",
+            },
         ],
     }
 

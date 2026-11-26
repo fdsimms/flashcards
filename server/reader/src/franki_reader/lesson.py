@@ -19,7 +19,8 @@ exact and the same every time:
    Phrases from lessons heard on earlier occasions come back too, at the very start, before the
    dialogue (`earlier_phrases`): the same gaps counted in lessons, so memory is asked across days
    and not only inside one sitting.
-6. The learner then takes speaker A's part in the dialogue (the narrator says whether that is the
+6. The learner then takes speaker A's part in the role-play (`Plan.roleplay`, a second conversation of
+   recombined taught words when Claude wrote a usable one, else the dialogue) (the narrator says whether that is the
    first or the second speaker, as the dialogue really runs): the narrator gives each line in
    English; a line made of words the phrases taught is then asked cold (a silence, then the native
    voice answers), and any other line is said by the native voice first and then repeated in a
@@ -52,6 +53,9 @@ MIN_PHRASES, MAX_PHRASES = 3, 5
 TARGET_PHRASES = 4
 MIN_PARTS, MAX_PARTS = 1, 4
 MAX_DIALOGUE = 6
+# The role-play conversation (`Plan.roleplay`): short, since A's every line is asked for cold.
+MAX_ROLEPLAY = 5
+MIN_ROLEPLAY_A = 2
 # A lesson made from the learner's own words and phrases (a cram in the app, `clean_given_plan`):
 # at most this many, and a dialogue a little longer, to fit more of them.
 MAX_GIVEN = 15
@@ -143,6 +147,10 @@ class Plan:
     # Phrases from lessons heard before, asked for at the start (`earlier_phrases`). Each is a
     # one-part Phrase; not Claude's choice, and not shown as part of the lesson (`describe`).
     earlier: tuple[Phrase, ...] = ()
+    # A second conversation in the same situation, acted out last in place of the dialogue when
+    # there is one (`clean_roleplay`): A's lines recombine the taught words, so the learner builds
+    # sentences rather than replaying phrases already heard. Empty means the dialogue is acted out.
+    roleplay: tuple[Line, ...] = ()
 
 
 # A word's letters. Thai's vowel and tone marks aren't `\w` (they're combining marks), so they're
@@ -247,6 +255,41 @@ def clean_mix(raw: object, known: set[str], taught: tuple[str, ...] = ()) -> Phr
     return Phrase(text, english, (text,))
 
 
+def clean_roleplay(
+    raw: object,
+    phrases: tuple[Phrase, ...],
+    dialogue: tuple[Line, ...],
+    mixes: tuple[Phrase, ...] = (),
+) -> tuple[Line, ...]:
+    """The role-play conversation Claude wrote, or () when it can't be used, and the dialogue is
+    acted out instead (the lesson is never refused for it). Usable means at least `MIN_ROLEPLAY_A`
+    lines for A, every one made only of words the phrases taught (so it is asked cold, the learner
+    putting taught words together) and none a taught phrase or a line of the dialogue as it was
+    heard (or asked as a mix): replaying those was the point of the change. One bad line of A's drops the whole
+    conversation, since B answers what A says."""
+    if not isinstance(raw, list):
+        return ()
+    known = set().union(*(words_of(p.text) for p in phrases)) if phrases else set()
+    heard = {plain(p.text) for p in (*phrases, *mixes)} | {plain(line.text) for line in dialogue}
+    lines: list[Line] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        speaker, text, english = item.get("speaker"), item.get("text"), item.get("english")
+        if speaker in ("A", "B") and isinstance(text, str) and isinstance(english, str):
+            text, english = _squash(text), _squash(english)
+            if text and english and len(text) <= MAX_CHARS and len(english) <= MAX_CHARS:
+                lines.append(Line(speaker, text, english))
+    lines = lines[:MAX_ROLEPLAY]
+    mine = [line for line in lines if line.speaker == "A"]
+    if len(mine) < MIN_ROLEPLAY_A:
+        return ()
+    for line in mine:
+        if not words_of(line.text) or not words_of(line.text) <= known or plain(line.text) in heard:
+            return ()
+    return tuple(lines)
+
+
 def clean_plan(
     raw: object, scene: str, *, require_phrases: bool = True, max_dialogue: int = MAX_DIALOGUE
 ) -> Plan | None:
@@ -290,6 +333,12 @@ def clean_plan(
         dialogue=tuple(dialogue[:max_dialogue]),
         phrases=tuple(phrases),
         mixes=tuple(mixes[:MAX_MIXES]),
+        roleplay=clean_roleplay(
+            raw.get("roleplay"),
+            tuple(phrases),
+            tuple(dialogue[:max_dialogue]),
+            tuple(mixes[:MAX_MIXES]),
+        ),
     )
 
 
@@ -332,6 +381,9 @@ def clean_given_plan(raw: object, scene: str, given: tuple[Phrase, ...]) -> Plan
         dialogue=base.dialogue,
         phrases=tuple(phrases[:MAX_GIVEN]),
         mixes=tuple(mixes[:MAX_MIXES]),
+        roleplay=clean_roleplay(
+            raw.get("roleplay"), tuple(phrases), base.dialogue, tuple(mixes[:MAX_MIXES])
+        ),
     )
 
 
@@ -520,7 +572,7 @@ def build_script(plan: Plan, learner: Learner = "male") -> list[Step]:
         for mix in plan.mixes:
             steps += _ask(mix, learner)
     taught_words = set().union(*(words_of(p.text) for p in plan.phrases))
-    steps += _role_play(plan.dialogue, learner, taught_words)
+    steps += _role_play(plan.roleplay or plan.dialogue, learner, taught_words)
     steps.append(Say("narrator", "That's the end of the lesson."))
     return steps
 
@@ -581,7 +633,7 @@ def script_of(plan: Plan, placed: list[Placed]) -> dict[str, Any]:
     its prompt starts (the run of things said with no silence between, before the turn), for Again.
     """
     meanings = {p.text: p.english for p in (*plan.earlier, *plan.phrases, *plan.mixes)}
-    meanings.update({line.text: line.english for line in plan.dialogue})
+    meanings.update({line.text: line.english for line in (*plan.dialogue, *plan.roleplay)})
     entries: list[dict[str, Any]] = []
     for i, here in enumerate(placed):
         step = here.step
