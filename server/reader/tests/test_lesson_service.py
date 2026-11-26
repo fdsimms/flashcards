@@ -24,7 +24,7 @@ def good_plan() -> dict[str, Any]:
         return {"text": text, "english": english, "parts": list(parts or [text])}
 
     return {
-        "title": "At the café",
+        "title": "Getting a coffee",
         "dialogue": [
             {
                 "speaker": "A",
@@ -32,6 +32,13 @@ def good_plan() -> dict[str, Any]:
                 "english": "Hello, what would you like?",
             },
             {"speaker": "B", "text": "Un café, s'il vous plaît.", "english": "A coffee, please."},
+            {"speaker": "A", "text": "S'il vous plaît.", "english": "Please."},
+            {
+                "speaker": "A",
+                "text": "L'addition, s'il vous plaît.",
+                "english": "The check, please.",
+            },
+            {"speaker": "A", "text": "Merci, au revoir.", "english": "Thank you, goodbye."},
         ],
         "phrases": [
             phrase("Un café.", "A coffee."),
@@ -42,7 +49,9 @@ def good_plan() -> dict[str, Any]:
                 "L'addition",
                 "s'il vous plaît",
             ),
+            phrase("Merci, au revoir.", "Thank you, goodbye.", "Merci", "au revoir"),
         ],
+        "mixes": [],
     }
 
 
@@ -137,7 +146,7 @@ def test_makes_a_lesson_and_keeps_it(tmp_path: Path) -> None:
     assert kept is not None
     assert (kept.state, kept.title, kept.error, kept.duration_ms) == (
         "ready",
-        "At the café",
+        "Getting a coffee",
         "",
         123_000,
     )
@@ -145,6 +154,7 @@ def test_makes_a_lesson_and_keeps_it(tmp_path: Path) -> None:
         "A coffee.",
         "Please.",
         "The check, please.",
+        "Thank you, goodbye.",
     ]
     assert lesson_service.audio_path(tmp_path, lesson_id).read_bytes() == b"MP3DATA"
     assert not lesson_service.audio_path(tmp_path, lesson_id).with_suffix(".part").exists()
@@ -332,7 +342,7 @@ def deck(*words: str) -> Any:
 STRANGE = good_plan() | {
     "dialogue": [
         {"speaker": "A", "text": "Bonjour, quelle boulangerie magnifique !", "english": "x"},
-        {"speaker": "B", "text": "Un café, s'il vous plaît.", "english": "A coffee, please."},
+        *good_plan()["dialogue"][1:],
     ]
 }
 
@@ -432,23 +442,25 @@ THAI_VOICES = {
 
 
 def thai_plan(*, particle: str = "ครับ", first_person: str = "ผม") -> dict[str, Any]:
-    def phrase(text: str, english: str) -> dict[str, Any]:
-        return {"text": text, "english": english, "parts": [text]}
+    def phrase(text: str, english: str, *parts: str) -> dict[str, Any]:
+        return {"text": text, "english": english, "parts": list(parts or [text])}
 
+    coffee = f"{first_person}อยากได้กาแฟ{particle}"
+    other = "ค่ะ" if particle == "ครับ" else "ครับ"
     return {
-        "title": "At the café",
+        "title": "Getting a coffee",
         "dialogue": [
-            {
-                "speaker": "A",
-                "text": f"{first_person}อยากได้กาแฟ{particle}",
-                "english": "I'd like a coffee.",
-            },
-            {"speaker": "B", "text": "ได้ค่ะ" if particle == "ครับ" else "ได้ครับ", "english": "Sure."},
+            {"speaker": "A", "text": f"สวัสดี{particle}", "english": "Hello."},
+            {"speaker": "B", "text": f"ได้{other}", "english": "Sure."},
+            {"speaker": "A", "text": coffee, "english": "I'd like a coffee."},
+            {"speaker": "A", "text": f"ขอบคุณ{particle}", "english": "Thank you."},
+            {"speaker": "A", "text": f"ไม่เป็นไร{particle}", "english": "No problem."},
         ],
         "phrases": [
             phrase(f"สวัสดี{particle}", "Hello."),
             phrase(f"ขอบคุณ{particle}", "Thank you."),
-            phrase(f"{first_person}อยากได้กาแฟ{particle}", "I'd like a coffee."),
+            phrase(f"ไม่เป็นไร{particle}", "No problem."),
+            phrase(coffee, "I'd like a coffee.", f"{first_person}อยากได้", f"กาแฟ{particle}"),
         ],
     }
 

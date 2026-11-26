@@ -48,6 +48,8 @@ from franki_reader import japanese
 from franki_reader.coverage import Checker, is_word
 
 MIN_PHRASES, MAX_PHRASES = 3, 5
+# What a lesson is asked to teach at least: fewer than this is kept only when asking again gives no more.
+TARGET_PHRASES = 4
 MIN_PARTS, MAX_PARTS = 1, 4
 MAX_DIALOGUE = 6
 # A lesson made from the learner's own words and phrases (a cram in the app, `clean_given_plan`):
@@ -181,7 +183,7 @@ def _squash(text: str) -> str:
     return _SPACES.sub(" ", text).strip()
 
 
-def _plain(text: str) -> str:
+def plain(text: str) -> str:
     """Text with the spaces and punctuation that don't matter when parts are put back together."""
     return "".join(_WORD.findall(text.casefold()))
 
@@ -202,7 +204,7 @@ def clean_phrase(raw: object) -> Phrase | None:
     chunks = tuple(_squash(p) for p in parts)
     if not MIN_PARTS <= len(chunks) <= MAX_PARTS:
         return None
-    if _plain("".join(chunks)) != _plain(text):
+    if plain("".join(chunks)) != plain(text):
         return None
     return Phrase(text, english, chunks)
 
@@ -240,7 +242,7 @@ def clean_mix(raw: object, known: set[str], taught: tuple[str, ...] = ()) -> Phr
         return None
     if not words_of(text) or not words_of(text) <= known:
         return None
-    if _is_phrases_end_to_end(_plain(text), taught):
+    if _is_phrases_end_to_end(plain(text), taught):
         return None
     return Phrase(text, english, (text,))
 
@@ -268,19 +270,19 @@ def clean_plan(
     seen: set[str] = set()
     for item in raw.get("phrases", []) if isinstance(raw.get("phrases"), list) else []:
         phrase = clean_phrase(item)
-        if phrase is not None and _plain(phrase.text) not in seen:
-            seen.add(_plain(phrase.text))
+        if phrase is not None and plain(phrase.text) not in seen:
+            seen.add(plain(phrase.text))
             phrases.append(phrase)
     if (require_phrases and len(phrases) < MIN_PHRASES) or not dialogue:
         return None
     phrases = phrases[:MAX_PHRASES]
     known = set().union(*(words_of(p.text) for p in phrases))
-    taught = {_plain(p.text) for p in phrases}
+    taught = {plain(p.text) for p in phrases}
     mixes: list[Phrase] = []
     for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
         mix = clean_mix(item, known)
-        if mix is not None and _plain(mix.text) not in taught:
-            taught.add(_plain(mix.text))
+        if mix is not None and plain(mix.text) not in taught:
+            taught.add(plain(mix.text))
             mixes.append(mix)
     return Plan(
         title=title[:80] or scene[:80],
@@ -308,21 +310,21 @@ def clean_given_plan(raw: object, scene: str, given: tuple[Phrase, ...]) -> Plan
     )
     if base is None:
         return None
-    by_plain = {_plain(g.text): g for g in given}
+    by_plain = {plain(g.text): g for g in given}
     phrases: list[Phrase] = []
     for item in raw.get("phrases", []) if isinstance(raw.get("phrases"), list) else []:
         phrase = clean_phrase(item)
-        mine = by_plain.pop(_plain(phrase.text), None) if phrase is not None else None
+        mine = by_plain.pop(plain(phrase.text), None) if phrase is not None else None
         if phrase is not None and mine is not None:
             phrases.append(Phrase(mine.text, mine.english, phrase.parts))
-    phrases += [g for g in given if _plain(g.text) in by_plain]
+    phrases += [g for g in given if plain(g.text) in by_plain]
     known = set().union(*(words_of(p.text) for p in phrases))
-    taught = {_plain(p.text) for p in phrases}
+    taught = {plain(p.text) for p in phrases}
     mixes: list[Phrase] = []
     for item in raw.get("mixes", []) if isinstance(raw.get("mixes"), list) else []:
-        mix = clean_mix(item, known, tuple(_plain(p.text) for p in phrases))
-        if mix is not None and _plain(mix.text) not in taught:
-            taught.add(_plain(mix.text))
+        mix = clean_mix(item, known, tuple(plain(p.text) for p in phrases))
+        if mix is not None and plain(mix.text) not in taught:
+            taught.add(plain(mix.text))
             mixes.append(mix)
     return Plan(
         title=base.title,
@@ -340,7 +342,7 @@ def given_phrases(items: list[tuple[str, str]]) -> tuple[Phrase, ...]:
     for text, english in items:
         text, english = _squash(text), _squash(english)
         if text and english and len(text) <= MAX_CHARS and len(english) <= MAX_CHARS:
-            out.setdefault(_plain(text), Phrase(text, english, (text,)))
+            out.setdefault(plain(text), Phrase(text, english, (text,)))
     return tuple(out.values())[:MAX_GIVEN]
 
 
@@ -351,10 +353,10 @@ def unfamiliar_words(plan: Plan, lexicon: Checker) -> list[str]:
     line within the allowance contributes nothing. The dialogue is played first and acted out last,
     so words from nowhere in it are words the learner never met."""
     # Taught words as this module cuts them and as the checker does (it splits d'eau into d' and eau).
-    taught_words = {_plain(w) for p in plan.phrases for w in words_of(p.text)} | {
-        _plain(piece) for p in plan.phrases for piece in lexicon.segment(p.text) if is_word(piece)
+    taught_words = {plain(w) for p in plan.phrases for w in words_of(p.text)} | {
+        plain(piece) for p in plan.phrases for piece in lexicon.segment(p.text) if is_word(piece)
     }
-    taught_text = "".join(_plain(p.text) for p in plan.phrases)
+    taught_text = "".join(plain(p.text) for p in plan.phrases)
     over: dict[str, None] = {}
     for line in plan.dialogue:
         strangers = [
@@ -362,8 +364,8 @@ def unfamiliar_words(plan: Plan, lexicon: Checker) -> list[str]:
             for piece in lexicon.segment(line.text)
             if is_word(piece)
             and lexicon.status(piece) != "known"
-            and _plain(piece) not in taught_words
-            and not (_unspaced(piece) and _plain(piece) in taught_text)
+            and plain(piece) not in taught_words
+            and not (_unspaced(piece) and plain(piece) in taught_text)
         ]
         if len(strangers) > MAX_UNFAMILIAR_PER_LINE:
             over.update(dict.fromkeys(strangers))
