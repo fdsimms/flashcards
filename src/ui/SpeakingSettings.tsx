@@ -8,9 +8,11 @@ import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from './theme';
 import { supportedLocales } from './useSpokenAnswer';
+import { pitchEveryLanguage } from './pitchPrefs';
 
 /**
- * Settings, Speaking: Answer by speaking (src/core/speaking.ts), off until turned on, and which of
+ * Settings, Speaking: Answer by speaking (src/core/speaking.ts), off until turned on, Record yourself's
+ * pitch line in every language (pitchPrefs.ts), and which of
  * the app's languages this iPhone can hear. Whether a language is heard on the phone or by Apple's
  * servers isn't something iOS says, so the list doesn't either.
  */
@@ -18,6 +20,7 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
   const c = useTheme();
   const [on, setOn] = useState<boolean>();
   const [locales, setLocales] = useState<string[] | null>(null);
+  const pitchEvery = pitchEveryLanguage.use();
   useEffect(() => { repo.answerBySpeaking().then(setOn).catch(() => setOn(false)); }, [repo]);
   useEffect(() => { supportedLocales().then(setLocales).catch(() => setLocales([])); }, []);
 
@@ -48,6 +51,20 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
               hint="A microphone beside Type it, Say it back, Sentences and Situations. What you say is turned into text and compared, like typing."
               value={!!on}
               onValueChange={(v) => void choose(v)}
+            />
+          </Group>
+        </Section>
+        <Section
+          title="Record yourself"
+          footer={<Help>The pitch line shows in Thai, Japanese and Norwegian, where a word's pitch tells it from another. It's worked out on this iPhone, and your recording never leaves it.</Help>}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Pitch line in every language"
+              hint="After you record a card's word, draw your pitch over the recording's in every language, not only those."
+              value={pitchEvery}
+              onValueChange={pitchEveryLanguage.save}
             />
           </Group>
         </Section>

@@ -33,6 +33,8 @@ export interface SelfRecording {
   millis: number;
   /** Whether there's a take for the current key. */
   hasTake: boolean;
+  /** The take's file, for the pitch line (PitchLine.tsx); null with none. */
+  takeUri: string | null;
   start: () => void;
   /** Ends the take and plays it back, unless `playBack` is false (the screen is about to play something). */
   stop: (playBack?: boolean) => void;
@@ -239,6 +241,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     recording,
     millis: recording ? millis : 0,
     hasTake: !!take,
+    takeUri: take,
     start: () => { start(); },
     stop,
     canCompare: !!take && !!original.current,
