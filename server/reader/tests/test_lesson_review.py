@@ -207,3 +207,8 @@ def test_a_flagged_roleplay_line_is_asked_for_again() -> None:
 def test_the_review_shows_the_roleplay() -> None:
     said = lesson_writer.review_message("fr", "male", cleaned(raw_plan()))
     assert "2. A: Bonjour, un café avec du lait." in said
+
+
+def test_the_request_lets_a_speak_twice_so_every_phrase_fits_in_one_line() -> None:
+    said = lesson_writer.request_message("th", "buying fruit", "female")
+    assert "A may\n  speak two lines in a row" in said

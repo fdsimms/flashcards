@@ -48,7 +48,9 @@ what you give. Give:
   "Ordering a coffee")
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
   between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
-  english. Every phrase below comes up in it word for word, in A's lines where they fit. The
+  english. Every phrase below comes up in it word for word, in A's lines where they fit (A may
+  speak two lines in a row when the phrases need it, rather than putting two sentences in one
+  line). The
   learner hears it first and acts out A's part last, so build it from the phrases taught and very
   basic everyday words, with no rarer vocabulary. Each of A's lines is one short sentence of at
   most {a_words} words.
