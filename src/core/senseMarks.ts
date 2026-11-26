@@ -54,11 +54,17 @@ export function lastMissedSenses(answers: MissAnswers, count: number): number[] 
 
 const COUNTS = ['', 'one', 'two', 'three', 'four', 'five'];
 
-/** The line under the card's front: how many senses there are and how many were missed, never which. Null with none missed. */
-export function senseReminder(count: number, missed: readonly number[]): string | null {
+/** The two halves of the front's reminder: how many senses there are, and how many were missed, never which. Null with none missed. */
+export function senseReminderParts(count: number, missed: readonly number[]): { title: string; detail: string } | null {
   if (!missed.length) return null;
   const said = missed.length === count ? 'all of them' : COUNTS[missed.length] ?? String(missed.length);
-  return `${count} senses. You missed ${said} last time.`;
+  return { title: `${count} senses`, detail: `You missed ${said} last time` };
+}
+
+/** The reminder as one sentence pair ("2 senses. You missed one last time."), for a screen reader. Null with none missed. */
+export function senseReminder(count: number, missed: readonly number[]): string | null {
+  const parts = senseReminderParts(count, missed);
+  return parts ? `${parts.title}. ${parts.detail}.` : null;
 }
 
 /**
