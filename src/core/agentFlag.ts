@@ -25,6 +25,15 @@ export const AGENT_FLAG_REASONS = [
 
 export type AgentFlagReason = (typeof AGENT_FLAG_REASONS)[number]['slug'];
 
+/**
+ * Whether "Fix with Claude now" is offered for a reason. A fix is a text edit to the note's fields,
+ * and a wrong-sounding recording needs a new one, which the server can't make (the MCP's
+ * `add_tts_audio` can, in a chat), so the sheet only flags it.
+ */
+export function canFixNow(reason: AgentFlagReason): boolean {
+  return reason !== 'audio';
+}
+
 /** Whether a tag is one of the flag's tags, reason or note (Anki compares tags without regard to case). */
 export function isFlagTag(tag: string): boolean {
   const t = tag.toLowerCase();
