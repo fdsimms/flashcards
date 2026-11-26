@@ -77,6 +77,7 @@ import { drillOfTags, knownHeadwords, skillLanguageDeck, skillOffer } from '../t
 import { knownDays, knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
+import { ReviewPitchLine } from './PitchLine';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { notePreview } from '../core/noteEditing';
@@ -1705,6 +1706,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
                   <RecordYourself rec={self} label="Record" size="card" />
                 </View>
               ) : null}
+              <ReviewPitchLine rec={self} recordingUri={recordingUri} speechLang={speechLang} note={note} />
             </Reveal>
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>

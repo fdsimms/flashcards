@@ -616,6 +616,14 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   hardest part for a learner, were wrong. Its leniency in other languages was never measured. A score
   that can't say a take is wrong is worse than none, so it went from every language. Record yourself
   stays: hearing your take next to the recording, which never leaves the phone.
+- **The pitch line** (26 November 2026, the owner, from a mock; `src/core/pitch.ts`, `src/ui/PitchLine.tsx`,
+  `modules/audio-samples`): after a take of a card's word, its pitch is drawn over the card recording's,
+  each in semitones around its own speaker's middle pitch, so a man's and a woman's voice line up. A
+  picture, never a score, which is what Score it got wrong: it shows a tone going the other way rather
+  than grading it. Measured on the phone (the module decodes both files to samples, YIN finds the pitch
+  in TypeScript), so the take still never leaves it. Shown in Thai, Japanese and Norwegian, where pitch
+  tells words apart, or every language with Settings, Speaking's "Pitch line in every language". Review's
+  cards only for now: a sentence's line is longer and harder to read.
 
 ## Hosting
 
