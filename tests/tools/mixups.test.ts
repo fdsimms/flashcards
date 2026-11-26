@@ -142,15 +142,17 @@ describe('practiceFromMisses', () => {
 
   it('splits misses by kind of reason, keeping only words with partners', () => {
     const plan = practiceFromMisses([
-      { noteId: 'klâi', miss: 'tone' },
-      { noteId: 'nangsue', miss: 'tone' },
+      { noteId: 'nangsue', miss: 'meaning' },
       { noteId: 'esperanza' },
       { noteId: 'esta', miss: 'gender' },
     ], set);
     expect(plan).toEqual([
-      { mode: 'ear', language: 'th', noteIds: ['klâi'], reason: 'tone' },
       { mode: 'meaning', language: 'es', noteIds: ['esperanza'] },
     ]);
+  });
+
+  it("leaves a Thai word missed on its tone or vowel length to Hearing sounds (hearing.ts), even one with sound-alikes", () => {
+    expect(practiceFromMisses([{ noteId: 'klâi', miss: 'tone' }, { noteId: 'klâi', miss: 'vowel-length' }], set)).toEqual([]);
   });
 
   it("goes by a word's latest miss", () => {
