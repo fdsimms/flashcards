@@ -16,7 +16,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 from franki_reader import gender, lesson
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, MODEL, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.register import DEFAULT, Register, instruction
 
@@ -25,6 +25,15 @@ MAX_ATTEMPTS = 2
 MAX_SCENE = 200
 # How many unknown words a retry names.
 MAX_NAMED_WORDS = 12
+# The longest line A (the learner's part in the role-play) is asked for, in words; Thai and Japanese
+# words are shorter, so they get more.
+A_LINE_WORDS_SPACED = 8
+A_LINE_WORDS_UNSPACED = 12
+# A phrase this long has to be built up from its end in at least two parts.
+LONG_PHRASE_WORDS = 4
+# The model that checks a written lesson's wording (Haiku writes it; `lesson_words` moved up to Sonnet
+# for the same reason, since the cheaper model's own judgment of a sentence is what's in question).
+REVIEW_MAX_TOKENS = 1500
 
 _REQUEST = """\
 Write the content of a short spoken {language} lesson for a beginner, set in this situation:
@@ -34,19 +43,32 @@ It will be recorded as audio: an English narrator and native {language} voices, 
 learner to say each phrase aloud. You choose what is taught; the lesson's structure is built from
 what you give. Give:
 
-- title: a short English title for the lesson (two to five words)
+- title: a short English title for the lesson (two to five words) saying what the learner will be
+  able to do, in your own words rather than the situation as typed ("Getting your coffee", not
+  "Ordering a coffee")
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
   between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
-  english. The phrases below should come up in it, in A's lines where they fit. The learner hears
-  it first and acts out A's part last, so build it from the phrases taught and very basic everyday
-  words, with no rarer vocabulary, and keep A's lines short.
-- phrases: {few} to {many} phrases the learner will practice saying, simplest first, each one
+  english. Every phrase below comes up in it word for word, in A's lines where they fit (A may
+  speak two lines in a row when the phrases need it, rather than putting two sentences in one
+  line). The
+  learner hears it first and acts out A's part last, so build it from the phrases taught and very
+  basic everyday words, with no rarer vocabulary. Each of A's lines is one short sentence of at
+  most {a_words} words.
+- phrases: {target} to {many} phrases the learner will practice saying, simplest first, each one
   something a person would really say in that situation. Each: text ({language}), english (what it
-  means, in natural English), and parts.
-- mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
-  appear in the phrases above (a word may be reused, none may be new), for example the first piece
-  of one phrase with the last piece of another. Each must be one complete sentence a person would
-  really say, never two phrases put side by side. Each: text and english.
+  means in this situation, in the natural English for it rather than word for word, and not
+  misleading when read alone), and parts.
+- mixes: up to {mixes} new {language} sentences the learner has never heard whole, made only of
+  words that appear in the phrases above (a word may be reused, none may be new). Check each as a
+  native speaker would: it is grammatical, it means what its english says, and it is something the
+  learner could say in this situation. Pieces that merely fit together are not a sentence, and
+  neither are two phrases put side by side. Give fewer, or none, rather than one that fails.
+  Each: text and english.
+- roleplay: {rp_low} to {rp_high} lines of a second, different conversation in {language} in the same
+  situation, between A ({a}) and B ({b}), for the learner to act out as A. A speaks first. Every one
+  of A's lines is made only of words from the phrases above, put together in a new way, and is never
+  one of the phrases as taught, a mix, or a line of the first dialogue. B's lines use very basic
+  everyday words and make A's next line the natural thing to say. Each: speaker, text, english.
 
 Rules for the phrases:
 - 2 to 8 words each, and not a lone "Yes." or "Thanks."
@@ -58,12 +80,12 @@ Rules for the phrases:
 {gender_rule}- Each phrase does a different job in the situation, so the lesson covers it rather than repeating
   one thing: for example asking, answering, asking back, reacting, thanking, saying you didn't
   understand. Never two phrases that say nearly the same thing with a word added or changed ("How
-  are you?" and "How are you today?"). A narrow situation still needs {few} to {many} different
+  are you?" and "How are you today?"). A narrow situation still needs {target} to {many} different
   things a person says in it, so go to what comes right before and after it.
 - The phrases are a ladder, in the order they come up in the dialogue: a phrase may reuse a word or
   a piece from an earlier one (a verb, a polite ending), but it means something new and has at
   least two words the earlier phrases don't.
-
+{understand_rule}
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
 
 # A lesson made from the learner's own words and phrases (a cram in the app): every one is taught
@@ -79,7 +101,8 @@ The words and phrases, each with its meaning:
 It will be recorded as audio: an English narrator and native {language} voices, with pauses for the
 learner to say each phrase aloud. Give:
 
-- title: a short English title for the lesson (two to five words)
+- title: a short English title for the lesson (two to five words) saying what the learner will be
+  able to do, in your own words rather than the situation as typed
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
   between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
   english. Use every one of the words and phrases above that fits naturally, in A's lines, and
@@ -91,7 +114,15 @@ learner to say each phrase aloud. Give:
 - mixes: {mixes} new {language} sentences the learner has never heard whole, made only of words that
   appear in the phrases above (a word may be reused, none may be new). Each must be one complete
   sentence a person would really say, never two of the phrases put side by side. Each: text and
-  english. Fewer, or none, when the phrases don't make any.
+  english. Check each as a native speaker would: it is grammatical, it means what its english says,
+  and it is something the learner could say in this situation. Fewer, or none, when the phrases
+  don't make a sentence that passes.
+- roleplay: {rp_low} to {rp_high} lines of a second, different conversation in {language} in the same
+  situation, between A ({a}) and B ({b}), for the learner to act out as A. A speaks first. Every one
+  of A's lines is made only of words from the phrases above, put together in a new way, and is never
+  one of the phrases as given, a new sentence above, or a line of the first dialogue. B's lines use
+  very basic everyday words. Each: speaker, text, english. Fewer lines, or none, when the phrases
+  can't make A's lines.
 
 Rules for the parts: the phrase split in order into 1 to {parts} pieces at natural breaks, so that
 the learner can build it up from its end (the last piece first). Put back together, the parts must
@@ -101,6 +132,14 @@ The dialogue and the new sentences are what you write, and the words and phrases
 given. {register_rule}
 
 Plain text only: no `|`, asterisks, tildes or em dashes.{note}"""
+
+# What the learner must follow to carry on (a price, a time, directions) is something B says, so one
+# phrase is B's line, taught like the others. Not for Thai: every Thai phrase taught carries the
+# learner's own polite particle (`thai_problems`), which B's line wouldn't.
+_UNDERSTAND = (
+    "- One phrase is the thing B says that A must understand to carry on (a price, a time, "
+    "directions, an answer), taught like the others and in the dialogue word for word.\n"
+)
 
 _NEUTRAL = "- The learner may be a man or a woman, so use no form that changes with the speaker's gender.\n"
 
@@ -127,7 +166,7 @@ def _thai_note(learner: lesson.Learner) -> str:
         " cut `parts` where a person would pause. The learner is a "
         f"{speaker}, and Thai's polite particles and \"I\" depend on the speaker's gender, so write "
         f"every line of A for a {speaker}: {_THAI_PARTICLES[learner]}. The same particle ends each of"
-        " the new sentences in `mixes`, and the dialogue's A ends polite lines with it too. B (a "
+        " the new sentences in `mixes`, and the dialogue's and the roleplay's A end polite lines with it too. B (a "
         f'{their}) uses the {their}\'s particle and "I" in the dialogue only, never in a phrase '
         "taught."
     )
@@ -152,7 +191,7 @@ def _thai_given_note(learner: lesson.Learner) -> str:
     first = "ผม" if learner == "male" else "ดิฉัน or ฉัน"
     return (
         "\n\nThai: write Thai script only, with spaces only between clauses, never between words, and"
-        f" cut `parts` where a person would pause. The learner is a {speaker}: A's polite lines end"
+        f" cut `parts` where a person would pause. The learner is a {speaker}: A's polite lines (the roleplay's too) end"
         f' with {particle} and A says "I" as {first}. B (a {their}) uses the {their}\'s particle'
         ' and "I". Leave the phrases taught as given, with or without a particle.'
     )
@@ -204,7 +243,7 @@ def thai_problems(plan: lesson.Plan, learner: lesson.Learner, *, phrases: bool =
             + "; ".join(missing)
         )
     genders: dict[str, lesson.Learner] = {"A": learner, "B": lesson.other(learner)}
-    lines = [(line.speaker, line.text) for line in plan.dialogue]
+    lines = [(line.speaker, line.text) for line in (*plan.dialogue, *plan.roleplay)]
     problems += gender.gender_problems("th", lines, genders)
     for speaker, text in lines:
         said = set(lesson.tokens(text))
@@ -215,6 +254,50 @@ def thai_problems(plan: lesson.Plan, learner: lesson.Learner, *, phrases: bool =
                     f"Speaker {speaker} is {who} and shouldn't say {word} in: {text}. Rewrite it."
                 )
     return problems
+
+
+def craft_problems(plan: lesson.Plan, language: Code, *, phrases: bool = True) -> list[str]:
+    """What's weak in a plan that is usable, as sentences for the revision message: too few phrases,
+    a phrase of `LONG_PHRASE_WORDS` or more taught in one piece, a phrase the dialogue never says, or
+    a line for A (the learner's part) longer than they can be asked for. These are asked for again
+    but never refuse a lesson (`_first_usable` keeps the plan with the fewest). `phrases` is False for
+    a lesson on the learner's own words, whose phrases are theirs: only A's lines are checked."""
+    out: list[str] = []
+    limit = A_LINE_WORDS_UNSPACED if language in ("th", "ja") else A_LINE_WORDS_SPACED
+    long_a = [
+        l.text for l in plan.dialogue if l.speaker == "A" and lesson.word_count(l.text) > limit
+    ]
+    if long_a:
+        out.append(
+            f"A's lines must be one short sentence of at most {limit} words. Shorten: "
+            + "; ".join(long_a)
+        )
+    if not phrases:
+        return out
+    if len(plan.phrases) < lesson.TARGET_PHRASES:
+        out.append(
+            f"Teach {lesson.TARGET_PHRASES} to {lesson.MAX_PHRASES} phrases, not {len(plan.phrases)}."
+        )
+    one_piece = [
+        p.text
+        for p in plan.phrases
+        if len(p.parts) == 1 and lesson.word_count(p.text) >= LONG_PHRASE_WORDS
+    ]
+    if one_piece:
+        out.append("These phrases need at least two parts: " + "; ".join(one_piece))
+    if not plan.roleplay:
+        out.append(
+            "Write a roleplay: a second conversation whose lines for A (at least "
+            f"{lesson.MIN_ROLEPLAY_A}) are made only of words from the phrases, put together in a new "
+            "way, and none a phrase, a mix or a line of the first dialogue as written."
+        )
+    said = "".join(lesson.plain(l.text) for l in plan.dialogue)
+    missing = [p.text for p in plan.phrases if lesson.plain(p.text) not in said]
+    if missing:
+        out.append(
+            "These phrases don't come up in the dialogue word for word: " + "; ".join(missing)
+        )
+    return out
 
 
 SCHEMA: dict[str, Any] = {
@@ -243,6 +326,19 @@ SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
+        "roleplay": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "speaker": {"type": "string", "enum": ["A", "B"]},
+                    "text": {"type": "string"},
+                    "english": {"type": "string"},
+                },
+                "required": ["speaker", "text", "english"],
+                "additionalProperties": False,
+            },
+        },
         "phrases": {
             "type": "array",
             "items": {
@@ -257,7 +353,7 @@ SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["title", "dialogue", "phrases", "mixes"],
+    "required": ["title", "dialogue", "phrases", "mixes", "roleplay"],
     "additionalProperties": False,
 }
 
@@ -308,9 +404,13 @@ def request_message(
         scene=scene,
         low=4,
         high=lesson.MAX_DIALOGUE,
-        few=lesson.MIN_PHRASES,
+        target=lesson.TARGET_PHRASES,
         many=lesson.MAX_PHRASES,
+        a_words=A_LINE_WORDS_UNSPACED if language in ("th", "ja") else A_LINE_WORDS_SPACED,
+        understand_rule="" if language == "th" else _UNDERSTAND,
         mixes=lesson.MAX_MIXES,
+        rp_low=lesson.MIN_ROLEPLAY_A * 2 - 1,
+        rp_high=lesson.MAX_ROLEPLAY,
         parts=lesson.MAX_PARTS,
         note=_language_note(language, learner, register),
         register_rule=instruction(register),
@@ -339,6 +439,8 @@ def given_request_message(
         low=4,
         high=lesson.MAX_GIVEN_DIALOGUE,
         mixes=lesson.MAX_MIXES,
+        rp_low=lesson.MIN_ROLEPLAY_A * 2 - 1,
+        rp_high=lesson.MAX_ROLEPLAY,
         parts=lesson.MAX_PARTS,
         note=note,
         register_rule=instruction(register),
@@ -349,16 +451,18 @@ async def _first_usable(
     write: Callable[[str], Awaitable[tuple[Any, Usage]]],
     clean: Callable[[Any], lesson.Plan | None],
     problems: Callable[[lesson.Plan], list[str]],
+    weak: Callable[[lesson.Plan], list[str]],
     unusable: str,
     lexicon: Checker | None,
 ) -> tuple[lesson.Plan, Usage]:
     """Asks with `write` (given what to say about the last attempt) up to `MAX_ATTEMPTS` times,
-    until a plan `clean` accepts has no `problems` and no words the learner doesn't know; else the
-    usable plan with the fewest unknown words. What the calls cost comes back with it, or on the
-    failure."""
+    until a plan `clean` accepts has no `problems`, nothing `weak`, nothing the reviewer found
+    (`REVIEW_KEY` in the answer) and no words the learner doesn't know; else the usable plan with the
+    fewest unknown words, then the fewest other weaknesses. What the calls cost comes back with it,
+    or on the failure."""
     used = Usage()
     feedback = ""
-    closest: tuple[int, lesson.Plan] | None = None
+    closest: tuple[tuple[int, int], lesson.Plan] | None = None
     for _ in range(MAX_ATTEMPTS):
         try:
             raw, spent = await write(feedback)
@@ -373,12 +477,19 @@ async def _first_usable(
         if wrong:
             feedback = "Fix this and write the lesson again. " + " ".join(wrong)
             continue
+        others = weak(plan) + reviewed(raw)
         strangers = lesson.unfamiliar_words(plan, lexicon) if lexicon is not None else []
-        if not strangers:
+        if not strangers and not others:
             return plan, used
-        if closest is None or len(strangers) < closest[0]:
-            closest = (len(strangers), plan)
-        feedback = _RETRY_WORDS.format(words=", ".join(strangers[:MAX_NAMED_WORDS]))
+        score = (len(strangers), len(others))
+        if closest is None or score < closest[0]:
+            closest = (score, plan)
+        feedback = (
+            "Fix this and write the lesson again. " + " ".join(others) + " " if others else ""
+        )
+        if strangers:
+            feedback += _RETRY_WORDS.format(words=", ".join(strangers[:MAX_NAMED_WORDS]))
+        feedback = feedback.strip()
     if closest is not None:
         return closest[1], used
     raise LessonFailed("Claude didn't write a usable lesson. Try again.", used)
@@ -404,6 +515,7 @@ async def write_given_plan(
         ask,
         lambda raw: lesson.clean_given_plan(raw, scene, given),
         lambda plan: thai_problems(plan, learner, phrases=False) if language == "th" else [],
+        lambda plan: craft_problems(plan, language, phrases=False),
         _RETRY_GIVEN,
         lexicon,
     )
@@ -431,9 +543,167 @@ async def write_plan(
         ask,
         lambda raw: lesson.clean_plan(raw, scene),
         lambda plan: thai_problems(plan, learner) if language == "th" else [],
+        lambda plan: craft_problems(plan, language),
         _RETRY.format(n=lesson.MIN_PHRASES),
         lexicon,
     )
+
+
+# The reviewer's findings travel in Claude's answer under this key (`clean_plan` ignores it), so the
+# retry loop that already reads the answer needs no second channel.
+REVIEW_KEY = "review_problems"
+
+_REVIEW = """\
+You are a native {language} speaker and a language teacher checking a beginner's audio lesson before
+it is recorded. The situation: {scene}
+{speakers}
+Dialogue (A is the learner's part):
+{dialogue}
+
+Phrases taught:
+{phrases}
+
+New sentences the learner will be asked for (made from the phrases' words):
+{mixes}
+
+Role-play (a second conversation, A is the learner's part, made from the phrases' words):
+{roleplay}
+
+List only real problems, each as kind ("dialogue", "phrase", "mix" or "roleplay"), index (the number shown) and
+problem (one plain sentence saying what is wrong and what to do). A problem is: ungrammatical or
+unnatural {language}, something nobody would say in this situation, an English meaning that doesn't
+match or that misleads when read alone, or a new sentence that is only pieces stuck together or
+means something odd. If everything is fine, list nothing."""
+
+REVIEW_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "problems": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string", "enum": ["dialogue", "phrase", "mix", "roleplay"]},
+                    "index": {"type": "integer"},
+                    "problem": {"type": "string"},
+                },
+                "required": ["kind", "index", "problem"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["problems"],
+    "additionalProperties": False,
+}
+
+
+def _numbered(items: list[tuple[str, str]]) -> str:
+    return "\n".join(f"{i}. {t} ({e})" for i, (t, e) in enumerate(items, 1)) or "(none)"
+
+
+def review_message(language: Code, learner: lesson.Learner, plan: lesson.Plan) -> str:
+    a, b = _speakers(language, learner)
+    return _REVIEW.format(
+        language=LANGUAGES[language].name,
+        scene=plan.scene,
+        speakers=f"A is {a}, B is {b}.\n" if language == "th" else "",
+        dialogue=_numbered([(f"{l.speaker}: {l.text}", l.english) for l in plan.dialogue]),
+        phrases=_numbered([(p.text, p.english) for p in plan.phrases]),
+        mixes=_numbered([(m.text, m.english) for m in plan.mixes]),
+        roleplay=_numbered([(f"{l.speaker}: {l.text}", l.english) for l in plan.roleplay]),
+    )
+
+
+def reviewed(raw: Any) -> list[str]:
+    """What the reviewer found in `raw`, as sentences for the revision message."""
+    found = raw.get(REVIEW_KEY) if isinstance(raw, dict) else None
+    return [x for x in found if isinstance(x, str)] if isinstance(found, list) else []
+
+
+def apply_review(raw: dict[str, Any], plan: lesson.Plan, found: Any, *, phrases: bool) -> None:
+    """Acts on the reviewer's `found` list in `raw` (`plan` is `raw` as cleaned): a flagged new
+    sentence is dropped, since a lesson is fine with fewer; a flagged phrase or dialogue line goes
+    under `REVIEW_KEY`, to be asked for again. `phrases` is False when the phrases are the learner's
+    own, which aren't Claude's to change. A malformed finding is ignored."""
+    drop: set[str] = set()
+    notes: list[str] = []
+    for item in found if isinstance(found, list) else []:
+        if not isinstance(item, dict):
+            continue
+        kind, index, problem = item.get("kind"), item.get("index"), item.get("problem")
+        if not isinstance(index, int) or not isinstance(problem, str) or not problem.strip():
+            continue
+        group = {
+            "dialogue": plan.dialogue,
+            "phrase": plan.phrases,
+            "mix": plan.mixes,
+            "roleplay": plan.roleplay,
+        }.get(str(kind))
+        if group is None or not 1 <= index <= len(group):
+            continue
+        if kind == "mix":
+            drop.add(plan.mixes[index - 1].text)
+        elif kind == "phrase" and phrases:
+            notes.append(f"Phrase {index} ({plan.phrases[index - 1].text}): {problem.strip()}")
+        elif kind == "dialogue":
+            notes.append(
+                f"Dialogue line {index} ({plan.dialogue[index - 1].text}): {problem.strip()}"
+            )
+        elif kind == "roleplay":
+            notes.append(
+                f"Roleplay line {index} ({plan.roleplay[index - 1].text}): {problem.strip()}"
+            )
+    if drop:
+        raw["mixes"] = [
+            m
+            for m in raw.get("mixes", [])
+            if not (
+                isinstance(m, dict)
+                and isinstance(m.get("text"), str)
+                and lesson._squash(m["text"]) in drop
+            )
+        ]
+    if notes:
+        raw[REVIEW_KEY] = notes
+
+
+async def _review_claude(
+    client: anthropic.AsyncAnthropic,
+    language: Code,
+    learner: lesson.Learner,
+    raw: Any,
+    plan: lesson.Plan | None,
+    *,
+    phrases: bool,
+) -> Usage:
+    """Has a second model read the plan Claude wrote (`plan`, `raw` cleaned) and acts on what it
+    finds (`apply_review`). The check improves a lesson and never blocks one: a failed or unreadable
+    review leaves the plan as written."""
+    if plan is None or not isinstance(raw, dict):
+        return Usage()
+    output_config: BetaOutputConfigParam = {
+        "effort": "low",
+        "format": {"type": "json_schema", "schema": REVIEW_SCHEMA},
+    }
+    try:
+        response = await client.beta.messages.create(
+            model=MODEL,
+            max_tokens=REVIEW_MAX_TOKENS,
+            messages=[{"role": "user", "content": review_message(language, learner, plan)}],
+            output_config=output_config,
+        )
+    except anthropic.APIError:
+        return Usage()
+    used = usage_of(response)
+    text = next((b.text for b in response.content if b.type == "text"), None)
+    if response.stop_reason in ("refusal", "max_tokens") or text is None:
+        return used
+    try:
+        found = json.loads(text).get("problems")
+    except (json.JSONDecodeError, AttributeError):
+        return used
+    apply_review(raw, plan, found, phrases=phrases)
+    return used
 
 
 async def _ask_claude(
@@ -470,7 +740,9 @@ def claude_plan(client: anthropic.AsyncAnthropic) -> WritePlan:
         language: Code, scene: str, feedback: str, learner: lesson.Learner, register: Register
     ) -> tuple[Any, Usage]:
         request = request_message(language, scene, learner, register)
-        return await _ask_claude(client, request, feedback)
+        raw, used = await _ask_claude(client, request, feedback)
+        plan = lesson.clean_plan(raw, scene)
+        return raw, used + await _review_claude(client, language, learner, raw, plan, phrases=True)
 
     return write
 
@@ -485,6 +757,8 @@ def claude_given_plan(client: anthropic.AsyncAnthropic) -> WriteGiven:
         register: Register,
     ) -> tuple[Any, Usage]:
         request = given_request_message(language, scene, given, learner, register)
-        return await _ask_claude(client, request, feedback)
+        raw, used = await _ask_claude(client, request, feedback)
+        plan = lesson.clean_given_plan(raw, scene, given)
+        return raw, used + await _review_claude(client, language, learner, raw, plan, phrases=False)
 
     return write
