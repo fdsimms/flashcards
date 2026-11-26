@@ -54,6 +54,14 @@ describe('the shelf', () => {
     expect(nextInOrder([9, 3, 5], 4)).toBeNull();
   });
 
+  it("reads the learner's own texts after the shelf, a long one's parts in order, and leaves them out of Play all", () => {
+    const shelf = { story: null, texts: [text({ id: 3 })], own: [text({ id: 11, reason: 'own' }), text({ id: 12, reason: 'own' })] };
+    expect(playOrder(shelf)).toEqual([3, 11, 12]);
+    expect(nextInOrder(playOrder(shelf), 11)).toBe(12);
+    expect(upNextOrder(shelf)).toEqual([3]);
+    expect(reasonLabel(text({ reason: 'own' }))).toBe('Your text');
+  });
+
   it('steps the length and holds it at the ends', () => {
     expect(stepLength(8, 'shorter')).toBe(6);
     expect(stepLength(8, 'longer')).toBe(12);

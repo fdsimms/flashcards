@@ -1,7 +1,7 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type Form, type TextStage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
+import { ApiError, type Api, type TextStage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
 import { bannerLine, bannerOverline, pastMeta, readBefore, seasonProgress, storyCoverMeta } from '../../reader/browse';
 import { LANGUAGES, flaggedName } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
@@ -273,14 +273,14 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
               </CoverRow>
             ) : null}
 
-            {shelf.texts.length > 0 || shelf.writing.length > 0 ? (
+            {shelf.texts.length > 0 || written(shelf).length > 0 ? (
               <CoverRow
                 title={problem ? 'Downloaded' : 'Texts'}
                 action={summary ? { label: `Play all · ${playMinutes(shelf)} min`, accessibilityLabel: `Play all: ${summary}`, onPress: playAll } : null}
               >
                 {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />)}
-                {shelf.writing.map((w, i) => (
-                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} form={w.form} stage={w.stage} />
+                {written(shelf).map((w, i) => (
+                  <WritingCover key={`${w.topic}:${i}`} title={w.reason === 'asked' ? w.topic : 'A new text'} kind={w.form === 'story' ? 'Story' : 'Dialogue'} stage={w.stage} />
                 ))}
               </CoverRow>
             ) : problem ? (
@@ -292,6 +292,13 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
                 <NewCover onPress={onNew} />
               </CoverRow>
             )}
+
+            {(shelf.own?.length ?? 0) > 0 || making(shelf).length > 0 ? (
+              <CoverRow title="Your texts">
+                {(shelf.own ?? []).map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />)}
+                {making(shelf).map((w, i) => <WritingCover key={`${w.topic}:${i}`} title={w.topic} kind="Your text" stage={w.stage} />)}
+              </CoverRow>
+            ) : null}
 
             <ReadListenAgain api={api} onPlay={onListenAgain} />
 
@@ -344,13 +351,17 @@ function placeholderCover(c: Colors) {
   return { width: 220, minHeight: 150, padding: space.m + 2, borderRadius: radius.l, ...smooth, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.controlEdge } as const;
 }
 
-/** A text being written: shown where it'll land, and not tappable until it does. */
-function WritingCover({ title, form, stage }: { title: string; form: Form; stage?: TextStage | null }) {
+// Texts being written for the shelf, and pasted texts being translated and recorded (Your texts).
+const written = (shelf: Shelf) => shelf.writing.filter((w) => w.reason !== 'own');
+const making = (shelf: Shelf) => shelf.writing.filter((w) => w.reason === 'own');
+
+/** A text being written, or a pasted one being translated and recorded: shown where it'll land, and not tappable until it does. */
+function WritingCover({ title, kind, stage }: { title: string; kind: string; stage?: TextStage | null }) {
   const c = useTheme();
   return (
     <View accessible accessibilityLabel={`${title}. ${currentStep(textSteps(stage))}.`} style={{ ...placeholderCover(c), justifyContent: 'space-between' }}>
       <View style={{ gap: space.xs + 2 }}>
-        <Text style={{ ...COVER_KIND, color: c.textSecondary }}>{form === 'story' ? 'Story' : 'Dialogue'}</Text>
+        <Text style={{ ...COVER_KIND, color: c.textSecondary }}>{kind}</Text>
         <Text style={{ ...COVER_TITLE, color: c.text }}>{title}</Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>

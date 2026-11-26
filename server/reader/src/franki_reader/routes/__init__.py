@@ -20,6 +20,7 @@ from franki_reader.routes import (
     health,
     lessons,
     note_queue,
+    own_texts,
     practice,
     progress,
     settings,
@@ -36,6 +37,7 @@ from franki_reader.routes import (
 AREAS = (
     health,
     topics,
+    own_texts,
     texts,
     explain,
     settings,

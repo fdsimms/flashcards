@@ -454,7 +454,8 @@ class Topic:
 # or a Surprise me; "story", an episode of a story. "liked", "due" and "new" are from
 # the days the shelf wrote ahead on its own, and are no longer written. "" for texts from before
 # the shelf.
-Reason = Literal["liked", "due", "new", "asked", "story", ""]
+# "own": a text the learner pasted in to read (own_text.py), not one written for them.
+Reason = Literal["liked", "due", "new", "asked", "story", "own", ""]
 
 
 @dataclass(frozen=True)
@@ -1281,13 +1282,61 @@ def save_naturalness(
 
 def shelf_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
     """The texts waiting on a language's shelf, oldest first: every ready one written for the shelf
-    or a topic, not one written to practice words just studied (focus) or a story episode."""
+    or a topic, not one written to practice words just studied (focus), a story episode, or one the
+    learner pasted in (`own_texts`, a row of their own)."""
     rows = conn.execute(
         f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status = 'ready' AND language = ? AND focus = ''"
-        " AND story_id IS NULL ORDER BY id",
+        " AND story_id IS NULL AND reason != 'own' ORDER BY id",
         (language,),
     ).fetchall()
     return [_text(r) for r in rows]
+
+
+def own_texts(conn: sqlite3.Connection, language: Code) -> list[StoredText]:
+    """The texts the learner pasted in that wait to be read in a language, oldest first, so a long
+    one's parts come in order (own_text.py)."""
+    rows = conn.execute(
+        f"SELECT {_TEXT_COLUMNS} FROM texts WHERE status = 'ready' AND language = ?"
+        " AND reason = 'own' ORDER BY id",
+        (language,),
+    ).fetchall()
+    return [_text(r) for r in rows]
+
+
+def add_own_topic(conn: sqlite3.Connection, title: str, now: datetime) -> int:
+    """A hidden topic for a pasted text's parts to be filed under (a text needs one), named after
+    its title so the shelf can say what's being made; a number is added when the name is taken."""
+    base = " ".join(title.split()) or "Your text"
+    with conn:
+        n = 1
+        while True:
+            name = base if n == 1 else f"{base} ({n})"
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO topics (name, favorite, created_at, removed) VALUES (?, 0, ?, 1)",
+                (name, now.isoformat()),
+            )
+            if cur.rowcount:
+                assert cur.lastrowid is not None
+                return cur.lastrowid
+            n += 1
+
+
+def set_own_translation(
+    conn: sqlite3.Connection, text_id: int, english: list[str], cost_usd: float
+) -> None:
+    """A pasted text's lines with their English (own_text.py), and what translating them cost,
+    added to the text's own cost."""
+    row = conn.execute("SELECT lines FROM texts WHERE id = ?", (text_id,)).fetchone()
+    if row is None:
+        return
+    lines = json.loads(row[0])
+    for line, translated in zip(lines, english, strict=False):
+        line["english"] = translated
+    with conn:
+        conn.execute(
+            "UPDATE texts SET lines = ?, cost_usd = cost_usd + ? WHERE id = ?",
+            (json.dumps(lines, ensure_ascii=False), cost_usd, text_id),
+        )
 
 
 def ready_counts(conn: sqlite3.Connection) -> dict[Code, int]:

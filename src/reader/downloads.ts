@@ -106,9 +106,9 @@ export function linesWithAudio(text: Pick<ReaderText, 'lines'>): number[] {
   return text.lines.flatMap((l, i) => (l.audio ? [i] : []));
 }
 
-/** The shelf's texts, each with its card: the story's next episode first, as Play all goes. */
-export function shelfCards(shelf: Pick<Shelf, 'story' | 'texts'>): ShelfText[] {
-  return [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts];
+/** The shelf's texts, each with its card, in reading order (`playOrder`): the story's next episode first, the learner's own texts last. */
+export function shelfCards(shelf: Pick<Shelf, 'story' | 'texts' | 'own'>): ShelfText[] {
+  return [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts, ...(shelf.own ?? [])];
 }
 
 /**
@@ -171,12 +171,14 @@ export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, la
     const texts = [...kept.values()].filter((t) => t.language === language);
     if (!texts.length) return null;
     const languages = Object.values(index.shelves).find((s) => s?.languages.length)?.languages ?? [];
-    return { language, languages, texts: texts.map((t) => t.card), writing: [], story: null };
+    const cards = texts.map((t) => t.card);
+    return { language, languages, texts: cards.filter((t) => t.reason !== 'own'), own: cards.filter((t) => t.reason === 'own'), writing: [], story: null };
   }
   const next = base.story?.next && kept.has(base.story.next.id) ? base.story.next : null;
   return {
     ...base,
     texts: base.texts.filter((t) => kept.has(t.id)),
+    own: (base.own ?? []).filter((t) => kept.has(t.id)),
     writing: [],
     story: base.story ? { ...base.story, next, writing: false, stage: null, failed: null } : null,
   };
