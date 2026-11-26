@@ -9,7 +9,7 @@ from typing import Any
 from franki_reader import form_primers, form_quiz, grammar, helpers
 from franki_reader.capitalized import demote_capitalized_nouns
 from franki_reader.coverage import Checker, Lexicon, is_word, parse_line, segment_line
-from franki_reader.frequency import rank_of
+from franki_reader.frequency import has_frequency_list, rank_of
 from franki_reader.ipa import ipa_for
 from franki_reader.japanese import JapaneseLexicon
 from franki_reader.kanji import kanji_of
@@ -181,8 +181,13 @@ def word_out(
         "wanikani": not is_name and from_wanikani(piece, lexicon),
         # Each kanji's meanings and readings (Japanese: kanji.py); None for a word with none.
         "kanji": kanji_for(piece, lexicon),
-        # Its place among the language's most common words; None past the list's end.
-        "rank": None if is_name else rank_of(piece, lexicon),
+        # Its place among the language's most common words; None past the list's end. Left out for
+        # a language with no list (Toki Pona), so the app shows no frequency rather than "Rare".
+        **(
+            {"rank": None if is_name else rank_of(piece, lexicon)}
+            if has_frequency_list(lexicon)
+            else {}
+        ),
         "grammar": point,
         "form": form,
         "contraction": None
