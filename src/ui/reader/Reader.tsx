@@ -17,6 +17,8 @@ import { LineScrubber } from './LineScrubber';
 import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
 import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
+import { shelfCards } from '../../reader/downloads';
+import { untranslated, UNTRANSLATED_NOTE } from '../../reader/ownText';
 import { answerQuiz, formatDuration, heard, isFlagged, listenedOnly, lookUp, startSession, toggleFlag, toLog, type Session } from '../../reader/session';
 import { phraseRange, phrasePart, phraseText, type PhrasePick } from '../../reader/phrase';
 import { choicesView, holdsPlayAll } from '../../reader/choices';
@@ -445,7 +447,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     const order = (playingAll ? upNextOrder(shelf) : playOrder(shelf)).filter((id) => id !== text.id);
     const listed = nextInOrder(source.order, text.id);
     const id = listed !== null && order.includes(listed) ? listed : (order[0] ?? null);
-    const card = [...(shelf.story?.next ? [shelf.story.next] : []), ...shelf.texts].find((t) => t.id === id);
+    const card = shelfCards(shelf).find((t) => t.id === id);
     return card ? { id: card.id, title: card.title, lines: card.lines, order } : null;
   };
 
@@ -745,11 +747,15 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             <View style={{ gap: space.xs }}>
               <Text style={{ ...type.title, color: c.text }}>{text.title}</Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                {[
-                  text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : '')),
-                  !listenOnly && underFloor(text) ? `${Math.round(text.coverage * 100)}% words known` : '',
-                ].filter(Boolean).join(' · ')}
+                {(text.reason === 'own'
+                  // A pasted text's topic is its own title, and its coverage is whatever it is, so it's always said.
+                  ? ['Your text', listenOnly ? '' : `${Math.round(text.coverage * 100)}% words known`]
+                  : [
+                    text.episode ? `${text.topic} · Episode ${text.episode}` : (text.topic ?? (source.kind === 'topic' ? source.topic.name : source.kind === 'past' ? source.text.topic : '')),
+                    !listenOnly && underFloor(text) ? `${Math.round(text.coverage * 100)}% words known` : '',
+                  ]).filter(Boolean).join(' · ')}
               </Text>
+              {untranslated(text) ? <Help>{UNTRANSLATED_NOTE}</Help> : null}
               {text.last_time ? (
                 <ReadRecap
                   recap={text.last_time.recap}

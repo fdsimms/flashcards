@@ -112,7 +112,7 @@ import { useKeyboardLanguage } from './useKeyboardLanguage';
 import { useSpokenAnswer } from './useSpokenAnswer';
 import { languageName } from '../core/voices';
 import { TypedDiff } from './TypedDiff';
-import { SessionMissList, useSessionMisses, type MixupRequest } from './SessionMisses';
+import { SessionMissList, useSessionMisses, type PracticeRequest } from './SessionMisses';
 import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
 import { useMiniCram } from './useMiniCram';
@@ -190,7 +190,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
  * every deck's daily limits apply (`treeQueue`). Omnilanguage cards render natively with TTS;
  * other note types render their Anki templates in a WebView.
  */
-export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, onAddWord, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMixups, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onBrowse, onCardInfo, onSettings , agentFlags}: {
+export function Review({ repo, deck, practice, extraCard, suggestHints, askAboutCard, fixFlaggedCard, glossing, onAddWord, reloadKey, onDone, onEditNote, onPracticeForms, onPracticeMisses, onNextDeck, nextDeck, onEarlierDeck, earlierDeck, onCustomStudy, onSkillCards, onBrowse, onCardInfo, onSettings , agentFlags}: {
   repo: Repo & AnkiLink;
   deck: string;
   /** Whether a card can be flagged for Claude to check: only with sync on, which is how the MCP reaches the collection. */
@@ -221,7 +221,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   /** Opens a forms drill (src/ui/FormsDrill.tsx) over this screen. */
   onPracticeForms: (request: DrillRequest) => void;
   /** Opens Similar words (src/ui/tools/MixupsTool.tsx) on words missed this session. */
-  onPracticeMixups?: (request: MixupRequest) => void;
+  onPracticeMisses?: (request: PracticeRequest) => void;
   /** Replaces this screen with the next deck in the list that has cards to study; absent when there is none. */
   onNextDeck?: () => void;
   /** That deck's name, for the button. */
@@ -694,7 +694,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     onSaved: useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []),
   });
   // The session end's list of misses, and what of them Similar words can practice (SessionMisses.tsx).
-  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMixups, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
+  const sessionMisses = useSessionMisses(history, notes, cards, !!onPracticeMisses, noteTypes, confused.pairs, !current || !note || (!rendered && !page));
   const newWordsStep = useNewWordsStep(deck, c.teal);
 
   // A natively drawn card is on screen the frame after it's committed (a template card says so itself: CardWebView's onShown).
@@ -1225,7 +1225,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         onPress: () => pendingHints.forEach((p, i) => sheets.request({ key: `leech:${p.noteId}`, kind: 'leech', noteId: p.noteId, misses: p.misses, ...(p.suspendedCardId ? { suspendedCardId: p.suspendedCardId } : {}), step: { n: i + 1, of: pendingHints.length } })),
       }] : []),
       ...sessionMisses.practice.map((p) => ({
-        key: `${p.request.mode}|${p.request.language}`, label: p.label, icon: { name: 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMixups?.(p.request),
+        key: p.key, label: p.label, icon: { name: p.request.tool === 'hearing' ? 'ear' as const : 'shuffle' as const, color: c.violet }, onPress: () => onPracticeMisses?.(p.request),
       })),
       ...(reading ? [{
         key: 'read', label: 'Read a text with these words', icon: { name: 'book' as const, color: c.easy }, busy: openingText,
@@ -1699,7 +1699,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
               {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
-              {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} text={senseMarks.reminder.text} got={senseMarks.reminder.got} /> : null}
+              {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} {...senseMarks.reminder} /> : null}
               {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />

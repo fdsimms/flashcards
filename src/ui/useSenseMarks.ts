@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { MissAnswers } from '../core/misses';
-import { carriedRecalled, lastMissedSenses, senseMissKey, senseReminder, sensesGot } from '../core/senseMarks';
+import { carriedRecalled, lastMissedSenses, senseMissKey, senseReminder, senseReminderParts, sensesGot } from '../core/senseMarks';
 import type { RenderedCard } from '../core/types';
 import type { SenseMarking, SenseVerdict } from './SenseMarks';
 
@@ -32,7 +32,7 @@ export function useSenseMarks(turn: string | undefined, rendered: RenderedCard |
     });
   }, [turn, carried]);
   const marking = useMemo<SenseMarking | undefined>(() => (senses.length ? { verdicts, last, onMark } : undefined), [senses.length, verdicts, last, onMark]);
-  const reminder = senseReminder(senses.length, last);
+  const parts = senseReminderParts(senses.length, last);
   return {
     marking,
     /** How many senses the answer has (0 with no numbered Meaning). */
@@ -40,6 +40,6 @@ export function useSenseMarks(turn: string | undefined, rendered: RenderedCard |
     /** The reason an answer given now keeps, or undefined with no sense tapped. */
     miss: senses.length ? senseMissKey(marked) : undefined,
     /** The front's line and what its tap shows, or null with nothing missed last time. */
-    reminder: reminder ? { text: reminder, got: sensesGot(senses, last) } : null,
+    reminder: parts ? { ...parts, text: senseReminder(senses.length, last)!, got: sensesGot(senses, last), missed: last.length } : null,
   };
 }

@@ -30,12 +30,13 @@ const EXEMPT: Record<string, string[]> = {
   // and production checks, which never rate (CLAUDE.md, "Nothing feeds FSRS but the answer button").
   'the review screen': ['src/ui/Review.tsx', 'src/ui/SessionMisses.tsx'],
   // Practice's screens and the voice settings, which use Read & Listen's server (the grammar
-  // catalog, recordings, voices) and import only the Repo type, for the repo they're handed.
+  // catalog, recordings, voices) and import only the Repo type, for the repo they're handed
+  // (useHearingAudio: the phone's voice settings, when a word has no recording).
   // The tools' own logic is held to the rule by tests/tools/noGrading.test.ts.
   'Practice, voices and speaking, which import only the Repo type': [
     'src/ui/FormsDrill.tsx', 'src/ui/FormsPractice.tsx', 'src/ui/Practice.tsx', 'src/ui/SpeakingSettings.tsx',
     'src/ui/Voices.tsx', 'src/ui/tools/GrammarDrill.tsx', 'src/ui/tools/ToolScreen.tsx', 'src/ui/tools/index.tsx',
-    'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts',
+    'src/ui/useGrammarDue.ts', 'src/ui/usePhoneSpeech.ts', 'src/ui/useWordAudio.ts', 'src/ui/tools/useHearingAudio.ts',
   ],
   // A cram's Listen row and its Add (src/core/cram.ts) use Read & Listen for an audio lesson from the
   // cram's words and to find a word to make a card for (CramMakeCards for every word jotted down in

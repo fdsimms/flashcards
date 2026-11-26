@@ -44,6 +44,8 @@ export function reasonLabel(text: ShelfText): string {
       return 'You asked for this';
     case 'story':
       return `Episode ${text.episode}`;
+    case 'own':
+      return 'Your text';
     default:
       // Written for a topic before the shelf existed.
       return text.topic;
@@ -65,9 +67,12 @@ export function upNextOrder(shelf: Pick<Shelf, 'texts'>): number[] {
   return shelf.texts.map((t) => t.id);
 }
 
-/** The shelf's reading order, for Next and for downloads: the story's next episode, then the shelf. */
-export function playOrder(shelf: Pick<Shelf, 'story' | 'texts'>): number[] {
-  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id)];
+/**
+ * The shelf's reading order, for Next and for downloads: the story's next episode, then the shelf,
+ * then the learner's own texts (a long one's parts in order). Play all keeps to the shelf (`upNextOrder`).
+ */
+export function playOrder(shelf: Pick<Shelf, 'story' | 'texts' | 'own'>): number[] {
+  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id), ...(shelf.own ?? []).map((t) => t.id)];
 }
 
 /** How long Play all takes, in minutes: the shelf's texts, without the story's episode. */

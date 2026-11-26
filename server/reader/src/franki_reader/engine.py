@@ -37,11 +37,12 @@ from franki_reader import (
     forms,
     grammar,
     meanings,
+    own_text,
     rotation,
     store,
     written_points,
 )
-from franki_reader.coverage import Checker, Coverage, parse_line
+from franki_reader.coverage import Checker, Coverage, check, parse_line
 from franki_reader.difficulty import Difficulty, after_reading, nearest_floor
 from franki_reader.gender import full_voices, voice_for
 from franki_reader.generator import (
@@ -53,6 +54,7 @@ from franki_reader.generator import (
     Form,
     Generated,
     GenerationFailed,
+    Line,
     StoryContext,
     TextModel,
     TextRequest,
@@ -189,6 +191,7 @@ class Engine:
         write_ipa: ai_ipa.WriteIpa | None = None,
         synthesize_parts: SynthesizeParts | None = None,
         write_point: written_points.WritePoint | None = None,
+        write_translation: own_text.WriteTranslation | None = None,
     ) -> None:
         self.conn = conn
         self.ask_for = ask_for
@@ -240,6 +243,8 @@ class Engine:
         self._tasks: set[asyncio.Task[None]] = set()
         # Claude's writer of new grammar points, and the languages it's writing one for now.
         self.write_point = write_point
+        # Translates a pasted text's lines (own_text.py).
+        self.write_translation = write_translation
         self._writing_points: set[Code] = set()
 
     # ==== Lexicon ====
@@ -1246,6 +1251,95 @@ class Engine:
             self._start(job)
         return topic
 
+    # ==== Your own texts ====
+
+    def own_preview(self, language: Code, text: str, title: str = "") -> own_text.Preview:
+        """What adding a pasted text would give, against the deck as it is now (own_text.preview).
+        Raises `own_text.OwnTextRefused` for one that can't be added, and NotAvailable while the
+        server has no word list for the language."""
+        if not store.load_snapshot(self.conn, language)[0]:
+            name = LANGUAGES[language].name
+            raise NotAvailable(f"The server has no {name} word list from Anki yet.")
+        return own_text.preview(text, title, language, self.snapshot(language)[1])
+
+    def add_own_text(self, language: Code, text: str, title: str = "") -> list[int]:
+        """Adds a pasted text as one text per part (own_text.split_parts), each pending until its
+        lines are translated and recorded in the background, then on the shelf's own row. Returns
+        the texts' ids. Raises as `own_preview` does, and NotAvailable with no Claude key."""
+        preview = self.own_preview(language, text, title)
+        if self.write_translation is None:
+            raise NotAvailable("The server has no Claude API key yet.")
+        lexicon = self.snapshot(language)[1]
+        parts = own_text.split_parts(own_text.checked(text, language))
+        topic_id = store.add_own_topic(self.conn, preview.title, self.clock())
+        ids: list[int] = []
+        for n, part in enumerate(parts, 1):
+            lines = tuple(Line("N", ln.text, "", paragraph=ln.paragraph) for ln in part)
+            generated = Generated(
+                own_text.part_title(preview.title, n, len(parts)),
+                lines,
+                {},
+                check((ln.text for ln in lines), lexicon),
+                0,
+                True,
+                (),
+            )
+            ids.append(
+                store.save_text(
+                    self.conn,
+                    topic_id,
+                    generated,
+                    [],
+                    0.0,
+                    self.clock(),
+                    "pending",
+                    "story",
+                    language,
+                    reason="own",
+                )
+            )
+        job = Job(topic_id, language, reason="own", form="story")
+        self._writing.add(job.key)
+        self._jobs[job.key] = job
+        task = asyncio.create_task(self._make_own(job, ids))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return ids
+
+    async def _make_own(self, job: Job, ids: list[int]) -> None:
+        """Translates, glosses and records a pasted text's parts in order, so the first can be read
+        while the rest are made. Never raises: this runs unattended. A part whose translation fails
+        is still served, with no English under its lines, since reading it doesn't need any."""
+        try:
+            for text_id in ids:
+                text = store.get_text(self.conn, text_id)
+                if text is None:
+                    continue
+                self._stage(job, "translating")
+                assert self.write_translation is not None
+                try:
+                    english, used = await self.write_translation(
+                        text.language, [line.text for line in text.lines]
+                    )
+                    store.set_own_translation(self.conn, text_id, english, used.cost_usd())
+                except own_text.TranslationFailed as e:
+                    log.warning("Couldn't translate pasted text %d: %s", text_id, e)
+                    store.set_own_translation(self.conn, text_id, [], e.usage.cost_usd())
+                text = store.get_text(self.conn, text_id)
+                assert text is not None
+                await self.fill_meanings([text], text.language)
+                await self.fill_ipa([text], text.language)
+                await self.fill_forms([text])
+                self._stage(job, "recording")
+                await self.make_audio(text)
+                store.mark_ready(self.conn, text_id)
+        except Exception:
+            log.exception("Making pasted text %s failed", ids)
+        finally:
+            self._writing.discard(job.key)
+            self._jobs.pop(job.key, None)
+            self._stages.pop(job.key, None)
+
     def start_story(self, about: str) -> Story:
         """Starts a new story in the current language, beside any already running, and writes its
         first episode in the background."""
@@ -1319,6 +1413,11 @@ class Engine:
         if status == "read":
             return
         text = store.get_text(self.conn, text_id)
+        if text is not None and text.reason == "own":
+            # A pasted text isn't written to the language's level, so how it went says nothing
+            # about that level: logged as read, and the difficulty left as it is (own_text.py).
+            store.log_reading(self.conn, text_id, reading, self.clock())
+            return
         if text is not None:
             reading = replace(
                 reading,

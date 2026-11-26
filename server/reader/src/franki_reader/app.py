@@ -55,6 +55,10 @@ marked words, ideas) is in the current language, the `language` setting.
                                       count of texts waiting; tops up in the background
     POST  /api/shelf/write            {name, form} writes a text on a topic typed in; it joins the
                                       shelf when it's ready (202)
+    POST  /api/own-texts/preview      {language, text, title?} what adding a pasted text would give:
+                                      its coverage, new words, parts and cost (own_text.py)
+    POST  /api/own-texts              the same, adding it: its parts are translated and recorded,
+                                      then join the shelf's own row (202)
     POST  /api/story                  {about?} starts a new story in the current language, beside
                                       those running, and writes its first episode (202)
     GET   /api/stories                the current language's stories, running then ended, and which
@@ -400,6 +404,7 @@ from franki_reader import (
     lesson_writer,
     meanings,
     note_queue,
+    own_text,
     production,
     rare_words,
     sentences,
@@ -648,6 +653,7 @@ def production_app() -> FastAPI:
     write_topic: grammar_topics.WriteTopic | None = None
     write_grammar_lesson: grammar_lessons.WriteLesson | None = None
     write_point: written_points.WritePoint | None = None
+    write_translation: own_text.WriteTranslation | None = None
     read_topic_image: topic_image.ReadTopic | None = None
     write_vocab: vocab_check.WriteVocab | None = None
     write_notes: note_queue.WriteNotes | None = None
@@ -686,6 +692,7 @@ def production_app() -> FastAPI:
         write_topic = grammar_topics.claude_topics(client)
         write_grammar_lesson = grammar_lessons.claude_lessons(client)
         write_point = written_points.claude_points(client)
+        write_translation = own_text.claude_translation(client)
         read_topic_image = topic_image.claude_topic_reader(client)
         write_vocab = vocab_check.claude_vocab(client)
         write_notes = note_queue.claude_notes(client)
@@ -765,6 +772,7 @@ def production_app() -> FastAPI:
         write_ipa=write_ipa,
         read_wanikani=wanikani_reader(wanikani_token) if wanikani_token else None,
         write_point=write_point,
+        write_translation=write_translation,
     )
     engine.count_existing_audio()
     return create_app(

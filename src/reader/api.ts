@@ -29,6 +29,9 @@ export function readerAddress(syncServer: string): string {
 export type TextStage = 'writing' | 'translating' | 'recording';
 type Schemas = components['schemas'];
 
+/** What adding a pasted text would give, before it's added (server/reader own_text.py, `preview`). */
+export type OwnTextPreview = Schemas['OwnPreviewOut'];
+
 // 'writing': a text is being written now. 'failed': the last write failed and the server is
 // waiting before it tries that topic again by itself.
 export type TopicState = Schemas['TopicOut']['state'];
@@ -345,10 +348,10 @@ export type ReaderText = {
   questions?: TextQuestion[];
 };
 
-// Why a text is on the shelf: a topic typed in or a surprise ('asked'), or the ongoing story. 'due',
-// 'liked' and 'new' are from when the shelf wrote ahead on its own, and are no longer written.
-// '' for texts from before the shelf.
-export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | '';
+// Why a text is on the shelf: a topic typed in or a surprise ('asked'), the ongoing story, or a
+// text the learner pasted in ('own', server/reader own_text.py). 'due', 'liked' and 'new' are from
+// when the shelf wrote ahead on its own, and are no longer written. '' for texts from before the shelf.
+export type ShelfReason = 'due' | 'liked' | 'new' | 'asked' | 'story' | 'own' | '';
 
 // A text waiting on the shelf, as its card shows it; its words come with api.text(id).
 export type ShelfText = {
@@ -405,7 +408,10 @@ export type Shelf = {
   language: Language;
   languages: { code: Language; name: string; ready: number }[];
   texts: ShelfText[];
-  // Shelf texts being written now (a typed topic shows here until it's ready).
+  /** The learner's own pasted texts, a row of their own, oldest first; missing from a server older than them. */
+  own?: ShelfText[];
+  // Shelf texts being written now (a typed topic shows here until it's ready), and pasted texts
+  // being translated and recorded (reason 'own', its title as the topic).
   writing: { topic: string; reason: ShelfReason; form: Form; stage?: TextStage | null }[];
   story: ShelfStory | null;
 };
@@ -835,6 +841,11 @@ export function createApi(
     writeAbout: (name: string, form: Form, model?: TextModel) => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
     startStory: (about: string) => call<void>('POST', '/api/story', { about }),
+    // A pasted text: what adding it would give (its coverage, new words, parts and cost), then adding it.
+    ownTextPreview: (language: Language, text: string, title: string) =>
+      call<OwnTextPreview>('POST', '/api/own-texts/preview', { language, text, title }),
+    addOwnText: (language: Language, text: string, title: string) =>
+      call<Schemas['OwnAddedOut']>('POST', '/api/own-texts', { language, text, title }),
     // The reader's language's stories, running first, then ended.
     stories: () => call<{ language: Language; stories: StoryListItem[] }>('GET', '/api/stories'),
     // One story for its own page: as the card has it (Last time, the next episode's practice words).
@@ -861,8 +872,9 @@ export function createApi(
     // `text` spoken by an Azure voice, as MP3 bytes: a card's recording, or a voice's sample. `language` is
     // the text's (th-TH, or a code: th), which a Multilingual voice would otherwise guess from the text.
     // `reading` is a Japanese word's KanaReading, said in its place where the server reads the kanji otherwise.
-    speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string) =>
-      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language, reading })).arrayBuffer()),
+    // `ipa` is said in the text's place, for a word its spelling doesn't say how to say (a Russian word told from another by stress alone).
+    speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string, ipa?: string) =>
+      new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language, reading, ipa })).arrayBuffer()),
     // One line a story character might say, spoken in `voice` at `pitch` (a percent change), as MP3
     // bytes: the Story characters screen's way to hear a choice. Thai's line has a man's ending or a woman's.
     castSample: async (language: Language, voice: string, pitch: number, gender: 'male' | 'female') =>
@@ -968,6 +980,10 @@ export type Api = ReturnType<typeof createApi>;
 // The longest a typed topic and a story's subject may be (WriteIn and StoryIn in server/reader routes/topics.py).
 // The server refuses longer with a 422 whose detail is a list, so the fields stop at these instead.
 export const MAX_TOPIC_CHARS = 150;
+// The most a pasted text may hold (server/reader own_text.py, MAX_CHARS); the server refuses more, saying how much there is.
+export const MAX_OWN_TEXT_CHARS = 30_000;
+// A pasted text's title (routes/own_texts.py, OwnTextIn.title).
+export const MAX_OWN_TITLE_CHARS = 150;
 export const MAX_STORY_ABOUT_CHARS = 200;
 
 export async function errorMessage(response: Response): Promise<string> {

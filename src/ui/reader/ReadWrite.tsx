@@ -11,19 +11,21 @@ import { WorkingMark } from '../WorkingMark';
 import { hairline, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+import { ReadOwnText } from './ReadOwnText';
 
-export type NewKind = 'series' | 'dialogue' | 'story';
+export type NewKind = 'series' | 'dialogue' | 'story' | 'own';
 
 /**
  * Having something written, from the home's + button, as a sheet. First a series, a dialogue or a
- * story (`kind` skips the choice). A series takes an optional line about what it's about and starts
+ * story (`kind` skips the choice), or a text of your own to paste in (ReadOwnText.tsx). A series takes an optional line about what it's about and starts
  * running beside the others. A dialogue or a story is Surprise me (a topic idea the deck fits), or
  * a typed topic. Each is written in the background and shows on the home when it's ready, so the
  * sheet closes as soon as it's asked for.
  */
 export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: Api; language?: Language; kind?: NewKind; onDone: () => void }) {
   const c = useTheme();
-  const [kind, setKind] = useState<NewKind | null>(initialKind ?? null);
+  // Your own text needs the language it's in; without one (settings not loaded yet) the choice shows instead.
+  const [kind, setKind] = useState<NewKind | null>(initialKind === 'own' && !language ? null : initialKind ?? null);
   const [about, setAbout] = useState('');
   const [name, setName] = useState('');
   const [model, setModel] = useState<TextModel>('claude-sonnet-5-5');
@@ -34,7 +36,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
 
   const write = async () => {
     const topic = name.trim();
-    if (!topic || busy || kind === null || kind === 'series') return;
+    if (!topic || busy || kind === null || kind === 'series' || kind === 'own') return;
     Keyboard.dismiss();
     setBusy('write');
     setError(null);
@@ -49,7 +51,7 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
   };
 
   const surprise = async () => {
-    if (busy || kind === null || kind === 'series') return;
+    if (busy || kind === null || kind === 'series' || kind === 'own') return;
     Keyboard.dismiss();
     setBusy('surprise');
     setError(null);
@@ -95,9 +97,14 @@ export function ReadWrite({ api, language, kind: initialKind, onDone }: { api: A
           <KindTile tintKey="quick:new" icon="bubble.left.and.bubble.right" title="Dialogue" detail="A short conversation between two people." onPress={() => setKind('dialogue')} />
           <KindTile tintKey="story:alone" icon="doc.text" title="Story" detail="A short story that stands on its own." onPress={() => setKind('story')} />
           <Help>Each one takes about half a minute and shows on your shelf when it's ready.</Help>
+          {language ? <KindTile tintKey="own:new" icon="doc.on.clipboard" title="Your own text" detail="Paste an article, a chapter or song lyrics to read and listen to." onPress={() => setKind('own')} /> : null}
         </ScrollView>
       </Screen>
     );
+  }
+
+  if (kind === 'own' && language) {
+    return <ReadOwnText api={api} language={language} toolbar={cancel} onDone={onDone} />;
   }
 
   if (kind === 'series') {

@@ -205,6 +205,8 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
             if code not in HIDDEN_LANGUAGES
         ],
         "texts": [shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],
+        # The learner's own pasted texts, a row of their own (own_text.py).
+        "own": [shelf_text(t, engine) for t in store.own_texts(engine.conn, language)],
         "writing": [
             {
                 "topic": store.topic_name(engine.conn, j.topic_id),

@@ -54,6 +54,10 @@ class SpeechIn(BaseModel):
     # A Japanese word's KanaReading, said in its place where Sudachi reads the word otherwise
     # (japanese.spoken_reading). An app from before it was sent leaves it out.
     reading: str | None = Field(default=None, max_length=200)
+    # The word as IPA, said in the text's place (SSML's <phoneme>): for a word whose spelling
+    # doesn't say how it's said, such as a Russian word told from another only by its stress
+    # (за́мок, замо́к; Practice's Hearing sounds). An app from before it was sent leaves it out.
+    ipa: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class ReadingIn(BaseModel):
@@ -121,7 +125,9 @@ def router(ctx: AppContext) -> APIRouter:
             else None
         )
         try:
-            mp3 = await need_speech().synthesize(spoken, body.voice, body.rate, language, said)
+            mp3 = await need_speech().synthesize(
+                spoken, body.voice, body.rate, language, said, ipa=body.ipa
+            )
         except SpeechError as e:
             # Not 502, which the app reads as Caddy's "Read & Listen isn't running".
             raise HTTPException(503, str(e)) from e

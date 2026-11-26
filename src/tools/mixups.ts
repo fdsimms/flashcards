@@ -10,6 +10,7 @@ import { meaningSet, sameMeaning } from '../core/synonyms';
 import type { Note } from '../core/types';
 import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
+import { practicedByHearing } from './hearing';
 
 /**
  * Similar words: telling apart words from the learner's own decks that are easy to confuse.
@@ -322,7 +323,8 @@ export function practiceFromMisses(misses: readonly { noteId: string; miss?: str
     const byLanguage = new Map<Language, string[]>();
     for (const [id, miss] of latest) {
       const language = set.words.get(id)?.language;
-      if (language && fits(miss) && set[mode].has(id)) (byLanguage.get(language) ?? byLanguage.set(language, []).get(language)!).push(id);
+      // A Thai word missed on its tone or vowel length is practiced in Hearing sounds instead (hearingFromMisses).
+      if (language && fits(miss) && set[mode].has(id) && !practicedByHearing(language, miss)) (byLanguage.get(language) ?? byLanguage.set(language, []).get(language)!).push(id);
     }
     for (const [language, ids] of byLanguage) {
       const reasons = new Set(ids.map((id) => latest.get(id)));

@@ -8,7 +8,8 @@ import type { AnswerRecord } from '../core/session';
 import { missedCardText, type MissedCardText } from '../core/missedCard';
 import type { Card, Note, NoteType } from '../core/types';
 import type { Language } from '../reader/api';
-import { missedPracticeLabel, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
+import { hearingFromMisses, hearingPracticeLabel } from '../tools/hearing';
+import { missedPracticeLabel, mixupLanguage, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
 import { drillOfTags } from '../tools/skills';
 import { haptic } from './haptics';
 import { Icon, Tag } from './kit';
@@ -39,10 +40,14 @@ export interface MixupRequest {
   language: Language;
 }
 
+/** What a session's misses open: Similar words on the words missed, or Hearing sounds on a group of sounds (Thai tones). */
+export type PracticeRequest = ({ tool: 'mixups' } & MixupRequest) | { tool: 'hearing'; language: Language; group: string };
+
 /**
  * At a session's end: the words answered Again, each with the reason chosen on Again's menu, and
  * what Similar words can practice of them (src/tools/mixups.ts): those missed on how a word
- * sounds by ear, the rest by meaning, each among the words it's confused with. Practicing changes
+ * sounds by ear, the rest by meaning, each among the words it's confused with. A Thai word missed
+ * on its tone or vowel length opens Hearing sounds on that group instead (src/tools/hearing.ts). Practicing changes
  * nothing about when the cards come back. `practicable` false (no route to the tool) offers none.
  * The practice is worked out only while `atEnd` (the screen that offers it is up): it reads every
  * studied word, and the cards change with each answer.
@@ -77,10 +82,18 @@ export function useSessionMisses(history: AnswerRecord[], notes: Map<string, Not
       const note = notes.get(noteId);
       return key && note ? missReasonsFor(note).find((r) => r.key === key)?.label : undefined;
     };
-    return practiceFromMisses(missed, mixupSet(notes.values(), studied, pairs)).map((p) => ({
+    const mixups = practiceFromMisses(missed, mixupSet(notes.values(), studied, pairs)).map((p) => ({
+      key: `${p.mode}|${p.language}`,
       label: missedPracticeLabel(p, labelOf(p.reason, p.noteIds[0])),
-      request: { noteIds: p.noteIds, mode: p.mode, language: p.language } as MixupRequest,
+      request: { tool: 'mixups', noteIds: p.noteIds, mode: p.mode, language: p.language } as PracticeRequest,
     }));
+    const languageOf = (noteId: string) => { const note = notes.get(noteId); return note ? mixupLanguage(note) : undefined; };
+    const hearing = hearingFromMisses(missed, languageOf).map((p) => ({
+      key: `hearing|${p.language}|${p.group}`,
+      label: hearingPracticeLabel(p),
+      request: { tool: 'hearing', language: p.language, group: p.group } as PracticeRequest,
+    }));
+    return [...hearing, ...mixups];
   }, [practicable, atEnd, missed, notes, cards, pairs]);
   return { rows, practice };
 }

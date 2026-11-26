@@ -976,6 +976,118 @@
         }
       }
     },
+    "/api/own-texts/preview": {
+      "post": {
+        "summary": "Preview",
+        "operationId": "preview_api_own_texts_preview_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnTextIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/own-texts": {
+      "post": {
+        "summary": "Add",
+        "operationId": "add_api_own_texts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnTextIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnAddedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/texts": {
       "get": {
         "summary": "Past Texts",
@@ -8003,6 +8115,123 @@
         ],
         "title": "NoteQueueIn"
       },
+      "OwnAddedOut": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "OwnAddedOut"
+      },
+      "OwnPreviewOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "words": {
+            "type": "integer",
+            "title": "Words"
+          },
+          "new_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "New Words"
+          },
+          "new_count": {
+            "type": "integer",
+            "title": "New Count"
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines"
+          },
+          "parts": {
+            "type": "integer",
+            "title": "Parts"
+          },
+          "characters": {
+            "type": "integer",
+            "title": "Characters"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "coverage",
+          "words",
+          "new_words",
+          "new_count",
+          "lines",
+          "parts",
+          "characters",
+          "seconds",
+          "cost_usd"
+        ],
+        "title": "OwnPreviewOut",
+        "description": "What adding a text would give, before it's added."
+      },
+      "OwnTextIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "title": "Title",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "text"
+        ],
+        "title": "OwnTextIn"
+      },
       "PhraseIn": {
         "properties": {
           "phrase": {
@@ -9363,6 +9592,19 @@
               }
             ],
             "title": "Reading"
+          },
+          "ipa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ipa"
           }
         },
         "type": "object",

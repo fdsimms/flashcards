@@ -43,11 +43,13 @@ export interface ToolPrefs {
   scriptMode: ScriptMode;
   /** Similar words: told apart by meaning or by ear. */
   mixupMode: MixupMode;
+  /** Hearing sounds: the group of sounds each language is practiced in (its Tones, its Vowel length); a language not listed practices all of them. */
+  hearingGroups: Partial<Record<Language, string>>;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning' };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning', hearingGroups: {} };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -75,5 +77,17 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     countMax: COUNT_MAXES.find((m) => m === saved.countMax) ?? DEFAULT_TOOL_PREFS.countMax,
     scriptMode: SCRIPT_MODES.find((m) => m === saved.scriptMode) ?? DEFAULT_TOOL_PREFS.scriptMode,
     mixupMode: MIXUP_MODES.find((m) => m === saved.mixupMode) ?? DEFAULT_TOOL_PREFS.mixupMode,
+    hearingGroups: parseHearingGroups(saved.hearingGroups),
   };
+}
+
+/** Each language's group id as saved; whether the language still has that group is the tool's to check (hearing.ts, `validFocus`). */
+function parseHearingGroups(raw: unknown): Partial<Record<Language, string>> {
+  if (!raw || typeof raw !== 'object') return {};
+  const groups: Partial<Record<Language, string>> = {};
+  for (const l of LANGUAGE_ORDER) {
+    const g = (raw as Record<string, unknown>)[l];
+    if (typeof g === 'string' && g) groups[l] = g;
+  }
+  return groups;
 }
