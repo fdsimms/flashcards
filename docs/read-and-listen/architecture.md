@@ -616,6 +616,14 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   hardest part for a learner, were wrong. Its leniency in other languages was never measured. A score
   that can't say a take is wrong is worse than none, so it went from every language. Record yourself
   stays: hearing your take next to the recording, which never leaves the phone.
+- **One microphone in Review's footer** (27 November 2026, the owner, from a mock): the card's own Record
+  mic beside the language line is gone. Where the footer has Answer by speaking, that mic also keeps what was
+  said as Record yourself's take: the recognizer saves its own audio (`recordingOptions.persist`,
+  `useSpokenAnswer`'s `keepTake`), so a second recorder never opens the microphone, and `useSelfRecording.adopt`
+  takes the file only if the card it was started for is still the one on screen. A card with a recording but no
+  speaking mic (no Type it word, speaking off, a language iOS can't hear) gets a record-only mic in the same place
+  (`RecordMicButton`). After the answer is shown, the Yours / Compare capsule is on the card as before, and its mic
+  makes a new take with the plain recorder. A take from the recognizer ends on a pause, as listening does.
 - **The pitch line** (26 November 2026, the owner, from a mock; `src/core/pitch.ts`, `src/ui/PitchLine.tsx`,
   `modules/audio-samples`): after a take of a card's word, its pitch is drawn over the card recording's,
   each in semitones around its own speaker's middle pitch, so a man's and a woman's voice line up. A
