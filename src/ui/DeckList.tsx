@@ -393,6 +393,7 @@ export function DeckList(props: {
   return (
     <Screen
       title="Decks"
+      leadingTitle
       toolbar={
         <Stack.Toolbar placement="right">
           {editing ? (
