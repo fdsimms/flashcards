@@ -1,3 +1,4 @@
+import type { SFSymbol } from 'expo-symbols';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,6 +26,7 @@ import { haptic } from './haptics';
 import { Button, Count, ErrorNote, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
 import { LessonsPausedNote } from './LessonsPausedNote';
 import { Reveal } from './motion';
+import { ReviewFooter } from './ReviewFooter';
 import { CardSurface } from './Review';
 import { useAnswerFlash } from './SwipeCard';
 import type { WaniKaniState } from './useWaniKani';
@@ -509,33 +511,25 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
     if (prefs.autoplay && question.kind === 'reading') play(audioUrl(subject));
   };
 
-  // A wrong typed answer the learner knows was right: counted right, and for a meaning optionally kept as a synonym on WaniKani too.
+  // A wrong typed answer the learner knows was right (a typo, a slip of the keys) is counted right from the
+  // pills above the box (`WrongAnswerLine`), and for a meaning optionally kept as a synonym on WaniKani too.
   // The save counts at once here and is sent when WaniKani can be reached (useWaniKani's `changeSynonym`).
   // `savedFrom` is the queue the saving answer was given from, so undoing that answer takes the synonym back.
   const savedFrom = useRef<{ queue: Study['session']['queue']; subjectId: number; synonym: string } | null>(null);
-  const notRight = () => {
+  const saveMeaning = () => {
     if (!study || !question || !subject) return;
     const text = typed.trim();
-    const canSave = canSaveMeaning(question) && !!text;
-    // The answer is already shown as wrong but not counted yet, so it can be put back in the pile to decide later.
-    const options = ['Count as right', ...(canSave ? ['Save as a correct meaning'] : []), ...(canAskLater(study.session) ? ['Ask later'] : []), 'Cancel'];
-    showSheet({ title: text ? `You typed "${text}". Count it as right?` : 'Count it as right?', options, cancelButtonIndex: options.length - 1 }, (i) => {
-      const picked = options[i];
-      if (picked === 'Count as right') answer(true);
-      if (picked === 'Ask later') {
-        if (studyRef.current !== study) return;
-        later();
-        checkPopup.current = null;
-        popups.hideAll();
-      }
-      if (picked !== 'Save as a correct meaning') return;
-      // The screen may have moved on while the sheet was open: only this question is marked correct.
-      if (studyRef.current !== study) return;
-      savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
-      changeSynonym({ subjectId: subject.id, synonym: text });
-      setSynonyms((m) => new Map(m).set(subject.id, [...(m.get(subject.id) ?? []), text]));
-      answer(true);
-    });
+    if (!text || !canSaveMeaning(question)) return;
+    savedFrom.current = { queue: study.session.queue, subjectId: subject.id, synonym: text };
+    changeSynonym({ subjectId: subject.id, synonym: text });
+    setSynonyms((m) => new Map(m).set(subject.id, [...(m.get(subject.id) ?? []), text]));
+    answer(true);
+  };
+  // The answer is shown as wrong but not counted yet, so it can be put back in the pile to decide later.
+  const askLaterAfterMiss = () => {
+    later();
+    checkPopup.current = null;
+    popups.hideAll();
   };
 
   // The word is left out of this session and every later one, as a lesson or a review; WaniKani still has it, and the options list it to bring it back.
@@ -734,10 +728,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   } else if (isTyped(study.typed, question.kind)) {
     const result = verdict?.result;
     footer = (
-      <>
+      <ReviewFooter>
+        {result === 'wrong' && canMarkCorrect(question) ? (
+          <WrongAnswerLine
+            typed={typed.trim()}
+            onCountRight={() => answer(true)}
+            onSave={canSaveMeaning(question) && typed.trim() ? saveMeaning : undefined}
+            onAskLater={canAskLater(study.session) ? askLaterAfterMiss : undefined}
+          />
+        ) : null}
         {retry ? <Text style={{ ...type.subhead, color: c.warning, textAlign: 'center' }}>{retry}</Text> : null}
         {verdict?.result === 'correct' && verdict.close ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Close enough: check the spelling.</Text> : null}
-        <View>
         <TextInput
           ref={answerBox}
           value={typed}
@@ -762,32 +763,17 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           keyboardAppearance={dark ? 'dark' : 'light'}
           style={{
             ...type.body, textAlign: 'center', ...smooth, borderRadius: radius.m, borderWidth: hairline, minHeight: MIN_TAP,
-            paddingHorizontal: space.m + (result === 'wrong' && canMarkCorrect(question) ? MIN_TAP - space.s : 0), paddingVertical: space.s,
+            paddingHorizontal: space.m, paddingVertical: space.s,
             color: result ? c.onRating : c.text,
             backgroundColor: result === 'correct' ? c.good : result === 'wrong' ? c.again : c.surface,
             borderColor: result ? 'transparent' : c.border,
           }}
         />
-        {/* A wrong answer can be counted right (a typo, a slip of the keys): a round button at the box's end opens the choices. */}
-        {result === 'wrong' && canMarkCorrect(question) ? (
-          <Tappable
-            onPress={notRight}
-            accessibilityRole="button"
-            accessibilityLabel="Count my answer as right"
-            scaleTo={0.92}
-            style={{ position: 'absolute', right: space.xs, top: 0, bottom: 0, width: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <View style={{ width: 34, height: 34, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: c.wkLine }}>
-              <Icon name="ellipsis" size={18} color={c.onRating} weight="bold" />
-            </View>
-          </Tappable>
-        ) : null}
-        </View>
         <Button
           label={!verdict ? 'Check' : finishes || result === 'wrong' ? 'Next' : 'Next question'}
           onPress={check}
         />
-      </>
+      </ReviewFooter>
     );
   } else if (!revealed) {
     footer = <Button label="Show answer" onPress={reveal} />;
@@ -869,5 +855,35 @@ function RateButton({ label, detail, color, onPress }: { label: string; detail: 
       <Text style={{ ...type.caption, color: c.onRating }}>{detail}</Text>
       <Text style={{ ...type.headline, color: c.onRating }}>{label}</Text>
     </Tappable>
+  );
+}
+
+/**
+ * Above the answer box once a typed answer is judged wrong: what to do with it before Next. The choices
+ * are labeled, since counting a typo as right is a decision made with the answer in front of you and an icon
+ * alone doesn't say it. `onSave` is only for a meaning, `onAskLater` only while the item can still go back
+ * in the pile. Review's last-answer line (ChangeRating.tsx) is the same row for a rated card.
+ */
+function WrongAnswerLine({ typed, onCountRight, onSave, onAskLater }: { typed: string; onCountRight: () => void; onSave?: () => void; onAskLater?: () => void }) {
+  const c = useTheme();
+  const pill = (label: string, icon: SFSymbol, onPress: () => void, good?: boolean, a11y?: string) => (
+    <Tappable
+      key={label}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={a11y ?? label}
+      scaleTo={0.95}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TAP, paddingHorizontal: space.m + 2, borderRadius: radius.pill, ...smooth, backgroundColor: good ? c.goodFill : c.fill }}
+    >
+      <Icon name={icon} size={15} color={good ? c.goodInk : c.textSecondary} weight="semibold" />
+      <Text numberOfLines={1} style={{ ...type.footnote, fontWeight: '600', color: good ? c.goodInk : c.text }}>{label}</Text>
+    </Tappable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s }}>
+      {pill('Count as right', 'checkmark', onCountRight, true, typed ? `Count "${typed}" as right` : 'Count my answer as right')}
+      {onSave ? pill(`Save "${typed}"`, 'bookmark', onSave, true, `Save "${typed}" as a correct meaning`) : null}
+      {onAskLater ? pill('Ask later', 'clock.arrow.circlepath', onAskLater) : null}
+    </View>
   );
 }
