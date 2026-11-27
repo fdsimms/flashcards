@@ -1709,6 +1709,16 @@ next episode is the top of the shelf.
   the top of the next episode in the reader (`last_time` on `GET /api/texts/{id}`: the previous
   episode's `recap` and `recap_line`), so the episode doesn't have to retell it. It's the shelf's
   `ReadRecap`: the line in the story's language to tap, its English behind Show English.
+- **Story so far and Welcome back** (27 November 2026, by the owner, who found one line too little
+  after a break). The English `recap` of every episode already told is sent as `so_far` (`recaps`,
+  `away_days`, and `characters` as of the episode before, so nothing from the open one is given
+  away): on the open episode (`GET /api/texts/{id}`) and on the series card (`GET /api/stories/{id}`,
+  not the Stories list). It costs no request to Claude. The series page shows it as the **Story so far**
+  card (`StorySoFar`: the latest three, All episodes for the rest), open by itself after a week away.
+  An episode opened by hand after `WELCOME_BACK_DAYS` (7, `welcomeBack.ts`) days without finishing
+  one opens on the **Welcome back** sheet (`WelcomeBack`: the recaps, who's who, Play episode N or
+  Skip recap) before it plays. Play all and a resumed text skip it. English only: a recap in the
+  story's language for every episode would be a Claude call each. The threshold is not a setting.
 
 ## Topics
 

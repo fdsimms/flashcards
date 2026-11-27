@@ -1298,6 +1298,12 @@ def test_a_story_is_started_and_its_episodes_are_listed_once_read() -> None:
     second = c.get(f"/api/texts/{story['next']['id']}", headers=AUTH).json()
     last_time = second["last_time"]
     assert last_time["recap"] == "Noi opens." and last_time["line"]["english"] == "I eat."
+    # The series' recaps so far, with the days since an episode was last finished (the app opens its
+    # Welcome back recap after a week away), on the episode and on the story's card.
+    so_far = {"recaps": [{"episode": 1, "recap": "Noi opens."}], "away_days": 0, "characters": []}
+    assert second["so_far"] == so_far
+    assert story["so_far"] == so_far
+    assert "so_far" not in full
 
 
 def test_the_shelf_and_stories_answer_writing_when_a_story_has_no_episode_waiting() -> None:
