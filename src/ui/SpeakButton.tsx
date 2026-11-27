@@ -13,23 +13,48 @@ type Spoken = ReturnType<typeof useSpokenAnswer>;
  * the language can't be heard on this iPhone. `label` names it for VoiceOver ("Say it").
  */
 export function SpeakButton({ spoken, label = 'Say it', size = 'large' }: { spoken: Spoken; label?: string; size?: 'hero' | 'large' | 'small' }) {
-  const c = useTheme();
   if (!spoken.available) return null;
   if (size === 'hero') return <HeroSpeak spoken={spoken} label={label} />;
+  return (
+    <MicButton
+      active={spoken.listening}
+      onPress={() => (spoken.listening ? spoken.stop() : void spoken.start())}
+      label={label}
+      activeLabel="Stop listening"
+      size={size}
+    />
+  );
+}
+
+/**
+ * The round microphone beside a card's footer button: gray, and red with a stop icon while it listens
+ * or records. SpeakButton (Answer by speaking) and RecordMicButton (Record yourself) are both this,
+ * so the two look and size alike.
+ */
+export function MicButton({ active, onPress, label, activeLabel, hint, size = 'large' }: {
+  active: boolean;
+  onPress: () => void;
+  label: string;
+  activeLabel: string;
+  hint?: string;
+  size?: 'large' | 'small';
+}) {
+  const c = useTheme();
   const side = size === 'large' ? 52 : MIN_TAP;
   return (
     <Tappable
-      onPress={() => (spoken.listening ? spoken.stop() : void spoken.start())}
+      onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={spoken.listening ? 'Stop listening' : label}
-      accessibilityState={{ busy: spoken.listening }}
+      accessibilityLabel={active ? activeLabel : label}
+      accessibilityHint={active ? undefined : hint}
+      accessibilityState={{ busy: active }}
       scaleTo={0.95}
       style={{
         width: side, height: side, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: spoken.listening ? c.dangerFill : c.fill,
+        backgroundColor: active ? c.dangerFill : c.fill,
       }}
     >
-      <Icon name={spoken.listening ? 'stop.fill' : 'mic.fill'} size={size === 'large' ? 20 : 17} color={spoken.listening ? c.danger : c.text} />
+      <Icon name={active ? 'stop.fill' : 'mic.fill'} size={size === 'large' ? 20 : 17} color={active ? c.danger : c.text} />
     </Tappable>
   );
 }

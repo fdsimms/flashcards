@@ -48,7 +48,7 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
             <SwitchRow
               first
               label="Answer by speaking"
-              hint="A microphone beside Type it, Say it back, Sentences and Situations. What you say is turned into text and compared, like typing."
+              hint="A microphone beside Type it, Say it back, Sentences and Situations. What you say is turned into text and compared, like typing. On a card with a recording, it also keeps your voice to play back next to it."
               value={!!on}
               onValueChange={(v) => void choose(v)}
             />
