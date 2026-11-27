@@ -3167,6 +3167,12 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
+            /**
+             * Genre
+             * @default any
+             * @enum {string}
+             */
+            genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
         };
         /** ReadingIn */
         franki_reader__routes__texts__ReadingIn: {

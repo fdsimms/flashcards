@@ -13,6 +13,7 @@ from franki_reader.generator import (
     Form,
     TextModel,
 )
+from franki_reader.genre import Genre
 from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
 from franki_reader.routes.views import listed_story_json, rendered_text, shelf_json, stories_json
@@ -49,6 +50,8 @@ class WriteIn(BaseModel):
     form: Form = "dialogue"
     # Which model writes it; an app from before the choice leaves it out and gets Sonnet.
     model: TextModel = MODEL
+    # The kind of text (genre.py); an app from before the choice leaves it out and gets "any".
+    genre: Genre = "any"
 
 
 class StoryIn(BaseModel):
@@ -131,7 +134,7 @@ def router(ctx: AppContext) -> APIRouter:
     @routes.post("/api/shelf/write", status_code=202, dependencies=authed)
     async def write(body: WriteIn) -> dict[str, Any]:
         try:
-            topic = engine.write_about(body.name, body.form, body.model)
+            topic = engine.write_about(body.name, body.form, body.model, body.genre)
         except ValueError as e:
             raise HTTPException(422, str(e)) from e
         except NotAvailable as e:

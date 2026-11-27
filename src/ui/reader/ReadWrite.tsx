@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Keyboard, ScrollView, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Language, type TextModel } from '../../reader/api';
+import { GENRES, genreLabel, genreOfLabel, type Genre } from '../../reader/genre';
 import { LANGUAGES } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Tappable } from '../kit';
+import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable } from '../kit';
 import { WorkingMark } from '../WorkingMark';
 import { hairline, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
@@ -29,6 +30,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
   const [kind, setKind] = useState<NewKind | null>(initialKind === 'own' && !language ? null : initialKind ?? null);
   const [about, setAbout] = useState('');
   const [name, setName] = useState('');
+  const [genre, setGenre] = useState<Genre>('any');
   const [model, setModel] = useState<TextModel>('claude-sonnet-5-5');
   // Which way is working: the others are disabled meanwhile, without a spinner of their own.
   const [busy, setBusy] = useState<'write' | 'surprise' | 'series' | null>(null);
@@ -42,7 +44,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
     setBusy('write');
     setError(null);
     try {
-      await api.writeAbout(topic, kind, model);
+      await api.writeAbout(topic, kind, model, genre);
       haptic.tap();
       onDone();
     } catch (e) {
@@ -59,7 +61,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
     try {
       const pick = surprisePick(await api.suggestions(), Math.random);
       if (!pick) throw new ApiError(`There are no topic ideas left. Type a topic below and write a ${kind} on it instead.`, 0);
-      await api.writeAbout(pick, kind, model);
+      await api.writeAbout(pick, kind, model, genre);
       haptic.tap();
       onDone();
     } catch (e) {
@@ -175,9 +177,11 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
         </View>
 
         <Field label="Topic" placeholder="e.g. haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
+        <Select label="Genre" options={GENRES.map((g) => g.label)} value={genreLabel(genre)} onChange={(label) => setGenre(genreOfLabel(label))} />
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}
+        <Help>Genre sets the kind of {kind}. Surprise me follows it too, and it doesn't change which words are used.</Help>
         <Help>Takes about half a minute. It shows under Texts when it's ready.</Help>
       </ScrollView>
     </Screen>

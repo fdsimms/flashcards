@@ -10403,6 +10403,24 @@
             ],
             "title": "Model",
             "default": "claude-sonnet-5-5"
+          },
+          "genre": {
+            "type": "string",
+            "enum": [
+              "any",
+              "everyday",
+              "comedy",
+              "mystery",
+              "romance",
+              "adventure",
+              "scifi",
+              "fantasy",
+              "horror",
+              "drama",
+              "news"
+            ],
+            "title": "Genre",
+            "default": "any"
           }
         },
         "type": "object",

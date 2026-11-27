@@ -1144,6 +1144,17 @@ def write_asked(c: TestClient, name: str = "Haggling", form: str = "story") -> N
     assert answer.status_code == 202 and answer.json() == {"writing": True, "topic": name}
 
 
+def test_the_genre_asked_for_reaches_the_prompt_and_a_bad_one_is_refused() -> None:
+    model = ScriptedModel(IN_RANGE)
+    c = client(model)
+    asked = c.post("/api/shelf/write", json={"name": "Haggling", "genre": "mystery"}, headers=AUTH)
+    assert asked.status_code == 202
+    shelf_settled(c, 1)
+    assert "Genre: write a mystery" in str(model.messages_seen[0])
+    bad = c.post("/api/shelf/write", json={"name": "x", "genre": "nonsense"}, headers=AUTH)
+    assert bad.status_code == 422
+
+
 def test_a_text_is_written_by_the_model_asked_for_and_the_shelf_says_which() -> None:
     model = ScriptedModel(IN_RANGE)
     c = client(model)
