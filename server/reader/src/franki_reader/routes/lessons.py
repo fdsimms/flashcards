@@ -65,7 +65,7 @@ class ReviewIn(BaseModel):
     particle: Literal["khrap", "kha"] | None = None
 
 
-class LinesIn(ReviewIn):
+class LinesDrillIn(ReviewIn):
     # Each line answered by its slow recording (tts.SLOW_RATE), made the first time it's asked for.
     slow: bool = False
 
@@ -309,7 +309,7 @@ def router(ctx: AppContext) -> APIRouter:
         return Response(status_code=204)
 
     @routes.post("/api/lessons/lines", status_code=202, dependencies=authed)
-    async def make_lines_route(body: LinesIn, background: BackgroundTasks) -> dict[str, Any]:
+    async def make_lines_route(body: LinesDrillIn, background: BackgroundTasks) -> dict[str, Any]:
         """Lines from your reading (line_drill.py): lines of texts read lately, asked for in English
         and answered by their own recordings. Made in the background like a review."""
         if engine.synthesize is None:

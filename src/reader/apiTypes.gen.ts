@@ -2367,6 +2367,44 @@ export interface components {
             /** English */
             english: string;
         };
+        /** LinesDrillIn */
+        LinesDrillIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Narrator */
+            narrator?: string | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+            /**
+             * Slow
+             * @default false
+             */
+            slow: boolean;
+        };
+        /** LinesIn */
+        LinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Said */
+            said: string;
+            /** Words */
+            words?: components["schemas"]["PoolIn"][];
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+        };
         /** LinesOut */
         LinesOut: {
             /** Summary */
@@ -3167,44 +3205,6 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
-        };
-        /** LinesIn */
-        franki_reader__routes__cram_say__LinesIn: {
-            /**
-             * Language
-             * @enum {string}
-             */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
-            /**
-             * Topic
-             * @default
-             */
-            topic: string;
-            /** Said */
-            said: string;
-            /** Words */
-            words?: components["schemas"]["PoolIn"][];
-            /** Register */
-            register?: ("casual" | "everyday" | "formal") | null;
-            /** Particle */
-            particle?: ("khrap" | "kha") | null;
-        };
-        /** LinesIn */
-        franki_reader__routes__lessons__LinesIn: {
-            /**
-             * Language
-             * @enum {string}
-             */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
-            /** Narrator */
-            narrator?: string | null;
-            /** Particle */
-            particle?: ("khrap" | "kha") | null;
-            /**
-             * Slow
-             * @default false
-             */
-            slow: boolean;
         };
         /** ReadingIn */
         franki_reader__routes__texts__ReadingIn: {
@@ -5645,7 +5645,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["franki_reader__routes__lessons__LinesIn"];
+                "application/json": components["schemas"]["LinesDrillIn"];
             };
         };
         responses: {
@@ -5852,7 +5852,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["franki_reader__routes__cram_say__LinesIn"];
+                "application/json": components["schemas"]["LinesIn"];
             };
         };
         responses: {
