@@ -12,10 +12,10 @@ import { useNoteQueue } from '../ui/useNoteQueue';
 import { leaveScreen } from '../ui/leaveScreen';
 import { READ_PATH } from '../ui/tabPaths';
 
-/** Suggested words for a language deck running low on new cards, from Today's card or a finished session. */
+/** Suggested words for a language deck running low on new cards, from Today's card or a finished session, or a language's first words (`first`, src/core/fromZero.ts). */
 export default function ReadNewWordsRoute() {
   const router = useRouter();
-  const { deck, language, perDay } = useLocalSearchParams<{ deck: string; language: Language; perDay: string }>();
+  const { deck, language, perDay, first } = useLocalSearchParams<{ deck: string; language: Language; perDay: string; first?: string }>();
   const { reader, repo } = useApp();
   const queue = useNoteQueue(reader.api);
   const held = useHeldWords();
@@ -34,6 +34,7 @@ export default function ReadNewWordsRoute() {
       name={deckShortName(deck)}
       language={language}
       perDay={Number(perDay) || 1}
+      tick={first ? Number(first) || undefined : undefined}
       api={reader.api}
       loadDeck={loadDeck}
       held={heldForDeck}

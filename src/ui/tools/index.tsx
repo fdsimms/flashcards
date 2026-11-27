@@ -15,6 +15,7 @@ import { MoneyTool } from './MoneyTool';
 import { NumbersTool } from './NumbersTool';
 import { ScriptTool } from './ScriptTool';
 import { SentencesTool } from './SentencesTool';
+import { SoundsTool } from './SoundsTool';
 import { SituationsTool } from './SituationsTool';
 import { GrammarTool } from './GrammarTool';
 import { TimeTool } from './TimeTool';
@@ -43,6 +44,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   color: (c: Colors) => string;
 }> = {
   mixups: { Screen: MixupsTool, icon: 'arrow.left.arrow.right', color: (c) => c.indigo },
+  sounds: { Screen: SoundsTool, icon: 'mouth.fill', color: (c) => c.rose },
   hearing: { Screen: HearingTool, icon: 'ear.fill', color: (c) => c.teal },
   contrast: { Screen: ContrastTool, icon: 'text.badge.checkmark', color: (c) => c.teal },
   journal: { Screen: JournalTool, icon: 'square.and.pencil', color: (c) => c.orange },
