@@ -59,6 +59,8 @@ class ReaderClient:
             raise ToolError("Read & Listen refused the passphrase. READER_PASSPHRASE in server/.env must be the one it runs with.")
         if r.status_code == 404 and path.startswith("/api/audit/texts/"):
             raise ToolError("No such text. list_read_and_listen_texts has the ids.")
+        if r.status_code == 404 and path.startswith("/api/journal/"):
+            raise ToolError("No such journal entry (it may have been deleted). list_journal_entries has the ids.")
         if r.status_code == 404:
             raise ToolError("Read & Listen's server is older than this tool. It updates itself within about 15 minutes of a merge.")
         if r.status_code == 422:
@@ -124,3 +126,29 @@ def register(server: MCPServer, client: ReaderClient) -> None:
         choices, the model that wrote it, and every reading (rating, words the reader flagged,
         time). Read-only: nothing here changes a text or the deck."""
         return await get(f"/api/audit/texts/{text_id}")
+
+    @server.tool(annotations=READ)
+    async def list_journal_entries(language: str, days: int = 60) -> dict[str, Any]:
+        """The owner's writing journal in one language ("pl", "th"...): free writing in the
+        language that Claude checked sentence by sentence (the app's Practice tab, Journal).
+        `entries`, newest first, each with `id`, `text` as last written, `prompt` (the idea it was
+        written about, often empty), `created_at`, `sentences` and `fixed` (how many needed a fix).
+        `kinds`: the kinds of mistake the entries' first checks found in the last `days` days (0
+        for all time), most frequent first, each with `name`, `count`, the grammar point's id when
+        it is one (`point`), and its latest example (`was`, `now`, and the sentence as `written`
+        and `corrected`). Use it for "what do I keep getting wrong"; read an entry in full with
+        get_journal_entry. Read-only."""
+        if not 0 <= days <= 3650:
+            raise ToolError("days must be between 0 (all time) and 3650.")
+        home = await get("/api/journal", {"language": language, "days": days})
+        return {"entries": home["entries"], "kinds": home["kinds"]}
+
+    @server.tool(annotations=READ)
+    async def get_journal_entry(entry_id: int) -> dict[str, Any]:
+        """One journal entry in full, as last checked: each sentence as written and corrected,
+        its English, its verdict, and each mistake's words (`was`, `now`), kind (`kind`, `name`;
+        a case ending also has `case` and `governor`, the word deciding the case), reason
+        (`note`) and hint; `filled`, the words the owner wrote in English in [brackets] and
+        Claude put in; `tries`, how many times it was checked. A suggestion to add a word to the
+        deck still goes through add_notes, and only with the user's agreement. Read-only."""
+        return await get(f"/api/journal/{entry_id}")

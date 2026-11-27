@@ -70,3 +70,25 @@ async def test_lists_and_reads_past_texts_through_the_audit_endpoints():
         assert "between 1 and 200" in await call_error(c, "list_read_and_listen_texts", limit=0)
     assert str(seen[0].url) == "http://reader:8080/api/audit/texts?language=de&days=7&limit=50"
     assert seen[0].headers["Authorization"] == "Bearer open sesame"
+
+
+async def test_reads_the_journal_and_one_entry():
+    seen: list[httpx.Request] = []
+    home = {"entries": [{"id": 3}], "kinds": [{"group": "pl.past", "count": 2}], "idea": {"prompt": "x", "words": []}, "checks": True}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/api/journal/3":
+            return httpx.Response(200, json={"id": 3, "check": {"sentences": []}})
+        if request.url.path == "/api/journal/4":
+            return httpx.Response(404)
+        return httpx.Response(200, json=home)
+
+    async with Client(server(handler)) as c:
+        got = await call(c, "list_journal_entries", language="pl", days=0)
+        assert got == {"entries": [{"id": 3}], "kinds": [{"group": "pl.past", "count": 2}]}
+        assert await call(c, "get_journal_entry", entry_id=3) == {"id": 3, "check": {"sentences": []}}
+        assert "list_journal_entries" in await call_error(c, "get_journal_entry", entry_id=4)
+        assert "between 0" in await call_error(c, "list_journal_entries", language="pl", days=-1)
+    assert str(seen[0].url) == "http://reader:8080/api/journal?language=pl&days=0"
+    assert seen[0].headers["Authorization"] == "Bearer open sesame"

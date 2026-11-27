@@ -407,6 +407,9 @@ a paragraph or more on anything, kept over time.
   held on the phone (`held-journal.json`) and sent by HeldWork; its `key` makes one sent twice checked
   once. One the server refuses waits in the tool until tapped, since checking it again costs a call.
   What's being typed is kept as a draft, one a language. The tool's last copy shows offline.
+- **The MCP reads it** (`list_journal_entries`, `get_journal_entry` in server/mcp's `reader.py`, through
+  the API like the other Read & Listen tools), so Claude in chat can say what keeps going wrong or
+  suggest cards from it. Read-only: a card still goes through `add_notes` with the owner's agreement.
 - **[brackets]**: an English word the owner didn't know comes back filled in (`filled`, kept only for
   a bracket the entry has), with Add to deck, which goes through the note queue as Situations' words do.
 - **The day's idea** is one of `journal.IDEAS`, the same all study day, with up to three of the words
