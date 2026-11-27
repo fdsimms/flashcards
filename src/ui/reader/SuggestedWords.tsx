@@ -19,13 +19,15 @@ import { readable, space, type, useTheme } from '../theme';
  * the note queue, as Quick add's do, where Claude fills each one in; nothing reaches the deck until a
  * note is saved in the note editor. The x is Not interested: the server won't suggest the word again.
  */
-export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, held, onAdd, onDone }: {
+export function SuggestedWords({ deck, name, language, perDay, tick, api, loadDeck, held, onAdd, onDone }: {
   deck: string;
   /** The deck's own name, as the screen says it. */
   name: string;
   language: Language;
   /** The deck's own daily new card limit, for how many words start ticked. */
   perDay: number;
+  /** How many start ticked, in place of what `perDay` gives: a language started from zero ticks its first words (src/core/fromZero.ts). */
+  tick?: number;
   api: Api;
   /** The deck's entries as the phone has them now, and its cards per note. */
   loadDeck: () => Promise<{ entries: Set<string>; perNote: number }>;
@@ -60,8 +62,8 @@ export function SuggestedWords({ deck, name, language, perDay, api, loadDeck, he
   );
   // Ticked once, when the list first arrives; after that only the owner's taps change it.
   useEffect(() => {
-    if (found && ticked === null) setTicked(firstTicked(sections, wordsToTick(perDay, found.perNote)));
-  }, [found, sections, ticked, perDay]);
+    if (found && ticked === null) setTicked(firstTicked(sections, tick ?? wordsToTick(perDay, found.perNote)));
+  }, [found, sections, ticked, perDay, tick]);
   const picked = ticked ?? new Set<string>();
   const count = sections.reduce((n, s) => n + s.words.filter((w) => picked.has(w.word)).length, 0);
 

@@ -415,6 +415,37 @@ a paragraph or more on anything, kept over time.
 - **The day's idea** is one of `journal.IDEAS`, the same all study day, with up to three of the words
   being learned (`pick_stretch`, never one waiting for its review). Writing about it is optional.
 
+## From zero
+
+Decided 27 November 2026, the owner choosing from a mock (the from-scratch part of #299, for the languages
+Franki has; `src/core/fromZero.ts`, `src/ui/fromZeroActions.ts`, `FromZeroCards.tsx`, `ReadFromZero.tsx`,
+`SoundGuideScreen.tsx`). A deck in a language Read & Listen has, started empty, can be started from zero.
+No server change: it connects what was there.
+
+- **Start from zero** is the empty deck's first choice (`EmptyDeckCard`). It makes the deck Read & Listen's
+  deck for the language (asking first when another deck was), sets the language's common-words setting
+  to 0 and keeps the old value, and gives the deck 10 new cards a day where Franki sets its limit
+  (`setFromZeroNewPerDay`: not under a goal or a gate). The path is the phone's own (Keychain).
+- **The first words** are Suggested words opened with the first 50 ticked. With the setting at 0 they
+  start at word 1 (`from_common` starts past it), so the most common words come first. They go through
+  Words to add and Approve all as any suggested word does. Approve all saves in queue order, and a
+  note's id is when it was added, so the deck's words, and its new cards, come in frequency order with
+  no change to the queue. Running low later brings Today's suggested words as for any deck.
+- **How it sounds** is hand-written per language (`src/tools/soundGuides.ts`, checked by
+  `tests/tools/soundGuides.test.ts`): the letters and sounds that aren't read the way English reads
+  them, each with a word the phone's voice reads. A language with Reading the script, Hearing sounds or
+  Writing by hand links to them. Written once rather than asked of Claude, so it's the same each time
+  and costs nothing. It's also the Practice tab's How it sounds, for any language with a guide (the
+  owner's choice, 27 November 2026).
+- **Lessons before texts.** A text needs most of its words known, and one written from too few comes
+  out as unrelated nouns, so until `TEXTS_AT` (150) words are studied the shelf says when texts start
+  (`ReadFromZero`) and the path offers lessons (`makeLesson` with given phrases): the deck's next 15
+  words not taught yet, in order, each lesson in the next everyday scene (`LESSON_SCENES`).
+- **The path ends when texts can start**, hidden or not: the common-words setting goes back as it was,
+  and Today's card and the shelf's note go.
+- Nothing grades a card: words reach the deck only through Words to add's approval, and the path only
+  reads the cards to count what's studied.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
