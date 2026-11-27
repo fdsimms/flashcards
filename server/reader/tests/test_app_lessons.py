@@ -137,6 +137,7 @@ def test_lists_the_languages_a_lesson_can_be_made_in(tmp_path: Path) -> None:
         "languages": ["fr", "th", "es", "de", "ru", "el", "pl", "nb", "ja"],
         "lessons": [],
         "review": None,
+        "lines": None,
     }
 
 

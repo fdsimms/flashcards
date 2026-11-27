@@ -4034,6 +4034,65 @@
         }
       }
     },
+    "/api/lessons/lines": {
+      "post": {
+        "summary": "Make Lines Route",
+        "description": "Lines from your reading (line_drill.py): lines of texts read lately, asked for in English\nand answered by their own recordings. Made in the background like a review.",
+        "operationId": "make_lines_route_api_lessons_lines_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/franki_reader__routes__lessons__LinesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Make Lines Route Api Lessons Lines Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/review": {
       "post": {
         "summary": "Make Review Route",
@@ -4341,7 +4400,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LinesIn"
+                "$ref": "#/components/schemas/franki_reader__routes__cram_say__LinesIn"
               }
             }
           }
@@ -7820,84 +7879,6 @@
         ],
         "title": "LineOut"
       },
-      "LinesIn": {
-        "properties": {
-          "language": {
-            "type": "string",
-            "enum": [
-              "th",
-              "es",
-              "de",
-              "fr",
-              "ru",
-              "el",
-              "pl",
-              "nb",
-              "ja",
-              "en",
-              "tok"
-            ],
-            "title": "Language"
-          },
-          "topic": {
-            "type": "string",
-            "maxLength": 120,
-            "title": "Topic",
-            "default": ""
-          },
-          "said": {
-            "type": "string",
-            "maxLength": 3000,
-            "minLength": 1,
-            "title": "Said"
-          },
-          "words": {
-            "items": {
-              "$ref": "#/components/schemas/PoolIn"
-            },
-            "type": "array",
-            "maxItems": 60,
-            "title": "Words"
-          },
-          "register": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "casual",
-                  "everyday",
-                  "formal"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Register"
-          },
-          "particle": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "khrap",
-                  "kha"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Particle"
-          }
-        },
-        "type": "object",
-        "required": [
-          "language",
-          "said"
-        ],
-        "title": "LinesIn"
-      },
       "LinesOut": {
         "properties": {
           "summary": {
@@ -10410,6 +10391,142 @@
           "name"
         ],
         "title": "WriteIn"
+      },
+      "franki_reader__routes__cram_say__LinesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "topic": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Topic",
+            "default": ""
+          },
+          "said": {
+            "type": "string",
+            "maxLength": 3000,
+            "minLength": 1,
+            "title": "Said"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/PoolIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "title": "Words"
+          },
+          "register": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "casual",
+                  "everyday",
+                  "formal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Register"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "said"
+        ],
+        "title": "LinesIn"
+      },
+      "franki_reader__routes__lessons__LinesIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "narrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrator"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          },
+          "slow": {
+            "type": "boolean",
+            "title": "Slow",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "LinesIn"
       },
       "franki_reader__routes__texts__ReadingIn": {
         "properties": {

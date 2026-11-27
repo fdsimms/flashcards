@@ -101,6 +101,9 @@ class Say:
     # Spoken at `TEACH_RATE`. Part of the clip's identity, so a phrase heard slowly while taught and
     # at normal speed when asked for is two recordings.
     slow: bool = False
+    # An existing recording to play rather than speak: a text's line, in the voice it was read in
+    # (Lines from your reading, `build_lines`). Not a new recording, so Azure bills nothing for it.
+    recording: str = ""
 
 
 @dataclass(frozen=True)
@@ -593,8 +596,8 @@ def duration_ms(steps: list[Step], lengths: dict[Say, int]) -> int:
 
 
 def characters(steps: list[Step]) -> int:
-    """Characters Azure bills for, counting each distinct clip once."""
-    return sum(len(c.text) for c in clips(steps))
+    """Characters Azure bills for, counting each distinct clip once; an existing recording is free."""
+    return sum(len(c.text) for c in clips(steps) if not c.recording)
 
 
 def describe(plan: Plan) -> dict[str, Any]:
@@ -724,4 +727,40 @@ def build_review(plan: Plan, learner: Learner = "male") -> list[Step]:
         for phrase in reversed(plan.phrases):
             steps += _ask(phrase, learner)
     steps.append(Say("narrator", "That's the end of the review."))
+    return steps
+
+
+# Lines from your reading (line_drill.py): lines of texts already read, asked for in English and
+# answered in the voice they were read in. Built like a review, with no Claude call.
+LINES_TITLE = "Lines from your reading"
+
+
+def lines_plan(phrases: tuple[Phrase, ...], slow: bool = False) -> Plan:
+    n = len(phrases)
+    said = f"{n} {'line' if n == 1 else 'lines'} from texts you've read"
+    return Plan(LINES_TITLE, f"{said}, slowly" if slow else said, (), phrases)
+
+
+def _ask_line(phrase: Phrase, recording: str, learner: Learner) -> list[Step]:
+    """`_ask` with the line's own recording as the answer, rather than a new one."""
+    return [
+        Say("narrator", f"How do you say: {phrase.english}"),
+        answer(phrase.text),
+        Say(learner, phrase.text, recording=recording),
+        Silence(AFTER_NATIVE_MS),
+    ]
+
+
+def build_lines(plan: Plan, recordings: tuple[str, ...], learner: Learner = "male") -> list[Step]:
+    """Each line asked for in English and answered with its recording (`recordings`, one for each of
+    the plan's phrases, in order), then all of them once more in the other order, as a review is."""
+    asked = list(zip(plan.phrases, recordings, strict=True))
+    steps: list[Step] = [Say("narrator", "Lines from texts you've read."), Silence(BEAT_MS)]
+    for phrase, recording in asked:
+        steps += _ask_line(phrase, recording, learner)
+    if len(asked) > 1:
+        steps += [Say("narrator", "Once more, in a different order."), Silence(BEAT_MS)]
+        for phrase, recording in reversed(asked):
+            steps += _ask_line(phrase, recording, learner)
+    steps.append(Say("narrator", "That's the end of the drill."))
     return steps

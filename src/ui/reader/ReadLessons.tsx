@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Alert, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
-import { ApiError, type Api, type AudioLesson, type Language, type LessonReview } from '../../reader/api';
+import { ApiError, type Api, type AudioLesson, type Language, type LessonReview, type LinesDrillOffer } from '../../reader/api';
+import { LinesDrillCard } from './LinesDrillCard';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
@@ -42,6 +43,8 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   const [askError, setAskError] = useState<string | null>(null);
   // The review on offer, and asking for it.
   const [review, setReview] = useState<LessonReview | null>(null);
+  // Lines from your reading on offer (LinesDrillCard).
+  const [lines, setLines] = useState<LinesDrillOffer | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   // The row slid open on its Delete action; one at a time.
@@ -65,6 +68,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
       if (languageNow.current !== language) return;
       setLessons(listed.lessons);
       setReview(listed.review ?? null);
+      setLines(listed.lines ?? null);
       setError(null);
     } catch (e) {
       if (languageNow.current !== language) return;
@@ -149,6 +153,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {review ? <LessonReviewCard review={review} onMake={makeReview} busy={reviewing} error={reviewError} /> : null}
+        {lines ? <LinesDrillCard api={api} language={language} offer={lines} narrator={narrator || undefined} particle={language === 'th' ? particle : undefined} onMade={load} /> : null}
         <Card>
           <Field
             label="New lesson"

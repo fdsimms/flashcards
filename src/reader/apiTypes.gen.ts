@@ -1126,6 +1126,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Lines Route
+         * @description Lines from your reading (line_drill.py): lines of texts read lately, asked for in English
+         *     and answered by their own recordings. Made in the background like a review.
+         */
+        post: operations["make_lines_route_api_lessons_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/review": {
         parameters: {
             query?: never;
@@ -2346,27 +2367,6 @@ export interface components {
             /** English */
             english: string;
         };
-        /** LinesIn */
-        LinesIn: {
-            /**
-             * Language
-             * @enum {string}
-             */
-            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
-            /**
-             * Topic
-             * @default
-             */
-            topic: string;
-            /** Said */
-            said: string;
-            /** Words */
-            words?: components["schemas"]["PoolIn"][];
-            /** Register */
-            register?: ("casual" | "everyday" | "formal") | null;
-            /** Particle */
-            particle?: ("khrap" | "kha") | null;
-        };
         /** LinesOut */
         LinesOut: {
             /** Summary */
@@ -3167,6 +3167,44 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
+        };
+        /** LinesIn */
+        franki_reader__routes__cram_say__LinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /**
+             * Topic
+             * @default
+             */
+            topic: string;
+            /** Said */
+            said: string;
+            /** Words */
+            words?: components["schemas"]["PoolIn"][];
+            /** Register */
+            register?: ("casual" | "everyday" | "formal") | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+        };
+        /** LinesIn */
+        franki_reader__routes__lessons__LinesIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Narrator */
+            narrator?: string | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+            /**
+             * Slow
+             * @default false
+             */
+            slow: boolean;
         };
         /** ReadingIn */
         franki_reader__routes__texts__ReadingIn: {
@@ -5596,6 +5634,43 @@ export interface operations {
             };
         };
     };
+    make_lines_route_api_lessons_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["franki_reader__routes__lessons__LinesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     make_review_route_api_lessons_review_post: {
         parameters: {
             query?: never;
@@ -5777,7 +5852,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LinesIn"];
+                "application/json": components["schemas"]["franki_reader__routes__cram_say__LinesIn"];
             };
         };
         responses: {

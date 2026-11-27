@@ -14,6 +14,7 @@ from franki_reader import (
     lesson_topics,
     lesson_words,
     lesson_writer,
+    line_drill,
     store,
 )
 from franki_reader.languages import (
@@ -62,6 +63,11 @@ class ReviewIn(BaseModel):
     language: Code
     narrator: str | None = Field(default=None, max_length=100)
     particle: Literal["khrap", "kha"] | None = None
+
+
+class LinesIn(ReviewIn):
+    # Each line answered by its slow recording (tts.SLOW_RATE), made the first time it's asked for.
+    slow: bool = False
 
 
 class TopicsIn(BaseModel):
@@ -265,6 +271,10 @@ def router(ctx: AppContext) -> APIRouter:
             "languages": list(lesson_service.LESSON_LANGUAGES),
             "lessons": [lesson_out(row) for row in rows],
             "review": review_out(language) if language else None,
+            # Lines from your reading on offer (line_drill.py), or None with too few lines read.
+            "lines": line_drill.offer(line_drill.lines_for(engine.conn, language, engine.clock()))
+            if language
+            else None,
         }
 
     def review_out(language: Code) -> dict[str, Any] | None:
@@ -297,6 +307,77 @@ def router(ctx: AppContext) -> APIRouter:
         if not store.mark_lesson_heard(engine.conn, lesson_id, engine.clock()):
             raise HTTPException(404, "No such lesson.")
         return Response(status_code=204)
+
+    @routes.post("/api/lessons/lines", status_code=202, dependencies=authed)
+    async def make_lines_route(body: LinesIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Lines from your reading (line_drill.py): lines of texts read lately, asked for in English
+        and answered by their own recordings. Made in the background like a review."""
+        if engine.synthesize is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't speak a lesson"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        if lessons_dir is None:
+            raise HTTPException(503, "The server has no folder to keep lessons in.")
+        narrator = (body.narrator or "").strip() or None
+        if narrator is not None and not lesson_service.is_narrator_voice(narrator):
+            raise HTTPException(
+                422, "The narrator has to be an English voice, such as en-US-GuyNeural."
+            )
+        picked = line_drill.lines_for(engine.conn, body.language, engine.clock())
+        if len(picked) < line_drill.MIN_LINES:
+            raise HTTPException(
+                409,
+                f"A drill needs at least {line_drill.MIN_LINES} lines from texts read to the end in the"
+                f" last {line_drill.MAX_AGE_DAYS} days. Read a text or two, then ask again.",
+            )
+        if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
+            raise HTTPException(
+                409, "Two lessons are already being made. Wait for one to finish, then ask again."
+            )
+        lesson_id = store.add_lesson(engine.conn, body.language, lesson.LINES_TITLE, engine.clock())
+        synthesize = engine.synthesize
+        dir_ = lessons_dir
+
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
+
+        async def make() -> None:
+            # Each line's recording, made now if the text's was never kept; a line without one is
+            # left out rather than spoken in another voice.
+            phrases: list[lesson.Phrase] = []
+            recordings: list[str] = []
+            for d in picked:
+                text = store.get_text(engine.conn, d.text_id)
+                path = await engine.line_audio(text, d.line, slow=body.slow) if text else None
+                if path is not None:
+                    phrases.append(lesson.Phrase(d.text, d.english, (d.text,)))
+                    recordings.append(str(path))
+            if len(phrases) < line_drill.MIN_LINES:
+                store.fail_lesson(
+                    engine.conn,
+                    lesson_id,
+                    "Couldn't get the recordings of enough lines. Try again in a minute.",
+                )
+                return
+            await lesson_service.make_lines(
+                engine.conn,
+                lesson_id,
+                body.language,
+                tuple(phrases),
+                tuple(recordings),
+                slow=body.slow,
+                synthesize=speak_bytes,
+                voices=engine.voices_for,
+                lessons_dir=dir_,
+                now=engine.clock,
+                narrator=narrator,
+                learner="female" if body.language == "th" and body.particle == "kha" else "male",
+            )
+
+        background.add_task(make)
+        return {"id": lesson_id}
 
     @routes.post("/api/lessons/review", status_code=202, dependencies=authed)
     async def make_review_route(body: ReviewIn, background: BackgroundTasks) -> dict[str, Any]:

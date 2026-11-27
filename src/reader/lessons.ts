@@ -2,7 +2,7 @@
 // its player say about a lesson, and the arithmetic of the player's skip buttons. A lesson is made
 // by the server in the background and played as one MP3; nothing here grades a card or writes a
 // note. Pure, so it's tested.
-import type { AudioLesson, Language, LessonReview, LessonStage } from './api';
+import type { LinesDrillOffer, AudioLesson, Language, LessonReview, LessonStage } from './api';
 import { stepsAt, type StageStep } from './making';
 
 /** The languages the server makes lessons in (server lesson_service.LESSON_LANGUAGES): the shelf offers lessons only in these. */
@@ -100,4 +100,10 @@ export function reviewDetail(review: LessonReview): string {
   const n = review.phrases;
   const from = review.lessons.length;
   return `${n} ${n === 1 ? 'phrase' : 'phrases'} from ${from === 1 ? 'an earlier lesson' : `${from} earlier lessons`}: the ones you asked to hear again or answered slowly.`;
+}
+
+/** The line on Lines from your reading's card: what it asks, and from where. */
+export function linesDetail(offer: LinesDrillOffer): string {
+  const n = offer.lines;
+  return `Say ${n} ${n === 1 ? 'line' : 'lines'} from texts you've read this month, then hear each one as you read it.`;
 }

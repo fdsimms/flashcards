@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { AudioLesson } from '../../src/reader/api';
-import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, parseNarrator, parseParticle, progressOf, reviewDetail, reviewMinutes, scrubTo, skipTo, stageSteps } from '../../src/reader/lessons';
+import { anyMaking, atEnd, clock, lessonDetail, lessonsOffered, linesDetail, parseNarrator, parseParticle, progressOf, reviewDetail, reviewMinutes, scrubTo, skipTo, stageSteps } from '../../src/reader/lessons';
 
 const lesson = (over: Partial<AudioLesson> = {}): AudioLesson => ({
   id: 1, language: 'fr', scene: 'a café', title: 'At the café', state: 'ready', error: '',
@@ -155,5 +155,12 @@ describe('scrubTo', () => {
   it('is 0 before the line has a width or the lesson a length', () => {
     expect(scrubTo(50, 0, 120)).toBe(0);
     expect(scrubTo(50, 200, 0)).toBe(0);
+  });
+});
+
+describe('Lines from your reading', () => {
+  it('says what the drill asks and from where', () => {
+    expect(linesDetail({ lines: 20, minutes: 8, texts: [] })).toBe("Say 20 lines from texts you've read this month, then hear each one as you read it.");
+    expect(linesDetail({ lines: 1, minutes: 1, texts: [] })).toMatch(/^Say 1 line /);
   });
 });
