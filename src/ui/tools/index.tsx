@@ -18,6 +18,7 @@ import { SentencesTool } from './SentencesTool';
 import { SituationsTool } from './SituationsTool';
 import { GrammarTool } from './GrammarTool';
 import { TimeTool } from './TimeTool';
+import { WritingTool } from './WritingTool';
 
 /** What every tool's screen is given. */
 export interface ToolScreenProps {
@@ -53,6 +54,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   numbers: { Screen: NumbersTool, icon: 'number', color: (c) => c.orange },
   counting: { Screen: CountingTool, icon: 'square.stack.3d.up.fill', color: (c) => c.teal },
   script: { Screen: ScriptTool, icon: 'character.book.closed.fill', color: (c) => c.rose },
+  writing: { Screen: WritingTool, icon: 'pencil.and.scribble', color: (c) => c.orange },
   grammar: { Screen: GrammarTool, icon: 'text.book.closed.fill', color: (c) => c.violet },
   cases: { Screen: CasesTool, icon: 'arrow.right.square.fill', color: (c) => c.indigo },
 };

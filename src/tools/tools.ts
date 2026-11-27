@@ -58,6 +58,11 @@ import type { CurrencyCode, MoneySaying } from './money';
 import type { ScriptLanguage } from './script';
 import type { NumberQuestion, NumberSaying } from './number';
 import type { ClockTime, TimeSaying } from './time';
+import type { WritingLanguage } from './writing';
+import { GREEK_WRITING } from './greek/writing';
+import { JAPANESE_WRITING } from './japanese/writing';
+import { RUSSIAN_WRITING } from './russian/writing';
+import { THAI_WRITING } from './thai/writing';
 
 /**
  * Practice tools: small drills outside the decks, listed on the Practice tab, each a screen of its
@@ -71,7 +76,7 @@ import type { ClockTime, TimeSaying } from './time';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'journal' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'grammar' | 'cases';
+export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'journal' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'writing' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -157,6 +162,17 @@ export const SCRIPTS: Partial<Record<Language, ScriptLanguage>> = {
   el: GREEK_SCRIPT,
   ja: JAPANESE_SCRIPT,
   ru: RUSSIAN_SCRIPT,
+};
+
+/**
+ * Each language Writing by hand can be written in: the ones with a script of their own to learn.
+ * Japanese's kanji come from WaniKani once its token is entered (src/wanikani/writingKanji.ts).
+ */
+export const WRITING: Partial<Record<Language, WritingLanguage>> = {
+  th: THAI_WRITING,
+  el: GREEK_WRITING,
+  ja: JAPANESE_WRITING,
+  ru: RUSSIAN_WRITING,
 };
 
 /** The money each language is practiced with: Mexican pesos for Spanish, as its voice is Mexican. */
@@ -253,6 +269,13 @@ export const TOOLS: ToolInfo[] = [
     title: 'Reading the script',
     summary: 'Read a syllable, word or letter, then hear it.',
     languages: withSayer(SCRIPTS),
+  },
+  {
+    // A letter, a word or a kanji written with a finger, then compared with the real one (writing.ts, ink.ts).
+    id: 'writing',
+    title: 'Writing by hand',
+    summary: 'Write a letter or word with your finger, then compare.',
+    languages: withSayer(WRITING),
   },
   {
     // The grammar points in a language: read about one, and practice it (docs/grammar.md, steps 4 and 5).

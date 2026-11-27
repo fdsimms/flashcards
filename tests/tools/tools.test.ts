@@ -64,6 +64,10 @@ describe('the Practice tools', () => {
     expect(toolById('script')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ja', 'ru'].includes(l)));
   });
 
+  it('offers Writing by hand in the languages with a script of their own, in the app order', () => {
+    expect(toolById('writing')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['th', 'el', 'ja', 'ru'].includes(l)));
+  });
+
   it('offers Which case in the languages with cases, in the app order', () => {
     expect(toolById('cases')!.languages).toEqual(TOOL_LANGUAGES.filter((l) => ['pl', 'ru', 'de', 'el'].includes(l)));
   });

@@ -36,11 +36,17 @@ describe('planExtras', () => {
     expect(plan.extras[0]).toEqual({ language: 'th', kind: 'script', why: 'focus' });
   });
 
+  it('offers Writing by hand once it is the drill missed most', () => {
+    const marks = recordMark({}, 'writing:th', ['letter:ข'], false, NOW.getTime());
+    const plan = planExtras(input({ prefs: { modes: { th: 'always' } }, marks }));
+    expect(plan.extras[0]).toEqual({ language: 'th', kind: 'writing', why: 'focus' });
+  });
+
   it('never offers a drill the language has no version of', () => {
-    // Counting things has no Spanish version, Reading the script has none either.
+    // Counting things has no Spanish version; Reading the script and Writing by hand have none either.
     for (let day = 0; day < 20; day++) {
       const plan = planExtras(input({ prefs: { modes: { es: 'always' } }, now: new Date(2026, 10, 1 + day, 12) }));
-      for (const e of plan.extras.filter((x) => x.language === 'es')) expect(['counting', 'script']).not.toContain(e.kind);
+      for (const e of plan.extras.filter((x) => x.language === 'es')) expect(['counting', 'script', 'writing']).not.toContain(e.kind);
     }
   });
 
@@ -192,6 +198,6 @@ describe('parsing', () => {
 
 describe('extraDrillNames', () => {
   it('names every drill an extra may be, as the Practice tab does', () => {
-    expect(extraDrillNames()).toBe('Counting things, Reading the script, Hearing sounds and Which case');
+    expect(extraDrillNames()).toBe('Counting things, reading the script, hearing sounds, writing by hand and which case');
   });
 });
