@@ -3,14 +3,15 @@ import React, { useState } from 'react';
 import { Keyboard, ScrollView, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Language, type TextModel } from '../../reader/api';
-import { GENRES, genreLabel, genreOfLabel, type Genre } from '../../reader/genre';
+import type { Genre } from '../../reader/genre';
 import { LANGUAGES } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable } from '../kit';
+import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Tappable } from '../kit';
 import { WorkingMark } from '../WorkingMark';
 import { hairline, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
+import { GenrePick } from './GenrePick';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { ReadOwnText } from './ReadOwnText';
 import type { SharedItem } from '../../core/shareInbox';
@@ -76,7 +77,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
     setBusy('series');
     setError(null);
     try {
-      await api.startStory(about.trim());
+      await api.startStory(about.trim(), genre);
       haptic.tap();
       onDone();
     } catch (e) {
@@ -126,7 +127,8 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
         >
           <Help>A story told in episodes, with the same people and places, written from the words in your deck. Each new episode is written after you read the last one. Your pinned series stays pinned.</Help>
           <Field label="What should it be about?" placeholder="e.g. a small café on a rainy day" value={about} onChangeText={setAbout} maxLength={MAX_STORY_ABOUT_CHARS} returnKeyType="done" onSubmitEditing={startSeries} />
-          <Help>Leave it empty and Claude picks what the series is about.</Help>
+          <GenrePick genre={genre} onChange={setGenre} />
+          <Help>Leave the topic empty and Claude picks what the series is about. The genre is kept for every episode and doesn't change which words are used.</Help>
           {error ? <ErrorNote message={error} /> : null}
         </ScrollView>
       </Screen>
@@ -177,7 +179,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
         </View>
 
         <Field label="Topic" placeholder="e.g. haggling at a market" value={name} onChangeText={setName} maxLength={MAX_TOPIC_CHARS} returnKeyType="done" onSubmitEditing={write} />
-        <Select label="Genre" options={GENRES.map((g) => g.label)} value={genreLabel(genre)} onChange={(label) => setGenre(genreOfLabel(label))} />
+        <GenrePick genre={genre} onChange={setGenre} />
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Written by</Text>
         <Segments<TextModel> options={[{ value: 'claude-sonnet-5-5', label: 'Sonnet' }, { value: 'claude-haiku-5-5', label: 'Haiku' }]} value={model} onChange={setModel} />
         {error ? <ErrorNote message={error} /> : null}

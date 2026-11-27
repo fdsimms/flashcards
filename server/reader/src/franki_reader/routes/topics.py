@@ -57,6 +57,8 @@ class WriteIn(BaseModel):
 class StoryIn(BaseModel):
     # What the story is about; empty lets the model choose.
     about: str = Field(default="", max_length=200)
+    # The kind of story (genre.py), kept for every episode; an older app leaves it out.
+    genre: Genre = "any"
 
 
 class NextIn(BaseModel):
@@ -144,7 +146,7 @@ def router(ctx: AppContext) -> APIRouter:
     @routes.post("/api/story", status_code=202, dependencies=authed)
     async def start_story(body: StoryIn) -> dict[str, Any]:
         try:
-            story = engine.start_story(body.about)
+            story = engine.start_story(body.about, body.genre)
         except NotAvailable as e:
             raise HTTPException(503, str(e)) from e
         return {"writing": True, "id": story.id}

@@ -459,7 +459,7 @@ class Engine:
                 any_words=job.any_words,
                 story=context,
                 about=job.about,
-                genre=job.genre,
+                genre=story.genre if story else job.genre,
             )
             # Words due today and not reviewed yet are left out of the list and counted as unknown,
             # so the text doesn't show them before their review (`writing_lexicon`).
@@ -1347,12 +1347,12 @@ class Engine:
             self._jobs.pop(job.key, None)
             self._stages.pop(job.key, None)
 
-    def start_story(self, about: str) -> Story:
+    def start_story(self, about: str, genre: Genre = "any") -> Story:
         """Starts a new story in the current language, beside any already running, and writes its
         first episode in the background."""
         language = self.language()
         self._check_setup(language)
-        story = store.start_story(self.conn, language, about, self.clock())
+        story = store.start_story(self.conn, language, about, self.clock(), genre)
         self._start(Job(story.topic_id, language, reason="story", story_id=story.id))
         return story
 

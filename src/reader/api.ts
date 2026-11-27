@@ -841,7 +841,7 @@ export function createApi(
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
     writeAbout: (name: string, form: Form, model?: TextModel, genre: Genre = 'any') => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}), ...genreChoice(genre) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
-    startStory: (about: string) => call<void>('POST', '/api/story', { about }),
+    startStory: (about: string, genre: Genre = 'any') => call<void>('POST', '/api/story', { about, ...genreChoice(genre) }),
     // A pasted text: what adding it would give (its coverage, new words, parts and cost), then adding it.
     ownTextPreview: (language: Language, text: string, title: string) =>
       call<OwnTextPreview>('POST', '/api/own-texts/preview', { language, text, title }),

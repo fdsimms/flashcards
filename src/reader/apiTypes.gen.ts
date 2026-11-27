@@ -2890,6 +2890,12 @@ export interface components {
              * @default
              */
             about: string;
+            /**
+             * Genre
+             * @default any
+             * @enum {string}
+             */
+            genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
         };
         /** SuggestedWordOut */
         SuggestedWordOut: {

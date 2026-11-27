@@ -1317,6 +1317,23 @@ def test_the_shelf_and_stories_answer_writing_when_a_story_has_no_episode_waitin
     assert [(s["id"], s["writing"]) for s in listed] == [(story.id, False)]
 
 
+def test_a_series_keeps_the_genre_it_was_started_with_for_its_episodes() -> None:
+    model = ScriptedModel(
+        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "Noi opens.", "choices": []}
+    )
+    c = client(model)
+    started = c.post("/api/story", json={"about": "", "genre": "horror"}, headers=AUTH)
+    assert started.status_code == 202
+    deadline = time.time() + 10
+    while c.get("/api/shelf", headers=AUTH).json()["story"]["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    assert "Genre: write a mild horror story" in str(model.messages_seen[0])
+    plain = c.post("/api/story", json={"about": "a noodle stall"}, headers=AUTH)
+    assert plain.status_code == 202
+    assert c.post("/api/story", json={"genre": "nonsense"}, headers=AUTH).status_code == 422
+
+
 def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is_read() -> None:
     choices = [
         {"text": "ฉัน|กิน", "english": "I eat."},
