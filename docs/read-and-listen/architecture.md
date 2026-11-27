@@ -2345,6 +2345,26 @@ learner's own Claude plan instead of the server's key; it works without Read & L
 `q` on a plain new chat is documented for desktop only, so on iOS it may open claude.ai in the
 browser. The cost is in `call_costs` (feature `ask_card`), not yet in `/api/costs`.
 
+## Look it up
+
+Decided 27 November 2026, the owner, from a mock (#258; `src/reader/lookUp.ts`, `src/ui/LookUp.tsx`,
+`src/ui/PageLookUp.tsx`, `src/ui/lookUpCache.ts`). Two ways to find what a word means without making a
+card, both through what card sentences already use, so the server gained nothing:
+
+- **On an Anki-template card** (`CardWebView`'s `onLookUp`): a word touched and held on the question
+  side (a tap there still turns the card), or tapped on the answer side, is cut from the page under
+  the finger (`Intl.Segmenter`, which splits Thai and Japanese too) with the text of its block, and that
+  text is glossed (`/api/glosses`) so the word has the sense it has there. The popover is card
+  sentences' (`GlossPopover`): meaning, dictionary form, Hear it, Add to deck. Only a card in a deck
+  whose language Read & Listen has (`cardLanguage`), while it's on; Omnilanguage cards keep their own.
+- **Look up** (Today's magnifier, Decks' menu, and the share sheet's Look it up for a few words): the
+  typed text glossed the same way, each word with its dictionary form ("A form of pieszy"), meaning
+  (`/api/word-meaning` for one nothing has), where it stands in the deck, a line from the reading that
+  uses it (`/api/reading-lines`), Hear it and Add to deck. The name of a form ("genitive plural") isn't
+  shown: nothing the server has says it for any word.
+- **It rides Read & Listen's switch**, reaching no new place, and a text looked up before is kept on the
+  phone (`look-ups.json`, the newest 300) so it shows offline.
+
 ## Fix a flagged card with Claude
 
 The flag sheet (`src/ui/AgentFlagSheet.tsx`) has Fix with Claude now beside Flag for later, shown

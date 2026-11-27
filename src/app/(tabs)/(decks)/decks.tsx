@@ -35,6 +35,7 @@ export default function DecksRoute() {
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'decks' } })}
       onBrowse={() => router.push('/browse')}
       onStats={() => router.push('/stats')}
+      onLookUp={() => router.push('/look-up')}
       onOptions={openOptions}
       onNewDeck={deckActions.create}
       onQuickAdd={() => router.push('/quick-add')}

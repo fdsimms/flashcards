@@ -346,6 +346,8 @@ export function DeckList(props: {
   onSettings: () => void;
   onBrowse: () => void;
   onStats: () => void;
+  /** Look up a word (LookUp.tsx), from the More menu. */
+  onLookUp: () => void;
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
@@ -406,10 +408,11 @@ export function DeckList(props: {
       {!editing ? <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Browse and search notes" onPress={props.onBrowse} /> : null}
           {!editing ? <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Decks settings" onPress={props.onSettings} /> : null}
           {/* What's used less often than adding to or opening a deck, so the bar stays at five buttons. */}
-          {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks or stats">
+          {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks, stats or look up a word">
             <Stack.Toolbar.MenuAction icon="rectangle.stack.badge.plus" onPress={props.onNewDeck}>New deck</Stack.Toolbar.MenuAction>
             {groups.length ? <Stack.Toolbar.MenuAction icon="arrow.up.arrow.down" onPress={() => { setOpenDeck(null); setEditing(true); }}>Edit decks</Stack.Toolbar.MenuAction> : null}
                 <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction icon="character.magnify" onPress={props.onLookUp}>Look up a word</Stack.Toolbar.MenuAction>
           </Stack.Toolbar.Menu> : null}
         </Stack.Toolbar>
       }

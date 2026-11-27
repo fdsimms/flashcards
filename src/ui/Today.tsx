@@ -119,6 +119,8 @@ export function Today(props: {
   onImport: () => void;
   onBackup: () => void;
   onSettings: () => void;
+  /** Look up a word (LookUp.tsx). */
+  onLookUp: () => void;
   onOptions: (deck: string) => void;
   onDeckMenu: (deck: string) => void;
   onDeckAction: (deck: string, action: DeckAction) => void;
@@ -158,6 +160,7 @@ export function Today(props: {
           {props.sync ? (
             <Stack.Toolbar.Button icon="arrow.triangle.2.circlepath" selected={syncTap.busy} tintColor={syncTap.busy ? c.accent : undefined} accessibilityLabel={syncTap.busy ? 'Syncing' : 'Sync now'} onPress={syncTap.tap} />
           ) : null}
+          <Stack.Toolbar.Button icon="magnifyingglass" accessibilityLabel="Look up a word" onPress={props.onLookUp} />
           <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Today settings" onPress={props.onSettings} />
         </Stack.Toolbar>
       }

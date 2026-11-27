@@ -1,8 +1,8 @@
 import UIKit
 
 // "Franki" in another app's share sheet. Text selected anywhere, or a Safari page's article
-// (GetPageText.js), is shown on a small card with two choices: read it in Read & Listen (Your own
-// text) or add it as words (Quick add). The choice and the text go to the App Group
+// (GetPageText.js), is shown on a small card with its choices: read it in Read & Listen (Your own
+// text), add it as words (Quick add), or for a few words, look them up (Look up). The choice and the text go to the App Group
 // (SharedInbox.swift), and the app picks them up when it's next opened (src/ui/useShareInbox.ts):
 // a share extension can't open its app, so the card says to open Franki.
 //
@@ -220,10 +220,17 @@ class ShareViewController: UIViewController {
     if let url = shared.url, let host = URL(string: url)?.host { about += " from \(host)" }
     stack.addArrangedSubview(label(about, font: .preferredFont(forTextStyle: .footnote), color: .secondaryLabel))
 
+    // A few words are offered to look up first (Look up in the app), then to add, then to read; a
+    // passage to read first, then as words. Looking up every word of a passage isn't what Look up is for.
     let words = Self.looksLikeWords(shared.text)
     let read = button("Read it in Read & Listen", primary: !words) { [weak self] in self?.save(shared, kind: "read") }
-    let add = button("Add as words", primary: words) { [weak self] in self?.save(shared, kind: "words") }
-    for b in words ? [add, read] : [read, add] { stack.addArrangedSubview(b) }
+    let add = button("Add as words", primary: false) { [weak self] in self?.save(shared, kind: "words") }
+    if words {
+      let look = button("Look it up", primary: true) { [weak self] in self?.save(shared, kind: "lookup") }
+      for b in [look, add, read] { stack.addArrangedSubview(b) }
+    } else {
+      for b in [read, add] { stack.addArrangedSubview(b) }
+    }
   }
 
   private func save(_ shared: Shared, kind: String) {
@@ -237,7 +244,7 @@ class ShareViewController: UIViewController {
     stack.addArrangedSubview(label(saved ? "Saved to Franki" : "Couldn't save that", font: .preferredFont(forTextStyle: .headline), center: true))
     let detail = !saved
       ? "Franki couldn't keep the text. Try sharing it again."
-      : kind == "read" ? "Open Franki to read it." : "Open Franki to add them."
+      : kind == "read" ? "Open Franki to read it." : kind == "lookup" ? "Open Franki to look it up." : "Open Franki to add them."
     stack.addArrangedSubview(label(detail, font: .preferredFont(forTextStyle: .subheadline), color: .secondaryLabel, center: true))
     DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay) { [weak self] in
       self?.extensionContext?.completeRequest(returningItems: nil)

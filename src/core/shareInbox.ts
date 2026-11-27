@@ -16,8 +16,8 @@ export const MAX_SHARES = 20;
 
 export interface SharedItem {
   id: string;
-  /** Chosen on the extension's card: read it in Read & Listen (Your own text), or add it as words (Quick add). */
-  kind: 'read' | 'words';
+  /** Chosen on the extension's card: read it in Read & Listen (Your own text), add it as words (Quick add), or look it up (Look up). */
+  kind: 'read' | 'words' | 'lookup';
   text: string;
   /** A Safari page's title, when it came from one. */
   title?: string;
@@ -33,7 +33,7 @@ export function parseShares(raw: unknown): SharedItem[] {
   for (const x of raw) {
     if (!x || typeof x !== 'object') continue;
     const { id, kind, text, title, url, sharedAt } = x as Record<string, unknown>;
-    if (typeof id !== 'string' || !id || (kind !== 'read' && kind !== 'words')) continue;
+    if (typeof id !== 'string' || !id || (kind !== 'read' && kind !== 'words' && kind !== 'lookup')) continue;
     if (typeof text !== 'string' || !text.trim() || typeof sharedAt !== 'number' || !Number.isFinite(sharedAt)) continue;
     out.push({
       id, kind, text, sharedAt,
@@ -56,7 +56,7 @@ export const isFresh = (item: Pick<SharedItem, 'sharedAt'>, now: number): boolea
 /**
  * The share to open now, if any: the newest one shared within `FRESH_MS` and not opened already in
  * this run of the app (`opened`), so coming back to Franki doesn't open it again. A read needs Read &
- * Listen (`canRead`); without it the share waits on Today, which says to turn it on.
+ * Listen (`canRead`), and so does a lookup; without it the share waits on Today, which says to turn it on.
  */
 export function shareToOpen(items: readonly SharedItem[], opened: ReadonlySet<string>, canRead: boolean, now: number): SharedItem | undefined {
   return [...items].reverse().find((s) => isFresh(s, now) && !opened.has(s.id) && (s.kind === 'words' || canRead));

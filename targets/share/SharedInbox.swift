@@ -20,7 +20,7 @@ enum SharedInbox {
 
   struct Item: Codable {
     let id: String
-    /// "read": to Read & Listen as your own text; "words": to Quick add.
+    /// "read": to Read & Listen as your own text; "words": to Quick add; "lookup": to Look up.
     let kind: String
     let text: String
     let title: String?

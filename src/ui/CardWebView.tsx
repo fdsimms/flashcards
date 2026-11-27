@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
 import { pageFont } from '../core/cardFonts';
@@ -24,6 +24,77 @@ document.addEventListener('click', function (e) {
 true;
 `;
 
+/** A word tapped (or held) on the page: the word, the text around it, and where, in the screen's points. */
+export type PageWord = { word: string; context: string; x: number; y: number };
+
+// Look it up on a template card (PageLookUp.tsx): a word held for half a second posts
+// {"lookUp": word, "context": its block's text, "x", "y"}; with `onClick`, a plain tap on a word does
+// too (the answer side, where a tap turns nothing over). The word is cut from the text under the touch
+// with Intl.Segmenter, which also splits Thai and Japanese, else letters. A hold suppresses the click
+// that follows, so it doesn't turn the card over as well, and the page's own long-press menu is off.
+const wordScript = (onClick: boolean) => `
+(function () {
+  var HOLD_MS = 450;
+  var style = document.createElement('style');
+  style.textContent = '* { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }';
+  document.documentElement.appendChild(style);
+  function wordAt(x, y) {
+    var r = document.caretRangeFromPoint && document.caretRangeFromPoint(x, y);
+    if (!r || !r.startContainer || r.startContainer.nodeType !== 3) return null;
+    var node = r.startContainer, text = node.data, i = r.startOffset, word = null;
+    try {
+      var parts = new Intl.Segmenter(document.documentElement.lang || undefined, { granularity: 'word' }).segment(text);
+      for (var s of parts) {
+        if (i >= s.index && i <= s.index + s.segment.length) { if (s.isWordLike) { word = s.segment; break; } }
+      }
+    } catch (e) {
+      var re = /[\p{L}\p{M}'’-]+/gu, m;
+      while ((m = re.exec(text))) { if (i >= m.index && i <= m.index + m[0].length) { word = m[0]; break; } }
+    }
+    if (!word) return null;
+    var block = node.parentElement && node.parentElement.closest('p, li, td, th, div, body');
+    return { word: word, context: ((block && block.innerText) || text) };
+  }
+  function post(x, y) {
+    var found = wordAt(x, y);
+    if (!found) return false;
+    window.ReactNativeWebView.postMessage(JSON.stringify({ lookUp: found.word, context: found.context, x: x, y: y }));
+    return true;
+  }
+  var timer = null, start = null, held = false;
+  document.addEventListener('touchstart', function (e) {
+    if (e.touches.length !== 1) return;
+    start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    held = false;
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (post(start.x, start.y)) held = true; }, HOLD_MS);
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    var t = e.touches[0];
+    if (start && Math.abs(t.clientX - start.x) + Math.abs(t.clientY - start.y) > 10) clearTimeout(timer);
+  }, { passive: true });
+  document.addEventListener('touchend', function () { clearTimeout(timer); }, { passive: true });
+  document.addEventListener('click', function (e) {
+    if (held) { held = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
+    if (!${onClick} || e.target.closest('a, button, input, select, textarea, label, audio, video, [onclick], [contenteditable]')) return;
+    post(e.clientX, e.clientY);
+  }, true);
+})();
+true;
+`;
+
+/** The page's look-up message, or null for any other. */
+function pageWord(data: string): Omit<PageWord, 'x' | 'y'> & { x: number; y: number } | null {
+  if (!data.startsWith('{"lookUp"')) return null;
+  try {
+    const m = JSON.parse(data) as { lookUp?: unknown; context?: unknown; x?: unknown; y?: unknown };
+    if (typeof m.lookUp !== 'string' || typeof m.context !== 'string' || typeof m.x !== 'number' || typeof m.y !== 'number') return null;
+    return { word: m.lookUp, context: m.context, x: m.x, y: m.y };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Shows one side of an Anki-template card. The page is written to a file and loaded from it,
  * because iOS's WebView only reads local files (the card's images and sounds in the media folder)
@@ -37,7 +108,7 @@ true;
  * `hidden` loads a page out of sight (Review's next card, ahead of its answer): it fills the same
  * space, takes no taps, is skipped by VoiceOver, and its sounds wait until it's shown.
  */
-export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }: {
+export function CardWebView({ html, hidden = false, onShown, onMessage, onTap, onLookUp }: {
   html: string;
   /** Loaded but not shown yet. Shown, the same view keeps its page: nothing reloads. */
   hidden?: boolean;
@@ -47,12 +118,18 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
   onMessage?: (data: string) => void;
   /** A tap on the page that wasn't on a link, button or field. Setting it makes the page post `{"tap": true}`. */
   onTap?: () => void;
+  /**
+   * A word held on the page, or tapped while there's no `onTap` (the answer side), to look up
+   * (PageLookUp.tsx). Its x and y are in the screen's points, for the popover.
+   */
+  onLookUp?: (word: PageWord) => void;
 }) {
   const c = useTheme();
   const [uri, setUri] = useState<string>();
   const [error, setError] = useState<string>();
   const seq = useRef(0);
   const view = useRef<WebView<{}>>(null);
+  const box = useRef<ViewInstance>(null);
   // Pages finished loading, counted. Autoplay starts once a page is both loaded and shown, whichever
   // comes last; telling a page that has already started again does nothing (cardDocument).
   const [loads, setLoads] = useState(0);
@@ -112,6 +189,7 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
 
   return (
     <View
+      ref={box}
       style={hidden ? [StyleSheet.absoluteFill, { opacity: 0 }] : StyleSheet.absoluteFill}
       pointerEvents={hidden ? 'none' : 'auto'}
       accessibilityElementsHidden={hidden}
@@ -130,12 +208,16 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap }:
           allowFileAccess
           allowFileAccessFromFileURLs
           mediaPlaybackRequiresUserAction={false}
-          injectedJavaScript={onTap ? TAP_SCRIPT : undefined}
+          injectedJavaScript={onTap || onLookUp ? `${onTap ? TAP_SCRIPT : ''}${onLookUp ? wordScript(!onTap) : ''}` : undefined}
           onMessage={(e) => {
             const data = e.nativeEvent.data;
             const sound = soundTapped(data);
+            const looked = onLookUp ? pageWord(data) : null;
             if (sound !== undefined) playTapped(sound);
-            else if (onTap && data === TAP_MESSAGE) onTap();
+            else if (looked && onLookUp) {
+              // The page's points are the view's; the popover is placed in the screen's.
+              box.current?.measureInWindow((left, top) => onLookUp({ ...looked, x: looked.x + left, y: looked.y + top }));
+            } else if (onTap && data === TAP_MESSAGE) onTap();
             else onMessage?.(data);
           }}
           onLoadEnd={() => setLoads((n) => n + 1)}

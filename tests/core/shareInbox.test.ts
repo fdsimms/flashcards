@@ -12,6 +12,7 @@ describe('reading the share inbox', () => {
     const raw = [
       { id: 'a', kind: 'read', text: 'Tekst', title: '  Most ', url: 'https://x.pl/a', sharedAt: NOW },
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW, title: ' ' },
+      { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
       { id: 'c', kind: 'other', text: 'x', sharedAt: NOW },
       { id: 'd', kind: 'read', text: '   ', sharedAt: NOW },
       { id: '', kind: 'read', text: 'x', sharedAt: NOW },
@@ -21,6 +22,7 @@ describe('reading the share inbox', () => {
     expect(parseShares(raw)).toEqual([
       { id: 'a', kind: 'read', text: 'Tekst', title: 'Most', url: 'https://x.pl/a', sharedAt: NOW },
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW },
+      { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
     ]);
     expect(parseShares({})).toEqual([]);
   });
@@ -43,8 +45,10 @@ describe('opening a share', () => {
     expect(shareToOpen(items, new Set(['a', 'b']), true, NOW)).toBeUndefined();
   });
 
-  it('leaves a share to read on Today while Read & Listen is off, but still opens words', () => {
+  it('leaves a share to read or look up on Today while Read & Listen is off, but still opens words', () => {
     expect(shareToOpen([item('r')], new Set(), false, NOW)).toBeUndefined();
+    expect(shareToOpen([item('l', { kind: 'lookup' })], new Set(), false, NOW)).toBeUndefined();
+    expect(shareToOpen([item('l', { kind: 'lookup' })], new Set(), true, NOW)?.id).toBe('l');
     expect(shareToOpen([item('w', { kind: 'words' })], new Set(), false, NOW)?.id).toBe('w');
   });
 });
