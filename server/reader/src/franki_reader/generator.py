@@ -62,6 +62,15 @@ MODEL: TextModel = "claude-sonnet-5-5"
 # For short, checked or low-stakes calls (glosses, word forms, IPA, hints, questions). Haiku has no
 # server-side refusal fallback, so calls to it send none and handle stop_reason "refusal" themselves.
 CHEAP_MODEL: TextModel = "claude-haiku-5-5"
+
+# What every prompt that asks for an English rendering says about its shape: a language with no
+# tenses (Thai) otherwise comes back in the present, with the source's word order.
+NATURAL_ENGLISH = (
+    "Write it the way a native English speaker would say it: pick the English tense, articles and "
+    "word order the sentence needs, even where the language marks none of them (a language without "
+    'tenses still gives English a future for "tomorrow", a past for "yesterday"), and never carry '
+    "the source's word order or structure over."
+)
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 EFFORT: Effort = "high"
 # A story episode also returns a recap, a season plan, choices and new speakers, so it thinks less
@@ -527,7 +536,7 @@ break and nowhere else: never between words of the same clause, never before a p
 ครับ, ค่ะ or นะ, and never right after a connective that opens a clause (แล้ว, และ, แต่, หรือ, \
 เพราะ, ถ้า, ก็, จึง): write เขา|ดู|เด็ก แล้ว|เดิน|มา, not เขา|ดู|เด็ก แล้ว เดิน|มา.
 - Give "title_english", a natural English translation of the title.
-- Give "english", a natural English translation of each line.
+- Give "english", a natural English translation of each line. {natural_english}
 - Give "register" for each line: how a native speaker would say it in that situation: \
 "casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
 or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
@@ -612,7 +621,7 @@ person afterward. Never call someone "the boy" and then switch to a name with no
 country, never a {name} one (a man from England is James, not a {name} name). A {name} name \
 means a person from where {name} is spoken.
 - Give "title_english", a natural English translation of the title.
-- Give "english", a natural English translation of each line.
+- Give "english", a natural English translation of each line. {natural_english}
 - Give "register" for each line: how a native speaker would say it in that situation: \
 "casual" (everyday speech with friends or family), "neutral", "formal" (polite, official or written) \
 or "slang". Write each line in its register, so a chat between friends is casual, and a story's \
@@ -628,13 +637,21 @@ learned)
 """
 
 
+# The Thai text has braces of its own, so it is filled by name rather than with `format`.
+_THAI_INSTRUCTIONS = _INSTRUCTIONS.replace("{natural_english}", NATURAL_ENGLISH)
+
+
 def _instructions(language: Code) -> str:
     if language == "th":
-        return _INSTRUCTIONS
+        return _THAI_INSTRUCTIONS
     info = LANGUAGES[language]
     variety = f"{info.variety} " if info.variety else ""
     return _SPACED_INSTRUCTIONS.format(
-        name=info.name, variety=variety, example=info.example, writing=info.writing
+        name=info.name,
+        variety=variety,
+        example=info.example,
+        writing=info.writing,
+        natural_english=NATURAL_ENGLISH,
     )
 
 

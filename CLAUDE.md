@@ -261,7 +261,7 @@ is a lesson with a microphone setting on, which keeps it for the whole lesson be
 start a recording in the background, and Settings, Lessons says so. The plugin also allows background audio, which only Read & Listen's
 reader turns on, while it's open (`shouldPlayInBackground`), so listening goes on with the screen locked.
 
-**Everything stays on the device, except sync, Read & Listen, WaniKani and font downloads.** TTS is `expo-speech` (on-device
+**Everything stays on the device, except sync, Read & Listen, WaniKani, and font and stroke downloads.** TTS is `expo-speech` (on-device
 voices, chosen per language in Settings, Voices) and storage is local SQLite. The network calls are
 sync with the user's own Anki sync server (`src/anki/sync/`), off until they sign in, and Read &
 Listen, which talks to its server beside the sync server and is off until its passphrase is entered
@@ -276,9 +276,9 @@ recordings as files), made each time WaniKani is reached, so a session can be st
 outbox and are sent later, and the copy leaves out items answered since it was made. Recording a card with an Azure voice (`src/core/recording.ts`) goes
 through Read & Listen's server, as do Hearing sounds' recordings (kept on the phone once made), so both are off while Read & Listen is. The three Japanese fonts
 (Settings, Font) are too large to bundle: each is downloaded from jsDelivr, version-pinned, only when its row is
-tapped, and kept in the documents folder (`src/core/fontDownloads.ts`). A
-future feature that needs the network (a dictionary lookup, an AI hint) ships behind its own setting
-that defaults to off.
+tapped, and kept in the documents folder (`src/core/fontDownloads.ts`). Writing by hand's stroke order
+(`strokeOrder.ts`) is from jsDelivr too, per character, on by default (the owner's choice). A
+future feature that needs the network ships behind its own setting, off unless the owner says otherwise.
 
 **Every request goes through the connection guard** (`guardedFetch`, `src/core/connection.ts`;
 `tests/noBareFetch.test.ts`), so on a subway platform it gives up in seconds instead of iOS's

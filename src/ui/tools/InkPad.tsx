@@ -5,6 +5,8 @@ import { japaneseFont, thaiDescentRoom } from '../../core/script';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { extendStroke, inkViewBox, strokePath, type Stroke } from '../../tools/ink';
+import type { StrokeOrder } from '../../tools/strokeOrder';
+import { StrokeGlyph } from './StrokeGlyph';
 import { useLanguageFont } from '../AppFont';
 import { radius, smooth, useTheme } from '../theme';
 
@@ -40,13 +42,15 @@ export function Glyph({ text, language, width, height, color, opacity, face }: {
  * so a stroke is never read as a scroll or a swipe; nothing inside it takes touches of its own,
  * which keeps each touch's position measured from the box's corner.
  */
-export function InkPad({ strokes, onChange, width, height, guide, face, language }: {
+export function InkPad({ strokes, onChange, width, height, guide, guideStrokes, face, language }: {
   strokes: Stroke[];
   onChange: (strokes: Stroke[]) => void;
   width: number;
   height: number;
   /** The answer, drawn faintly to trace over. */
   guide?: string;
+  /** The guide's own strokes, numbered in the order they're written, drawn in place of the font's (Japanese, strokeOrder.ts). */
+  guideStrokes?: StrokeOrder | null;
   /** The face the guide is drawn in, as `Glyph`'s. */
   face?: string;
   language: Language;
@@ -84,7 +88,7 @@ export function InkPad({ strokes, onChange, width, height, guide, face, language
         <Line x1={width / 2} y1={0} x2={width / 2} y2={height} stroke={c.border} strokeWidth={1} strokeDasharray="4 5" />
         <Line x1={0} y1={height / 2} x2={width} y2={height / 2} stroke={c.border} strokeWidth={1} strokeDasharray="4 5" />
       </Svg>
-      {guide ? <Glyph text={guide} language={language} width={width} height={height} color={c.textTertiary} opacity={0.35} face={face} /> : null}
+      {guide && guideStrokes ? <StrokeGlyph order={guideStrokes} width={width} height={height} faint /> : guide ? <Glyph text={guide} language={language} width={width} height={height} color={c.textTertiary} opacity={0.35} face={face} /> : null}
       <Svg pointerEvents="none" width={width} height={height} style={{ position: 'absolute' }}>
         <Ink strokes={strokes} color={c.text} width={INK_WIDTH} />
         {current ? <Path d={strokePath(current)} stroke={c.text} strokeWidth={INK_WIDTH} strokeLinecap="round" strokeLinejoin="round" fill="none" /> : null}

@@ -227,3 +227,10 @@ def test_the_routes() -> None:
     with client(engine(None)) as c:
         r = c.post("/api/own-texts", json={"language": "th", "text": THAI}, headers=AUTH)
         assert r.status_code == 503
+
+
+def test_the_translation_prompt_asks_for_natural_english() -> None:
+    from franki_reader.generator import NATURAL_ENGLISH
+    from franki_reader.own_text import _SYSTEM
+
+    assert NATURAL_ENGLISH in _SYSTEM
