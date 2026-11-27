@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { chatFixRequest, checkFix, CHAT_REASON, fixRequest, withFix } from '../../src/core/fixCard';
+import { chatFixRequest, checkFix, CHAT_REASON, fixRequest, followUpThread, proposalTurn, threadAfter, withFix } from '../../src/core/fixCard';
 import type { Note } from '../../src/core/types';
 
 const note = (fields: Record<string, string>, deck = 'Thai'): Note => ({
@@ -69,4 +69,45 @@ test('a change asked for in a chat sends the latest turns, starting at the learn
 test('a short chat is sent whole', () => {
   const turns = [{ role: 'user', content: 'Why?' }, { role: 'assistant', content: 'Because.' }] as const;
   expect(chatFixRequest(NOTE, [...turns]).chat).toEqual(turns);
+});
+
+test('a reply to a suggestion is sent as a chat that starts with the flag and ends with the reply', () => {
+  const proposal = checkFix(NOTE, { changes: { Meaning: 'to break down' }, explanation: 'Shortened it.' });
+  const sent = followUpThread([], proposal, '  why did you drop it?  ');
+  expect(sent.map((t) => t.role)).toEqual(['user', 'assistant', 'user']);
+  expect(sent[1].content).toContain('Shortened it.');
+  expect(sent[1].content).toContain('Meaning: to break down; to be sorry (เสียใจ) -> to break down');
+  expect(sent[2].content).toBe('why did you drop it?');
+  const req = fixRequest(NOTE, 'typo', 'note', sent);
+  expect(req.chat).toEqual(sent);
+  expect(req.note).toBe('note');
+});
+
+test('a second reply continues the thread instead of starting a new one', () => {
+  const first = checkFix(NOTE, { changes: { Meaning: 'to break down' }, explanation: 'Shortened it.' });
+  const sent = followUpThread([], first, 'why?');
+  const second = checkFix(NOTE, { changes: {}, explanation: 'Because.' });
+  const kept = threadAfter(sent, second);
+  expect(kept.at(-1)?.role).toBe('assistant');
+  expect(kept.at(-1)?.content).toContain('(No change suggested.)');
+  const next = followUpThread(kept, second, 'ok keep it');
+  expect(next).toHaveLength(kept.length + 1);
+  expect(next.slice(0, kept.length)).toEqual(kept);
+});
+
+test('a long thread keeps the latest turns, starting at the learner, and a flag with no reply sends no chat', () => {
+  const p = checkFix(NOTE, { changes: {}, explanation: 'x' });
+  let thread = followUpThread([], p, 'r0');
+  for (let i = 1; i < 8; i++) thread = followUpThread(threadAfter(thread, p), p, `r${i}`);
+  const req = fixRequest(NOTE, 'typo', '', thread);
+  expect(req.chat!.length).toBeLessThanOrEqual(12);
+  expect(req.chat![0].role).toBe('user');
+  expect(req.chat!.at(-1)?.content).toBe('r7');
+  expect(fixRequest(NOTE, 'typo', '').chat).toBeUndefined();
+});
+
+test('a turn is cut to what the server takes', () => {
+  const p = checkFix(NOTE, { changes: {}, explanation: 'e'.repeat(5000) });
+  expect(proposalTurn(p).length).toBeLessThanOrEqual(1500);
+  expect(followUpThread([], p, 'r'.repeat(5000)).at(-1)!.content.length).toBe(1500);
 });
