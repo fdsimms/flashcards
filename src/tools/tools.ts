@@ -9,6 +9,7 @@ import { sayFrenchNumber } from './french/number';
 import { sayFrenchTime } from './french/time';
 import { CASE_LANGUAGES } from './cases';
 import { HEARING } from './hearing';
+import { SOUND_GUIDES } from './soundGuides';
 import { GERMAN_COUNTING } from './german/counting';
 import { sayGermanDate } from './german/date';
 import { sayGermanMoney } from './german/money';
@@ -76,7 +77,7 @@ import { THAI_WRITING } from './thai/writing';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'journal' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'writing' | 'grammar' | 'cases';
+export type ToolId = 'mixups' | 'sounds' | 'hearing' | 'contrast' | 'journal' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'writing' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -194,6 +195,14 @@ export const TOOLS: ToolInfo[] = [
     title: 'Similar words',
     summary: 'Tell apart look-alikes, sound-alikes and words you link as mixed up.',
     languages: TOOL_LANGUAGES,
+  },
+  {
+    // The letters and sounds that aren't read the way English reads them, each with a word to hear
+    // (soundGuides.ts). Also the first step of a language started from zero (src/core/fromZero.ts).
+    id: 'sounds',
+    title: 'How it sounds',
+    summary: "The letters that aren't read the way English reads them, with words to hear.",
+    languages: TOOL_LANGUAGES.filter((l) => !!SOUND_GUIDES[l]),
   },
   {
     // Hand-written sets of words differing by one sound (hearing.ts), each played in several voices:

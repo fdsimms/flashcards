@@ -9,6 +9,7 @@ import { Group, Icon, Loading, Screen } from './kit';
 import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
+import { FromZeroCards } from './FromZeroCards';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { SharedCard, useSharedBanner } from './SharedBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
@@ -197,6 +198,7 @@ export function Today(props: {
                 {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
                 {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
                 {shared ? <SharedCard banner={shared} /> : null}
+                <FromZeroCards />
                 <NewWordsCards />
                 {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
               </>

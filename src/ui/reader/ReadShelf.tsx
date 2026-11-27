@@ -10,6 +10,7 @@ import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads
 import { ReadInputTime } from './ReadInputTime';
 import { ReadListenAgain } from './ReadListenAgain';
 import { ReadGrammarRotation } from './ReadGrammarRotation';
+import { ReadFromZero } from './ReadFromZero';
 import { ReadReviewFirst } from './ReadReviewFirst';
 import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { useApp } from '../AppContext';
@@ -263,6 +264,7 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
           <>
             <View style={{ paddingHorizontal: space.l, gap: space.m }}>
               <ReadGrammarRotation api={api} onOpenLesson={onGrammarLesson} />
+              <ReadFromZero language={shelf.language} />
               <ReadReviewFirst language={shelf.language} onReview={onReview} />
             </View>
             <StoryBanner api={api} shelf={shelf} saved={shelf.story?.next ? markOf(shelf.story.next.id) : null} onPlayWord={onPlayWord} onOpen={(id) => open(id)} onStory={onStory} onNew={onNewSeries} offline={!!problem} />
