@@ -104,7 +104,7 @@ export function DailyExtrasSettings() {
                   title="What's suggested"
                 >
                   <Group>
-                    <SwitchRow first label="Drills from the Practice tab" hint="Counting things and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
+                    <SwitchRow first label="Drills from the Practice tab" hint="Counting things, reading the script, hearing sounds and writing by hand, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
                     <SwitchRow
                       label="A text to read"
                       hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}

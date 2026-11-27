@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import { parseFuriganaData, type FuriganaData } from './furigana';
 import { parseKanjiLevels, type KanjiLevels } from './kanjiLevels';
+import { parseWritingKanji, type WritingKanji } from './writingKanji';
 import { parseSnapshot, type Snapshot } from './offline';
 import { parseStats, type WaniKaniStats } from './stats';
 import { parsePrefs, parseState, type WaniKaniPrefs, type WaniKaniState } from './prefs';
@@ -56,6 +57,7 @@ const OFFLINE_FILE = 'wanikani-offline.json';
 const AUDIO_FOLDER = 'wanikani-audio';
 const FURIGANA_FILE = 'wanikani-furigana.json';
 const KANJI_LEVELS_FILE = 'wanikani-kanji-levels.json';
+const WRITING_KANJI_FILE = 'wanikani-writing-kanji.json';
 
 /** The offline copy (offline.ts), in the documents folder: a few megabytes, too big for the Keychain. */
 export async function loadSnapshot(): Promise<Snapshot | null> {
@@ -147,6 +149,8 @@ export function clearOffline(): void {
     if (furigana.exists) furigana.delete();
     const levels = new File(Paths.document, KANJI_LEVELS_FILE);
     if (levels.exists) levels.delete();
+    const writing = new File(Paths.document, WRITING_KANJI_FILE);
+    if (writing.exists) writing.delete();
     const dir = new Directory(Paths.document, AUDIO_FOLDER);
     if (dir.exists) dir.delete();
   } catch {
@@ -188,6 +192,26 @@ export async function loadKanjiLevels(): Promise<KanjiLevels | null> {
 export function saveKanjiLevels(data: KanjiLevels): void {
   try {
     const f = new File(Paths.document, KANJI_LEVELS_FILE);
+    if (!f.exists) f.create();
+    f.writeSync(JSON.stringify(data));
+  } catch {
+    // Nothing to do: it's read from WaniKani again next time.
+  }
+}
+
+/** The kanji Writing by hand asks for (writingKanji.ts), in the documents folder. */
+export async function loadWritingKanji(): Promise<WritingKanji | null> {
+  try {
+    const f = new File(Paths.document, WRITING_KANJI_FILE);
+    return parseWritingKanji(f.exists ? await f.text() : null);
+  } catch {
+    return null;
+  }
+}
+
+export function saveWritingKanji(data: WritingKanji): void {
+  try {
+    const f = new File(Paths.document, WRITING_KANJI_FILE);
     if (!f.exists) f.create();
     f.writeSync(JSON.stringify(data));
   } catch {

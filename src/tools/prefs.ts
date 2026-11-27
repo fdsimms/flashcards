@@ -8,6 +8,7 @@ import { NUMBER_KINDS, type NumberKind } from './number';
 import { MIXUP_MODES, type MixupMode } from './mixups';
 import { SCRIPT_MODES, type ScriptMode } from './script';
 import { MINUTE_STEPS, type MinuteStep } from './time';
+import { WRITING_KINDS, WRITING_MODES, WRITING_STYLES, type WritingKind, type WritingMode, type WritingStyle } from './writing';
 
 /** Telling the time's modes: Say it and Listen as the other tools, and Explore, setting the clock to any time to see how it's said (nothing marked). */
 export const TIME_MODES = ['say', 'listen', 'explore'] as const;
@@ -43,13 +44,18 @@ export interface ToolPrefs {
   scriptMode: ScriptMode;
   /** Similar words: told apart by meaning or by ear. */
   mixupMode: MixupMode;
+  /** Writing by hand: over the answer shown faintly or in an empty box, and letters, words or (Japanese) kanji. */
+  writingMode: WritingMode;
+  writingKind: WritingKind;
+  /** Writing by hand: printed letters or joined handwriting, in a language that has both (Russian). */
+  writingStyle: WritingStyle;
   /** Hearing sounds: the group of sounds each language is practiced in (its Tones, its Vowel length); a language not listed practices all of them. */
   hearingGroups: Partial<Record<Language, string>>;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning', hearingGroups: {} };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning', writingMode: 'trace', writingKind: 'letters', writingStyle: 'printed', hearingGroups: {} };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -77,6 +83,9 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     countMax: COUNT_MAXES.find((m) => m === saved.countMax) ?? DEFAULT_TOOL_PREFS.countMax,
     scriptMode: SCRIPT_MODES.find((m) => m === saved.scriptMode) ?? DEFAULT_TOOL_PREFS.scriptMode,
     mixupMode: MIXUP_MODES.find((m) => m === saved.mixupMode) ?? DEFAULT_TOOL_PREFS.mixupMode,
+    writingMode: WRITING_MODES.find((m) => m === saved.writingMode) ?? DEFAULT_TOOL_PREFS.writingMode,
+    writingKind: WRITING_KINDS.find((k) => k === saved.writingKind) ?? DEFAULT_TOOL_PREFS.writingKind,
+    writingStyle: WRITING_STYLES.find((s) => s === saved.writingStyle) ?? DEFAULT_TOOL_PREFS.writingStyle,
     hearingGroups: parseHearingGroups(saved.hearingGroups),
   };
 }
