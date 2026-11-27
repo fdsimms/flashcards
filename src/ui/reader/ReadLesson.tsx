@@ -287,7 +287,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
         </Group>
 
         {showTranscript && script ? (
-          <LessonTranscript entries={script} seconds={status.currentTime} onSeek={(ms) => {
+          <LessonTranscript entries={script} seconds={status.currentTime} language={lesson.language} onSeek={(ms) => {
             if (!owned.current) return;
             waits.moved();
             player.seekTo(ms / 1000).catch(() => undefined);

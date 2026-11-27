@@ -37,6 +37,19 @@ describe('cardDocument with a font', () => {
   });
 });
 
+describe('cardDocument at a text size', () => {
+  const opts = { css: '.card { font-size: 18px; }', ord: 0, dark: false, autoplay: false };
+  it('zooms the card content by the scale, after the deck CSS', () => {
+    const html = cardDocument('<div>x</div>', { ...opts, scale: 1.2 });
+    expect(html).toContain('#qa { zoom: 1.2; }');
+    expect(html.indexOf('.card { font-size: 18px; }')).toBeLessThan(html.indexOf('#qa { zoom'));
+  });
+  it('adds nothing at the default size', () => {
+    expect(cardDocument('<div>x</div>', { ...opts, scale: 1 })).not.toContain('zoom');
+    expect(cardDocument('<div>x</div>', opts)).not.toContain('zoom');
+  });
+});
+
 describe('cardDocument in Japanese', () => {
   const opts = { css: '', ord: 0, dark: false, autoplay: false };
   it("marks a side with kana as Japanese, with Japanese's face after the system font", () => {

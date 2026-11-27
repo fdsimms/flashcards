@@ -172,7 +172,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
               <View style={{ gap: space.xs }}>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>The line</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-                  <Text selectable accessibilityLanguage={LANGUAGES[text.language].speech} style={{ ...readFont, fontWeight: '600', color: c.text, flex: 1 }}>
+                  <Text selectable accessibilityLanguage={LANGUAGES[text.language].speech} style={{ ...readFont, ...textStyle.font.strong, color: c.text, flex: 1 }}>
                     {typed.trim() && againstLine ? comparison.expected.map((p, i) => (p.kind === 'same' ? p.text : (
                       <Text key={i} style={{ color: c.goodInk, backgroundColor: c.goodFill }}>{p.text}</Text>
                     ))) : expected}

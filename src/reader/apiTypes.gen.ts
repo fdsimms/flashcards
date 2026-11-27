@@ -2981,6 +2981,12 @@ export interface components {
              * @default
              */
             about: string;
+            /**
+             * Genre
+             * @default any
+             * @enum {string}
+             */
+            genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
         };
         /** SuggestedWordOut */
         SuggestedWordOut: {
@@ -3258,6 +3264,12 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
+            /**
+             * Genre
+             * @default any
+             * @enum {string}
+             */
+            genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
         };
     };
     responses: never;

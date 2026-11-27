@@ -12,6 +12,7 @@ import { Refusal } from '../core/failure';
 import type { DrillQuestionIn, GrammarAnswer } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
+import { genreChoice, type Genre } from './genre';
 import { splitDecks } from './languages';
 import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
@@ -845,9 +846,9 @@ export function createApi(
     // With a language, that language's shelf only read (keeping it for offline): the reader's own language stays, and nothing is written for it.
     shelf: (language?: Language) => call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
-    writeAbout: (name: string, form: Form, model?: TextModel) => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}) }),
+    writeAbout: (name: string, form: Form, model?: TextModel, genre: Genre = 'any') => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}), ...genreChoice(genre) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
-    startStory: (about: string) => call<void>('POST', '/api/story', { about }),
+    startStory: (about: string, genre: Genre = 'any') => call<void>('POST', '/api/story', { about, ...genreChoice(genre) }),
     // A pasted text: what adding it would give (its coverage, new words, parts and cost), then adding it.
     ownTextPreview: (language: Language, text: string, title: string) =>
       call<OwnTextPreview>('POST', '/api/own-texts/preview', { language, text, title }),

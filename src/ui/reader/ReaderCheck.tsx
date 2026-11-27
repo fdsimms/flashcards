@@ -90,7 +90,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
               <Text style={{ ...type.overline, color: c.accentInk }}>Question</Text>
               <Chip label="English" selected={english} onPress={toggleEnglish} />
             </View>
-            <Text selectable style={{ fontSize: textStyle.fontSize * 1.25, lineHeight: textStyle.lineHeight * 1.25, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text }}>
+            <Text selectable style={{ fontSize: textStyle.fontSize * 1.25, lineHeight: textStyle.lineHeight * 1.25, ...textStyle.font.strong, color: c.text }}>
               {q.question}
             </Text>
             {english || answered ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{q.english}</Text> : null}
@@ -115,7 +115,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
           ) : (
             <View style={{ alignItems: 'center', gap: space.xs }}>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean here?</Text>
-              <Text selectable style={{ fontSize: textStyle.fontSize * 1.4, lineHeight: textStyle.lineHeight * 1.4, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: c.text, textAlign: 'center' }}>
+              <Text selectable style={{ fontSize: textStyle.fontSize * 1.4, lineHeight: textStyle.lineHeight * 1.4, ...textStyle.font.strong, color: c.text, textAlign: 'center' }}>
                 {q.word}
               </Text>
               <LineWords line={line} word={q.word} textStyle={textStyle} centered />
@@ -160,7 +160,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                   // The text and its English share a line so four answers fit above the evidence and Next;
                   // a long text wraps and the English drops under it.
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', columnGap: space.m }}>
-                    <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, color: c.text, fontWeight: right ? '600' : '400', flexShrink: 1 }}>{label}</Text>
+                    <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, ...(right ? textStyle.font.strong : { fontWeight: '400' as const }), color: c.text, flexShrink: 1 }}>{label}</Text>
                     {under && (english || answered) ? <Text style={{ ...type.footnote, color: c.textSecondary, marginLeft: 'auto', textAlign: 'right' }}>{under}</Text> : null}
                   </View>
                 )}

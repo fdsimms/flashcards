@@ -123,9 +123,9 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
     <View style={{ alignItems: 'center', gap: space.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.l }}>
         <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 48, fontVariant: ['tabular-nums'], color: c.text }}>{question?.n}</Text>
-        {noun ? <Text selectable style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
+        {noun ? <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
       </View>
-      {noun?.cue.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
+      {noun?.cue.roman ? <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
       {noun ? <Text style={{ ...type.subhead, color: c.text }}>{nounGloss(noun)}</Text> : null}
     </View>
   );
@@ -146,7 +146,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   if (mode === 'pick') {
     footer = (
       <View style={{ gap: space.s }}>
-        <Choices choices={choices} correct={correct} picked={pick} byReading={!!counting?.pickByReading} onChoose={choose} />
+        <Choices speech={LANGUAGES[language].speech} choices={choices} correct={correct} picked={pick} byReading={!!counting?.pickByReading} onChoose={choose} />
         {pick ? <Button label="Next" onPress={() => next()} /> : <Button variant="secondary" label="Show answer" onPress={revealPick} />}
       </View>
     );
@@ -197,7 +197,9 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
 }
 
 /** Pick: the four choices in the footer, the right one marked once answered (the card above says whether the pick was right, and the rule after a miss). */
-function Choices({ choices, correct, picked, byReading, onChoose }: {
+function Choices({ speech, choices, correct, picked, byReading, onChoose }: {
+  /** The language's speech tag, so the choices draw in its font. */
+  speech: string;
   choices: Phrase[];
   /** Show each by its reading, and its text under it once answered (Japanese). */
   byReading: boolean;
@@ -227,7 +229,7 @@ function Choices({ choices, correct, picked, byReading, onChoose }: {
             }}
           >
             <View style={{ flex: 1, gap: space.xs }}>
-              <Text style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
+              <Text accessibilityLanguage={speech} style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
               {answered && p.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
             </View>
             {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}

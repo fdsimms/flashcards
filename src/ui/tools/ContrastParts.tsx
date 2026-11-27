@@ -24,7 +24,7 @@ export function ContrastVerdict({ right, answer }: { right: boolean; answer: str
  * the word that fits. The English stays hidden behind Show English until then, so the Thai has to be
  * read; once answered it always shows.
  */
-export function ContrastSentenceView({ shown, answered, verdict }: { shown: ShownSentence; answered: boolean; verdict?: React.ReactNode }) {
+export function ContrastSentenceView({ shown, answered, verdict, speech }: { shown: ShownSentence; answered: boolean; verdict?: React.ReactNode; /** The sentence's language as a speech tag, so it draws in that language's font. */ speech?: string }) {
   const c = useTheme();
   const [peek, setPeek] = useState(false);
   const thai = hasThai(shown.filled);
@@ -32,14 +32,14 @@ export function ContrastSentenceView({ shown, answered, verdict }: { shown: Show
   return (
     <View style={{ alignSelf: 'stretch', gap: space.l, alignItems: 'center' }}>
       {verdict}
-      <Text selectable maxFontSizeMultiplier={1.5} style={sentenceStyle}>
+      <Text selectable accessibilityLanguage={speech} maxFontSizeMultiplier={1.5} style={sentenceStyle}>
         {shown.before}
         {answered
           ? <Text style={{ fontWeight: '700', color: c.goodInk }}>{shown.fill}</Text>
           : <Text accessibilityLabel="blank" style={{ color: c.textTertiary }}>{GAP_SHOWN}</Text>}
         {shown.after}
       </Text>
-      {answered && shown.roman ? <Text selectable style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
+      {answered && shown.roman ? <Text selectable accessibilityLanguage={speech} style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
       {answered || peek ? (
         <Text selectable style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{shown.english}</Text>
       ) : (
@@ -56,7 +56,7 @@ export function ContrastSentenceView({ shown, answered, verdict }: { shown: Show
       )}
       {answered ? (
         <View style={{ alignSelf: 'stretch', gap: space.xs, backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m }}>
-          <Text style={{ ...type.overline, color: c.textSecondary }}>{shown.answer.word}</Text>
+          <Text accessibilityLanguage={speech} style={{ ...type.overline, color: c.textSecondary }}>{shown.answer.word}</Text>
           <RuleLine rule={shown.answer.rule} />
         </View>
       ) : null}
@@ -90,7 +90,7 @@ export function ContrastChoices({ set, language, answer, picked, onPick }: { set
               borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
             }}
           >
-            <Text style={{ ...(thai ? { fontSize: 20, lineHeight: 30 } : type.headline), color: c.text, fontWeight: isRight ? '600' : '400' }}>{w.word}</Text>
+            <Text accessibilityLanguage={speech} style={{ ...(thai ? { fontSize: 20, lineHeight: 30 } : type.headline), color: c.text, fontWeight: isRight ? '600' : '400' }}>{w.word}</Text>
             {isRight ? <Icon name="checkmark.circle.fill" size={16} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={16} color={c.danger} /> : null}
           </Tappable>

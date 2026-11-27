@@ -12,7 +12,7 @@ import { haptic } from '../haptics';
 import { Button } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, space, type, useTheme } from '../theme';
-import { useFont } from '../AppFont';
+import { useLanguageFont } from '../AppFont';
 import type { ToolScreenProps } from './index';
 import { AnswerContent, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { LetterDrill } from './LetterDrill';
@@ -43,8 +43,8 @@ export function practiceMenu(mode: ScriptMode, onChange: (m: ScriptMode) => void
  */
 export function ScriptTool({ tool, repo }: ToolScreenProps) {
   const c = useTheme();
-  const font = useFont();
   const [language, setLanguage] = useToolLanguage(tool);
+  const font = useLanguageFont(language);
   const answer = useAnswer(repo, language);
   const marks = useMarks(tool.id, language);
   const retries = useRetries<number>();
@@ -118,7 +118,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
 
   const front = (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...(language === 'th' ? { paddingBottom: thaiDescentRoom(56) } : null),...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text, textAlign: 'center' }}>{word?.shown}</Text>
+      <Text selectable accessibilityLanguage={LANGUAGES[language].speech} maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...(language === 'th' ? { paddingBottom: thaiDescentRoom(56) } : null),...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text, textAlign: 'center' }}>{word?.shown}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
     </View>
   );

@@ -223,7 +223,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
           {picking ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {prompt.choices!.map((choice) => (
-                <ChoiceButton key={choice} label={choice} state={choiceState(choice, prompt, current)} onPress={() => answer(choice, true)} />
+                <ChoiceButton key={choice} speech={prompt.say?.lang} label={choice} state={choiceState(choice, prompt, current)} onPress={() => answer(choice, true)} />
               ))}
             </View>
           ) : (
@@ -331,7 +331,7 @@ function choiceState(choice: string, prompt: FormPrompt, current?: Answered): Ch
   return choice === current.given ? 'wrongPick' : 'other';
 }
 
-export function ChoiceButton({ label, state, onPress }: { label: string; state: ChoiceState; onPress: () => void }) {
+export function ChoiceButton({ label, state, onPress, speech }: { label: string; state: ChoiceState; onPress: () => void; /** The language's speech tag, so the choice draws in its font. */ speech?: string }) {
   const c = useTheme();
   const border = state === 'right' ? c.good : state === 'wrongPick' ? c.danger : c.border;
   return (
@@ -348,7 +348,7 @@ export function ChoiceButton({ label, state, onPress }: { label: string; state: 
       }}
     >
       {state === 'right' ? <Icon name="checkmark" size={18} color={c.good} weight="bold" /> : null}
-      <Text style={{ ...type.title, fontWeight: state === 'right' ? '700' : '400', color: c.text, textAlign: 'center' }}>{label}</Text>
+      <Text accessibilityLanguage={speech} style={{ ...type.title, fontWeight: state === 'right' ? '700' : '400', color: c.text, textAlign: 'center' }}>{label}</Text>
     </Tappable>
   );
 }

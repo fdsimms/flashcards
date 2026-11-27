@@ -42,6 +42,7 @@ const FILES: Record<string, number> = {
   'Nunito_400Regular.ttf': require('../../assets/fonts/Nunito_400Regular.ttf'),
   'Nunito_600SemiBold.ttf': require('../../assets/fonts/Nunito_600SemiBold.ttf'),
   'Nunito_700Bold.ttf': require('../../assets/fonts/Nunito_700Bold.ttf'),
+  'Prompt_400Regular.ttf': require('../../assets/fonts/Prompt_400Regular.ttf'),
   'SourceSerif4_400Regular.ttf': require('../../assets/fonts/SourceSerif4_400Regular.ttf'),
   'SourceSerif4_600SemiBold.ttf': require('../../assets/fonts/SourceSerif4_600SemiBold.ttf'),
   'SourceSerif4_700Bold.ttf': require('../../assets/fonts/SourceSerif4_700Bold.ttf'),

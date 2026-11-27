@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Language, SituationFeedback, SituationFocus, SituationTurn } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
+import { useReadingFont } from '../reader/useReadingFont';
 import { LANGUAGES } from '../../reader/languages';
 import { useApp } from '../AppContext';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
@@ -269,9 +270,10 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const dark = useColorScheme() === 'dark';
   const info = LANGUAGES[chat.language];
   const keyboardLang = useKeyboardLanguage(info.speech);
-  const { thaiFont, textSize } = prefs();
+  const { textSize } = prefs();
+  const readingFont = useReadingFont(chat.language);
   const fontSize = scaledFontSize(info.fontSize, textSize);
-  const look = { fontSize, lineHeight: fontSize * info.lineHeight, fontFamily: readFont(chat.language, thaiFont).fontFamily };
+  const look = { fontSize, lineHeight: fontSize * info.lineHeight, fontFamily: readFont(chat.language, readingFont).fontFamily };
   const [draft, setDraft] = useState('');
   // Hold to talk (Answer by speaking): what's heard fills the box, and letting go sends it once listening has ended.
   const [typingMode, setTypingMode] = useState(false);

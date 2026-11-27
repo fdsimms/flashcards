@@ -91,7 +91,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
 
   const front = (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 64, lineHeight: 88, paddingBottom: thaiDescentRoom(64), color: c.text }}>{shown}</Text>
+      <Text selectable accessibilityLanguage={LANGUAGES[language].speech} maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 64, lineHeight: 88, paddingBottom: thaiDescentRoom(64), color: c.text }}>{shown}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{consonants ? 'Which class?' : 'Short or long?'}</Text>
     </View>
   );
@@ -105,7 +105,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
         </View>
       )}
       <View style={{ gap: space.xs }}>
-        <Text style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{consonant ? consonant.name : vowelSyllable(vowel!)}</Text>
+        <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.cardBack, color: c.text, textAlign: 'center' }}>{consonant ? consonant.name : vowelSyllable(vowel!)}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{consonant ? `${consonant.word}, ${consonant.meaning}` : vowelSteps(vowel!)[0]}</Text>
       </View>
       {consonant?.rarity ? (

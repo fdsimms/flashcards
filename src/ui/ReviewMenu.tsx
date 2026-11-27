@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { FLAG_NAMES } from '../core/cardState';
+import type { TextSize } from '../reader/fonts';
+import { textRows, type TextFont } from './textMenu';
 
 /**
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
@@ -14,7 +16,11 @@ import { FLAG_NAMES } from '../core/cardState';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
+  /** The Text submenu's font rows, for the card's language; none when `code` is missing (a deck with its own card font). */
+  text: TextFont;
+  /** The Text size shared with Read & Listen, which scales the card's text. */
+  textSize: { value: TextSize; onChange: (s: TextSize) => void };
   /** The card's flag, 0 for none. */
   flag: number;
   /** Whether the card is marked to come back a few more times this session (src/core/miniCram.ts). */
@@ -78,6 +84,9 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="calendar" onPress={onDueDate}>Set due date</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="arrow.counterclockwise" destructive onPress={onForget}>Forget card</Stack.Toolbar.MenuAction>
+      </Stack.Toolbar.Menu>
+      <Stack.Toolbar.Menu title="Text" icon="textformat.size">
+        {textRows(text, textSize)}
       </Stack.Toolbar.Menu>
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>

@@ -17,6 +17,7 @@ from franki_reader.comprehension import Question, from_json
 from franki_reader.difficulty import EASIER_FLOOR, STANDARD_FLOOR, Difficulty, nearest_floor
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.generator import MODEL, Choice, Form, Generated, Line
+from franki_reader.genre import Genre
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
@@ -687,6 +688,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
     if "characters" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # The story's characters and what each episode told about them, as JSON (xray.py).
         conn.execute("ALTER TABLE stories ADD COLUMN characters TEXT NOT NULL DEFAULT '[]'")
+    if "genre" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
+        # The kind of story the owner asked for (genre.py), kept for every episode; "any" for a
+        # story started before the choice.
+        conn.execute("ALTER TABLE stories ADD COLUMN genre TEXT NOT NULL DEFAULT 'any'")
     if "pinned" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # The running story the shelf's card shows, one per language (pin_story). Before several
         # stories could run, the one running was the card's, so it starts pinned.
@@ -1381,9 +1386,13 @@ class Story:
     pinned: bool = False
     # Its characters, one entry each with the facts the episodes gave (xray.py).
     characters: list[dict[str, Any]] = field(default_factory=list)
+    # The kind of story asked for (genre.py), told to the model for every episode.
+    genre: Genre = "any"
 
 
-def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datetime) -> Story:
+def start_story(
+    conn: sqlite3.Connection, language: Code, about: str, now: datetime, genre: Genre = "any"
+) -> Story:
     """Starts a new story in a language. The stories already running keep running; the new one is
     pinned to the shelf's card only when none is."""
     with conn:
@@ -1397,8 +1406,9 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
         topic_id = cur.lastrowid
         pinned = _pinned_id(conn, language) is None
         cur = conn.execute(
-            "INSERT INTO stories (language, topic_id, about, created_at, pinned) VALUES (?, ?, ?, ?, ?)",
-            (language, topic_id, about, now.isoformat(), int(pinned)),
+            "INSERT INTO stories (language, topic_id, about, created_at, pinned, genre)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (language, topic_id, about, now.isoformat(), int(pinned), genre),
         )
     story = get_story(conn, cur.lastrowid or 0)
     assert story is not None
@@ -1408,13 +1418,26 @@ def start_story(conn: sqlite3.Connection, language: Code, about: str, now: datet
 def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
     row = conn.execute(
         "SELECT id, language, topic_id, about, title, cast_, plan, voices, active, pinned,"
-        " characters FROM stories WHERE id = ?",
+        " characters, genre FROM stories WHERE id = ?",
         (story_id,),
     ).fetchone()
     if not row:
         return None
     voices = {name: CastVoice(**v) for name, v in json.loads(row[7]).items()}
-    story_id, language, topic_id, about, title, cast_, plan, _, active, pinned, characters = row
+    (
+        story_id,
+        language,
+        topic_id,
+        about,
+        title,
+        cast_,
+        plan,
+        _,
+        active,
+        pinned,
+        characters,
+        genre,
+    ) = row
     return Story(
         story_id,
         language,
@@ -1427,6 +1450,7 @@ def get_story(conn: sqlite3.Connection, story_id: int) -> Story | None:
         bool(active),
         bool(pinned),
         json.loads(characters),
+        genre,
     )
 
 

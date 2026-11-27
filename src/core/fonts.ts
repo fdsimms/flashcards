@@ -9,7 +9,7 @@ import { fnvHash } from './order';
 export type AppFont =
   | 'system' | 'nunito' | 'inter' | 'manrope' | 'comfortaa' | 'sourceSerif' | 'lora' | 'alegreya'
   | 'marckScript' | 'badScript' | 'caveat' | 'mali' | 'sriracha' | 'yomogi' | 'zenKurenaido'
-  | 'mitr' | 'charmonman' | 'zenMaru';
+  | 'mitr' | 'charmonman' | 'zenMaru' | 'prompt';
 
 /** The weights the app draws. */
 export type FontWeightKey = 400 | 600 | 700;
@@ -69,6 +69,7 @@ export const APP_FONT_OPTIONS: AppFontOption[] = [
   { id: 'zenKurenaido', label: 'Zen Kurenaido', hint: 'Neat Japanese handwriting, with Greek and Cyrillic.', group: 'handwritten', family: 'ZenKurenaido', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'], download: true },
   { id: 'mitr', label: 'Mitr', hint: 'Bold, rounded Thai.', group: 'stylistic', family: 'Mitr', weights: THREE, scripts: ['thai'] },
   { id: 'charmonman', label: 'Charmonman', hint: 'Calligraphic Thai, formal and ornate.', group: 'stylistic', family: 'Charmonman', weights: [400, 700], scripts: ['thai'] },
+  { id: 'prompt', label: 'Prompt', hint: 'Loopless Thai, with plain round letters.', group: 'stylistic', family: 'Prompt', weights: [400], scripts: ['thai'] },
   { id: 'zenMaru', label: 'Zen Maru Gothic', hint: 'Rounded Japanese, with Greek and Cyrillic.', group: 'stylistic', family: 'ZenMaruGothic', weights: [400], scripts: ['japanese', 'cyrillic', 'greek'], download: true },
 ];
 
@@ -169,9 +170,15 @@ export interface FontSettings {
   pool: AppFont[];
   /** Card fronts and backs use the app's font too (a deck's own card fonts still win). */
   onCards: boolean;
+  /**
+   * A font per language, by its two-letter code (`ru`), for text in that language wherever it's shown:
+   * cards, Read & Listen, Cram, Practice. A language with no entry uses the app's font. `system` is a
+   * choice too: Russian stays in the system font while the app is in another one.
+   */
+  languages: Record<string, AppFont>;
 }
 
-export const DEFAULT_FONT_SETTINGS: FontSettings = { font: DEFAULT_APP_FONT, random: false, pool: [DEFAULT_APP_FONT], onCards: true };
+export const DEFAULT_FONT_SETTINGS: FontSettings = { font: DEFAULT_APP_FONT, random: false, pool: [DEFAULT_APP_FONT], onCards: true, languages: {} };
 
 /** Reads the stored value back, falling to the default for anything missing or no longer shipped. */
 export function parseFontSettings(raw: string | null | undefined): FontSettings {
@@ -182,7 +189,44 @@ export function parseFontSettings(raw: string | null | undefined): FontSettings 
   const o = v as Record<string, unknown>;
   const font = isAppFont(o.font) ? o.font : DEFAULT_APP_FONT;
   const pool = Array.isArray(o.pool) ? [...new Set(o.pool.filter(isAppFont))] : [];
-  return { font, random: o.random === true, pool: pool.length ? pool : [font], onCards: o.onCards !== false };
+  const languages: Record<string, AppFont> = {};
+  if (o.languages && typeof o.languages === 'object') {
+    for (const [code, id] of Object.entries(o.languages as Record<string, unknown>)) {
+      if (/^[a-z]{2,3}$/.test(code) && isAppFont(id)) languages[code] = id;
+    }
+  }
+  return { font, random: o.random === true, pool: pool.length ? pool : [font], onCards: o.onCards !== false, languages };
+}
+
+/** `ru-RU`, `ru` or `RU` as the two-letter code the language settings are keyed by (Norwegian's `no` is `nb`). */
+export function languageCode(tag: string | null | undefined): string | undefined {
+  const code = tag?.split(/[-_]/)[0]?.toLowerCase();
+  if (!code || !/^[a-z]{2,3}$/.test(code)) return undefined;
+  return code === 'no' ? 'nb' : code;
+}
+
+const LANGUAGE_SCRIPTS: Record<string, Script[]> = {
+  th: ['thai'], ru: ['cyrillic'], uk: ['cyrillic'], bg: ['cyrillic'], sr: ['cyrillic'], el: ['greek'], ja: ['japanese'],
+};
+
+/** The scripts besides Latin that a language is written in, for dimming the fonts that can't draw it. */
+export function languageScripts(code: string | null | undefined): Script[] {
+  const c = languageCode(code);
+  return (c && LANGUAGE_SCRIPTS[c]) || [];
+}
+
+/** The font chosen for a language, or undefined when the language follows the app's font. */
+export function languageChoice(s: Pick<FontSettings, 'languages'>, code: string | null | undefined): AppFont | undefined {
+  const c = languageCode(code);
+  return c ? s.languages[c] : undefined;
+}
+
+/** `settings` with `font` chosen for `code`; choosing the app's own font for it, or none, clears the entry. */
+export function withLanguageFont(s: FontSettings, code: string, font: AppFont | undefined): FontSettings {
+  const c = languageCode(code);
+  if (!c) return s;
+  const { [c]: _gone, ...rest } = s.languages;
+  return { ...s, languages: font ? { ...rest, [c]: font } : rest };
 }
 
 /** The font the app uses until it's next opened: `font`, or a pick from the pool when random is on. */

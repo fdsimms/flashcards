@@ -4,6 +4,7 @@ import { ScrollView } from 'react-native';
 import { LANGUAGES } from '../../../reader/languages';
 import { lessonsOffered } from '../../../reader/lessons';
 import { useApp } from '../../../ui/AppContext';
+import { textMenu, useTextFont } from '../../../ui/textMenu';
 import { Help, Screen } from '../../../ui/kit';
 import { LessonLanguageMenu } from '../../../ui/reader/LessonLanguageMenu';
 import { ReadLessons } from '../../../ui/reader/ReadLessons';
@@ -23,12 +24,14 @@ export default function LessonsRoute() {
   const narrator = useNarrator();
   const [particle] = useParticle();
   const [saved, pick] = useAppLanguage();
+  const text = useTextFont(saved ?? reader.settings?.language ?? 'fr');
   if (!reader.api) return <Redirect href="/read-settings" />;
   const language = saved ?? reader.settings?.language ?? 'fr';
   const toolbar = (
     <>
       <LessonLanguageMenu language={language} onPick={pick} />
       <Stack.Toolbar placement="right">
+        {textMenu(text)}
         <Stack.Toolbar.Button icon="gearshape" accessibilityLabel="Lessons settings" onPress={() => router.push({ pathname: '/settings-page', params: { page: 'lessons' } })} />
       </Stack.Toolbar>
     </>

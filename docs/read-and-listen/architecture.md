@@ -1513,6 +1513,14 @@ topics, favorites and constant setting changes awkward, though the texts themsel
 - **The tab opens on the language read last** (`language`), and its header has a menu of every
   language with how many texts each has waiting. Switching changes `language`, so only the language
   being read is ever written for.
+- **A genre for a dialogue, a story or a series** (27 November 2026, the owner). The New text sheet has a Genre
+  row (Any, Everyday life, Comedy, Mystery, Romance, Adventure, Sci-fi, Fantasy, Horror, Drama, News
+  report) that Surprise me follows too. The list is `genre.py` on the server and `src/reader/genre.ts` in
+  the app. It goes to the model as one sentence in the user message (never the cached system prompt) and
+  shapes plot and tone only: the topic still says what it's about and the 95-98% known-words check is
+  unchanged. Any sends nothing, so a text written without a genre is what it was before. A series takes one too
+  (`stories.genre`, set when it starts), told to the model for every episode, so the kind of story
+  stays the same through the season.
 - **The shelf writes nothing on its own** (13 November 2026, by the owner: 41 of 65 texts written in
   a month were never read, and each language opened filled its own shelf of 3). It holds the texts
   asked for: a typed topic, Surprise me (`asked`), a practice text, and each running story's next

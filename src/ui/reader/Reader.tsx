@@ -10,7 +10,10 @@ import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/ma
 import { lineSide, scrollTarget, type Box } from '../../reader/follow';
 import { saidAs } from '../../reader/wordAudio';
 import { helperNote } from '../../reader/formPrimer';
-import { TEXT_SIZES, TEXT_SIZE_LABELS, THAI_FONTS, THAI_FONT_LABELS, readFont, scaledFontSize, type TextSize, type ThaiFont } from '../../reader/fonts';
+import { readFont, scaledFontSize, type TextSize } from '../../reader/fonts';
+import { useTextFont, textRows } from '../textMenu';
+import { useReadingFont } from './useReadingFont';
+import type { AppFont } from '../../core/fonts';
 import { COMMON_WORD_STATUS, LANGUAGES, inDeck, needsMeaning, wordStatus } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
 import { LineScrubber } from './LineScrubber';
@@ -82,7 +85,7 @@ import { PlayCircle } from '../PlayCircle';
  * words marked unknown). The gloss popover is a transparent Modal, so a tap's page coordinates
  * place it directly.
  *
- * Reading options (Show English, Paragraphs, Thai letters) are one header menu, so the text
+ * Reading options (Show English, Paragraphs, and Text for the font and size) are one header menu, so the text
  * starts right under the practice words. The key to the marks on words, with a switch for each, is a
  * sheet that a button beside that menu opens (ReaderKey.tsx).
  *
@@ -188,8 +191,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [markNames, setMarkNames] = useState(prefs().markNames);
   const [hiddenMarks, setHiddenMarks] = useState(prefs().hiddenMarks);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
-  const [thaiFont, setThaiFont] = useState(prefs().thaiFont);
   const [textSize, setTextSize] = useState(prefs().textSize);
+  // The font chosen for this text's language (Text menu), else the app's; the same one Review and Cram show it in.
+  const readingFont = useReadingFont(text?.language ?? 'th');
+  const textFont = useTextFont(text?.language ?? 'th');
   // The fill-in slots on a few known words (reader/formQuiz.ts), and whether they're shown.
   const [formQuizOn, setFormQuizOn] = useState(prefs().formQuiz);
   const quiz = useFormQuiz(text, formQuizOn);
@@ -592,11 +597,6 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     setParagraphMode(on);
   };
 
-  const chooseThaiFont = (font: ThaiFont) => {
-    savePrefs({ thaiFont: font });
-    setThaiFont(font);
-  };
-
   const chooseTextSize = (size: TextSize) => {
     savePrefs({ textSize: size });
     setTextSize(size);
@@ -677,18 +677,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             {marked ? (
               <Stack.Toolbar.MenuAction isOn={paragraphMode} onPress={() => turnOnParagraphs(!paragraphMode)}>Paragraphs</Stack.Toolbar.MenuAction>
             ) : null}
-            <Stack.Toolbar.Menu inline title="Text size">
-              {TEXT_SIZES.map((s) => (
-                <Stack.Toolbar.MenuAction key={s} isOn={textSize === s} onPress={() => chooseTextSize(s)}>{TEXT_SIZE_LABELS[s]}</Stack.Toolbar.MenuAction>
-              ))}
+            <Stack.Toolbar.Menu title="Text" icon="textformat.size">
+              {textRows(textFont, { value: textSize, onChange: chooseTextSize })}
             </Stack.Toolbar.Menu>
-            {text.language === 'th' || text.language === undefined ? (
-              <Stack.Toolbar.Menu inline title="Thai letters">
-                {THAI_FONTS.map((f) => (
-                  <Stack.Toolbar.MenuAction key={f} isOn={thaiFont === f} onPress={() => chooseThaiFont(f)}>{THAI_FONT_LABELS[f]}</Stack.Toolbar.MenuAction>
-                ))}
-              </Stack.Toolbar.Menu>
-            ) : null}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       ) : undefined}
@@ -726,7 +717,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       {xrayOpen && text?.xray ? <ReaderXray characters={text.xray} episode={text.episode} onClose={() => setXrayOpen(false)} /> : null}
 
       {keyOpen && text ? (
-        <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, thaiFont, textSize)} shown={markShown} onChange={showMark} onClose={() => setKeyOpen(false)} />
+        <ReaderKey examples={keyMarks} language={text.language ?? 'th'} textStyle={readStyle(text, readingFont, textSize)} shown={markShown} onChange={showMark} onClose={() => setKeyOpen(false)} />
       ) : null}
 
       {text && session && !ended ? (
@@ -830,7 +821,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                             <WordView
                               key={m}
                               word={word}
-                              textStyle={readStyle(text, thaiFont, textSize)}
+                              textStyle={readStyle(text, readingFont, textSize)}
                               grammar={grammarOf(text, word)}
                               flagged={isFlagged(session, word.text)}
                               highlighted={highlight && isOutsideDeck(word)}
@@ -849,7 +840,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                           {/* The gap before the next sentence trails this one's last chunk, never starts a row of its own:
                               a lone spacer that wrapped to a new row indented that row. */}
                           {j === chunks.length - 1 && k < lines.length - 1
-                            ? <View style={{ width: readStyle(text, thaiFont, textSize).fontSize * 0.5 }} /> : null}
+                            ? <View style={{ width: readStyle(text, readingFont, textSize).fontSize * 0.5 }} /> : null}
                         </View>
                       ))}
                     </React.Fragment>
@@ -876,7 +867,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
               {line.speaker === 'N' ? null : (
                 // Centered on the first line of words, which is a word's line height plus its
                 // padding and underline border (4.5) tall; the speaker's mark is `speakerSize` tall.
-                <View style={{ paddingTop: listenOnly ? 0 : Math.max(0, (readStyle(text, thaiFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
+                <View style={{ paddingTop: listenOnly ? 0 : Math.max(0, (readStyle(text, readingFont, textSize).lineHeight + 4.5 - speakerSize(text, line.speaker)) / 2) }}>
                   <Speaker text={text} who={line.speaker} />
                 </View>
               )}
@@ -897,7 +888,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                           <WordView
                             key={k}
                             word={word}
-                            textStyle={readStyle(text, thaiFont, textSize)}
+                            textStyle={readStyle(text, readingFont, textSize)}
                             grammar={grammarOf(text, word)}
                             flagged={isFlagged(session, word.text)}
                             highlighted={highlight && isOutsideDeck(word)}
@@ -966,7 +957,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           ))}
           {!listenOnly && choicesView(text, review) ? (
             <View style={{ paddingHorizontal: space.l, paddingBottom: space.l }}>
-              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, thaiFont, textSize)} onChoose={review ? null : choose} error={choiceError} showEnglish={english} />
+              <ReadChoices choices={text.choices ?? []} chosen={chosen} textStyle={readStyle(text, readingFont, textSize)} onChoose={review ? null : choose} error={choiceError} showEnglish={english} />
             </View>
           ) : null}
           {review ? null : (
@@ -997,7 +988,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           text={text}
           questions={check}
           picks={checkPicks ?? {}}
-          textStyle={readStyle(text, thaiFont, textSize)}
+          textStyle={readStyle(text, readingFont, textSize)}
           onPick={(key, pick) => setCheckPicks((prev) => ({ ...prev, [key]: pick }))}
           onPlayWord={onPlayWord}
           onDone={() => setChecking(false)}
@@ -1005,7 +996,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       ) : null}
 
       {text && session && ended && drilling === 'retell' ? (
-        <ReadRetell api={api} text={text} textStyle={readStyle(text, thaiFont, textSize)} onDone={() => setDrilling(null)} />
+        <ReadRetell api={api} text={text} textStyle={readStyle(text, readingFont, textSize)} onDone={() => setDrilling(null)} />
       ) : null}
 
       {text && session && ended && drilling && drilling !== 'retell' ? (
@@ -1013,7 +1004,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           api={api}
           text={text}
           kind={drilling}
-          textStyle={readStyle(text, thaiFont, textSize)}
+          textStyle={readStyle(text, readingFont, textSize)}
           explain={(line) => <LineExplanation api={api} textId={text.id} line={line} grammarChosen={grammarChosen} onGrammarChosen={chooseGrammar} onOpenGrammar={onOpenGrammar} />}
           onDone={() => setDrilling(null)}
         />
@@ -1130,11 +1121,11 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 }
 
 /** The reading size for a text's language. */
-function readStyle(text: ReaderText, thaiFont: ThaiFont, textSize: TextSize) {
+function readStyle(text: ReaderText, font: AppFont, textSize: TextSize) {
   const language = text.language ?? 'th';
   const info = LANGUAGES[language];
   const fontSize = scaledFontSize(info.fontSize, textSize);
-  return { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, thaiFont) };
+  return { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, font) };
 }
 
 function practicedGrammar(text: ReaderText): TextGrammar[] {

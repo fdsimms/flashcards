@@ -47,6 +47,9 @@ from franki_reader.coverage import MINIMUM, Checker, Coverage, check, line_names
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
 from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
+from franki_reader.genre import DEFAULT as DEFAULT_GENRE
+from franki_reader.genre import Genre
+from franki_reader.genre import instruction as genre_instruction
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.lexicon import Entry
 from franki_reader.met import MetWord
@@ -255,6 +258,8 @@ class TextRequest:
     story: StoryContext | None = None
     # What really happened, for a text on the owner's own day: written from, never contradicted.
     about: str = ""
+    # What kind of text it is (genre.py); "any" asks for nothing, as before the choice existed.
+    genre: Genre = DEFAULT_GENRE
     # The Settings register (register.py). Each line still carries its own register label, chosen
     # by who is talking to whom, so this sets the baseline and the default asks for nothing extra.
     register: Register = DEFAULT_REGISTER
@@ -708,6 +713,11 @@ def request_message(request: TextRequest) -> str:
             "outside the list, so the coverage target stays the same. Don't wrap them in asterisks, "
             "and use none that doesn't fit:\n"
             + "\n".join(f"- {w.text} ({w.meaning})" for w in request.met)
+        )
+    if request.genre != DEFAULT_GENRE:
+        parts.append(
+            f"Genre: write {genre_instruction(request.genre)} The topic still decides what it is "
+            "about, and the word list still decides the vocabulary."
         )
     if request.register != DEFAULT_REGISTER:
         parts.append(
