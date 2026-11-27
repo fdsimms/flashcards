@@ -18,6 +18,7 @@ import { Bars } from './StatsBars';
 import { ForecastBox } from './StatsForecast';
 import { AnswerCalendar } from './StatsCalendar';
 import { space, type, useTheme, readable } from './theme';
+import { WordsKnown } from './WordsKnown';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -79,6 +80,8 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
     const since = calendarStart(now, dayStartsAtHour, rangeDays);
     return {
       ...computeStats({ cards, answers, now, dayStartsAtHour, days: DAYS }),
+      // The cards in view, for Words you know.
+      cards,
       // What sets how often a review is passed in the forecast: the cards' answers, not WaniKani's.
       cardAnswers: scope === null ? data.answers : scope === WANIKANI_SCOPE ? [] : answers,
       calendar: answerCalendar({ answers, now, dayStartsAtHour }),
@@ -133,6 +136,8 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
               <Tile value={stats.today.again.toLocaleString()} label={onWaniKani ? 'missed along the way' : 'answered Again'} />
             </View>
           </Box>
+
+          {onWaniKani || !data ? null : <WordsKnown notes={data.notes} cards={stats.cards} params={data.params} now={data.now} />}
 
           {onWaniKani ? (
             <Help>WaniKani answers given in Franki. Answers given on wanikani.com aren't counted here.</Help>
