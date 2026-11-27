@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnInsets, READABLE_WIDTH, SIDE_PANEL_WIDTH, sidePanelFits, twoColumnsFit } from '../../src/core/wide';
+import { columnInsets, READABLE_WIDTH, SIDE_PANEL_WIDTH, sidePanelFits, TWO_COLUMNS_WIDTH, twoColumnsFit } from '../../src/core/wide';
 
 describe('a wide window', () => {
   it('has room for a side panel only past the column, the panel and a gutter each side', () => {
@@ -21,6 +21,8 @@ describe('a wide window', () => {
     expect(twoColumnsFit(760)).toBe(true);
     // 1194 wide in landscape less the sidebar.
     expect(twoColumnsFit(874)).toBe(true);
+    // Two full columns and their gaps, and no wider.
+    expect(TWO_COLUMNS_WIDTH).toBe(1328);
   });
 
   it('keeps a popup at the margin on a narrow window', () => {

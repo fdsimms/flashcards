@@ -4,6 +4,7 @@ import { Card, Group } from './kit';
 import { Pulse, SkeletonBar } from './Skeleton';
 import { radius, space } from './theme';
 import { TodayColumns } from './TodayColumns';
+import { TWO_COLUMNS_WIDTH } from '../core/wide';
 
 /**
  * What Today shows while its pieces are still arriving (`ready` false): placeholders in the shape
@@ -14,7 +15,7 @@ import { TodayColumns } from './TodayColumns';
  */
 export function TodaySkeleton() {
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic" scrollEnabled={false}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ width: '100%', maxWidth: TWO_COLUMNS_WIDTH, alignSelf: 'center' }} scrollEnabled={false}>
       <Pulse>
         <TodayColumns
           lead={(

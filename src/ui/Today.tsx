@@ -18,6 +18,7 @@ import { useHeaderInset } from './useHeaderInset';
 import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { TodayColumns } from './TodayColumns';
+import { TWO_COLUMNS_WIDTH } from '../core/wide';
 
 /** What's waiting across every deck, or that nothing is: the first thing Today says. */
 function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
@@ -170,6 +171,8 @@ export function Today(props: {
       {!ready ? <TodaySkeleton /> : (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        // Two columns at most (TodayColumns narrows it to one where they don't fit).
+        contentContainerStyle={{ width: '100%', maxWidth: TWO_COLUMNS_WIDTH, alignSelf: 'center' }}
         // Always mounted, as on Decks: one added once sync's settings load moved the content down.
         refreshControl={<RefreshControl refreshing={syncTap.pulling} onRefresh={syncTap.pull} tintColor={c.textSecondary} />}
       >

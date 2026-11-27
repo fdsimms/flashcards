@@ -25,6 +25,9 @@ export function twoColumnsFit(width: number): boolean {
   return width >= 2 * MIN_COLUMN + COLUMN_GAPS;
 }
 
+/** The most a screen in two columns spreads to: two full content columns and what's around them. Its scroll view stops here, centered. */
+export const TWO_COLUMNS_WIDTH = 2 * READABLE_WIDTH + COLUMN_GAPS;
+
 /** Whether the window has room for the full content column and a panel beside it. */
 export function sidePanelFits(windowWidth: number): boolean {
   return windowWidth >= READABLE_WIDTH + SIDE_PANEL_WIDTH + 2 * GUTTER;
