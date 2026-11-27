@@ -47,6 +47,16 @@ def test_a_language_with_nothing_waiting_is_not_picked() -> None:
     assert codes(plan(langs, {}, 1, DAY, [])) == ["de"]
 
 
+def test_toki_pona_has_no_daily_task_until_one_is_chosen_for_it() -> None:
+    assert read_plan.default_mode("tok") == "off" and read_plan.default_mode("de") == "rotate"
+    langs = [
+        lang("de", "German", days_ago=1),
+        lang("tok", "Toki Pona"),
+    ]  # never read: it would go first
+    assert codes(plan(langs, {}, 2, DAY, [])) == ["de"]
+    assert codes(plan(langs, {"tok": "rotate"}, 2, DAY, [])) == ["tok", "de"]
+
+
 def test_every_day_languages_are_always_listed_and_do_not_use_up_the_rotation() -> None:
     langs = [
         lang("th", "Thai", days_ago=0.5),

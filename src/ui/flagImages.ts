@@ -1,11 +1,11 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { Language } from '../reader/api';
+import type { GlossLanguage } from '../reader/api';
 
 // A flag per language as an image, for a header button: iOS draws an icon-only button as a circle,
 // but one labeled with a flag emoji as a pill. The files are 26 points in 1x, @2x and @3x: the button
 // takes its width from the image's size in points, so a bigger image makes a pill around a small
 // flag (tests/flagImages.test.ts).
-export const FLAG_IMAGES: Record<Language, ImageSourcePropType> = {
+export const FLAG_IMAGES: Record<GlossLanguage, ImageSourcePropType> = {
   th: require('../../assets/flags/th.png'),
   es: require('../../assets/flags/es.png'),
   de: require('../../assets/flags/de.png'),
@@ -16,4 +16,6 @@ export const FLAG_IMAGES: Record<Language, ImageSourcePropType> = {
   nb: require('../../assets/flags/nb.png'),
   en: require('../../assets/flags/en.png'),
   ja: require('../../assets/flags/ja.png'),
+  // Toki Pona has no flag: its deck's 🙂, drawn as the other flags are.
+  tok: require('../../assets/flags/tok.png'),
 };

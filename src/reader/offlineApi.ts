@@ -3,7 +3,7 @@
 // it can't be (a reading, a story choice) held to send later. Every screen gets it from useReader,
 // so none of them needs to know. Pure, so it's tested; the files are reached through `deps`.
 import { isOffline } from '../core/held';
-import { ApiError, type Api, type AudioLesson, type Language, type ReaderText, type Settings, type SettingsChange, type Shelf } from './api';
+import { ApiError, type Api, type AudioLesson, type GlossLanguage, type Language, type ReaderText, type Settings, type SettingsChange, type Shelf } from './api';
 import { linesWithAudio, offlineShelf, readOffline, type DownloadIndex, type HeldReaderAction } from './downloads';
 import { isSlow } from './playbackRate';
 
@@ -35,7 +35,7 @@ export function withOffline(api: Api, deps: OfflineDeps): Api {
   /** A text's saved recordings, whole or not: a text being kept as it plays (useKeepPlaying) plays the lines saved so far from the phone, so it carries on if the connection drops. */
   const saved = (id: number) => deps.index().texts.find((t) => t.id === id) ?? null;
   /** The reader's language: one switched to offline (held to send), else the server's as last read. */
-  const language = (): Language | null => {
+  const language = (): GlossLanguage | null => {
     const switched = deps.held().filter((a) => a.kind === 'language').at(-1);
     return switched?.kind === 'language' ? switched.language : deps.settings()?.language ?? null;
   };

@@ -5,6 +5,7 @@ import { quickAddDecks } from '../reader/noteQueue';
 import { useApp } from '../ui/AppContext';
 import { CramMakeCards } from '../ui/cram/CramMakeCards';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { spokenLanguage } from '../reader/languages';
 
 /** Make cards for all the words jotted down in the lesson of the cram named by `id`. Needs Read & Listen. */
 export default function CramCardsRoute() {
@@ -13,7 +14,7 @@ export default function CramCardsRoute() {
   const queue = useNoteQueue(reader.api);
   const api = reader.api;
   if (!api) return <Redirect href="/read-settings" />;
-  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), reader.settings.language) : [];
+  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), spokenLanguage(reader.settings.language)) : [];
   return (
     <CramMakeCards
       repo={repo}

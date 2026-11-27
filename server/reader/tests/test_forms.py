@@ -26,7 +26,7 @@ from franki_reader.forms import (
     schema,
 )
 from franki_reader.generator import CHEAP_MODEL, Generated, Line, Usage
-from franki_reader.languages import TEXT_LANGUAGES
+from franki_reader.languages import LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
 
@@ -515,15 +515,15 @@ def test_claude_forms_keeps_the_usage_of_an_answer_it_cant_use(
 
 # Thai has no inflection, and English is read by someone who already knows its grammar: neither is
 # ever asked about its forms.
-NO_FORMS = ("th", "en")
+NO_FORMS = ("th", "en", "tok")
 
 
 def test_every_language_has_primers_except_thai_and_english() -> None:
-    for code in TEXT_LANGUAGES:
+    for code in LANGUAGES:
         assert bool(form_primers.primers(code)) == (code not in NO_FORMS), code
 
 
-@pytest.mark.parametrize("code", [c for c in TEXT_LANGUAGES if c not in NO_FORMS])
+@pytest.mark.parametrize("code", [c for c in LANGUAGES if c not in NO_FORMS])
 def test_a_primer_is_well_formed(code: str) -> None:
     primers = form_primers.primers(code)
     ids = [p["id"] for p in primers]

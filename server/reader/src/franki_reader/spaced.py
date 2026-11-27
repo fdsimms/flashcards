@@ -183,8 +183,6 @@ RULES: dict[str, Rules] = {
 def common_lemmas(code: str) -> tuple[str, ...]:
     """The language's most common word families, most common first, as written (Russian keeps its
     ё), for showing a word to the learner."""
-    if code in LANGUAGES and LANGUAGES[code].glosses_only:
-        return ()  # no frequency list: a gloss-only language ranks nothing
     lines = (_DATA / f"{code}_common.txt").read_text(encoding="utf-8").splitlines()
     return tuple(w for w in lines if w and not w.startswith("#"))
 
@@ -234,7 +232,7 @@ def lemma(word: str, code: str) -> str:
     import simplemma  # loaded on first use; see the module docstring
 
     word = fold(word, code)
-    if code in LANGUAGES and LANGUAGES[code].glosses_only:
+    if code in LANGUAGES and not LANGUAGES[code].lemmatizes:
         return word  # simplemma has no Toki Pona, and it has no inflection to undo
     if fixed := _LEMMA_FIXES.get(code, {}).get(word):
         return fixed

@@ -4,7 +4,7 @@
 // and the repeat mode are decided here; src/ui/useAudioQueue.ts keeps it on the phone and drives
 // the player. Pure, so it's tested. Nothing here grades a card: a text played to its end is logged
 // as listened to (`listenLog`), as the reader logs a reading, and never as a rating.
-import type { AudioLesson, Form, Language, PastText, ReadingLog, ShelfText } from './api';
+import type { AudioLesson, Form, GlossLanguage, Language, PastText, ReadingLog, ShelfText } from './api';
 import { clock } from './lessons';
 
 /**
@@ -16,7 +16,7 @@ export type QueuedText = {
   kind: 'text';
   textId: number;
   title: string;
-  language: Language;
+  language: GlossLanguage;
   form?: Form;
   /** Its number of lines, when known (a shelf text's card says). */
   lines?: number;
@@ -66,7 +66,7 @@ export function titleOf(item: QueueItem): string {
   return item.kind === 'text' ? item.title : item.lesson.title;
 }
 
-export function languageOf(item: QueueItem): Language {
+export function languageOf(item: QueueItem): GlossLanguage {
   return item.kind === 'text' ? item.language : item.lesson.language;
 }
 
@@ -211,12 +211,12 @@ export function repeatLabel(mode: RepeatMode): string {
 }
 
 /** A shelf text as a queue item. */
-export function shelfItem(text: Pick<ShelfText, 'id' | 'title' | 'form' | 'lines'>, language: Language): QueuedText {
+export function shelfItem(text: Pick<ShelfText, 'id' | 'title' | 'form' | 'lines'>, language: GlossLanguage): QueuedText {
   return { kind: 'text', textId: text.id, title: text.title, language, form: text.form, lines: text.lines, from: 'shelf' };
 }
 
 /** A text read before, as a queue item: played to its end it counts as heard again. */
-export function pastItem(text: PastText, language: Language): QueuedText {
+export function pastItem(text: PastText, language: GlossLanguage): QueuedText {
   return { kind: 'text', textId: text.id, title: text.title, language, form: text.form, from: 'past', past: text };
 }
 
@@ -229,7 +229,7 @@ export function lessonItem(lesson: AudioLesson): QueuedLesson {
  * not played lately and not the one just finished. The story's next episode is left to its own
  * card, since it can end on a choice. Null when there's none, or `finished` isn't a shelf text.
  */
-export function keepPlayingPick(q: Pick<AudioQueue, 'history' | 'next' | 'now'>, finished: QueueItem, shelf: { language: Language; texts: ShelfText[] }): ShelfText | null {
+export function keepPlayingPick(q: Pick<AudioQueue, 'history' | 'next' | 'now'>, finished: QueueItem, shelf: { language: GlossLanguage; texts: ShelfText[] }): ShelfText | null {
   if (finished.kind !== 'text' || finished.from !== 'shelf' || shelf.language !== finished.language) return null;
   const skip = new Set([keyOf(finished), ...q.history.map(keyOf), ...q.next.map(keyOf), ...(q.now ? [keyOf(q.now)] : [])]);
   return shelf.texts.find((t) => !skip.has(`text:${t.id}`)) ?? null;

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, commonLabel, commonNamed, flaggedName, glossInfo, inDeck, ipaNote, isGlossOnly, languageNamed, meaningOf, needsMeaning, splitDecks, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, TEXT_LANGUAGE_ORDER, commonLabel, commonNamed, deckOf, flaggedName, glossInfo, inDeck, ipaNote, isGlossOnly, languageNamed, meaningOf, needsMeaning, splitDecks, spokenLanguage, wordStatus } from '../../src/reader/languages';
 
 test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
   expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
@@ -66,11 +66,31 @@ test("a gloss-only language's deck is kept apart from the languages' decks, so n
   expect(splitDecks({ th: 'Languages::Thai' })).toEqual({ decks: { th: 'Languages::Thai' } });
 });
 
-test('Toki Pona is glossed but is not a language to pick, read or hear', () => {
+test('Toki Pona is read and glossed but has no voices, so no lesson, Practice or voice screen walks it', () => {
   expect(isGlossOnly('tok')).toBe(true);
   expect(isGlossOnly('th')).toBe(false);
   expect(glossInfo('tok').name).toBe('Toki Pona');
   expect(glossInfo('th')).toBe(LANGUAGES.th);
   expect(Object.keys(LANGUAGES)).not.toContain('tok');
   expect(LANGUAGE_ORDER).not.toContain('tok' as never);
+});
+
+test('spokenLanguage leaves out Toki Pona, which the app\'s one language (Practice, lessons) can\'t be', () => {
+  expect(spokenLanguage('fr')).toBe('fr');
+  expect(spokenLanguage('tok')).toBeUndefined();
+  expect(spokenLanguage(undefined)).toBeUndefined();
+});
+
+test("deckOf finds Toki Pona's deck where it is kept, apart from the others", () => {
+  const settings = { decks: { th: 'Languages::Thai' }, glossOnlyDecks: { tok: 'Languages::toki pona' } } as const;
+  expect(deckOf(settings, 'th')).toBe('Languages::Thai');
+  expect(deckOf(settings, 'tok')).toBe('Languages::toki pona');
+  expect(deckOf({ decks: { th: 'Languages::Thai' } }, 'tok')).toBeUndefined();
+  expect(deckOf(null, 'th')).toBeUndefined();
+});
+
+test('a text can be in Toki Pona, listed after the app\'s languages, with a flag and name for a menu', () => {
+  expect(TEXT_LANGUAGE_ORDER).toEqual([...LANGUAGE_ORDER, 'tok']);
+  expect(flaggedName('tok')).toBe('🙂 Toki Pona');
+  expect(flaggedName('th')).toBe(`${LANGUAGES.th.flag} Thai`);
 });

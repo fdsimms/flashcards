@@ -6,7 +6,7 @@ import {
 } from '../../reader/api';
 import { LEVEL_HELP, LEVEL_OPTIONS, levelOf } from '../../reader/difficulty';
 import { grammarSummary } from '../../reader/grammar';
-import { LANGUAGES } from '../../reader/languages';
+import { deckOf, glossInfo, spokenLanguage } from '../../reader/languages';
 import { DEFAULT_REGISTER, REGISTER_LEVELS, type RegisterLevel } from '../../reader/registerLevel';
 import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
@@ -90,8 +90,10 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   };
 
   const language = settings?.language;
-  const name = language ? LANGUAGES[language].name : '';
-  const voices = language ? settings?.voices?.[language] : undefined;
+  const name = language ? glossInfo(language).name : '';
+  // Toki Pona has no voices, so no voices or grammar rows and no common-words setting.
+  const spoken = spokenLanguage(language);
+  const voices = spoken ? settings?.voices?.[spoken] : undefined;
   const failure = (at: FailureArea) => (failed?.at === at ? <ErrorNote message={failed.message} /> : null);
 
   return (
@@ -107,7 +109,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
         {settings && language ? (
           <>
             <Section
-              title="Words and voices"
+              title={spoken ? 'Words and voices' : 'Words'}
             >
               <Card>
                 {/* `decks` is missing from a server older than the deck setting. */}
@@ -115,8 +117,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                   <>
                     <Select
                       label="Deck"
-                      options={deckNames.includes(settings.decks[language]) ? deckNames : [settings.decks[language], ...deckNames]}
-                      value={settings.decks[language]}
+                      options={deckNames.includes(deckOf(settings, language) ?? '') ? deckNames : [deckOf(settings, language) ?? '', ...deckNames]}
+                      value={deckOf(settings, language) ?? ''}
                       onChange={(deck) => change({ decks: { [language]: deck } }, 'words')}
                     />
                     <Help>Words come from this deck and its subdecks. Texts already waiting were written from the old one.</Help>
@@ -125,14 +127,16 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
                 <CommonWords settings={settings} onChange={(count) => change({ common: { [language]: count } }, 'words')} />
                 {failure('words')}
               </Card>
-              <Group>
-                {/* Thai counts only its deck, so it has no common words to check. */}
-                {settings.common?.[language] !== undefined ? (
-                  <NavRow first label="Vocabulary check" detail="20 questions to see how many common words you know" onPress={onVocabCheck} />
-                ) : null}
-                <NavRow first={settings.common?.[language] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
-                <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
-              </Group>
+              {spoken ? (
+                <Group>
+                  {/* Thai counts only its deck, so it has no common words to check. */}
+                  {settings.common?.[spoken] !== undefined ? (
+                    <NavRow first label="Vocabulary check" detail="20 questions to see how many common words you know" onPress={onVocabCheck} />
+                  ) : null}
+                  <NavRow first={settings.common?.[spoken] === undefined} label="Voices" detail={voicesSummary(voices) ?? 'The voices texts are read in'} onPress={onVoices} />
+                  <NavRow label="Grammar" detail={grammar ?? 'Practice or avoid'} onPress={onGrammar} />
+                </Group>
+              ) : null}
             </Section>
 
             <Section

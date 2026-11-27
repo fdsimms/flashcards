@@ -17,7 +17,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
 ## Read & Listen (`server/reader/`, `src/reader/`)
 
 Texts (dialogues, short stories) written by Claude from the words already in the language decks
-(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese, English), checked in code to be 95-98% known words, recorded with Azure's voices, read in the app with
+(Thai, Spanish, German, French, Russian, Greek, Polish, Norwegian, Japanese, English, Toki Pona), checked in code to be 95-98% known words, recorded with Azure's voices (Toki Pona has none, so its texts are read only), read in the app with
 a gloss on every word. **`docs/read-and-listen/brief.md` is the spec, with the evidence behind each
 rule; `architecture.md` beside it has every decision since.** Where they and this file disagree,
 they win and this is stale. The rules that must not break:

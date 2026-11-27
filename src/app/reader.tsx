@@ -7,6 +7,7 @@ import { useReaderPlayerHost } from '../ui/useReaderPlayer';
 import { useWordAudio } from '../ui/useWordAudio';
 import { leaveScreen } from '../ui/leaveScreen';
 import { READ_PATH } from '../ui/tabPaths';
+import { deckOf } from '../reader/languages';
 
 /**
  * The reader. Its `source` parameter is a shelf text, a topic to write a text for, or a past text,
@@ -27,7 +28,7 @@ export default function ReaderRoute() {
   if (!readerApi || !source) return <Redirect href={readerApi ? '/read' : '/read-settings'} />;
   // `decks` is missing from a server older than the deck setting.
   const language = reader.settings?.language;
-  const deck = language && reader.settings?.decks ? reader.settings.decks[language] : null;
+  const deck = language && reader.settings?.decks ? deckOf(reader.settings, language) ?? null : null;
   return (
     <Reader
       api={readerApi}

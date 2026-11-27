@@ -1,10 +1,10 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
-import type { Language, RecapLine, Word } from '../../reader/api';
+import type { GlossLanguage, RecapLine, Word } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { useReadingFont } from './useReadingFont';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { prefs } from '../../reader/storage';
 import { wrapGroups } from '../../reader/wordLayout';
 import { haptic } from '../haptics';
@@ -20,7 +20,7 @@ import { hairline, MIN_TAP, space, type, useTheme } from '../theme';
 export function ReadRecap({ recap, line, language, tapped, onTap }: {
   recap: string;
   line: RecapLine | null | undefined;
-  language: Language;
+  language: GlossLanguage;
   /** The word whose meaning is showing, ringed while it is. */
   tapped: Word | null;
   onTap: (word: Word, x: number, y: number) => void;
@@ -31,7 +31,7 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
   // Hidden again whenever the shelf is left, so the line is read before its English each time.
   useFocusEffect(useCallback(() => () => setEnglish(false), []));
   if (!recap && !line) return null;
-  const info = LANGUAGES[language];
+  const info = glossInfo(language);
   // A little under the reader's own size, as the card's secondary part; Thai stays larger, as there.
   const fontSize = scaledFontSize(info.fontSize, prefs().textSize) - 3;
   const textStyle = { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, readingFont) };

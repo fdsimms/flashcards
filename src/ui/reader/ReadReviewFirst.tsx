@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
-import type { Language } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import type { GlossLanguage } from '../../reader/api';
+import { deckOf, glossInfo } from '../../reader/languages';
 import { reviewFirst } from '../../reader/reviewFirst';
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
@@ -15,10 +15,10 @@ import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from '
  * opens the deck's review and hides itself once nothing is due. The same shape as the deck list's
  * note queue card.
  */
-export function ReadReviewFirst({ language, onReview }: { language: Language; onReview: (deck: string) => void }) {
+export function ReadReviewFirst({ language, onReview }: { language: GlossLanguage; onReview: (deck: string) => void }) {
   const c = useTheme();
   const { decks, reader } = useApp();
-  const due = reviewFirst(reader.settings?.decks[language], LANGUAGES[language].name, decks);
+  const due = reviewFirst(deckOf(reader.settings, language), glossInfo(language).name, decks);
   if (!due) return null;
   return (
     <Reveal>

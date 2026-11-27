@@ -1,8 +1,8 @@
 // The daily reading tasks: which languages another app (dundundun) adds a Read & Listen task for
 // each day. The server chooses (server/reader read_plan.py, docs/read-and-listen/architecture.md,
 // Status); this is what the settings screen says about the choice.
-import type { DailyTaskMode, Language, Settings } from './api';
-import { LANGUAGE_ORDER, LANGUAGES } from './languages';
+import type { DailyTaskMode, GlossLanguage, Settings } from './api';
+import { glossInfo, TEXT_LANGUAGE_ORDER } from './languages';
 
 export const DAILY_MODES: { value: DailyTaskMode; label: string }[] = [
   { value: 'daily', label: 'Every day' },
@@ -12,9 +12,9 @@ export const DAILY_MODES: { value: DailyTaskMode; label: string }[] = [
 
 export const ROTATE_COUNT_RANGE = { min: 1, max: 10 };
 
-/** A language's mode: the one chosen, else Rotate, as the server reads a language nobody chose. */
-export function dailyModeOf(settings: Pick<Settings, 'daily_tasks'>, language: Language): DailyTaskMode {
-  return settings.daily_tasks?.[language] ?? 'rotate';
+/** A language's mode: the one chosen, else Rotate (Off for Toki Pona), as the server reads a language nobody chose. */
+export function dailyModeOf(settings: Pick<Settings, 'daily_tasks'>, language: GlossLanguage): DailyTaskMode {
+  return settings.daily_tasks?.[language] ?? (language === 'tok' ? 'off' : 'rotate');
 }
 
 export function dailyModeLabel(mode: DailyTaskMode): string {
@@ -33,8 +33,8 @@ export function clampRotateCount(count: number): number {
  */
 export function dailyTasksSummary(settings: Pick<Settings, 'daily_tasks' | 'daily_rotate_count'> | null | undefined): string | null {
   if (!settings?.daily_tasks) return null;
-  const daily = LANGUAGE_ORDER.filter((l) => dailyModeOf(settings, l) === 'daily').map((l) => LANGUAGES[l].name);
-  const rotating = LANGUAGE_ORDER.filter((l) => dailyModeOf(settings, l) === 'rotate').length;
+  const daily = TEXT_LANGUAGE_ORDER.filter((l) => dailyModeOf(settings, l) === 'daily').map((l) => glossInfo(l).name);
+  const rotating = TEXT_LANGUAGE_ORDER.filter((l) => dailyModeOf(settings, l) === 'rotate').length;
   const parts: string[] = [];
   if (daily.length) parts.push(`${daily.join(', ')} every day`);
   if (rotating) {

@@ -148,6 +148,10 @@ describe('what the screens show', () => {
   it('lists the lines a text has recordings for', () => {
     expect(linesWithAudio(readerText(1, [true, false, true]))).toEqual([0, 2]);
   });
+
+  it('finds none in a text with no recordings at all (Toki Pona has no voice)', () => {
+    expect(linesWithAudio(readerText(1, [false, false]))).toEqual([]);
+  });
 });
 
 describe('lessons', () => {

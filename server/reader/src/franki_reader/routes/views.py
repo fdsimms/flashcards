@@ -14,11 +14,7 @@ from franki_reader.generator import (
     SEASON_EPISODES,
     StoryContext,
 )
-from franki_reader.languages import (
-    HIDDEN_LANGUAGES,
-    TEXT_LANGUAGES,
-    Code,
-)
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
 from franki_reader.reader import (
     render,
     render_line,
@@ -52,7 +48,11 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
         ai_ipa=engine.ai_ipa(text.language),
         deck_registers={e.text: e.register for e in entries if e.register},
     )
-    speaks = engine.audio is not None and engine.synthesize is not None
+    speaks = (
+        LANGUAGES[text.language].speaks
+        and engine.audio is not None
+        and engine.synthesize is not None
+    )
     for i, line in enumerate(out["lines"]):
         line["audio"] = speaks or engine.has_audio(text.id, i)
         timing.add_times(line["words"], engine.audio.marks(text.id, i) if engine.audio else None)
@@ -222,7 +222,7 @@ def shelf_json(engine: Engine, language: Code | None = None) -> dict[str, Any]:
         "language": language,
         "languages": [
             {"code": code, "name": info.name, "ready": counts.get(code, 0)}
-            for code, info in TEXT_LANGUAGES.items()
+            for code, info in LANGUAGES.items()
             if code not in HIDDEN_LANGUAGES
         ],
         "texts": [shelf_text(t, engine) for t in store.shelf_texts(engine.conn, language)],

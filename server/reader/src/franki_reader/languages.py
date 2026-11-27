@@ -60,10 +60,15 @@ class Language:
     writing: str = "put | between words instead of spaces, keep punctuation on its word"
     # The note field holding a word's pronunciation, shown behind the reader's reveal.
     translit_field: str = "Transliteration"
-    # Only a card's example sentences are glossed (POST /api/glosses). No texts are written, read
-    # aloud, or put on the shelf, and it has no voices or common-word list, so everything that
-    # lists the languages for one of those leaves it out (`TEXT_LANGUAGES`).
-    glosses_only: bool = False
+    # Its common words are a short list that always counts in full (data/<code>_common.txt), so the
+    # `common` setting doesn't apply and the list ranks nothing.
+    common_fixed: bool = False
+    # Whether its daily reading task is on until the learner turns it on (read_plan.default_mode).
+    # Toki Pona's isn't: a language never read goes first in the rotation, so it would appear at once.
+    rotates_by_default: bool = True
+    # Whether simplemma has the language. One without it (Toki Pona, which has no inflection to
+    # undo either) is compared as written.
+    lemmatizes: bool = True
 
     @property
     def locale(self) -> str:
@@ -73,11 +78,17 @@ class Language:
         return locale_of(next(iter(self.voices.values()))) if self.voices else ""
 
     @property
+    def speaks(self) -> bool:
+        """Whether it has voices. A language without them (Toki Pona) is read, not heard: its
+        texts are written and glossed as any other's, and nothing is recorded."""
+        return bool(self.voices)
+
+    @property
     def counts_common(self) -> bool:
         """Whether some of its most common words count as known (data/<code>_common.txt). Thai's
         list (data/th_common.txt) only ranks words for the popup (frequency.py): only its deck
         counts as known."""
-        return self.code != "th" and not self.glosses_only
+        return self.code != "th"
 
     @property
     def writes_rare_words(self) -> bool:
@@ -272,21 +283,27 @@ LANGUAGES: dict[Code, Language] = {
         ),
     ),
     # Added on 24 November 2026, by the owner's request, to gloss the example sentences of its deck
-    # (136 words, Lipu Linku's jan Lakuse list). Toki Pona has no Azure voice and no lemmatizer and
-    # no frequency list, so nothing is written in it: see `glosses_only`.
+    # (136 words, Lipu Linku's jan Lakuse list), and on 27 November 2026 to be read as well. Toki Pona
+    # has no Azure voice, so its texts are never recorded (`speaks`). It has no lemmatizer (no
+    # inflection to undo) and no frequency list, so what counts as known besides the deck is its
+    # particles and a few other function words (data/tok_common.txt), all of them.
     "tok": Language(
         code="tok",
         name="Toki Pona",
         deck=_LANGUAGES + "🙂 toki pona",
         spaced=True,
-        glosses_only=True,
+        example="jan|li|*lukin*|e|mi.",
+        common=100,  # more than the list holds: all of it counts
+        common_fixed=True,
+        lemmatizes=False,
+        rotates_by_default=False,
     ),
 }
 
 
-# The languages texts are written in, read aloud and shelved: all but the gloss-only ones.
-TEXT_LANGUAGES: dict[Code, Language] = {
-    code: info for code, info in LANGUAGES.items() if not info.glosses_only
+# The languages with voices: where voices, casts and recordings apply.
+SPEAKING_LANGUAGES: dict[Code, Language] = {
+    code: info for code, info in LANGUAGES.items() if info.speaks
 }
 
 

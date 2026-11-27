@@ -4,7 +4,7 @@ import type { SFSymbol } from 'expo-symbols';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, Image, ScrollView, Text, View } from 'react-native';
 import { itemDetail, languageOf, nextRepeat, repeatLabel, sleepIn, sleepLabel, SLEEP_MINUTES, titleOf } from '../../reader/audioQueue';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { clock, SKIP_SECONDS } from '../../reader/lessons';
 import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { FLAG_IMAGES } from '../flagImages';
@@ -115,12 +115,12 @@ export function NowPlaying() {
 
         <Tappable onPress={tap(open)} accessibilityRole="button" accessibilityHint={lesson ? 'Opens the lesson' : 'Opens the text in Read & Listen'} scaleTo={0.98} style={{ gap: space.xs, alignItems: 'center' }}>
           <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>{titleOf(now)}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`${LANGUAGES[language].name} · ${lesson ? 'Audio lesson' : 'Read & Listen'}`}</Text>
+          <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`${glossInfo(language).name} · ${lesson ? 'Audio lesson' : 'Read & Listen'}`}</Text>
         </Tappable>
 
         {queue.shown ? (
           <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs }}>
-            <Text style={{ fontSize: LANGUAGES[language].fontSize, lineHeight: LANGUAGES[language].fontSize * LANGUAGES[language].lineHeight, color: c.text, textAlign: 'center' }}>{queue.shown.text}</Text>
+            <Text style={{ fontSize: glossInfo(language).fontSize, lineHeight: glossInfo(language).fontSize * glossInfo(language).lineHeight, color: c.text, textAlign: 'center' }}>{queue.shown.text}</Text>
             {queue.shown.english ? <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>{queue.shown.english}</Text> : null}
           </View>
         ) : null}

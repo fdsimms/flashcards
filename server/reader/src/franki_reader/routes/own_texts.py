@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from franki_reader.engine import NotAvailable
-from franki_reader.languages import HIDDEN_LANGUAGES, TEXT_LANGUAGES, Code
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
 from franki_reader.own_text import MAX_CHARS, OwnTextRefused
 from franki_reader.routes.context import AppContext
 
@@ -37,7 +37,7 @@ class OwnAddedOut(BaseModel):
 
 
 def _language(code: Code) -> Code:
-    if code not in TEXT_LANGUAGES or code in HIDDEN_LANGUAGES:
+    if code not in LANGUAGES or code in HIDDEN_LANGUAGES:
         raise HTTPException(422, "Read & Listen has no texts in that language.")
     return code
 

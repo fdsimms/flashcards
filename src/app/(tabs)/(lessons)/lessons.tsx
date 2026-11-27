@@ -1,7 +1,7 @@
 import { Redirect, Stack, useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView } from 'react-native';
-import { LANGUAGES } from '../../../reader/languages';
+import { LANGUAGES, spokenLanguage } from '../../../reader/languages';
 import { lessonsOffered } from '../../../reader/lessons';
 import { useApp } from '../../../ui/AppContext';
 import { textMenu, useTextFont } from '../../../ui/textMenu';
@@ -24,9 +24,9 @@ export default function LessonsRoute() {
   const narrator = useNarrator();
   const [particle] = useParticle();
   const [saved, pick] = useAppLanguage();
-  const text = useTextFont(saved ?? reader.settings?.language ?? 'fr');
+  const text = useTextFont(saved ?? spokenLanguage(reader.settings?.language) ?? 'fr');
   if (!reader.api) return <Redirect href="/read-settings" />;
-  const language = saved ?? reader.settings?.language ?? 'fr';
+  const language = saved ?? spokenLanguage(reader.settings?.language) ?? 'fr';
   const toolbar = (
     <>
       <LessonLanguageMenu language={language} onPick={pick} />

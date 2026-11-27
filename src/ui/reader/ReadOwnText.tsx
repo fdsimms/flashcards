@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Keyboard, ScrollView, Text, TextInput, useColorScheme, View } from 'react-native';
-import { ApiError, MAX_OWN_TITLE_CHARS, type Api, type Language, type OwnTextPreview } from '../../reader/api';
-import { flaggedName, LANGUAGE_ORDER, LANGUAGES } from '../../reader/languages';
+import { type Api, ApiError, GlossLanguage, type Language, MAX_OWN_TITLE_CHARS, type OwnTextPreview } from '../../reader/api';
+import { flaggedName, glossInfo, isGlossOnly, TEXT_LANGUAGE_ORDER } from '../../reader/languages';
 import { scriptLanguage, shareSource, type SharedItem } from '../../core/shareInbox';
 import { charCount, costText, coverageNote, listenTime, moreNewWords, newWordsTitle, partsNote, percentKnown, tooLong } from '../../reader/ownText';
 import { haptic } from '../haptics';
@@ -19,21 +19,23 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
  * (`shared`, src/core/shareInbox.ts), which fills it in and sets the language from its script.
  * `toolbar` is that screen's Cancel.
  */
-export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, onDone }: { api: Api; language: Language; shared?: SharedItem; toolbar: React.ReactNode; onDone: () => void }) {
+export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, onDone }: { api: Api; language: GlossLanguage; shared?: SharedItem; toolbar: React.ReactNode; onDone: () => void }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const [language, setLanguage] = useState<Language>(() => {
+  const [language, setLanguage] = useState<GlossLanguage>(() => {
     const guess = shared ? scriptLanguage(shared.text) : undefined;
-    return guess && LANGUAGE_ORDER.includes(guess) ? guess : readerLanguage;
+    return guess && TEXT_LANGUAGE_ORDER.includes(guess) ? guess : readerLanguage;
   });
   const [title, setTitle] = useState(shared?.title ?? '');
   const [text, setText] = useState(shared?.text ?? '');
   // The preview, with what it was made from, so an edit after it asks for a new one.
-  const [preview, setPreview] = useState<{ language: Language; text: string; title: string; found: OwnTextPreview } | null>(null);
+  const [preview, setPreview] = useState<{ language: GlossLanguage; text: string; title: string; found: OwnTextPreview } | null>(null);
   const [busy, setBusy] = useState<'check' | 'add' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { scrollProps, bottomPadding } = useKeyboardScroll();
-  const name = LANGUAGES[language].name;
+  const name = glossInfo(language).name;
+  // Toki Pona has no voice, so its texts are read and never heard.
+  const heard = isGlossOnly(language) ? '' : 'and read aloud ';
   const current = preview && preview.language === language && preview.text === text && preview.title === title ? preview.found : null;
   const over = tooLong(text.trim().length);
 
@@ -80,13 +82,13 @@ export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, on
         {...scrollProps}
       >
         {shared
-          ? <Help>{`${shareSource(shared)}. It's translated and read aloud like the texts written for you, and you can tap any word.`}</Help>
-          : <Help>{`Paste something you want to read in ${name}: an article, a chapter, song lyrics. It's translated and read aloud like the texts written for you, and you can tap any word.`}</Help>}
+          ? <Help>{`${shareSource(shared)}. It's translated ${heard}like the texts written for you, and you can tap any word.`}</Help>
+          : <Help>{`Paste something you want to read in ${name}: an article, a chapter, song lyrics. It's translated ${heard}like the texts written for you, and you can tap any word.`}</Help>}
         <Select
           label="Language"
-          options={LANGUAGE_ORDER.map(flaggedName)}
+          options={TEXT_LANGUAGE_ORDER.map(flaggedName)}
           value={flaggedName(language)}
-          onChange={(v) => { const picked = LANGUAGE_ORDER.find((l) => flaggedName(l) === v); if (picked) setLanguage(picked); }}
+          onChange={(v) => { const picked = TEXT_LANGUAGE_ORDER.find((l) => flaggedName(l) === v); if (picked) setLanguage(picked); }}
         />
         <Field label="Title (optional)" placeholder="e.g. Nowy most w Krakowie" value={title} onChangeText={setTitle} maxLength={MAX_OWN_TITLE_CHARS} returnKeyType="next" />
         <View style={{ gap: space.xs }}>

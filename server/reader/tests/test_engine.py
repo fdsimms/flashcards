@@ -769,6 +769,23 @@ def test_missing_audio_is_made_on_request_and_then_cached(tmp_path: Path) -> Non
     assert run(lambda: e.line_audio(text, 9)) is None
 
 
+def test_a_language_with_no_voice_is_never_recorded_even_with_text_to_speech_set(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import replace
+
+    voice = FakeVoice()
+    e = speaking_engine(tmp_path, voice)
+    topic = store.add_topic(e.conn, "Food stall", NOW)
+    text = replace(run(lambda: fetch(e, topic.id)), language="tok")
+    e.audio.drop(text.id)  # type: ignore[union-attr]
+    voice.calls.clear()
+
+    assert run(lambda: e.line_audio(text, 0)) is None
+    assert run(lambda: e.line_audio(text, 0, slow=True)) is None
+    assert voice.calls == [] and not e.has_audio(text.id, 0)
+
+
 def test_two_requests_for_a_line_at_once_pay_for_one_recording(tmp_path: Path) -> None:
     e = speaking_engine(tmp_path, None)
     topic = store.add_topic(e.conn, "Food stall", NOW)

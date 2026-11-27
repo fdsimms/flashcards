@@ -190,4 +190,10 @@ describe('withOffline: audio', () => {
     expect(wholeText(text, [0, 2], [0])).toBe(false);
     expect(wholeText(text, [0], null)).toBe(false);
   });
+
+  it('counts a text with no recordings at all (Toki Pona has no voice) as whole once its words are saved', () => {
+    const silent = readerText(3, [false, false]);
+    expect(wholeText(silent, [], null)).toBe(true);
+    expect(wholeText(silent, [], [])).toBe(true);
+  });
 });

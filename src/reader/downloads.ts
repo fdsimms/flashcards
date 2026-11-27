@@ -3,7 +3,7 @@
 // kept when Download is tapped; and what's done offline (a reading finished, a story choice) held
 // until the server can be reached. The decisions are here, pure and tested; src/ui/readerDownloads.ts
 // keeps the files, and offlineApi.ts answers from them.
-import type { AudioLesson, Language, ReaderText, ReadingLog, Shelf, ShelfText, Word } from './api';
+import type { AudioLesson, GlossLanguage, Language, ReaderText, ReadingLog, Shelf, ShelfText, Word } from './api';
 import type { NetworkPath } from '../core/connection';
 import type { OfflineDownloads } from './prefs';
 import { playOrder } from './shelf';
@@ -11,7 +11,7 @@ import { playOrder } from './shelf';
 /** A shelf text kept on the phone. */
 export interface SavedText {
   id: number;
-  language: Language;
+  language: GlossLanguage;
   /** The text as the server gave it, to open with no connection. */
   text: ReaderText;
   /** Its shelf card, for the shelf shown offline. */
@@ -39,7 +39,7 @@ export interface DownloadIndex {
   texts: SavedText[];
   lessons: SavedLesson[];
   /** Each language's shelf as last read, for the shelf shown offline and for what to download. */
-  shelves: Partial<Record<Language, Shelf>>;
+  shelves: Partial<Record<GlossLanguage, Shelf>>;
 }
 
 export const EMPTY_INDEX: DownloadIndex = { version: 1, texts: [], lessons: [], shelves: {} };
@@ -164,7 +164,7 @@ export const SAVED_LABEL: Record<SavedState, string> = { saved: 'On this iPhone'
  * that needs the server. With no shelf read for it, its kept texts on their own; null when nothing
  * at all is known for it.
  */
-export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, language: Language): Shelf | null {
+export function offlineShelf(index: DownloadIndex, read: ReadonlySet<number>, language: GlossLanguage): Shelf | null {
   const kept = new Map(index.texts.filter((t) => t.complete && !t.past && !read.has(t.id)).map((t) => [t.id, t]));
   const base = index.shelves[language];
   if (!base) {
@@ -204,7 +204,7 @@ export function megabytes(bytes: number): string {
 
 /** Something done in Read & Listen offline, held until the server answers (sent in order: a choice before its reading). */
 export type HeldReaderAction =
-  | { kind: 'language'; language: Language }
+  | { kind: 'language'; language: GlossLanguage }
   | { kind: 'choice'; textId: number; choice: number }
   | { kind: 'reading'; textId: number; log: ReadingLog }
   | { kind: 'listen'; textId: number; key?: string }
@@ -224,7 +224,7 @@ export const readOffline = (held: readonly HeldReaderAction[]): Set<number> =>
  * The languages whose shelves to keep: every one with texts ready on the server (as the shelf just
  * read counts them), and any with texts already kept, so their copies are checked and dropped once read.
  */
-export function languagesToKeep(shelf: Pick<Shelf, 'language' | 'languages'>, index: Pick<DownloadIndex, 'texts'>): Language[] {
+export function languagesToKeep(shelf: Pick<Shelf, 'language' | 'languages'>, index: Pick<DownloadIndex, 'texts'>): GlossLanguage[] {
   const ready = shelf.languages.filter((l) => l.ready > 0).map((l) => l.code);
   const kept = index.texts.map((t) => t.language);
   return [...new Set([shelf.language, ...ready, ...kept])];

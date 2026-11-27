@@ -1,7 +1,8 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type Language, type PastText, type StoryListItem } from '../../reader/api';
+import { spokenLanguage } from '../../reader/languages';
+import { ApiError, type Api, type GlossLanguage, type PastText, type StoryListItem } from '../../reader/api';
 import { bannerOverline } from '../../reader/browse';
 import { saidAs } from '../../reader/wordAudio';
 import type { EpisodeOrder } from '../../reader/prefs';
@@ -33,12 +34,12 @@ const POLL_MS = 10_000;
 export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayWord }: {
   api: Api;
   storyId: number;
-  language: Language;
+  language: GlossLanguage;
   /** Opens the episode waiting to be read. */
   onOpen: (textId: number) => void;
   /** Opens an episode already read, to read or listen to again. */
   onReadAgain: (text: PastText) => void;
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
 }) {
   const c = useTheme();
   const [story, setStory] = useState<StoryListItem | null>(null);
@@ -188,7 +189,7 @@ export function ReadStory({ api, storyId, language, onOpen, onReadAgain, onPlayW
       </ScrollView>
       <GlossPopover
         tapped={tapped}
-        language={language}
+        language={spokenLanguage(language)}
         // A word of "Last time" is looked up in the sense of its line.
         meaningLookup={(word) => api.wordMeaning(language, word.text, story?.last_recap_line?.words.includes(word) ? story.last_recap_line.english : undefined)}
         grammar={null}

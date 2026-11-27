@@ -3,9 +3,9 @@ import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import { ScrollView, Text, useColorScheme, View } from 'react-native';
-import { ApiError, type Api, type DailyTaskMode, type Language, type Settings, type SettingsChange } from '../../reader/api';
+import { ApiError, type Api, type DailyTaskMode, type GlossLanguage, type Settings, type SettingsChange } from '../../reader/api';
 import { clampRotateCount, DAILY_MODES, dailyModeOf, ROTATE_COUNT_RANGE } from '../../reader/dailyTasks';
-import { flaggedName, LANGUAGE_ORDER } from '../../reader/languages';
+import { flaggedName, TEXT_LANGUAGE_ORDER } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Divider, ErrorNote, Group, Help, Icon, Loading, Screen, Section, SECTION_GAP, Tappable } from '../kit';
 import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
@@ -96,7 +96,7 @@ export function ReadDailyTasks({ api, onSettings }: {
               )}
             >
               <Group>
-                {LANGUAGE_ORDER.map((language: Language, i) => (
+                {TEXT_LANGUAGE_ORDER.map((language: GlossLanguage, i) => (
                   <View
                     key={language}
                     style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingHorizontal: space.l }}

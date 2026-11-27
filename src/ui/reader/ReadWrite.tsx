@@ -2,9 +2,9 @@ import { Stack } from 'expo-router';
 import React, { useState } from 'react';
 import { Keyboard, ScrollView, Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
-import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type Language, type TextModel } from '../../reader/api';
+import { ApiError, MAX_STORY_ABOUT_CHARS, MAX_TOPIC_CHARS, type Api, type GlossLanguage, type TextModel } from '../../reader/api';
 import type { Genre } from '../../reader/genre';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Tappable } from '../kit';
@@ -25,7 +25,7 @@ export type NewKind = 'series' | 'dialogue' | 'story' | 'own';
  * a typed topic. Each is written in the background and shows on the home when it's ready, so the
  * sheet closes as soon as it's asked for.
  */
-export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: { api: Api; language?: Language; kind?: NewKind; /** Text shared from another app, for Your own text. */ shared?: SharedItem; onDone: () => void }) {
+export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: { api: Api; language?: GlossLanguage; kind?: NewKind; /** Text shared from another app, for Your own text. */ shared?: SharedItem; onDone: () => void }) {
   const c = useTheme();
   // Your own text needs the language it's in; without one (settings not loaded yet) the choice shows instead.
   const [kind, setKind] = useState<NewKind | null>(initialKind === 'own' && !language ? null : initialKind ?? null);
@@ -86,7 +86,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
     }
   };
 
-  const languageName = language ? `${LANGUAGES[language].name} ` : '';
+  const languageName = language ? `${glossInfo(language).name} ` : '';
   const cancel = (
     <Stack.Toolbar placement="left">
       <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onDone}>Cancel</Stack.Toolbar.Button>

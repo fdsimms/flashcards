@@ -2,8 +2,8 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
 import { studiedCount, TEXTS_AT } from '../../core/fromZero';
-import type { Language } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import type { GlossLanguage } from '../../reader/api';
+import { glossInfo } from '../../reader/languages';
 import { usePathWords } from '../FromZeroCards';
 import { useFromZero } from '../fromZeroStorage';
 import { Button, Card } from '../kit';
@@ -15,7 +15,7 @@ import { radius, space, type, useTheme } from '../theme';
  * known, so until about `TEXTS_AT` words are studied it says when texts start, and sends the learner to the
  * lessons made from their first words. Drawn above the shelf; nothing when the language isn't on a path.
  */
-export function ReadFromZero({ language }: { language: Language }) {
+export function ReadFromZero({ language }: { language: GlossLanguage }) {
   const c = useTheme();
   const router = useRouter();
   const path = useFromZero().find((z) => z.language === language);
@@ -24,7 +24,7 @@ export function ReadFromZero({ language }: { language: Language }) {
   const studied = studiedCount(words);
   return (
     <Card style={{ gap: space.s }}>
-      <Text style={{ ...type.overline, color: c.textSecondary }}>{`${LANGUAGES[language].name} from zero`}</Text>
+      <Text style={{ ...type.overline, color: c.textSecondary }}>{`${glossInfo(language).name} from zero`}</Text>
       <Text style={{ ...type.body, color: c.text }}>{`Texts start once you've studied about ${TEXTS_AT} words.`}</Text>
       <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
         <View style={{ width: `${Math.round(Math.min(1, studied / TEXTS_AT) * 100)}%`, height: '100%', backgroundColor: c.accent }} />

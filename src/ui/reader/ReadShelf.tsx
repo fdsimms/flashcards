@@ -1,9 +1,9 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { ApiError, type Api, type TextStage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
+import { ApiError, type Api, type TextStage, type GlossLanguage, type Language, type PastText, type Shelf, type ShelfText, type StoryListItem } from '../../reader/api';
 import { bannerLine, bannerOverline, pastMeta, readBefore, seasonProgress, storyCoverMeta } from '../../reader/browse';
-import { LANGUAGES, flaggedName } from '../../reader/languages';
+import { flaggedName, glossInfo, isGlossOnly, spokenLanguage } from '../../reader/languages';
 import { saidAs } from '../../reader/wordAudio';
 import { FLAG_IMAGES } from '../flagImages';
 import { SAVED_LABEL, savedState, type SavedState } from '../../reader/downloads';
@@ -51,9 +51,9 @@ export type OpenText = { textId: number; order: number[]; playAll?: boolean };
 export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLesson, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
   /** The language the settings already name, so the header shows it while the shelf loads. */
-  knownLanguage?: Language;
+  knownLanguage?: GlossLanguage;
   /** Says a practice word aloud from its popover. */
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   onOpen: (open: OpenText) => void;
   /** A grammar point's lesson, from the notice when practiced grammar rotates. */
   onGrammarLesson: (id: string) => void;
@@ -103,14 +103,14 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
   };
   const [actionError, setActionError] = useState<string | null>(null);
   // The language just picked, shown in the header while its shelf loads.
-  const [picked, setPicked] = useState<Language | null>(null);
+  const [picked, setPicked] = useState<GlossLanguage | null>(null);
 
   // Bumped when the language changes, so a load started before it is dropped rather than shown.
   const loadSeq = useRef(0);
   const load = useCallback(async () => {
     const started = loadSeq.current;
     // The language this load's shelf is for, once it's known.
-    let shelfLanguage: Language | null = null;
+    let shelfLanguage: GlossLanguage | null = null;
     try {
       const loaded = await api.shelf();
       if (started !== loadSeq.current) return;
@@ -150,7 +150,7 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
   // the last one shows its outcome: picking A, then B before A's answer, leaves B on screen.
   const switchSeq = useRef(0);
   const switching = useRef<Promise<unknown>>(Promise.resolve());
-  const changeLanguage = async (language: Language) => {
+  const changeLanguage = async (language: GlossLanguage) => {
     if (language === shelf?.language) return;
     const mine = ++switchSeq.current;
     loadSeq.current++;
@@ -216,7 +216,7 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
   };
 
   const language = shelf?.language ?? picked ?? knownLanguage;
-  const name = language ? LANGUAGES[language].name : 'Read & Listen';
+  const name = language ? glossInfo(language).name : 'Read & Listen';
 
   return (
     <Screen
@@ -278,7 +278,8 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
             {shelf.texts.length > 0 || written(shelf).length > 0 ? (
               <CoverRow
                 title={problem ? 'Downloaded' : 'Texts'}
-                action={summary ? { label: `Play all · ${playMinutes(shelf)} min`, accessibilityLabel: `Play all: ${summary}`, onPress: playAll } : null}
+                // Toki Pona has no voices, so there is nothing to play through.
+                action={summary && !isGlossOnly(shelf.language) ? { label: `Play all · ${playMinutes(shelf)} min`, accessibilityLabel: `Play all: ${summary}`, onPress: playAll } : null}
               >
                 {shelf.texts.map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />)}
                 {written(shelf).map((w, i) => (
@@ -287,7 +288,7 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
               </CoverRow>
             ) : problem ? (
               <View style={{ paddingHorizontal: space.l }}>
-                <Help>{`No ${LANGUAGES[shelf.language].name} texts are on this iPhone yet. They download when you're back online (Settings, Read & Listen).`}</Help>
+                <Help>{`No ${glossInfo(shelf.language).name} texts are on this iPhone yet. They download when you're back online (Settings, Read & Listen).`}</Help>
               </View>
             ) : (
               <CoverRow title="Texts">
@@ -430,7 +431,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
   api: Api;
   shelf: Shelf;
   saved: SavedState | null;
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   onOpen: (textId: number) => void;
   onStory: (storyId: number) => void;
   onNew: () => void;
@@ -471,7 +472,7 @@ function StoryBanner({ api, shelf, saved, onPlayWord, onOpen, onStory, onNew, of
       </View>
       <GlossPopover
         tapped={tapped}
-        language={shelf.language}
+        language={spokenLanguage(shelf.language)}
         // A word of "Last time" is looked up in the sense of its line.
         meaningLookup={(word) => api.wordMeaning(shelf.language, word.text, story.last_recap_line?.words.includes(word) ? story.last_recap_line.english : undefined)}
         grammar={null}

@@ -200,11 +200,11 @@ export type FormPrimer = {
 export type Language = 'th' | 'es' | 'de' | 'fr' | 'ru' | 'el' | 'pl' | 'nb' | 'ja' | 'en';
 
 /**
- * A language whose card sentences are glossed but that has no texts, voices, shelf or settings
- * (the server's `glosses_only`). Kept out of `Language` so nothing that lists the languages picks it up.
+ * A language with no voices, so its texts are read and never heard (the server's `Language.speaks`).
+ * Kept out of `Language` so nothing that lists the languages for voices, Practice or lessons picks it up.
  */
 export type GlossOnlyLanguage = 'tok';
-/** Every language a card's example sentence can be glossed in. */
+/** Every language a text is written in or a card's example sentence is glossed in. */
 export type GlossLanguage = Language | GlossOnlyLanguage;
 
 // Every language but Thai counts this many of its most common words as known, as well as its deck.
@@ -334,7 +334,7 @@ export type ReaderText = {
   characters?: Partial<Record<'A' | 'B', string>>;
   genders?: Partial<Record<'A' | 'B', string>>;
   form: Form;
-  language: Language;
+  language: GlossLanguage;
   grammar: TextGrammar[];
   lines: TextLine[];
   // Missing from a server older than the shelf: the topic (a story's name for an episode), whether
@@ -423,8 +423,8 @@ export type ShelfStory = {
 };
 
 export type Shelf = {
-  language: Language;
-  languages: { code: Language; name: string; ready: number }[];
+  language: GlossLanguage;
+  languages: { code: GlossLanguage; name: string; ready: number }[];
   texts: ShelfText[];
   /** The learner's own pasted texts, a row of their own, oldest first; missing from a server older than them. */
   own?: ShelfText[];
@@ -472,13 +472,13 @@ export type CastKind = 'man' | 'woman' | 'boy' | 'girl' | 'elder_man' | 'elder_w
 export type CastVoice = { voice: string; pitch: number };
 
 export type Settings = {
-  stretch_words: StretchWords; lines: Length; form: Form; language: Language;
+  stretch_words: StretchWords; lines: Length; form: Form; language: GlossLanguage;
   decks: Record<Language, string>; voices: Record<Language, Speakers>;
-  /** The deck of each gloss-only language, apart from `decks` so a feature that walks every language's deck never sees one; missing from a server older than Toki Pona. */
+  /** The deck of each language without voices, apart from `decks` so a feature that walks every language's deck never sees one; missing from a server older than Toki Pona. */
   glossOnlyDecks?: Partial<Record<GlossOnlyLanguage, string>>;
   common?: Partial<Record<Language, CommonCount>>;
   /** How each language is handled by the daily reading tasks other apps show (dailyTasks.ts); missing from a server older than the setting. */
-  daily_tasks?: Partial<Record<Language, DailyTaskMode>>;
+  daily_tasks?: Partial<Record<GlossLanguage, DailyTaskMode>>;
   /** How many rotating languages get a task a day (1 to 10). */
   daily_rotate_count?: number;
   /** Each language's story characters' voices (the defaults where none were chosen); missing from a server older than story voices. */
@@ -498,7 +498,7 @@ export function settingsFromServer(raw: ServerSettings): Settings {
 // A change to the settings. A deck or voice named '' goes back to the default, and so does a
 // story character's voice set to null.
 export type SettingsChange = Partial<Omit<Settings, 'decks' | 'voices' | 'common' | 'cast'>> & {
-  decks?: Partial<Record<Language, string>>;
+  decks?: Partial<Record<GlossLanguage, string>>;
   voices?: Partial<Record<Language, Partial<Speakers>>>;
   common?: Partial<Record<Language, CommonCount>>;
   cast?: Partial<Record<Language, Partial<Record<CastKind, CastVoice | null>>>>;
@@ -861,18 +861,18 @@ export function createApi(
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
     // With a language, that language's shelf only read (keeping it for offline): the reader's own language stays, and nothing is written for it.
-    shelf: (language?: Language) => call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf'),
+    shelf: (language?: GlossLanguage) => call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf'),
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
     writeAbout: (name: string, form: Form, model?: TextModel, genre: Genre = 'any') => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}), ...genreChoice(genre) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
     startStory: (about: string, genre: Genre = 'any') => call<void>('POST', '/api/story', { about, ...genreChoice(genre) }),
     // A pasted text: what adding it would give (its coverage, new words, parts and cost), then adding it.
-    ownTextPreview: (language: Language, text: string, title: string) =>
+    ownTextPreview: (language: GlossLanguage, text: string, title: string) =>
       call<OwnTextPreview>('POST', '/api/own-texts/preview', { language, text, title }),
-    addOwnText: (language: Language, text: string, title: string) =>
+    addOwnText: (language: GlossLanguage, text: string, title: string) =>
       call<Schemas['OwnAddedOut']>('POST', '/api/own-texts', { language, text, title }),
     // The reader's language's stories, running first, then ended.
-    stories: () => call<{ language: Language; stories: StoryListItem[] }>('GET', '/api/stories'),
+    stories: () => call<{ language: GlossLanguage; stories: StoryListItem[] }>('GET', '/api/stories'),
     // One story for its own page: as the card has it (Last time, the next episode's practice words).
     story: (id: number) => call<StoryListItem>('GET', `/api/stories/${id}`),
     // Shows a running story on the shelf's card, in place of the one there.

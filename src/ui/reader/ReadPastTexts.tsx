@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView } from 'react-native';
 import { ApiError, type Api, type PastText, type Rating } from '../../reader/api';
 import { pastItem } from '../../reader/audioQueue';
+import { isGlossOnly } from '../../reader/languages';
 import { useApp } from '../AppContext';
 import { ErrorNote, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
 import { useAudioQueue } from '../useAudioQueue';
@@ -32,6 +33,8 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
   const [openText, setOpenText] = useState<number | null>(null);
   // Past texts are the reader's language's (the server lists that language's).
   const language = useApp().reader.settings?.language;
+  // A language with no voices (Toki Pona) has nothing to play: no queue, no listening without the text.
+  const heard = language ? !isGlossOnly(language) : true;
 
   const load = useCallback(async () => {
     try {
@@ -63,8 +66,8 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
                   key={t.id}
                   open={openText === t.id}
                   onOpenChange={(o) => setOpenText(o ? t.id : null)}
-                  onFullSwipe={language ? () => queue.playNext(pastItem(t, language)) : undefined}
-                  action={language ? <SwipeAction icon="text.line.first.and.arrowtriangle.forward" label="Play Next" accessibilityLabel={`Play ${t.title} next`} onPress={() => { setOpenText(null); queue.playNext(pastItem(t, language)); }} /> : null}
+                  onFullSwipe={language && heard ? () => queue.playNext(pastItem(t, language)) : undefined}
+                  action={language && heard ? <SwipeAction icon="text.line.first.and.arrowtriangle.forward" label="Play Next" accessibilityLabel={`Play ${t.title} next`} onPress={() => { setOpenText(null); queue.playNext(pastItem(t, language)); }} /> : null}
                 >
                   <NavRow
                     first={i === 0}
@@ -72,8 +75,8 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
                     detail={[t.topic, t.episode ? `Episode ${t.episode}` : null, t.form === 'story' && !t.episode ? 'Story' : null, shortDate(t.read_at), t.rating ? RATING_TEXT[t.rating] : null].filter(Boolean).join(' · ')}
                     // Tapping a row that's slid open closes it, rather than opening the text.
                     onPress={() => (openText === t.id ? setOpenText(null) : onOpen(t))}
-                    onLongPress={language ? () => queueMenu(pastItem(t, language)) : undefined}
-                    action={{ icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) }}
+                    onLongPress={language && heard ? () => queueMenu(pastItem(t, language)) : undefined}
+                    action={heard ? { icon: 'headphones', label: `Listen to ${t.title} without the text`, onPress: () => onListen(t) } : undefined}
                   />
                 </SwipeToReveal>
               ))}
