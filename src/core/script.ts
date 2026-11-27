@@ -19,9 +19,16 @@ export const THAI_TEXT_CHOICES: { value: ThaiTextSize; label: string; fontSize: 
 
 export const DEFAULT_THAI_TEXT_SIZE: ThaiTextSize = 'large';
 
-export function thaiTextStyle(size: ThaiTextSize): { fontSize: number; lineHeight: number } {
+/**
+ * Room under the last line for Thai's lower vowels (ุ ู) and the tails of ฎ/ฏ. React Native on iOS puts a
+ * line height's extra space above the text, so the frame's bottom edge still sits at the font's own
+ * descent and cuts a lower vowel flat (สูง); padding grows the frame downward instead.
+ */
+export const thaiDescentRoom = (fontSize: number): number => Math.round(fontSize * 0.2);
+
+export function thaiTextStyle(size: ThaiTextSize): { fontSize: number; lineHeight: number; paddingBottom: number } {
   const choice = THAI_TEXT_CHOICES.find((c) => c.value === size) ?? THAI_TEXT_CHOICES[1];
-  return { fontSize: choice.fontSize, lineHeight: choice.lineHeight };
+  return { fontSize: choice.fontSize, lineHeight: choice.lineHeight, paddingBottom: thaiDescentRoom(choice.fontSize) };
 }
 
 /**
@@ -29,8 +36,8 @@ export function thaiTextStyle(size: ThaiTextSize): { fontSize: number; lineHeigh
  * font size gets the font's default line box, which clips Thai's lower vowels and ฎ/ฏ tails; the
  * headings on a card (`type.cardFront`) set no line height, so they go through this.
  */
-export function withThaiLineHeight<T extends { fontSize: number }>(base: T, text: string): T | (T & { lineHeight: number }) {
-  return hasThai(text) ? { ...base, lineHeight: Math.round(base.fontSize * 1.5) } : base;
+export function withThaiLineHeight<T extends { fontSize: number }>(base: T, text: string): T | (T & { lineHeight: number; paddingBottom: number }) {
+  return hasThai(text) ? { ...base, lineHeight: Math.round(base.fontSize * 1.5), paddingBottom: thaiDescentRoom(base.fontSize) } : base;
 }
 
 /** A stored setting read back; anything unrecognized is the default. */

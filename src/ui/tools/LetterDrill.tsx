@@ -6,6 +6,7 @@ import { randomWord } from '../../tools/script';
 import { CLASS_NAMES, CLASSES, CONSONANTS, consonantPatterns, consonantSteps, VOWELS, vowelPatterns, vowelSteps, vowelSyllable } from '../../tools/thai/letters';
 import { haptic } from '../haptics';
 import { LANGUAGES } from '../../reader/languages';
+import { thaiDescentRoom } from '../../core/script';
 import { Button } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, radius, space, type, useTheme } from '../theme';
@@ -90,7 +91,7 @@ export function LetterDrill({ tool, repo, language, onLanguage, mode, practice }
 
   const front = (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 64, lineHeight: 88, color: c.text }}>{shown}</Text>
+      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 64, lineHeight: 88, paddingBottom: thaiDescentRoom(64), color: c.text }}>{shown}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{consonants ? 'Which class?' : 'Short or long?'}</Text>
     </View>
   );

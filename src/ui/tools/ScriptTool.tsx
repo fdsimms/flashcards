@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import { japaneseFont } from '../../core/script';
+import { japaneseFont, thaiDescentRoom } from '../../core/script';
 import { LANGUAGES } from '../../reader/languages';
 import type { Phrase } from '../../tools/phrase';
 import { randomWord, type ScriptMode } from '../../tools/script';
@@ -118,7 +118,7 @@ export function ScriptTool({ tool, repo }: ToolScreenProps) {
 
   const front = (
     <View style={{ alignItems: 'center', gap: space.xs }}>
-      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text, textAlign: 'center' }}>{word?.shown}</Text>
+      <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: language === 'th' ? 56 : 40, lineHeight: language === 'th' ? 80 : 52, ...(language === 'th' ? { paddingBottom: thaiDescentRoom(56) } : null),...japaneseFont(word?.shown ?? '', 'ja', font), color: c.text, textAlign: 'center' }}>{word?.shown}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{mode === 'tone' ? 'Which tone?' : word?.meaning}</Text>
     </View>
   );
