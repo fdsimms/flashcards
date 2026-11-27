@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '../ui/AppContext';
 import { Browse } from '../ui/Browse';
 
@@ -7,5 +7,6 @@ import { Browse } from '../ui/Browse';
 export default function BrowseRoute() {
   const { repo, openNoteEditor } = useApp();
   const { deck } = useLocalSearchParams<{ deck?: string }>();
-  return <Browse repo={repo} onEditNote={openNoteEditor} initialDeck={deck || null} />;
+  const router = useRouter();
+  return <Browse repo={repo} onEditNote={openNoteEditor} onCardInfo={(card) => router.push({ pathname: '/card-info', params: { card } })} initialDeck={deck || null} />;
 }
