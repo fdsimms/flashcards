@@ -37,6 +37,13 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   continuous?: boolean;
   /** The screen's own audio mode, put back once listening stops (the reader's plays in the background). */
   mode?: Partial<AudioMode>;
+  /**
+   * Also keep what was said as a file (Review's Record yourself take, made by the same microphone
+   * session so a second recorder never opens it). `onTake` gets the file once listening ends; it is
+   * the screen's to adopt or delete.
+   */
+  keepTake?: boolean;
+  onTake?: (uri: string) => void;
 }) {
   // The setting is read from the app's repo, so a Read & Listen screen needn't be handed one.
   const { repo } = useApp();
@@ -57,6 +64,8 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
   const cancelled = useRef(false);
   // Hold to talk: what was said before a pause (iOS starts a new transcript after one) and the segment now being heard.
   const segments = useRef({ done: '', last: '' });
+  // Whether the listening now running was started with a file to keep (`keepTake` can change while it runs).
+  const keeping = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -85,6 +94,12 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
     if (!mine()) return;
     const text = speakingErrorText(e.error);
     if (text) setProblem(text);
+  });
+  // The saved audio is ready once capturing ends, before 'end'. Cancelled on purpose still hands it over:
+  // the screen decides by what the take was made for, not by whether the text was wanted.
+  useSpeechRecognitionEvent('audioend', (e) => {
+    if (!mine() || !keeping.current || !e.uri) return;
+    latest.current.onTake?.(e.uri);
   });
   useSpeechRecognitionEvent('end', () => {
     if (!mine()) return;
@@ -123,8 +138,10 @@ export function useSpokenAnswer(speechTag: string | undefined, opts: {
     latest.current.onBeforeListen?.();
     haptic.tap();
     owner = id.current;
+    keeping.current = !!latest.current.keepTake && !!latest.current.onTake;
     setListening(true);
     ExpoSpeechRecognitionModule.start({
+      recordingOptions: keeping.current ? { persist: true } : undefined,
       lang: locale,
       interimResults: true,
       maxAlternatives: 5,

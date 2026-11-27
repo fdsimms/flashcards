@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { takeClock } from '../core/selfRecording';
 import { Icon, Tappable } from './kit';
+import { MicButton } from './SpeakButton';
 import { hairline, MIN_TAP, radius, space, type, useTheme } from './theme';
 import type { SelfRecording } from './useSelfRecording';
 
@@ -22,6 +23,23 @@ export function RecordIconButton({ rec, label }: { rec: SelfRecording; label: st
     >
       <Icon name="mic.fill" size={18} color={c.textSecondary} weight="semibold" />
     </Tappable>
+  );
+}
+
+/**
+ * Record yourself's mic in a card's footer, on a card whose footer has no Answer by speaking mic (no
+ * Type it word, or speaking is off or can't hear the language). Tap to record, tap again to stop.
+ * Where the speaking mic is shown it makes the take itself (`useSpokenAnswer`'s `keepTake`).
+ */
+export function RecordMicButton({ rec, label }: { rec: SelfRecording; label: string }) {
+  return (
+    <MicButton
+      active={rec.recording}
+      onPress={() => (rec.recording ? rec.stop() : rec.start())}
+      label={label}
+      activeLabel="Stop recording"
+      hint="Records your voice to play back next to the recording."
+    />
   );
 }
 

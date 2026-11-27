@@ -75,7 +75,26 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
         before = [t for t in store.episodes(engine.conn, story.id) if t.episode == text.episode - 1]
         if before and (before[-1].recap or before[-1].recap_line):
             out["last_time"] = {"recap": before[-1].recap, "line": recap_json(before[-1], engine)}
+        out["so_far"] = story_so_far(engine, story, text.episode)
     return out
+
+
+def story_so_far(engine: Engine, story: Story, before: int) -> dict[str, Any]:
+    """The series' recaps for the "Story so far" (the app's Welcome back and its page): one English
+    sentence for each episode up to `before` (exclusive) that has one, oldest first, and how many whole
+    days it has been since the learner last finished an episode (None when none was finished), and
+    the characters as of the episode before `before`, so the recap gives away nothing from it."""
+    recaps = [
+        {"episode": t.episode, "recap": t.recap}
+        for t in store.episodes(engine.conn, story.id)
+        if t.episode < before and t.recap
+    ]
+    last = store.last_story_reading(engine.conn, story.id)
+    return {
+        "recaps": recaps,
+        "away_days": (engine.clock() - last).days if last is not None else None,
+        "characters": xray.visible(story.characters, before - 1),
+    }
 
 
 def practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
@@ -164,6 +183,8 @@ def story_json(
         # The same in the story's language, as the reader's words, with that line's English;
         # null for an episode written before it was asked for.
         "last_recap_line": recap_json(read[-1], engine) if read and card else None,
+        # Every earlier recap and the days away, for the page's "Story so far" (the card only).
+        "so_far": story_so_far(engine, story, len(read) + 1) if read and card else None,
         "next": shelf_text(waiting, engine, practice=card) if waiting else None,
         "writing": any(j.story_id == story.id for j in writing),
         "stage": next((engine.stage_of(j) for j in writing if j.story_id == story.id), None),

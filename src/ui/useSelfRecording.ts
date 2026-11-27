@@ -47,6 +47,11 @@ export interface SelfRecording {
   compare: () => void;
   /** Stops the take or Compare playing, before the screen plays something else. */
   stopTake: () => void;
+  /**
+   * Takes a file made elsewhere (the speech recognizer's saved audio) as the take for `forKey`, the key
+   * it was started for. A file for a key that has moved on, or that arrives while a take is being made, is deleted.
+   */
+  adopt: (uri: string, forKey: string | null) => void;
 }
 
 export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, opts: {
@@ -209,6 +214,19 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     player.pause();
     setPlayingNow(null);
   }, [player, setPlayingNow]);
+  const adopt = useCallback((uri: string, forKey: string | null) => {
+    if (forKey === null || forKey !== keyRef.current || recordingRef.current) {
+      remove(uri);
+      return;
+    }
+    plays.current++;
+    player.pause();
+    setPlayingNow(null);
+    setTake((old) => {
+      if (old && old !== uri) remove(old);
+      return uri;
+    });
+  }, [player, setPlayingNow]);
   const playTake = () => {
     if (!take) return;
     haptic.tap();
@@ -249,6 +267,7 @@ export function useSelfRecording(key: string | null, mode: Partial<AudioMode>, o
     playTake,
     compare,
     stopTake,
+    adopt,
   };
 }
 

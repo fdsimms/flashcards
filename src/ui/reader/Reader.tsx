@@ -58,6 +58,8 @@ import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
 import { ReaderXray } from './ReaderXray';
+import { WelcomeBack } from './ReadStorySoFar';
+import { welcomeBackDue } from '../../reader/welcomeBack';
 import { characterOfWord, firstSeen } from '../../reader/xray';
 import { WordActionGroup, WordActionRow, WordPlayButton } from './ReadWordActions';
 import { Speaker, speakerSize } from './ReadSpeaker';
@@ -182,6 +184,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [english, setEnglish] = useState(false);
   const [keyOpen, setKeyOpen] = useState(false);
   const [xrayOpen, setXrayOpen] = useState(false);
+  // Welcome back: a story's episode opened after a week or more away starts on the recap, once per opening.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   // Lines whose English was shown on their own, while Show English is off.
   const [lineEnglish, setLineEnglish] = useState<number[]>([]);
   // Lines whose explanation is open (each asks the server when it opens; the server keeps the answer).
@@ -403,6 +407,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text || !listensFirst(prefs().listenFirst, source.kind, source.kind === 'shelf' && !!source.playAll, firstLine(text.lines) !== null)) return;
     setListenGate(listensNeeded(prefs().listenTwice));
     setListenOnly(true);
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
+
+  // Only an episode opened by hand: Play all and a resumed text start playing as soon as they open.
+  useEffect(() => {
+    const byHand = source.kind === 'shelf' && !source.playAll && source.resume === undefined;
+    setWelcomeOpen(!!text && byHand && welcomeBackDue(text.so_far));
   }, [text]); // eslint-disable-line react-hooks/exhaustive-deps -- once per text
 
   // A past text played through with the words hidden counts as heard again (relisten.py), however
@@ -712,6 +722,15 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
             )
           )}
         </ScrollView>
+      ) : null}
+
+      {welcomeOpen && text?.so_far && text.episode ? (
+        <WelcomeBack
+          soFar={text.so_far}
+          episode={text.episode}
+          onPlay={() => { setWelcomeOpen(false); const start = firstLine(text.lines); if (start !== null) playLine(start, true); }}
+          onClose={() => setWelcomeOpen(false)}
+        />
       ) : null}
 
       {xrayOpen && text?.xray ? <ReaderXray characters={text.xray} episode={text.episode} onClose={() => setXrayOpen(false)} /> : null}

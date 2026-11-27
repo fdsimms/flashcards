@@ -78,7 +78,7 @@ import { useSkillRelease } from './useSkillRelease';
 import { drillOfTags, knownHeadwords, skillLanguageDeck, skillOffer } from '../tools/skills';
 import { knownDays, knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
-import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
+import { idleRecording, RecordMicButton, RecordYourself } from './RecordYourself';
 import { ReviewPitchLine } from './PitchLine';
 import { usePageLookUp } from './PageLookUp';
 import { useSelfRecording } from './useSelfRecording';
@@ -692,10 +692,15 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // A template card's answer is read by its script, kanji alone in a Japanese note as Japanese (`answerKeyboard`).
   const typedTag = rendered?.speechLang ?? (typeInExpected ? answerKeyboard(stripExpected(typeInExpected), note ? speechLangFor(note) : undefined) : undefined);
   const typedKeyboard = useKeyboardLanguage(typedTag);
+  // The card Answer by speaking started on: its saved audio becomes Record yourself's take only if that is still the card (`self.adopt`).
+  const listenedFor = useRef<string | null>(null);
   const spoken = useSpokenAnswer(rendered?.speechLang, {
     expected: rendered && note && current ? typeItAnswers(note, current) : undefined,
-    onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); },
+    onBeforeListen: () => { Keyboard.dismiss(); self.stop(false); listenedFor.current = current?.id ?? null; },
     onHeard: (text) => { setTyping(true); setSpokenIn(true); setTyped(text); },
+    // One microphone for both: on a card with a recording to compare against, what's said is also the take.
+    keepTake: !!rendered && canRecordYourself(rendered),
+    onTake: (uri) => self.adopt(uri, listenedFor.current),
   });
   useEffect(() => { spoken.cancel(); }, [showing]); // eslint-disable-line react-hooks/exhaustive-deps
   const ownHook = useOwnHook(repo, showing, useCallback((n: Note) => setNotes((prev) => new Map(prev).set(n.id, n)), []));
@@ -1339,6 +1344,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   };
   // Type it and the learner's own hook (activeRecall.ts), for a native Omnilanguage card.
   const typeItWord = rendered ? typeItAnswer(note, current) : undefined;
+  // The footer's one microphone: Answer by speaking where the card asks for a typed word and iOS can hear the language
+  // (which also keeps the take, `keepTake` above), else Record yourself on a card with a recording to compare against.
+  const footerMic = typeItWord && spoken.available
+    ? <SpeakButton spoken={spoken} />
+    : rendered && canRecordYourself(rendered) ? <RecordMicButton rec={self} label="Record" /> : null;
   const asksHook = !!rendered && ownHook.on && asksOwnHook(note, current, noteCards(current, cards));
   // Under the answer: what was typed against the word, the offer to show the card sooner, the suggestion to practice its forms, and the hook.
   const extras = revealed ? (
@@ -1454,16 +1464,19 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       {typeItWord && !typing ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <TypeItButton onPress={() => setTyping(true)} />
-          <SpeakButton spoken={spoken} />
+          {footerMic}
           <Button label="Show answer" onPress={reveal} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : typeItWord ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-          <SpeakButton spoken={spoken} />
+          {footerMic}
           <Button label="Check" onPress={() => { spoken.cancel(); reveal(); }} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
         </View>
       ) : (
-        <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} style={{ minHeight: FOOTER_BUTTON_HEIGHT }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          {footerMic}
+          <Button label={typing ? 'Check' : 'Show answer'} onPress={reveal} style={{ flex: 1, minHeight: FOOTER_BUTTON_HEIGHT }} />
+        </View>
       )}
     </>
   );
@@ -1711,8 +1724,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
               <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
-              {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
-              <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
+              <LanguageCue kind={current.kind} speechLang={speechLang} />
+              {/* Record yourself's mic is in the footer; once a take is made or being made, its capsule takes a row here. */}
               {reminder ? <MissReminder text={reminder} /> : null}
               {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
               {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} {...senseMarks.reminder} /> : null}
