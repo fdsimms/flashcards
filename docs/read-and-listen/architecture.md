@@ -2325,7 +2325,11 @@ once, only on that tap. The server returns `{changes: {field: new html}, explana
 nothing: the app checks it again (`src/core/fixCard.ts`: only fields the note has, only ones that
 change, and no `[sound:]` or `<img>` reference dropped or added), shows each changed field old above
 new, and applies it through `saveNote` only when the owner taps Apply, which also clears the flag
-and its tags. Not now keeps the flag for the MCP. A fix that needs a new recording or image comes
+and its tags. Not now keeps the flag for the MCP. Under a proposal, Reply to Claude asks about it or pushes back:
+the same request goes again with `chat` set (`followUpThread` in `fixCard.ts`: the flag, each earlier
+suggestion as Claude's turn, then the reply), the server's prompt answers the reply in `explanation`,
+and the new proposal replaces the old one, always against the card as it is stored. The thread lives
+only while the sheet is open. A fix that needs a new recording or image comes
 back with no changes and says so. The cost is in `call_costs` (feature `fix_card`), not yet in
 `/api/costs`.
 

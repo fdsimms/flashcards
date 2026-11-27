@@ -1,5 +1,6 @@
 import type { AskTurn } from './askCard';
 import { AGENT_FLAG_REASONS, type AgentFlagReason } from './agentFlag';
+import { htmlToText } from './html';
 import { readerLanguageOf } from './leechHint';
 import type { Note } from './types';
 import type { Language } from '../reader/api';
@@ -40,9 +41,53 @@ export interface FixProposal {
   skipped: number;
 }
 
-export function fixRequest(note: Note, reason: AgentFlagReason, text: string): FixRequest {
+/**
+ * A flag's fix request. `thread` is the follow-up so far (see `followUpThread`): present once the
+ * learner has replied to a suggestion, it goes as the chat so the server answers the reply.
+ */
+export function fixRequest(note: Note, reason: AgentFlagReason, text: string, thread?: AskTurn[]): FixRequest {
   const label = AGENT_FLAG_REASONS.find((r) => r.slug === reason)?.label ?? reason;
-  return { language: readerLanguageOf(note), fields: note.fields, reason: label, note: text.trim() };
+  const req: FixRequest = { language: readerLanguageOf(note), fields: note.fields, reason: label, note: text.trim() };
+  return thread?.length ? { ...req, chat: latestTurns(thread) } : req;
+}
+
+/** The longest a reply to a suggestion can be. */
+export const REPLY_MAX = 600;
+
+/** The most characters of one chat turn the server takes. */
+const TURN_MAX = 1500;
+
+/** The learner's side of a flag's first turn, which a chat has to start with. The flag itself goes in the request's own fields. */
+const FLAG_TURN = 'Please fix this card as flagged.';
+
+/** The latest turns the server takes, starting at a learner's turn. */
+function latestTurns(turns: AskTurn[]): AskTurn[] {
+  let chat = turns.slice(-MAX_CHAT_TURNS);
+  while (chat.length && chat[0].role !== 'user') chat = chat.slice(1);
+  return chat;
+}
+
+/** A suggestion as Claude's own turn in the follow-up: its explanation, then each change as the field's new text. */
+export function proposalTurn(proposal: FixProposal): string {
+  const lines = [proposal.explanation || 'I found nothing to change.'];
+  for (const c of proposal.changes) lines.push(`${c.field}: ${htmlToText(c.before)} -> ${htmlToText(c.after)}`);
+  if (!proposal.changes.length) lines.push('(No change suggested.)');
+  return lines.join('\n').slice(0, TURN_MAX);
+}
+
+/**
+ * The thread to send when the learner replies to `proposal`: what came before (empty for the first
+ * reply, which starts it with the flag), Claude's suggestion, then the reply. `before` is the thread
+ * sent last time with Claude's answer to it already on the end.
+ */
+export function followUpThread(before: AskTurn[], proposal: FixProposal, reply: string): AskTurn[] {
+  const start: AskTurn[] = before.length ? before : [{ role: 'user', content: FLAG_TURN }, { role: 'assistant', content: proposalTurn(proposal) }];
+  return [...start, { role: 'user', content: reply.trim().slice(0, TURN_MAX) }];
+}
+
+/** The thread to keep once Claude has answered the reply: `sent` with the new suggestion on the end. */
+export function threadAfter(sent: AskTurn[], proposal: FixProposal): AskTurn[] {
+  return [...sent, { role: 'assistant', content: proposalTurn(proposal) }];
 }
 
 /** The reason sent with a change asked for in a chat, where there's no flag reason to name. */
@@ -56,9 +101,7 @@ export const MAX_CHAT_TURNS = 12;
  * limit), starting at a learner's turn.
  */
 export function chatFixRequest(note: Note, turns: AskTurn[]): FixRequest {
-  let chat = turns.slice(-MAX_CHAT_TURNS);
-  while (chat.length && chat[0].role !== 'user') chat = chat.slice(1);
-  return { language: readerLanguageOf(note), fields: note.fields, reason: CHAT_REASON, note: '', chat };
+  return { language: readerLanguageOf(note), fields: note.fields, reason: CHAT_REASON, note: '', chat: latestTurns(turns) };
 }
 
 /** The recording and image references in a field, in order: a fix may not add, drop or move them. */

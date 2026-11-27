@@ -160,7 +160,7 @@ export function TroubleCards({ repo, agentFlags, onEditNote, onCardInfo, suggest
           note={flagFor.card.flag === AGENT_FLAG ? flagNoteOf(flagFor.note.tags) : ''}
           onSave={(reason, text) => saveFlag(flagFor, AGENT_FLAG, { tags: withFlagReason(flagFor.note.tags, reason, text) })}
           onRemove={flagFor.card.flag === AGENT_FLAG ? () => saveFlag(flagFor, 0) : undefined}
-          fix={fixFlaggedCard ? async (reason, text) => checkFix(flagFor.note, await fixFlaggedCard(fixRequest(flagFor.note, reason, text))) : undefined}
+          fix={fixFlaggedCard ? async (reason, text, thread) => checkFix(flagFor.note, await fixFlaggedCard(fixRequest(flagFor.note, reason, text, thread))) : undefined}
           onApply={(proposal) => saveFlag(flagFor, 0, { tags: withoutFlag(flagFor.note.tags), fields: withFix(flagFor.note.fields, proposal) })}
           onClose={() => setFlagFor(null)}
         />
