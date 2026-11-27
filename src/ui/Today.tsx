@@ -152,6 +152,7 @@ export function Today(props: {
   return (
     <Screen
       title="Today"
+      leadingTitle
       toolbar={
         <Stack.Toolbar placement="right">
           {props.sync ? (
