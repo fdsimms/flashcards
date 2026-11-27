@@ -30,10 +30,21 @@ const FontContext = createContext<AppFont>('system');
 /** The weight of the `Text` this one is nested in, which it keeps unless it sets its own (as on iOS). */
 const InheritedWeight = createContext<TextStyle['fontWeight']>(undefined);
 /** The font chosen per language, with the fonts on the phone, for text that says which language it's in. */
+/** How much bigger or smaller than its own size a `Text` draws, inside a card (`CardFontScope`'s `scale`). */
+const TextScale = createContext(1);
 const LanguageFonts = createContext<{ settings: FontSettings; installed: ReadonlySet<AppFont> } | null>(null);
 
 type Props = { style?: unknown; children?: React.ReactNode; [key: string]: unknown };
 let patched = false;
+
+/** `props` with the style's `fontSize` and `lineHeight` multiplied, so a card's text grows with its Text size. */
+function scaledProps(props: Props, scale: number): Props {
+  const flat = StyleSheet.flatten(props.style as TextStyle) ?? {};
+  if (flat.fontSize === undefined && flat.lineHeight === undefined) return props;
+  const size = flat.fontSize === undefined ? {} : { fontSize: Math.round(flat.fontSize * scale * 2) / 2 };
+  const line = flat.lineHeight === undefined ? {} : { lineHeight: Math.round(flat.lineHeight * scale * 2) / 2 };
+  return { ...props, style: [props.style, size, line] };
+}
 
 function applyPatch() {
   if (patched) return;
@@ -44,7 +55,9 @@ function applyPatch() {
     const Base = RN[name];
     if (!Base) continue;
     const isText = name === 'Text';
-    const WithFont = (props: Props) => {
+    const WithFont = (rawProps: Props) => {
+      const scale = useContext(TextScale);
+      const props = isText && scale !== 1 ? scaledProps(rawProps, scale) : rawProps;
       const scoped = useContext(FontContext);
       const languageFonts = useContext(LanguageFonts);
       const tag = props.accessibilityLanguage;
@@ -156,7 +169,7 @@ function usable(s: FontSettings, installed: ReadonlySet<AppFont>): FontSettings 
   return { ...s, font: availableFont(s.font, installed), pool: pool.length ? pool : [availableFont(s.font, installed)] };
 }
 
-/** A card's own font, over the app's: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */
-export function CardFontScope({ font, children }: { font: AppFont; children: React.ReactNode }) {
-  return <FontContext.Provider value={font}>{children}</FontContext.Provider>;
+/** A card's own font, over the app's, and the size its text is drawn at: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */
+export function CardFontScope({ font, scale = 1, children }: { font: AppFont; /** The reader's Text size as a multiplier (`textScale`): what the card's text is drawn at, over its own sizes. */ scale?: number; children: React.ReactNode }) {
+  return <FontContext.Provider value={font}><TextScale.Provider value={scale}>{children}</TextScale.Provider></FontContext.Provider>;
 }

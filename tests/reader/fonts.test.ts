@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { TEXT_SIZES, legacyLanguageFont, readFont, scaledFontSize, talkTextStyle } from '../../src/reader/fonts';
+import { TEXT_SIZES, legacyLanguageFont, readFont, textScale, scaledFontSize, talkTextStyle } from '../../src/reader/fonts';
 
 test('Prompt gives loopless Thai, and a practice word its Medium face rather than a synthesized bold', () => {
   const font = readFont('th', 'prompt');
@@ -46,4 +46,10 @@ test('a talking point is drawn at a share of the language size, scaled by the te
   expect(talkTextStyle(thai, 'default')).toEqual({ fontSize: 19.5, lineHeight: 34 });
   expect(talkTextStyle(thai, 'largest').fontSize).toBeGreaterThan(talkTextStyle(thai, 'large').fontSize);
   expect(talkTextStyle(thai, 'default', 1).fontSize).toBe(23);
+});
+
+test('a text size is a multiplier over a screen\'s own sizes', () => {
+  expect(textScale('default')).toBe(1);
+  expect(textScale('small')).toBeLessThan(1);
+  expect(textScale('largest')).toBeGreaterThan(textScale('larger'));
 });

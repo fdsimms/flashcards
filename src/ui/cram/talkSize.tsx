@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
 import { type TextSize } from '../../reader/fonts';
-import { prefs, savePrefs } from '../../reader/storage';
-import { textMenu, type TextFont } from '../textMenu';
+import { textMenu, useTextSize, type TextFont } from '../textMenu';
 
-/**
- * The text size of a cram's talking points: Read & Listen's own text size (the reader's menu sets the
- * same one), so a choice here and there agree.
- */
-export function useTalkSize(): [TextSize, (size: TextSize) => void] {
-  const [size, setSize] = useState<TextSize>(prefs().textSize);
-  return [size, (next) => { savePrefs({ textSize: next }); setSize(next); }];
-}
+/** The text size of a cram's talking points: Read & Listen's own, shared with every other screen (`useTextSize`). */
+export const useTalkSize = useTextSize;
 
 /**
  * The header's Text menu: the font for the cram's language, and the talking points' size. A plain

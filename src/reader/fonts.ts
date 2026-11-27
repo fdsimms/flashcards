@@ -17,6 +17,11 @@ export const TEXT_SIZE_LABELS: Record<TextSize, string> = { small: 'Small', defa
 
 const TEXT_SIZE_SCALE: Record<TextSize, number> = { small: 0.85, default: 1, large: 1.2, larger: 1.45, largest: 1.75 };
 
+/** The multiplier a text size stands for, over a screen's own sizes. */
+export function textScale(size: TextSize): number {
+  return TEXT_SIZE_SCALE[size];
+}
+
 /** A language's base font size at the chosen text size, to the half point. */
 export function scaledFontSize(base: number, size: TextSize): number {
   return Math.round(base * TEXT_SIZE_SCALE[size] * 2) / 2;

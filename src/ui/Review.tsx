@@ -47,7 +47,8 @@ import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardFontScope, useFontSettings } from './AppFont';
-import { useTextFont } from './textMenu';
+import { useTextFont, useTextSize } from './textMenu';
+import { textScale } from '../reader/fonts';
 import { CardWebView } from './CardWebView';
 import { FaceWarmup } from './FaceWarmup';
 import { warmupText } from '../core/faceWarmup';
@@ -493,6 +494,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   };
   const cardFont = note && current ? fontOf(current, note) : appFont.settings.onCards ? appFont.font : 'system';
   // The Text menu's font rows, for the card's language. A deck with fonts of its own keeps them, so the menu has none for its cards.
+  const [textSize, chooseTextSize] = useTextSize();
   const cardText = useTextFont(note ? speechLangFor(note) : undefined);
   const deckOwnsFont = !!note && !!current && deckCardFonts(cardHomeDeck(current, note.deck), deckSettings).length > 0;
   /**
@@ -512,7 +514,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
       font: font === 'system' ? undefined : { id: font, base: isBundled(font) ? cardFontsBase() : downloadedFontsBase() },
-      language: speechLangFor(n), thai: thaiTextStyle(thaiSize),
+      language: speechLangFor(n), thai: thaiTextStyle(thaiSize), scale: textScale(textSize),
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   };
@@ -527,7 +529,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const ahead = upcomingNote && !drillOfTags(upcomingNote.tags) ? upcoming : undefined;
   const aheadPage = useMemo(
     () => templatePage(ahead, ''),
-    [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont, thaiSize], // eslint-disable-line react-hooks/exhaustive-deps
+    [ahead?.id, ahead?.kind, notes, noteTypes, allParams, deckSettings, dark, c, appFont, thaiSize, textSize], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Which word a reverse card wants when other notes share its meaning (synonyms.ts), from every note loaded.
   const wanted = useMemo(() => wantedLines(notes.values()), [notes]);
@@ -1629,6 +1631,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           />
           {reviewMenu({
             text: deckOwnsFont ? { ...cardText, code: undefined } : cardText,
+            textSize: { value: textSize, onChange: chooseTextSize },
             flag: current.flag ?? 0,
             onMnemonic: canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined,
             onLinkConfused: canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined,
@@ -1703,7 +1706,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
-              <CardFontScope font={cardFont}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               {/* Record is a mic beside the language line until a take is made or being made, then its capsule takes a row. */}
               <LanguageCue kind={current.kind} speechLang={speechLang} trailing={canRecordYourself(rendered) && idleRecording(self) ? <RecordIconButton rec={self} label="Record" /> : undefined} />
               {reminder ? <MissReminder text={reminder} /> : null}
@@ -1720,7 +1723,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               <Reveal rise={14} style={{ gap: space.xl }}>
                 {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
                 <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
-                <CardFontScope font={cardFont}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} senseMarking={senseMarks.marking} /></CardFontScope>
+                <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} senseMarking={senseMarks.marking} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>

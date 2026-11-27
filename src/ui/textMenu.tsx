@@ -1,11 +1,12 @@
 import { Stack, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert } from 'react-native';
 import { failureText } from '../core/failure';
 import { fontOption, languageCode, languageChoice, withLanguageFont, type AppFont } from '../core/fonts';
 import { languageFontChoices } from '../core/fontDownloads';
 import type { Language } from '../reader/api';
 import { TEXT_SIZES, TEXT_SIZE_LABELS, type TextSize } from '../reader/fonts';
+import { prefs, savePrefs } from '../reader/storage';
 import { LANGUAGES } from '../reader/languages';
 import { useFontSettings, useLanguageFont } from './AppFont';
 
@@ -86,4 +87,13 @@ export function textMenu(t: TextFont, size?: { value: TextSize; onChange: (s: Te
       {textRows(t, size)}
     </Stack.Toolbar.Menu>
   );
+}
+
+/**
+ * The text size every screen shares: Read & Listen's own setting, so a choice in its menu is what
+ * Review, Cram and the rest show. Each screen reads it as it opens.
+ */
+export function useTextSize(): [TextSize, (size: TextSize) => void] {
+  const [size, setSize] = useState<TextSize>(prefs().textSize);
+  return [size, (next) => { savePrefs({ textSize: next }); setSize(next); }];
 }
