@@ -86,7 +86,8 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }:
       </View>
       {word ? (
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {`${word.text}${word.translit ? ` (${word.translit})` : ''}: ${meaning || 'no meaning yet'}`}
+          <Text accessibilityLanguage={lang}>{word.text}</Text>
+          {`${word.translit ? ` (${word.translit})` : ''}: ${meaning || 'no meaning yet'}`}
         </Text>
       ) : null}
       {english ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{turn.english}</Text> : (

@@ -7,7 +7,7 @@ import {
   type HearingAnswer, type HearingFocus, type HearingLanguage, type HearingQuestion, type HearingWord, type SoundResult,
 } from '../../tools/hearing';
 import { toneOfRoman, TONE_NAMES, type Tone } from '../../tools/thai/script';
-import { useFont } from '../AppFont';
+import { useLanguageFont } from '../AppFont';
 import { haptic } from '../haptics';
 import { Button, Card, Help, Icon, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
@@ -15,7 +15,8 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../the
 import type { ToolScreenProps } from './index';
 import { ListenPrompt, PracticeCard } from './PracticeCard';
 import { ToneContour, ToneContours } from './ToneContour';
-import { PlayButton, Status, ToolScreen, useToolLanguage, useToolPref } from './ToolScreen';
+import { PlayButton, Status, ToolLanguage, ToolScreen, useToolLanguage, useToolPref } from './ToolScreen';
+import { LANGUAGES } from '../../reader/languages';
 import { useHearingAudio, type HeardIn } from './useHearingAudio';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
@@ -258,12 +259,13 @@ export function HearingTool({ tool, repo, readerApi, params }: ToolScreenProps) 
 /** A word's romanization and meaning, under it. */
 function WordLines({ word, centered }: { word: HearingWord; centered?: boolean }) {
   const c = useTheme();
-  const font = useFont();
+  const language = React.useContext(ToolLanguage);
+  const font = useLanguageFont(language);
   const align = centered ? 'center' as const : 'left' as const;
   const wordStyle = { ...(hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 26 } : { ...type.title, fontWeight: '400' as const }), ...japaneseFont(word.word, 'ja', font) };
   return (
     <View style={{ gap: 2 }}>
-      <Text style={{ ...wordStyle, color: c.text, textAlign: align }}>{word.word}</Text>
+      <Text accessibilityLanguage={language ? LANGUAGES[language].speech : undefined} style={{ ...wordStyle, color: c.text, textAlign: align }}>{word.word}</Text>
       <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: align }}>{`${word.roman} · ${word.meaning}`}</Text>
     </View>
   );

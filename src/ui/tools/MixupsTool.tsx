@@ -10,7 +10,7 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
-import { useFont } from '../AppFont';
+import { useLanguageFont } from '../AppFont';
 import { useWordAudio } from '../useWordAudio';
 import type { ToolScreenProps } from './index';
 import { ListenPrompt, PracticeCard } from './PracticeCard';
@@ -202,7 +202,7 @@ function Choice({ word, state, onPress, onPlay }: {
   const c = useTheme();
   const marked = state === 'right' || state === 'wrong';
   const tint = state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border;
-  const font = useFont();
+  const font = useLanguageFont(word.language);
   const wordStyle = { ...(hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 26 } : { ...type.title, fontWeight: '400' as const }), ...japaneseFont(word.word, word.language, font) };
   return (
     <Tappable
@@ -221,7 +221,7 @@ function Choice({ word, state, onPress, onPlay }: {
       {state === 'right' ? <Icon name="checkmark.circle.fill" size={20} color={c.countDue} /> : null}
       {state === 'wrong' ? <Icon name="xmark.circle.fill" size={20} color={c.danger} /> : null}
       <View style={{ flex: 1, gap: space.xs }}>
-        <Text style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
+        <Text accessibilityLanguage={LANGUAGES[word.language].speech} style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
         {state === 'open' ? null : (
           <>
             {word.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.roman}</Text> : null}

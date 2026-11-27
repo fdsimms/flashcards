@@ -118,7 +118,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
     front = (
       <View style={{ alignItems: 'center', gap: space.xs }}>
         <Text style={{ ...type.overline, color: c.textSecondary }}>{g.kind === 'verb' ? 'Verb' : g.kind === 'phrase' ? 'Phrase' : 'Preposition'}</Text>
-        <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 44, color: c.text, textAlign: 'center' }}>{g.word}</Text>
+        <Text selectable accessibilityLanguage={LANGUAGES[language].speech} maxFontSizeMultiplier={1.5} style={{ ...type.cardFront, fontSize: 44, color: c.text, textAlign: 'center' }}>{g.word}</Text>
         <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{g.sense ? `${g.meaning} (${g.sense})` : g.meaning}</Text>
         {step === 'case' ? <Text style={{ ...type.body, color: c.text, marginTop: space.s }}>Which case comes after it?</Text> : null}
       </View>
@@ -133,11 +133,11 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
         {noun ? (
           <View style={{ gap: space.s }}>
             <View style={{ alignItems: 'center', gap: 2 }}>
-              <Text style={{ ...type.title, fontWeight: '600', color: c.text }}>
+              <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.title, fontWeight: '600', color: c.text }}>
                 {`${g.word} `}
                 {step === 'done' ? <Text style={{ color: c.accent }}>{form}</Text> : <Text style={{ color: c.accent }}>_____</Text>}
               </Text>
-              <Text style={{ ...type.subhead, color: c.textSecondary }}>{`${noun.headword} · ${noun.meaning}`}</Text>
+              <Text style={{ ...type.subhead, color: c.textSecondary }}><Text accessibilityLanguage={LANGUAGES[language].speech} >{noun.headword}</Text>{` · ${noun.meaning}`}</Text>
             </View>
             <Field
               key={governorId(g)}

@@ -183,6 +183,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
           ) : null}
           <Text
             // Until it's answered, VoiceOver reads the gap as "blank" rather than the underscores.
+            accessibilityLanguage={promptSpeech(prompt)}
             accessibilityLabel={prompt.kind === 'which' || current ? undefined : `${prompt.before.trimEnd()} blank ${prompt.after.trimStart()}`.trim()}
             style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}
           >
@@ -217,7 +218,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
         {picking ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {prompt.choices.map((choice) => (
-              <ChoiceButton key={choice} label={choice} state={state(choice)} onPress={() => answer(choice, true)} />
+              <ChoiceButton key={choice} speech={promptSpeech(prompt)} label={choice} state={state(choice)} onPress={() => answer(choice, true)} />
             ))}
           </View>
         ) : (
