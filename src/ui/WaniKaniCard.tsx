@@ -256,7 +256,7 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
     <View style={{ gap: t.blockGap }}>
       {showMeaning && parts.length ? <MadeOf parts={parts} layout={t} /> : null}
       {showMeaning ? (
-        <View style={{ alignItems: 'center', gap: 2 }}>
+        <View style={{ alignItems: 'center', gap: 2, paddingTop: parts.length ? t.meaningLead : 0 }}>
           <FieldLabel>Meaning</FieldLabel>
           <Text style={{ ...type.cardBack, fontSize: t.meaning, color: c.onWk, textAlign: 'center' }}>{primaryMeaning(subject)}</Text>
           {others.length ? <Text style={{ ...type.subhead, color: c.onWkSoft, textAlign: 'center' }}>{others.join(', ')}</Text> : null}
