@@ -7,18 +7,21 @@ import { LANGUAGES } from '../../reader/languages';
 import { drawFromBag } from '../../tools/drillSeenStorage';
 import type { Stroke } from '../../tools/ink';
 import { randomWord } from '../../tools/script';
+import { STROKE_CREDIT, type StrokeOrder } from '../../tools/strokeOrder';
 import { WRITING } from '../../tools/tools';
 import { CURSIVE_LANGUAGES, writingHint, writingKind, writingKinds, writingStyle, type WritingItem, type WritingKind, type WritingMode, type WritingStyle } from '../../tools/writing';
 import { haptic } from '../haptics';
-import { Button } from '../kit';
+import { Button, Tappable } from '../kit';
 import { CardSurface, type CardMotion } from '../SwipeCard';
-import { radius, smooth, space, type, useTheme } from '../theme';
+import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useWritingKanji } from '../useWritingKanji';
 import type { ToolScreenProps } from './index';
 import { Glyph, InkCopy, InkPad } from './InkPad';
 import { MarkButtons, PracticeCard, useSwipeSetting } from './PracticeCard';
 import { PlayButton, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
+import { StrokeGlyph } from './StrokeGlyph';
 import { useMarks } from './useMarks';
+import { useStrokeOrder } from './useStrokeOrder';
 import { useRetries } from './useRetries';
 
 const MODES: { value: WritingMode; label: string }[] = [{ value: 'trace', label: 'Trace it' }, { value: 'memory', label: 'From memory' }];
@@ -37,7 +40,9 @@ const ASPECT: Record<WritingKind, number> = { letters: 1, words: 2, kanji: 1 };
  * to mark Missed it or Got it: nothing checks the writing itself. A new question leans toward
  * what was missed lately (useMarks), and one missed comes back a few questions later. Russian can
  * be written as printed or in joined handwriting (Cursive), which changes only the face the
- * answer is drawn in.
+ * answer is drawn in. Japanese's kana and kanji are drawn from their strokes, numbered in the
+ * order they're written, once those are downloaded (Stroke order, on unless turned off;
+ * useStrokeOrder.ts), and in the font until then.
  *
  * Until the answer shows, the card is a plain sheet rather than PracticeCard, whose scroll view
  * and swipe would take a stroke for their own; the screen's swipe back is off throughout for the
@@ -54,6 +59,7 @@ export function WritingTool({ tool, repo }: ToolScreenProps) {
   const [savedStyle, setStyle] = useToolPref('writingStyle');
   const style = writingStyle(savedStyle, language);
   const face = style === 'cursive' ? CURSIVE_FACE : undefined;
+  const [strokesOn, setStrokesOn] = useToolPref('writingStrokes');
   const kanji = useWritingKanji();
   const writing = WRITING[language];
   const kinds = writing ? writingKinds(writing, language === 'ja' ? kanji : []) : [];
@@ -70,6 +76,8 @@ export function WritingTool({ tool, repo }: ToolScreenProps) {
   const index = held?.scope === scope ? held.index : undefined;
   const item = index !== undefined ? items[index] : undefined;
   const key = `${scope}|${index}|${held?.asked}`;
+  // Only Japanese has stroke data, and only for one character (not a word).
+  const order = useStrokeOrder(language === 'ja' && kind !== 'words' ? item?.text : undefined, strokesOn);
   useEffect(() => {
     if (held?.scope === scope || !items.length) return;
     answer.hide();
@@ -123,6 +131,13 @@ export function WritingTool({ tool, repo }: ToolScreenProps) {
       </Stack.Toolbar.Menu>
     ));
   }
+  if (language === 'ja') {
+    menu.push((
+      <Stack.Toolbar.Menu key="strokes" inline>
+        <Stack.Toolbar.MenuAction isOn={strokesOn} onPress={() => setStrokesOn(!strokesOn)}>Stroke order</Stack.Toolbar.MenuAction>
+      </Stack.Toolbar.Menu>
+    ));
+  }
 
   const prompt = item ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
@@ -156,14 +171,14 @@ export function WritingTool({ tool, repo }: ToolScreenProps) {
           motion={motion}
           onMark={mark}
           front={prompt}
-          back={<Compare item={item} kind={kind} language={language} strokes={strokes} pad={pad ?? { width: 1, height: 1 }} face={face} />}
+          back={<Compare item={item} kind={kind} language={language} strokes={strokes} pad={pad ?? { width: 1, height: 1 }} face={face} order={order} />}
         />
       ) : (
         <CardSurface>
           <View style={{ flex: 1, padding: space.xl, gap: space.l }}>
             {prompt}
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onLayout={(e) => setRoom({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
-              {pad && item ? <InkPad key={key} strokes={strokes} onChange={setStrokes} width={pad.width} height={pad.height} guide={mode === 'trace' ? item.text : undefined} face={face} language={language} /> : null}
+              {pad && item ? <InkPad key={key} strokes={strokes} onChange={setStrokes} width={pad.width} height={pad.height} guide={mode === 'trace' ? item.text : undefined} guideStrokes={order} face={face} language={language} /> : null}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s }}>
               <Button variant="secondary" label="Undo" accessibilityLabel="Undo the last stroke" onPress={() => setStrokes((s) => s.slice(0, -1))} disabled={!strokes.length} />
@@ -178,17 +193,31 @@ export function WritingTool({ tool, repo }: ToolScreenProps) {
 }
 
 /** The writing beside the real one: side by side for a letter or a kanji, one over the other for a word, which is wide. */
-function Compare({ item, kind, language, strokes, pad, face }: { item: WritingItem; kind: WritingKind; language: Language; strokes: Stroke[]; pad: { width: number; height: number }; face?: string }) {
+function Compare({ item, kind, language, strokes, pad, face, order }: { item: WritingItem; kind: WritingKind; language: Language; strokes: Stroke[]; pad: { width: number; height: number }; face?: string; /** The answer's strokes, drawn in place of the font's when there are some. */ order: StrokeOrder | null }) {
   const c = useTheme();
   const wide = ASPECT[kind] > 1;
+  // How many times Play the strokes has been tapped: each tap draws them again.
+  const [plays, setPlays] = useState(0);
   return (
+    <View style={{ gap: space.m }}>
     <View style={{ flexDirection: wide ? 'column' : 'row', gap: space.m }}>
       <Tile label="Yours" aspect={ASPECT[kind]} wide={wide}>
         {() => <InkCopy strokes={strokes} pad={pad} aspect={ASPECT[kind]} />}
       </Tile>
       <Tile label={NAMES[kind]} aspect={ASPECT[kind]} wide={wide}>
-        {(size) => <Glyph text={item.text} language={language} width={size.width} height={size.height} color={c.text} face={face} />}
+        {(size) => (order
+          ? <StrokeGlyph order={order} width={size.width} height={size.height} playing={plays} />
+          : <Glyph text={item.text} language={language} width={size.width} height={size.height} color={c.text} face={face} />)}
       </Tile>
+    </View>
+    {order ? (
+      <View style={{ alignItems: 'center', gap: space.xs }}>
+        <Tappable onPress={() => { haptic.select(); setPlays((n) => n + 1); }} accessibilityRole="button" style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l }}>
+          <Text style={{ ...type.body, color: c.accentInk }}>Play the strokes</Text>
+        </Tappable>
+        <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center' }}>{STROKE_CREDIT}</Text>
+      </View>
+    ) : null}
     </View>
   );
 }

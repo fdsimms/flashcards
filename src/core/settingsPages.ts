@@ -25,7 +25,7 @@ export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
   { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana, deck options' },
   { id: 'read', title: 'Read & Listen', summary: 'Turn it on or off, language' },
   { id: 'lessons', title: 'Lessons', summary: 'Narrator, waiting for and hearing your answers, Thai polite ending' },
-  { id: 'practice', title: 'Practice', summary: 'Daily extras' },
+  { id: 'practice', title: 'Practice', summary: 'Daily extras, stroke order' },
 ];
 
 export function settingsPage(id: string | undefined): SettingsPageInfo | undefined {
@@ -98,6 +98,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'particle', page: 'lessons', label: 'Thai polite ending', keywords: ['khrap', 'kha', 'krap', 'ครับ', 'ค่ะ', 'man', 'woman', 'politeness'] },
 
   { id: 'extras', page: 'practice', label: 'Daily extras', keywords: ['drills', 'text', 'today'], route: '/extras' },
+  { id: 'strokeOrder', page: 'practice', label: 'Stroke order (Japanese)', keywords: ['writing by hand', 'kanji', 'kana', 'strokes', 'kanjivg', 'download'] },
 ];
 
 /** The entries whose label or keywords have every word of `query` in them (a prefix of a word counts), in list order. A blank query finds nothing. */

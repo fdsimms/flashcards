@@ -8,6 +8,7 @@ import type { FuriganaMode } from '../core/furigana';
 import { DECK_OPTIONS_LIST, settingsPage, type SettingsPageId } from '../core/settingsPages';
 import type { Repo } from '../db/repo';
 import { Group, Help, NavRow, Screen, SECTION_GAP, Section, SwitchRow } from './kit';
+import { useToolPref } from './tools/ToolScreen';
 import { reminderTime, useReminderPrefs } from './studyReminder';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
 import { vacationDetail } from './vacationNotice';
@@ -38,16 +39,22 @@ export function SettingsPage({ page, repo, readerOn, dailySummary, lessonRows, o
         {page === 'decks' ? <DeckRows repo={repo} onOpen={onOpen} /> : null}
         {page === 'read' ? <ReadRows readerOn={readerOn} dailySummary={dailySummary} onOpen={onOpen} /> : null}
         {page === 'lessons' ? lessonRows : null}
-        {page === 'practice' ? (
-          <Group>
-            <NavRow first label="Daily extras" detail="Drills and a text to read, besides your cards" onPress={() => onOpen('/extras')} />
-          </Group>
-        ) : null}
+        {page === 'practice' ? <PracticeRows onOpen={onOpen} /> : null}
         <Group>
           <NavRow first label="All settings" detail="Every page's settings, and search" onPress={() => onOpen('/settings')} />
         </Group>
       </ScrollView>
     </Screen>
+  );
+}
+
+function PracticeRows({ onOpen }: { onOpen: (route: string) => void }) {
+  const [strokes, setStrokes] = useToolPref('writingStrokes');
+  return (
+    <Group>
+      <NavRow first label="Daily extras" detail="Drills and a text to read, besides your cards" onPress={() => onOpen('/extras')} />
+      <SwitchRow label="Stroke order (Japanese)" hint="Writing by hand shows the order a kana or kanji is written in. Each character's strokes are downloaded from jsDelivr the first time it comes up." value={strokes} onValueChange={setStrokes} />
+    </Group>
   );
 }
 
