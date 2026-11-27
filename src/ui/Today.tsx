@@ -12,11 +12,12 @@ import { NewWordsCards } from './NewWordsCard';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
 import { SharedCard, useSharedBanner } from './SharedBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
-import { hairline, radius, readable, smooth, space, type, useTheme } from './theme';
+import { hairline, radius, smooth, space, type, useTheme } from './theme';
 import { TodaySkeleton } from './TodaySkeleton';
 import { useHeaderInset } from './useHeaderInset';
 import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
+import { TodayColumns } from './TodayColumns';
 
 /** What's waiting across every deck, or that nothing is: the first thing Today says. */
 function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
@@ -169,53 +170,62 @@ export function Today(props: {
       {!ready ? <TodaySkeleton /> : (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={readable}
         // Always mounted, as on Decks: one added once sync's settings load moved the content down.
         refreshControl={<RefreshControl refreshing={syncTap.pulling} onRefresh={syncTap.pull} tintColor={c.textSecondary} />}
       >
-        {/* One fade for the whole screen, the first time it shows (ready). */}
-        <Reveal style={{ paddingHorizontal: space.l, paddingBottom: space.xl, gap: space.m }}>
-          {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
-          {anyDecks && !firstEmpty ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
-          {firstEmpty ? <EmptyDeckCard deck={firstEmpty} /> : null}
-          {backup?.overdue ? (
-            <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
-          ) : null}
-          {props.loadProblem ? (
-            <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
-          ) : null}
-          {props.sync?.failed ? (
-            // A failed sync sits right under today's count, where it can't be scrolled past; a tap tries again.
-            <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTap.tap} />
-          ) : null}
-          {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
-          {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
-          {shared ? <SharedCard banner={shared} /> : null}
-          <NewWordsCards />
-          {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
-          {props.crams}
-          {!anyDecks ? (props.loaded === false ? <Loading /> : <NoDecksCard onImport={props.onImport} />) : (
-            groups.map((g) => (
-              <Group key={g[0].deck}>
-                {g.map((row, i) => (
-                  <DeckRowLink
-                    key={row.deck}
-                    row={row}
-                    first={i === 0}
-                    toggleSlot={!!props.onToggleCollapsed}
-                    open={openDeck === row.deck}
-                    onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
-                    onOptions={() => props.onOptions(row.deck)}
-                    onMenu={() => props.onDeckMenu(row.deck)}
-                    onAction={(action) => props.onDeckAction(row.deck, action)}
-                    onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
-                  />
-                ))}
-              </Group>
-            ))
-          )}
-          {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
-          {props.extrasStrip}
+        {/* One fade for the whole screen, the first time it shows (ready). The columns keep their own width and margins (TodayColumns). */}
+        <Reveal>
+          <TodayColumns
+            lead={(
+              <>
+                {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
+                {anyDecks && !firstEmpty ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
+                {firstEmpty ? <EmptyDeckCard deck={firstEmpty} /> : null}
+                {backup?.overdue ? (
+                  <WarningBanner title={backup.text} detail="Everything is stored only on this iPhone." action="Tap to back up now" hint="Opens Backup" onPress={props.onBackup} />
+                ) : null}
+                {props.loadProblem ? (
+                  <WarningBanner title="Couldn't load your decks" detail={props.loadProblem.text} action="Tap to try again" hint="Loads the decks again" onPress={props.loadProblem.onRetry} />
+                ) : null}
+                {props.sync?.failed ? (
+                  // A failed sync sits right under today's count, where it can't be scrolled past; a tap tries again.
+                  <WarningBanner title="Sync didn't finish" detail={props.sync.status} action="Tap to try again" hint="Syncs now" onPress={syncTap.tap} />
+                ) : null}
+                {vocabReady ? <VocabReadyCard banner={vocabReady} /> : null}
+                {noteQueue ? <NoteQueueCard banner={noteQueue} /> : null}
+                {shared ? <SharedCard banner={shared} /> : null}
+                <NewWordsCards />
+                {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
+              </>
+            )}
+            crams={props.crams}
+            decks={(
+              <>
+                {!anyDecks ? (props.loaded === false ? <Loading /> : <NoDecksCard onImport={props.onImport} />) : (
+                  groups.map((g) => (
+                    <Group key={g[0].deck}>
+                      {g.map((row, i) => (
+                        <DeckRowLink
+                          key={row.deck}
+                          row={row}
+                          first={i === 0}
+                          toggleSlot={!!props.onToggleCollapsed}
+                          open={openDeck === row.deck}
+                          onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
+                          onOptions={() => props.onOptions(row.deck)}
+                          onMenu={() => props.onDeckMenu(row.deck)}
+                          onAction={(action) => props.onDeckAction(row.deck, action)}
+                          onToggle={props.onToggleCollapsed ? () => props.onToggleCollapsed!(row.deck) : undefined}
+                        />
+                      ))}
+                    </Group>
+                  ))
+                )}
+                {props.extra && props.extra.due + props.extra.fresh > 0 ? props.extra.node : null}
+              </>
+            )}
+            extras={props.extrasStrip}
+          />
         </Reveal>
       </ScrollView>
       )}

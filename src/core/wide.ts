@@ -13,6 +13,18 @@ export const SIDE_PANEL_WIDTH = 320;
 /** The least space left on each side of the column once a panel is beside it. */
 const GUTTER = 20;
 
+/** The least a column is worth reading at when a screen splits into two (Today), and the gap and margins around them. */
+const MIN_COLUMN = 356;
+const COLUMN_GAPS = 48;
+
+/**
+ * Whether a screen `width` wide has room for two columns side by side. `width` is what the screen
+ * itself has: on an iPad the tab bar's sidebar takes part of the window.
+ */
+export function twoColumnsFit(width: number): boolean {
+  return width >= 2 * MIN_COLUMN + COLUMN_GAPS;
+}
+
 /** Whether the window has room for the full content column and a panel beside it. */
 export function sidePanelFits(windowWidth: number): boolean {
   return windowWidth >= READABLE_WIDTH + SIDE_PANEL_WIDTH + 2 * GUTTER;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnInsets, READABLE_WIDTH, SIDE_PANEL_WIDTH, sidePanelFits } from '../../src/core/wide';
+import { columnInsets, READABLE_WIDTH, SIDE_PANEL_WIDTH, sidePanelFits, twoColumnsFit } from '../../src/core/wide';
 
 describe('a wide window', () => {
   it('has room for a side panel only past the column, the panel and a gutter each side', () => {
@@ -10,6 +10,17 @@ describe('a wide window', () => {
     expect(sidePanelFits(1000)).toBe(true);
     expect(sidePanelFits(1194)).toBe(true);
     expect(READABLE_WIDTH + SIDE_PANEL_WIDTH).toBe(960);
+  });
+
+  it('splits a screen in two from 760 points: an iPad in landscape beside its sidebar, not one in portrait', () => {
+    expect(twoColumnsFit(0)).toBe(false);
+    expect(twoColumnsFit(430)).toBe(false);
+    // 834 wide in portrait less a 320 sidebar; 744 on the smallest iPad with none.
+    expect(twoColumnsFit(514)).toBe(false);
+    expect(twoColumnsFit(744)).toBe(false);
+    expect(twoColumnsFit(760)).toBe(true);
+    // 1194 wide in landscape less the sidebar.
+    expect(twoColumnsFit(874)).toBe(true);
   });
 
   it('keeps a popup at the margin on a narrow window', () => {
