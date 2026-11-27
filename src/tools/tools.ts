@@ -76,7 +76,7 @@ import { THAI_WRITING } from './thai/writing';
 /** The languages the tools come in: every app language but English, which the app is already in. */
 export const TOOL_LANGUAGES: Language[] = LANGUAGE_ORDER.filter((l) => l !== 'en');
 
-export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'writing' | 'grammar' | 'cases';
+export type ToolId = 'mixups' | 'hearing' | 'contrast' | 'journal' | 'sentences' | 'situations' | 'time' | 'dates' | 'money' | 'numbers' | 'counting' | 'script' | 'writing' | 'grammar' | 'cases';
 
 export interface ToolInfo {
   id: ToolId;
@@ -209,6 +209,14 @@ export const TOOLS: ToolInfo[] = [
     title: 'Which word fits',
     summary: 'Pick the word that fits a sentence, from words easily mixed up.',
     languages: TOOL_LANGUAGES.filter((l) => contrastSetsFor(l).length > 0),
+  },
+  {
+    // Anything written in the language, checked by Claude sentence by sentence and kept (server/reader
+    // journal.py, src/reader/journal.ts). Needs Read & Listen; an entry written offline is held until it answers.
+    id: 'journal',
+    title: 'Journal',
+    summary: 'Write anything in the language. Claude checks it.',
+    languages: TOOL_LANGUAGES,
   },
   {
     // English sentences around words reviewed today or young, to say in the language (server/reader

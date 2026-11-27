@@ -233,6 +233,16 @@ export type RetellCheck = WritingCheck & { words: { word: string; english: strin
 export type WritingRequest =
   | { kind: 'sentence'; language: Language; attempt: string; word: string; meaning: string }
   | { kind: 'translate'; language: Language; attempt: string; english: string; reference: string };
+// The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
+// the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
+// `governor` say which case a case ending should be and the word that decides it. Never graded.
+export type JournalEntry = Schemas['JournalEntryOut'];
+export type JournalCheck = Schemas['JournalCheckOut'];
+export type JournalSentence = Schemas['JournalSentenceOut'];
+export type JournalMistake = Schemas['JournalMistakeOut'];
+export type JournalHome = Schemas['JournalHomeOut'];
+export type JournalKind = Schemas['JournalKindOut'];
+export type JournalCheckRequest = Schemas['JournalCheckIn'];
 // A sentence to say (server/reader sentences.py), built around a word reviewed today or still young.
 // `grammar`: the grammar point set to Practice that the sentence uses, when it uses one (absent from an older server).
 export type SentencePrompt = { id: number; word: string; meaning: string; sentence: string; english: string; reviewed_today: boolean; grammar?: { id: string; name: string } | null };
@@ -946,6 +956,13 @@ export function createApi(
     // The owner's own writing, checked by Claude on their tap (production.py). Never kept, never graded.
     checkWriting: (request: WritingRequest) => call<WritingCheck>('POST', '/api/production/check', request),
     retell: (textId: number, attempt: string) => call<RetellCheck>('POST', `/api/texts/${textId}/retell`, { attempt }),
+    // The writing journal (journal.py): the language's entries, the kinds of mistake their first checks found
+    // in the last `days` days (0: all time) and the day's idea; an entry checked and kept; one entry; a delete.
+    journal: (language: Language, days?: number) =>
+      call<JournalHome>('GET', `/api/journal?language=${language}${days === undefined ? '' : `&days=${days}`}`),
+    checkJournal: (request: JournalCheckRequest) => call<JournalEntry>('POST', '/api/journal/check', request),
+    journalEntry: (id: number) => call<JournalEntry>('GET', `/api/journal/${id}`),
+    deleteJournalEntry: (id: number) => call<void>('DELETE', `/api/journal/${id}`),
     // Sentences to say, one a word; more are written in the background. `writing` is false when the server can't write any.
     sentences: (language: Language, count: number) =>
       call<{ sentences: SentencePrompt[]; writing: boolean }>('POST', '/api/sentences', { language, count }),

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_EXTRA_PREFS, EXTRA_ANSWERS, isDone, lastPracticed, parseExtraPrefs, parseExtraState, planExtras, recordAnswer, recordRead, turnOrder,
-  EMPTY_EXTRA_STATE, type ExtraPrefs, type ExtraState, type PlanInput,
-} from '../../src/tools/extras';
+import { DEFAULT_EXTRA_PREFS, EXTRA_ANSWERS, isDone, lastPracticed, parseExtraPrefs, parseExtraState, planExtras, recordAnswer, recordRead, turnOrder, EMPTY_EXTRA_STATE, type ExtraPrefs, type ExtraState, type PlanInput, extraDrillNames } from '../../src/tools/extras';
 import { recordMark } from '../../src/tools/marks';
 
 // A Saturday at noon, local time, with the study day starting at 4 AM.
@@ -196,5 +193,11 @@ describe('parsing', () => {
     expect(parseExtraState('nope')).toEqual(EMPTY_EXTRA_STATE);
     expect(parseExtraState(JSON.stringify({ answers: { 'time|th': [1, 'x', 3] }, reads: { th: 'x', es: 4 }, plan: { start: 1, sig: 's', extras: [{ language: 'zz', kind: 'read', why: 'turn' }, { language: 'th', kind: 'read', why: 'turn' }] } })))
       .toEqual({ answers: { 'time|th': [1, 3] }, reads: { es: 4 }, plan: { start: 1, sig: 's', extras: [{ language: 'th', kind: 'read', why: 'turn' }] } });
+  });
+});
+
+describe('extraDrillNames', () => {
+  it('names every drill an extra may be, as the Practice tab does', () => {
+    expect(extraDrillNames()).toBe('Counting things, reading the script, hearing sounds, writing by hand and which case');
   });
 });

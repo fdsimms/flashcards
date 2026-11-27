@@ -58,12 +58,13 @@ export function afterSend<T>(list: readonly T[], tried: readonly T[], left: read
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** What the Offline sheet lists as waiting for the connection, one line each, leaving out what has none. */
-export function waitingLines(w: { answers: number; wanikani: number; words: number; recordings: number; readings: number }): string[] {
+export function waitingLines(w: { answers: number; wanikani: number; words: number; recordings: number; readings: number; entries: number }): string[] {
   return [
     w.answers ? `${count(w.answers, 'answer', 'answers')} to sync` : '',
     w.wanikani ? `${count(w.wanikani, 'WaniKani answer', 'WaniKani answers')} to send` : '',
     w.words ? `${count(w.words, 'word', 'words')} to send to Claude` : '',
     w.recordings ? `${count(w.recordings, 'new note', 'new notes')} to record` : '',
     w.readings ? `${count(w.readings, 'reading', 'readings')} to send to Read & Listen` : '',
+    w.entries ? `${count(w.entries, 'journal entry', 'journal entries')} to check` : '',
   ].filter(Boolean);
 }

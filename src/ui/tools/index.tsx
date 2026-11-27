@@ -9,6 +9,7 @@ import { ContrastTool } from './ContrastTool';
 import { CountingTool } from './CountingTool';
 import { DateTool } from './DateTool';
 import { HearingTool } from './HearingTool';
+import { JournalTool } from './JournalTool';
 import { MixupsTool } from './MixupsTool';
 import { MoneyTool } from './MoneyTool';
 import { NumbersTool } from './NumbersTool';
@@ -44,6 +45,7 @@ export const TOOL_SCREENS: Record<ToolId, {
   mixups: { Screen: MixupsTool, icon: 'arrow.left.arrow.right', color: (c) => c.indigo },
   hearing: { Screen: HearingTool, icon: 'ear.fill', color: (c) => c.teal },
   contrast: { Screen: ContrastTool, icon: 'text.badge.checkmark', color: (c) => c.teal },
+  journal: { Screen: JournalTool, icon: 'square.and.pencil', color: (c) => c.orange },
   sentences: { Screen: SentencesTool, icon: 'text.bubble.fill', color: (c) => c.hard },
   situations: { Screen: SituationsTool, icon: 'bubble.left.and.bubble.right.fill', color: (c) => c.good },
   time: { Screen: TimeTool, icon: 'clock.fill', color: (c) => c.easy },

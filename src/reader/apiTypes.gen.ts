@@ -837,6 +837,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal Home
+         * @description The language's entries, newest first; the kinds of mistake their first checks found in
+         *     the last `days` days (0: all of them), most frequent first; and the study day's idea, with
+         *     a few of the words being learned. Reads only.
+         */
+        get: operations["journal_home_api_journal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/journal/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Journal Check
+         * @description Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.
+         *     A new entry whose `key` was already checked comes back as it was, with no call.
+         */
+        post: operations["journal_check_api_journal_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/journal/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Journal Entry */
+        get: operations["journal_entry_api_journal__entry_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Journal Delete
+         * @description Deletes an entry and takes its mistakes out of the counts.
+         */
+        delete: operations["journal_delete_api_journal__entry_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/grammar-topics": {
         parameters: {
             query?: never;
@@ -2341,6 +2405,158 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** JournalCheckIn */
+        JournalCheckIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Text */
+            text: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /** Entry Id */
+            entry_id?: number | null;
+            /** Key */
+            key?: string | null;
+        };
+        /** JournalCheckOut */
+        JournalCheckOut: {
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "right" | "almost" | "wrong";
+            /** Sentences */
+            sentences: components["schemas"]["JournalSentenceOut"][];
+            /** Filled */
+            filled: components["schemas"]["JournalFilledOut"][];
+        };
+        /** JournalEntryOut */
+        JournalEntryOut: {
+            /** Id */
+            id: number;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Prompt */
+            prompt: string;
+            /** Text */
+            text: string;
+            /** Tries */
+            tries: number;
+            /** Created At */
+            created_at: string;
+            check: components["schemas"]["JournalCheckOut"];
+        };
+        /** JournalFilledOut */
+        JournalFilledOut: {
+            /** English */
+            english: string;
+            /** Word */
+            word: string;
+        };
+        /** JournalHomeOut */
+        JournalHomeOut: {
+            /** Entries */
+            entries: components["schemas"]["JournalSummaryOut"][];
+            /** Kinds */
+            kinds: components["schemas"]["JournalKindOut"][];
+            idea: components["schemas"]["JournalIdeaOut"];
+            /** Checks */
+            checks: boolean;
+        };
+        /** JournalIdeaOut */
+        JournalIdeaOut: {
+            /** Prompt */
+            prompt: string;
+            /** Words */
+            words: components["schemas"]["JournalIdeaWordOut"][];
+        };
+        /** JournalIdeaWordOut */
+        JournalIdeaWordOut: {
+            /** Word */
+            word: string;
+            /** Meaning */
+            meaning: string;
+        };
+        /** JournalKindOut */
+        JournalKindOut: {
+            /** Group */
+            group: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Point */
+            point: string | null;
+            /** Count */
+            count: number;
+            /** Was */
+            was: string;
+            /** Now */
+            now: string;
+            /** Written */
+            written: string;
+            /** Corrected */
+            corrected: string;
+        };
+        /** JournalMistakeOut */
+        JournalMistakeOut: {
+            /** Was */
+            was: string;
+            /** Now */
+            now: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Case */
+            case: string | null;
+            /** Governor */
+            governor: string | null;
+            /** Note */
+            note: string;
+            /** Hint */
+            hint: string;
+        };
+        /** JournalSentenceOut */
+        JournalSentenceOut: {
+            /** Written */
+            written: string;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "right" | "almost" | "wrong";
+            /** Corrected */
+            corrected: string;
+            /** English */
+            english: string;
+            /** Mistakes */
+            mistakes: components["schemas"]["JournalMistakeOut"][];
+        };
+        /** JournalSummaryOut */
+        JournalSummaryOut: {
+            /** Id */
+            id: number;
+            /** Prompt */
+            prompt: string;
+            /** Text */
+            text: string;
+            /** Created At */
+            created_at: string;
+            /** Sentences */
+            sentences: number;
+            /** Fixed */
+            fixed: number;
         };
         /** KanaReadingIn */
         KanaReadingIn: {
@@ -5006,6 +5222,139 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_home_api_journal_get: {
+        parameters: {
+            query: {
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalHomeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_check_api_journal_check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JournalCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_entry_api_journal__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    journal_delete_api_journal__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

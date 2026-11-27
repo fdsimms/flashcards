@@ -404,6 +404,33 @@ CREATE TABLE IF NOT EXISTS grammar_answers (
     PRIMARY KEY (point_id, drill_id, answered_at)
 );
 
+-- The writing journal (journal.py, journal_store.py): each entry as last written and checked, and
+-- the mistakes its first check found, one row each, which the home counts by kind and rotation.py
+-- reads for a practiced point. `client_key` is the phone's own id for the entry, so an entry held
+-- offline and sent twice is checked once.
+CREATE TABLE IF NOT EXISTS journal_entries (
+    id INTEGER PRIMARY KEY,
+    language TEXT NOT NULL,
+    client_key TEXT UNIQUE,
+    prompt TEXT NOT NULL DEFAULT '',
+    text TEXT NOT NULL,
+    check_json TEXT NOT NULL,
+    tries INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    checked_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS journal_mistakes (
+    entry_id INTEGER NOT NULL REFERENCES journal_entries (id) ON DELETE CASCADE,
+    language TEXT NOT NULL,
+    grp TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    was TEXT NOT NULL,
+    now TEXT NOT NULL,
+    written TEXT NOT NULL,
+    corrected TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+
 -- Grammar points Claude wrote once a language's catalog was nearly all practiced or known
 -- (written_points.py): the point as JSON (name, note, example, explanation, level, word_named, and
 -- `spec`, its finder as data). Registered beside the catalog's whenever the store opens.
@@ -2106,6 +2133,7 @@ CallFeature = Literal[
     "word_lookup",
     "grammar_lessons",
     "written_points",
+    "journal",
 ]
 
 

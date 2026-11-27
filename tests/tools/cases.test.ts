@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
 import {
   CASE_LANGUAGES, caseNouns, caseRows, casePatterns, caseRule, checkCaseForm, drawGovernor, governorId, governorNote, inDeck,
-  languageDeck, nounFor, type Governor,
+  languageDeck, mistakePatterns, nounFor, type Governor,
 } from '../../src/tools/cases';
 import { omniNote } from '../support/fixtures';
 
@@ -139,5 +139,24 @@ describe('the case choices', () => {
       const n = language!.cases.length;
       expect(caseRows(n).reduce((a, b) => a + b, 0)).toBe(n);
     }
+  });
+});
+
+describe('mistakePatterns', () => {
+  it('marks a journal case mistake under its case and the governor that takes it', () => {
+    expect(mistakePatterns('pl', 'Z', 'instrumental')).toEqual(['word:z', 'case:instrumental']);
+    expect(mistakePatterns('pl', 'bez', 'genitive')).toEqual(['word:bez', 'case:genitive']);
+  });
+
+  it('marks only the case for a governor Which case lacks, or one taking another case', () => {
+    expect(mistakePatterns('pl', 'nie mam', 'genitive')).toEqual(['case:genitive']);
+    expect(mistakePatterns('pl', 'bez', 'instrumental')).toEqual(['case:instrumental']);
+    expect(mistakePatterns('pl', null, 'dative')).toEqual(['case:dative']);
+  });
+
+  it('marks nothing in a language without Which case, or for a case it does not ask', () => {
+    expect(mistakePatterns('es', 'con', 'instrumental')).toEqual([]);
+    expect(mistakePatterns('de', 'mit', 'instrumental')).toEqual([]);
+    expect(mistakePatterns('pl', 'z', null)).toEqual([]);
   });
 });

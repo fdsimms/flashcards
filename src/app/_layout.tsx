@@ -36,6 +36,7 @@ function RootStack() {
       <Stack.Screen name="note-editor" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
       <Stack.Screen name="quick-add" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       <Stack.Screen name="look-up" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
+      <Stack.Screen name="journal-entry" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* Read & Listen's + button opens a new series, dialogue or story as a sheet, full height for the keyboard. */}
       <Stack.Screen name="read-write" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* Audio lessons' words to teach: chosen from the decks, or typed in, as sheets (full height for the keyboard). */}

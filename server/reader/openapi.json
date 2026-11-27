@@ -2967,6 +2967,244 @@
         }
       }
     },
+    "/api/journal": {
+      "get": {
+        "summary": "Journal Home",
+        "description": "The language's entries, newest first; the kinds of mistake their first checks found in\nthe last `days` days (0: all of them), most frequent first; and the study day's idea, with\na few of the words being learned. Reads only.",
+        "operationId": "journal_home_api_journal_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en",
+                "tok"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 60,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalHomeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/journal/check": {
+      "post": {
+        "summary": "Journal Check",
+        "description": "Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.\nA new entry whose `key` was already checked comes back as it was, with no call.",
+        "operationId": "journal_check_api_journal_check_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JournalCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/journal/{entry_id}": {
+      "get": {
+        "summary": "Journal Entry",
+        "operationId": "journal_entry_api_journal__entry_id__get",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Entry Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Journal Delete",
+        "description": "Deletes an entry and takes its mistakes out of the counts.",
+        "operationId": "journal_delete_api_journal__entry_id__delete",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Entry Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grammar-topics": {
       "get": {
         "summary": "List Grammar Topics",
@@ -7769,6 +8007,448 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JournalCheckIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Prompt",
+            "default": ""
+          },
+          "entry_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Id"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "text"
+        ],
+        "title": "JournalCheckIn"
+      },
+      "JournalCheckOut": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "right",
+              "almost",
+              "wrong"
+            ],
+            "title": "Verdict"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/JournalSentenceOut"
+            },
+            "type": "array",
+            "title": "Sentences"
+          },
+          "filled": {
+            "items": {
+              "$ref": "#/components/schemas/JournalFilledOut"
+            },
+            "type": "array",
+            "title": "Filled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict",
+          "sentences",
+          "filled"
+        ],
+        "title": "JournalCheckOut"
+      },
+      "JournalEntryOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tries": {
+            "type": "integer",
+            "title": "Tries"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "check": {
+            "$ref": "#/components/schemas/JournalCheckOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "language",
+          "prompt",
+          "text",
+          "tries",
+          "created_at",
+          "check"
+        ],
+        "title": "JournalEntryOut"
+      },
+      "JournalFilledOut": {
+        "properties": {
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "word": {
+            "type": "string",
+            "title": "Word"
+          }
+        },
+        "type": "object",
+        "required": [
+          "english",
+          "word"
+        ],
+        "title": "JournalFilledOut"
+      },
+      "JournalHomeOut": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/JournalSummaryOut"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/JournalKindOut"
+            },
+            "type": "array",
+            "title": "Kinds"
+          },
+          "idea": {
+            "$ref": "#/components/schemas/JournalIdeaOut"
+          },
+          "checks": {
+            "type": "boolean",
+            "title": "Checks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "kinds",
+          "idea",
+          "checks"
+        ],
+        "title": "JournalHomeOut"
+      },
+      "JournalIdeaOut": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/JournalIdeaWordOut"
+            },
+            "type": "array",
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "words"
+        ],
+        "title": "JournalIdeaOut"
+      },
+      "JournalIdeaWordOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "meaning"
+        ],
+        "title": "JournalIdeaWordOut"
+      },
+      "JournalKindOut": {
+        "properties": {
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "point": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "was": {
+            "type": "string",
+            "title": "Was"
+          },
+          "now": {
+            "type": "string",
+            "title": "Now"
+          },
+          "written": {
+            "type": "string",
+            "title": "Written"
+          },
+          "corrected": {
+            "type": "string",
+            "title": "Corrected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group",
+          "kind",
+          "name",
+          "point",
+          "count",
+          "was",
+          "now",
+          "written",
+          "corrected"
+        ],
+        "title": "JournalKindOut"
+      },
+      "JournalMistakeOut": {
+        "properties": {
+          "was": {
+            "type": "string",
+            "title": "Was"
+          },
+          "now": {
+            "type": "string",
+            "title": "Now"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case"
+          },
+          "governor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Governor"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "was",
+          "now",
+          "kind",
+          "name",
+          "case",
+          "governor",
+          "note",
+          "hint"
+        ],
+        "title": "JournalMistakeOut"
+      },
+      "JournalSentenceOut": {
+        "properties": {
+          "written": {
+            "type": "string",
+            "title": "Written"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "right",
+              "almost",
+              "wrong"
+            ],
+            "title": "Verdict"
+          },
+          "corrected": {
+            "type": "string",
+            "title": "Corrected"
+          },
+          "english": {
+            "type": "string",
+            "title": "English"
+          },
+          "mistakes": {
+            "items": {
+              "$ref": "#/components/schemas/JournalMistakeOut"
+            },
+            "type": "array",
+            "title": "Mistakes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "written",
+          "verdict",
+          "corrected",
+          "english",
+          "mistakes"
+        ],
+        "title": "JournalSentenceOut"
+      },
+      "JournalSummaryOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "sentences": {
+            "type": "integer",
+            "title": "Sentences"
+          },
+          "fixed": {
+            "type": "integer",
+            "title": "Fixed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prompt",
+          "text",
+          "created_at",
+          "sentences",
+          "fixed"
+        ],
+        "title": "JournalSummaryOut"
       },
       "KanaReadingIn": {
         "properties": {
