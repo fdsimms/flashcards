@@ -1763,6 +1763,16 @@ def last_finished_reading(conn: sqlite3.Connection, language: Code) -> datetime 
     return datetime.fromisoformat(row[0]) if row and row[0] else None
 
 
+def last_story_reading(conn: sqlite3.Connection, story_id: int) -> datetime | None:
+    """When an episode of the story was last read to the end (naive UTC, the engine's clock), or None."""
+    row = conn.execute(
+        """SELECT MAX(r.logged_at) FROM readings r JOIN texts x ON x.id = r.text_id
+           WHERE r.finished = 1 AND x.story_id = ?""",
+        (story_id,),
+    ).fetchone()
+    return datetime.fromisoformat(row[0]) if row and row[0] else None
+
+
 @dataclass(frozen=True)
 class Progress:
     """Finished readings since a date: what the Milestone 1 exit check reads (docs/read-and-listen/brief.md)."""

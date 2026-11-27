@@ -342,6 +342,8 @@ export type ReaderText = {
   // A story episode's "Last time": what happened in the episode before it, shown above the text.
   // Missing for a first episode, any other text, and a server older than this.
   last_time?: { recap: string; line: RecapLine | null };
+  // The series' recaps before this episode and the days since an episode was last finished, for the Welcome back recap. Missing for a text that isn't a later episode and from a server older than it.
+  so_far?: SoFar;
   // X-Ray: the series' characters as of this episode. Missing for a text that isn't an episode and from a server older than X-Ray.
   xray?: StoryCharacter[];
   // Questions about what happens, for the check after reading. Missing from a server older than
@@ -377,6 +379,9 @@ export type ShelfText = {
   created_at?: string | null;
 };
 
+// A series' "Story so far": one English sentence per episode told, oldest first, and the whole days since the learner last finished an episode (null when none was), and the characters as of the episode before the one it's shown for.
+export type SoFar = { recaps: { episode: number; recap: string }[]; away_days: number | null; characters: StoryCharacter[] };
+
 // A story episode's recap in its own language: words like a line's, and the line's English.
 export type RecapLine = { english: string; words: Word[] };
 
@@ -396,6 +401,8 @@ export type ShelfStory = {
   // The same in the story's language, as words to tap, with that line's English. Null for an
   // episode written before it was asked for, and missing from a server older than it.
   last_recap_line?: RecapLine | null;
+  // Every earlier recap, for the series page's Story so far. Null on the Stories list's rows, and missing from a server older than it.
+  so_far?: SoFar | null;
   // X-Ray: the characters as of the last episode read. Missing from a server older than X-Ray.
   xray?: StoryCharacter[];
   next: ShelfText | null;
