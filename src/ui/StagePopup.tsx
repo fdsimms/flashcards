@@ -16,9 +16,9 @@ export const STAGE_POPUP_EXIT_MS = 260;
 const EXIT_MS = STAGE_POPUP_EXIT_MS;
 
 /**
- * The pill just above the card's question band when an answer moves an item into another stage group
- * (Apprentice, Guru, Master, Enlightened, Burned). Put it in a view that wraps the band: it hangs off
- * that view's top edge. A rise starts slightly below where it rests and fades in while moving up into
+ * The pill just above the card when an answer moves an item into another stage group
+ * (Apprentice, Guru, Master, Enlightened, Burned). Put it in a view at the card's top edge: it hangs off
+ * that view's top edge, over the progress bar, clear of the card's text. A rise starts slightly below where it rests and fades in while moving up into
  * place; the arrow hops. Each group takes a tint from the theme, and a white ring lifts it off any card color. A drop is a quiet neutral pill with a down arrow that
  * does the same over a shorter distance, so a miss shows without an alarm color or a fanfare. The parent removes it after
  * `stagePopupMs`; it lifts itself away just before. Key it to the answer so each one replays. Several
@@ -26,19 +26,14 @@ const EXIT_MS = STAGE_POPUP_EXIT_MS;
  * which moves as newer ones push it up and away. With Reduce Motion on, or the animation turned off
  * in WaniKani's settings, it only fades.
  */
-export function StagePopup({ change, slot, animate, hold }: {
+export function StagePopup({ change, slot, animate }: {
   change: StageChange;
   /** Where it rests now: the newest at 0, older ones pushed up and aside, a pushed-off one faded out. */
   slot: Slot;
   /** WaniKani's own setting (Settings, WaniKani, Animate level ups); Reduce Motion turns the motion off too. */
   animate: boolean;
-  /** How far the keyboard has pushed the card's foot up (the screen's bottom padding). The pill hangs off the card, so it cancels the change since it appeared and stays where it showed. */
-  hold: number;
 }) {
   const c = useTheme();
-  // The keyboard moves the card the pill hangs off (up by the increase in `hold`); this moves the pill back by the same amount, over the keyboard's own duration.
-  const holdBase = useRef(hold).current;
-  const shift = useRef(new Animated.Value(0)).current;
   // Either the system's Reduce Motion or the setting stills it.
   const reduce = useReduceMotion() || !animate;
   const enter = useRef(new Animated.Value(0)).current;
@@ -62,16 +57,6 @@ export function StagePopup({ change, slot, animate, hold }: {
     run.start();
     return () => run.stop();
   }, [slot.x, slot.y, slot.tilt, slot.scale, slot.opacity, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (reduce) {
-      shift.setValue(hold - holdBase);
-      return undefined;
-    }
-    const run = Animated.timing(shift, { toValue: hold - holdBase, duration: 250, easing: Easing.bezier(0.17, 0.59, 0.4, 0.77), useNativeDriver: true });
-    run.start();
-    return () => run.stop();
-  }, [hold, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const exitRun = Animated.timing(exit, { toValue: 1, duration: reduce ? 0 : EXIT_MS, delay: ms - (reduce ? 0 : EXIT_MS), easing: Easing.in(Easing.cubic), useNativeDriver: true });
@@ -100,7 +85,7 @@ export function StagePopup({ change, slot, animate, hold }: {
   const lift = exit.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
   const transform = [
     { translateX: px },
-    { translateY: Animated.add(Animated.add(Animated.add(enterY, lift), py), shift) },
+    { translateY: Animated.add(Animated.add(enterY, lift), py) },
     { scale: pScale },
     { rotate: pTilt.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] }) },
   ];

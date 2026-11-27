@@ -833,11 +833,7 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
             contentKey={`${subject.id}:${question.kind}`}
           />
           {/* What's asked, at the card's foot beside the answer: light for the meaning, dark for the reading. */}
-          {/* The stage popup hangs off this view's top edge: just above the band, or the card's foot in a lesson. */}
-          <View>
-            {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
-            {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} slot={slots[i]} animate={prefs.stageAnimation} hold={keyboardPad} />)}
-          </View>
+          {question.kind !== 'lesson' ? <QuestionBand kind={question.kind} /> : null}
           {/* In the card's corner, not in its flow, so the answer keeps the height. Play is the reading's, as before. */}
           {showMeaning || showReading ? (
             <CardTools
@@ -848,6 +844,10 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
           {panel ? <MnemonicsPanel subject={subject} showMeaning={showMeaning} showReading={showReading} onClose={() => setPanel(false)} /> : null}
           {answerFlash.overlay}
         </CardSurface>
+        {/* The stage popup hangs off the card's top edge, over the progress bar, so it never covers the card's text. Outside CardSurface, which clips. */}
+        <View pointerEvents="none" style={{ position: 'absolute', top: cardTop, left: 0, right: 0 }}>
+          {popups.stack.map((e, i) => <StagePopup key={e.id} change={e.change} slot={slots[i]} animate={prefs.stageAnimation} />)}
+        </View>
         </Pressable>
       </Screen>
     </View>
