@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   APP_FONT_OPTIONS, CYCLE_FONTS, coverageLine, fontCovers, fontOption, fontsCovering, missingScripts, DEFAULT_FONT_SETTINGS, cardFontFor, deckFontMode, poolForMode, fontFileName, fontFileNames, launchFont, normalizeFontWeight,
-  parseFontSettings, resolveFontFace, togglePoolFont, type AppFont,
+  parseFontSettings, resolveFontFace, togglePoolFont, languageCode, languageScripts, languageChoice, withLanguageFont, type AppFont,
 } from '../../src/core/fonts';
 import { deckCardFonts } from '../../src/core/deckTree';
 
@@ -38,8 +38,38 @@ describe('parseFontSettings', () => {
   });
   it('keeps a valid choice, drops unknown pool entries, and never leaves the pool empty', () => {
     const s = parseFontSettings(JSON.stringify({ font: 'lora', random: true, pool: ['inter', 'outfit', 'inter'], onCards: false }));
-    expect(s).toEqual({ font: 'lora', random: true, pool: ['inter'], onCards: false });
+    expect(s).toEqual({ font: 'lora', random: true, pool: ['inter'], onCards: false, languages: {} });
     expect(parseFontSettings('{"font":"lora","pool":[]}').pool).toEqual(['lora']);
+  });
+});
+
+describe('language fonts', () => {
+  it('reads a font per language back, dropping unknown fonts and bad codes', () => {
+    const s = parseFontSettings(JSON.stringify({ languages: { ru: 'lora', th: 'outfit', 'x y': 'inter', pl: 'system' } }));
+    expect(s.languages).toEqual({ ru: 'lora', pl: 'system' });
+    expect(parseFontSettings(JSON.stringify({ languages: 'ru' })).languages).toEqual({});
+  });
+  it('turns a speech tag into the code the settings are keyed by', () => {
+    expect(languageCode('ru-RU')).toBe('ru');
+    expect(languageCode('nb-NO')).toBe('nb');
+    expect(languageCode('no')).toBe('nb');
+    expect(languageCode('TH')).toBe('th');
+    expect(languageCode(undefined)).toBeUndefined();
+    expect(languageCode('')).toBeUndefined();
+  });
+  it('knows the scripts a language needs', () => {
+    expect(languageScripts('ru-RU')).toEqual(['cyrillic']);
+    expect(languageScripts('el')).toEqual(['greek']);
+    expect(languageScripts('de-DE')).toEqual([]);
+  });
+  it('finds a language\'s choice by tag, and sets and clears one', () => {
+    const s = withLanguageFont(DEFAULT_FONT_SETTINGS, 'ru-RU', 'lora');
+    expect(languageChoice(s, 'ru')).toBe('lora');
+    expect(languageChoice(s, 'ru-RU')).toBe('lora');
+    expect(languageChoice(s, 'pl')).toBeUndefined();
+    expect(withLanguageFont(s, 'th', 'system').languages).toEqual({ ru: 'lora', th: 'system' });
+    expect(withLanguageFont(s, 'ru', undefined).languages).toEqual({});
+    expect(withLanguageFont(s, '', 'inter')).toBe(s);
   });
 });
 
@@ -153,7 +183,7 @@ describe('script coverage', () => {
   it('lists the fonts for a deck, and none when nothing covers it', () => {
     expect(fontsCovering([])).toEqual(CYCLE_FONTS);
     expect(fontsCovering(['greek'])).toEqual(['inter', 'manrope', 'comfortaa', 'sourceSerif', 'alegreya', 'zenKurenaido', 'zenMaru']);
-    expect(fontsCovering(['thai']).sort()).toEqual(['charmonman', 'mali', 'mitr', 'sriracha']);
+    expect(fontsCovering(['thai']).sort()).toEqual(['charmonman', 'mali', 'mitr', 'prompt', 'sriracha']);
     expect(fontsCovering(['thai', 'japanese'])).toEqual([]);
   });
   it('describes coverage for a row', () => {

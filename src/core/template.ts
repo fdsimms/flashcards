@@ -446,6 +446,8 @@ export function cardDocument(
     language?: string;
     /** Settings, Thai text size: a side with Thai in it is set at this size and line height, over the deck's own. */
     thai?: { fontSize: number; lineHeight: number };
+    /** The reader's Text size as a multiplier (`textScale`): the card's content is zoomed by it, whatever sizes the deck's CSS sets. */
+    scale?: number;
   },
 ): string {
   const colors = opts.colors ?? (opts.dark
@@ -486,6 +488,7 @@ code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-mon
 #image-occlusion-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 ${opts.css}
 ${thaiCss}
+${opts.scale && opts.scale !== 1 ? `#qa { zoom: ${opts.scale}; }` : ''}
 ${opts.dark ? `/* A deck's plain \`.card { background: white; color: black }\` (Ultimate Geography's) would leave a white
    card in dark mode. \`body.card\` outranks \`.card\` but not a deck's own \`.nightMode .card\`, so a deck
    that styles night mode itself keeps its colors. */

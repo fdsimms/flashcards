@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import type { Language, RecapLine, Word } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
+import { useReadingFont } from './useReadingFont';
 import { LANGUAGES } from '../../reader/languages';
 import { prefs } from '../../reader/storage';
 import { wrapGroups } from '../../reader/wordLayout';
@@ -25,6 +26,7 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
   onTap: (word: Word, x: number, y: number) => void;
 }) {
   const c = useTheme();
+  const readingFont = useReadingFont(language);
   const [english, setEnglish] = useState(false);
   // Hidden again whenever the shelf is left, so the line is read before its English each time.
   useFocusEffect(useCallback(() => () => setEnglish(false), []));
@@ -32,7 +34,7 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
   const info = LANGUAGES[language];
   // A little under the reader's own size, as the card's secondary part; Thai stays larger, as there.
   const fontSize = scaledFontSize(info.fontSize, prefs().textSize) - 3;
-  const textStyle = { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, prefs().thaiFont) };
+  const textStyle = { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, readingFont) };
   return (
     <View style={{ marginTop: space.s, paddingTop: space.m, gap: space.xs, borderTopWidth: hairline, borderTopColor: c.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>

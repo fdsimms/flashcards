@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DOWNLOADABLE_FONTS, FONT_DOWNLOADS, availableFont, availableFonts, downloadBytes, isAvailable, sizeText,
+  DOWNLOADABLE_FONTS, FONT_DOWNLOADS, availableFont, availableFonts, downloadBytes, isAvailable, languageFontChoices, sizeText,
 } from '../../src/core/fontDownloads';
 import { APP_FONT_OPTIONS, fontFileNames, type AppFont } from '../../src/core/fonts';
 
@@ -48,5 +48,19 @@ describe('what can be used', () => {
   });
   it('keeps the usable ones of a list, in order', () => {
     expect(availableFonts(['zenMaru', 'lora', 'yomogi'], some)).toEqual(['lora', 'yomogi']);
+  });
+});
+
+describe('languageFontChoices', () => {
+  it('offers the fonts that draw the language and are on the phone, system first', () => {
+    const none = new Set<AppFont>();
+    expect(languageFontChoices('de', none)[0]).toBe('system');
+    expect(languageFontChoices('ru-RU', none)).toContain('nunito');
+    expect(languageFontChoices('ru', none)).not.toContain('mali');
+    expect(languageFontChoices('th', none)).toEqual(expect.arrayContaining(['system', 'mali', 'prompt']));
+  });
+  it('lists a downloadable font only once it is installed', () => {
+    expect(languageFontChoices('ja', new Set())).toEqual(['system']);
+    expect(languageFontChoices('ja', new Set<AppFont>(['yomogi']))).toEqual(['system', 'yomogi']);
   });
 });

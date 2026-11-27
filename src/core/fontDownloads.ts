@@ -1,6 +1,6 @@
 // The fonts that aren't in the app: where each one's files are downloaded from, and which fonts can be used.
 // Pure, so it's tested; src/ui/fontDownloads.ts does the downloading.
-import { APP_FONT_OPTIONS, isBundled, type AppFont } from './fonts';
+import { APP_FONT_OPTIONS, fontCovers, isBundled, languageScripts, type AppFont } from './fonts';
 
 /** Where downloaded font files go in the documents folder, which card pages can read. Bump it to download them again. */
 export const DOWNLOADED_FONTS_DIR = 'downloaded-fonts-1';
@@ -53,6 +53,16 @@ export function availableFont(id: AppFont, installed: ReadonlySet<AppFont>): App
 /** The fonts of `ids` that can be used now. */
 export function availableFonts(ids: readonly AppFont[], installed: ReadonlySet<AppFont>): AppFont[] {
   return ids.filter((id) => isAvailable(id, installed));
+}
+
+/**
+ * The fonts a language's Text menu offers: those that can draw its script and are on the phone now, the
+ * system font first. A font that can't draw the language, or isn't downloaded, is left out (Settings,
+ * Font lists those with the reason).
+ */
+export function languageFontChoices(code: string | null | undefined, installed: ReadonlySet<AppFont>): AppFont[] {
+  const scripts = languageScripts(code);
+  return APP_FONT_OPTIONS.map((o) => o.id).filter((id) => fontCovers(id, scripts) && isAvailable(id, installed));
 }
 
 /** Every font that's downloaded rather than bundled, in list order. */

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, type TextStyle } from 'react-native';
 import { availableFont, availableFonts } from '../core/fontDownloads';
-import { DEFAULT_FONT_SETTINGS, launchFont, resolveFontFace, type AppFont, type FontSettings } from '../core/fonts';
+import { DEFAULT_FONT_SETTINGS, languageChoice, launchFont, resolveFontFace, type AppFont, type FontSettings } from '../core/fonts';
 import type { Repo } from '../db/repo';
 import { useFontDownloads, type FontDownloads } from './useFontDownloads';
 import { useTheme } from './theme';
@@ -16,6 +16,10 @@ import { useTheme } from './theme';
  * screen renders, not a binding taken when it's imported. Code that took `Text` at module scope with
  * `require` would miss it; there is none.
  *
+ * Text marked with `accessibilityLanguage` (a phrase in the language being learned) draws in that
+ * language's font when Settings, Font or a Text menu chose one (`FontSettings.languages`), over the
+ * app's. That is how the Practice tools get it without each naming the font.
+ *
  * Rule: a style that sets `fontFamily` at all (even to `undefined`, which means the system font) is left
  * alone, so a face a screen names itself (Prompt for loopless Thai, a font row's own preview) is never
  * replaced. Text that should follow the app's font must leave `fontFamily` out of its style.
@@ -25,9 +29,22 @@ import { useTheme } from './theme';
 const FontContext = createContext<AppFont>('system');
 /** The weight of the `Text` this one is nested in, which it keeps unless it sets its own (as on iOS). */
 const InheritedWeight = createContext<TextStyle['fontWeight']>(undefined);
+/** The font chosen per language, with the fonts on the phone, for text that says which language it's in. */
+/** How much bigger or smaller than its own size a `Text` draws, inside a card (`CardFontScope`'s `scale`). */
+const TextScale = createContext(1);
+const LanguageFonts = createContext<{ settings: FontSettings; installed: ReadonlySet<AppFont> } | null>(null);
 
 type Props = { style?: unknown; children?: React.ReactNode; [key: string]: unknown };
 let patched = false;
+
+/** `props` with the style's `fontSize` and `lineHeight` multiplied, so a card's text grows with its Text size. */
+function scaledProps(props: Props, scale: number): Props {
+  const flat = StyleSheet.flatten(props.style as TextStyle) ?? {};
+  if (flat.fontSize === undefined && flat.lineHeight === undefined) return props;
+  const size = flat.fontSize === undefined ? {} : { fontSize: Math.round(flat.fontSize * scale * 2) / 2 };
+  const line = flat.lineHeight === undefined ? {} : { lineHeight: Math.round(flat.lineHeight * scale * 2) / 2 };
+  return { ...props, style: [props.style, size, line] };
+}
 
 function applyPatch() {
   if (patched) return;
@@ -38,8 +55,14 @@ function applyPatch() {
     const Base = RN[name];
     if (!Base) continue;
     const isText = name === 'Text';
-    const WithFont = (props: Props) => {
-      const font = useContext(FontContext);
+    const WithFont = (rawProps: Props) => {
+      const scale = useContext(TextScale);
+      const props = isText && scale !== 1 ? scaledProps(rawProps, scale) : rawProps;
+      const scoped = useContext(FontContext);
+      const languageFonts = useContext(LanguageFonts);
+      const tag = props.accessibilityLanguage;
+      const chosen = languageFonts && typeof tag === 'string' ? languageChoice(languageFonts.settings, tag) : undefined;
+      const font = chosen ? availableFont(chosen, languageFonts!.installed) : scoped;
       const inherited = useContext(InheritedWeight);
       // The system font is the default: pass straight through, with no flatten and no extra style.
       if (font === 'system') return <Base {...props} />;
@@ -112,12 +135,27 @@ export function AppFontScope({ repo, children }: { repo: Repo; children: React.R
     () => (settings && ready && picked !== undefined ? { settings, font: availableFont(picked, installed), installed, progress, download, remove, save } : undefined),
     [settings, ready, picked, installed, progress, download, remove, save],
   );
+  const languageValue = useMemo(() => (settings ? { settings, installed } : null), [settings, installed]);
   if (!value) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   return (
     <Value.Provider value={value}>
-      <FontContext.Provider value={value.font}>{children}</FontContext.Provider>
+      <FontContext.Provider value={value.font}>
+        <LanguageFonts.Provider value={languageValue}>{children}</LanguageFonts.Provider>
+      </FontContext.Provider>
     </Value.Provider>
   );
+}
+
+/**
+ * The font text in `language` (a speech tag or code) is drawn in outside a card: the one chosen for that
+ * language, else the app's. Undefined language means the app's. Reader and the Text menus use it, so
+ * a choice made in one place is what every other place shows.
+ */
+export function useLanguageFont(language: string | null | undefined): AppFont {
+  const app = useContext(FontContext);
+  const languageFonts = useContext(LanguageFonts);
+  const chosen = languageFonts ? languageChoice(languageFonts.settings, language) : undefined;
+  return chosen && languageFonts ? availableFont(chosen, languageFonts.installed) : app;
 }
 
 /** The font text draws in here: the app's, or a card's inside `CardFontScope`. */
@@ -131,7 +169,7 @@ function usable(s: FontSettings, installed: ReadonlySet<AppFont>): FontSettings 
   return { ...s, font: availableFont(s.font, installed), pool: pool.length ? pool : [availableFont(s.font, installed)] };
 }
 
-/** A card's own font, over the app's: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */
-export function CardFontScope({ font, children }: { font: AppFont; children: React.ReactNode }) {
-  return <FontContext.Provider value={font}>{children}</FontContext.Provider>;
+/** A card's own font, over the app's, and the size its text is drawn at: what a deck cycling its fonts picked for this card, or the system font when cards don't use the app's. */
+export function CardFontScope({ font, scale = 1, children }: { font: AppFont; /** The reader's Text size as a multiplier (`textScale`): what the card's text is drawn at, over its own sizes. */ scale?: number; children: React.ReactNode }) {
+  return <FontContext.Provider value={font}><TextScale.Provider value={scale}>{children}</TextScale.Provider></FontContext.Provider>;
 }

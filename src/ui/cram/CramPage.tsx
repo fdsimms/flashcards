@@ -30,6 +30,7 @@ import { CramListen } from './CramListen';
 import { CramQuestions } from './CramQuestions';
 import { CramTalk } from './CramTalk';
 import { talkSizeMenu, useTalkSize } from './talkSize';
+import { useTextFont } from '../textMenu';
 import { useMissedLately } from './useMissedLately';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { leaveScreen } from '../leaveScreen';
@@ -99,6 +100,7 @@ export function CramPage(props: {
   }, [repo, notes.length]);
 
   const [talkSize, chooseTalkSize] = useTalkSize();
+  const talkText = useTextFont(language);
   const phone = usePhoneSpeech(repo);
   const noteIds = useMemo(() => notes.map((n) => n.id), [notes]);
   const sel = useSelection(noteIds);
@@ -272,7 +274,7 @@ export function CramPage(props: {
         </Stack.Toolbar>
       ) : (
         <Stack.Toolbar placement="right">
-          {!cram.finishedAt && (cram.themes?.length || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize) : null}
+          {!cram.finishedAt && (cram.themes?.length || cram.questions?.length) ? talkSizeMenu(talkSize, chooseTalkSize, talkText) : null}
           <Stack.Toolbar.Button accessibilityLabel="Edit the cram" onPress={() => go('/cram-edit')}>Edit</Stack.Toolbar.Button>
         </Stack.Toolbar>
       )}

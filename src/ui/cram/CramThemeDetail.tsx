@@ -16,6 +16,7 @@ import { useWordInDeck } from '../useWordInDeck';
 import { StoryEditor } from './StoryEditor';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
+import { useTextFont } from '../textMenu';
 import { setThemeState, useThemeState } from './themeStore';
 
 type AddWords = (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
@@ -47,9 +48,10 @@ export function CramThemeDetail({ repo, index, view, decks, add, check, onStory,
   const theme = suggested?.themes[index];
   const words = suggested?.wordsOf[index] ?? [];
   const [size, chooseSize] = useTalkSize();
+  const themeText = useTextFont(suggested?.language);
   const toolbar = (
     <Stack.Toolbar placement="right">
-      {talkSizeMenu(size, chooseSize)}
+      {talkSizeMenu(size, chooseSize, themeText)}
       <Stack.Toolbar.Button accessibilityLabel="Use this theme" disabled={!theme} onPress={() => {
         if (!theme) return;
         haptic.tap();

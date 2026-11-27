@@ -16,7 +16,8 @@ import { haptic } from '../haptics';
 import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
-import { useFont } from '../AppFont';
+import { useLanguageFont } from '../AppFont';
+import { textMenu, useTextFont } from '../textMenu';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
@@ -124,6 +125,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const name = LANGUAGES[language].name;
+  const text = useTextFont(language);
   const openSettings = () => router.push({ pathname: '/settings-page', params: { page: 'practice' } });
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
@@ -137,6 +139,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu> : null}
+          {textMenu(text)}
           {menu?.length ? (
             <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Options and settings">
               {menu}
@@ -250,12 +253,13 @@ export function AnswerCard({ shown, prompt, answer, rule, onPlay }: {
 export function AnswerContent({ answer, rule, onPlay, centered }: { answer: Answer; rule?: string; onPlay: (p: Phrase) => void; centered?: boolean }) {
   const c = useTheme();
   const ja = useJapaneseFont();
+  const speech = useToolSpeech();
   return (
     <Reveal style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
         <View style={{ flex: 1, gap: space.xs }}>
-          <Text selectable style={{ ...withThaiLineHeight(type.cardBack, answer.everyday.text), color: c.text, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
-          {answer.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
+          <Text selectable accessibilityLanguage={speech} style={{ ...withThaiLineHeight(type.cardBack, answer.everyday.text), color: c.text, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.text) }}>{answer.everyday.text}</Text>
+          {answer.everyday.roman ? <Text accessibilityLanguage={speech} style={{ ...type.subhead, color: c.textSecondary, textAlign: centered ? 'center' : 'left', ...ja(answer.everyday.roman) }}>{answer.everyday.roman}</Text> : null}
         </View>
         {centered ? null : <PlayButton label="Play the answer" onPress={() => onPlay(answer.everyday)} />}
       </View>
@@ -278,13 +282,20 @@ export function RuleLine({ rule }: { rule: string }) {
 }
 
 /** The language a Practice tool is in, for the play buttons below its ToolScreen. */
-const ToolLanguage = React.createContext<Language | null>(null);
+export const ToolLanguage = React.createContext<Language | null>(null);
 
 /** Japanese's face for a phrase of the tool's language (script.ts): a time or a price can be all kanji. */
 function useJapaneseFont() {
   const language = React.useContext(ToolLanguage);
-  const font = useFont();
+  // The language's own font, which can draw Japanese itself (Text menu), else the app's.
+  const font = useLanguageFont(language);
   return (text: string) => japaneseFont(text, language === 'ja' ? 'ja' : undefined, font);
+}
+
+/** The speech tag of the tool's language, to mark its text with so it draws in the language's font (`accessibilityLanguage`). */
+function useToolSpeech(): string | undefined {
+  const language = React.useContext(ToolLanguage);
+  return language ? LANGUAGES[language].speech : undefined;
 }
 
 /** The play button beside a phrase, with a link to the language's voice. `label` says what it plays, for VoiceOver ("Play the answer"). */
@@ -297,6 +308,7 @@ export function PlayButton({ label, onPress }: { label: string; onPress: () => v
 export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phrase[]; onPlay: (p: Phrase) => void }) {
   const c = useTheme();
   const ja = useJapaneseFont();
+  const speech = useToolSpeech();
   return (
     <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
       <Text style={{ ...type.overline, color: c.textSecondary }}>{title}</Text>
@@ -310,7 +322,7 @@ export function Ways({ title, phrases, onPlay }: { title: string; phrases: Phras
           style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP }}
         >
           <View style={{ flex: 1, gap: space.xs }}>
-            <Text style={{ ...withThaiLineHeight(type.body, p.text), color: c.text, ...ja(p.text) }}>{p.text}</Text>
+            <Text accessibilityLanguage={speech} style={{ ...withThaiLineHeight(type.body, p.text), color: c.text, ...ja(p.text) }}>{p.text}</Text>
             {p.roman || p.note ? (
               <Text style={{ ...type.footnote, color: c.textSecondary, ...ja(p.roman ?? '') }}>{[p.roman, p.note].filter(Boolean).join(' · ')}</Text>
             ) : null}

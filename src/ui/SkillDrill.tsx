@@ -16,7 +16,7 @@ import { Button, Icon, Tappable } from './kit';
 import { Reveal } from './motion';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { ClockFace } from './tools/ClockFace';
-import { AnswerContent, Status } from './tools/ToolScreen';
+import { AnswerContent, Status, ToolLanguage } from './tools/ToolScreen';
 import { ContrastChoices, ContrastSentenceView, ContrastVerdict } from './tools/ContrastParts';
 import { contrastSet, showSentence } from '../tools/contrasts';
 
@@ -207,7 +207,7 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
           <Dots results={skill.results} total={skill.total} at={skill.results.length} />
           {question.kind === 'contrast' ? <ContrastFace key={questionKey(question)} skill={skill} /> : null}
           {question.kind === 'contrast' ? null : question.kind === 'time' ? <ClockFace time={question.time} size={answer ? 120 : 180} /> : null}
-          {question.kind === 'contrast' ? null : <Text selectable maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>}
+          {question.kind === 'contrast' ? null : <Text selectable accessibilityLanguage={LANGUAGES[drill.language].speech} maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: question.kind === 'time' ? 34 : question.kind === 'date' ? 30 : 44, color: c.text, fontVariant: ['tabular-nums'], textAlign: 'center' }}>{questionText(question, drill.language)}</Text>}
           {questionNote(question, drill.language) ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{questionNote(question, drill.language)}</Text> : null}
           {answer && question.kind !== 'contrast' ? (
             <View style={{ alignSelf: 'stretch', gap: space.l }}>
@@ -218,7 +218,7 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
                   <Text accessibilityLanguage={LANGUAGES[drill.language].speech} style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{`Heard: ${skill.heard.text || 'nothing'}`}</Text>
                 </View>
               ) : null}
-              <AnswerContent centered answer={answer} onPlay={() => undefined} />
+              <ToolLanguage.Provider value={drill.language}><AnswerContent centered answer={answer} onPlay={() => undefined} /></ToolLanguage.Provider>
             </View>
           ) : null}
         </Reveal>
@@ -236,7 +236,7 @@ function ContrastFace({ skill }: { skill: SkillDrillState }) {
   const shown = found && showSentence(found.set, q.index, found.language);
   if (!shown) return null;
   const answered = skill.picked !== undefined;
-  return <ContrastSentenceView shown={shown} answered={answered} verdict={answered ? <ContrastVerdict right={skill.picked === found.set.sentences[q.index].answer} answer={shown.answer.word} /> : undefined} />;
+  return <ContrastSentenceView speech={LANGUAGES[found.language].speech} shown={shown} answered={answered} verdict={answered ? <ContrastVerdict right={skill.picked === found.set.sentences[q.index].answer} answer={shown.answer.word} /> : undefined} />;
 }
 
 /** A sentence missed in this drill, filled in, on the card's back once the drill is done. */
@@ -248,7 +248,7 @@ function MissedSentence({ question }: { question: DrillQuestion }) {
   if (!shown) return null;
   return (
     <View style={{ alignSelf: 'stretch', gap: space.xs, backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s }}>
-      <Text selectable style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.fill}</Text>{shown.after}</Text>
+      <Text selectable accessibilityLanguage={LANGUAGES[found.language].speech} style={{ ...type.body, color: c.text }}>{shown.before}<Text style={{ fontWeight: '700' }}>{shown.fill}</Text>{shown.after}</Text>
       <Text selectable style={{ ...type.footnote, color: c.textSecondary }}>{shown.english}</Text>
     </View>
   );
