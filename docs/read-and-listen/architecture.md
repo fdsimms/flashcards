@@ -372,6 +372,46 @@ answers aren't kept.
   most one other word outside the known ones), never repaired. The round, with a missed sentence
   coming back at the end, is the line drills' (`src/reader/lineDrill.ts`). Its cost is `sentences`.
 
+## Journal
+
+Decided 27 November 2026, the owner choosing from a mock (`journal.py`, `journal_store.py`,
+`routes/journal.py`; the app's `src/reader/journal.ts`, the Practice tab's Journal tool,
+`src/ui/journal/`). The checks above are each a sentence or a retelling; this is open-ended writing,
+a paragraph or more on anything, kept over time.
+
+- **One call per check, on a tap** (`POST /api/journal/check`), `effort: medium` as the other checks,
+  the cost kept as "journal" (in `other_calls`). Claude splits the entry into sentences and gives each
+  a verdict, the sentence with only its mistakes fixed, its English and up to four mistakes: the words
+  that are wrong, what replaces them, a kind, a reason and a hint. Generate, then verify: the
+  sentences must be the entry as written, in order (`_split`, spacing aside), or the check is refused
+  and nothing is kept; a hint that names a word of the fix gives way to the kind's name
+  (production.py's `_hints`).
+- **A try before the corrections**, as the other checks: the first check of an entry with something
+  to fix marks each mistake in place, numbered, with its hint; Try again or Show the corrections. One
+  try for the whole entry, not one a sentence.
+- **Kinds of mistake are a fixed list**: the language's grammar points by id, else `journal.GENERAL`
+  (case ending, gender, word order, spelling or accents...), anything else "other", so the counts stay
+  comparable. A case ending also names the case it should be in and the word that decides it.
+- **The counts are the first check's mistakes** (`journal_mistakes`), the ones made before any hint,
+  so trying again never changes them. The tool shows the three most frequent of the last 60 days;
+  Mistakes shows them all, 60 days or all time, each with its latest example.
+- **What they steer** (the owner, 27 November 2026, after the mock's "counts as a miss in the drill
+  that practices it" turned out not to hold for grammar, whose drills keep no miss tallies): a case
+  ending counts as a miss in Which case, under its case and the governor that took it
+  (`mistakePatterns` in src/tools/cases.ts, only on a first check), and Which case joins Today's extras
+  (`EXTRA_TOOLS`), so a language whose writing keeps getting cases wrong is offered it there. A
+  practiced point with a recent mistake isn't rotated out (Grammar, Rotation). Any other point offers
+  Use it in texts, a tap that sets it to Practice. Nothing touches a card's schedule.
+- **Kept on the server**, as Read & Listen's other data, so entries survive a lost phone: each entry's
+  latest text and check (`journal_entries`). An entry checked while the server can't be reached is
+  held on the phone (`held-journal.json`) and sent by HeldWork; its `key` makes one sent twice checked
+  once. One the server refuses waits in the tool until tapped, since checking it again costs a call.
+  What's being typed is kept as a draft, one a language. The tool's last copy shows offline.
+- **[brackets]**: an English word the owner didn't know comes back filled in (`filled`, kept only for
+  a bracket the entry has), with Add to deck, which goes through the note queue as Situations' words do.
+- **The day's idea** is one of `journal.IDEAS`, the same all study day, with up to three of the words
+  being learned (`pick_stretch`, never one waiting for its review). Writing about it is optional.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
@@ -1123,7 +1163,9 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   Learned (`rotation.py`) is `TEXTS` (8) texts read to the end that were written to practice it,
   over `DAYS` (4) study days, with `DRILL_PASS` (80%) of its latest `DRILL_WINDOW` (10) practice
   answers right; with fewer than `DRILL_MIN` (5) answers it takes `TEXTS_UNDRILLED` (12) texts.
-  Only texts written since the point last started being practiced count (`store.practice_since`,
+  And no journal entry in the last `JOURNAL_DAYS` (7) days, since it started being practiced, may
+  have had a mistake on it in its first check (27 November 2026, the owner; `journal_store.slips`,
+  Journal below): a point still wrong in one's own writing isn't learned. Only texts written since the point last started being practiced count (`store.practice_since`,
   stamped by every change that sets Practice), so a point taken back starts over. The practice
   answers live on the phone, so the app sends them (`POST /api/grammar/answers`, from a "sent
   through" mark, after a drill round and when the shelf opens; the server keeps each once). The

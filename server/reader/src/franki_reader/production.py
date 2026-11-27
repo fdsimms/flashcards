@@ -296,10 +296,14 @@ def clean_retell(answer: dict[str, Any], request: RetellRequest) -> dict[str, An
     }
 
 
-async def _ask(
-    client: anthropic.AsyncAnthropic, system: str, message: str, schema: dict[str, Any]
+async def ask_structured(
+    client: anthropic.AsyncAnthropic,
+    system: str,
+    message: str,
+    schema: dict[str, Any],
+    max_tokens: int = MAX_TOKENS,
 ) -> tuple[dict[str, Any], Usage]:
-    """One structured answer from Claude, or ProductionFailed."""
+    """One structured answer from Claude, or ProductionFailed. Also the journal's (journal.py)."""
     output_config: BetaOutputConfigParam = {
         "effort": "medium",
         "format": {"type": "json_schema", "schema": schema},
@@ -308,7 +312,7 @@ async def _ask(
     try:
         response = await client.beta.messages.create(
             model=MODEL,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens,
             system=system,
             messages=cast(list[BetaMessageParam], messages),
             output_config=output_config,
@@ -333,7 +337,7 @@ async def _ask(
 def claude_attempt(client: anthropic.AsyncAnthropic) -> CheckAttempt:
     async def check(request: AttemptRequest) -> tuple[dict[str, Any], Usage]:
         system = SENTENCE_SYSTEM if request.kind == "sentence" else TRANSLATE_SYSTEM
-        answer, used = await _ask(client, system, attempt_message(request), SCHEMA)
+        answer, used = await ask_structured(client, system, attempt_message(request), SCHEMA)
         cleaned = clean_attempt(answer, request)
         if cleaned is None:
             raise ProductionFailed("Claude didn't check this. Try again in a moment.", used)
@@ -344,7 +348,9 @@ def claude_attempt(client: anthropic.AsyncAnthropic) -> CheckAttempt:
 
 def claude_retell(client: anthropic.AsyncAnthropic) -> CheckRetell:
     async def check(request: RetellRequest) -> tuple[dict[str, Any], Usage]:
-        answer, used = await _ask(client, RETELL_SYSTEM, retell_message(request), RETELL_SCHEMA)
+        answer, used = await ask_structured(
+            client, RETELL_SYSTEM, retell_message(request), RETELL_SCHEMA
+        )
         cleaned = clean_retell(answer, request)
         if cleaned is None:
             raise ProductionFailed(

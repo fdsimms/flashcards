@@ -7,14 +7,16 @@ import { afterWordsSent, type HeldWords } from '../reader/heldNotes';
 import { useApp } from './AppContext';
 import { connection, useBackOnline } from './connection';
 import type { HeldReaderAction } from '../reader/downloads';
-import { heldReader, heldRecordings, heldWords } from './held';
+import { heldJournal, heldReader, heldRecordings, heldWords } from './held';
+import { afterEntriesSent, type HeldEntry } from '../reader/journal';
+import { markCaseMistakes } from './journal/journalWork';
 import { queueWords } from './useNoteQueue';
 import { useRecorder } from './useRecorder';
 
 /**
  * Sends what was held while offline (src/core/held.ts): Read & Listen's language switches, readings,
- * listens and story choices (in order, so a choice goes before its reading), words to the note queue for Claude, and
- * new notes' recordings. It runs at launch and each time the connection comes back. Drawn once,
+ * listens and story choices (in order, so a choice goes before its reading), words to the note queue for Claude,
+ * journal entries to be checked, and new notes' recordings. It runs at launch and each time the connection comes back. Drawn once,
  * under AppProvider (src/app/_layout.tsx), and draws nothing.
  *
  * Words the server refuses stay on the queue screen with its reason, and are tried again next
@@ -40,7 +42,7 @@ export function HeldWork() {
     if (connection.cantReachHome()) return;
     sending.current = true;
     try {
-      await Promise.all([heldWords.load(), heldRecordings.load(), heldReader.load()]);
+      await Promise.all([heldWords.load(), heldRecordings.load(), heldReader.load(), heldJournal.load()]);
 
       // Straight to the server, not through the offline answers, which would hold them again.
       const actions = heldReader.get();
@@ -60,6 +62,18 @@ export function HeldWork() {
         const refused = result.refused.map(({ item, error }) => ({ item, problem: failureText(error, { next: 'Try again later, or remove them.' }) }));
         // Words held while this ran are kept as they are.
         await heldWords.update((list) => afterWordsSent(list, words, result.left, refused));
+      }
+
+      // Each entry is checked by Claude as it arrives; its `key` keeps one sent twice from being checked twice.
+      // One the server refused waits in the journal for a tap: checking it again costs a call.
+      const entries = heldJournal.get().filter((h) => !h.problem);
+      if (server && entries.length) {
+        const result = await sendHeld(entries, async (h: HeldEntry) => {
+          const entry = await server.checkJournal({ language: h.language, text: h.text, prompt: h.prompt, entry_id: h.entryId ?? null, key: h.entryId ? null : h.key });
+          markCaseMistakes(entry);
+        });
+        const refused = result.refused.map(({ item, error }) => ({ item, problem: failureText(error, { next: 'Open the journal to check it again.' }) }));
+        await heldJournal.update((list) => afterEntriesSent(list, entries, result.left, refused));
       }
 
       const recordings = heldRecordings.get();

@@ -17,11 +17,19 @@ import { TOOLS, type ToolId } from './tools';
 /**
  * The Practice tools an extra may suggest: the ones that record their answers (marks.ts), so an extra
  * can see it was done, and that no deck covers. Time, dates, money and numbers are skill cards
- * (skills.ts), which come up in their deck, so they aren't suggested here as well.
+ * (skills.ts), which come up in their deck, so they aren't suggested here as well. Which case is in for
+ * the journal's sake: a case ending the journal finds wrong counts as a miss there (src/reader/journal.ts,
+ * `mistakePatterns` in cases.ts), so a language whose writing keeps getting cases wrong is offered it.
  */
-export const EXTRA_TOOLS = ['counting', 'script', 'hearing'] as const satisfies readonly ToolId[];
+export const EXTRA_TOOLS = ['counting', 'script', 'hearing', 'cases'] as const satisfies readonly ToolId[];
 export type ExtraTool = (typeof EXTRA_TOOLS)[number];
 export type ExtraKind = ExtraTool | 'read';
+
+/** The drills an extra may be, named as the Practice tab names them, for Daily extras' settings: "Counting things, Reading the script, Hearing sounds and Which case". */
+export function extraDrillNames(): string {
+  const names = EXTRA_TOOLS.map((t) => TOOLS.find((tool) => tool.id === t)?.title ?? t);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names.join('');
+}
 
 /** How many answers a drill needs before its extra counts as done. */
 export const EXTRA_ANSWERS = 5;

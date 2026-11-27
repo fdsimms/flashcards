@@ -16,6 +16,7 @@ from franki_reader import (
     fix_card,
     grammar_lessons,
     grammar_topics,
+    journal,
     lesson_words,
     note_queue,
     production,
@@ -61,6 +62,7 @@ class AppContext:
     write_notes: note_queue.WriteNotes | None
     check_natural: CheckNatural | None
     check_attempt: production.CheckAttempt | None
+    check_journal: journal.CheckEntry | None
     check_retell: production.CheckRetell | None
     write_sentences: sentences.WriteSentences | None
     play: situations.Play | None

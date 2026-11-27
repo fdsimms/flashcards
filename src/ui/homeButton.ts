@@ -9,6 +9,7 @@ export const SHEET_ROUTES: readonly string[] = [
   'note-editor',
   'quick-add',
   'look-up',
+  'journal-entry',
   'read-write',
   'lesson-words',
   'lesson-add',

@@ -222,6 +222,19 @@ marked words, ideas) is in the current language, the `language` setting.
                                       kept. 503 without Claude. Its cost is kept in `call_costs`
                                       (feature "ask_phrase") and counts under explanations in
                                       /api/costs
+    GET   /api/journal?language&days  the writing journal (journal.py): {entries, kinds, idea,
+                                      checks}: entries newest first, the kinds of mistake their
+                                      first checks found in the last `days` days (60; 0 for all)
+                                      most frequent first with the latest example, and the study
+                                      day's idea with a few of the words being learned. Reads only
+    POST  /api/journal/check          {language, text, prompt?, entry_id?, key?} an entry checked by
+                                      Claude sentence by sentence and kept: a new one, or
+                                      `entry_id` written again (its first check's mistakes stay
+                                      as counted). A `key` already checked comes back with no
+                                      call. 503 without Claude or when the check fails (its cost
+                                      kept, feature "journal")
+    GET   /api/journal/{id}           one entry with its latest check
+    DELETE /api/journal/{id}          deletes an entry and its mistakes from the counts
     POST  /api/production/check       {kind, language, attempt, word?, meaning?, english?, reference?}
                                       the owner's own writing checked by Claude (production.py):
                                       a sentence with `word` (kind "sentence") or their way of
@@ -403,6 +416,7 @@ from franki_reader import (
     forms,
     grammar_lessons,
     grammar_topics,
+    journal,
     lesson_topics,
     lesson_words,
     lesson_writer,
@@ -505,6 +519,7 @@ def create_app(
     write_notes: note_queue.WriteNotes | None = None,
     check_natural: CheckNatural | None = None,
     check_attempt: production.CheckAttempt | None = None,
+    check_journal: journal.CheckEntry | None = None,
     check_retell: production.CheckRetell | None = None,
     write_sentences: sentences.WriteSentences | None = None,
     play: situations.Play | None = None,
@@ -603,6 +618,7 @@ def create_app(
         write_notes=write_notes,
         check_natural=check_natural,
         check_attempt=check_attempt,
+        check_journal=check_journal,
         check_retell=check_retell,
         write_sentences=write_sentences,
         play=play,
@@ -649,6 +665,7 @@ def production_app() -> FastAPI:
     explain_form: ExplainForm | None = None
     check_natural: CheckNatural | None = None
     check_attempt: production.CheckAttempt | None = None
+    check_journal: journal.CheckEntry | None = None
     check_retell: production.CheckRetell | None = None
     write_sentences: sentences.WriteSentences | None = None
     play: situations.Play | None = None
@@ -688,6 +705,7 @@ def production_app() -> FastAPI:
         explain_form = claude_explain_form(client)
         check_natural = claude_check(client)
         check_attempt = production.claude_attempt(client)
+        check_journal = journal.claude_check(client)
         check_retell = production.claude_retell(client)
         write_sentences = sentences.claude_sentences(client)
         play = situations.claude_play(client)
@@ -795,6 +813,7 @@ def production_app() -> FastAPI:
         write_notes=write_notes,
         check_natural=check_natural,
         check_attempt=check_attempt,
+        check_journal=check_journal,
         check_retell=check_retell,
         write_sentences=write_sentences,
         play=play,

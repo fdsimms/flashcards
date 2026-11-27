@@ -36,6 +36,7 @@ from franki_reader import (
     form_primers,
     forms,
     grammar,
+    journal_store,
     meanings,
     own_text,
     rotation,
@@ -889,7 +890,12 @@ class Engine:
         )
         days = {study_day(at, rollover, self.zone) for at in reads}
         answers = store.recent_grammar_answers(self.conn, point_id, rotation.DRILL_WINDOW)
-        return rotation.progress(len(reads), len(days), answers)
+        window = self.clock() - timedelta(days=rotation.JOURNAL_DAYS)
+        started = datetime.fromisoformat(since) if since else None
+        slips = journal_store.slips(
+            self.conn, point_id, max(window, started) if started else window
+        )
+        return rotation.progress(len(reads), len(days), answers, slips)
 
     def rotate_grammar(self, language: Code) -> list[store.Rotation]:
         """Moves each of the language's practiced points that has been learned to Know it, and

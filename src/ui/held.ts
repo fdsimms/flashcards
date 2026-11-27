@@ -3,6 +3,7 @@ import { readJsonSafely, writeJsonSafely } from '../media/safeJson';
 import { useEffect, useSyncExternalStore } from 'react';
 import { parseRecordings, type HeldRecording } from '../core/held';
 import { parseHeldReader, type HeldReaderAction } from '../reader/downloads';
+import { parseHeldEntries, type HeldEntry } from '../reader/journal';
 import { parseHeldWords, type HeldWords } from '../reader/heldNotes';
 
 /**
@@ -10,7 +11,7 @@ import { parseHeldWords, type HeldWords } from '../reader/heldNotes';
  * folder so a word or a recording held on the subway is still waiting after the app is closed.
  * Read once, by the first screen or change that needs it; every change is written straight back.
  */
-function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
+export function persistedList<T>(fileName: string, parse: (raw: unknown) => T[]) {
   let value: T[] = [];
   let loaded: Promise<void> | null = null;
   const listeners = new Set<() => void>();
@@ -51,6 +52,14 @@ export const heldWords = persistedList<HeldWords>('held-words.json', parseHeldWo
 export const heldRecordings = persistedList<HeldRecording>('held-recordings.json', parseRecordings);
 /** Readings, listens and story choices made in Read & Listen offline (reader/downloads.ts), sent in order. */
 export const heldReader = persistedList<HeldReaderAction>('held-reader.json', parseHeldReader);
+
+/** Journal entries checked offline (reader/journal.ts), checked when the server can be reached. */
+export const heldJournal = persistedList<HeldEntry>('held-journal.json', parseHeldEntries);
+
+export function useHeldJournal(): HeldEntry[] {
+  useEffect(() => { void heldJournal.load(); }, []);
+  return useSyncExternalStore(heldJournal.subscribe, heldJournal.get);
+}
 
 export function useHeldWords(): HeldWords[] {
   useEffect(() => { void heldWords.load(); }, []);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text } from 'react-native';
 import { failureText } from '../core/failure';
 import { LANGUAGES } from '../reader/languages';
-import { LANGUAGE_MODES, modeOf, TURNS_PER_DAY, FOCUS_EXTRAS, type ExtraPrefs, type LanguageMode } from '../tools/extras';
+import { extraDrillNames, LANGUAGE_MODES, modeOf, TURNS_PER_DAY, FOCUS_EXTRAS, type ExtraPrefs, type LanguageMode } from '../tools/extras';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
 import { Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, SwitchRow } from './kit';
@@ -104,7 +104,7 @@ export function DailyExtrasSettings() {
                   title="What's suggested"
                 >
                   <Group>
-                    <SwitchRow first label="Drills from the Practice tab" hint="Counting things and reading the script, whichever you've missed most." value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
+                    <SwitchRow first label="Drills from the Practice tab" hint={`${extraDrillNames()}, whichever you've missed most.`} value={prefs.drills} onValueChange={(drills) => save({ ...prefs, drills })} />
                     <SwitchRow
                       label="A text to read"
                       hint={reader.api ? 'Opens Read & Listen in that language.' : 'Needs Read & Listen, which is off.'}

@@ -121,6 +121,20 @@ export function drawGovernor(language: CaseLanguage, previous: string | undefine
 /** The patterns a question is marked under (marks.ts): the word itself, and its case. */
 export const casePatterns = (g: Governor): string[] => [`word:${governorId(g)}`, `case:${g.case}`];
 
+/**
+ * The patterns a case mistake in the journal (src/reader/journal.ts) is marked under, so Which case leans
+ * toward it: the case, when the language's questions ask it, and each of the language's governors spelled
+ * `governor` that takes that case ("z" with the instrumental, not "z" with the genitive). None for a
+ * language without Which case or a case it doesn't ask.
+ */
+export function mistakePatterns(language: Language, governor: string | null | undefined, governed: string | null | undefined): string[] {
+  const cases = CASE_LANGUAGES[language];
+  if (!cases || !governed || !cases.cases.includes(governed as GovernedCase)) return [];
+  const word = governor?.trim().toLocaleLowerCase();
+  const matched = word ? cases.governors.filter((g) => g.case === governed && g.word.toLocaleLowerCase() === word) : [];
+  return [...matched.map((g) => `word:${governorId(g)}`), `case:${governed}`];
+}
+
 /** The typed noun against its form in the governor's case. */
 export function checkCaseForm(typed: string, g: Governor, noun: CaseNoun): Verdict {
   return checkAnswer(typed, noun.forms[g.case] ?? []);

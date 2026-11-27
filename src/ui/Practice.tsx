@@ -59,8 +59,9 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
           {/* A tool that doesn't come in the chosen language isn't listed. */}
           {TOOLS.filter((tool) => tool.languages.includes(language)).map((tool, i) => {
             // Grammar, Sentences and Situations need Read & Listen's server, so they're off while it can't be reached.
+            // The journal needs it on, but opens offline: an entry written then is held and checked later.
             const needsServer = tool.id === 'sentences' || tool.id === 'situations' || tool.id === 'grammar';
-            const off = needsServer && (!readerApi || !!problem);
+            const off = (needsServer && (!readerApi || !!problem)) || (tool.id === 'journal' && !readerApi);
             // The rows settle in one after another the first time the tab opens.
             return (
               <Reveal key={tool.id} delay={i * 30}>
