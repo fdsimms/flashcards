@@ -62,6 +62,7 @@ export function StagePopup({ change, slot, animate }: {
     const exitRun = Animated.timing(exit, { toValue: 1, duration: reduce ? 0 : EXIT_MS, delay: ms - (reduce ? 0 : EXIT_MS), easing: Easing.in(Easing.cubic), useNativeDriver: true });
     if (reduce) {
       enter.setValue(1);
+      hop.setValue(1);
       exitRun.start();
       return () => exitRun.stop();
     }
@@ -106,7 +107,7 @@ export function StagePopup({ change, slot, animate }: {
             ...(change.up ? { shadowColor: c.shadow, shadowOpacity: 0.5, shadowRadius: 9, shadowOffset: { width: 0, height: 6 } } : null),
           }}
         >
-          <Animated.View style={{ transform: [{ translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [5, -1] }) }] }}>
+          <Animated.View style={{ transform: [{ translateY: hop.interpolate({ inputRange: [0, 1], outputRange: change.up ? [5, -1] : [0, 0] }) }] }}>
             <Icon name={change.up ? 'arrow.up' : 'arrow.down'} size={16} color={ink} weight="bold" />
           </Animated.View>
           <Text style={{ ...type.headline, color: ink }}>{change.group}</Text>
