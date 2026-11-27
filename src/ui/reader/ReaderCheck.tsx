@@ -1,10 +1,10 @@
 import { useAudioPlayer } from 'expo-audio';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import type { Api, Language, ReaderText, TextLine } from '../../reader/api';
+import type { Api, GlossLanguage, ReaderText, TextLine } from '../../reader/api';
 import { canSteer, checkScore, isRight, steersDifficulty, type CheckPicks, type CheckQuestion } from '../../reader/check';
 import { choiceText } from '../../reader/choices';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { isSlow, NORMAL_RATE, RATES } from '../../reader/playbackRate';
 import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
@@ -34,7 +34,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
   textStyle: ReadTextStyle;
   onPick: (key: string, pick: number | null) => void;
   /** Plays a word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -123,7 +123,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 <PlayPill
                   label={`Play ${q.word}`}
                   onPlay={() => onPlayWord(q.word, text.language, saidAs(text.language, q.word, line?.words.find((w) => w.text === q.word)?.translit))}
-                  speech={LANGUAGES[text.language].speech}
+                  speech={glossInfo(text.language).speech}
                 />
               </View>
             </View>

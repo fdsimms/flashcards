@@ -7,6 +7,12 @@ test('a language nobody chose rotates, as the server reads it', () => {
   expect(dailyModeLabel('daily')).toBe('Every day');
 });
 
+test('Toki Pona has no daily task until one is chosen for it, as the server reads it', () => {
+  expect(dailyModeOf({}, 'tok')).toBe('off');
+  expect(dailyModeOf({ daily_tasks: { tok: 'daily' } }, 'tok')).toBe('daily');
+  expect(dailyTasksSummary({ daily_tasks: { tok: 'daily' } })).toBe('Toki Pona every day, 1 rotating a day');
+});
+
 test('the rotation count stays within the stepper', () => {
   expect(clampRotateCount(0)).toBe(1);
   expect(clampRotateCount(99)).toBe(10);

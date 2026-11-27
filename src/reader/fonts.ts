@@ -1,7 +1,7 @@
 // The typeface the reader draws a text in. Pure, so it's tested; Reader.tsx spreads the result into a Text style.
 import { fontCovers, resolveFontFace, type AppFont } from '../core/fonts';
 import { JAPANESE_FONT } from '../core/script';
-import type { Language } from './api';
+import type { GlossLanguage } from './api';
 
 /** Thai comes in looped letters (the system face) and loopless ones (Prompt, bundled in app.json). */
 export type ThaiFont = 'looped' | 'loopless';
@@ -55,7 +55,7 @@ const EMPHASIS_FACE: Partial<Record<AppFont, string>> = { prompt: 'Prompt-Medium
  * app's: `useLanguageFont`). Japanese keeps its own face unless the chosen font draws Japanese itself, so
  * kanji keep their Japanese forms (script.ts); it has real bold weights.
  */
-export function readFont(language: Language, font: AppFont = 'system'): ReadFont {
+export function readFont(language: GlossLanguage, font: AppFont = 'system'): ReadFont {
   if (language === 'ja' && (font === 'system' || !fontCovers(font, ['japanese']))) {
     return { fontFamily: JAPANESE_FONT, emphasis: { fontFamily: JAPANESE_FONT, fontWeight: '700' }, strong: { fontFamily: JAPANESE_FONT, fontWeight: '600' } };
   }
@@ -73,6 +73,6 @@ export function readFont(language: Language, font: AppFont = 'system'): ReadFont
  * The font a language's text was in before fonts were chosen per language: Thai's Looped or Loopless
  * setting, which is now a Thai font (System or Prompt). Used only for a language with no choice made yet.
  */
-export function legacyLanguageFont(language: Language, thaiFont: ThaiFont): AppFont | undefined {
+export function legacyLanguageFont(language: GlossLanguage, thaiFont: ThaiFont): AppFont | undefined {
   return language === 'th' && thaiFont === 'loopless' ? 'prompt' : undefined;
 }

@@ -64,7 +64,7 @@ from franki_reader.generator import (
     name_spellings,
 )
 from franki_reader.genre import Genre
-from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, SPEAKING_LANGUAGES, Code
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
@@ -559,17 +559,18 @@ class Engine:
                 if context:
                     store.add_story_characters(self.conn, story.id, result.xray, context.episode)
                 # Before the audio, which reads the voices: a new character is given one now and
-                # keeps it in every later episode.
-                store.add_story_voices(
-                    self.conn,
-                    story.id,
-                    cast.assign(
-                        result.speakers,
-                        story.voices,
-                        self.voices_for(language),
-                        self.cast_presets(language),
-                    ),
-                )
+                # keeps it in every later episode. A language with no voices gives none.
+                if LANGUAGES[language].speaks:
+                    store.add_story_voices(
+                        self.conn,
+                        story.id,
+                        cast.assign(
+                            result.speakers,
+                            story.voices,
+                            self.voices_for(language),
+                            self.cast_presets(language),
+                        ),
+                    )
             text = store.get_text(self.conn, text_id)
             assert text is not None
             self._stage(job, "translating")
@@ -1077,7 +1078,7 @@ class Engine:
         if self.audio is None or self.synthesize is None or store.waiting_texts_timed(self.conn):
             return
         audio = self.audio
-        for language in TEXT_LANGUAGES:
+        for language in SPEAKING_LANGUAGES:
             async with self._rerecord_locks.setdefault(language, asyncio.Lock()):
                 for text in store.ready_texts(self.conn, language):
                     lines = range(len(text.lines))
@@ -1093,6 +1094,8 @@ class Engine:
         slow recording (`tts.SLOW_RATE`) is its own file, made the first time it's asked for."""
         if self.audio is None or not 0 <= line < len(text.lines):
             return None
+        if not LANGUAGES[text.language].speaks:
+            return None  # a language with no voice is read, not heard
         if self.audio.has(text.id, line, slow):
             return self.audio.path(text.id, line, slow)
         if self.synthesize is None:

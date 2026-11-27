@@ -6,6 +6,7 @@ import { ReadVocabCheck } from '../ui/reader/ReadVocabCheck';
 import { useWordAudio } from '../ui/useWordAudio';
 import { leaveScreen } from '../ui/leaveScreen';
 import { READ_PATH } from '../ui/tabPaths';
+import { spokenLanguage } from '../reader/languages';
 
 /** The current Read & Listen language's vocabulary check, from its settings page. */
 export default function ReadVocabCheckRoute() {
@@ -13,7 +14,7 @@ export default function ReadVocabCheckRoute() {
   const { reader, repo } = useApp();
   const addWord = useAddMinedWord();
   const playWord = useWordAudio(repo);
-  const language = reader.settings?.language;
+  const language = spokenLanguage(reader.settings?.language);
   const deck = reader.settings?.decks && language ? reader.settings.decks[language] : null;
   const current = language ? reader.settings?.common?.[language] : undefined;
   // Thai has no common words setting, and a server older than the setting doesn't send it.

@@ -6,6 +6,7 @@ import { useApp } from '../ui/AppContext';
 import { CramSay } from '../ui/cram/CramSay';
 import { cramsNow, saveCram } from '../ui/useCrams';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { spokenLanguage } from '../reader/languages';
 
 /**
  * Talk it through in English for the cram named by `id` (its page's Talking points): say what you want to
@@ -19,7 +20,7 @@ export default function CramSayRoute() {
   const queue = useNoteQueue(reader.api);
   const api = reader.api;
   if (!api) return <Redirect href="/read-settings" />;
-  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), reader.settings.language) : [];
+  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), spokenLanguage(reader.settings.language)) : [];
   return (
     <CramSay
       repo={repo}

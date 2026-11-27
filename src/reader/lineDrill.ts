@@ -4,7 +4,7 @@
 // marked Missed it or Got it by the reader; a missed line comes back at the end of the round. Built
 // from the text's own lines, English and audio, so it costs nothing, and nothing is logged or
 // graded. Pure, so it's tested; ReaderLineDrill.tsx shows it.
-import type { Language, ReaderText, TextLine } from './api';
+import type { GlossLanguage, ReaderText, TextLine } from './api';
 import { choiceText } from './choices';
 
 export type LineDrillKind = 'say' | 'hear';
@@ -26,7 +26,7 @@ export function lineText(line: TextLine): string {
  * kana too, each word read as the text reads it (its `translit`), so a line typed without
  * converting to kanji is checked against what it spells.
  */
-export function lineAnswers(line: TextLine, language: Language): string[] {
+export function lineAnswers(line: TextLine, language: GlossLanguage): string[] {
   const text = lineText(line);
   if (language !== 'ja') return [text];
   const reading = line.words.map((w) => w.translit || w.text).join('').trim();

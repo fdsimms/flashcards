@@ -15,7 +15,7 @@ from franki_reader.generator import Form
 from franki_reader.languages import (
     HIDDEN_LANGUAGES,
     LANGUAGES,
-    TEXT_LANGUAGES,
+    SPEAKING_LANGUAGES,
     Code,
     CommonCount,
     VoiceSlot,
@@ -89,18 +89,21 @@ def router(ctx: AppContext) -> APIRouter:
         # Every language's deck and voices, the default where none was chosen, so the app shows
         # what's used.
         decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
+        # The count is a setting only where it can be chosen (Toki Pona's short list always counts).
         common = {
-            code: current.common_for(code) for code, info in LANGUAGES.items() if info.counts_common
+            code: current.common_for(code)
+            for code, info in LANGUAGES.items()
+            if info.counts_common and not info.common_fixed
         }
-        # Only the languages texts are written in have voices (a gloss-only one has none).
-        voices = {code: engine.voices_for(code) for code in TEXT_LANGUAGES}
+        # Only the languages that speak have voices.
+        voices = {code: engine.voices_for(code) for code in SPEAKING_LANGUAGES}
         # What each kind of story character is given, the default where none was chosen.
         story_cast = {
             code: {
                 kind: {"voice": p.voice, "pitch": p.pitch}
                 for kind, p in cast.presets(voices[code], current.cast.get(code, {})).items()
             }
-            for code in TEXT_LANGUAGES
+            for code in SPEAKING_LANGUAGES
         }
         return {
             **current.__dict__,
@@ -110,8 +113,8 @@ def router(ctx: AppContext) -> APIRouter:
             "cast": story_cast,
             # Every language's mode, the default where none was chosen.
             "daily_tasks": {
-                code: current.daily_tasks.get(code, read_plan.DEFAULT_MODE)
-                for code in TEXT_LANGUAGES
+                code: current.daily_tasks.get(code, read_plan.default_mode(code))
+                for code in LANGUAGES
                 if code not in HIDDEN_LANGUAGES
             },
         }
@@ -122,15 +125,13 @@ def router(ctx: AppContext) -> APIRouter:
 
     @routes.patch("/api/settings", dependencies=authed)
     async def update_settings(body: SettingsUpdate, background: BackgroundTasks) -> dict[str, Any]:
-        asked = (body.language, *(body.common or {}), *(body.voices or {}), *(body.cast or {}))
-        for code in (*asked, *(body.daily_tasks or {})):
-            if code and LANGUAGES[code].glosses_only:
-                raise HTTPException(
-                    422,
-                    f"{LANGUAGES[code].name} only glosses card sentences. It has no texts or voices.",
-                )
+        for code in (*(body.voices or {}), *(body.cast or {})):
+            if not LANGUAGES[code].speaks:
+                raise HTTPException(422, f"{LANGUAGES[code].name} has no voices.")
         if body.common and any(not LANGUAGES[code].counts_common for code in body.common):
             raise HTTPException(422, "Thai counts only the words in its deck.")
+        if body.common and any(LANGUAGES[code].common_fixed for code in body.common):
+            raise HTTPException(422, "Toki Pona always counts its particles.")
         # Every voice is checked first: the gender check can wait seconds on Azure's voice list, and
         # settings read before it would be saved over a change another request made meanwhile.
         for code, chosen in (body.voices or {}).items():

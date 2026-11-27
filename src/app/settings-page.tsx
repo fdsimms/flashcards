@@ -7,6 +7,7 @@ import { LessonSettingsRows } from '../ui/reader/LessonSettingsRows';
 import { SettingsPage } from '../ui/SettingsPage';
 import { useNarrator } from '../ui/useNarrator';
 import { useParticle } from '../ui/useParticle';
+import { spokenLanguage } from '../reader/languages';
 
 /** One page's settings (`?page=lessons`): from the gear in a tab's header, or its row in Settings. */
 export default function SettingsPageRoute() {
@@ -29,7 +30,7 @@ export default function SettingsPageRoute() {
           readerOn={!!reader.api}
           narrator={narrator}
           defaultNarrator={reader.settings?.voices?.en?.male}
-          language={reader.settings?.language ?? 'fr'}
+          language={spokenLanguage(reader.settings?.language) ?? 'fr'}
           particle={particle}
           onParticle={setParticle}
           onOpen={open}

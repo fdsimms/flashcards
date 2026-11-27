@@ -4,7 +4,7 @@ import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { compareTypedAnswer } from '../../core/typedCompare';
 import type { Api, ReaderText } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { drillLines, lineAnswers, lineText, markLine, roundLine, roundProgress, roundScore, startRound, type LineDrillKind } from '../../reader/lineDrill';
 import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
@@ -96,14 +96,14 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
   const expected = line ? lineText(line) : '';
   const answers = useMemo(() => (line ? lineAnswers(line, text.language) : []), [line, text.language]);
   // Say it back can be spoken (Answer by speaking): what's heard fills the box.
-  const keyboardLang = useKeyboardLanguage(LANGUAGES[text.language].speech);
-  const spoken = useSpokenAnswer(LANGUAGES[text.language].speech, {
+  const keyboardLang = useKeyboardLanguage(glossInfo(text.language).speech);
+  const spoken = useSpokenAnswer(glossInfo(text.language).speech, {
     expected: answers,
     mode: AUDIO_MODE,
     onBeforeListen: () => { player.pause(); self.stop(false); },
     onHeard: (heard) => setTyped(heard),
   });
-  const comparison = useMemo(() => compareTypedAnswer(answers, typed, LANGUAGES[text.language].speech), [answers, typed, text.language]);
+  const comparison = useMemo(() => compareTypedAnswer(answers, typed, glossInfo(text.language).speech), [answers, typed, text.language]);
   // Japanese typed in kana is checked against the line's reading; the line itself is then shown as written, unmarked.
   const againstLine = comparison.expected.map((p) => p.text).join('') === expected.trim();
   const check = () => {
@@ -153,7 +153,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
             <Card style={{ gap: space.s, paddingVertical: space.l }}>
               {speaker ? <Text style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary }}>{speaker}</Text> : null}
               <Text selectable style={{ ...type.cardBack, color: c.text }}>{line.english}</Text>
-              <Help>{`Say it in ${LANGUAGES[text.language].name}, out loud or typed below, then check.`}</Help>
+              <Help>{`Say it in ${glossInfo(text.language).name}, out loud or typed below, then check.`}</Help>
             </Card>
           ) : (
             <Card style={{ alignItems: 'center', gap: space.m, paddingVertical: space.l }}>
@@ -167,12 +167,12 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
           )}
           {checked ? (
             <Card style={{ gap: space.m }}>
-              {typed.trim() ? <TypedDiff comparison={comparison} showExpected={false} size="body" lang={LANGUAGES[text.language].speech} /> : null}
+              {typed.trim() ? <TypedDiff comparison={comparison} showExpected={false} size="body" lang={glossInfo(text.language).speech} /> : null}
               {typed.trim() ? <View style={{ height: hairline, backgroundColor: c.border }} /> : null}
               <View style={{ gap: space.xs }}>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>The line</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
-                  <Text selectable accessibilityLanguage={LANGUAGES[text.language].speech} style={{ ...readFont, ...textStyle.font.strong, color: c.text, flex: 1 }}>
+                  <Text selectable accessibilityLanguage={glossInfo(text.language).speech} style={{ ...readFont, ...textStyle.font.strong, color: c.text, flex: 1 }}>
                     {typed.trim() && againstLine ? comparison.expected.map((p, i) => (p.kind === 'same' ? p.text : (
                       <Text key={i} style={{ color: c.goodInk, backgroundColor: c.goodFill }}>{p.text}</Text>
                     ))) : expected}
@@ -219,8 +219,8 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
             />
             {kind === 'say' ? <SpeakButton spoken={spoken} /> : null}
             </View>
-            <MissingKeyboardNote speechTag={LANGUAGES[text.language].speech} />
-            {kind === 'say' ? <ListeningNote spoken={spoken} language={LANGUAGES[text.language].name} /> : null}
+            <MissingKeyboardNote speechTag={glossInfo(text.language).speech} />
+            {kind === 'say' ? <ListeningNote spoken={spoken} language={glossInfo(text.language).name} /> : null}
             </View>
           )}
           {checked ? <Help>A line you miss comes back at the end of the round.</Help> : null}
@@ -251,7 +251,7 @@ export function LineDrillCard({ text, onStart, onRetell }: { text: ReaderText; o
   const c = useTheme();
   const say = drillLines(text, 'say').length;
   const hear = drillLines(text, 'hear').length;
-  const name = LANGUAGES[text.language].name;
+  const name = glossInfo(text.language).name;
   return (
     <Card style={{ gap: space.s }}>
       <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Use the lines yourself</Text>

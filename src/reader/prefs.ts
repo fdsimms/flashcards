@@ -3,7 +3,7 @@
 // whether the word being spoken is lit as a line plays (useSpokenWords), and whether the deck list's
 // counts and the crams are sent to the server for dundundun (useCountsReport, useCramsReport), and whether the check after reading shows its questions' English, and whether a tapped word's meaning waits to be asked for (guessFirst) and, for a word in the deck, behind a multiple-choice question (quizKnown), and whether a new text opens with its words hidden until it's been heard through (listenFirst), and then twice (listenTwice), and how many times a finished text is offered to hear again (listenAgain), and which languages offer the Slow speed (slowLanguages: each one's slow recordings cost Azure a second recording, so a language the owner follows at normal speed leaves it off), and whether Situations' lines are spoken by Azure rather than the phone's voices (situationsAzure, off by default), and whether a few known words in a text are hidden behind a slot to type the form of (formQuiz, on by default; reader/formQuiz.ts), and whether Explain's notes are written in the language being read instead of English (explainInLanguage, off by default), and whether Thai IPA shows its tones as accent marks instead of tone letters (thaiToneMarks, off by default; reader/thaiTones.ts), and whether New topic offers to start a topic from a photo or screenshot, which sends the image to Claude through the server (topicImages, off by default; reader/topicImage.ts), and when the shelf's texts are downloaded for reading offline (offlineDownloads: on Wi-Fi only by default, on any connection, or not at all; reader/downloads.ts), and which end of a story's episode list comes first (episodeOrder: newest by default; reader/stories.ts), and whether listening shows a Live Activity on the lock screen and in the Dynamic Island (listeningActivity, on by default; reader/listeningActivity.ts). Pure, so it's tested; storage.ts keeps them in the Keychain.
 import { TEXT_SIZES, THAI_FONTS, type TextSize, type ThaiFont } from './fonts';
-import type { Language } from './api';
+import type { GlossLanguage, Language } from './api';
 import { LANGUAGE_ORDER } from './languages';
 import { HIDEABLE, type HideableMark } from './marks';
 import { NORMAL_RATE, toRate } from './playbackRate';
@@ -67,11 +67,11 @@ export function parsePrefs(raw: string | null): Prefs {
 }
 
 /** Whether `language` offers the Slow speed (Settings, Read & Listen, Slow speed). */
-export function hasSlow(p: Pick<Prefs, 'slowLanguages'>, language: Language): boolean {
-  return p.slowLanguages.includes(language);
+export function hasSlow(p: Pick<Prefs, 'slowLanguages'>, language: GlossLanguage): boolean {
+  return (p.slowLanguages as readonly GlossLanguage[]).includes(language);
 }
 
 /** The speed to play a line of `language` at: the chosen one, or normal where Slow is off. */
-export function speedFor(p: Pick<Prefs, 'rate' | 'slowLanguages'>, language: Language): number {
+export function speedFor(p: Pick<Prefs, 'rate' | 'slowLanguages'>, language: GlossLanguage): number {
   return hasSlow(p, language) ? p.rate : NORMAL_RATE;
 }

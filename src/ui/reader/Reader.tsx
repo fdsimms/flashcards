@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ApiError, type Api, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type StoryCharacter, type TextGrammar, type TextStage, type Word } from '../../reader/api';
+import { ApiError, type Api, type GlossLanguage, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type StoryCharacter, type TextGrammar, type TextStage, type Word } from '../../reader/api';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
 import { lineSide, scrollTarget, type Box } from '../../reader/follow';
@@ -14,7 +14,7 @@ import { readFont, scaledFontSize, type TextSize } from '../../reader/fonts';
 import { useTextFont, textRows } from '../textMenu';
 import { useReadingFont } from './useReadingFont';
 import type { AppFont } from '../../core/fonts';
-import { COMMON_WORD_STATUS, LANGUAGES, inDeck, needsMeaning, wordStatus } from '../../reader/languages';
+import { COMMON_WORD_STATUS, inDeck, needsMeaning, wordStatus, glossInfo, spokenLanguage } from '../../reader/languages';
 import { wordFrequency } from '../../reader/frequency';
 import { LineScrubber } from './LineScrubber';
 import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
@@ -170,7 +170,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   /** Adding a selected phrase to the deck through the note editor; missing when there's no deck to add to. */
   mining?: PhraseMining;
   /** Plays a tapped word: its deck recording, else the phone's voice (useWordAudio). */
-  onPlayWord: (word: string, language: Language, say?: string) => void;
+  onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   /** Read & Listen's settings, for the length new texts are written at; null until loaded. */
   settings: Settings | null;
   onSettings: (settings: Settings) => void;
@@ -531,8 +531,9 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       setLeaving(then);
       try {
         await api.logReading(text.id, toLog(session, Date.now(), true, checkPicks ? loggedScore(check, checkPicks) : null));
-        // Counts toward today's extra for this language (Daily extras).
-        recordExtraRead(text.language ?? 'th');
+        // Counts toward today's extra for this language (Daily extras), which Toki Pona has none of.
+        const read = spokenLanguage(text.language ?? 'th');
+        if (read) recordExtraRead(read);
       } catch {
         // The reading is lost, not your place: carry on either way.
       } finally {
@@ -1095,7 +1096,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         docked={wordPanel}
         characters={text?.xray}
         onXray={text?.xray?.length ? () => { setTapped(null); setXrayOpen(true); } : undefined}
-        language={text?.language}
+        language={spokenLanguage(text?.language)}
         // The line the word is in tells Claude which sense is meant; a recap's word is in "Last time"'s line.
         meaningLookup={text ? (word) => api.wordMeaning(text.language, word.text, text.lines.find((l) => l.words.includes(word))?.english ?? (text.last_time?.line?.words.includes(word) ? text.last_time.line.english : undefined)) : undefined}
         grammar={tapped && text ? grammarOf(text, tapped.word) : null}
@@ -1125,7 +1126,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         onClose={() => setTapped(null)}
       />
       {quiz.current ? (
-        <ReaderFormQuiz key={quiz.current.key} api={api} language={text?.language ?? 'th'} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
+        <ReaderFormQuiz key={quiz.current.key} api={api} language={spokenLanguage(text?.language) ?? 'th'} textId={quiz.current.textId} line={quiz.current.line} word={quiz.current.word} before={quiz.current.before} after={quiz.current.after} onSettle={quiz.settle} onClose={quiz.close} />
       ) : null}
       {/* The selected phrase's explanation, keyed by the phrase so a new one asks again. */}
       {text && phrase && phraseAnchor && !listenOnly && !phraseDrag.dragging ? (
@@ -1150,7 +1151,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 /** The reading size for a text's language. */
 function readStyle(text: ReaderText, font: AppFont, textSize: TextSize) {
   const language = text.language ?? 'th';
-  const info = LANGUAGES[language];
+  const info = glossInfo(language);
   const fontSize = scaledFontSize(info.fontSize, textSize);
   return { fontSize, lineHeight: fontSize * info.lineHeight, font: readFont(language, font) };
 }

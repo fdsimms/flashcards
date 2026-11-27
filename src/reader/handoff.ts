@@ -1,4 +1,4 @@
-import type { Language, TextLine } from './api';
+import type { GlossLanguage, TextLine } from './api';
 import { firstLine, nextLine, previousLine, wrapsToStart } from './playback';
 
 /**
@@ -11,7 +11,7 @@ import { firstLine, nextLine, previousLine, wrapsToStart } from './playback';
 export type Handoff = {
   textId: number;
   title: string;
-  language: Language;
+  language: GlossLanguage;
   /** The text's lines; their words and English, when given, are what Now Playing shows of the line playing. */
   lines: ({ audio: boolean } & Partial<Pick<TextLine, 'words' | 'english'>>)[];
   /** The line sounding when the reader closed. */

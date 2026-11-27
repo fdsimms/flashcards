@@ -1,8 +1,8 @@
 import React from 'react';
 import { Modal, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Language } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import type { GlossLanguage } from '../../reader/api';
+import { glossInfo } from '../../reader/languages';
 import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../../reader/marks';
 import { haptic } from '../haptics';
 import { HeaderAction } from '../kit';
@@ -17,7 +17,7 @@ import { hairline, MIN_TAP, radius, space, type, useTheme, smooth } from '../the
  */
 export function ReaderKey({ examples, language, textStyle, shown, onChange, onClose }: {
   examples: Example[];
-  language: Language;
+  language: GlossLanguage;
   textStyle: ReadTextStyle;
   shown: (mark: Mark) => boolean;
   onChange: (mark: Mark, on: boolean) => void;
@@ -37,7 +37,7 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange, onCl
         </View>
         <View>
           {examples.map((e, i) => {
-            const title = e.mark === 'highlight' ? LANGUAGES[language].highlightLabel : MARK_INFO[e.mark].title;
+            const title = e.mark === 'highlight' ? glossInfo(language).highlightLabel : MARK_INFO[e.mark].title;
             const about = e.mark === 'highlight' ? HIGHLIGHT_ABOUT : MARK_INFO[e.mark].about;
             const on = shown(e.mark);
             return (

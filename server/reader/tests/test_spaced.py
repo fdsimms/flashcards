@@ -13,7 +13,7 @@ from franki_reader.coverage import check, parse_line
 from franki_reader.difficulty import Difficulty
 from franki_reader.engine import Engine
 from franki_reader.generator import Line, TextRequest, generate
-from franki_reader.languages import LANGUAGES, TEXT_LANGUAGES
+from franki_reader.languages import LANGUAGES, SPEAKING_LANGUAGES
 from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.reader import render
 from franki_reader.spaced import SpacedLexicon, common_words
@@ -341,6 +341,56 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
     assert set(languages) == {"es-MX"}
 
 
+def test_a_toki_pona_text_is_written_and_served_with_no_audio_even_with_a_voice_set_up(
+    tmp_path: Any,
+) -> None:
+    from datetime import datetime
+
+    from franki_reader.tts import AudioCache
+
+    now = datetime(2026, 11, 27, 9, 0)
+    entries = [
+        Entry(1, "jan", "person", "mature"),
+        Entry(2, "lukin", "to see", "mature"),
+        Entry(3, "moku", "food; to eat", "mature"),
+        Entry(4, "pona", "good", "mature"),
+        Entry(5, "toki", "language; to say", "young"),
+    ]
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, entries, now, "tok")
+    store.save_settings(conn, store.Settings(language="tok"))
+    tok = draft("jan|li|*lukin*|e|moku.", "mi|*toki*|e|ni:|moku|li|pona.")
+    spoken: list[str] = []
+
+    async def voice(text: str, name: str, language: str) -> Spoken:
+        spoken.append(text)
+        return Spoken(b"ID3")
+
+    class Scripted:
+        def ask_for(self, entries: list[Entry], language: str, model: str | None = None) -> Any:
+            return Model(tok, tok, tok)
+
+    e = Engine(
+        conn,
+        Scripted().ask_for,
+        None,
+        lambda: now,
+        random.Random(1),
+        synthesize=voice,
+        audio=AudioCache(tmp_path),
+    )
+    topic = store.add_topic(conn, "Food", now)
+
+    text = asyncio.run(e.make_text(topic.id))
+
+    assert text is not None and text.language == "tok"
+    assert store.text_status(conn, text.id) == "ready"
+    assert spoken == [] and not any(e.has_audio(text.id, i) for i in range(len(text.lines)))
+    assert asyncio.run(e.line_audio(text, 0)) is None
+    e.record_reading(text.id, store.Reading(None, True, (), (), None, False, 60))
+    assert conn.execute("SELECT language FROM readings").fetchone()[0] == "toki pona"
+
+
 def test_switching_language_through_the_api_keeps_topics_and_separates_everything_else() -> None:
     import time
 
@@ -395,20 +445,23 @@ def word_statuses(lexicon: Any, text: str) -> dict[str, str]:
 
 
 def test_every_language_but_thai_has_a_list_of_10000_common_words_and_voices() -> None:
-    for code, language in TEXT_LANGUAGES.items():
+    for code, language in SPEAKING_LANGUAGES.items():
         assert language.voices["male"] and language.voices["female"]
         if code != "th":
             assert language.counts_common and len(common_words(code)) == 10_000
 
 
-def test_toki_pona_has_no_lemmatizer_or_common_list_and_its_words_are_found_as_written() -> None:
+def test_toki_pona_is_read_not_heard_and_counts_its_particles_in_full() -> None:
     from franki_reader.spaced import SpacedLexicon, lemma
 
-    assert LANGUAGES["tok"].glosses_only and not LANGUAGES["tok"].counts_common
-    assert LANGUAGES["tok"].locale == ""
-    assert common_words("tok") == () and lemma("Toki", "tok") == "toki"
-    lexicon = SpacedLexicon("tok", ["toki", "pona"])
+    tok = LANGUAGES["tok"]
+    assert not tok.speaks and tok.locale == "" and "tok" not in SPEAKING_LANGUAGES
+    assert tok.common_fixed and not tok.lemmatizes
+    assert len(common_words("tok")) <= tok.common
+    assert lemma("Toki", "tok") == "toki"
+    lexicon = SpacedLexicon("tok", ["toki", "pona"], tok.common)
     assert lexicon.status("Toki") == "known" and lexicon.status("sitelen") == "unknown"
+    assert lexicon.status("li") == "known" and lexicon.status("e") == "known"
 
 
 def test_greek_final_sigma_and_russian_yo_match_the_common_words() -> None:

@@ -217,10 +217,6 @@ def test_the_routes() -> None:
         assert body["lines"] == 4 and body["title"].startswith("ฉัน")
         empty = c.post("/api/own-texts/preview", json={"language": "th", "text": "|"}, headers=AUTH)
         assert empty.status_code == 422 and "no text" in empty.json()["detail"]
-        other = c.post(
-            "/api/own-texts/preview", json={"language": "tok", "text": "a"}, headers=AUTH
-        )
-        assert other.status_code == 422
         assert c.post("/api/own-texts", json={"language": "th", "text": THAI}).status_code == 401
         added = c.post("/api/own-texts", json={"language": "th", "text": THAI}, headers=AUTH)
         assert added.status_code == 202 and len(added.json()["ids"]) == 1

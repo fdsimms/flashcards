@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, Vi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import { columnInsets } from '../../core/wide';
-import type { Api, Language, PhraseExplanation as Explained } from '../../reader/api';
+import type { Api, GlossLanguage, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
 import { popupSpace, roomIsBelow } from '../../reader/phrase';
 import { Icon, Tappable, ErrorNote } from '../kit';
@@ -20,7 +20,7 @@ import { hairline, lift, MIN_TAP, radius, space, type, useTheme, smooth } from '
 /** Adding the phrase to the deck: the note editor opens with it, and saving there is the approval. */
 export type PhraseMining = {
   /** The language whose deck it is: a phrase from a text in another language isn't offered. */
-  language: Language;
+  language: GlossLanguage;
   deck: string;
   /** Opens the note editor; true once the note is saved. */
   /** The word's IPA and where it's from when it has some (a phrase has none), for the note's Pronunciation field. */

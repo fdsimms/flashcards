@@ -46,6 +46,7 @@ LOG_LANGUAGE: dict[Code, str] = {
     "nb": "norwegian",
     "ja": "japanese",
     "en": "english",
+    "tok": "toki pona",
 }
 MODE = "read_listen"
 

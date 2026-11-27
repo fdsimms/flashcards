@@ -17,7 +17,7 @@ from franki_reader import cast, store
 from franki_reader.app import MAX_WRONG, client_source, create_app
 from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
-from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, TEXT_LANGUAGES, Code
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, SPEAKING_LANGUAGES, Code
 from franki_reader.lexicon import Entry
 from franki_reader.routes import views
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
@@ -425,7 +425,10 @@ VOICES = {
 }
 
 # Every language rotates until chosen otherwise (read_plan.DEFAULT_MODE).
-DAILY_TASKS = {code: "rotate" for code in TEXT_LANGUAGES if code not in HIDDEN_LANGUAGES}
+# Toki Pona has no daily task until one is chosen for it (read_plan.default_mode).
+DAILY_TASKS = {
+    code: "off" if code == "tok" else "rotate" for code in LANGUAGES if code not in HIDDEN_LANGUAGES
+}
 
 # What the first story character of each kind is given in each language when nothing was chosen.
 CAST = {
@@ -1472,7 +1475,7 @@ def test_status_says_whats_due_and_whether_a_text_is_waiting() -> None:
         "read_and_listen": {"language": "th", "name": "Thai", "waiting": 0, "last_read_at": None},
         "read_and_listen_languages": [
             {"language": code, "name": LANGUAGES[code].name, "waiting": 0, "last_read_at": None}
-            for code in TEXT_LANGUAGES
+            for code in LANGUAGES
             if code not in HIDDEN_LANGUAGES
         ],
         "study_days": [
@@ -1758,18 +1761,23 @@ def test_glosses_work_for_toki_pona_with_no_lemmatizer_voices_or_common_list() -
     assert all(w["status"] == "known" for w in words if w["status"])
 
 
-def test_toki_pona_only_glosses_so_it_has_no_voices_shelf_or_daily_task() -> None:
+def test_toki_pona_is_on_the_shelf_and_in_daily_tasks_but_has_no_voices_or_common_count() -> None:
     c = client()
     settings = c.get("/api/settings", headers=AUTH).json()
     assert settings["decks"]["tok"] == "👅 Languages::🙂 toki pona"
-    for key in ("voices", "cast", "common", "daily_tasks"):
+    for key in ("voices", "cast", "common"):
         assert "tok" not in settings[key]
+    assert settings["daily_tasks"]["tok"] == "off"
     shelf = c.get("/api/shelf", headers=AUTH).json()
-    assert "tok" not in [language["code"] for language in shelf["languages"]]
-    for change in ({"language": "tok"}, {"common": {"tok": 250}}, {"daily_tasks": {"tok": "off"}}):
+    assert "tok" in [language["code"] for language in shelf["languages"]]
+    assert c.patch("/api/settings", json={"language": "tok"}, headers=AUTH).status_code == 200
+    for change, said in (
+        ({"common": {"tok": 250}}, "always counts its particles"),
+        ({"voices": {"tok": {"male": "en-US-GuyNeural"}}}, "has no voices"),
+    ):
         refused = c.patch("/api/settings", json=change, headers=AUTH)
         assert refused.status_code == 422
-        assert "only glosses card sentences" in refused.json()["detail"]
+        assert said in refused.json()["detail"]
 
 
 def test_glosses_arent_ready_for_a_language_whose_deck_hasnt_been_read() -> None:
@@ -2014,10 +2022,10 @@ def test_a_sample_or_scene_counts_as_a_recording_and_needs_azure() -> None:
     assert c.post("/api/cast/scene", json={"language": "ru"}).status_code == 401
 
 
-def test_every_language_has_a_scene() -> None:
+def test_every_speaking_language_has_a_scene() -> None:
     from franki_reader.cast_samples import SCENES, sample_line
 
-    assert set(SCENES) == set(TEXT_LANGUAGES)
+    assert set(SCENES) == set(SPEAKING_LANGUAGES)
     assert all(all(line.strip() for line in lines) for lines in SCENES.values())
     assert sample_line("th", "male") != sample_line("th", "female")
 

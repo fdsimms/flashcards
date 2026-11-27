@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { ApiError, type Language } from '../reader/api';
+import { spokenLanguage } from '../reader/languages';
 import { loadToolPrefs, onToolLanguage, saveToolPrefs, toolPrefs } from '../tools/storage';
 import type { ReaderState } from './useReader';
 
@@ -36,9 +37,11 @@ export function useAppLanguageSync({ api, settings, setSettings }: Pick<ReaderSt
   serverRef.current = serverLanguage;
 
   // The server's language is the phone's, except while a pick of ours is on its way: a settings
-  // read from before it would otherwise put the old language back.
+  // read from before it would otherwise put the old language back. Toki Pona, which Practice and
+  // Lessons don't cover, is Read & Listen's alone: the phone keeps the language it had.
   useEffect(() => {
-    if (serverLanguage && inFlight.current === 0 && serverLanguage !== toolPrefs().language) saveToolPrefs({ language: serverLanguage });
+    const spoken = spokenLanguage(serverLanguage);
+    if (spoken && inFlight.current === 0 && spoken !== toolPrefs().language) saveToolPrefs({ language: spoken });
   }, [serverLanguage]);
 
   useEffect(() => {
@@ -52,7 +55,8 @@ export function useAppLanguageSync({ api, settings, setSettings }: Pick<ReaderSt
           setSettings(await api.settings());
         } catch (e) {
           // Only the last pick is taken back: an earlier one the server refused is already replaced.
-          if (inFlight.current === 1 && serverRef.current) saveToolPrefs({ language: serverRef.current });
+          const back = spokenLanguage(serverRef.current);
+          if (inFlight.current === 1 && back) saveToolPrefs({ language: back });
           Alert.alert("Couldn't switch the language", e instanceof ApiError ? e.message : 'Check your connection, then try again.');
         } finally {
           inFlight.current--;

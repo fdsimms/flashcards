@@ -8,6 +8,7 @@ import { useApp } from '../ui/AppContext';
 import { CramThemeDetail } from '../ui/cram/CramThemeDetail';
 import { applyThemes, capCramCards, cramsNow, saveCram } from '../ui/useCrams';
 import { useNoteQueue } from '../ui/useNoteQueue';
+import { spokenLanguage } from '../reader/languages';
 
 /**
  * One of a cram's talking points, by its place in the list (`index`), or its story (`view=story`).
@@ -22,7 +23,7 @@ export default function CramThemeRoute() {
   const queue = useNoteQueue(reader.api);
   const api = reader.api;
   if (!api) return <Redirect href="/read-settings" />;
-  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), reader.settings.language) : [];
+  const options = reader.settings ? quickAddDecks(reader.settings.decks, decks.map((d) => d.deck), spokenLanguage(reader.settings.language)) : [];
   const cram = () => cramsNow().find((x) => x.id === id);
   return (
     <CramThemeDetail

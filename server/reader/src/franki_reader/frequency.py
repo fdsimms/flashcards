@@ -38,10 +38,10 @@ def _thai() -> dict[str, int]:
 
 
 def has_frequency_list(lexicon: Checker) -> bool:
-    """Whether the language has a list to rank against. A gloss-only language (Toki Pona, whose
-    whole vocabulary is about 130 words) has none, so a word's place in it means nothing."""
+    """Whether the language has a list to rank against. Toki Pona's is a short list of particles
+    that all count, so a word's place in it means nothing."""
     code = getattr(lexicon, "code", None)
-    return not (code in LANGUAGES and LANGUAGES[code].glosses_only)
+    return not (code in LANGUAGES and LANGUAGES[code].common_fixed)
 
 
 def rank_of(word: str, lexicon: Checker, *, nouns_are_one_word: bool = False) -> int | None:

@@ -1,0 +1,17 @@
+# Toki Pona function words counted as known (languages.py, tok). The rest of its vocabulary is the deck.
+li
+e
+la
+pi
+o
+en
+anu
+mi
+sina
+ona
+ni
+seme
+ala
+a
+kin
+taso

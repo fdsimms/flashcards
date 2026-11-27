@@ -4,7 +4,7 @@ import { ScrollView, Text, TextInput, View, useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
 import type { Api, ReaderText, RetellCheck } from '../../reader/api';
-import { LANGUAGES } from '../../reader/languages';
+import { glossInfo } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { lineText } from '../../reader/lineDrill';
 import { speedFor } from '../../reader/prefs';
@@ -35,8 +35,8 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
-  const name = LANGUAGES[text.language].name;
-  const keyboardLang = useKeyboardLanguage(LANGUAGES[text.language].speech);
+  const name = glossInfo(text.language).name;
+  const keyboardLang = useKeyboardLanguage(glossInfo(text.language).speech);
   const [attempt, setAttempt] = useState('');
   const [check, setCheck] = useState<RetellCheck | null>(null);
   const [checking, setChecking] = useState(false);
@@ -83,10 +83,10 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }} {...scrollProps}>
         {check && firstTry ? (
-          <Reveal><Card><WritingFirstTry check={check} attempt={attempt} lang={LANGUAGES[text.language].speech} /></Card></Reveal>
+          <Reveal><Card><WritingFirstTry check={check} attempt={attempt} lang={glossInfo(text.language).speech} /></Card></Reveal>
         ) : check ? (
           <Reveal style={{ gap: space.m }}>
-            <Card><WritingResult check={check} attempt={attempt} lang={LANGUAGES[text.language].speech} /></Card>
+            <Card><WritingResult check={check} attempt={attempt} lang={glossInfo(text.language).speech} /></Card>
             {check.words.length ? (
               <Card style={{ gap: space.s }}>
                 <Text style={{ ...type.overline, color: c.textSecondary }}>From the text, you could also use</Text>
@@ -149,7 +149,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                 borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP * 4,
               }}
             />
-            <MissingKeyboardNote speechTag={LANGUAGES[text.language].speech} />
+            <MissingKeyboardNote speechTag={glossInfo(text.language).speech} />
           </>
         )}
         {error ? <ErrorNote message={error} onRetry={ask} /> : null}

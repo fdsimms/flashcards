@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CommonCount, Settings } from '../../reader/api';
-import { COMMON_COUNTS, LANGUAGES, commonLabel, commonNamed } from '../../reader/languages';
+import { COMMON_COUNTS, commonLabel, commonNamed, glossInfo, spokenLanguage } from '../../reader/languages';
 import { Help, Select } from '../kit';
 
 /**
@@ -9,9 +9,10 @@ import { Help, Select } from '../kit';
  * server older than the setting doesn't send it.
  */
 export function CommonWords({ settings, onChange }: { settings: Settings; onChange: (count: CommonCount) => void }) {
-  const count = settings.common?.[settings.language];
+  const spoken = spokenLanguage(settings.language);
+  const count = spoken ? settings.common?.[spoken] : undefined;
   if (count === undefined) return null;
-  const name = LANGUAGES[settings.language].name;
+  const name = glossInfo(settings.language).name;
   // Japanese also counts the vocabulary learned in WaniKani, when the server has its token.
   const deck = settings.language === 'ja' ? 'your Japanese deck and WaniKani' : `your ${name} deck`;
   return (

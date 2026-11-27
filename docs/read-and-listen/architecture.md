@@ -854,7 +854,7 @@ Thai letters, so none of them is a language here. Each new language works as Spa
   language still needs its deck, voices and rules for its entries in code (`languages.py`,
   `spaced.py`) and a list of common words (`scripts/build_common.py`).
 
-- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl`, `nb`, `ja` or `en`), picks the
+- **One setting, `language`** (`th`, `es`, `de`, `fr`, `ru`, `el`, `pl`, `nb`, `ja`, `en` or `tok`), picks the
   language new texts are written and served in. It's the menu in the shelf's header. **Topics are shared**: a topic like "At a
   coffee shop" has texts in each language. The lexicon snapshot, ready texts, difficulty, progress,
   past texts, marked words, practiced stretch words and failures are per language. Only the current
@@ -980,34 +980,56 @@ spaced languages do, with these differences:
   `languages.py` keeps a language out of the shelf and settings for a build that has no entry for
   it. Emptied on 17 November 2026, once the owner's build had both (the owner's confirmation).
 
-### Toki Pona (gloss only)
+### Toki Pona (read, not heard)
 
 Added on 24 November 2026, at the owner's request, so the example sentences on its deck's cards
 (`👅 Languages::🙂 toki pona`, Lipu Linku's jan Lakuse words) get the same tap-a-word meanings as
-every other language. It is the one language with `glosses_only=True` (`languages.py`), which means
-nothing is written, recorded or shelved in it: no voices (Azure has none), no common-word list, no
-lemmatizer (simplemma has none, so `spaced.lemma` returns the word as written and
-`common_lemmas` is empty), no grammar points, no Practice tools.
+every other language. On 27 November 2026 it also became a language texts are written in, with no
+audio: Azure has no Toki Pona voice, so texts in it are read and never heard. It is the one language
+with no voices (`Language.speaks` is false in `languages.py`), and that is what the rest follows from.
 
-- **The server keeps it out by one filter.** `TEXT_LANGUAGES` is `LANGUAGES` less the gloss-only
-  ones, and the shelf's language menu, the daily-task list, `/api/settings`' `voices`, `cast` and
-  `daily_tasks`, and the tests that walk every language's voices read it. `/api/settings` still
-  sends its `decks.tok`, which is how the app learns the deck. `PATCH /api/settings` refuses
-  `tok` as the language, a voice, a cast or a common-word count (422), so it can't become the current
-  language.
-- **The app keeps it out of `Language`.** `GlossLanguage` is `Language | 'tok'`, and only the gloss
-  path (`glossRequests`, `useCardGlosses`, the popover's play and meaning lookup) takes it. At the
-  settings boundary (`settingsFromServer`, `splitDecks`) its deck moves out of `decks`, which every
-  feature that walks the languages reads, into `glossOnlyDecks`; `CardGlossing.glossDecks` joins the
-  two for finding a card's language. Reading lines and the sense contrast keep `decks`, so they never
-  ask about it.
+- **Texts work as in any spaced language**: written from the deck's words, checked in code against
+  the 95-98% floor, glossed word by word, on the shelf, in daily tasks and in Your own text. The
+  deck has only about 136 words, so a text written only from them stalls on noun strings, as
+  Polish's 89 words did. Its particles and a few other function words count as known too, all of
+  them (`data/tok_common.txt`, `common_fixed=True`), so the `common` setting doesn't apply to it
+  (`PATCH /api/settings` refuses one, 422) and its settings page leaves out the common-words row.
+- **Its daily task is off until chosen** (`Language.rotates_by_default`, `read_plan.default_mode`;
+  the app's `dailyModeOf` says the same), because a language never read goes first in the rotation
+  and a task for it would have appeared on the first day. It is listed in Daily tasks like the others.
+- **Nothing is ever recorded in it.** `Engine.line_audio` returns None for a language that doesn't
+  speak, so `make_audio`, the audio routes, `rerecord` and the slow recording all skip it, and
+  `rendered_text` sends every line with `audio: false` even when Azure is set up. Settings sends no
+  `voices` or `cast` for it (`SPEAKING_LANGUAGES` is what lists them, and `PATCH` refuses both, 422),
+  and a story gives its characters no voices. There are no lessons, grammar points, forms or
+  Practice tools in it either.
+- **No lemmatizer and no frequency list.** simplemma has none, so `spaced.lemma` returns the word
+  as written (`lemmatizes=False`), and `frequency.has_frequency_list` is false for a language whose
+  common words are all counted, so the popup shows no "Rare".
+- **The app keeps it out of `Language` and puts it in `GlossLanguage`**, which is what a text, the
+  shelf and the server's `language` setting are typed as. `Language` stays the ten with voices, which
+  every voice, Practice, lesson and common-words screen walks (`LANGUAGE_ORDER`), so those never meet
+  it. A screen that asks for a `Language` from the reader's setting takes `spokenLanguage(...)`, and
+  one that only needs its name, font or speech tag takes `glossInfo(...)`. Its deck is in
+  `glossOnlyDecks`, found with `deckOf`. The Your own text picker lists it after the others
+  (`TEXT_LANGUAGE_ORDER`).
+- **The phone's one language never holds it.** Practice and Lessons read `toolPrefs().language`,
+  which `useAppLanguageSync` sets from the server's language only when it is a `Language`, so
+  switching the shelf to Toki Pona leaves them on the language they had. Picking a language in
+  either of them switches the server's language back.
+- **A silent text is already a state of the reader.** The footer drops the player ("No audio for this
+  text."), the line play buttons and listen-first never show, Play all, Play Next, Play Later and
+  Listen without the text are left off for it (`useQueueMenu`, the shelf, `ReadPastTexts`), and a
+  download keeps the words only (`wholeText` is true with no recordings to fetch).
+- **Its flag is a smiley** (`assets/flags/tok.png`, drawn like the others at 26 points in 1x, @2x
+  and @3x), the deck's 🙂.
 - **A tapped word nothing glosses** still gets its meaning from Claude (`/api/word-meaning`, the
   same cached call as any language), which is the one place its quality depends on Claude's Toki Pona.
 - **Add to deck works** from its popover, into its own deck, through the same note queue: it needs
   no Toki Pona rules, since the prompt names the language, `ROMANIZED` and `EXTRAS` leave it with the
   common fields only, and the `Language` field comes out as `toki pona`, as in the deck's own notes
-  (`test_note_queue.py`). The queue's language is a `GlossLanguage` on the app's side for this.
-  Quick add and the other lists of languages don't offer it, since they walk `decks`.
+  (`test_note_queue.py`). Quick add and the other lists of languages don't offer it, since they walk
+  `decks`.
 - **A tapped word is said by the phone's English voice** when its note has no recording
   (`GLOSS_ONLY.tok.speech`), which reads Toki Pona's spelling well enough for a single word.
 

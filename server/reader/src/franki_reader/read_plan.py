@@ -20,11 +20,18 @@ from datetime import datetime
 from typing import Literal
 
 from franki_reader import store
+from franki_reader.languages import LANGUAGES
 
 Mode = Literal["daily", "rotate", "off"]
 MODES: tuple[Mode, ...] = ("daily", "rotate", "off")
 DEFAULT_MODE: Mode = "rotate"
 ROTATE_COUNT_RANGE = (1, 10)
+
+
+def default_mode(language: str) -> Mode:
+    """A language's daily task mode until the learner chooses one."""
+    known = next((info for code, info in LANGUAGES.items() if code == language), None)
+    return DEFAULT_MODE if known is None or known.rotates_by_default else "off"
 
 
 @dataclass(frozen=True)
@@ -62,7 +69,7 @@ def plan(
     the readings' times are. `picked` is the rotating languages chosen earlier today."""
 
     def mode_of(r: Reading) -> Mode:
-        return modes.get(r.language, DEFAULT_MODE)
+        return modes.get(r.language, default_mode(r.language))
 
     def done(r: Reading) -> bool:
         return r.last_read is not None and r.last_read >= day_start

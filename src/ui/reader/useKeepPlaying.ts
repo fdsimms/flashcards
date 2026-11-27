@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import type { Language } from '../../reader/api';
+import type { GlossLanguage } from '../../reader/api';
 import { mayKeepWhilePlaying, shelfCardFor } from '../../reader/downloads';
 import { hasSlow } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
@@ -19,7 +19,7 @@ export function useKeepPlaying() {
   const { reader } = useApp();
   const server = reader.serverApi;
   const started = useRef<number | null>(null);
-  return useCallback((textId: number, language: Language, past: boolean) => {
+  return useCallback((textId: number, language: GlossLanguage, past: boolean) => {
     if (!server || started.current === textId) return;
     // A shelf text needs its card from the shelf last read; a past text has none and is kept as a past one.
     const card = past ? textId : shelfCardFor(downloads.get(), textId);

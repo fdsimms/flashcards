@@ -3,6 +3,7 @@ import React from 'react';
 import { useApp } from '../ui/AppContext';
 import { useAddMinedWord } from '../ui/useAddMinedWord';
 import { ReadWords } from '../ui/reader/ReadWords';
+import { deckOf } from '../reader/languages';
 
 /**
  * Words marked unknown while reading. Add to deck opens the note editor with the word filled in:
@@ -13,7 +14,7 @@ export default function ReadWordsRoute() {
   const addWord = useAddMinedWord();
   if (!reader.api) return <Redirect href="/read-settings" />;
   // `decks` is missing from a server older than the deck setting.
-  const deck = reader.settings?.decks ? reader.settings.decks[reader.settings.language] : null;
+  const deck = reader.settings?.decks ? deckOf(reader.settings, reader.settings.language) ?? null : null;
   return (
     <ReadWords
       api={reader.api}

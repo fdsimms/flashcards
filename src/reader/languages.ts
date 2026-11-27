@@ -33,8 +33,9 @@ export const LANGUAGES: Record<Language, LanguageInfo> = {
 export const LANGUAGE_ORDER: Language[] = ['th', 'es', 'fr', 'de', 'el', 'en', 'ja', 'nb', 'pl', 'ru'];
 
 // The language's name with its flag, for a menu row or a header button.
-export function flaggedName(code: Language): string {
-  return `${LANGUAGES[code].flag} ${LANGUAGES[code].name}`;
+export function flaggedName(code: GlossLanguage): string {
+  const info = glossInfo(code);
+  return `${info.flag} ${info.name}`;
 }
 
 // The language with this name, for the language picker.
@@ -42,9 +43,9 @@ export function languageNamed(name: string): Language | undefined {
   return LANGUAGE_ORDER.find((code) => LANGUAGES[code].name === name);
 }
 
-// What a gloss-only language (Toki Pona) is shown as: its sentences are glossed and a word can be
-// tapped, so it needs the name and the text's look, but it has no flag, voice or place in a picker
-// (it isn't in `LANGUAGES` or `LANGUAGE_ORDER`, which every picker and settings page walks).
+// What Toki Pona is shown as. It has no voices, so texts in it are read and never heard, and it
+// isn't in `LANGUAGES` or `LANGUAGE_ORDER`, which every voice, Practice and lesson screen walks:
+// anything that can show it asks `glossInfo`.
 export const GLOSS_ONLY: Record<GlossOnlyLanguage, LanguageInfo> = {
   tok: { name: 'Toki Pona', flag: '🙂', ...SPACED, speech: 'en-US' },
 };
@@ -54,19 +55,32 @@ export function glossInfo(code: GlossLanguage): LanguageInfo {
   return isGlossOnly(code) ? GLOSS_ONLY[code] : LANGUAGES[code];
 }
 
-/** Whether `code` is a language that is only glossed: no texts, no note queue, nothing to add a word to. */
+/** Whether `code` is a language with no voices (Toki Pona): its texts are read, not heard, and no lesson or Practice tool covers it. */
 export function isGlossOnly(code: GlossLanguage): code is GlossOnlyLanguage {
   return code in GLOSS_ONLY;
 }
 
 /**
- * The server's `decks` (every language's, a gloss-only one's too) as the app keeps them: the text
+ * The server's `decks` (every language's, one without voices too) as the app keeps them: the spoken
  * languages' in `decks`, which features walk to find a language, and the rest in `glossOnlyDecks`.
  */
 export function splitDecks(all: Record<string, string>): { decks: Record<Language, string>; glossOnlyDecks?: Partial<Record<GlossOnlyLanguage, string>> } {
   const { tok, ...decks } = all;
   return { decks: decks as Record<Language, string>, ...(tok ? { glossOnlyDecks: { tok } } : {}) };
 }
+
+/** `language` if it has voices, which is what Practice, lessons and the rest of the app's tools cover; undefined for Toki Pona. */
+export function spokenLanguage(language: GlossLanguage | undefined): Language | undefined {
+  return language && !isGlossOnly(language) ? language : undefined;
+}
+
+/** The deck of any language the server names, a gloss-only one's included, or undefined when settings don't carry it. */
+export function deckOf(settings: { decks?: Partial<Record<Language, string>>; glossOnlyDecks?: Partial<Record<GlossOnlyLanguage, string>> } | null | undefined, language: GlossLanguage): string | undefined {
+  return isGlossOnly(language) ? settings?.glossOnlyDecks?.[language] : settings?.decks?.[language];
+}
+
+/** Every language a text can be in, in the order a picker lists them: the app's languages, then Toki Pona (read, never heard). */
+export const TEXT_LANGUAGE_ORDER: GlossLanguage[] = [...LANGUAGE_ORDER, 'tok'];
 
 export const COMMON_COUNTS: CommonCount[] = [0, 250, 500, 1000, 2000, 3000, 5000, 10000];
 
