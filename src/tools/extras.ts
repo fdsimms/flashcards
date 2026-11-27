@@ -19,7 +19,7 @@ import { TOOLS, type ToolId } from './tools';
  * can see it was done, and that no deck covers. Time, dates, money and numbers are skill cards
  * (skills.ts), which come up in their deck, so they aren't suggested here as well.
  */
-export const EXTRA_TOOLS = ['counting', 'script', 'hearing'] as const satisfies readonly ToolId[];
+export const EXTRA_TOOLS = ['counting', 'script', 'hearing', 'writing'] as const satisfies readonly ToolId[];
 export type ExtraTool = (typeof EXTRA_TOOLS)[number];
 export type ExtraKind = ExtraTool | 'read';
 
