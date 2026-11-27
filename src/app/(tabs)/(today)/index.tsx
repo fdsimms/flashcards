@@ -50,6 +50,7 @@ export default function TodayRoute() {
       onImport={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'today' } })}
+      onLookUp={() => router.push('/look-up')}
       onOptions={openOptions}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}

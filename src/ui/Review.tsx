@@ -80,6 +80,7 @@ import { knownDays, knownMonths } from '../tools/skillWords';
 import { haptic } from './haptics';
 import { idleRecording, RecordIconButton, RecordYourself } from './RecordYourself';
 import { ReviewPitchLine } from './PitchLine';
+import { usePageLookUp } from './PageLookUp';
 import { useSelfRecording } from './useSelfRecording';
 import { htmlToText } from '../core/html';
 import { notePreview } from '../core/noteEditing';
@@ -453,6 +454,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // A miss on the aspect check suggests Hard; with Hard turned off it's Again, the button that's there.
   const suggestedRating = skill.suggested ?? (aspectCheck.suggested === 2 && !ratingsShown(answerButtons).includes(2) ? 1 : aspectCheck.suggested);
   const glossFor = useCardGlosses(glossing, queue?.order, notes);
+  // Look it up on an Anki-template card: a word held, or tapped on the answer side (PageLookUp.tsx).
+  const pageLookUp = usePageLookUp(glossing, current, note);
   useEffect(() => { forms.showing({ card: current, note, revealed }); }, [current, note, revealed, forms.showing]); // eslint-disable-line react-hooks/exhaustive-deps
   // A deck that holds several languages (Languages: Polish, Thai, German...) marks each card with its own. A frequency tier ("Thai::Tier 3") is part of its language, not a language of its own, so it's looked past.
   const tintOf = useDeckTint();
@@ -1687,9 +1690,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               up, React keeps that WebView, already loaded, and shows it. While a native or drill card is on screen
               this card is offstage and holds only that second one, in the same place, so it's kept the same way. */}
           {[
-            page && !drill ? <CardWebView key={`${current.id}:${turn}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${turn}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} /> : null,
+            page && !drill ? <CardWebView key={`${current.id}:${turn}`} html={revealed ? page.back : page.front} onShown={timing.on ? () => timing.shown(`${current.id}:${turn}`) : undefined} onMessage={onPageMessage} onTap={revealed ? undefined : () => { haptic.select(); reveal(); }} onLookUp={pageLookUp.onLookUp} /> : null,
             ahead && aheadPage ? <CardWebView key={`${ahead.id}:${turn + 1}`} hidden html={aheadPage.front} onMessage={onPageMessage} onTap={() => { haptic.select(); reveal(); }} /> : null,
           ]}
+          {pageLookUp.popover}
         </SwipeCard>
       ) : null}
       {page && extras && !drill ? (

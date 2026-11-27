@@ -22,8 +22,10 @@ export function useSharedBanner() {
   const newest = items[items.length - 1];
   if (!newest) return null;
   const more = items.length - 1;
-  const needsReader = newest.kind === 'read' && !reader.api;
-  const what = needsReader ? 'Turn on Read & Listen to read it.' : newest.kind === 'read' ? 'Tap to read it.' : 'Tap to add the words.';
+  const needsReader = newest.kind !== 'words' && !reader.api;
+  const what = needsReader
+    ? `Turn on Read & Listen to ${newest.kind === 'read' ? 'read it' : 'look it up'}.`
+    : newest.kind === 'read' ? 'Tap to read it.' : newest.kind === 'lookup' ? 'Tap to look it up.' : 'Tap to add the words.';
   return {
     message: `Shared: ${shareName(newest)}`,
     hint: more ? `${what} ${more} more ${more === 1 ? 'share is' : 'shares are'} waiting.` : what,
