@@ -104,6 +104,12 @@ export function Screen(props: {
   title?: string;
   /** False for an inline title: a sheet's, or a screen that's mostly its own content. */
   largeTitle?: boolean;
+  /**
+   * A tab's title drawn at the left of the button row, in place of the large title, which iOS puts on
+   * its own row under the buttons. Fixed rather than collapsing, so the scroll content needs no
+   * `contentInsetAdjustmentBehavior`. For a screen with no left-hand toolbar of its own: it takes that side.
+   */
+  leadingTitle?: boolean;
   /** `Stack.Toolbar` elements, e.g. `<Stack.Toolbar placement="right">` holding buttons. */
   toolbar?: React.ReactNode;
   /** Pinned to the bottom, above the home indicator: the screen's main buttons. */
@@ -121,6 +127,7 @@ export function Screen(props: {
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const c = useTheme();
   const router = useRouter();
   const problem = useConnectionProblem();
   // Read once, while this screen is the one just pushed: its place in the stack and its name.
@@ -156,7 +163,14 @@ export function Screen(props: {
     : withHome;
   const head = (
     <>
-      <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false, gestureEnabled: !props.lockGesture }} />
+      <Stack.Screen options={{ title: props.title ?? '', headerLargeTitleEnabled: !!props.title && props.largeTitle !== false && !props.leadingTitle, gestureEnabled: !props.lockGesture }} />
+      {props.leadingTitle && props.title ? (
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.View hidesSharedBackground>
+            <Text accessibilityRole="header" numberOfLines={1} style={{ ...type.largeTitle, fontSize: 28, color: c.text }}>{props.title}</Text>
+          </Stack.Toolbar.View>
+        </Stack.Toolbar>
+      ) : null}
       {toolbar}
     </>
   );

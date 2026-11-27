@@ -3,9 +3,10 @@ import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AGENT_FLAG_REASONS, FLAG_NOTE_MAX, canFixNow, type AgentFlagReason } from '../core/agentFlag';
 import { failureText } from '../core/failure';
-import type { FixProposal } from '../core/fixCard';
+import type { AskTurn } from '../core/askCard';
+import { REPLY_MAX, followUpThread, threadAfter, type FixProposal } from '../core/fixCard';
 import { Button, Chip, ErrorNote, Field, SheetHeader } from './kit';
-import { space, type, useTheme } from './theme';
+import { radius, smooth, space, type, useTheme } from './theme';
 import { AskingText } from './AskingText';
 import { FixProposalView } from './FixProposalView';
 
@@ -17,8 +18,9 @@ import { FixProposalView } from './FixProposalView';
  *
  * `fix` is present while Read & Listen is signed in: "Fix with Claude now" flags the card, asks the
  * server for a fix and shows it, each changed field old above new. Nothing is changed until Apply
- * (`onApply`, which also clears the flag); Not now leaves the card flagged for the MCP. When Claude
- * finds nothing to change, the note is editable right there and Try again asks once more with it.
+ * (`onApply`, which also clears the flag); Not now leaves the card flagged for the MCP. Under a
+ * proposal, "Reply to Claude" asks about it or pushes back: the flag, the suggestion and the reply go to the
+ * server as a chat (`fix`'s third argument) and the answer replaces the proposal, with the reply shown above it.
  */
 export function AgentFlagSheet({ word, reason: initialReason, note: initialNote, visible = true, onDismiss, onSave, onRemove, fix, onApply, onClose }: {
   /** The card's front, named in the heading. */
@@ -32,7 +34,7 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
   onSave: (reason: AgentFlagReason, note: string) => Promise<void>;
   onRemove?: () => Promise<void>;
   /** Asks for a fix for the card as flagged; throws when it can't. */
-  fix?: (reason: AgentFlagReason, note: string) => Promise<FixProposal>;
+  fix?: (reason: AgentFlagReason, note: string, thread?: AskTurn[]) => Promise<FixProposal>;
   /** Applies a proposal and clears the flag; throws when it can't. */
   onApply?: (proposal: FixProposal) => Promise<void>;
   onClose: () => void;
@@ -43,6 +45,12 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
   const [note, setNote] = useState(initialNote ?? '');
   const [phase, setPhase] = useState<'form' | 'asking' | 'proposal'>('form');
   const [proposal, setProposal] = useState<FixProposal | null>(null);
+  // The follow-up so far, as sent to the server: empty until the first reply, then ending with Claude's
+  // latest suggestion. `lastReply` is the reply that suggestion answers, shown above it.
+  const [thread, setThread] = useState<AskTurn[]>([]);
+  const [reply, setReply] = useState('');
+  const [lastReply, setLastReply] = useState<string | null>(null);
+  const [replying, setReplying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const open = useRef(true);
@@ -89,6 +97,27 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
       setError(failureText(e, { what: "Couldn't get a fix from Claude.", next: 'The card is still flagged. Try again, or ask Claude about it in a chat.' }));
     } finally {
       if (open.current) setBusy(false);
+    }
+  };
+
+  const sendReply = async () => {
+    if (busy || !fix || !proposal || !reply.trim()) return;
+    const sent = followUpThread(thread, proposal, reply);
+    const text = reply.trim();
+    setBusy(true);
+    setReplying(true);
+    setError(null);
+    try {
+      const got = await fix(reason, note, sent);
+      if (!open.current) return;
+      setProposal(got);
+      setThread(threadAfter(sent, got));
+      setLastReply(text);
+      setReply('');
+    } catch (e) {
+      if (open.current) setError(failureText(e, { what: "Couldn't get a reply from Claude.", next: 'Your reply is still in the box. Try again.' }));
+    } finally {
+      if (open.current) { setBusy(false); setReplying(false); }
     }
   };
 
@@ -166,27 +195,36 @@ export function AgentFlagSheet({ word, reason: initialReason, note: initialNote,
 
         {phase === 'proposal' && proposal ? (
           <>
+            {lastReply ? (
+              <View style={{ alignSelf: 'flex-end', backgroundColor: c.accent, borderRadius: radius.l, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, maxWidth: '85%' }}>
+                <Text style={{ ...type.subhead, color: c.onAccent }}>{lastReply}</Text>
+              </View>
+            ) : null}
             <FixProposalView proposal={proposal} />
+            {fix ? (
+              <>
+                <Field
+                  label="Reply to Claude"
+                  value={reply}
+                  onChangeText={setReply}
+                  placeholder={'e.g. why did you drop "next"?'}
+                  multiline
+                  maxLength={REPLY_MAX}
+                />
+                <Button label="Send reply" variant="secondary" onPress={() => void sendReply()} busy={replying} disabled={busy || !reply.trim()} />
+              </>
+            ) : null}
             {error ? <ErrorNote message={error} /> : null}
             {proposal.changes.length ? (
               <>
-                <Button label="Apply fix" onPress={() => void apply()} busy={busy} />
+                <Button label="Apply fix" onPress={() => void apply()} busy={busy && !replying} disabled={replying} />
                 <Button label="Not now" variant="secondary" onPress={onClose} disabled={busy} />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>
-                  Applying also clears the flag.
+                  Applying also clears the flag. Replying sends your words and this suggestion to Claude through Read & Listen's server.
                 </Text>
               </>
             ) : (
               <>
-                <Field
-                  label="Tell Claude more"
-                  value={note}
-                  onChangeText={setNote}
-                  placeholder="e.g. the counting section has the wrong classifier"
-                  multiline
-                  maxLength={FLAG_NOTE_MAX}
-                />
-                <Button label="Try again" onPress={() => void askForFix()} busy={busy} disabled={!note.trim()} />
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>The card stays flagged. You can also ask Claude about it in a chat, or edit the note yourself.</Text>
                 <Button label="Close" variant="secondary" onPress={onClose} disabled={busy} />
               </>

@@ -19,7 +19,7 @@ from franki_reader.languages import LANGUAGES, Code
 
 MAX_TOKENS = 2000
 MAX_FIELD = 4000  # characters of one field's new value
-MAX_EXPLANATION = 400
+MAX_EXPLANATION = 600
 
 SYSTEM = """\
 You fix one flashcard a language learner flagged. You get the note's fields as the app stores them \
@@ -31,7 +31,13 @@ give each one's complete new value. Keep everything else in a field as it is: HT
 marks around the word in an example sentence, and any [sound:...] or <img> reference. Never add or \
 remove a media reference. Never rewrite a field that was fine. If the fix needs a new recording or a \
 new image, or you are not sure what is wrong, change nothing and say so. Explain the change in one \
-or two plain sentences, for the learner, without em dashes. If you change nothing, say why."""
+or two plain sentences, for the learner, without em dashes. If you change nothing, say why.
+
+When the chat's last turn is the learner replying to a change you suggested, answer them in the \
+explanation, in up to four plain sentences. A question gets a direct answer first, and you change \
+a field only if the answer shows it needs changing; if they disagree, reconsider and give the \
+change they would accept, or keep yours and say why. The fields you are given are the card as it \
+is now, so each field's new value is complete against those, not against your earlier suggestion."""
 
 SCHEMA: dict[str, Any] = {
     "type": "object",

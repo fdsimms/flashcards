@@ -186,3 +186,9 @@ def test_a_note_with_no_fields_or_a_huge_one_is_refused() -> None:
 def test_needs_the_passphrase() -> None:
     c, _ = client(lambda c: None)
     assert c.post("/api/fix-card", json=BODY).status_code in (401, 403)
+
+
+def test_the_prompt_tells_claude_to_answer_a_reply_to_its_suggestion() -> None:
+    from franki_reader.fix_card import SYSTEM
+
+    assert "replying to a change you suggested" in SYSTEM

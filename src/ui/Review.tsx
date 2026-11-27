@@ -1161,7 +1161,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         note={flagged?.flag === AGENT_FLAG ? flagNoteOf(sheetNote.tags) : ''}
         onSave={(reason, text) => writeFlag(AGENT_FLAG, { tags: withFlagReason(sheetNote.tags, reason, text) })}
         onRemove={flagged?.flag === AGENT_FLAG ? () => writeFlag(0) : undefined}
-        fix={fixFlaggedCard ? async (reason, text) => checkFix(sheetNote, await fixFlaggedCard(fixRequest(sheetNote, reason, text))) : undefined}
+        fix={fixFlaggedCard ? async (reason, text, thread) => checkFix(sheetNote, await fixFlaggedCard(fixRequest(sheetNote, reason, text, thread))) : undefined}
         onApply={(proposal) => writeFlag(0, { tags: withoutFlag(sheetNote.tags), fields: withFix(sheetNote.fields, proposal) })}
         onClose={() => sheets.close(sheet.key)}
       />
