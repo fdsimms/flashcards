@@ -28,7 +28,8 @@ export function LessonReviewCard({ review, onMake, busy, error }: { review: Less
   );
 }
 
-function Chip({ label, gold }: { label: string; gold?: boolean }) {
+/** A small rounded label: the gold one for the minutes, the plain ones for where the phrases are from. Also LinesDrillCard's. */
+export function Chip({ label, gold }: { label: string; gold?: boolean }) {
   const c = useTheme();
   return (
     <View style={{ paddingVertical: 3, paddingHorizontal: space.s, borderRadius: radius.pill, backgroundColor: gold ? c.accentFill : c.fill }}>

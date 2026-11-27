@@ -285,7 +285,11 @@ marked words, ideas) is in the current language, the `language` setting.
                                       joining (while making), error, duration_ms,
                                       created_at, phrases, dialogue, pauses: [[start, end]]
                                       ms where the learner speaks, or null until found in an older
-                                      lesson (found in the background)}]}, newest first
+                                      lesson (found in the background)}], review, lines: the
+                                      drill on offer (line_drill.py) or null}, newest first
+    POST  /api/lessons/lines          {language, narrator?, particle?} Lines from your reading: a
+                                      lesson of lines from texts read lately, asked in English and
+                                      answered by their own recordings, no Claude call: {id}
     POST  /api/lessons/topics         {language, phrases?: [{text, english}], shown?: [str]} ideas for
                                       a lesson's scene, written by Claude: {topics: [str]}, never
                                       one already made as a lesson or in `shown`. 503 without

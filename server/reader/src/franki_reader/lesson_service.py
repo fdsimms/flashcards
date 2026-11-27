@@ -61,6 +61,12 @@ def speaker(
     locale, narrator_locale = LANGUAGES[language].locale, LANGUAGES["en"].locale
 
     async def speak(clip: lesson.Say) -> bytes:
+        if clip.recording:
+            # A text's line as it was recorded for the text (Lines from your reading).
+            try:
+                return Path(clip.recording).read_bytes()
+            except OSError as e:
+                raise TtsFailed(f"A line's recording is missing ({e.strerror or e}).") from e
         if clip.voice == "narrator":
             return await synthesize(clip.text, narrator_voice, narrator_locale, 1.0)
         rate = lesson.TEACH_RATE if clip.slow else 1.0
@@ -153,7 +159,7 @@ async def _speak_and_keep(
             on_joining=lambda: store.set_lesson_stage(conn, lesson_id, "joining"),
         )
         # Azure billed each distinct clip once, though not if it failed part way.
-        chars = sum(billed_chars(c.text) for c in lesson.clips(steps))
+        chars = sum(billed_chars(c.text) for c in lesson.clips(steps) if not c.recording)
         path = audio_path(lessons_dir, lesson_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".part")
@@ -215,6 +221,42 @@ async def make_review(
     )
     if not kept:
         store.release_lesson_marks(conn, lesson_id)
+
+
+async def make_lines(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    language: Code,
+    phrases: tuple[lesson.Phrase, ...],
+    recordings: tuple[str, ...],
+    *,
+    slow: bool = False,
+    synthesize: Synthesize,
+    voices: Voices,
+    lessons_dir: Path,
+    now: Callable[[], datetime],
+    narrator: str | None = None,
+    learner: lesson.Learner = "male",
+    renderer: Renderer = lesson_audio.render,
+) -> None:
+    """Speaks and keeps lesson `lesson_id`, Lines from your reading (line_drill.py): `phrases` from
+    texts already read, each answered by its own recording (`recordings`, the slow ones when `slow`).
+    No Claude call, and only the narrator's English is recorded new."""
+    plan = lesson.lines_plan(phrases, slow)
+    await _speak_and_keep(
+        conn,
+        lesson_id,
+        language,
+        plan,
+        lesson.build_lines(plan, recordings, learner),
+        synthesize=synthesize,
+        voices=voices,
+        lessons_dir=lessons_dir,
+        now=now,
+        narrator=narrator,
+        renderer=renderer,
+        claude_usd=0.0,
+    )
 
 
 async def find_old_pauses(

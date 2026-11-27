@@ -1750,7 +1750,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/franki_reader__routes__texts__ReadingIn"
+                "$ref": "#/components/schemas/ReadingIn"
               }
             }
           }
@@ -4020,6 +4020,65 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lessons/lines": {
+      "post": {
+        "summary": "Make Lines Route",
+        "description": "Lines from your reading (line_drill.py): lines of texts read lately, asked for in English\nand answered by their own recordings. Made in the background like a review.",
+        "operationId": "make_lines_route_api_lessons_lines_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinesDrillIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Make Lines Route Api Lessons Lines Post"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -7711,6 +7770,27 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "KanaReadingIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading"
+        ],
+        "title": "KanaReadingIn"
+      },
       "LessonIn": {
         "properties": {
           "language": {
@@ -7819,6 +7899,64 @@
           "english"
         ],
         "title": "LineOut"
+      },
+      "LinesDrillIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "narrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrator"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          },
+          "slow": {
+            "type": "boolean",
+            "title": "Slow",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "LinesDrillIn"
       },
       "LinesIn": {
         "properties": {
@@ -8682,6 +8820,114 @@
         ],
         "title": "RanksOut"
       },
+      "ReadingIn": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "too_easy",
+                  "about_right",
+                  "too_hard"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished",
+            "default": false
+          },
+          "words_glossed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Glossed",
+            "default": []
+          },
+          "words_flagged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Flagged",
+            "default": []
+          },
+          "audio_speed": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Speed"
+          },
+          "listen_only": {
+            "type": "boolean",
+            "title": "Listen Only",
+            "default": false
+          },
+          "seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seconds",
+            "default": 0
+          },
+          "check_right": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Right"
+          },
+          "check_asked": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Asked"
+          },
+          "quiz_right": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Right",
+            "default": []
+          },
+          "quiz_wrong": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Wrong",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ReadingIn"
+      },
       "ReadingLinesIn": {
         "properties": {
           "language": {
@@ -8721,7 +8967,7 @@
         "properties": {
           "words": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__voices__ReadingIn"
+              "$ref": "#/components/schemas/KanaReadingIn"
             },
             "type": "array",
             "maxItems": 50,
@@ -10446,135 +10692,6 @@
           "name"
         ],
         "title": "WriteIn"
-      },
-      "franki_reader__routes__texts__ReadingIn": {
-        "properties": {
-          "rating": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "too_easy",
-                  "about_right",
-                  "too_hard"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rating"
-          },
-          "finished": {
-            "type": "boolean",
-            "title": "Finished",
-            "default": false
-          },
-          "words_glossed": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Words Glossed",
-            "default": []
-          },
-          "words_flagged": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Words Flagged",
-            "default": []
-          },
-          "audio_speed": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 1.5,
-                "minimum": 0.5
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Audio Speed"
-          },
-          "listen_only": {
-            "type": "boolean",
-            "title": "Listen Only",
-            "default": false
-          },
-          "seconds": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Seconds",
-            "default": 0
-          },
-          "check_right": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Right"
-          },
-          "check_asked": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 20.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Asked"
-          },
-          "quiz_right": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Right",
-            "default": []
-          },
-          "quiz_wrong": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Wrong",
-            "default": []
-          }
-        },
-        "type": "object",
-        "title": "ReadingIn"
-      },
-      "franki_reader__routes__voices__ReadingIn": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Text"
-          },
-          "reading": {
-            "type": "string",
-            "maxLength": 200,
-            "title": "Reading"
-          }
-        },
-        "type": "object",
-        "required": [
-          "text",
-          "reading"
-        ],
-        "title": "ReadingIn"
       }
     }
   }

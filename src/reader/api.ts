@@ -568,6 +568,8 @@ export type AudioLesson = {
 
 /** A review on offer (server lesson.build_review): phrases noted in earlier lessons, and which lessons they're from. */
 export type LessonReview = { phrases: number; lessons: { title: string; count: number }[] };
+// Lines from your reading on offer (server/reader line_drill.py): how many lines, about how long, and from which texts.
+export type LinesDrillOffer = { lines: number; minutes: number; texts: { title: string; count: number }[] };
 
 // A text read to the end, to read or listen to again.
 export type PastText = {
@@ -784,7 +786,7 @@ export function createApi(
     // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
     // made in the background (poll `lessons` until it's ready or failed).
     lessons: (language?: Language) =>
-      call<{ languages: Language[]; lessons: AudioLesson[]; review?: LessonReview | null }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
+      call<{ languages: Language[]; lessons: AudioLesson[]; review?: LessonReview | null; lines?: LinesDrillOffer | null }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
     // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
@@ -821,6 +823,11 @@ export function createApi(
     // Makes the review on offer from the phrases noted (no Claude call); returns its id, made in the background like a lesson.
     makeReview: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha') => {
       const response = await send('POST', '/api/lessons/review', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}) });
+      return ((await response.json()) as { id: number }).id;
+    },
+    // Makes Lines from your reading: lines of texts read lately, asked in English and answered by their own recordings, the slow ones with `slow` (no Claude call).
+    makeLinesDrill: async (language: Language, narrator?: string, particle?: 'khrap' | 'kha', slow = false) => {
+      const response = await send('POST', '/api/lessons/lines', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(slow ? { slow } : {}) });
       return ((await response.json()) as { id: number }).id;
     },
     // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.

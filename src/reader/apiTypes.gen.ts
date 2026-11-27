@@ -1126,6 +1126,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Lines Route
+         * @description Lines from your reading (line_drill.py): lines of texts read lately, asked for in English
+         *     and answered by their own recordings. Made in the background like a review.
+         */
+        post: operations["make_lines_route_api_lessons_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/review": {
         parameters: {
             query?: never;
@@ -2321,6 +2342,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** KanaReadingIn */
+        KanaReadingIn: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
+        };
         /** LessonIn */
         LessonIn: {
             /**
@@ -2345,6 +2373,23 @@ export interface components {
             text: string;
             /** English */
             english: string;
+        };
+        /** LinesDrillIn */
+        LinesDrillIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Narrator */
+            narrator?: string | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+            /**
+             * Slow
+             * @default false
+             */
+            slow: boolean;
         };
         /** LinesIn */
         LinesIn: {
@@ -2650,6 +2695,52 @@ export interface components {
             /** Phrases */
             phrases: string[];
         };
+        /** ReadingIn */
+        ReadingIn: {
+            /** Rating */
+            rating?: ("too_easy" | "about_right" | "too_hard") | null;
+            /**
+             * Finished
+             * @default false
+             */
+            finished: boolean;
+            /**
+             * Words Glossed
+             * @default []
+             */
+            words_glossed: string[];
+            /**
+             * Words Flagged
+             * @default []
+             */
+            words_flagged: string[];
+            /** Audio Speed */
+            audio_speed?: number | null;
+            /**
+             * Listen Only
+             * @default false
+             */
+            listen_only: boolean;
+            /**
+             * Seconds
+             * @default 0
+             */
+            seconds: number;
+            /** Check Right */
+            check_right?: number | null;
+            /** Check Asked */
+            check_asked?: number | null;
+            /**
+             * Quiz Right
+             * @default []
+             */
+            quiz_right: string[];
+            /**
+             * Quiz Wrong
+             * @default []
+             */
+            quiz_wrong: string[];
+        };
         /** ReadingLinesIn */
         ReadingLinesIn: {
             /**
@@ -2663,7 +2754,7 @@ export interface components {
         /** ReadingsIn */
         ReadingsIn: {
             /** Words */
-            words: components["schemas"]["franki_reader__routes__voices__ReadingIn"][];
+            words: components["schemas"]["KanaReadingIn"][];
         };
         /** RetellIn */
         RetellIn: {
@@ -3179,59 +3270,6 @@ export interface components {
              * @enum {string}
              */
             genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
-        };
-        /** ReadingIn */
-        franki_reader__routes__texts__ReadingIn: {
-            /** Rating */
-            rating?: ("too_easy" | "about_right" | "too_hard") | null;
-            /**
-             * Finished
-             * @default false
-             */
-            finished: boolean;
-            /**
-             * Words Glossed
-             * @default []
-             */
-            words_glossed: string[];
-            /**
-             * Words Flagged
-             * @default []
-             */
-            words_flagged: string[];
-            /** Audio Speed */
-            audio_speed?: number | null;
-            /**
-             * Listen Only
-             * @default false
-             */
-            listen_only: boolean;
-            /**
-             * Seconds
-             * @default 0
-             */
-            seconds: number;
-            /** Check Right */
-            check_right?: number | null;
-            /** Check Asked */
-            check_asked?: number | null;
-            /**
-             * Quiz Right
-             * @default []
-             */
-            quiz_right: string[];
-            /**
-             * Quiz Wrong
-             * @default []
-             */
-            quiz_wrong: string[];
-        };
-        /** ReadingIn */
-        franki_reader__routes__voices__ReadingIn: {
-            /** Text */
-            text: string;
-            /** Reading */
-            reading: string;
         };
     };
     responses: never;
@@ -4261,7 +4299,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["franki_reader__routes__texts__ReadingIn"];
+                "application/json": components["schemas"]["ReadingIn"];
             };
         };
         responses: {
@@ -5596,6 +5634,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_lines_route_api_lessons_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinesDrillIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
             /** @description Validation Error */
             422: {

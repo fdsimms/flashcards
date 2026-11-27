@@ -575,6 +575,17 @@ aloud is never heard by the phone.
   learner already knows. Not run on a device yet: the lock screen controls and background playback
   are untested.
 
+- **Lines from your reading** (27 November 2026, the owner, from a mock; #302; `line_drill.py`,
+  `lesson.build_lines`, `LinesDrillCard.tsx`): a lesson of lines from texts read to the end in the last
+  30 days, made like a review, with no Claude call. The narrator asks for each line in English, a pause
+  sized to it follows, and the line's own recording answers (`Say.recording`), in the voice it was read
+  in, or its slow recording when the card's Slow lines is chosen (made the first time, as the reader's
+  Slow is); only the narrator's English is recorded new, so Azure bills only that and any slow line. Each line once, then all
+  again in reverse. Up to 20 lines of 3 to 12 words with a translation, at most 5 from a text, spread
+  through it, the most recent texts first, none drilled in the last 7 days; offered on the Lessons tab
+  beside Review once there are 4. It's a lesson, so it plays locked, downloads, and takes the lesson
+  microphone settings and Again marks, and it never grades a card.
+
 ## Cram themes
 
 Themes to talk about at a lesson with a tutor (19 November 2026, the owner: from a video on preparing for tutoring, "a way to help generate themes to talk about"). On a cram's page, Talking points' "Suggest talking points" (or "More talking points") opens Talking points: three themes, each with a title, a reason, chips for the words it reuses (in this cram, from last time, missed, recently added) and new words, and what it holds ("2 to ask · 2 they may ask · your story"). A theme opens to its words (the ones already in the cram in gold), words the deck lacks (a + sends one to the note queue), **You ask** (questions the learner asks to steer the lesson), **They may ask you** (the tutor's likely questions, each with an answer ready), and **Your story**, a short story built from the owner's words that can be edited and listened to; every line is read aloud when tapped. "Use theme" keeps them on the cram (`Cram.themes`, `CramTalk`; an older cram's single `theme` is read as a list of one, and a talking point kept before the two kinds of questions has only `questions`) and tags the theme's words (`applyThemes`). Each card on the list has a checkbox (21 November 2026, the owner), and "Use N themes" in the footer keeps all the checked ones at once; using a theme again adds to the cram's list, replacing one with the same title. **Every theme is an angle on the cram's name** (`topic` in the request, `TOPIC` in the prompt): the owner already knows what the lesson is for, so ideas about something else were noise; a name with no subject ("Thai lesson") leaves Claude free. With nothing in mind, the new cram's sheet has "Not sure yet? Get ideas": the cram starts under a stand-in name (`untitled`), its themes are asked with no topic (`themeTopic`), and the theme used names it (`withThemes`). A word to learn sent to the note queue from a theme shows on the cram as being written (`Cram.requested`).
