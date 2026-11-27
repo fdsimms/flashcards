@@ -1144,6 +1144,17 @@ def write_asked(c: TestClient, name: str = "Haggling", form: str = "story") -> N
     assert answer.status_code == 202 and answer.json() == {"writing": True, "topic": name}
 
 
+def test_the_genre_asked_for_reaches_the_prompt_and_a_bad_one_is_refused() -> None:
+    model = ScriptedModel(IN_RANGE)
+    c = client(model)
+    asked = c.post("/api/shelf/write", json={"name": "Haggling", "genre": "mystery"}, headers=AUTH)
+    assert asked.status_code == 202
+    shelf_settled(c, 1)
+    assert "Genre: write a mystery" in str(model.messages_seen[0])
+    bad = c.post("/api/shelf/write", json={"name": "x", "genre": "nonsense"}, headers=AUTH)
+    assert bad.status_code == 422
+
+
 def test_a_text_is_written_by_the_model_asked_for_and_the_shelf_says_which() -> None:
     model = ScriptedModel(IN_RANGE)
     c = client(model)
@@ -1304,6 +1315,23 @@ def test_the_shelf_and_stories_answer_writing_when_a_story_has_no_episode_waitin
         time.sleep(0.02)
     listed = c.get("/api/stories", headers=AUTH).json()["stories"]
     assert [(s["id"], s["writing"]) for s in listed] == [(story.id, False)]
+
+
+def test_a_series_keeps_the_genre_it_was_started_with_for_its_episodes() -> None:
+    model = ScriptedModel(
+        {**IN_RANGE, "series": "Noi's stall", "cast": "Noi.", "recap": "Noi opens.", "choices": []}
+    )
+    c = client(model)
+    started = c.post("/api/story", json={"about": "", "genre": "horror"}, headers=AUTH)
+    assert started.status_code == 202
+    deadline = time.time() + 10
+    while c.get("/api/shelf", headers=AUTH).json()["story"]["next"] is None:
+        assert time.time() < deadline
+        time.sleep(0.02)
+    assert "Genre: write a mild horror story" in str(model.messages_seen[0])
+    plain = c.post("/api/story", json={"about": "a noodle stall"}, headers=AUTH)
+    assert plain.status_code == 202
+    assert c.post("/api/story", json={"genre": "nonsense"}, headers=AUTH).status_code == 422
 
 
 def test_a_story_episodes_choices_are_shown_and_the_pick_is_recorded_until_it_is_read() -> None:
