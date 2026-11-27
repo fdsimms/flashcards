@@ -624,6 +624,15 @@ def test_a_phrase_meaning_translates_only_the_selection() -> None:
     assert "never in `meaning`" in PHRASE_SYSTEM
 
 
+def test_a_phrase_meaning_reads_as_natural_english_with_its_tense() -> None:
+    # "I came because tomorrow at the event there is someone else waiting" was a Thai line's
+    # meaning: the source marks no tense, so the model kept the source's shape.
+    from franki_reader.generator import NATURAL_ENGLISH
+
+    assert NATURAL_ENGLISH in PHRASE_SYSTEM
+    assert "a future for" in NATURAL_ENGLISH
+
+
 def test_points_come_back_in_the_order_of_the_sentence() -> None:
     from franki_reader.explain import clean, clean_phrase
 

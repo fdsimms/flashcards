@@ -17,7 +17,7 @@ import anthropic
 from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.generator import MODEL, REGISTERS, Usage, usage_of
+from franki_reader.generator import MODEL, NATURAL_ENGLISH, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 
 log = logging.getLogger(__name__)
@@ -100,7 +100,9 @@ PHRASE_SYSTEM = (
     "The learner selected a phrase in one line of a short text and wants to know what it means "
     "there. Answer for an adult learner of the language, in plain English. Give `meaning`: what "
     "the phrase means in this line, as a short natural English rendering, not a list of "
-    "dictionary senses. It translates only the selected words: add no clause, detail or "
+    "dictionary senses. "
+    + NATURAL_ENGLISH
+    + " It translates only the selected words: add no clause, detail or "
     "explanation that the phrase doesn't say, and never describe the situation, who is doing "
     "what to whom, or why. Context may only decide which English word renders a pronoun or an "
     "omitted subject. What the text adds belongs in a point, not here. Give `literal`: a word-for-word English rendering that keeps the "

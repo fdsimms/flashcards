@@ -19,7 +19,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, check, is_word, segment_line
-from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
+from franki_reader.generator import CHEAP_MODEL, NATURAL_ENGLISH, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.tts import azure_usd, billed_chars
 
@@ -228,10 +228,13 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
-_SYSTEM = """\
+_SYSTEM = (
+    """\
 You translate a {language} text into natural English for a learner reading it line by line. The \
 learner sees each line's English under it, so each translation stays with its own line: never move \
-words between lines, merge two lines or split one."""
+words between lines, merge two lines or split one. """
+    + NATURAL_ENGLISH
+)
 
 
 def request_message(lines: list[str]) -> str:

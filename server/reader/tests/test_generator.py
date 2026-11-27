@@ -1011,3 +1011,14 @@ def test_the_thai_prompt_fits_particles_to_who_is_talking_and_verbs_to_their_nou
     prompt = system_prompt([])
     assert "A parent talking to their own child" in prompt and "out of habit" in prompt
     assert "นั่ง|เรือ" in prompt and "ขี่ only for" in prompt
+
+
+def test_every_language_asks_for_natural_english_translations() -> None:
+    # A line's English came back in the source's tense and word order when the language has no
+    # tenses (Thai "tomorrow ... is waiting"); every kind of prompt carries the same instruction.
+    from franki_reader.generator import NATURAL_ENGLISH
+
+    for language in ("th", "es"):
+        prompt = system_prompt(ENTRIES, language)
+        assert NATURAL_ENGLISH in prompt
+        assert "{natural_english}" not in prompt
