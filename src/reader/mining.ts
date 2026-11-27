@@ -24,6 +24,15 @@ export function hasAspectPairs(language: GlossLanguage): language is Language {
   return (ASPECT_LANGUAGES as GlossLanguage[]).includes(language);
 }
 
+/**
+ * Whether the aspect lookup found a partner, which is what sends an added word to the note editor instead of the note
+ * queue (the queue doesn't write aspect tags). The server answers a word that isn't a verb, or has one aspect only, with a
+ * pair whose fields are all null, so a pair being there isn't enough.
+ */
+export function hasAspectPartner(pair: AspectPair | null): pair is AspectPair & { partner: string } {
+  return !!pair?.partner;
+}
+
 const AI_NOTE = 'Written by AI. Check it before saving.';
 
 /**
