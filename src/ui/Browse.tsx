@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, ScrollView, Text, View } from 'react-native';
+import { Alert, FlatList, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { deleteNote, deleteNotes, type NoteStore } from '../anki/noteService';
 import { parseSearch } from '../core/ankiSearch';
 import { failureText } from '../core/failure';
@@ -16,6 +16,8 @@ import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { HoverPressable } from './hover';
+import { BrowseNotePanel } from './BrowseNotePanel';
+import { SIDE_PANEL_WIDTH, sidePanelFits } from '../core/wide';
 import { withThaiLineHeight } from '../core/script';
 
 /** What the empty list says the search box takes, besides words. */
@@ -30,8 +32,11 @@ const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:ver
  * front, then in the meaning, then elsewhere; src/core/noteEditing.ts). A search that can't be
  * read says why where the list would be. A row says when its
  * cards are suspended, buried, flagged or the note is a leech (src/core/noteMarkers.ts).
+ *
+ * On a window wide enough for a panel beside the list (`sidePanelFits`), a tap picks the note and
+ * shows it there instead (BrowseNotePanel.tsx), with Edit note to open the editor.
  */
-export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; initialDeck: string | null }) {
+export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; /** Opens Card info on one of the picked note's cards (the wide window's panel). */ onCardInfo: (cardId: string) => void; initialDeck: string | null }) {
   const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -102,6 +107,10 @@ export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onE
     ]);
   };
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
+  // A wide window: the note picked shows beside the list, while it's still among those found.
+  const wide = sidePanelFits(useWindowDimensions().width);
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedNote = wide && picked ? found.find((n) => n.id === picked) : undefined;
 
   return (
     <Screen
@@ -124,6 +133,7 @@ export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onE
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        style={wide ? { marginRight: SIDE_PANEL_WIDTH } : undefined}
         contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding }}
         ListHeaderComponent={
           <View style={{ gap: space.s, paddingBottom: space.s }}>
@@ -158,15 +168,28 @@ export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onE
             first={index === 0}
             last={index === found.length - 1}
             selecting={sel.selecting}
-            selected={sel.selected.has(item.id)}
+            selected={sel.selecting ? sel.selected.has(item.id) : pickedNote?.id === item.id}
+            shows={wide}
             open={openNote === item.id}
             onOpenChange={(o) => setOpenNote(o ? item.id : null)}
             onDelete={() => confirmDelete(item)}
             // Tapping a row that's slid open closes it, rather than opening the note.
-            onPress={() => (sel.selecting ? sel.toggle(item.id) : openNote === item.id ? setOpenNote(null) : edit({ noteId: item.id }))}
+            onPress={() => (sel.selecting ? sel.toggle(item.id) : openNote === item.id ? setOpenNote(null) : wide ? setPicked(item.id) : edit({ noteId: item.id }))}
           />
         )}
       />
+      {wide && cards ? (
+        <BrowseNotePanel
+          repo={repo}
+          note={pickedNote}
+          cards={pickedNote ? cards.byNote.get(pickedNote.id) ?? [] : []}
+          now={cards.now}
+          dayStartsAtHour={cards.dayStartsAtHour}
+          onEdit={() => { if (pickedNote) edit({ noteId: pickedNote.id }); }}
+          onDelete={() => { if (pickedNote) confirmDelete(pickedNote); }}
+          onCardInfo={onCardInfo}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -176,8 +199,8 @@ export function Browse({ repo, onEditNote, initialDeck }: { repo: NoteStore; onE
  * can't be one view): the first and last round its corners, and every row but the first draws the
  * divider above it, as a `Group`'s rows do.
  */
-function NoteRow({ note, markers, first, last, selecting, selected, open, onOpenChange, onDelete, onPress }: {
-  note: Note; markers: NoteMarker[]; first: boolean; last: boolean; /** Select mode: a circle leads the row, and the swipe is off. */ selecting: boolean; selected: boolean; open: boolean; onOpenChange: (open: boolean) => void; onDelete: () => void; onPress: () => void;
+function NoteRow({ note, markers, first, last, selecting, selected, shows, open, onOpenChange, onDelete, onPress }: {
+  note: Note; markers: NoteMarker[]; first: boolean; last: boolean; /** Select mode: a circle leads the row, and the swipe is off. */ selecting: boolean; /** Checked in select mode; otherwise the note showing beside the list. */ selected: boolean; /** A tap shows the note beside the list (a wide window) rather than opening it. */ shows: boolean; open: boolean; onOpenChange: (open: boolean) => void; onDelete: () => void; onPress: () => void;
 }) {
   const c = useTheme();
   const { front, back } = notePreview(note);
@@ -187,7 +210,7 @@ function NoteRow({ note, markers, first, last, selecting, selected, open, onOpen
       accessibilityRole={selecting ? 'checkbox' : 'button'}
       accessibilityState={selecting ? { checked: selected } : undefined}
       accessibilityLabel={[front || 'Empty note', back, note.deck, ...markers.map(markerText)].filter(Boolean).join(', ')}
-      accessibilityHint={selecting ? undefined : 'Opens the note to edit'}
+      accessibilityHint={selecting ? undefined : shows ? 'Shows the note beside the list' : 'Opens the note to edit'}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : selected ? c.accentFill : c.surface })}
     >
       {first ? null : <Divider inset={space.l} />}

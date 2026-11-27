@@ -9,10 +9,10 @@ import { lift, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
  * its arrow points the way to it, and a tap scrolls it back. The reader keeps it away while the
  * line is on screen.
  */
-export function ReaderJumpToLine({ line, side, onPress }: { line: number; side: 'above' | 'below'; onPress: () => void }) {
+export function ReaderJumpToLine({ line, side, dock = 0, onPress }: { line: number; side: 'above' | 'below'; /** The width a panel beside the text takes on the right, so the pill centers over the text. */ dock?: number; onPress: () => void }) {
   const c = useTheme();
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: space.m, alignItems: 'center' }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: dock, bottom: space.m, alignItems: 'center' }}>
       <Tappable
         onPress={() => { haptic.tap(); onPress(); }}
         accessibilityRole="button"

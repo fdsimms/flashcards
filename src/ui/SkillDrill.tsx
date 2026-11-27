@@ -19,6 +19,7 @@ import { ClockFace } from './tools/ClockFace';
 import { AnswerContent, Status, ToolLanguage } from './tools/ToolScreen';
 import { ContrastChoices, ContrastSentenceView, ContrastVerdict } from './tools/ContrastParts';
 import { contrastSet, showSentence } from '../tools/contrasts';
+import { READABLE_WIDTH } from '../core/wide';
 
 /**
  * A skill card's drill in Review (src/tools/skills.ts): a few questions from its step, each shown,
@@ -184,7 +185,7 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
     // The top padding clears the language pill CardSurface draws at the card's top edge in a mixed deck; the chip sits in the flow below it, never pinned to the same spot.
     // Tapping the card shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses.
     <Pressable accessible={false} disabled={skill.shown || skill.done || question.kind === 'contrast'} onPress={() => { haptic.select(); skill.show(); if (answer0 && speech) say(answer0.everyday.text, speech); }} style={{ flex: 1 }}>
-    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+    <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
       <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
         <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
         <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>{`Skill · ${GROUP_TITLES[drill.step.group]}`}</Text>

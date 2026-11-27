@@ -5,6 +5,7 @@ import type { MissMnemonic } from '../core/missMnemonic';
 import { Button } from './kit';
 import { Reveal } from './motion';
 import { radius, smooth, space, type, useTheme } from './theme';
+import { READABLE_WIDTH } from '../core/wide';
 
 /**
  * After a card is answered Again and its note has a Mnemonic, this covers the screen with the
@@ -25,7 +26,7 @@ export function MissMnemonicCover({ shown, onContinue }: { shown: MissMnemonic; 
   const insets = useSafeAreaInsets();
   return (
     <View accessibilityViewIsModal style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: c.bg }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: space.xl, gap: space.l, width: '100%', maxWidth: 640, alignSelf: 'center' }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: space.xl, gap: space.l, width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
         <Reveal rise={10} style={{ gap: space.l, alignItems: 'center' }}>
           <View style={{ backgroundColor: c.dangerFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
             <Text style={{ ...type.overline, color: c.danger }}>Again</Text>
