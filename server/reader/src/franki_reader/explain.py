@@ -100,7 +100,10 @@ PHRASE_SYSTEM = (
     "The learner selected a phrase in one line of a short text and wants to know what it means "
     "there. Answer for an adult learner of the language, in plain English. Give `meaning`: what "
     "the phrase means in this line, as a short natural English rendering, not a list of "
-    "dictionary senses. It translates only the selected words: add no clause, detail or "
+    "dictionary senses. Write it the way a native English speaker would say it: pick the English "
+    "tense, articles and word order the sentence needs, even where the language marks none of them "
+    '(a language without tenses still gives English a future for "tomorrow", a past for '
+    '"yesterday"), and never carry the source\'s word order or structure over. It translates only the selected words: add no clause, detail or '
     "explanation that the phrase doesn't say, and never describe the situation, who is doing "
     "what to whom, or why. Context may only decide which English word renders a pronoun or an "
     "omitted subject. What the text adds belongs in a point, not here. Give `literal`: a word-for-word English rendering that keeps the "
