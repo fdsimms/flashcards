@@ -19,6 +19,7 @@ import { phraseIsUsed, withPhraseUsed } from '../../core/cramPhrases';
 import { CheckRow } from './CramBits';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
+import { useTextFont } from '../textMenu';
 import { withThaiLineHeight } from '../../core/script';
 
 /**
@@ -53,6 +54,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
   useEffect(() => { if (cram?.used) setUsed(new Set(cram.used)); }, [cram?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [size, chooseSize] = useTalkSize();
+  const lessonText = useTextFont(cram && collection.loaded ? cramLanguageOf(cram, collection.notes) : undefined);
   if (!cram || !collection.loaded) return <Screen title="Lesson"><Loading /></Screen>;
   const notes = cramNotes(cram, collection.notes);
   const language = cramLanguageOf(cram, collection.notes);
@@ -107,7 +109,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
     <Screen
       title="Lesson"
       largeTitle={false}
-      toolbar={<Stack.Toolbar placement="right">{talkSizeMenu(size, chooseSize)}</Stack.Toolbar>}
+      toolbar={<Stack.Toolbar placement="right">{talkSizeMenu(size, chooseSize, lessonText)}</Stack.Toolbar>}
       footerStyle={keyboard ? { marginBottom: Math.max(0, keyboard - insets.bottom) } : undefined}
       footer={(
         <>

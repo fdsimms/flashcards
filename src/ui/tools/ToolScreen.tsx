@@ -17,6 +17,7 @@ import { Button, Card, Chip, Help, Icon, Screen, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 import { useFont } from '../AppFont';
+import { textMenu, useTextFont } from '../textMenu';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
@@ -124,6 +125,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const name = LANGUAGES[language].name;
+  const text = useTextFont(language);
   const openSettings = () => router.push({ pathname: '/settings-page', params: { page: 'practice' } });
   return (
     <View style={{ flex: 1, paddingBottom: Math.max(0, keyboard - insets.bottom) }}>
@@ -137,6 +139,7 @@ export function ToolScreen({ tool, language, onLanguage, shown, onRandomize, onS
               <Stack.Toolbar.MenuAction key={l} isOn={l === language} onPress={() => onLanguage(l)}>{flaggedName(l)}</Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu> : null}
+          {textMenu(text)}
           {menu?.length ? (
             <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Options and settings">
               {menu}

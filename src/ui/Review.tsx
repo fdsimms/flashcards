@@ -9,8 +9,8 @@ import { checkFix, chatFixRequest, fixRequest, withFix, type FixRequest, type Fi
 import { autoplayFor, canRecordYourself, isOmnilanguage, playbackFor, renderCard, speechLangFor, type Playback } from '../core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../core/config';
 import { cardDeck, cardHomeDeck, deckCardFonts, groupByDeck, heldDue, inheritedSetting, isInDeck, queueInput, treeQueue, untiered } from '../core/deckTree';
-import { availableFonts } from '../core/fontDownloads';
-import { cardFontFor, isBundled } from '../core/fonts';
+import { availableFont, availableFonts } from '../core/fontDownloads';
+import { cardFontFor, isBundled, languageChoice } from '../core/fonts';
 import { failureText, NOT_IN_ANKI, Refusal } from '../core/failure';
 import { boostFor } from '../core/priority';
 import { answerParams, isSkillNote } from '../core/skillTag';
@@ -47,6 +47,7 @@ import { mediaBaseUri, mediaFileUri } from '../media/mediaFiles';
 import { mathjaxUri } from '../media/mathjax';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardFontScope, useFontSettings } from './AppFont';
+import { useTextFont } from './textMenu';
 import { CardWebView } from './CardWebView';
 import { FaceWarmup } from './FaceWarmup';
 import { warmupText } from '../core/faceWarmup';
@@ -484,10 +485,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
   const autoplay = cardParams?.autoplay ?? true;
-  // The font this card is set in: its deck's cycle, else the app's font when cards use it, else the system font (`cardFontFor`).
-  const fontOf = (card: Card, n: Note) =>
-    cardFontFor(availableFonts(deckCardFonts(cardHomeDeck(card, n.deck), deckSettings), appFont.installed), card.id, fontSession) ?? (appFont.settings.onCards ? appFont.font : 'system');
+  // The font this card is set in: its deck's cycle, else the font chosen for its language (the Text menu), else the app's font when cards use it, else the system font (`cardFontFor`).
+  const fontOf = (card: Card, n: Note) => {
+    const pool = availableFonts(deckCardFonts(cardHomeDeck(card, n.deck), deckSettings), appFont.installed);
+    const chosen = languageChoice(appFont.settings, speechLangFor(n));
+    return cardFontFor(pool, card.id, fontSession) ?? (chosen ? availableFont(chosen, appFont.installed) : undefined) ?? (appFont.settings.onCards ? appFont.font : 'system');
+  };
   const cardFont = note && current ? fontOf(current, note) : appFont.settings.onCards ? appFont.font : 'system';
+  // The Text menu's font rows, for the card's language. A deck with fonts of its own keeps them, so the menu has none for its cards.
+  const cardText = useTextFont(note ? speechLangFor(note) : undefined);
+  const deckOwnsFont = !!note && !!current && deckCardFonts(cardHomeDeck(current, note.deck), deckSettings).length > 0;
   /**
    * A template card's sides as pages, or undefined for a card that renders natively. The card showing
    * and the one loaded ahead of it (below) both come from here, so the page loaded ahead is the very
@@ -1621,6 +1628,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             })}
           />
           {reviewMenu({
+            text: deckOwnsFont ? { ...cardText, code: undefined } : cardText,
             flag: current.flag ?? 0,
             onMnemonic: canAddMnemonic(note) ? () => sheets.request({ key: `leech:${note.id}`, kind: 'leech', noteId: note.id }) : undefined,
             onLinkConfused: canLinkConfused(note) ? () => sheets.request(confusedSheetFor(note.id)) : undefined,

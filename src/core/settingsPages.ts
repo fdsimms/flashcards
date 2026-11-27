@@ -53,7 +53,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'anki', page: 'settings', label: 'Anki', keywords: ['sync', 'import', 'export', 'apkg', 'server'], route: '/anki' },
   { id: 'backup', page: 'settings', label: 'Backup', keywords: ['restore', 'save', 'export', 'automatic'], route: '/backup' },
   { id: 'wanikani', page: 'settings', label: 'WaniKani', keywords: ['token', 'japanese', 'kanji', 'type', 'typing', 'answer', 'meaning', 'reading'], route: '/wanikani-settings' },
-  { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text'], route: '/app-font' },
+  { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text', 'language', 'text size'], route: '/app-font' },
   { id: 'voices', page: 'settings', label: 'Voices', keywords: ['text to speech', 'tts', 'azure', 'read aloud'], route: '/voices' },
   { id: 'speaking', page: 'settings', label: 'Speaking', keywords: ['answer by speaking', 'microphone', 'dictation', 'recognizer'], route: '/speaking' },
   { id: 'pitchLine', page: 'settings', label: 'Pitch line in every language', keywords: ['record yourself', 'tone', 'intonation', 'pitch accent', 'pronunciation'], route: '/speaking' },

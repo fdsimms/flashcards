@@ -41,7 +41,7 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showE
           } as const;
           const body = (
             <>
-              <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, fontFamily: textStyle.font.fontFamily, fontWeight: '600', color: selected ? c.accent : c.text }}>
+              <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, ...textStyle.font.strong, color: selected ? c.accent : c.text }}>
                 {choiceText(choice)}
               </Text>
               {showEnglish ? (

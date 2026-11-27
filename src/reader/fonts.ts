@@ -1,4 +1,5 @@
 // The typeface the reader draws a text in. Pure, so it's tested; Reader.tsx spreads the result into a Text style.
+import { fontCovers, resolveFontFace, type AppFont } from '../core/fonts';
 import { JAPANESE_FONT } from '../core/script';
 import type { Language } from './api';
 
@@ -6,8 +7,6 @@ import type { Language } from './api';
 export type ThaiFont = 'looped' | 'loopless';
 
 export const THAI_FONTS: ThaiFont[] = ['looped', 'loopless'];
-
-export const THAI_FONT_LABELS: Record<ThaiFont, string> = { looped: 'Looped', loopless: 'Loopless' };
 
 /** How much bigger or smaller than a language's own reading size the reader draws a text. */
 export type TextSize = 'small' | 'default' | 'large' | 'larger' | 'largest';
@@ -37,18 +36,38 @@ export type ReadFont = {
   fontFamily?: string;
   /** Used for a practice word. */
   emphasis: { fontFamily?: string; fontWeight: '700' | 'normal' };
+  /** Semibold text (a line's heading, a chosen answer): the face to spread in place of `fontWeight: '600'`. */
+  strong: { fontFamily?: string; fontWeight: '600' | 'normal' };
 };
 
-// PostScript names of the bundled files: iOS finds a font by that name, and a custom family
-// asked for at weight 700 gets a synthesized bold, so a practice word uses Prompt's Medium face instead.
-const PROMPT_REGULAR = 'Prompt-Regular';
-const PROMPT_MEDIUM = 'Prompt-Medium';
+// A bundled family is registered by its PostScript names, so iOS finds a weight by name: asking a custom
+// family for weight 700 draws a synthesized bold, which `resolveFontFace` avoids by picking the face itself.
+// Prompt has no bold, so a practice word uses its Medium face.
+const EMPHASIS_FACE: Partial<Record<AppFont, string>> = { prompt: 'Prompt-Medium' };
 
-export function readFont(language: Language, thaiFont: ThaiFont): ReadFont {
-  if (language === 'th' && thaiFont === 'loopless') {
-    return { fontFamily: PROMPT_REGULAR, emphasis: { fontFamily: PROMPT_MEDIUM, fontWeight: 'normal' } };
+/**
+ * The faces Read & Listen draws a text of `language` in, for the font chosen for that language (else the
+ * app's: `useLanguageFont`). Japanese keeps its own face unless the chosen font draws Japanese itself, so
+ * kanji keep their Japanese forms (script.ts); it has real bold weights.
+ */
+export function readFont(language: Language, font: AppFont = 'system'): ReadFont {
+  if (language === 'ja' && (font === 'system' || !fontCovers(font, ['japanese']))) {
+    return { fontFamily: JAPANESE_FONT, emphasis: { fontFamily: JAPANESE_FONT, fontWeight: '700' }, strong: { fontFamily: JAPANESE_FONT, fontWeight: '600' } };
   }
-  // Japanese's own face, so kanji keep their Japanese forms (script.ts); it has real bold weights.
-  if (language === 'ja') return { fontFamily: JAPANESE_FONT, emphasis: { fontFamily: JAPANESE_FONT, fontWeight: '700' } };
-  return { emphasis: { fontWeight: '700' } };
+  const regular = resolveFontFace(font, 400);
+  // `fontFamily: undefined` is a choice (the system face), which the app's font leaves alone; leaving the key out would let it in.
+  if (!regular) return { emphasis: { fontWeight: '700' }, strong: { fontFamily: undefined, fontWeight: '600' } };
+  return {
+    fontFamily: regular,
+    emphasis: { fontFamily: EMPHASIS_FACE[font] ?? resolveFontFace(font, 700), fontWeight: 'normal' },
+    strong: { fontFamily: resolveFontFace(font, 600), fontWeight: 'normal' },
+  };
+}
+
+/**
+ * The font a language's text was in before fonts were chosen per language: Thai's Looped or Loopless
+ * setting, which is now a Thai font (System or Prompt). Used only for a language with no choice made yet.
+ */
+export function legacyLanguageFont(language: Language, thaiFont: ThaiFont): AppFont | undefined {
+  return language === 'th' && thaiFont === 'loopless' ? 'prompt' : undefined;
 }

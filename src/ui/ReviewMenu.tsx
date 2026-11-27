@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { FLAG_NAMES } from '../core/cardState';
+import { textRows, type TextFont } from './textMenu';
 
 /**
  * The "…" menu of Review's header: what can be done to the card on screen besides answering it,
@@ -14,7 +15,9 @@ import { FLAG_NAMES } from '../core/cardState';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ text, flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
+  /** The font rows of the Text submenu, for the card's language; it has none when `code` is missing. */
+  text: TextFont;
   /** The card's flag, 0 for none. */
   flag: number;
   /** Whether the card is marked to come back a few more times this session (src/core/miniCram.ts). */
@@ -79,6 +82,11 @@ export function reviewMenu({ flag, cramOn, onCram, onAskClaude, onMnemonic, onLi
         <Stack.Toolbar.MenuAction icon="calendar" onPress={onDueDate}>Set due date</Stack.Toolbar.MenuAction>
         <Stack.Toolbar.MenuAction icon="arrow.counterclockwise" destructive onPress={onForget}>Forget card</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
+      {text.code ? (
+        <Stack.Toolbar.Menu title="Text" icon="textformat.size">
+          {textRows(text)}
+        </Stack.Toolbar.Menu>
+      ) : null}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="info.circle" onPress={onCardInfo}>Card info</Stack.Toolbar.MenuAction>
         {onBrowse ? <Stack.Toolbar.MenuAction icon="magnifyingglass" onPress={onBrowse}>Browse this deck</Stack.Toolbar.MenuAction> : null}

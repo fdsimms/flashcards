@@ -1,17 +1,22 @@
 import React from 'react';
-import { Alert, ScrollView } from 'react-native';
-import { downloadBytes, isAvailable, sizeText } from '../core/fontDownloads';
-import { APP_FONT_OPTIONS, FONT_GROUPS, fontOption, togglePoolFont, type AppFont, type FontSettings } from '../core/fonts';
+import { Alert, ScrollView, View } from 'react-native';
+import { downloadBytes, isAvailable, languageFontChoices, sizeText } from '../core/fontDownloads';
+import { APP_FONT_OPTIONS, FONT_GROUPS, fontOption, languageChoice, togglePoolFont, withLanguageFont, type AppFont, type FontSettings } from '../core/fonts';
+import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
 import { failureText } from '../core/failure';
 import { useFontSettings } from './AppFont';
 import { FontRow } from './FontRows';
-import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
+import { Group, Help, Screen, Section, SECTION_GAP, Select, SwitchRow } from './kit';
 import { space, readable } from './theme';
+
+/** What a language set to follow the app's font is called in its picker. */
+const APP_FONT_LABEL = 'App font';
 
 /**
  * Settings, Font: the typeface the whole app and its cards are set in. With Random font on, the list
- * is a pool and the app opens in one of the checked fonts each time. Thai keeps its own setting (Thai
- * text size on the cards, Looped or Loopless in Read & Listen), and Japanese keeps the system font.
+ * is a pool and the app opens in one of the checked fonts each time. By language, a language can have a
+ * font of its own (the Text menu on the screens that show it sets the same one); Thai's Looped and
+ * Loopless are System and Prompt there. Thai text size on the cards is its own setting.
  */
 export function AppFontSettings() {
   const { settings, font, save, installed, progress, download, remove } = useFontSettings();
@@ -77,7 +82,7 @@ export function AppFontSettings() {
         <Section
           footer={(
             <Help>
-              The Japanese fonts are large, so each downloads the first time you pick it and can be removed to free the space. Text in a script a font doesn't cover shows in the system font. Thai also has its own setting for Looped or Loopless.
+              The Japanese fonts are large, so each downloads the first time you pick it and can be removed to free the space. Text in a script a font doesn't cover shows in the system font.
               {settings.random && font !== settings.font ? ` Right now the app is in ${APP_FONT_OPTIONS.find((o) => o.id === font)?.label}.` : ''}
             </Help>
           )}
@@ -91,6 +96,29 @@ export function AppFontSettings() {
               onValueChange={(onCards) => change({ ...settings, onCards })}
             />
           </Group>
+        </Section>
+        <Section
+          title="By language"
+          footer={(
+            <Help>
+              A font for the text of one language, wherever it's shown: cards, Read & Listen, Cram, Lessons and Practice. The Text menu on those screens sets the same choice. A deck with its own card font keeps it. Only fonts that can draw the language and are downloaded are listed.
+            </Help>
+          )}
+        >
+          <View style={{ gap: space.m }}>
+            {LANGUAGE_ORDER.map((code) => {
+              const chosen = languageChoice(settings, code);
+              return (
+                <Select
+                  key={code}
+                  label={LANGUAGES[code].name}
+                  options={[APP_FONT_LABEL, ...languageFontChoices(code, installed).map((id) => fontOption(id).label)]}
+                  value={chosen ? fontOption(chosen).label : APP_FONT_LABEL}
+                  onChange={(label) => change(withLanguageFont(settings, code, APP_FONT_OPTIONS.find((o) => o.label === label)?.id))}
+                />
+              );
+            })}
+          </View>
         </Section>
       </ScrollView>
     </Screen>

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import type { Language } from '../../reader/api';
+import { LANGUAGES } from '../../reader/languages';
 import { heardSoFar, speakerLabel, type ScriptEntry } from '../../reader/lessonScript';
 import { haptic } from '../haptics';
 import { Divider, Group, Tappable } from '../kit';
@@ -14,7 +16,7 @@ const SHOWN = 8;
  * it's been said. A tap on something said goes back to it. Each speaker's name has a line of its
  * own above what they say, so a long name or a large text size never runs into the words.
  */
-export function LessonTranscript({ entries, seconds, onSeek }: { entries: readonly ScriptEntry[]; seconds: number; onSeek: (ms: number) => void }) {
+export function LessonTranscript({ entries, seconds, language, onSeek }: { entries: readonly ScriptEntry[]; seconds: number; /** The language being taught, so what's said in it is drawn in its font (Text menu). */ language: Language; onSeek: (ms: number) => void }) {
   const c = useTheme();
   const ms = seconds * 1000;
   const heard = heardSoFar(entries, seconds).slice(-SHOWN);
@@ -30,7 +32,7 @@ export function LessonTranscript({ entries, seconds, onSeek }: { entries: readon
           <View style={{ paddingVertical: space.m, paddingHorizontal: space.l, gap: space.xs, backgroundColor: now ? c.accentFill : undefined, opacity: now || i >= heard.length - 3 ? 1 : 0.6 }}>
             {i === 0 ? null : <Divider inset={space.l} />}
             <Text style={{ ...type.caption, fontWeight: now ? '600' : '400', color: now ? c.accentInk : c.textSecondary, textTransform: 'uppercase', letterSpacing: 0.4 }}>{speakerLabel(e)}</Text>
-            <Text style={{ ...type.body, color: turn ? c.accentInk : c.text, fontStyle: turn ? 'italic' : 'normal' }}>{turn ? 'Your turn' : e.text}</Text>
+            <Text accessibilityLanguage={turn ? undefined : LANGUAGES[language].speech} style={{ ...type.body, color: turn ? c.accentInk : c.text, fontStyle: turn ? 'italic' : 'normal' }}>{turn ? 'Your turn' : e.text}</Text>
             {!turn && e.voice === 'native' && e.english ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{e.english}</Text> : null}
           </View>
         );
