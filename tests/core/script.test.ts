@@ -43,7 +43,10 @@ describe('thai text size', () => {
 
 describe('withThaiLineHeight', () => {
   it('gives Thai text a line height of 1.5 times its font size', () => {
-    expect(withThaiLineHeight({ fontSize: 34, fontWeight: '600' }, 'กรกฎาคม')).toEqual({ fontSize: 34, fontWeight: '600', lineHeight: 51 });
+    expect(withThaiLineHeight({ fontSize: 34, fontWeight: '600' }, 'กรกฎาคม')).toEqual({ fontSize: 34, fontWeight: '600', lineHeight: 51, paddingBottom: 7 });
+  });
+  it('leaves room under the line for lower vowels, at every Thai size', () => {
+    for (const c of THAI_TEXT_CHOICES) expect(thaiTextStyle(c.value).paddingBottom).toBeGreaterThan(0);
   });
   it('leaves Japanese to a chosen font that draws it, and gives it its face under one that has none', () => {
     expect(japaneseFont('食べる', 'ja-JP', 'yomogi')).toEqual({});
