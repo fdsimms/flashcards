@@ -1750,7 +1750,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/franki_reader__routes__texts__ReadingIn"
+                "$ref": "#/components/schemas/ReadingIn"
               }
             }
           }
@@ -7770,6 +7770,27 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "KanaReadingIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "reading": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reading"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reading"
+        ],
+        "title": "KanaReadingIn"
+      },
       "LessonIn": {
         "properties": {
           "language": {
@@ -8799,6 +8820,114 @@
         ],
         "title": "RanksOut"
       },
+      "ReadingIn": {
+        "properties": {
+          "rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "too_easy",
+                  "about_right",
+                  "too_hard"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished",
+            "default": false
+          },
+          "words_glossed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Glossed",
+            "default": []
+          },
+          "words_flagged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words Flagged",
+            "default": []
+          },
+          "audio_speed": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Speed"
+          },
+          "listen_only": {
+            "type": "boolean",
+            "title": "Listen Only",
+            "default": false
+          },
+          "seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seconds",
+            "default": 0
+          },
+          "check_right": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Right"
+          },
+          "check_asked": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Asked"
+          },
+          "quiz_right": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Right",
+            "default": []
+          },
+          "quiz_wrong": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Quiz Wrong",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "ReadingIn"
+      },
       "ReadingLinesIn": {
         "properties": {
           "language": {
@@ -8838,7 +8967,7 @@
         "properties": {
           "words": {
             "items": {
-              "$ref": "#/components/schemas/franki_reader__routes__voices__ReadingIn"
+              "$ref": "#/components/schemas/KanaReadingIn"
             },
             "type": "array",
             "maxItems": 50,
@@ -10527,135 +10656,6 @@
           "name"
         ],
         "title": "WriteIn"
-      },
-      "franki_reader__routes__texts__ReadingIn": {
-        "properties": {
-          "rating": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "too_easy",
-                  "about_right",
-                  "too_hard"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rating"
-          },
-          "finished": {
-            "type": "boolean",
-            "title": "Finished",
-            "default": false
-          },
-          "words_glossed": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Words Glossed",
-            "default": []
-          },
-          "words_flagged": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Words Flagged",
-            "default": []
-          },
-          "audio_speed": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 1.5,
-                "minimum": 0.5
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Audio Speed"
-          },
-          "listen_only": {
-            "type": "boolean",
-            "title": "Listen Only",
-            "default": false
-          },
-          "seconds": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Seconds",
-            "default": 0
-          },
-          "check_right": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Right"
-          },
-          "check_asked": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 20.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Check Asked"
-          },
-          "quiz_right": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Right",
-            "default": []
-          },
-          "quiz_wrong": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Quiz Wrong",
-            "default": []
-          }
-        },
-        "type": "object",
-        "title": "ReadingIn"
-      },
-      "franki_reader__routes__voices__ReadingIn": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Text"
-          },
-          "reading": {
-            "type": "string",
-            "maxLength": 200,
-            "title": "Reading"
-          }
-        },
-        "type": "object",
-        "required": [
-          "text",
-          "reading"
-        ],
-        "title": "ReadingIn"
       }
     }
   }

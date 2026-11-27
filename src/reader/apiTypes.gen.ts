@@ -2342,6 +2342,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** KanaReadingIn */
+        KanaReadingIn: {
+            /** Text */
+            text: string;
+            /** Reading */
+            reading: string;
+        };
         /** LessonIn */
         LessonIn: {
             /**
@@ -2688,6 +2695,52 @@ export interface components {
             /** Phrases */
             phrases: string[];
         };
+        /** ReadingIn */
+        ReadingIn: {
+            /** Rating */
+            rating?: ("too_easy" | "about_right" | "too_hard") | null;
+            /**
+             * Finished
+             * @default false
+             */
+            finished: boolean;
+            /**
+             * Words Glossed
+             * @default []
+             */
+            words_glossed: string[];
+            /**
+             * Words Flagged
+             * @default []
+             */
+            words_flagged: string[];
+            /** Audio Speed */
+            audio_speed?: number | null;
+            /**
+             * Listen Only
+             * @default false
+             */
+            listen_only: boolean;
+            /**
+             * Seconds
+             * @default 0
+             */
+            seconds: number;
+            /** Check Right */
+            check_right?: number | null;
+            /** Check Asked */
+            check_asked?: number | null;
+            /**
+             * Quiz Right
+             * @default []
+             */
+            quiz_right: string[];
+            /**
+             * Quiz Wrong
+             * @default []
+             */
+            quiz_wrong: string[];
+        };
         /** ReadingLinesIn */
         ReadingLinesIn: {
             /**
@@ -2701,7 +2754,7 @@ export interface components {
         /** ReadingsIn */
         ReadingsIn: {
             /** Words */
-            words: components["schemas"]["franki_reader__routes__voices__ReadingIn"][];
+            words: components["schemas"]["KanaReadingIn"][];
         };
         /** RetellIn */
         RetellIn: {
@@ -3205,59 +3258,6 @@ export interface components {
              * @enum {string}
              */
             model: "claude-sonnet-5-5" | "claude-haiku-5-5";
-        };
-        /** ReadingIn */
-        franki_reader__routes__texts__ReadingIn: {
-            /** Rating */
-            rating?: ("too_easy" | "about_right" | "too_hard") | null;
-            /**
-             * Finished
-             * @default false
-             */
-            finished: boolean;
-            /**
-             * Words Glossed
-             * @default []
-             */
-            words_glossed: string[];
-            /**
-             * Words Flagged
-             * @default []
-             */
-            words_flagged: string[];
-            /** Audio Speed */
-            audio_speed?: number | null;
-            /**
-             * Listen Only
-             * @default false
-             */
-            listen_only: boolean;
-            /**
-             * Seconds
-             * @default 0
-             */
-            seconds: number;
-            /** Check Right */
-            check_right?: number | null;
-            /** Check Asked */
-            check_asked?: number | null;
-            /**
-             * Quiz Right
-             * @default []
-             */
-            quiz_right: string[];
-            /**
-             * Quiz Wrong
-             * @default []
-             */
-            quiz_wrong: string[];
-        };
-        /** ReadingIn */
-        franki_reader__routes__voices__ReadingIn: {
-            /** Text */
-            text: string;
-            /** Reading */
-            reading: string;
         };
     };
     responses: never;
@@ -4287,7 +4287,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["franki_reader__routes__texts__ReadingIn"];
+                "application/json": components["schemas"]["ReadingIn"];
             };
         };
         responses: {

@@ -60,13 +60,13 @@ class SpeechIn(BaseModel):
     ipa: str | None = Field(default=None, min_length=1, max_length=200)
 
 
-class ReadingIn(BaseModel):
+class KanaReadingIn(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
     reading: str = Field(max_length=200)
 
 
 class ReadingsIn(BaseModel):
-    words: list[ReadingIn] = Field(max_length=MAX_READINGS)
+    words: list[KanaReadingIn] = Field(max_length=MAX_READINGS)
 
 
 def router(ctx: AppContext) -> APIRouter:
