@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Note } from '../../src/core/types';
 import type { AspectPair } from '../../src/reader/api';
-import { hasAspectPairs, minedNote, pairFollowUp } from '../../src/reader/mining';
+import { hasAspectPairs, hasAspectPartner, minedNote, pairFollowUp } from '../../src/reader/mining';
 
 describe('mining', () => {
   it('starts the note as an Omnilanguage note with the word and its meaning', () => {
@@ -106,5 +106,11 @@ describe('mining', () => {
 describe('which languages look a verb\'s aspect pair up', () => {
   it('is Russian and Polish only, never Toki Pona', () => {
     expect(['ru', 'pl', 'tok', 'th'].map((l) => hasAspectPairs(l as 'ru'))).toEqual([true, true, false, false]);
+  });
+  it('counts a pair as found only when it has a partner, so a word that is not a verb goes to the queue', () => {
+    const none: AspectPair = { aspect: null, partner: null, partner_meaning: null, aspect_source: null };
+    expect(hasAspectPartner(null)).toBe(false);
+    expect(hasAspectPartner(none)).toBe(false);
+    expect(hasAspectPartner({ aspect: 'imperfective', partner: 'сказать', partner_meaning: 'to say', aspect_source: 'ai' })).toBe(true);
   });
 });

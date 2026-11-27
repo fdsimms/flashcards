@@ -4,7 +4,7 @@ import { saveNote } from '../anki/noteService';
 import { failureText } from '../core/failure';
 import type { Note } from '../core/types';
 import type { AspectPair, GlossLanguage } from '../reader/api';
-import { hasAspectPairs, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
+import { hasAspectPairs, hasAspectPartner, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
 import { useApp } from './AppContext';
 import { connection } from './connection';
 import { haptic } from './haptics';
@@ -76,12 +76,12 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
 
   return useCallback(async ({ word, meaning, deck, language, pronunciation }: AddWord) => {
     let pair: AspectPair | null = null;
-    // A phrase has no aspect. A failed lookup just opens the editor without a suggestion.
+    // A phrase has no aspect. A failed lookup, or an answer with no partner (not a verb), goes to the queue like any other word.
     // Offline there's no lookup to wait on: the word is held for Claude below.
     if (api && language && !connection.cantReachHome() && hasAspectPairs(language) && !/\s/.test(word.trim())) {
       pair = await api.aspectPair(language, word).catch(() => null);
     }
-    if (!pair && api && language) {
+    if (!hasAspectPartner(pair) && api && language) {
       try {
         const added = await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
         haptic.success();
@@ -94,7 +94,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
     }
     const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair, language));
     if (!saved) return false;
-    if (pair?.partner) void offer(saved, pair);
+    if (hasAspectPartner(pair)) void offer(saved, pair);
     return true;
   }, [api, queue.add, edit, offer]);
 }
