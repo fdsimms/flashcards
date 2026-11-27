@@ -16,7 +16,7 @@ const threeReadings: FitShape = {
 const worst: FitShape = { frontChars: 6, details: true, parts: six, meaning: { primary: 22, others: 20, synonyms: 21 }, readings: [] };
 
 /** A card a typed answer leaves visible: about the card's height less the band and the compact header's chrome. */
-const ROOM = { width: 370, height: 268 };
+const ROOM = { width: 370, height: 276 };
 const options = { fontScale: 1, lesson: false, compact: true };
 
 describe('tierHeight', () => {

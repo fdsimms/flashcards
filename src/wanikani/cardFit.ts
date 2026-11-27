@@ -37,6 +37,8 @@ export interface TierLayout {
   blockGap: number;
   /** Between a field's label and what it holds. */
   fieldGap: number;
+  /** Extra space above the meaning when "Made up of" sits above it, on top of `blockGap`. */
+  meaningLead: number;
   /** Parts as one-line chips (characters beside the meaning), not tiles with the meaning under. */
   inlineParts: boolean;
   /** A part's characters. */
@@ -54,15 +56,15 @@ export interface TierLayout {
 export const TIER_LAYOUT: Record<FitTier, TierLayout> = {
   full: {
     padTop: 32, padBottom: 24, padX: 24, gap: 24, divider: true, frontGap: 12, frontShort: 64, frontLong: 44, frontImage: 72, headerFront: false,
-    blockGap: 16, fieldGap: 8, inlineParts: false, partChar: 22, partGap: 8, meaning: 26, readingPrimary: 26, readingOther: 16, readingsInRow: false,
+    blockGap: 16, fieldGap: 8, meaningLead: 8, inlineParts: false, partChar: 22, partGap: 8, meaning: 26, readingPrimary: 26, readingOther: 16, readingsInRow: false,
   },
   tight: {
     padTop: 10, padBottom: 10, padX: 14, gap: 8, divider: false, frontGap: 4, frontShort: 44, frontLong: 34, frontImage: 56, headerFront: false,
-    blockGap: 6, fieldGap: 4, inlineParts: true, partChar: 18, partGap: 6, meaning: 24, readingPrimary: 24, readingOther: 16, readingsInRow: true,
+    blockGap: 6, fieldGap: 4, meaningLead: 8, inlineParts: true, partChar: 18, partGap: 6, meaning: 24, readingPrimary: 24, readingOther: 16, readingsInRow: true,
   },
   collapsed: {
     padTop: 12, padBottom: 12, padX: 14, gap: 8, divider: false, frontGap: 4, frontShort: 26, frontLong: 26, frontImage: 28, headerFront: true,
-    blockGap: 8, fieldGap: 4, inlineParts: true, partChar: 18, partGap: 6, meaning: 20, readingPrimary: 20, readingOther: 15, readingsInRow: true,
+    blockGap: 8, fieldGap: 4, meaningLead: 4, inlineParts: true, partChar: 18, partGap: 6, meaning: 20, readingPrimary: 20, readingOther: 15, readingsInRow: true,
   },
 };
 
@@ -141,7 +143,7 @@ export function tierHeight(shape: FitShape, tier: FitTier, width: number, fontSc
   if (shape.meaning) {
     const m = shape.meaning;
     blocks.push(
-      label + 2 + lines(m.primary, t.meaning, s, inner) * t.meaning * LINE * s
+      (shape.parts.length ? t.meaningLead : 0) + label + 2 + lines(m.primary, t.meaning, s, inner) * t.meaning * LINE * s
       + (m.others ? lines(m.others, 15, s, inner) * 15 * LINE * s : 0)
       + (m.synonyms ? lines(m.synonyms, 13, s, inner) * 13 * LINE * s : 0),
     );
