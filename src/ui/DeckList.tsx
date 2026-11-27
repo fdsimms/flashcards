@@ -12,6 +12,8 @@ import { haptic } from './haptics';
 import { Button, Card, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
+import { DeckPanel } from './DeckPanel';
+import { SIDE_PANEL_WIDTH, twoColumnsFit } from '../core/wide';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { HoverPressable } from './hover';
@@ -91,9 +93,11 @@ function DeckChip({ row }: { row: ShownRow }) {
 /** How long a family of decks waits to settle in, by its place in the list (Decks and Today): 45 ms apart, none after the seventh. */
 export const settleDelay = (group: number) => Math.min(group, 6) * 45;
 
-export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options, export, counts, suspend or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
+export function DeckRowView({ row, first, picked = false, toggleSlot = false, detail, menuHint = 'Quick add, add a note, rename, options, export, counts, suspend or delete', below, belowLabel, editing = false, onOpen, onPress, onMenu, onToggle, onDelete, onHandle, onStep }: {
   row: ShownRow;
   first: boolean;
+  /** The deck showing beside the list on a wide screen (DeckPanel.tsx): its row is tinted. */
+  picked?: boolean;
   /** Room at the right edge for the show/hide button, so every row's counts line up whether or not it has subdecks. */
   toggleSlot?: boolean;
   /** The line under the name in place of the card count (WaniKani's level), and its color. */
@@ -146,7 +150,7 @@ export function DeckRowView({ row, first, toggleSlot = false, detail, menuHint =
       style={({ pressed }) => ({
         flexDirection: 'row', alignItems: 'center', gap: space.s,
         minHeight: MIN_TAP + space.xl, paddingVertical: space.m, paddingRight: space.xs, paddingLeft: ROW_PAD,
-        backgroundColor: pressed ? onWell : base,
+        backgroundColor: pressed ? onWell : picked ? c.accentFill : base,
       })}
     >
       {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.l, right: 0, height: hairline, backgroundColor: c.border }} />}
@@ -248,11 +252,15 @@ export function WarningBanner({ title, detail, action, hint, onPress }: { title:
 
 /**
  * A deck's row outside Edit mode, on Decks and Today: a tap studies it, a long press opens iOS's
- * own menu for it, and a swipe reveals Options (a full swipe opens them, as in Mail).
+ * own menu for it, and a swipe reveals Options (a full swipe opens them, as in Mail). With `onPick`
+ * (the Decks tab on a wide screen) a tap picks the deck to show beside the list instead, and the
+ * panel's Study button studies it.
  */
-export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOptions, onMenu, onAction, onToggle, onStep }: {
+export function DeckRowLink({ row, first, toggleSlot, open, picked, onPick, onOpenChange, onOptions, onMenu, onAction, onToggle, onStep }: {
   row: ShownRow;
   first: boolean;
+  picked?: boolean;
+  onPick?: () => void;
   toggleSlot: boolean;
   /** Slid open on its Options action; one row at a time, so the list holds which. */
   open: boolean;
@@ -276,12 +284,16 @@ export function DeckRowLink({ row, first, toggleSlot, open, onOpenChange, onOpti
         href={{ pathname: '/review', params: { deck: row.deck } }}
         asChild
         // Tapping a row that's slid open closes it, rather than opening the deck.
-        onPress={(e) => { if (open) { e.preventDefault(); onOpenChange(false); } }}
+        onPress={(e) => {
+          if (open) { e.preventDefault(); onOpenChange(false); }
+          else if (onPick) { e.preventDefault(); onPick(); }
+        }}
       >
         <Link.Trigger>
           <DeckRowView
             row={row}
             first={first}
+            picked={picked}
             toggleSlot={toggleSlot}
             onMenu={onMenu}
             onToggle={onToggle ? () => {
@@ -379,6 +391,11 @@ export function DeckList(props: {
   const [editing, setEditing] = useState(false);
   const syncTap = useSyncTap(props.sync, props.extra?.refresh);
   const backup = props.sync ? undefined : props.backup;
+  // A screen with room for it (measured, since the iPad's sidebar takes part of the window) shows the deck picked beside the list.
+  const [width, setWidth] = useState(0);
+  const wide = !editing && twoColumnsFit(width);
+  const [picked, setPicked] = useState<string | null>(null);
+  const pickedRow = wide && picked ? shown.find((r) => r.deck === picked) : undefined;
   const drag = useDeckDrag({
     decks: allDecks,
     shown,
@@ -417,9 +434,10 @@ export function DeckList(props: {
         </Stack.Toolbar>
       }
     >
-      <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
+      <View ref={header.ref} onLayout={(e) => { setWidth(e.nativeEvent.layout.width); header.onLayout(); }} style={{ flex: 1 }}>
       <ScrollView
         {...drag.scrollProps}
+        style={wide ? { marginRight: SIDE_PANEL_WIDTH } : undefined}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={readable}
         // Pull down to sync, when sync is on, and to read WaniKani's counts again. Always mounted:
@@ -464,6 +482,8 @@ export function DeckList(props: {
                       first={i === 0}
                       toggleSlot={!!props.onToggleCollapsed}
                       open={openDeck === row.deck}
+                      picked={pickedRow?.deck === row.deck}
+                      onPick={wide ? () => { haptic.select(); setPicked(row.deck); } : undefined}
                       onOpenChange={(open) => setOpenDeck(open ? row.deck : null)}
                       onOptions={() => props.onOptions(row.deck)}
                       onMenu={() => props.onDeckMenu(row.deck)}
@@ -502,6 +522,7 @@ export function DeckList(props: {
           {drag.overlay}
         </View>
       </ScrollView>
+      {wide ? <DeckPanel row={pickedRow} onOptions={props.onOptions} /> : null}
       {syncTap.shown ? <SyncingPill top={header.top} /> : null}
       </View>
     </Screen>
