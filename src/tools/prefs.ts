@@ -49,13 +49,15 @@ export interface ToolPrefs {
   writingKind: WritingKind;
   /** Writing by hand: printed letters or joined handwriting, in a language that has both (Russian). */
   writingStyle: WritingStyle;
+  /** Writing by hand: whether Japanese's kana and kanji show their stroke order, downloaded a character at a time (strokeOrder.ts). */
+  writingStrokes: boolean;
   /** Hearing sounds: the group of sounds each language is practiced in (its Tones, its Vowel length); a language not listed practices all of them. */
   hearingGroups: Partial<Record<Language, string>>;
 }
 
 export type MoneyMode = 'count' | 'price';
 
-export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning', writingMode: 'trace', writingKind: 'letters', writingStyle: 'printed', hearingGroups: {} };
+export const DEFAULT_TOOL_PREFS: ToolPrefs = { minuteStep: 5, timeMode: 'say', dateWeekday: true, dateYear: false, dateMode: 'say', moneyMode: 'count', moneyMax: 1000, moneyAnswer: 'say', numberKind: 'number', numberMode: 'say', countMode: 'say', countMax: 10, scriptMode: 'tone', mixupMode: 'meaning', writingMode: 'trace', writingKind: 'letters', writingStyle: 'printed', writingStrokes: true, hearingGroups: {} };
 
 /** Anything unreadable or out of range falls back to the default for that setting. */
 export function parseToolPrefs(raw: string | null): ToolPrefs {
@@ -86,6 +88,7 @@ export function parseToolPrefs(raw: string | null): ToolPrefs {
     writingMode: WRITING_MODES.find((m) => m === saved.writingMode) ?? DEFAULT_TOOL_PREFS.writingMode,
     writingKind: WRITING_KINDS.find((k) => k === saved.writingKind) ?? DEFAULT_TOOL_PREFS.writingKind,
     writingStyle: WRITING_STYLES.find((s) => s === saved.writingStyle) ?? DEFAULT_TOOL_PREFS.writingStyle,
+    writingStrokes: typeof saved.writingStrokes === 'boolean' ? saved.writingStrokes : DEFAULT_TOOL_PREFS.writingStrokes,
     hearingGroups: parseHearingGroups(saved.hearingGroups),
   };
 }
