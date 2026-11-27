@@ -12,6 +12,7 @@ import { SwipeCard, type CardMotion } from '../SwipeCard';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
 import { useSoundingButton } from '../useSoundingButton';
 import { AnswerContent, Status, type Answer } from './ToolScreen';
+import { READABLE_WIDTH } from '../../core/wide';
 
 /**
  * A Practice tool built like Review's card: one sheet that fills the space between the header and
@@ -52,7 +53,7 @@ export function PracticeCard({ questionKey, cardKey, swipe, motion, onMark, onTa
         <Pressable accessible={false} disabled={!onTap} onPress={() => { haptic.select(); onTap?.(); }} style={{ flex: 1 }}>
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ padding: space.xl, paddingBottom: onPlay ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+            contentContainerStyle={{ padding: space.xl, paddingBottom: onPlay ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}
           >
             <Reveal key={questionKey} rise={6} duration={140}>{front}</Reveal>
             {back ? (

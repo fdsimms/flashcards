@@ -19,6 +19,7 @@ import { PlayPill } from '../PlayButton';
 import { TranslationRow } from '../TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
+import { READABLE_WIDTH } from '../../core/wide';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -166,7 +167,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, gap: space.xl, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, gap: space.xl, width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >

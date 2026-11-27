@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { failureText } from '../../core/failure';
+import { columnInsets } from '../../core/wide';
 import type { Api, Language, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
 import { popupSpace, roomIsBelow } from '../../reader/phrase';
@@ -49,7 +50,7 @@ const POPUP_MAX_SHARE = 0.6;
  * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
  * phrase's heading and the latest answer aren't behind the keyboard.
  */
-export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, mining, onClose }: {
+export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, mining, dock = 0, onClose }: {
   api: Api;
   textId: number;
   /** The phrase's first line and its last (the same line unless it runs on). */
@@ -58,10 +59,14 @@ export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, m
   phrase: string;
   anchor: PhraseAnchor;
   mining?: PhraseMining;
+  /** The width a panel beside the text takes on the right (the word panel on a wide window), which the popup stays clear of. */
+  dock?: number;
   onClose: () => void;
 }) {
   const c = useTheme();
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  // On a wide window the popup lines up with the text column, beside the word panel when there is one.
+  const edges = columnInsets(width, space.l, dock);
   const insets = useSafeAreaInsets();
   const body = useRef<ScrollViewInstance>(null);
   const keyboard = useKeyboardInset();
@@ -123,7 +128,7 @@ export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, m
       <View
         pointerEvents="box-none"
         onAccessibilityEscape={onClose}
-        style={{ position: 'absolute', left: space.l, right: space.l, ...(side === 'top' ? { top: insets.top + space.s } : side === 'below' ? { top: anchor.bottom + POPUP_GAP } : { bottom: height - anchor.top + POPUP_GAP }) }}
+        style={{ position: 'absolute', left: edges.left, right: edges.right, ...(side === 'top' ? { top: insets.top + space.s } : side === 'below' ? { top: anchor.bottom + POPUP_GAP } : { bottom: height - anchor.top + POPUP_GAP }) }}
       >
         <Pop
           from={0.96}

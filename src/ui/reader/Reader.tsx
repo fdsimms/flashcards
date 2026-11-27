@@ -40,6 +40,7 @@ import { ReadGlossLine } from './ReadWordTips';
 import { LoopTextIcon, RepeatLineIcon, StartOverIcon } from './PlayerIcons';
 import { ReaderJumpToLine } from './ReaderJumpToLine';
 import { PhraseExplanation, type PhraseAnchor, type PhraseMining } from './ReaderPhrase';
+import { SIDE_PANEL_WIDTH, sidePanelFits } from '../../core/wide';
 import { ReadChoices } from './ReadChoices';
 import { CheckCard, ReaderCheck } from './ReaderCheck';
 import { LineDrillCard, ReadLineDrill } from './ReadLineDrill';
@@ -57,6 +58,7 @@ import { GuessPrompt, QuizChoices, rightAnswer } from './ReadWordGuess';
 import { PracticeWordPill, TintPill } from './PracticeWordPill';
 import { WordView } from './ReadWord';
 import { ReaderKey } from './ReaderKey';
+import { ReaderWordPanel } from './ReaderWordPanel';
 import { ReaderXray } from './ReaderXray';
 import { WelcomeBack } from './ReadStorySoFar';
 import { welcomeBackDue } from '../../reader/welcomeBack';
@@ -196,6 +198,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
   const [hiddenMarks, setHiddenMarks] = useState(prefs().hiddenMarks);
   const [paragraphMode, setParagraphMode] = useState(prefs().paragraphs);
   const [textSize, setTextSize] = useState(prefs().textSize);
+  const { width: windowWidth } = useWindowDimensions();
   // The font chosen for this text's language (Text menu), else the app's; the same one Review and Cram show it in.
   const readingFont = useReadingFont(text?.language ?? 'th');
   const textFont = useTextFont(text?.language ?? 'th');
@@ -658,6 +661,8 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
   const seconds = session ? Math.round((Date.now() - session.startedAt) / 1000) : 0;
   const hasAudio = text ? firstLine(text.lines) !== null : false;
+  // A wide window (an iPad in landscape) keeps the tapped word in a panel beside the text while it's being read.
+  const wordPanel = sidePanelFits(windowWidth) && !!text && !!session && !ended && !listenOnly;
 
   return (
     <Screen
@@ -743,6 +748,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
         <ScrollView
           ref={scroller}
           contentInsetAdjustmentBehavior="automatic"
+          style={wordPanel ? { marginRight: SIDE_PANEL_WIDTH } : undefined}
           contentContainerStyle={{ ...readable, paddingBottom: space.l }}
           onLayout={(e) => {
             viewHeight.current = e.nativeEvent.layout.height;
@@ -998,7 +1004,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       ) : null}
 
       {text && session && !ended && !listenOnly && lineOff && current !== null ? (
-        <ReaderJumpToLine line={current + 1} side={lineOff} onPress={followCurrent} />
+        <ReaderJumpToLine line={current + 1} side={lineOff} dock={wordPanel ? SIDE_PANEL_WIDTH : 0} onPress={followCurrent} />
       ) : null}
 
       {text && session && ended && checking && !drilling ? (
@@ -1086,6 +1092,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
 
       <GlossPopover
         tapped={tapped}
+        docked={wordPanel}
         characters={text?.xray}
         onXray={text?.xray?.length ? () => { setTapped(null); setXrayOpen(true); } : undefined}
         language={text?.language}
@@ -1132,6 +1139,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           anchor={phraseAnchor}
           // Only into the deck of the language being read.
           mining={mining?.language === text.language ? mining : undefined}
+          dock={wordPanel ? SIDE_PANEL_WIDTH : 0}
           onClose={() => setPhrase(null)}
         />
       ) : null}
@@ -1212,8 +1220,13 @@ const POPOVER_WIDTH = 290;
 // Space between the tap and the popover's edge, enough to clear the tapped word.
 const POPOVER_GAP = 28;
 
-export function GlossPopover({ tapped, characters, onXray, language, meaningLookup, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
+export function GlossPopover({ tapped, docked, characters, onXray, language, meaningLookup, grammar, api, grammarChosen, onGrammarChosen, flagged, onToggleFlag, onReveal, onQuizAnswer, onPlay, onAddToDeck, onClose }: {
   tapped: Tapped | null;
+  /**
+   * On a window wide enough (`sidePanelFits`), the same content stays in a panel at the screen's right edge
+   * (ReaderWordPanel.tsx) instead of opening over the text: there with no word tapped too, so the text never shifts.
+   */
+  docked?: boolean;
   /** The series' characters as of this episode (X-Ray): a name word that is one shows who they are in place of "A name". */
   characters?: StoryCharacter[];
   /** Opens the X-Ray sheet, offered on a character's name. */
@@ -1272,16 +1285,18 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
     meaningLookup(tapped.word).then((meaning) => { if (current) setLooked(meaning ?? ''); }, () => { if (current) setLooked(''); });
     return () => { current = false; };
   }, [tapped]); // eslint-disable-line react-hooks/exhaustive-deps -- a new lookup function each render is the same lookup; the tap is what changes it
-  if (!tapped) return null;
+  if (!tapped) return docked ? <ReaderWordPanel /> : null;
   const character = characterOfWord(tapped.word, characters);
-  if (showForm && language && tapped.word.form) return <ReadFormSheet api={api} language={language} word={tapped.word} onClose={onClose} />;
+  // The form chip's explanation: in place of the popover, and over the panel, which stays and shows the word again once it's closed.
+  const formSheet = showForm && language && tapped.word.form ? <ReadFormSheet api={api} language={language} word={tapped.word} onClose={docked ? () => setShowForm(false) : onClose} /> : null;
+  if (formSheet && !docked) return formSheet;
   const popWidth = Math.min(POPOVER_WIDTH, width - 2 * space.l);
   const left = Math.min(Math.max(tapped.x - 40, space.l), width - popWidth - space.l);
   // Above the word when it clears the status bar, so the finger and the word both stay visible;
   // otherwise below it, and never past the bottom edge. `side` keeps the choice made at first measure.
   const top = Math.min(side === 'below' ? tapped.y + POPOVER_GAP : tapped.y - POPOVER_GAP - popHeight, height - popHeight - insets.bottom - space.s);
   // The IPA's and the deck icon's tooltips open above the popover's text, and below it when the popover is too near the top of the screen.
-  const tipBelow = top < insets.top + 40;
+  const tipBelow = docked || top < insets.top + 40;
   const mode = tapped.guess ?? null;
   // Meaning held back until asked for.
   const answered = tapped.answered ?? null;
@@ -1298,22 +1313,8 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
     if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
   }
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-      <View
-        onLayout={(e) => setPopHeight(e.nativeEvent.layout.height)}
-        onAccessibilityEscape={onClose}
-        style={{ position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 && side ? 1 : 0 }}
-      >
-      {/* Springs up from the word once measured; the box that measures is the one around it. */}
-      <Pop
-        ready={popHeight > 0 && !!side}
-        style={{
-          backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth,
-          padding: space.l, gap: space.xs, ...lift(c, 'high'),
-        }}
-      >
+  const content = (
+    <>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
           <View style={{ flex: 1, gap: space.xs }}>
             <ReadWordTitle text={tapped.word.text} pronunciation={tapped.word} ipaTip={{ below: tipBelow }} />
@@ -1363,6 +1364,21 @@ export function GlossPopover({ tapped, characters, onXray, language, meaningLook
             {actions.map((a, i) => <WordActionRow key={a.label} first={i === 0} {...a} />)}
           </WordActionGroup>
         ) : null}
+    </>
+  );
+  const card = { backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.l, ...smooth, padding: space.l, gap: space.xs };
+  if (docked) return <><ReaderWordPanel><View style={card}>{content}</View></ReaderWordPanel>{formSheet}</>;
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View
+        onLayout={(e) => setPopHeight(e.nativeEvent.layout.height)}
+        onAccessibilityEscape={onClose}
+        style={{ position: 'absolute', top, left, width: popWidth, opacity: popHeight > 0 && side ? 1 : 0 }}
+      >
+      {/* Springs up from the word once measured; the box that measures is the one around it. */}
+      <Pop ready={popHeight > 0 && !!side} style={{ ...card, ...lift(c, 'high') }}>
+        {content}
       </Pop>
       </View>
     </Modal>

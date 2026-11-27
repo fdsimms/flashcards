@@ -15,6 +15,7 @@ import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } fr
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { TranslationRow } from './TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
+import { READABLE_WIDTH } from '../core/wide';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -198,7 +199,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     <Screen title={`${index + 1} of ${prompts.length}`} largeTitle={false} footer={footer}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: 640, alignSelf: 'center' }}
+        contentContainerStyle={{ padding: space.l, gap: space.xl, flexGrow: 1, width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         {...scrollProps}
       >

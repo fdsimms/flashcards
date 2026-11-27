@@ -1,4 +1,5 @@
 import { StyleSheet, useColorScheme } from 'react-native';
+import { READABLE_WIDTH } from '../core/wide';
 
 /**
  * The design tokens. Screens take every color, gap, corner and text size from here, never a
@@ -308,7 +309,7 @@ export const type = {
  * `contentContainerStyle`. On an iPhone the screen is narrower than this, so nothing changes; on an
  * iPad the rows stop at a readable width, centered, as Review's card already does.
  */
-export const readable = { width: '100%', maxWidth: 640, alignSelf: 'center' } as const;
+export const readable = { width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' } as const;
 
 /** The smallest a tap target gets, per Apple's guidelines. */
 export const MIN_TAP = 44;

@@ -7,6 +7,7 @@ import { mnemonicParts, mnemonicSections, otherMeanings, primaryMeaning, READING
 import { haptic } from './haptics';
 import { Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { READABLE_WIDTH } from '../core/wide';
 
 /** Japanese on a card: the system's Japanese face, so kanji don't fall back to Chinese forms. */
 const JA = { fontFamily: JAPANESE_FONT } as const;
@@ -308,7 +309,7 @@ export function CardContent({ subject, label, parts, showMeaning, showReading, s
         const { width, height } = e.nativeEvent.layout;
         setRoom((r) => (r && Math.abs(r.width - width) < 1 && Math.abs(r.height - height) < 1 ? r : { width, height }));
       }}
-      contentContainerStyle={{ paddingTop: t.padTop, paddingBottom: t.padBottom, paddingHorizontal: t.padX, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: 640, alignSelf: 'center' }}
+      contentContainerStyle={{ paddingTop: t.padTop, paddingBottom: t.padBottom, paddingHorizontal: t.padX, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}
     >
       {/* No fade or rise on a new question: a native-driven fade started as the keyboard's layout animation runs can stay at invisible (the card came up blank), and a 240 ms fade on every card read as slow. The answer flash is the feedback. */}
       <View key={contentKey} style={{ gap: t.gap }}>
