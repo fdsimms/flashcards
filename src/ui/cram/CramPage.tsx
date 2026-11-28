@@ -18,10 +18,10 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, ErrorNote, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
+import { Button, Card as Box, CheckboxRow, ErrorNote, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
-import { CheckRow, Pill } from './CramBits';
+import { Pill } from './CramBits';
 import { SelectBar } from '../SelectBar';
 import { useSelection } from '../useSelection';
 import { RegisterPicker } from '../reader/RegisterPicker';
@@ -384,7 +384,7 @@ export function CramPage(props: {
         {sel.selecting ? (
           <Group>
             {listed.map((note, i) => (
-              <CheckRow key={note.id} first={i === 0} label={headword(note) || 'Untitled'} detail={meaningOf(note) || undefined} checked={sel.selected.has(note.id)} onPress={() => { haptic.select(); sel.toggle(note.id); }} />
+              <CheckboxRow key={note.id} first={i === 0} label={headword(note) || 'Untitled'} detail={meaningOf(note) || undefined} checked={sel.selected.has(note.id)} onPress={() => { haptic.select(); sel.toggle(note.id); }} />
             ))}
           </Group>
         ) : (

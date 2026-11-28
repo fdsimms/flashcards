@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView } from 'react-native';
 import { sendRecording, type RecordDeps } from '../../anki/recordService';
 import { sha1Hex } from '../../anki/sha1';
 import type { Api, AudioLesson, Language } from '../../reader/api';
@@ -7,13 +7,11 @@ import { firstChosen, hasClips, lessonClipName, lessonPhraseNote, phrasesToOffer
 import type { MinedNote } from '../../reader/mining';
 import { LANGUAGES } from '../../reader/languages';
 import { failureText } from '../../core/failure';
-import { withThaiLineHeight } from '../../core/script';
 import { hasMedia, removeMedia, writeMedia } from '../../media/mediaFiles';
 import type { NoteEditorResult } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Divider, ErrorNote, Group, Help, Icon, Loading, Screen, Tag } from '../kit';
-import { MIN_TAP, space, type, useTheme, readable } from '../theme';
-import { HoverPressable } from '../hover';
+import { Button, CheckboxRow, ErrorNote, Group, Help, Loading, Screen, Tag } from '../kit';
+import { space, type, useTheme, readable } from '../theme';
 
 /**
  * Add a lesson's phrases to the deck (docs/read-and-listen/architecture.md, Audio lessons): the
@@ -105,22 +103,16 @@ export function LessonAddToDeck({ api, lesson, language, deck, recorder, loadEnt
             {offered.map((p, i) => {
               const on = chosen.has(p.index);
               return (
-                <HoverPressable
+                <CheckboxRow
                   key={p.index}
+                  first={i === 0}
+                  checked={on}
                   onPress={() => toggle(p.index)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
+                  label={p.text}
+                  detail={p.english}
                   accessibilityLabel={`${p.text}, ${p.english}${p.inDeck ? ', already in your deck' : ''}`}
-                  style={({ pressed }) => ({ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : c.surface })}
-                >
-                  {i === 0 ? null : <Divider inset={space.l} />}
-                  <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
-                  <View style={{ flex: 1, gap: space.xs }}>
-                    <Text style={{ ...withThaiLineHeight(type.body, p.text), color: c.text }}>{p.text}</Text>
-                    <Text style={{ ...type.footnote, color: c.textSecondary }}>{p.english}</Text>
-                  </View>
-                  {p.inDeck ? <Tag text="In deck" color={c.goodInk} fill={c.goodFill} /> : null}
-                </HoverPressable>
+                  trailing={p.inDeck ? <Tag text="In deck" color={c.goodInk} fill={c.goodFill} /> : null}
+                />
               );
             })}
           </Group>

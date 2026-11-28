@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useConnectionProblem } from './connection';
 import { splitFailure } from '../core/failure';
+import { withThaiLineHeight } from '../core/script';
 import { haptic } from './haptics';
 import { showsHomeButton } from './homeButton';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
@@ -21,7 +22,7 @@ import { useReduceMotion } from './motion';
 import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
-import { Hoverable } from './hover';
+import { Hoverable, HoverPressable } from './hover';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /**
@@ -688,6 +689,71 @@ export function Banner({ icon, iconColor, title, hint, onPress, onDismiss, dismi
         </Tappable>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * A row in a `Group` that shows something rather than opening it: a label, a symbol before it if
+ * any, and what's at its end (a status, a count) as children. The line above it starts at the
+ * label, as in every other group. VoiceOver reads the row as one.
+ */
+export function ValueRow({ label, icon, first, children }: { label: string; icon?: { name: SFSymbol; color: string }; first?: boolean; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <View accessible style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingHorizontal: space.l }}>
+      {first ? null : <Divider inset={space.l + (icon ? VALUE_ICON + space.m : 0)} />}
+      {icon ? <Icon name={icon.name} size={VALUE_ICON} color={icon.color} /> : null}
+      <Text style={{ ...type.body, color: c.text, flex: 1 }}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+const VALUE_ICON = 18;
+
+/**
+ * A row in a `Group` with a check circle, for picking several (`CheckRow` is a checkmark, for picking
+ * one): tapping it checks it or takes the check off. `big` is a cram lesson's, for a glance
+ * mid-conversation. The label is often a word in the language being learned, so it takes Thai's
+ * taller line where it needs one.
+ */
+export function CheckboxRow({ label, detail, checked, onPress, first, big, color, trailing, disabled, labelSize, accessibilityLabel }: {
+  label: string;
+  detail?: string;
+  checked: boolean;
+  onPress: () => void;
+  first?: boolean;
+  big?: boolean;
+  /** The check's fill when on: the accent, unless this says otherwise (lesson mode's green). */
+  color?: string;
+  /** Something small after the text ("Saving"). */
+  trailing?: React.ReactNode;
+  disabled?: boolean;
+  /** Replaces the label's size and line height (a cram's text size, for a label in the cram's language). */
+  labelSize?: { fontSize: number; lineHeight: number };
+  /** What VoiceOver says when the label and detail leave something out (what `trailing` shows). */
+  accessibilityLabel?: string;
+}) {
+  const c = useTheme();
+  return (
+    <HoverPressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked, disabled: !!disabled }}
+      accessibilityLabel={accessibilityLabel ?? (detail ? `${label}, ${detail}` : label)}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP + (big ? space.l : space.m), flexDirection: 'row', alignItems: 'center', gap: space.m,
+        paddingVertical: big ? space.m : space.s + 2, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : c.surface,
+      })}
+    >
+      {first ? null : <Divider inset={space.l} />}
+      <Icon name={checked ? 'checkmark.circle.fill' : 'circle'} size={big ? 26 : 22} color={checked ? color ?? c.accent : c.textTertiary} weight="regular" />
+      <View style={{ flex: 1, gap: space.xs }}>
+        <Text style={{ ...withThaiLineHeight(big ? type.headline : type.body, label), ...labelSize, color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
+        {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
+      </View>
+      {trailing}
+    </HoverPressable>
   );
 }
 

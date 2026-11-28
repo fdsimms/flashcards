@@ -8,7 +8,7 @@ import { headword } from '../../core/forms';
 import { talkTextStyle } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, CheckboxRow, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -16,7 +16,6 @@ import { cramsNow, finishCram, saveCram, useCollection, useCrams } from '../useC
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordAudio } from '../useWordAudio';
 import { phraseIsUsed, withPhraseUsed } from '../../core/cramPhrases';
-import { CheckRow } from './CramBits';
 import { TalkLine } from './TalkLine';
 import { talkSizeMenu, useTalkSize } from './talkSize';
 import { useTextFont } from '../textMenu';
@@ -151,7 +150,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             <SectionTitle>{`Questions about ${language ? LANGUAGES[language].name : 'the language'} · ${asked} of ${questions.length} asked`}</SectionTitle>
             <Group>
               {questions.map((q, i) => (
-                <CheckRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't save that check mark."); }} />
+                <CheckboxRow key={q.id} first={i === 0} big color={c.countDue} label={q.text} labelSize={language ? talkTextStyle(LANGUAGES[language], size, 0.9) : undefined} checked={!!q.asked} onPress={() => { haptic.select(); keep((now) => withQuestionAsked(now, q.id, !q.asked), "Couldn't save that check mark."); }} />
               ))}
             </Group>
           </>
@@ -162,7 +161,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
             <SectionTitle>{`Phrases · ${phrases.filter((p) => phraseIsUsed(cram, p)).length} of ${phrases.length} used`}</SectionTitle>
             <Group>
               {phrases.map((p, i) => (
-                <CheckRow
+                <CheckboxRow
                   key={p.text}
                   first={i === 0}
                   big

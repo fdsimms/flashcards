@@ -10,11 +10,10 @@ import type { Api, Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { loadParticle } from '../../reader/lessonStorage';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Segments, Tappable } from '../kit';
+import { Button, CheckboxRow, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Segments, Tappable } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
-import { CheckRow } from './CramBits';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
 export type SuggestMode = 'words' | 'phrases';
@@ -177,7 +176,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
     : addSummary(pickedWords);
   const pickedCount = phraseMode ? pickedPhrases.length : pickedWords.length;
   const wordRow = (w: (typeof words)[number], i: number) => (
-    <CheckRow
+    <CheckboxRow
       key={w.candidate.text}
       first={i === 0}
       label={w.candidate.text}
@@ -234,7 +233,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
         {phraseMode && phrases.length ? (
           <Group>
             {phrases.map((p, i) => (
-              <CheckRow key={p.text} first={i === 0} label={p.text} detail={[p.reading, p.english].filter(Boolean).join(' · ')} checked={checkedPhrases.has(p.text)} onPress={() => toggle(p.text)} disabled={adding} />
+              <CheckboxRow key={p.text} first={i === 0} label={p.text} detail={[p.reading, p.english].filter(Boolean).join(' · ')} checked={checkedPhrases.has(p.text)} onPress={() => toggle(p.text)} disabled={adding} />
             ))}
           </Group>
         ) : null}

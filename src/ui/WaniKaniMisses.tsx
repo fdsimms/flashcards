@@ -4,7 +4,7 @@ import { JAPANESE_FONT } from '../core/script';
 import { missedItems } from '../wanikani/session';
 import { primaryMeaning, readingGroups, type Subject } from '../wanikani/subjects';
 import { haptic } from './haptics';
-import { Tag } from './kit';
+import { Divider, Tag } from './kit';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
 import { HoverPressable } from './hover';
 
@@ -44,8 +44,9 @@ export function WaniKaniMissList({ missed, subjects }: { missed: Missed[]; subje
               key={r.assignmentId}
               accessible
               accessibilityLabel={`${r.subject.characters ?? 'Radical'}, ${meaning}${reading ? `, ${reading}` : ''}, missed on ${missedOn}`}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingHorizontal: space.m, paddingVertical: space.m, minHeight: 44, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingHorizontal: space.m, paddingVertical: space.m, minHeight: 44 }}
             >
+              {i ? <Divider inset={space.m} /> : null}
               <View style={{ flex: 1, gap: space.xs }}>
                 <Text accessibilityLanguage="ja-JP" style={{ ...type.body, fontFamily: JAPANESE_FONT, fontWeight: '600', color: c.text }}>{r.subject.characters ?? 'Radical picture'}</Text>
                 <Text numberOfLines={2} style={{ ...type.subhead, color: c.textSecondary }}>{reading ? `${meaning} · ${reading}` : meaning}</Text>
