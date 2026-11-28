@@ -19,6 +19,7 @@ import { connection } from './connection';
 import { downloads } from './reader/readerDownloads';
 import { useReaderPlayerHost, type Carried, type Position } from './useReaderPlayer';
 import { useKeepPlaying } from './reader/useKeepPlaying';
+import { recordPlanItem } from '../tools/planStorage';
 
 /**
  * Up Next (src/reader/audioQueue.ts has the rules): Read & Listen texts and audio lessons played one
@@ -181,6 +182,8 @@ function useAudioQueueHost(): AudioQueueHost {
     if (item.kind === 'lesson' && what.kind === 'lesson') {
       if (began.current) began.current.logged = true;
       server.lessonHeard(item.lesson.id).catch(() => undefined);
+      // Today's plan's Listen item (src/tools/plan.ts).
+      recordPlanItem('listen', item.lesson.language);
       return;
     }
     if (item.kind !== 'text' || what.kind !== 'text') return;

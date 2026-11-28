@@ -15,6 +15,8 @@ import { useTodayReady } from '../../../ui/useTodayReady';
 import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 import { useReadWhileShown } from '../../../ui/useReadWhileShown';
+import { TodayPlanCard } from '../../../ui/TodayPlanCard';
+import { useTodayPlan } from '../../../ui/useTodayPlan';
 
 /** The Today tab: the first screen, with only what's for today. */
 export default function TodayRoute() {
@@ -34,9 +36,10 @@ export default function TodayRoute() {
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   const extras = useDailyExtras();
+  const plan = useTodayPlan(extras);
   const grammarDue = useGrammarDueState(reader.api, repo);
   const crams = useCrams(repo);
-  const ready = useTodayReady([loaded, studiedSettled, extras.ready, grammarDue.settled, crams.loaded]);
+  const ready = useTodayReady([loaded, studiedSettled, extras.ready, plan.ready, grammarDue.settled, crams.loaded]);
   return (
     <Today
       decks={decks}
@@ -44,14 +47,15 @@ export default function TodayRoute() {
       ready={ready}
       studied={studied}
       crams={<CramCards repo={repo} />}
-      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} />}
+      plan={<TodayPlanCard plan={plan} />}
+      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} inPlan={plan.on} />}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}
       onBackup={() => router.push('/backup')}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'today' } })}
       onLookUp={() => router.push('/look-up')}
-      onOptions={openOptions}
+      onOptions={(deck) => deckActions.act(deck, 'options')}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}
       collapsed={collapse.collapsed}

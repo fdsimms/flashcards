@@ -510,6 +510,30 @@ everyday speech they make up, and the trend.
 - Toki Pona has no level (its list is particles that all count): `GET /api/level` is 404 and the card
   isn't shown. Before a language's deck has been read it's 409, and the page says so.
 
+## Today's plan
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A card at the
+top of Today (`TodayPlanCard.tsx`, `useTodayPlan.ts`; the planning in `src/tools/plan.ts`) with a few
+things for the day, in one language, sized to the time set (Settings, Today's plan: 15, 30, 45 or 60
+minutes, 30 by default).
+
+- **Reviews first, then new words, one thing to take in and one to produce.** When reviews would fill the
+  time, the plan is reviews alone and new words wait. Taking in is a shelf text nearest 95% known, a video
+  or podcast on the Your texts row, or a Your words lesson; producing is Daily extras' drill for the
+  language (first when something in it was missed lately), a Situations scene or a journal entry. Each
+  takes its turn day by day (`dayNumberOf`), among those on offer and turned on.
+- **One language a day:** the one with the most due, then new, among the decks Read & Listen knows the
+  language of, or always one chosen. Without Read & Listen's deck settings there's no plan.
+- **Kept for the day once made** (`SavedPlan`), so done items stay listed, and made again for a new
+  study day, language or length.
+- **Ticked off from what Franki records, wherever it's done:** reviews and new words when the deck has
+  none left; a text or a video or episode by Daily extras' reads (Watch's Finished counts now too); a
+  drill by its five answers; a lesson heard, a scene finished and an entry checked or held by the plan's
+  own record (`recordPlanItem`, called from the lesson player, Situations and the journal). The week's
+  dots are each study day's outcome, kept for a fortnight on the phone (Keychain).
+- **It replaces Daily extras' list on Today**, which keeps only Grammar due while the plan shows; their
+  drills are one kind of item here, and the end-of-session card is unchanged. Nothing moves a schedule.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
@@ -798,6 +822,17 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   in TypeScript), so the take still never leaves it. Shown in Thai, Japanese and Norwegian, where pitch
   tells words apart, or every language with Settings, Speaking's "Pitch line in every language". Review's
   cards only for now: a sentence's line is longer and harder to read.
+- **Tone check** (28 November 2026, the owner, from a mock with each recommendation picked;
+  `src/core/toneCheck.ts`, `src/ui/ToneCheck.tsx`): under a Thai card's pitch line, each syllable of the
+  word (from its Transliteration, `thaiSyllables`) with the recording's tone shape, the take's, and Same
+  or Different. It reads the two lines already drawn, so nothing new is measured or sent. A line is cut at
+  its gaps when there's one per syllable, else into equal stretches; a syllable's shape is rising or
+  falling by more than 2 semitones across it (a rising tone may dip first), else high, low or mid by its
+  level around the speaker's middle. It compares the take with the recording, not with a textbook shape,
+  since real speech bends tones, and says "Pitch not clear enough to say" for a syllable with under
+  60 ms of voice in either rather than guessing. Unlike Score it, it names a shape the learner can hear
+  and fix, but it's still a guide: never a score and never a rating. Thai only: Japanese pitch accent and
+  Norwegian's word tones work differently and would be their own step.
 
 ## Hosting
 
@@ -1276,6 +1311,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   scheduled or graded. Not a second rating: it sits
   with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
   still moves only the words. Texts already on the shelf keep the allowance they were written with.
+- **The New words dial** (owner's request, 28 November 2026: texts felt light on new content). The
+  end view's "For the next ones" card has a New words row between Length and Grammar: Fewer, Same
+  or More, stepped from where it was when the view opened. It moves the language's text difficulty
+  (`PUT /api/difficulty`, the same setting as Settings, Read & Listen) one level, Easier 3 new words in
+  100, Standard 5, Harder 7, held at the ends. Nothing new on the server, and a rating still moves
+  nothing; the check after reading can still step the level by itself.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:
@@ -1862,9 +1903,17 @@ video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
   kept on the phone (`podcastStorage.ts`, at most eight) and listed first, with a note when one has a
   newer episode with a transcript than when it was last used.
 - **Only an episode with a transcript with times can be added**: `<podcast:transcript>` as JSON,
-  WebVTT or SRT, the best kind first (HTML has no times). Every episode is listed, the others greyed
-  with No transcript. Transcribing those with Azure was left to be asked about with its price.
+  WebVTT or SRT, the best kind first (HTML has no times), or one Azure made. Every episode is listed.
   Episodes up to two hours.
+- **Transcribe** (28 November 2026, the owner, from a mock with each recommendation picked): an
+  episode with no transcript of its own shows its price to transcribe (`transcribe_usd`, at
+  `franki_speech.transcribe.USD_PER_HOUR`, an estimate of about $1 an hour that Azure's pricing page
+  didn't confirm), and a tap asks first with the length and the price. The server has Azure's fast
+  transcription fetch the episode's audio itself (`audioUrl`, so nothing is downloaded), in the
+  background, and the app asks `/api/podcasts/transcript` until it's ready; the phrases become cues,
+  kept in `podcast_transcripts` so an episode is never paid for twice, and the cost goes in
+  `call_costs` ("transcribe"). Then it's checked and added as any episode. Podcasts only: a video
+  without subtitles would need its audio taken from YouTube, which its terms don't allow.
 - **Feeds are untrusted.** Read with defusedxml (no entity expansion), size-capped (15 MB a feed, 5 MB
   a transcript), and only from a public web address, redirects included (`public_url`), so a feed
   can't be pointed at the server's own network.

@@ -48,6 +48,7 @@ import { ReadRetell } from './ReadRetell';
 import type { LineDrillKind } from '../../reader/lineDrill';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
+import { ReadNewWordsDial } from './ReadNewWordsDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
@@ -1071,6 +1072,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     onChange={chooseLength}
                   />
                 </View>
+                <ReadNewWordsDial api={api} />
                 <ReadGrammarDial api={api} />
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>
