@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { GUESS_HINT, type TapMode } from '../../reader/guess';
 import { haptic } from '../haptics';
-import { Icon, Tappable } from '../kit';
+import { Button, Icon } from '../kit';
 import { Collapse } from '../motion';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
@@ -41,17 +41,7 @@ export function GuessPrompt({ mode, onPick, onGiveUp }: {
             <Text style={{ ...type.body, color: c.text }}>{choice}</Text>
           </HoverPressable>
         ))}
-        <Tappable
-          onPress={onGiveUp}
-          accessibilityRole="button"
-          accessibilityLabel="I don't know"
-          style={{
-            minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center',
-            borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill,
-          }}
-        >
-          <Text style={{ ...type.body, color: c.accentInk, fontWeight: '600' }}>I don't know</Text>
-        </Tappable>
+        <Button variant="tinted" label="I don't know" onPress={onGiveUp} />
         <View style={{ height: hairline, backgroundColor: c.border, marginVertical: space.xs }} />
       </View>
     );

@@ -539,8 +539,12 @@ export function SheetHeader({ children, onClose, disabled }: { children: React.R
 export function Button(props: {
   label: string;
   onPress: () => void;
-  /** `destructive` is for what deletes or switches something off: quiet until pressed, red text. */
-  variant?: 'primary' | 'secondary' | 'destructive';
+  /**
+   * `destructive` is for what deletes or switches something off: quiet until pressed, red text.
+   * `tinted` is a way out beside a question's answers (I don't know): gold-tinted, so it reads as
+   * neither an answer nor the screen's main action.
+   */
+  variant?: 'primary' | 'secondary' | 'destructive' | 'tinted';
   disabled?: boolean;
   /** Shows a spinner in place of the label, and can't be pressed. */
   busy?: boolean;
@@ -553,7 +557,7 @@ export function Button(props: {
   const c = useTheme();
   const variant = props.variant ?? 'primary';
   const off = props.disabled || props.busy;
-  const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : c.text;
+  const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : variant === 'tinted' ? c.accentInk : c.text;
   return (
     <Tappable
       onPress={() => { haptic.tap(); props.onPress(); }}
@@ -568,9 +572,9 @@ export function Button(props: {
         {
           minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
           alignItems: 'center', justifyContent: 'center',
-          backgroundColor: variant === 'primary' ? c.accent : c.fill,
+          backgroundColor: variant === 'primary' ? c.accent : variant === 'tinted' ? c.accentFill : c.fill,
           // The fill alone is 1.1:1 on the screen in light mode, so the button needs an edge to read as one. Inside the box: the size is the same.
-          ...(variant === 'primary' ? null : { borderWidth: 1, borderColor: c.controlEdge }),
+          ...(variant === 'primary' || variant === 'tinted' ? null : { borderWidth: 1, borderColor: c.controlEdge }),
         },
         props.style,
       ]}
