@@ -12,7 +12,7 @@ import { sendGrammarAnswers } from '../reader/useGrammarRotation';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, EmptyState, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
@@ -97,8 +97,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
     return (
       <Screen title={title} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <Text style={{ ...type.headline, color: c.text }}>No questions yet</Text>
-          {note ? <Help>{note}</Help> : null}
+          <EmptyState icon="questionmark.bubble" title="No questions yet" body={note} />
         </ScrollView>
       </Screen>
     );

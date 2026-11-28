@@ -4,7 +4,7 @@ import { failureText } from '../core/failure';
 import { CONFUSION_MISSES, CONFUSION_WORDS, FORM_CLEARED_AFTER } from '../core/forms';
 import { practiceStats, type PracticeStats, type WeakFormStat } from '../core/formsStats';
 import type { Repo } from '../db/repo';
-import { Card, Help, Loading, Meter, Screen, SectionTitle } from './kit';
+import { Card, EmptyState, Help, Loading, Meter, Screen, SectionTitle } from './kit';
 import { hairline, space, type, useTheme, readable } from './theme';
 
 /** How many forms "Still needs work" lists before "and N more". */
@@ -40,12 +40,8 @@ export function FormsHistory({ repo, deck }: { repo: Repo; deck: string }) {
 }
 
 function Empty() {
-  const c = useTheme();
   return (
-    <Card>
-      <Text style={{ ...type.headline, color: c.text }}>No practice yet</Text>
-      <Help>Practice a word's forms or a pattern, and the results show here.</Help>
-    </Card>
+    <EmptyState icon="chart.bar" title="No practice yet" body="Practice a word's forms or a pattern, and the results show here." />
   );
 }
 

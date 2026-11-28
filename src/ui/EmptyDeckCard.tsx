@@ -2,7 +2,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 import { noteLanguageOfDeck } from '../core/cards';
 import { failureText } from '../core/failure';
 import type { Language } from '../reader/api';
@@ -12,8 +12,7 @@ import { openFirstWords, startFromZero } from './fromZeroActions';
 import { setFromZeroNewPerDay } from './fromZeroDeck';
 import { useFromZero } from './fromZeroStorage';
 import { haptic } from './haptics';
-import { Button, Card, Help, Icon } from './kit';
-import { space, type, useTheme } from './theme';
+import { Button, EmptyState, Help } from './kit';
 import { importWordList } from './wordListImport';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -26,7 +25,6 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * language sounds, and lessons until there are enough words for texts.
  */
 export function EmptyDeckCard({ deck }: { deck: string }) {
-  const c = useTheme();
   const router = useRouter();
   const { repo, refresh, reader } = useApp();
   const [busy, setBusy] = useState(false);
@@ -100,25 +98,20 @@ export function EmptyDeckCard({ deck }: { deck: string }) {
   };
 
   return (
-    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-      <Icon name="plus.rectangle.on.rectangle" size={40} color={c.textTertiary} weight="regular" />
-      <Text style={{ ...type.title, color: c.text, marginTop: space.s, textAlign: 'center' }}>Add your first words</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-        {`${deck} has no cards yet. Type a few words with their meanings, e.g. hola - hello. Each one becomes a card to study today.`}
-      </Text>
+    <EmptyState icon="plus.rectangle.on.rectangle" title="Add your first words" body={`${deck} has no cards yet. Type a few words with their meanings, e.g. hola - hello. Each one becomes a card to study today.`}>
       {api && language ? (
         <>
           {started
-            ? <Button label="Pick your first words" onPress={() => openFirstWords(router, deck, language)} style={{ alignSelf: 'stretch' }} />
-            : <Button label="Start from zero" onPress={confirmStart} busy={starting} style={{ alignSelf: 'stretch' }} />}
+            ? <Button label="Pick your first words" onPress={() => openFirstWords(router, deck, language)} />
+            : <Button label="Start from zero" onPress={confirmStart} busy={starting} />}
           <Help>{started
             ? "They're added once you've checked them in Words to add."
             : `Franki picks the most common ${LANGUAGES[language].name} words, starts you on how it sounds, and makes your first lessons.`}</Help>
         </>
       ) : null}
-      <Button variant={api && language ? 'secondary' : 'primary'} label="Add words" onPress={() => router.push({ pathname: '/quick-add', params: { deck } })} style={{ alignSelf: 'stretch' }} />
-      <Button variant="secondary" label="Import a word list" onPress={() => void importList()} busy={busy} style={{ alignSelf: 'stretch' }} />
+      <Button variant={api && language ? 'secondary' : 'primary'} label="Add words" onPress={() => router.push({ pathname: '/quick-add', params: { deck } })} />
+      <Button variant="secondary" label="Import a word list" onPress={() => void importList()} busy={busy} />
       <Help>A word list is a .csv or .txt file with a word and its meaning on each line.</Help>
-    </Card>
+    </EmptyState>
   );
 }

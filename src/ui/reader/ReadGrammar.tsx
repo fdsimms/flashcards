@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { noteWithExample } from '../../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type GrammarList } from '../../reader/api';
 import { DEFAULT_MAX_PRACTICE, grammarChoiceOptions, jlptName, seenLine } from '../../reader/grammar';
-import { Card, ErrorNote, HeaderAction, Help, Icon, Loading, Screen, Segments, Tag, Tappable } from '../kit';
+import { Card, EmptyState, ErrorNote, HeaderAction, Help, Icon, Loading, Screen, Segments, Tag, Tappable } from '../kit';
 import { haptic } from '../haptics';
 import { ReadGrammarLevel } from './ReadGrammarLevel';
 import { hairline, space, type, useTheme, readable } from '../theme';
@@ -65,7 +65,7 @@ export function ReadGrammar({ api, dayStartsAtHour, onOpenPoint }: { api: Api; d
         </Help>
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {points === null && !error ? <Loading /> : null}
-        {points && points.length === 0 ? <Help>There are no grammar points for this language yet.</Help> : null}
+        {points && points.length === 0 ? <EmptyState icon="text.book.closed" title="No grammar points yet" body="There are none for this language yet." /> : null}
         {points ? <ReadGrammarLevel api={api} points={points} onList={setList} /> : null}
         {points && points.length > 0 ? (
           <Card style={{ gap: space.s }}>

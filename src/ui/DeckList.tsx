@@ -9,7 +9,7 @@ import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, EmptyState, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { DeckPanel } from './DeckPanel';
@@ -322,19 +322,13 @@ export function DeckRowLink({ row, first, toggleSlot, open, picked, onPick, onOp
 
 /** With no decks at all: make one (NewDeck.tsx), or bring in an Anki collection. */
 export function NoDecksCard({ onImport }: { onImport: () => void }) {
-  const c = useTheme();
   const router = useRouter();
   return (
-    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-      <Icon name="rectangle.stack" size={40} color={c.textTertiary} weight="regular" />
-      <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-        Make a deck for what you're learning and add words to it, or bring in your Anki collection.
-      </Text>
-      <Button label="Make a deck" onPress={() => router.push('/deck-new')} style={{ alignSelf: 'stretch' }} />
-      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+    <EmptyState icon="rectangle.stack" title="No decks yet" body="Make a deck for what you're learning and add words to it, or bring in your Anki collection.">
+      <Button label="Make a deck" onPress={() => router.push('/deck-new')} />
+      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} />
       <Help>Anki users: sync with your own Anki server, or choose a collection exported from AnkiMobile.</Help>
-    </Card>
+    </EmptyState>
   );
 }
 

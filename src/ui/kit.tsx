@@ -899,6 +899,24 @@ export function Meter({ value, color, width, track, label, style }: { value: num
 }
 
 /**
+ * What a list or a page shows when there's nothing in it yet: an icon, a title saying so, a line on
+ * how something gets there, and, as children, what to do about it (Buttons, a Help line). The same
+ * everywhere a screen's whole list is empty; a search that matches nothing, or one empty part of a
+ * page, says so in a line instead.
+ */
+export function EmptyState({ icon, title, body, children }: { icon: SFSymbol; title: string; body?: string; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
+      <Icon name={icon} size={40} color={c.textTertiary} weight="regular" />
+      <Text accessibilityRole="header" style={{ ...type.title, color: c.text, marginTop: space.s, textAlign: 'center' }}>{title}</Text>
+      {body ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center' }}>{body}</Text> : null}
+      {children ? <View style={{ alignSelf: 'stretch', gap: space.s, marginTop: space.m }}>{children}</View> : null}
+    </Card>
+  );
+}
+
+/**
  * A screen's title as a heading in its content, for a name the user wrote (a cram, a deck). The
  * native large title is one line and cuts a long name short; this wraps. Pass no `title` to `Screen`.
  */

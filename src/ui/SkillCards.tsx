@@ -15,7 +15,7 @@ import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
 import { cleanWeeks, DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Group, HeaderAction, Help, Icon, Meter, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
+import { Button, Card, EmptyState, Group, HeaderAction, Help, Icon, Meter, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
 import { hairline, readable, space, type, useTheme } from './theme';
 
 /**
@@ -193,7 +193,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
         {!found ? (
           <Card><Help>{"This deck's name doesn't say which language it's in. Skill cards need a deck named after its language, e.g. Thai or Polski."}</Help></Card>
         ) : !groups.length ? (
-          <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
+          <EmptyState icon="square.stack.3d.up" title={`No skill cards for ${found.name} yet`} />
         ) : (
           <>
             {sections.map((sec, si) => (

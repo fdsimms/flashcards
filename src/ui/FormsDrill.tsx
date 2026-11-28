@@ -9,7 +9,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { answerLook, Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
+import { answerLook, Button, Card, EmptyState, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
 import { Reveal } from './motion';
 import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -165,8 +165,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     return (
       <Screen title="Practice forms" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <Text style={{ ...type.headline, color: c.text }}>Nothing to practice</Text>
-          <Help>None of these words list forms that can be asked here. Forms come from each note's Forms field, one per line, like "present · yo: espero".</Help>
+          <EmptyState icon="textformat" title="Nothing to practice" body={'None of these words list forms that can be asked here. Forms come from each note\'s Forms field, one per line, like "present · yo: espero".'} />
           {notice ? <Help>{notice}</Help> : null}
         </ScrollView>
       </Screen>
