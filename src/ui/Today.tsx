@@ -112,6 +112,8 @@ export function Today(props: {
   /** Crams due soon (CramCards), under the day's count: they have a date. */
   crams?: React.ReactNode;
   /** Today's extras (DailyExtras.tsx), under the decks. */
+  /** Today's plan (TodayPlanCard), at the top. */
+  plan?: React.ReactNode;
   extrasStrip?: React.ReactNode;
   /** When the last backup was made, and whether another is due (`backupStatus`); warned about only when overdue, and not while sync is on. */
   backup?: { text: string; overdue: boolean };
@@ -183,6 +185,7 @@ export function Today(props: {
             lead={(
               <>
                 {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
+                {props.plan}
                 {anyDecks && !firstEmpty ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
                 {firstEmpty ? <EmptyDeckCard deck={firstEmpty} /> : null}
                 {backup?.overdue ? (

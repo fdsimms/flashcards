@@ -13,6 +13,7 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useNoteQueue } from '../useNoteQueue';
 import { checkOrHold, journalDrafts, newEntryKey } from './journalWork';
 import { JournalCorrections, JournalFirstTry } from './JournalParts';
+import { recordPlanItem } from '../../tools/planStorage';
 
 type Stage =
   | { kind: 'loading' }
@@ -94,6 +95,8 @@ export function JournalEntryScreen({ api, onSay, language, entryId, prompt: give
     try {
       const got = await checkOrHold(api, { key: draft.key, language, text, prompt: draft.prompt, entryId: draft.entryId });
       haptic.tap();
+      // Today's plan's Write item (src/tools/plan.ts): an entry written, checked now or held to be.
+      recordPlanItem('write', language);
       if (got === 'held') {
         keep(null);
         setStage({ kind: 'held' });
