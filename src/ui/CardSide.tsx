@@ -223,7 +223,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                     accessibilityRole="button"
                     accessibilityLabel={sentenceBlock?.source !== undefined ? 'Read the line aloud' : 'Read the example sentence aloud'}
                     onPress={() => { haptic.tap(); speakSentence(sentence); }}
-                    hitSlop={space.m}
+                    hitSlop={(MIN_TAP - 18) / 2}
                     scaleTo={0.9}
                   >
                     <Icon name="speaker.wave.2.fill" size={18} color={c.accent} />

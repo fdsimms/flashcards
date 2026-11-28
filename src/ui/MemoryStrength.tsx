@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { radius, space, type, useTheme } from './theme';
+import { space, type, useTheme } from './theme';
+import { Meter } from './kit';
 
 /**
  * A reminder on the answer side that this review card is shaky: its chance of being recalled now,
@@ -14,9 +15,7 @@ export function MemoryStrength({ percent }: { percent: number }) {
         <Text style={{ ...type.footnote, color: c.textSecondary }}>Chance of remembering now</Text>
         <Text style={{ ...type.footnote, fontWeight: '600', color: c.warning }}>{`${percent}%`}</Text>
       </View>
-      <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-        <View style={{ width: `${percent}%`, height: '100%', borderRadius: radius.pill, backgroundColor: c.warning }} />
-      </View>
+      <Meter value={percent / 100} color={c.warning} />
     </View>
   );
 }

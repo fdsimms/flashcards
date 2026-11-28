@@ -8,7 +8,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { CASE_LANGUAGES } from '../../tools/cases';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Field, Help, Icon, Loading, Screen, Tappable } from '../kit';
-import { readable, radius, space, type, useTheme } from '../theme';
+import { readable, radius, smooth, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useNoteQueue } from '../useNoteQueue';
 import { checkOrHold, journalDrafts, newEntryKey } from './journalWork';
@@ -223,7 +223,7 @@ export function JournalEntryScreen({ api, onSay, language, entryId, prompt: give
         {entry.check.filled.map((f) => {
           const state = added[f.word];
           return (
-            <View key={f.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: radius.m, padding: space.m }}>
+            <View key={f.word} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: radius.m, ...smooth, padding: space.m }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ ...type.headline, color: c.text }} accessibilityLanguage={info.speech}>{f.word}</Text>
                 <Text style={{ ...type.footnote, color: c.textSecondary }}>{state === 'failed' ? "Couldn't add it. Try again." : f.english}</Text>

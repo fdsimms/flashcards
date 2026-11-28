@@ -4,7 +4,7 @@ import { ApiError, type Api, type MarkedWord } from '../../reader/api';
 import { ipaNote, meaningOf, wordStatus } from '../../reader/languages';
 import { ReadKanji } from './ReadKanji';
 import { ReadWordTitle } from './ReadWordTitle';
-import { Button, Card, ErrorNote, Help, Loading, Screen } from '../kit';
+import { Button, Card, EmptyState, ErrorNote, Help, Loading, Screen } from '../kit';
 import { hairline, space, type, useTheme, readable } from '../theme';
 
 /**
@@ -63,7 +63,7 @@ export function ReadWords({ api, mining }: {
       >
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {words === null && !error ? <Loading /> : null}
-        {words !== null && words.length === 0 ? <Help>No marked words. While reading, tap a word and choose Mark as unknown.</Help> : null}
+        {words !== null && words.length === 0 ? <EmptyState icon="bookmark" title="No marked words" body="While reading, tap a word and choose Mark as unknown." /> : null}
         {words !== null && words.length > 0 ? (
           <>
             <Card style={{ paddingVertical: 0, gap: 0 }}>

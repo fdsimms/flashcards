@@ -15,7 +15,7 @@ import type { Api } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
-import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments } from './kit';
+import { CheckRow, EmptyState, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments } from './kit';
 import { NativeRecordingsSetting } from './NativeRecordingsSetting';
 import { space, readable } from './theme';
 import { stopSpeechIfRunning } from './usePhoneSpeech';
@@ -126,7 +126,7 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
               ))}
             </Group>
           ) : languages ? (
-            <Help>None of your decks are read aloud yet. A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter.</Help>
+            <EmptyState icon="speaker.wave.2" title="No decks are read aloud yet" body="A deck shows up here once its notes have a Language, or its card template reads them aloud with Anki's tts filter." />
           ) : error ? (
             <ErrorNote message={error} onRetry={retry} />
           ) : <Loading />}
@@ -155,7 +155,7 @@ export function VoiceLanguage({ repo, api, languageKey }: { repo: VoicesRepo; ap
       <Screen title="">
         {languages ? (
           <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>
-            <Help>No deck is read aloud in this language anymore.</Help>
+            <EmptyState icon="speaker.slash" title="No deck is read aloud in this language anymore" />
           </ScrollView>
         ) : <Loading error={error} onRetry={retry} />}
       </Screen>

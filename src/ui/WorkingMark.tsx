@@ -23,7 +23,7 @@ export function WorkingMark({ color }: { color?: string }) {
       <View style={{ width: 10, height: 10, borderRadius: radius.pill, backgroundColor: tint }} />
       <Animated.View
         style={{
-          position: 'absolute', width: MARK, height: MARK, borderRadius: MARK / 2, borderWidth: 2,
+          position: 'absolute', width: MARK, height: MARK, borderRadius: radius.pill, borderWidth: 2,
           borderColor: 'transparent', borderTopColor: tint, borderRightColor: tint,
           transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
         }}

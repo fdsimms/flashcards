@@ -3,7 +3,7 @@ import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StoryCharacter } from '../../reader/api';
 import { badgeLetter, firstSeen, xraySections } from '../../reader/xray';
-import { HeaderAction, SectionTitle } from '../kit';
+import { SectionTitle, SheetHeader } from '../kit';
 import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
@@ -22,7 +22,7 @@ export function XrayCard({ character }: { character: StoryCharacter }) {
       accessibilityLabel={`${character.name}. ${character.description}. ${firstSeen(character)}.`}
       style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m, backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, borderColor: c.border, borderWidth: hairline }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ minWidth: 38, minHeight: 38, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ ...type.headline, color: c.accentInk }}>{badgeLetter(character.name)}</Text>
       </View>
       <View style={{ flex: 1, gap: space.xs }}>
@@ -49,13 +49,12 @@ export function ReaderXray({ characters, episode, onClose }: {
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.l, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-          <Text accessibilityRole="header" style={{ ...type.title, color: c.text }}>Characters</Text>
-          <HeaderAction label="Close" onPress={onClose} />
-        </View>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {episode ? `Up to episode ${episode}. Nothing later is shown.` : "Only what you've read so far."}
-        </Text>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Characters</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>
+            {episode ? `Up to episode ${episode}. Nothing later is shown.` : "Only what you've read so far."}
+          </Text>
+        </SheetHeader>
         {characters.length === 0 ? <Text style={{ ...type.body, color: c.textSecondary }}>No characters are listed yet.</Text> : null}
         {here.length > 0 ? <SectionTitle>In this episode</SectionTitle> : null}
         {here.map((ch) => <XrayCard key={ch.name} character={ch} />)}

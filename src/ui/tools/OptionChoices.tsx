@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Icon, Tappable } from '../kit';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { answerLook, Icon, Tappable } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * A few buttons to pick one answer from (a syllable's tone, a letter's class, a vowel's length):
@@ -31,8 +31,7 @@ export function OptionChoices<T extends string>({ options, right, picked, onChoo
             scaleTo={0.97}
             style={{
               flexGrow: 1, flexBasis: 60, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs,
-              paddingHorizontal: space.s, backgroundColor: c.surface, borderRadius: radius.m, ...smooth,
-              borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
+              paddingHorizontal: space.s, ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
             }}
           >
             <Text style={{ ...type.subhead, color: c.text, fontWeight: isRight ? '600' : '400' }}>{label}</Text>

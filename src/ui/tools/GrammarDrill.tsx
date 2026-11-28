@@ -12,7 +12,7 @@ import { sendGrammarAnswers } from '../reader/useGrammarRotation';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, EmptyState, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
@@ -20,6 +20,7 @@ import { TranslationRow } from '../TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 import { READABLE_WIDTH } from '../../core/wide';
+import { RoundScore } from '../RoundScore';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -96,8 +97,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
     return (
       <Screen title={title} largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <Text style={{ ...type.headline, color: c.text }}>No questions yet</Text>
-          {note ? <Help>{note}</Help> : null}
+          <EmptyState icon="questionmark.bubble" title="No questions yet" body={note} />
         </ScrollView>
       </Screen>
     );
@@ -113,8 +113,9 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
       return { id, right: mine.filter((a) => a.right).length, total: mine.length };
     });
     return (
-      <Screen title={`${right} of ${answered.length} right`} footer={<Button label="Done" onPress={onDone} />}>
+      <Screen title="Round done" footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+          <RoundScore right={right} asked={answered.length} what="right" />
           <Card style={{ gap: space.s }}>
             {byPoint.map((p) => (
               <Text key={p.id} style={{ ...type.body, color: c.text }}>

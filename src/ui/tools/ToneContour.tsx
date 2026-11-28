@@ -2,8 +2,8 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { TONE_NAMES, TONES, type Tone } from '../../tools/thai/script';
-import { Icon, Tappable } from '../kit';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { answerLook, Icon, Tappable } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * Thai's five tones as the pitch line each one draws, left to right on a 40 by 30 field (high at the
@@ -49,8 +49,7 @@ export function ToneContours({ tone, picked, onChoose }: { tone: Tone; picked: {
             scaleTo={0.96}
             style={{
               flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: space.s,
-              backgroundColor: isRight ? c.goodFill : isWrong ? c.dangerFill : c.surface, borderRadius: radius.m + 2, ...smooth,
-              borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
+              ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
               opacity: picked && !isRight && !isWrong ? 0.55 : 1,
             }}
           >

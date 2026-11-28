@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasCyrillic, hasThai, japaneseFont, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
+import { hasCyrillic, hasThai, japaneseFont, romanLanguage, parseThaiTextSize, THAI_TEXT_CHOICES, thaiTextStyle, withThaiLineHeight } from '../../src/core/script';
 
 describe('hasThai', () => {
   it('finds Thai script', () => {
@@ -78,5 +78,22 @@ describe('japaneseFont', () => {
   it('leaves other text alone', () => {
     expect(japaneseFont('theater company', 'ja-JP', 'system')).toEqual({});
     expect(japaneseFont('หนังสือ', undefined, 'system')).toEqual({});
+  });
+});
+
+describe('romanLanguage', () => {
+  it('tags a reading in kana with the language', () => {
+    expect(romanLanguage('ふたり', 'ja-JP')).toBe('ja-JP');
+    expect(romanLanguage('ひゃっぽん', 'ja-JP')).toBe('ja-JP');
+  });
+
+  it('leaves a romanization in Latin letters untagged, tone marks and long vowels included', () => {
+    expect(romanLanguage('sǎam khon', 'th-TH')).toBeUndefined();
+    expect(romanLanguage('obāsan', 'ja-JP')).toBeUndefined();
+    expect(romanLanguage('dvá (2)', 'ru-RU')).toBeUndefined();
+  });
+
+  it('has nothing to tag without a language', () => {
+    expect(romanLanguage('ふたり', undefined)).toBeUndefined();
   });
 });

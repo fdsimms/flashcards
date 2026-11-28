@@ -52,6 +52,7 @@ export function TagTokenField({ label, tags, onChange, counts, placeholder }: {
                 onPress={() => remove(t)}
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${t}`}
+                hitSlop={{ top: space.xs, bottom: space.xs }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36, paddingLeft: space.m, paddingRight: space.s, borderRadius: radius.pill, backgroundColor: c.accentFill }}
               >
                 <Text style={{ ...type.subhead, color: c.accentInk }}>{t}</Text>

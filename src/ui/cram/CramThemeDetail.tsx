@@ -9,8 +9,8 @@ import type { CramTheme, Language, WritingCheck } from '../../reader/api';
 import { scaledFontSize, talkTextStyle, type TextSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
-import { radius, readable, space, type, useTheme } from '../theme';
+import { Button, Card, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
+import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordInDeck } from '../useWordInDeck';
 import { StoryEditor } from './StoryEditor';
@@ -62,7 +62,7 @@ export function CramThemeDetail({ repo, index, view, decks, add, check, onStory,
   if (!suggested || !theme) {
     return (
       <Screen title="Theme" largeTitle={false}>
-        <ScrollView contentContainerStyle={{ ...readable, padding: space.l }}><Help>These ideas are gone. Go back and ask for themes again.</Help></ScrollView>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}><Help>These ideas are gone. Go back and ask for themes again.</Help></ScrollView>
       </Screen>
     );
   }
@@ -120,7 +120,7 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
               {words.map((w) => {
                 const mine = w.kind === 'cram';
                 return (
-                  <View key={w.noteId} style={{ backgroundColor: mine ? c.accentFill : c.fill, borderRadius: radius.s, paddingVertical: space.xs + 1, paddingHorizontal: space.s + 1, flexDirection: 'row', alignItems: 'baseline', gap: space.xs + 2 }}>
+                  <View key={w.noteId} style={{ backgroundColor: mine ? c.accentFill : c.fill, borderRadius: radius.s, ...smooth, paddingVertical: space.xs + 1, paddingHorizontal: space.s + 1, flexDirection: 'row', alignItems: 'baseline', gap: space.xs + 2 }}>
                     <Text style={{ ...talkTextStyle(info, size, 0.75), color: mine ? c.accentInk : c.text }}>{w.text}</Text>
                     <Text style={{ ...type.footnote, color: c.textSecondary }}>{w.english}</Text>
                   </View>
@@ -155,7 +155,7 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
               );
             })}
             <Help>Claude fills in each word you add. Save each one in the note editor.</Help>
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+            {problem ? <ErrorNote message={problem} /> : null}
           </Card>
         ) : null}
         <Card>
@@ -201,7 +201,7 @@ function Story({ repo, theme, language, words, size, toolbar, check }: {
   const info = LANGUAGES[language];
   const story = theme.story;
   const [editing, setEditing] = useState(false);
-  if (!story || !suggested) return <Screen title="Your story" largeTitle={false}><ScrollView contentContainerStyle={{ ...readable, padding: space.l }}><Help>This theme has no story.</Help></ScrollView></Screen>;
+  if (!story || !suggested) return <Screen title="Your story" largeTitle={false}><ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}><Help>This theme has no story.</Help></ScrollView></Screen>;
   const runs = markWords(story.text, words);
 
   // The edited story goes back into the theme, so Use theme takes it; the words marked as unknown were the old story's.

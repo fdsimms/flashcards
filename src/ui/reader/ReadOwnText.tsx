@@ -5,7 +5,7 @@ import { flaggedName, glossInfo, isGlossOnly, TEXT_LANGUAGE_ORDER } from '../../
 import { scriptLanguage, shareSource, type SharedItem } from '../../core/shareInbox';
 import { charCount, costText, coverageNote, listenTime, moreNewWords, newWordsTitle, partsNote, percentKnown, tooLong } from '../../reader/ownText';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Screen, Select } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Meter, Screen, Select } from '../kit';
 import { hairline, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
@@ -134,9 +134,7 @@ function PreviewCards({ preview }: { preview: OwnTextPreview }) {
           <Text style={{ ...type.title, fontSize: 30, color: c.text, fontVariant: ['tabular-nums'] }}>{percentKnown(preview)}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>of the words in it</Text>
         </View>
-        <View style={{ height: 8, borderRadius: 4, backgroundColor: c.fill, overflow: 'hidden' }}>
-          <View style={{ width: `${Math.round(preview.coverage * 100)}%`, height: '100%', backgroundColor: c.accent }} />
-        </View>
+        <Meter value={preview.coverage} color={c.accent} />
         {note ? <Help>{note}</Help> : null}
       </Card>
       <Card style={{ gap: space.s }}>

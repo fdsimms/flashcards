@@ -10,7 +10,7 @@ import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
 import { saidAs } from '../../reader/wordAudio';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
+import { answerLook, Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { PlayPill } from '../PlayButton';
 import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
@@ -19,6 +19,7 @@ import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
 import { PlayCircle } from '../PlayCircle';
+import { RoundScore } from '../RoundScore';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -148,9 +149,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 scaleTo={0.98}
                 style={{
                   minHeight: MIN_TAP, justifyContent: 'center', gap: space.xs, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
-                  borderRadius: radius.m, ...smooth,
-                  backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                  borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
+                  ...answerLook(c, right ? 'right' : wrongPick ? 'wrong' : 'open'),
                   opacity: answered && !mark ? 0.5 : 1,
                 }}
               >
@@ -280,9 +279,8 @@ export function CheckCard({ text, questions, picks, onStart }: {
   const unanswered = questions.length - asked;
   return (
     <Card style={{ gap: space.s }}>
-      <View style={{ alignItems: 'center', gap: 2, paddingVertical: space.xs }}>
-        <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked}`}</Text>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>right on this text</Text>
+      <View style={{ paddingVertical: space.xs }}>
+        <RoundScore right={right} asked={asked} what="right on this text" />
       </View>
       {questions.filter((q) => q.key in picks).map((q) => {
         const ok = isRight(q, picks);

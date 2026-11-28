@@ -9,7 +9,7 @@ import { hasLessonWord, pickerWords, PICKER_ROWS, WORD_FILTERS, type WordFilter 
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Divider, Field, Icon, Loading, Screen, Segments } from '../kit';
+import { Divider, ErrorNote, Field, Icon, Loading, Screen, Segments } from '../kit';
 import { MIN_TAP, readable, space, type, useTheme } from '../theme';
 import { useCollection, useCramClock } from '../useCrams';
 import { useLessonWords } from './useLessonWords';
@@ -62,7 +62,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
         ListHeaderComponent={(
           <View style={{ gap: space.s, paddingVertical: space.m }}>
             <Field label={`${LANGUAGES[language].name} words`} value={query} onChangeText={setQuery} placeholder="Search by word or meaning" autoCapitalize="none" autoCorrect={false} clearButtonMode="while-editing" />
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+            {problem ? <ErrorNote message={problem} /> : null}
             <Segments<WordFilter> options={WORD_FILTERS} value={filter} onChange={setFilter} />
             <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${words.length} of ${LESSON_MAX_WORDS} chosen`}</Text>
           </View>

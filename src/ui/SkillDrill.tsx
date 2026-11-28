@@ -20,6 +20,7 @@ import { AnswerContent, Status, ToolLanguage } from './tools/ToolScreen';
 import { ContrastChoices, ContrastSentenceView, ContrastVerdict } from './tools/ContrastParts';
 import { contrastSet, showSentence } from '../tools/contrasts';
 import { READABLE_WIDTH } from '../core/wide';
+import { RoundScore } from './RoundScore';
 
 /**
  * A skill card's drill in Review (src/tools/skills.ts): a few questions from its step, each shown,
@@ -192,8 +193,7 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
       </View>
       {revealed && skill.done ? (
         <Reveal key="done" rise={6} style={{ alignItems: 'center', gap: space.m }}>
-          <Text style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>{drill.step.title}</Text>
-          <Text style={{ ...type.largeTitle, fontSize: 44, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${skill.total}`}</Text>
+          <RoundScore heading={drill.step.title} right={right} asked={skill.total} what="right" />
           <Dots results={skill.results} total={skill.total} />
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
             {right === skill.total

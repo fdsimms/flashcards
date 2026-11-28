@@ -5,7 +5,7 @@ import { failureText } from '../core/failure';
 import { noteTypeSummary } from '../core/noteTypeEdits';
 import type { NoteType } from '../core/types';
 import type { Repo } from '../db/repo';
-import { ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP } from './kit';
+import { EmptyState, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP } from './kit';
 import { readable, space } from './theme';
 
 /** Settings, Decks and cards, Note types: the collection's note types, each opening its own screen. */
@@ -35,7 +35,7 @@ export function NoteTypes({ repo, onOpen }: { repo: Repo; onOpen: (name: string)
             <Group>
               {rows.map((r, i) => <NavRow key={r.type.name} first={i === 0} label={r.type.name} detail={noteTypeSummary(r.type, r.notes)} onPress={() => onOpen(r.type.name)} />)}
             </Group>
-          ) : <Help>No note types yet. They come with a deck imported or synced from Anki.</Help>}
+          ) : <EmptyState icon="doc.text" title="No note types yet" body="They come with a deck imported or synced from Anki." />}
         </Section>
       </ScrollView>
     </Screen>

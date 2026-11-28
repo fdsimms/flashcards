@@ -3,10 +3,10 @@ import { Text, View } from 'react-native';
 import { GAP_SHOWN, type ContrastSet, type ShownSentence } from '../../tools/contrasts';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { hasThai } from '../../core/script';
+import { hasThai, romanLanguage } from '../../core/script';
 import { haptic } from '../haptics';
-import { Icon, Tappable } from '../kit';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { answerLook, Icon, Tappable } from '../kit';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { RuleLine, Status } from './ToolScreen';
 
 /**
@@ -39,7 +39,7 @@ export function ContrastSentenceView({ shown, answered, verdict, speech }: { sho
           : <Text accessibilityLabel="blank" style={{ color: c.textTertiary }}>{GAP_SHOWN}</Text>}
         {shown.after}
       </Text>
-      {answered && shown.roman ? <Text selectable accessibilityLanguage={speech} style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
+      {answered && shown.roman ? <Text selectable accessibilityLanguage={romanLanguage(shown.roman, speech)} style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
       {answered || peek ? (
         <Text selectable style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{shown.english}</Text>
       ) : (
@@ -86,8 +86,7 @@ export function ContrastChoices({ set, language, answer, picked, onPick }: { set
             scaleTo={0.97}
             style={{
               flexGrow: 1, flexBasis: 60, minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs,
-              paddingHorizontal: space.s, backgroundColor: c.surface, borderRadius: radius.m, ...smooth,
-              borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
+              paddingHorizontal: space.s, ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
             }}
           >
             <Text accessibilityLanguage={speech} style={{ ...(thai ? { fontSize: 20, lineHeight: 30 } : type.headline), color: c.text, fontWeight: isRight ? '600' : '400' }}>{w.word}</Text>

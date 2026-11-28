@@ -13,7 +13,7 @@ import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
-import { readable, space, type, radius, useTheme, type Colors } from '../theme';
+import { MIN_TAP, hairline, readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
 import { setThemeState, useThemeState } from './themeStore';
@@ -202,12 +202,13 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
         ) : null}
         {shown?.themes.map((theme, i) => (
           <Tappable key={theme.title} onPress={() => { haptic.tap(); onOpen(i); }} accessibilityRole="button" accessibilityLabel={`Open ${theme.title}`} scaleTo={0.98}>
-            <Card style={picked.has(theme.title) ? { borderColor: c.accent, borderWidth: 2 } : undefined}>
+            {/* The thicker border comes out of the padding, so picking a theme doesn't shift its text. */}
+            <Card style={picked.has(theme.title) ? { borderColor: c.accent, borderWidth: 2, padding: space.l + hairline - 2 } : undefined}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m }}>
                 <Text style={{ ...type.headline, color: c.text, flex: 1 }}>{theme.title}</Text>
                 <Tappable
                   onPress={() => toggle(theme.title)}
-                  hitSlop={space.s}
+                  hitSlop={(MIN_TAP - 24) / 2}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: picked.has(theme.title) }}
                   accessibilityLabel={`Select ${theme.title}`}
@@ -226,7 +227,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
           </Tappable>
         ))}
         {shown ? (
-          <Tappable onPress={() => { void ask(true, stretch); }} disabled={asking} accessibilityRole="button" accessibilityLabel="Show different themes" style={{ alignSelf: 'center', paddingVertical: space.s }}>
+          <Tappable onPress={() => { haptic.tap(); void ask(true, stretch); }} disabled={asking} accessibilityRole="button" accessibilityLabel="Show different themes" style={{ alignSelf: 'center', paddingVertical: space.s }}>
             {asking ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
                 <WorkingMark />
