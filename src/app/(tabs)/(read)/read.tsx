@@ -22,7 +22,7 @@ export default function ReadRoute() {
       openLanguage={linkLanguage || undefined}
       onOpenedLanguage={() => router.setParams({ language: '' })}
       onPlayWord={playWord}
-      onOpen={(open) => (open.video
+      onOpen={(open) => (open.watch
         ? router.push({ pathname: '/watch', params: { text: String(open.textId) } })
         : router.push({ pathname: '/reader', params: { source: JSON.stringify({ kind: 'shelf', ...open }) } }))}
       onGrammarLesson={(id) => router.push({ pathname: '/read-grammar-lesson', params: { id } })}

@@ -45,8 +45,10 @@ export function reasonLabel(text: ShelfText): string {
     case 'story':
       return `Episode ${text.episode}`;
     case 'own':
-      // A video's subtitles (video.ts) are the learner's own text too, watched rather than read.
-      return text.video ? (text.video.channel ? `Video from ${text.video.channel}` : 'Video') : 'Your text';
+      // A video's subtitles (video.ts) and a podcast episode's transcript (podcasts.ts) are the learner's own text too.
+      if (text.video) return text.video.channel ? `Video from ${text.video.channel}` : 'Video';
+      if (text.podcast) return text.podcast.show ? `Podcast: ${text.podcast.show}` : 'Podcast';
+      return 'Your text';
     default:
       // Written for a topic before the shelf existed.
       return text.topic;
@@ -71,10 +73,15 @@ export function upNextOrder(shelf: Pick<Shelf, 'texts'>): number[] {
 /**
  * The shelf's reading order, for Next and for downloads: the story's next episode, then the shelf,
  * then the learner's own texts (a long one's parts in order). Play all keeps to the shelf (`upNextOrder`).
- * A video's text is left out: it opens on Watch, with the video as its sound, and has no recordings.
+ * A video's or a podcast episode's text is left out: it opens on Watch, with its own sound, and has no recordings.
  */
 export function playOrder(shelf: Pick<Shelf, 'story' | 'texts' | 'own'>): number[] {
-  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id), ...(shelf.own ?? []).filter((t) => !t.video).map((t) => t.id)];
+  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id), ...(shelf.own ?? []).filter((t) => !isWatched(t)).map((t) => t.id)];
+}
+
+/** Whether a text opens on Watch (a video's subtitles, a podcast episode's transcript) rather than in the reader. */
+export function isWatched(text: Pick<ShelfText, 'video' | 'podcast'>): boolean {
+  return !!text.video || !!text.podcast;
 }
 
 /** How long Play all takes, in minutes: the shelf's texts, without the story's episode. */
