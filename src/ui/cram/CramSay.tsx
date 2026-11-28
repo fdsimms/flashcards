@@ -23,6 +23,7 @@ import { setThemeState } from './themeStore';
 import { TalkLine } from './TalkLine';
 import { useTalkSize } from './talkSize';
 import { withThaiLineHeight } from '../../core/script';
+import { WorkingLine } from '../WorkingMark';
 
 type Stage = 'start' | 'ask' | 'write' | 'result';
 type AddWords = (language: Language, deck: string, entries: { entry: string; meaning: string }[]) => Promise<'queued' | 'held' | undefined>;
@@ -213,7 +214,7 @@ function Chat({ turns, draft, onDraft, onSend, asking, spoken }: {
             <Text style={{ ...withThaiLineHeight(type.callout, t.text), color: c.text }}>{t.text}</Text>
           </View>
         ))}
-        {asking ? <Text style={{ ...type.subhead, color: c.textSecondary }}>Thinking of a question</Text> : null}
+        {asking ? <WorkingLine text="Thinking of a question" /> : null}
       </View>
       {ready ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.s }}>

@@ -15,7 +15,7 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable, TextButton } from '../kit';
 import { MIN_TAP, hairline, readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { saveCram, useCollection, useCrams } from '../useCrams';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { setThemeState, useThemeState } from './themeStore';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
@@ -195,10 +195,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
         {noWords && language ? <Help>{`Needs ${LANGUAGES[language].name} words you've studied at least once.`}</Help> : null}
         {problem ? <ErrorNote message={problem} onRetry={() => { void ask(false, stretch); }} /> : null}
         {asking && !shown ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-            <WorkingMark />
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>Thinking of themes</Text>
-          </View>
+          <WorkingLine text="Thinking of themes" />
         ) : null}
         {shown?.themes.map((theme, i) => (
           <Tappable key={theme.title} onPress={() => { haptic.tap(); onOpen(i); }} accessibilityRole="button" accessibilityLabel={`Open ${theme.title}`} scaleTo={0.98}>

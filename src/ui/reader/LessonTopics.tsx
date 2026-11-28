@@ -3,8 +3,7 @@ import { Text, View } from 'react-native';
 import { lessonRequestWords, type LessonWord } from '../../core/lessonWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
 import { haptic } from '../haptics';
-import { ErrorNote, Icon, Tappable, TextButton } from '../kit';
-import { WorkingMark } from '../WorkingMark';
+import { ErrorNote, Tappable, TextButton } from '../kit';
 import { radius, space, type, useTheme } from '../theme';
 
 /**
@@ -82,16 +81,7 @@ export function LessonTopics({ api, language, words, onPick }: {
           <TextButton label="More ideas" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-end' }} />
         </>
       ) : (
-        <Tappable
-          onPress={() => { haptic.tap(); void ask(); }}
-          disabled={asking}
-          accessibilityRole="button"
-          accessibilityLabel="Suggest topics"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, alignSelf: 'flex-start', paddingVertical: space.xs }}
-        >
-          {asking ? <WorkingMark /> : <Icon name="sparkles" size={16} color={c.accentInk} />}
-          <Text style={{ ...type.subhead, color: c.accentInk }}>{asking ? 'Thinking of ideas' : 'Suggest topics'}</Text>
-        </Tappable>
+        <TextButton icon="sparkles" label="Suggest topics" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-start' }} />
       )}
       {error ? <ErrorNote message={error} onRetry={ask} /> : null}
     </View>
