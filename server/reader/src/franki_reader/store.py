@@ -772,6 +772,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # The register Claude gave those words in their lines (meanings.py), by lower-case word, one
         # of the reader's four; a word it wasn't sure of is left out.
         ("registers", "registers TEXT NOT NULL DEFAULT '{}'"),
+        # How many times a pasted text's lines have been sent to be translated (own_text.py), so a
+        # part that never translates stops being retried (Engine.retry_own_translations).
+        ("own_tries", "own_tries INTEGER NOT NULL DEFAULT 0"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -795,7 +798,8 @@ def connect(path: Path | str) -> sqlite3.Connection:
         if column not in readings_columns:
             conn.execute(f"ALTER TABLE readings ADD COLUMN {column} TEXT NOT NULL DEFAULT '[]'")
     with conn:
-        # A text left pending by a restart mid-audio: its missing lines are made on request.
+        # A text left pending by a restart mid-audio: its missing lines are made on request, and a
+        # pasted text's part left without English is translated again (Engine.retry_own_translations).
         conn.execute("UPDATE texts SET status = 'ready' WHERE status = 'pending'")
         _clean_titles(conn)
     register_written_points(conn)
@@ -1381,6 +1385,29 @@ def set_own_translation(
             "UPDATE texts SET lines = ?, cost_usd = cost_usd + ? WHERE id = ?",
             (json.dumps(lines, ensure_ascii=False), cost_usd, text_id),
         )
+
+
+def count_own_try(conn: sqlite3.Connection, text_id: int) -> None:
+    """One more time a pasted text's lines were sent to be translated, counted before the call so
+    an attempt cut short by a restart or an error still counts."""
+    with conn:
+        conn.execute("UPDATE texts SET own_tries = own_tries + 1 WHERE id = ?", (text_id,))
+
+
+def untranslated_own_texts(conn: sqlite3.Connection, tries: int) -> list[int]:
+    """The pasted texts on the shelf or already read whose lines have no English at all, tried
+    fewer than `tries` times, oldest first. A pending one is left out: its first run has it."""
+    rows = conn.execute(
+        "SELECT id, lines FROM texts WHERE reason = 'own' AND status IN ('ready', 'read')"
+        " AND own_tries < ? ORDER BY id",
+        (tries,),
+    )
+    found: list[int] = []
+    for text_id, raw in rows:
+        lines = json.loads(raw)
+        if lines and all(not str(ln.get("english", "")).strip() for ln in lines):
+            found.append(text_id)
+    return found
 
 
 def ready_counts(conn: sqlite3.Connection) -> dict[Code, int]:

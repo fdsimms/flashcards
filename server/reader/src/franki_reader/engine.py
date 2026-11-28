@@ -95,6 +95,9 @@ CHECK_WINDOW = timedelta(days=7)
 RELISTEN_LOOKBACK = 100
 BACKFILL_TEXTS = 30  # how many recent texts a pass looks through for words with no meaning
 BACKFILL_FORMS = 3  # how many of them a pass picks word forms for (one Claude call each)
+# How many times a pasted text's part is sent to be translated in all, its first run included, before
+# it's left without English (retry_own_translations).
+OWN_TRANSLATION_TRIES = 3
 # Every attempt was under 85% known words (coverage.MINIMUM), too far off to show.
 MISSED_FLOOR = (
     "Couldn't write a text that fits your words this time. Try again or pick another topic."
@@ -248,6 +251,10 @@ class Engine:
         self.write_point = write_point
         # Translates a pasted text's lines (own_text.py).
         self.write_translation = write_translation
+        # Retrying pasted texts' parts left without English: one pass at a time, and each text once
+        # per start (retry_own_translations).
+        self._own_retrying = asyncio.Lock()
+        self._own_retried: set[int] = set()
         self._writing_points: set[Code] = set()
 
     # ==== Lexicon ====
@@ -1187,7 +1194,8 @@ class Engine:
         second one, but it isn't dropped either: the running pass goes round once more when it
         finishes, because the call usually follows a change the pass may already have gone past
         (an episode just read). The first pass also re-records the texts waiting to be read with
-        word timings (`time_waiting_texts`). A missing key or word list stops it quietly."""
+        word timings (`time_waiting_texts`), and each pass translates pasted texts' parts left
+        without English (`retry_own_translations`). A missing key or word list stops it quietly."""
         if self._topping_up.locked():
             self._top_up_again = True
             return
@@ -1210,6 +1218,7 @@ class Engine:
         # first, a few a pass.
         stale = [t for t in recent if t.forms is None or not forms.is_current(language, t.forms)]
         await self.fill_forms(stale[:BACKFILL_FORMS])
+        await self.retry_own_translations()
         try:
             self._check_setup(language)
         except NotAvailable as e:
@@ -1324,30 +1333,15 @@ class Engine:
 
     async def _make_own(self, job: Job, ids: list[int]) -> None:
         """Translates, glosses and records a pasted text's parts in order, so the first can be read
-        while the rest are made. Never raises: this runs unattended. A part whose translation fails
-        is still served, with no English under its lines, since reading it doesn't need any."""
+        while the rest are made. Never raises: this runs unattended. Each part is served once its
+        turn is over, even one that failed: with no English under its lines (reading it doesn't need
+        any, and `retry_own_translations` tries again) or without some audio (made when played)."""
         try:
             for text_id in ids:
-                text = store.get_text(self.conn, text_id)
-                if text is None:
-                    continue
-                self._stage(job, "translating")
-                assert self.write_translation is not None
                 try:
-                    english, used = await self.write_translation(
-                        text.language, [line.text for line in text.lines]
-                    )
-                    store.set_own_translation(self.conn, text_id, english, used.cost_usd())
-                except own_text.TranslationFailed as e:
-                    log.warning("Couldn't translate pasted text %d: %s", text_id, e)
-                    store.set_own_translation(self.conn, text_id, [], e.usage.cost_usd())
-                text = store.get_text(self.conn, text_id)
-                assert text is not None
-                await self.fill_meanings([text], text.language)
-                await self.fill_ipa([text], text.language)
-                await self.fill_forms([text])
-                self._stage(job, "recording")
-                await self.make_audio(text)
+                    await self._make_own_part(text_id, job)
+                except Exception:
+                    log.exception("Making part %d of a pasted text failed", text_id)
                 store.mark_ready(self.conn, text_id)
         except Exception:
             log.exception("Making pasted text %s failed", ids)
@@ -1355,6 +1349,69 @@ class Engine:
             self._writing.discard(job.key)
             self._jobs.pop(job.key, None)
             self._stages.pop(job.key, None)
+
+    async def _make_own_part(self, text_id: int, job: Job | None) -> None:
+        """Translates one part of a pasted text, adding what that cost to the text's, then glosses
+        it and records every line (none in a language with no voice, `line_audio`). A translation
+        that fails leaves the part without English. Shared by the first run and the retry."""
+        text = store.get_text(self.conn, text_id)
+        if text is None:
+            return
+        if job is not None:
+            self._stage(job, "translating")
+        assert self.write_translation is not None
+        store.count_own_try(self.conn, text_id)
+        try:
+            english, used = await self.write_translation(
+                text.language, [line.text for line in text.lines]
+            )
+            store.set_own_translation(self.conn, text_id, english, used.cost_usd())
+        except own_text.TranslationFailed as e:
+            log.warning("Couldn't translate pasted text %d: %s", text_id, e)
+            store.set_own_translation(self.conn, text_id, [], e.usage.cost_usd())
+        text = store.get_text(self.conn, text_id)
+        if text is None:
+            return
+        await self.fill_meanings([text], text.language)
+        await self.fill_ipa([text], text.language)
+        await self.fill_forms([text])
+        if job is not None:
+            self._stage(job, "recording")
+        await self.make_audio(text)
+
+    def start_own_retry(self) -> None:
+        """Starts `retry_own_translations` without waiting for it, when there's anything to retry:
+        run once the server has started, so a part a restart left without English is translated
+        before anyone opens it."""
+        if self.write_translation is None or not store.untranslated_own_texts(
+            self.conn, OWN_TRANSLATION_TRIES
+        ):
+            return
+        task = asyncio.create_task(self.retry_own_translations())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def retry_own_translations(self) -> None:
+        """Translates and records, one at a time and as the first run does, the pasted texts' parts
+        on the shelf or read whose lines have no English: left so by a restart mid-run (the restart
+        makes a pending part ready, `store.connect`), by an error, or by a translation that failed.
+        Each part is tried once per start and `OWN_TRANSLATION_TRIES` times in all, so one that
+        always fails doesn't cost a call every pass. A part that fails doesn't stop the rest, and a
+        call while a pass runs does nothing. Never raises: this runs unattended."""
+        if self.write_translation is None or self._own_retrying.locked():
+            return
+        async with self._own_retrying:
+            for text_id in store.untranslated_own_texts(self.conn, OWN_TRANSLATION_TRIES):
+                if text_id in self._own_retried:
+                    continue
+                self._own_retried.add(text_id)
+                # Removed from the shelf since the list was read: not worth a call.
+                if store.text_status(self.conn, text_id) not in ("ready", "read"):
+                    continue
+                try:
+                    await self._make_own_part(text_id, None)
+                except Exception:
+                    log.exception("Translating pasted text %d again failed", text_id)
 
     def start_story(self, about: str, genre: Genre = "any") -> Story:
         """Starts a new story in the current language, beside any already running, and writes its

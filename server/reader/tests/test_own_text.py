@@ -1,6 +1,8 @@
 import asyncio
 import random
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -9,9 +11,10 @@ from scripted import ENTRIES
 
 from franki_reader import store
 from franki_reader.app import create_app
-from franki_reader.engine import Engine, NotAvailable
+from franki_reader.engine import OWN_TRANSLATION_TRIES, Engine, NotAvailable
 from franki_reader.generator import Usage
 from franki_reader.languages import Code
+from franki_reader.lexicon import Entry
 from franki_reader.own_text import (
     MAX_CHARS,
     OwnLine,
@@ -27,6 +30,7 @@ from franki_reader.own_text import (
     title_of,
 )
 from franki_reader.store import Reading
+from franki_reader.tts import AudioCache, Spoken
 
 NOW = datetime(2026, 11, 25, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -117,10 +121,12 @@ class Translator:
         return [f"English {i}" for i in range(len(lines))], Usage(100, 50)
 
 
-def engine(translator: Translator | None) -> Engine:
-    conn = store.connect(":memory:")
+def engine(translator: Translator | None, db: str | Path = ":memory:", **kw: Any) -> Engine:
+    conn = store.connect(db)
     store.save_snapshot(conn, ENTRIES, NOW)
-    return Engine(conn, None, None, lambda: NOW, random.Random(1), write_translation=translator)
+    return Engine(
+        conn, None, None, lambda: NOW, random.Random(1), write_translation=translator, **kw
+    )
 
 
 async def settle(e: Engine) -> None:
@@ -242,3 +248,196 @@ def test_a_language_with_no_voices_costs_the_translating_only() -> None:
     spoken = estimate_cost(lines, "es")
     read_only = estimate_cost(lines, "tok")
     assert 0 < read_only < spoken
+
+
+# Two parts (own_text.PART_CHARS), each its own text.
+LONG = "\n\n".join([THAI] * 60)
+
+
+class Stuck(Translator):
+    """Translates the parts before `stuck_at` and then never answers, as a server restarted mid-run
+    leaves it; or, with `raises`, raises something that isn't a TranslationFailed there."""
+
+    def __init__(self, stuck_at: int, raises: bool = False) -> None:
+        super().__init__()
+        self.stuck_at = stuck_at
+        self.raises = raises
+
+    async def __call__(self, language: Code, lines: list[str]) -> tuple[list[str], Usage]:
+        if len(self.asked) == self.stuck_at:
+            self.asked.append(lines)
+            if self.raises:
+                raise RuntimeError("connection reset")
+            await asyncio.Event().wait()
+        return await super().__call__(language, lines)
+
+
+def english_of(e: Engine, text_id: int) -> list[str]:
+    text = store.get_text(e.conn, text_id)
+    assert text is not None
+    return [ln.english for ln in text.lines]
+
+
+def cost_of(e: Engine, text_id: int) -> float:
+    (cost,) = e.conn.execute("SELECT cost_usd FROM texts WHERE id = ?", (text_id,)).fetchone()
+    return float(cost)
+
+
+def restarted_mid_run(db: Path) -> list[int]:
+    """Adds LONG and stops the server while its second part is being translated."""
+    stuck = Stuck(stuck_at=1)
+    first = engine(stuck, db)
+
+    async def scenario() -> list[int]:
+        ids = first.add_own_text("th", LONG)
+        while len(stuck.asked) < 2:
+            await asyncio.sleep(0)
+        for task in list(first._tasks):
+            task.cancel()
+        await asyncio.gather(*first._tasks, return_exceptions=True)
+        return ids
+
+    ids = asyncio.run(scenario())
+    first.conn.close()
+    assert len(ids) == 2
+    return ids
+
+
+def test_a_part_a_restart_left_without_english_is_translated_again(tmp_path: Path) -> None:
+    db = tmp_path / "reader.db"
+    first_part, second_part = restarted_mid_run(db)
+    translator = Translator()
+    e = engine(translator, db)
+    # The restart put the second part on the shelf with no English (store.connect).
+    assert [t.id for t in store.own_texts(e.conn, "th")] == [first_part, second_part]
+    assert set(english_of(e, second_part)) == {""}
+    before = cost_of(e, second_part)
+
+    asyncio.run(e.retry_own_translations())
+    # Only the part left without English, translated and its cost kept as the first run's are.
+    assert len(translator.asked) == 1
+    assert english_of(e, second_part)[0] == "English 0"
+    assert english_of(e, first_part)[0] == "English 0"
+    assert cost_of(e, second_part) > before
+    # Translated, it isn't asked for again.
+    asyncio.run(e.retry_own_translations())
+    assert len(translator.asked) == 1
+
+
+def test_the_server_starting_and_top_up_both_retry(tmp_path: Path) -> None:
+    db = tmp_path / "reader.db"
+    _, second_part = restarted_mid_run(db)
+    e = engine(Translator(), db)
+    with client(e):
+        # Started with the server, in the background: no request is made.
+        deadline = time.monotonic() + 10
+        while english_of(e, second_part)[0] == "" and time.monotonic() < deadline:
+            time.sleep(0.01)
+    assert english_of(e, second_part)[0] == "English 0"
+
+    db = tmp_path / "again.db"
+    _, second_part = restarted_mid_run(db)
+    e = engine(Translator(), db)
+    asyncio.run(e.top_up())
+    assert english_of(e, second_part)[0] == "English 0"
+
+
+def test_a_part_that_raises_doesnt_stop_the_rest() -> None:
+    translator = Stuck(stuck_at=0, raises=True)
+    e = engine(translator)
+
+    async def scenario() -> list[int]:
+        ids = e.add_own_text("th", LONG)
+        await settle(e)
+        return ids
+
+    first_part, second_part = asyncio.run(scenario())
+    # The second part was made all the same, and the first is served without English.
+    assert english_of(e, second_part)[0] == "English 0"
+    assert [t.id for t in store.own_texts(e.conn, "th")] == [first_part, second_part]
+    assert set(english_of(e, first_part)) == {""}
+    asyncio.run(e.retry_own_translations())
+    assert english_of(e, first_part)[0] == "English 0"
+    assert len(translator.asked) == 3
+
+
+def test_a_part_that_never_translates_is_tried_a_few_times_in_all(tmp_path: Path) -> None:
+    db = tmp_path / "reader.db"
+    translator = Translator(fail=True)
+    e = engine(translator, db)
+
+    async def scenario() -> None:
+        e.add_own_text("th", THAI)
+        await settle(e)
+
+    asyncio.run(scenario())
+    text_id = text_id_of(e)
+    asyncio.run(e.retry_own_translations())
+    # Once per start, however many passes run.
+    asyncio.run(e.retry_own_translations())
+    assert len(translator.asked) == 2
+    for _ in range(5):
+        e.conn.close()
+        e = engine(translator, db)  # a restart
+        asyncio.run(e.retry_own_translations())
+    assert len(translator.asked) == OWN_TRANSLATION_TRIES
+    # Each failed try's cost is kept, as the first run's is.
+    assert cost_of(e, text_id) == pytest.approx(OWN_TRANSLATION_TRIES * cost_of_one_failure())
+
+
+def cost_of_one_failure() -> float:
+    return Usage(input_tokens=100).cost_usd()
+
+
+def test_the_retry_never_runs_twice_at_once_or_takes_a_part_being_made(tmp_path: Path) -> None:
+    db = tmp_path / "reader.db"
+    restarted_mid_run(db)
+    gate = asyncio.Event()
+
+    class Slow(Translator):
+        async def __call__(self, language: Code, lines: list[str]) -> tuple[list[str], Usage]:
+            await gate.wait()
+            return await super().__call__(language, lines)
+
+    translator = Slow()
+    e = engine(translator, db)
+
+    async def scenario() -> None:
+        # A new text's first run, its parts pending while it waits on the translator.
+        e.add_own_text("th", LONG)
+        retries = [asyncio.create_task(e.retry_own_translations()) for _ in range(3)]
+        await asyncio.sleep(0.01)
+        gate.set()
+        await asyncio.gather(*retries)
+        await settle(e)
+
+    asyncio.run(scenario())
+    # The restarted text's second part once, and the new text's two parts once each.
+    assert len(translator.asked) == 3
+    assert all(english_of(e, t.id)[0] == "English 0" for t in store.own_texts(e.conn, "th"))
+
+
+def test_a_toki_pona_part_is_translated_again_but_never_recorded(tmp_path: Path) -> None:
+    spoken: list[str] = []
+
+    async def synthesize(text: str, *args: Any, **kw: Any) -> Spoken:
+        spoken.append(text)
+        return Spoken(b"mp3")
+
+    db = tmp_path / "reader.db"
+    audio = AudioCache(tmp_path / "audio")
+    words = [Entry(1, "jan", "person", "mature"), Entry(2, "moku", "eat; food", "mature")]
+    first = engine(Translator(fail=True), db, audio=audio, synthesize=synthesize)
+    store.save_snapshot(first.conn, words, NOW, "tok")
+
+    async def scenario() -> None:
+        first.add_own_text("tok", "jan li moku. mi moku.")
+        await settle(first)
+
+    asyncio.run(scenario())
+    first.conn.close()
+    e = engine(Translator(), db, audio=audio, synthesize=synthesize)
+    asyncio.run(e.retry_own_translations())
+    [text] = store.own_texts(e.conn, "tok")
+    assert [ln.english for ln in text.lines] == ["English 0", "English 1"]
+    assert spoken == [] and not audio.has(text.id, 0)

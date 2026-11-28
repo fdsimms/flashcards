@@ -1743,7 +1743,17 @@ from texts written to the deck toward native material. `server/reader/src/franki
   per part translates its lines (Haiku, low effort; a failed one leaves the part without English
   rather than off the shelf, and the reader says so, `untranslated`), then meanings, IPA, forms and every line's audio, as `make_text` does
   after writing. Stored with reason `own` under a hidden topic named after its title. No
-  comprehension questions are written.
+  comprehension questions are written. A part that fails for any other reason doesn't stop the
+  parts after it, and is served too.
+- **A part left without English is translated again** (28 November 2026, the owner: a restart
+  mid-run made the parts not yet reached ready with no English, `store.connect`, and nothing
+  translated them after). Once the server has started (the app's lifespan, `start_own_retry`) and
+  in each `top_up`, `retry_own_translations` takes the own texts ready or read whose lines have no
+  English, one at a time, through the first run's own code (`_make_own_part`: the translation and
+  its cost, meanings, IPA, forms and audio, none in Toki Pona). Each part is tried once per start
+  and `OWN_TRANSLATION_TRIES` (3) times in all, its first run included (`texts.own_tries`, counted
+  before the call), so one that never translates stops costing a call. A pending part is left to
+  its first run, and only one retry pass runs at a time.
 - **Its own row on the shelf** (`own` in `/api/shelf`, "Your texts"), never in Up next or Play all,
   which are the texts written for the owner. It comes after them in the reading order (Next, and
   what's downloaded for offline), and Remove works on it as on any shelf text.
