@@ -183,14 +183,40 @@ step is its own PR, and each that changes a screen is mocked up for the owner fi
      the structure in naturally and the end-of-scene feedback says how the owner's lines used it.
      Sentences stocks one sentence per reviewed word, so it can't be steered by a topic and isn't
      offered. Catalog points can use the same focus later.
-**Points no finder can find** (case, verb aspect) join the catalog with `findable: false` in the
-step that first gives them a use. The server leaves them out of text requests, exposure and marks,
-and the Grammar screen shows them without the choices that only apply to texts, saying why.
+## Case and aspect
 
-**Making them findable later** needs a morphological analyzer rather than word lists. A full
-parser (spaCy) was measured at about 100 MB more for a process already near 334 MB
-(architecture.md, Grammar, "Finding points"); lighter, single-language analyzers (Russian's
-pymorphy3, Polish's Morfeusz) may be enough for case. Russian aspect may need none: the deck tags
-verbs perfective and lists aspect partners. A finder under Don't know it that finds what isn't
-there sends good drafts back, so each new one needs the tests `test_grammar_europe.py` has: texts
-that must find nothing.
+Added on 28 November 2026 at the owner's request (#837: Sentences asked for points it couldn't
+name). Every case but the nominative, and Russian and Polish verb aspect, are catalog points with
+finders like any other: Russian genitive, dative, accusative, instrumental and prepositional;
+Polish genitive, dative, accusative, instrumental and locative; perfective and imperfective verbs
+in both; German accusative, dative and genitive; Greek genitive and accusative. Each case point
+links its Forms group, so Forms practice names it.
+
+- **Found only where it can't be anything else.** A false find is worse than none: under Don't
+  know it it sends a good draft back, and in Sentences it names grammar the line doesn't use.
+  - Russian and Polish (`grammar_morph.py`) use a morphological analyzer, pymorphy3 and Morfeusz,
+    each loaded on the first line in its language (about 27 MB and 47 MB of memory). A word counts
+    only when every reading the analyzer knows is in one case (книгу, psem), or a preposition right
+    before it, or before an adjective before it, allows only one of them (о сестре, w szkole). книги,
+    domu and an indeclinable кофе count as nothing. A verb counts only when every reading is of one
+    aspect; быть and być, two-aspect verbs (использовать) and words that are also nouns (стали)
+    don't. The imperfective is counted only where there was a choice: never in the present tense.
+    Morfeusz has no ARM Linux build, so on an ARM server Polish case and aspect are never found.
+  - German and Greek (`grammar_europe.py`) are found from the words that show a case: German dem,
+    einem, mir, ihm, im, zum (dative), des and eines before a genitive noun (genitive), einen, ihn,
+    ins (accusative), and den, meinen, diesen only before a singular noun not in -en, since they are
+    also the dative plural. Greek του, της, των (genitive, whether article or pronoun), τον, την,
+    τις and σε's contractions (accusative), and τους only before an accusative plural, since it is
+    also the genitive pronoun. το and τα are either case and count as neither.
+- **Know it until the owner chooses** (`known`): case and aspect are in nearly every line, so as
+  points not set they would use up the allowance for unknown grammar in every text. Don't know it
+  works as for any point, and asks texts to leave it out, which for the genitive or accusative
+  can't be done: the closest draft is served, as for any grammar miss.
+- **A default Know it isn't drilled** (the owner's choice): `GET /api/grammar/choices` lists them as
+  `defaults`, and the app leaves them out of the drill schedule (`scheduledPoints`). A point's page
+  says so and offers "Practice on a schedule", which sets Know it as the owner's own choice. Choosing
+  anything stores only that point (`store.set_grammar_many`), so the other defaults stay defaults.
+  This applies to Japanese's ます and past too, unless a choice before 28 November 2026 stored them.
+- **A point Claude writes isn't the same as a case** for finding one in the same line: it repeats a
+  point only when that point's finder matches the same words (`written_points.check_point`).
+- Explain's "Grammar in this line" shows the case and aspect points a line uses, as for any point.

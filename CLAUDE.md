@@ -176,7 +176,7 @@ src/reader   Read & Listen's side of the app: its server's API, the reading sess
 src/wanikani WaniKani as a deck: its API, the study session (undo holds the latest answer), answer
              checking, production notes (pure, tested; storage.ts keeps the token in the Keychain)
 src/tools    the Practice tab's tools: the list (`TOOLS` in tools.ts, which names every one), each tool's logic, and each
-             language's under its own folder (thai/, spanish/...); pure, tested, except storage.ts and extrasStorage.ts. Daily extras (extras.ts) plan the Today tab's strip of drills and texts from the miss tallies; screens are DailyExtras.tsx and DailyExtrasSettings.tsx. A tool
+             language's under its own folder (thai/, spanish/...); pure, tested, except its storage files. Today's plan (plan.ts) picks Today's items, drills from Daily extras (extras.ts); screens TodayPlanCard.tsx, DailyExtras.tsx. A tool
              comes in every app language unless it doesn't apply, and never schedules or writes a card
              (tests/tools/noGrading.test.ts). Skill cards (skills.ts) are the one way practice reaches the collection: Add
              skill cards (Deck options) writes Basic notes through saveNote after a preview the learner approves

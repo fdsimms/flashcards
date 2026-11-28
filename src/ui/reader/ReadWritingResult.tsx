@@ -3,10 +3,11 @@ import { Text, View } from 'react-native';
 import { compareTyped } from '../../core/typedCompare';
 import type { WritingCheck } from '../../reader/api';
 import { verdictLine } from '../../reader/production';
-import { Icon, Tappable } from '../kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { Icon } from '../kit';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
+import { PlayDot } from '../PlayCircle';
 
 /**
  * Claude's check of something the owner wrote (reader/production.ts): how it went, what they wrote
@@ -38,14 +39,7 @@ export function WritingResult({ check, attempt, lang, onPlay }: {
           <TypedDiff comparison={comparison} showExpected size="body" lang={lang} expectedLabel="Corrected" showLine={false} />
         </View>
         {onPlay ? (
-          <Tappable
-            onPress={() => tap(onPlay)}
-            accessibilityRole="button"
-            accessibilityLabel={playing ? 'Pause' : 'Play the corrected version'}
-            style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name={playing ? 'pause.fill' : 'play.fill'} size={16} color={c.accent} />
-          </Tappable>
+          <PlayDot label="Play the corrected version" playing={playing} onPress={() => tap(onPlay)} />
         ) : null}
       </View>
       {check.english ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{check.english}</Text> : null}

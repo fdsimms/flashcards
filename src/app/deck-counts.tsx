@@ -4,7 +4,7 @@ import { useApp } from '../ui/AppContext';
 import { DeckCounts } from '../ui/DeckCounts';
 
 export default function DeckCountsRoute() {
-  const { decks } = useApp();
+  const { decks, repo } = useApp();
   const { deck } = useLocalSearchParams<{ deck: string }>();
-  return <DeckCounts row={decks.find((r) => r.deck === deck)} />;
+  return <DeckCounts row={decks.find((r) => r.deck === deck)} repo={repo} />;
 }

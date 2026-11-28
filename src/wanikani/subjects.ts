@@ -190,15 +190,21 @@ export function primaryReading(s: Subject): string | undefined {
   return (s.readings.find((r) => r.primary) ?? s.readings[0])?.reading;
 }
 
-/** A kanji's readings by type, primary type first, for the answer side. Vocabulary gets one group with no type. */
-export function readingGroups(s: Subject): { type?: Reading['type']; readings: string[]; primary: boolean }[] {
-  if (s.type !== 'kanji') return s.readings.length ? [{ readings: s.readings.filter((r) => r.accepted).map((r) => r.reading), primary: true }] : [];
+/**
+ * A kanji's readings by type, the type WaniKani asks for first, for the answer side. `asked` marks
+ * that type when there's another shown beside it, so the card can say which one the question wants
+ * (`WaniKaniCard` draws it in a well); every group is drawn at one size. Vocabulary gets one group
+ * with no type, and nothing to mark.
+ */
+export function readingGroups(s: Subject): { type?: Reading['type']; readings: string[]; asked: boolean }[] {
+  if (s.type !== 'kanji') return s.readings.length ? [{ readings: s.readings.filter((r) => r.accepted).map((r) => r.reading), asked: false }] : [];
   const order: Reading['type'][] = ['onyomi', 'kunyomi', 'nanori'];
   const primaryType = s.readings.find((r) => r.primary)?.type;
-  return order
+  const groups = order
     .map((type) => ({ type, readings: s.readings.filter((r) => r.type === type).map((r) => r.reading), primary: type === primaryType }))
     .filter((g) => g.readings.length)
     .sort((a, b) => Number(b.primary) - Number(a.primary));
+  return groups.map(({ type, readings, primary }) => ({ type, readings, asked: primary && groups.length > 1 }));
 }
 
 /**

@@ -150,7 +150,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   // example's box under its sentence (romanization, translation). A button highlights while its line is open, a second
   // tap closes it, and its name stays as the accessibility label.
   const hintIcons = (items: Item[], inExample = false) => (
-    <View key="icons" style={inExample ? { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m, paddingBottom: space.s } : { flexDirection: 'row', justifyContent: 'center', gap: space.m }}>
+    <View key="icons" style={inExample ? { flexDirection: 'row', gap: space.m, paddingHorizontal: space.m, paddingTop: space.xs, paddingBottom: space.m } : { flexDirection: 'row', justifyContent: 'center', gap: space.m }}>
       {items.map((it) => {
         const on = shownHints.has(it.i);
         const { label, icon } = hintButton(it.b);
@@ -232,7 +232,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
               </View>
               <View style={{ backgroundColor: c.fill, borderRadius: radius.m, ...smooth, overflow: 'hidden' }}>
                 {group.filter((it) => it.b.role === 'example').map((it) => (
-                  <View key={it.i} style={{ padding: space.m, paddingBottom: space.s }}>{line(it)}</View>))}
+                  <View key={it.i} style={{ padding: space.m, paddingBottom: buttons.length ? space.s : space.m }}>{line(it)}</View>))}
                 {buttons.length ? hintIcons(buttons, true) : null}
                 {opened.map((it) => (it.b.role === 'exampleTranslation' ? translationRow(it)
                   : <View key={it.i} style={{ padding: space.m, paddingTop: buttons.length ? space.s : 0, paddingBottom: space.s }}>{line(it)}</View>))}

@@ -3,9 +3,11 @@ import { Text, View } from 'react-native';
 import { compareTyped } from '../../core/typedCompare';
 import type { JournalCheck, JournalSentence } from '../../reader/api';
 import { firstTry, journalHeadline } from '../../reader/journal';
+import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
+import { PlayDot } from '../PlayCircle';
 
 /**
  * The journal's check, drawn (src/reader/journal.ts): the headline, the first try's marked sentences and
@@ -118,14 +120,7 @@ export function JournalCorrections({ check, lang, onPlay, onKind }: {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
         <View style={{ flex: 1 }}><Headline check={check} corrections /></View>
         {onPlay ? (
-          <Tappable
-            onPress={onPlay}
-            accessibilityRole="button"
-            accessibilityLabel="Play the corrected entry"
-            style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="play.fill" size={16} color={c.accent} />
-          </Tappable>
+          <PlayDot label="Play the corrected entry" onPress={() => { haptic.tap(); onPlay(); }} />
         ) : null}
       </View>
       <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.l }}>

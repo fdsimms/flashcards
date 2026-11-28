@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, LayoutAnimation, ScrollView, Text, View } from 'react-native';
+import { Alert, LayoutAnimation, ScrollView, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import { withThaiLineHeight } from '../../core/script';
 import { type NoteQueue, type QueuedNote } from '../../reader/api';
@@ -8,7 +8,7 @@ import { counts, droppedNotice, firstReady, isRetrying, isWorking, needsChoice }
 import type { DroppedWord } from '../../reader/noteQueueStore';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
-import { Button, Divider, EmptyState, ErrorNote, Group, HeaderAction, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, CloseButton, Divider, EmptyState, ErrorNote, Group, HeaderAction, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { MIN_TAP, space, type, useTheme, readable } from '../theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
@@ -76,15 +76,7 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
             <Text style={{ ...type.footnote, color }}>{label}</Text>
           </View>
         </Tappable>
-        <Tappable
-          onPress={() => { haptic.tap(); onRemove(); }}
-          disabled={locked || pending}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${note.entry} from the queue`}
-          style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-        >
-          {pending ? <ActivityIndicator size="small" color={c.textSecondary} /> : <Icon name="xmark" size={14} color={c.textSecondary} />}
-        </Tappable>
+        <CloseButton label={`Remove ${note.entry} from the queue`} onPress={onRemove} disabled={locked} busy={pending} />
       </View>
       {refusal ? (
         <View style={{ paddingHorizontal: space.l, paddingBottom: space.m }}>
@@ -116,14 +108,7 @@ function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; mea
         {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}
         <Text numberOfLines={1} style={{ ...type.footnote, color: c.textTertiary }}>{deck}</Text>
       </View>
-      <Tappable
-        onPress={() => { haptic.tap(); onRemove(); }}
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${entry}`}
-        style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Icon name="xmark" size={14} color={c.textSecondary} />
-      </Tappable>
+      <CloseButton label={`Remove ${entry}`} onPress={onRemove} />
     </View>
   );
 }

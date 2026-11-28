@@ -155,7 +155,7 @@ export interface TreeQueueInput {
   boostFor?: (root: string) => Boost | undefined;
   /** A deck's own daily new card limit, not today's: its preset's, else its own from Deck options (`DeckRow.newPerDay`). */
   newPerDayFor?: (deck: string) => number;
-  /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, weakest first overrides the review order. The limits are scaled in `queueInput`. */
+  /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, likeliest first overrides the review order. The limits are scaled in `queueInput`. */
   vacation?: VacationPlan;
   /**
    * While a review from an earlier study day waits, reviews come likeliest-remembered first (`isBehind`).
@@ -309,12 +309,11 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     retentionOf: (c) => paramsFor(homeDeckOf(c))?.desiredRetention,
   };
   const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h) && !input.held?.has(c.id));
-  // Vacation mode's weakest-first order, but never over a filtered deck's own place order. Otherwise,
-  // while a review from an earlier study day still waits, the reviews likeliest to be remembered come
-  // first (`isBehind`): what can't be reached today is then what was already slipping, not what would have been kept.
+  // During a vacation, and while a review from an earlier study day still waits (`isBehind`), the reviews
+  // likeliest to be remembered come first, but never over a filtered deck's own place order: what can't be
+  // reached today is then what was already slipping, not what would have been kept.
   const order: StudyOrder = rootFiltered ? ownOrder
-    : input.vacation?.weakestFirst ? { ...ownOrder, reviewOrder: REVIEW.relativeOverdueness }
-    : input.catchUp && isBehind(all, now, h) ? { ...ownOrder, reviewOrder: REVIEW.retrievabilityDescending }
+    : input.vacation?.likeliestFirst || (input.catchUp && isBehind(all, now, h)) ? { ...ownOrder, reviewOrder: REVIEW.retrievabilityDescending }
     : ownOrder;
   const nextDay = nextStudyDayStart(now, h).getTime();
   // Siblings: a card is held back when one gathered before it has a preset burying its kind.
@@ -497,6 +496,8 @@ export interface DeckRow extends DeckNode {
   setAside?: number;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
+  /** An Anki filtered deck: its menu rebuilds and empties it, and its options are its searches. */
+  filtered?: boolean;
   /**
    * The deck's own daily new card limit, from its preset (or the app's default), not today's: no
    * Custom Study limit for today and no vacation scaling. With `unstudied`, how many days of new
@@ -611,7 +612,8 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const home: Card[] = [];
     for (const [deck, cards] of byHome) if (isInDeck(deck, node.deck)) for (const c of cards) home.push(c);
     const totals = deckTotals(home, input.skillCards, input.now ?? new Date(), input.dayStartsAtHour);
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(setAside ? { setAside } : {}), ...(gate ? { gate } : {}) };
+    const filtered = !!input.paramsFor?.(node.deck)?.filtered;
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(setAside ? { setAside } : {}), ...(gate ? { gate } : {}), ...(filtered ? { filtered } : {}) };
   });
 }
 

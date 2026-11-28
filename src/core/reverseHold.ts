@@ -1,4 +1,5 @@
 import { isOmnilanguage } from './cards';
+import { isInDeck } from './deckTree';
 import { isInProgress } from './progress';
 import type { Card, Note } from './types';
 
@@ -29,4 +30,16 @@ export function heldReverseCards(cards: readonly Card[], notes: Iterable<Note>):
     if ((c.kind === 'reverse' || c.kind === 'audio') && c.sched.state === 0 && waiting.has(c.noteId)) held.add(c.id);
   }
   return held;
+}
+
+/**
+ * How many of a deck's new cards (with its subdecks) wait for their word (`heldReverseCards`), and on
+ * how many notes: Deck counts says so, since the deck list's new count leaves them out and Anki on
+ * another device still offers them.
+ */
+export function waitingForWord(deck: string, cards: readonly Card[], notes: readonly Note[]): { notes: number; cards: number } {
+  const held = heldReverseCards(cards, notes);
+  const deckOf = new Map(notes.map((n) => [n.id, n.deck]));
+  const waiting = cards.filter((c) => held.has(c.id) && !c.suspended && isInDeck(deckOf.get(c.noteId) ?? '', deck));
+  return { notes: new Set(waiting.map((c) => c.noteId)).size, cards: waiting.length };
 }

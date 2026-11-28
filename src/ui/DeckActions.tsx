@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useRef } from 'react';
 import { ActionSheetIOS, Alert } from 'react-native';
 import { deckDeletionPreview, DeckRefused, deleteDeck, moveDeck, renameDeck } from '../anki/deckService';
+import { emptyFilteredDeckNamed, rebuildFilteredDeck } from '../anki/filteredDeckService';
 import { refreshFromKeptCollection } from '../anki/transfer';
 import { deckDeletionWarning } from '../core/deckNames';
 import { deckSuspension, deckSuspensionWarning } from '../core/deckSuspension';
@@ -112,8 +113,21 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     });
   }, [repo, run, fromAnki, collapse]);
 
+  const isFiltered = useCallback((deck: string) => !!decks.find((r) => r.deck === deck)?.filtered, [decks]);
+
+  /** A filtered deck gathered again, or its cards sent home; said when Rebuild found nothing. */
+  const rebuild = useCallback((deck: string) => run("Couldn't rebuild the filtered deck", async () => {
+    const count = await rebuildFilteredDeck(repo, deck, fromAnki);
+    if (count === 0) Alert.alert('No cards match', `"${deck}" is empty: no cards match its searches now. Change them in its options, or rebuild it later.`);
+  }), [repo, run, fromAnki]);
+  const empty = useCallback((deck: string) => run("Couldn't empty the filtered deck", () => emptyFilteredDeckNamed(repo, deck, fromAnki)), [repo, run, fromAnki]);
+
   /** One thing done to a deck, from the long-press menu or the ⋯ sheet. */
   const act = useCallback((deck: string, action: DeckAction) => {
+    if (action === 'rebuild') rebuild(deck);
+    if (action === 'empty') empty(deck);
+    // A filtered deck's options are its searches (FilteredDeckEditor.tsx).
+    if (action === 'options' && isFiltered(deck)) { router.push({ pathname: '/filtered-deck', params: { deck } }); return; }
     if (action === 'quick') router.push({ pathname: '/quick-add', params: { deck } });
     // The note editor starts in this deck, which may have no notes yet (one just made).
     if (action === 'note') openNoteEditor({ deck }, (result) => { if (result) refresh(); });
@@ -124,17 +138,25 @@ export function useDeckActions(onOptions: (deck: string) => void) {
     if (action === 'suspend') setSuspended(deck, true);
     if (action === 'unsuspend') setSuspended(deck, false);
     if (action === 'delete') remove(deck);
-  }, [router, openNoteEditor, refresh, rename, onOptions, remove, setSuspended, repo]);
+  }, [router, openNoteEditor, refresh, rename, onOptions, remove, setSuspended, repo, rebuild, empty, isFiltered]);
 
   /** The sheet the ⋯ button on a deck's row opens: the same choices as the long-press menu. */
   const menu = useCallback((deck: string) => {
     haptic.tap();
+    if (isFiltered(deck)) {
+      const filteredOptions = ['Rebuild', 'Empty', 'Options', 'Rename', 'Delete', 'Cancel'];
+      const filteredActions: DeckAction[] = ['rebuild', 'empty', 'options', 'rename', 'delete'];
+      ActionSheetIOS.showActionSheetWithOptions({ title: deck, options: filteredOptions, cancelButtonIndex: 5, destructiveButtonIndex: 4 }, (i) => {
+        if (i < filteredActions.length) act(deck, filteredActions[i]);
+      });
+      return;
+    }
     const options = ['Quick add', 'Add note', 'Rename', 'Deck options', 'Export notes', 'Deck counts', 'Suspend all', 'Unsuspend all', 'Delete', 'Cancel'];
     const actions: DeckAction[] = ['quick', 'note', 'rename', 'options', 'export', 'counts', 'suspend', 'unsuspend', 'delete'];
     ActionSheetIOS.showActionSheetWithOptions({ title: deck, options, cancelButtonIndex: 9, destructiveButtonIndex: 8 }, (i) => {
       if (i < actions.length) act(deck, actions[i]);
     });
-  }, [act]);
+  }, [act, isFiltered]);
 
   return { create: () => create(), menu, act, move };
 }

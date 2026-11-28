@@ -20,27 +20,28 @@ type Extras = ReturnType<typeof useDailyExtras>;
  * language that has some; it isn't one of the day's planned extras, so it isn't counted in "done".
  * Nothing shows when there is nothing, so the list is as it was.
  */
-export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue?: GrammarDue | null }) {
+export function ExtrasStrip({ extras, grammarDue, inPlan = false }: { extras: Extras; grammarDue?: GrammarDue | null; /** Today's plan is showing, with the drills as its items: only Grammar due is listed here. */ inPlan?: boolean }) {
   const c = useTheme();
   const router = useRouter();
   const [problem, setProblem] = useState<string>();
-  if (!extras.items.length && !grammarDue?.total) return null;
+  const listed = inPlan ? [] : extras.items;
+  if (!listed.length && !grammarDue?.total) return null;
   const tap = async (item: ExtraItem) => {
     haptic.tap();
     setProblem(await extras.open(item.extra));
   };
-  const planned = extras.items.length;
+  const planned = listed.length;
   return (
     <Card style={{ gap: space.m }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Today's extras</Text>
+        <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>{inPlan ? 'Grammar' : "Today's extras"}</Text>
         {planned ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${extras.done} of ${planned} done`}</Text> : null}
       </View>
       {planned ? (
         <>
           <Meter value={extras.done / planned} color={c.countDue} label={`${extras.done} of ${planned} done`} />
           <ExtraRows>
-            {extras.items.map((item, i) => (
+            {listed.map((item, i) => (
               <ExtraRow
                 key={`${item.extra.language}|${item.extra.kind}`}
                 first={i === 0}

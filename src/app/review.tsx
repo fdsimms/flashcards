@@ -65,8 +65,15 @@ export default function ReviewRoute() {
   const nextDeck = nextDeckToStudy(decks, collapse.collapsed, deck);
   // With nothing further down the list, offer the first earlier deck that still has cards.
   const earlierDeck = nextDeck ? undefined : earlierDeckToStudy(decks, collapse.collapsed, deck);
+  // A filtered deck (Custom Study Session) holds no notes of its own, so "Add your first words" can't apply.
+  const [filtered, setFiltered] = useState(false);
+  useEffect(() => {
+    let live = true;
+    repo.listDeckParams().then((all) => { if (live) setFiltered(!!all.get(deck)?.filtered); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [repo, deck, reloadKey]);
   // A deck with no cards yet (just made): what to do next, in place of "All done for now".
-  if (decks.find((r) => r.deck === deck)?.cards === 0) {
+  if (!filtered && decks.find((r) => r.deck === deck)?.cards === 0) {
     return (
       <Screen title={deck.split('::').pop() ?? deck}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}>

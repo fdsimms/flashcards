@@ -45,10 +45,10 @@ export function useGrammarDueState(readerApi: Api | null, repo: Repo): { due: Gr
       .catch(() => undefined)
       .finally(() => { if (live) setSettled(true); });
     Promise.all([readerApi.grammarChoices(), repo.listGrammarAnswers(), settings])
-      .then(([{ choices }, answers, { dayStartsAtHour }]) => {
+      .then(([{ choices, defaults }, answers, { dayStartsAtHour }]) => {
         if (!live) return;
         const now = new Date();
-        const byLanguage = dueByLanguage(languages, choices, answers, now, dayStartsAtHour) as GrammarDue['languages'];
+        const byLanguage = dueByLanguage(languages, choices, answers, now, dayStartsAtHour, defaults) as GrammarDue['languages'];
         const fresh = { total: byLanguage.reduce((n, d) => n + d.count, 0), languages: byLanguage };
         answered = true;
         setDue(fresh);

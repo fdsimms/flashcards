@@ -48,6 +48,7 @@ import { ReadRetell } from './ReadRetell';
 import type { LineDrillKind } from '../../reader/lineDrill';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
+import { ReadNewWordsDial } from './ReadNewWordsDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
@@ -77,6 +78,7 @@ import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { PlayCircle } from '../PlayCircle';
+import { Figure } from '../Figure';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -425,7 +427,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text || source.kind !== 'past' || listenLogged.current) return;
     listenLogged.current = true;
     try {
-      await api.logListen(text.id);
+      await api.logListen(text.id, session ? (Date.now() - session.startedAt) / 1000 : undefined);
     } catch {
       // Not counted: it's offered again, which is the better way to be wrong.
     }
@@ -1071,6 +1073,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     onChange={chooseLength}
                   />
                 </View>
+                <ReadNewWordsDial api={api} />
                 <ReadGrammarDial api={api} />
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>
@@ -1516,8 +1519,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, ...smooth, padding: space.m }}>
-      <Text style={{ ...type.title, color: c.text }}>{value}</Text>
-      <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
+      <Figure value={value} label={label} />
     </View>
   );
 }

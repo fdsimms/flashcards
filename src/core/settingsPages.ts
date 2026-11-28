@@ -75,6 +75,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'deckRecordings', page: 'deck', label: 'Record audio', keywords: ['recordings', 'azure', 'voice'], route: DECK_OPTIONS_LIST },
   { id: 'deckNativeRecordings', page: 'deck', label: 'Native recordings', keywords: ['native speaker', 'lingua libre', 'wiktionary', 'commons', 'pronunciation'], route: DECK_OPTIONS_LIST },
 
+  { id: 'todayPlan', page: 'today', label: "Today's plan", keywords: ['plan', 'daily', 'minutes', 'goal', 'routine', 'week'], route: '/today-plan' },
   { id: 'reminder', page: 'today', label: 'Study reminder', keywords: ['notification', 'daily'], route: '/reminder' },
   { id: 'vacation', page: 'today', label: 'Vacation mode', keywords: ['pause', 'break', 'away'], route: '/vacation' },
 

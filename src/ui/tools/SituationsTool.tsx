@@ -29,7 +29,7 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
 import { MakingBody } from '../MakingCard';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
@@ -42,6 +42,7 @@ import { CardSurface } from '../SwipeCard';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
 import { HandsFreeBar, HandsFreeStart } from './HandsFreeBar';
 import { useHandsFree } from './useHandsFree';
+import { recordPlanItem } from '../../tools/planStorage';
 
 /**
  * Situations (server/reader situations.py), as Review's card (PracticeCard.tsx): a scene on a card, Another for the next
@@ -414,6 +415,8 @@ function Talk({ api, repo, chat, onChat, heardOnly, handsFree, feedback, onFeedb
       if (asking.current !== mine) return;
       setDeck(settings?.decks?.[chat.language] ?? null);
       onFeedback(got);
+      // Today's plan's Speak item (src/tools/plan.ts).
+      recordPlanItem('speak', chat.language);
     } catch (e) {
       if (asking.current === mine) setProblem({ message: failureText(e, { what: "Couldn't get feedback on your lines.", next: 'Try again.' }), retry: () => void finish() });
     } finally {
@@ -583,10 +586,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, handsFree, feedback, onFeedb
                 </View>
               ) : null}
               {waiting && !finishing && chat.lines.length ? (
-                <View accessible accessibilityRole="progressbar" accessibilityLabel={`${name} is answering`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                  <WorkingMark />
-                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${name} is answering...`}</Text>
-                </View>
+                <WorkingLine text={`${name} is answering`} />
               ) : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
               {problem ? <ErrorNote centered={!chat.lines.length} message={problem.message} onRetry={problem.retry} /> : null}

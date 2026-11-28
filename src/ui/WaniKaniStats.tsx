@@ -2,10 +2,11 @@ import React, { useEffect, useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { problemText } from '../wanikani/api';
 import { answerSummary, comingUp, STAGE_GROUPS, startedTotal, type LevelProgress } from '../wanikani/stats';
-import { Card, Group, Help, Loading, NavRow, Screen } from './kit';
+import { Card, Group, Help, Loading, Meter, NavRow, Screen } from './kit';
 import type { WaniKaniState } from './useWaniKani';
 import { stageColors } from './WaniKaniStageBar';
 import { space, type, useTheme, readable } from './theme';
+import { Figure } from './Figure';
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const CHART_HEIGHT = 64;
@@ -42,7 +43,7 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
           <Text style={{ ...type.title, color: c.text }}>Level {level}</Text>
           {stats.progress && stats.progress.level === level ? (
             <>
-              <Bar share={stats.progress.kanjiPassed / stats.progress.needed} color={colors.guru} label={`${stats.progress.kanjiPassed} of ${stats.progress.needed} kanji needed at Guru`} />
+              <Meter value={stats.progress.kanjiPassed / stats.progress.needed} color={colors.guru} label={`${stats.progress.kanjiPassed} of ${stats.progress.needed} kanji needed at Guru`} />
               <Help>{levelHelp(stats.progress)}</Help>
             </>
           ) : level >= 60 ? <Help>This is WaniKani's last level.</Help> : null}
@@ -54,7 +55,7 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
             <View key={g.key} accessible accessibilityLabel={`${g.label}: ${stats.stages[g.key]}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
               <Text style={{ ...type.callout, color: c.text, width: 100 }}>{g.label}</Text>
               <View style={{ flex: 1 }}>
-                <Bar share={stats.stages[g.key] / biggest} color={colors[g.key]} />
+                <Meter value={stats.stages[g.key] / biggest} color={colors[g.key]} />
               </View>
               <Text style={{ ...type.callout, fontWeight: '600', color: c.text, width: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{stats.stages[g.key].toLocaleString()}</Text>
             </View>
@@ -81,10 +82,10 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Answered in Franki</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: space.m }}>
-            <Tile value={answers.reviewsToday.toLocaleString()} label={answers.reviewsToday === 1 ? 'review today' : 'reviews today'} />
-            <Tile value={answers.lessonsToday.toLocaleString()} label={answers.lessonsToday === 1 ? 'lesson today' : 'lessons today'} />
-            <Tile value={answers.rightFirstTimeWeek === null ? 'None yet' : `${answers.rightFirstTimeWeek}%`} label="right first time, 7 days" />
-            <Tile value={answers.reviewsWeek.toLocaleString()} label="reviews, 7 days" />
+            <Figure style={{ width: '50%' }} value={answers.reviewsToday.toLocaleString()} label={answers.reviewsToday === 1 ? 'review today' : 'reviews today'} />
+            <Figure style={{ width: '50%' }} value={answers.lessonsToday.toLocaleString()} label={answers.lessonsToday === 1 ? 'lesson today' : 'lessons today'} />
+            <Figure style={{ width: '50%' }} value={answers.rightFirstTimeWeek === null ? 'None yet' : `${answers.rightFirstTimeWeek}%`} label="right first time, 7 days" />
+            <Figure style={{ width: '50%' }} value={answers.reviewsWeek.toLocaleString()} label="reviews, 7 days" />
           </View>
           <Help>Answers given on wanikani.com aren't counted here.</Help>
         </Card>
@@ -103,22 +104,3 @@ function levelHelp(p: LevelProgress): string {
   return p.remaining === 0 ? `${have} That's enough for level ${p.level + 1}.` : `${have} ${p.remaining} more to reach level ${p.level + 1}.`;
 }
 
-/** A bar filled to `share` (0 to 1) of its width. */
-function Bar({ share, color, label }: { share: number; color: string; label?: string }) {
-  const c = useTheme();
-  return (
-    <View accessible={!!label} accessibilityLabel={label} style={{ height: 10, borderRadius: 5, backgroundColor: c.fill, overflow: 'hidden' }}>
-      <View style={{ width: `${Math.min(1, Math.max(0, share)) * 100}%`, height: '100%', borderRadius: 5, backgroundColor: color }} />
-    </View>
-  );
-}
-
-function Tile({ value, label }: { value: string; label: string }) {
-  const c = useTheme();
-  return (
-    <View style={{ width: '50%', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
-  );
-}
