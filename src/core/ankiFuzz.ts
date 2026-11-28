@@ -165,9 +165,55 @@ export function balancedInterval(iv: number, min: number, max: number, a: Balanc
   const days = Array.from({ length: after - before + 1 }, (_, i) => before + i);
   const counts = days.map((d) => a.dayCounts[d] ?? 0);
 
+  // Days near a sibling are penalized, the sibling's own day most.
+  const sibling = days.map(() => f32(1));
+  for (const s of [...new Set(a.siblingDays ?? [])].sort((x, y) => x - y)) {
+    for (let k = -5; k <= 5; k++) {
+      const t = s + k - before;
+      if (t >= 0 && t < sibling.length) sibling[t] = f32(sibling[t] * SIBLING_PENALTY[k + 5]);
+    }
+  }
+  return weightedDay(days, counts, days.map(a.weekdayOf), a.easyDays, sibling, a.seed);
+}
+
+/** What the load balancer reads when rescheduling cards (rslib's scheduler/fsrs/rescheduler.rs). */
+export interface RescheduleBalance {
+  seed: bigint;
+  /** Anki's day number today. */
+  today: number;
+  /** Review cards (not suspended) of the card's preset by Anki due day, at home; changed as cards move. */
+  dueByDay: Map<number, number>;
+  /** Of those, the ones due today or earlier, plus the preset's cards answered today: today's workload. */
+  todayLoad: number;
+  /** The preset's easy days, Monday to Sunday; empty for none. */
+  easyDays?: number[];
+  /** The weekday (Monday 0) of Anki day `day`. */
+  weekdayOf: (day: number) => number;
+}
+
+/**
+ * The day a card rescheduled `daysElapsed` days after its last answer goes to (the Rescheduler's
+ * `find_interval`), or undefined (plain fuzz) when its fuzz range ends before today: it's overdue
+ * either way. Unlike an answer's, it has no 90-day cap and no sibling penalty, never picks a day
+ * before today, and counts today's backlog and answers for a day that would be due today.
+ */
+export function rescheduleBalancedInterval(iv: number, min: number, max: number, daysElapsed: number, a: RescheduleBalance): number | undefined {
+  const [lo, after] = constrainedFuzzBounds(f32(iv), min, max);
+  if (after < daysElapsed) return undefined;
+  const before = Math.max(lo, daysElapsed);
+  const days = Array.from({ length: after - before + 1 }, (_, i) => before + i);
+  const counts = days.map((ivl) => (ivl > daysElapsed ? a.dueByDay.get(a.today + ivl - daysElapsed) ?? 0 : a.todayLoad));
+  const weekdays = days.map((ivl) => a.weekdayOf(a.today + ivl - daysElapsed));
+  return weightedDay(days, counts, weekdays, a.easyDays, days.map(() => f32(1)), a.seed);
+}
+
+/**
+ * The load balancer's pick among `days` (`select_weighted_interval`): fewer cards due and a shorter
+ * interval weigh more, scaled by the sibling and easy days modifiers, drawn with the card's seed.
+ */
+function weightedDay(days: number[], counts: number[], weekdays: number[], easyDays: number[] | undefined, sibling: number[], seed: bigint): number | undefined {
   // Easy days: a reduced day becomes a minimum day when it would otherwise take more than its share.
-  const kinds = a.easyDays?.length === 7 ? a.easyDays.map(dayKind) : (Array(7).fill('normal') as DayKind[]);
-  const weekdays = days.map(a.weekdayOf);
+  const kinds = easyDays?.length === 7 ? easyDays.map(dayKind) : (Array(7).fill('normal') as DayKind[]);
   const total = counts.reduce((x, y) => x + y, 0);
   let totalPct = f32(0);
   for (const wd of weekdays) totalPct = f32(totalPct + DAY_LOAD[kinds[wd]]);
@@ -182,15 +228,6 @@ export function balancedInterval(iv: number, min: number, max: number, a: Balanc
     }
     return DAY_LOAD[k];
   });
-
-  // Days near a sibling are penalized, the sibling's own day most.
-  const sibling = days.map(() => f32(1));
-  for (const s of [...new Set(a.siblingDays ?? [])].sort((x, y) => x - y)) {
-    for (let k = -5; k <= 5; k++) {
-      const t = s + k - before;
-      if (t >= 0 && t < sibling.length) sibling[t] = f32(sibling[t] * SIBLING_PENALTY[k + 5]);
-    }
-  }
 
   const weights = days.map((d, i) => {
     if (counts[i] === 0) return f32(1);
@@ -213,7 +250,7 @@ export function balancedInterval(iv: number, min: number, max: number, a: Balanc
     buf.setUint32(0, buf.getUint32(0) - 1);
     scale = buf.getFloat32(0);
   }
-  const chosen = f32(f32(fuzzFactor(a.seed) * scale) + 0);
+  const chosen = f32(f32(fuzzFactor(seed) * scale) + 0);
   return days[cumulative.filter((c) => c <= chosen).length];
 }
 

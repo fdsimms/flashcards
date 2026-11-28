@@ -1,9 +1,10 @@
 import { usePreventRemove } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { loadPreset, savePreset, type PresetView } from '../anki/presetService';
+import { countRescheduled, loadPreset, savePreset, type PresetView } from '../anki/presetService';
+import { refreshFromKeptCollection } from '../anki/transfer';
 import { failureText } from '../core/failure';
-import { ownValuesNote, parsePresetForm, presetForm, presetIntro, RETENTION_MAX, RETENTION_MIN, type PresetForm } from '../core/presetOptions';
+import { ownValuesNote, parsePresetForm, presetForm, presetIntro, rescheduleQuestion, RETENTION_MAX, RETENTION_MIN, type PresetForm, type PresetOptions } from '../core/presetOptions';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { Button, Card, Field, Help, Loading, Screen, Section, SECTION_GAP } from './kit';
@@ -14,7 +15,9 @@ import { useKeyboardScroll } from './useKeyboardScroll';
  * Anki options (from Deck options): the daily limits, learning steps, maximum interval and
  * desired retention of the Anki preset a deck uses, written into the Anki collection
  * (`savePreset`) so every device follows after sync. A preset is shared, so the screen lists
- * every deck the change applies to, and what any of them keeps for itself, before Save.
+ * every deck the change applies to, and what any of them keeps for itself, before Save. Saving a
+ * new retention asks whether to reschedule the cards it reaches (Anki's "Reschedule cards on
+ * change"), with the count `countRescheduled` gives, and only when there's one to move.
  */
 export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string }) {
   const c = useTheme();
@@ -55,19 +58,40 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
-  const save = async () => {
-    if (!preset || !form || busy) return;
-    const parsed = parsePresetForm(form);
-    if ('errors' in parsed) { setErrors(parsed.errors); return; }
-    setBusy(true);
+  const write = async (options: PresetOptions, reschedule: boolean) => {
     try {
-      await savePreset(repo, deck, preset.presetId, parsed.options);
+      await savePreset(repo, deck, preset!.presetId, options, { reschedule, refresh: () => refreshFromKeptCollection(repo) });
       await load();
     } catch (e) {
       Alert.alert("Couldn't save these options", failureText(e, { next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
+  };
+
+  const save = async () => {
+    if (!preset || !form || busy) return;
+    const parsed = parsePresetForm(form);
+    if ('errors' in parsed) { setErrors(parsed.errors); return; }
+    const options = parsed.options;
+    setBusy(true);
+    let count = 0;
+    if (Math.abs(options.desiredRetention - preset.options.desiredRetention) >= 1e-4) {
+      try {
+        count = await countRescheduled(repo, deck, preset.presetId);
+      } catch (e) {
+        Alert.alert("Couldn't save these options", failureText(e, { next: 'Try again.' }));
+        setBusy(false);
+        return;
+      }
+    }
+    if (count === 0) { await write(options, false); return; }
+    const q = rescheduleQuestion(count, options.desiredRetention);
+    Alert.alert(q.title, q.message, [
+      { text: 'Reschedule', style: 'default', isPreferred: true, onPress: () => { void write(options, true); } },
+      { text: 'Keep dates', onPress: () => { void write(options, false); } },
+      { text: 'Cancel', style: 'cancel', onPress: () => setBusy(false) },
+    ], { cancelable: false });
   };
 
   const field = (key: keyof PresetForm, label: string, opts: { keyboard?: 'number-pad' | 'decimal-pad'; hint?: string; placeholder?: string } = {}) => (
@@ -110,7 +134,7 @@ export function DeckPreset({ repo, deck }: { repo: Repo & AnkiLink; deck: string
               {field('maxInterval', 'Maximum interval (days)', { keyboard: 'number-pad' })}
               {field('desiredRetention', 'Desired retention', {
                 keyboard: 'decimal-pad',
-                hint: `Between ${RETENTION_MIN.toFixed(2)} and ${RETENTION_MAX.toFixed(2)}. Cards already scheduled keep their dates until their next review.`,
+                hint: `Between ${RETENTION_MIN.toFixed(2)} and ${RETENTION_MAX.toFixed(2)}. Saving a new one asks whether to move the due dates of cards already scheduled.`,
               })}
             </Card>
           </Section>

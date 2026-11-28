@@ -25,6 +25,7 @@ describe('settings pages', () => {
     expect(searchSettings('skill').map((e) => e.id)).toEqual(['deckSkills']);
     expect(searchSettings('cards in progress').map((e) => e.id)).toEqual(['deckGate']);
     expect(searchSettings('css').map((e) => e.id)).toEqual(['noteTypes']);
+    expect(searchSettings('learn ahead').map((e) => e.id)).toEqual(['scheduling']);
     expect(searchSettings('perfective').map((e) => e.id)).toEqual(['deckAspect']);
     expect(searchSettings('reviews a day').map((e) => e.id)).toEqual(['deckDailyLimits']);
     // Listening settings live on their own screen, not the one that turns Read & Listen on.
