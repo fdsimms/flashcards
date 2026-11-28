@@ -556,10 +556,18 @@ export function Button(props: {
   busyLabel?: string;
   /** What VoiceOver says when the label alone isn't enough: a button repeated down a list names its row. */
   accessibilityLabel?: string;
+  /** `small` is 44pt with the label in subhead, for buttons side by side in a bar or under a card (Look up's Hear it and Add to deck). */
+  size?: 'regular' | 'small';
+  /** A symbol before the label. */
+  icon?: SFSymbol;
+  /** A caption under the label, saying what the button will act on ("3 notes"). */
+  hint?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
   const variant = props.variant ?? 'primary';
+  const small = props.size === 'small';
+  const labelType = small ? { ...type.subhead, fontWeight: '600' as const } : type.headline;
   const off = props.disabled || props.busy;
   const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : variant === 'tinted' ? c.accentInk : c.text;
   return (
@@ -574,7 +582,7 @@ export function Button(props: {
       restOpacity={off ? 0.45 : 1}
       style={[
         {
-          minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
+          minHeight: small ? MIN_TAP : 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: small ? space.m : space.l, paddingVertical: small ? space.s : space.m,
           alignItems: 'center', justifyContent: 'center',
           backgroundColor: variant === 'primary' ? c.accent : variant === 'tinted' ? c.accentFill : c.fill,
           // The fill alone is 1.1:1 on the screen in light mode, so the button needs an edge to read as one. Inside the box: the size is the same.
@@ -586,9 +594,17 @@ export function Button(props: {
       {props.busy && props.busyLabel ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <WorkingMark color={fg} />
-          <Text style={{ ...type.headline, color: fg }}>{props.busyLabel}</Text>
+          <Text style={{ ...labelType, color: fg }}>{props.busyLabel}</Text>
         </View>
-      ) : props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
+      ) : props.busy ? <ActivityIndicator color={fg} /> : (
+        <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
+            {props.icon ? <Icon name={props.icon} size={small ? 15 : 18} color={fg} weight="semibold" /> : null}
+            <Text style={{ ...labelType, color: fg, textAlign: 'center', flexShrink: 1 }}>{props.label}</Text>
+          </View>
+          {props.hint ? <Text style={{ ...type.caption, color: variant === 'destructive' ? c.danger : c.textSecondary, textAlign: 'center' }}>{props.hint}</Text> : null}
+        </>
+      )}
     </Tappable>
   );
 }

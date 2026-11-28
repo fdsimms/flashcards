@@ -2,12 +2,11 @@ import * as Clipboard from 'expo-clipboard';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
-import { ActionSheetIOS, Alert, Text } from 'react-native';
+import { ActionSheetIOS, Alert } from 'react-native';
 import { Refusal } from '../core/failure';
 import { JPEG_QUALITY, base64Of, fitsServer, resizeTo } from '../reader/topicImage';
 import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { Button } from './kit';
 
 export type PickedImage = { base64: string; mediaType: 'image/jpeg' };
 
@@ -55,7 +54,6 @@ export function TopicImagePicker({ label, onPicked, onFailed, disabled }: {
   onFailed: (e: unknown) => void;
   disabled?: boolean;
 }) {
-  const c = useTheme();
   const run = async (get: () => Promise<PickedImage | null>, none?: string) => {
     try {
       const image = await get();
@@ -75,23 +73,5 @@ export function TopicImagePicker({ label, onPicked, onFailed, disabled }: {
       if (options[i] === 'Paste image') run(fromClipboard, "Copy a photo or screenshot first, then paste it here.");
     });
   };
-  return (
-    <Tappable
-      onPress={open}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      scaleTo={0.98}
-      dimTo={0.85}
-      restOpacity={disabled ? 0.45 : 1}
-      style={{
-        minHeight: MIN_TAP, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.s,
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.s,
-        backgroundColor: c.fill, borderWidth: 1, borderColor: c.controlEdge,
-      }}
-    >
-      <Icon name="photo" color={c.text} />
-      <Text style={{ ...type.headline, color: c.text }}>{label}</Text>
-    </Tappable>
-  );
+  return <Button size="small" variant="secondary" icon="photo" label={label} disabled={disabled} onPress={open} />;
 }
