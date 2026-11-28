@@ -271,9 +271,9 @@ it can for a language and otherwise sends to Apple. The app asks iOS which, per 
 (`modules/speech-on-device`): Settings, Speaking says so, and a language heard only by Apple has no
 microphone while offline. WaniKani talks to api.wanikani.com only once its token is entered
 (Settings, WaniKani); its answers go to WaniKani, which schedules them, and only its production
-notes enter the collection. It keeps an offline copy of what's up (`offline.ts`: reviews, lessons, subjects, synonyms, and
-recordings as files), made each time WaniKani is reached, so a session can be studied with no connection: its answers go to the
-outbox and are sent later, and the copy leaves out items answered since it was made. Recording a card with an Azure voice (`src/core/recording.ts`) goes
+notes enter the collection. It keeps an offline copy to study from with no connection (`offline.ts`; `scheduling.md`, WaniKani
+offline). **Videos** (Settings, Reading and listening; off until turned on) have the server fetch a YouTube video's
+subtitles, and play it in YouTube's embedded player. Recording a card with an Azure voice (`src/core/recording.ts`) goes
 through Read & Listen's server, as do Hearing sounds' recordings (kept on the phone once made), so both are off while Read & Listen is. The three Japanese fonts
 (Settings, Font) are too large to bundle: each is downloaded from jsDelivr, version-pinned, only when its row is
 tapped, and kept in the documents folder (`src/core/fontDownloads.ts`). Writing by hand's stroke order

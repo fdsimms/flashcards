@@ -1356,6 +1356,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/your-words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Words Route
+         * @description Your words (lesson.build_words): the words the app sends, each said with a pause to
+         *     recall it, its meaning and an example. Made in the background like a review. Never grades a
+         *     card: hearing a word isn't answering it.
+         */
+        post: operations["make_words_route_api_lessons_your_words_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/phrases/{index}/audio": {
         parameters: {
             query?: never;
@@ -1406,6 +1428,30 @@ export interface paths {
         post?: never;
         /** Delete Lesson Route */
         delete: operations["delete_lesson_route_api_lessons__lesson_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Level
+         * @description The language's level from its last snapshot of the deck: known words by frequency band
+         *     (`bands`, each `start` to `end` places in the list), how many of the `top` most common are
+         *     known, the share of everyday speech they make up (`speech`, 0 to 1, null without
+         *     frequencies), and `history`, one figure a study day, oldest first, today's included. 404 for
+         *     a language with no frequency list (Toki Pona), 409 before its deck has been read.
+         */
+        get: operations["get_level_api_level_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2038,6 +2084,40 @@ export interface paths {
         /** Set Grammar Level */
         put: operations["set_grammar_level_api_grammar_level_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_videos_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add */
+        post: operations["add_api_videos_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2710,6 +2790,39 @@ export interface components {
             register?: ("casual" | "everyday" | "formal") | null;
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
+        };
+        /** LevelBand */
+        LevelBand: {
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Known */
+            known: number;
+        };
+        /** LevelDayOut */
+        LevelDayOut: {
+            /** Day */
+            day: string;
+            /** Known Top */
+            known_top: number;
+            /** Speech */
+            speech: number | null;
+        };
+        /** LevelOut */
+        LevelOut: {
+            /** Top */
+            top: number;
+            /** Known Top */
+            known_top: number;
+            /** Speech */
+            speech: number | null;
+            /** Studied */
+            studied: number;
+            /** Bands */
+            bands: components["schemas"]["LevelBand"][];
+            /** History */
+            history: components["schemas"]["LevelDayOut"][];
         };
         /** LineOut */
         LineOut: {
@@ -3531,6 +3644,49 @@ export interface components {
              */
             reading: string;
         };
+        /** VideoAddedOut */
+        VideoAddedOut: {
+            /** Id */
+            id: number;
+        };
+        /** VideoIn */
+        VideoIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Link */
+            link: string;
+        };
+        /**
+         * VideoPreviewOut
+         * @description What adding a video would give, before it's added.
+         */
+        VideoPreviewOut: {
+            /** Video Id */
+            video_id: string;
+            /** Title */
+            title: string;
+            /** Channel */
+            channel: string;
+            /** Generated */
+            generated: boolean;
+            /** Seconds */
+            seconds: number;
+            /** Coverage */
+            coverage: number;
+            /** Words */
+            words: number;
+            /** New Words */
+            new_words: string[];
+            /** New Count */
+            new_count: number;
+            /** Lines */
+            lines: number;
+            /** Cost Usd */
+            cost_usd: number;
+        };
         /** WordIn */
         WordIn: {
             /**
@@ -3658,6 +3814,36 @@ export interface components {
              * @enum {string}
              */
             genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
+        };
+        /** YourWordIn */
+        YourWordIn: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+            /** Example */
+            example?: string | null;
+            /** Example English */
+            example_english?: string | null;
+        };
+        /** YourWordsIn */
+        YourWordsIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Narrator */
+            narrator?: string | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+            /** Words */
+            words: components["schemas"]["YourWordIn"][];
+            /**
+             * Meaning First
+             * @default false
+             */
+            meaning_first: boolean;
         };
     };
     responses: never;
@@ -6493,6 +6679,43 @@ export interface operations {
             };
         };
     };
+    make_words_route_api_lessons_your_words_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["YourWordsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     phrase_audio_route_api_lessons__lesson_id__phrases__index__audio_get: {
         parameters: {
             query?: never;
@@ -6579,6 +6802,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_level_api_level_get: {
+        parameters: {
+            query: {
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -7828,6 +8084,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_videos_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_api_videos_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoAddedOut"];
                 };
             };
             /** @description Validation Error */

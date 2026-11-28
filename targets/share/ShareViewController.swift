@@ -47,7 +47,11 @@ class ShareViewController: UIViewController {
     setUpCard()
     readShare { [weak self] shared in
       guard let self else { return }
-      if let shared, !shared.text.isEmpty {
+      if let url = shared?.url, Self.isVideo(url) {
+        // A YouTube video: added in Franki as a video to watch with its subtitles (Add a video), so
+        // there's nothing to choose here, and a page's text around it isn't what was meant.
+        self.save(Shared(text: url, title: shared?.title, url: url), kind: "video")
+      } else if let shared, !shared.text.isEmpty {
         self.showChoices(shared)
       } else if shared?.url != nil {
         self.showMessage(
@@ -118,6 +122,16 @@ class ShareViewController: UIViewController {
     }
 
     next(0)
+  }
+
+  /// Whether a link is a YouTube video's, which Franki adds as a video rather than reads (the app's
+  /// video.ts and the server's video.py read its id out of it).
+  static func isVideo(_ link: String) -> Bool {
+    guard let url = URL(string: link), let host = url.host?.lowercased() else { return false }
+    let youtube = ["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"]
+    if host == "youtu.be" { return url.path.count > 1 }
+    guard youtube.contains(host) else { return false }
+    return url.path == "/watch" || url.path.hasPrefix("/shorts/") || url.path.hasPrefix("/live/")
   }
 
   private static func trimmed(_ text: String?) -> String {
@@ -244,7 +258,7 @@ class ShareViewController: UIViewController {
     stack.addArrangedSubview(label(saved ? "Saved to Franki" : "Couldn't save that", font: .preferredFont(forTextStyle: .headline), center: true))
     let detail = !saved
       ? "Franki couldn't keep the text. Try sharing it again."
-      : kind == "read" ? "Open Franki to read it." : kind == "lookup" ? "Open Franki to look it up." : "Open Franki to add them."
+      : kind == "read" ? "Open Franki to read it." : kind == "video" ? "Open Franki to add the video." : kind == "lookup" ? "Open Franki to look it up." : "Open Franki to add them."
     stack.addArrangedSubview(label(detail, font: .preferredFont(forTextStyle: .subheadline), color: .secondaryLabel, center: true))
     DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay) { [weak self] in
       self?.extensionContext?.completeRequest(returningItems: nil)

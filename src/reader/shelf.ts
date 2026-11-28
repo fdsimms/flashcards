@@ -45,7 +45,8 @@ export function reasonLabel(text: ShelfText): string {
     case 'story':
       return `Episode ${text.episode}`;
     case 'own':
-      return 'Your text';
+      // A video's subtitles (video.ts) are the learner's own text too, watched rather than read.
+      return text.video ? (text.video.channel ? `Video from ${text.video.channel}` : 'Video') : 'Your text';
     default:
       // Written for a topic before the shelf existed.
       return text.topic;
@@ -70,9 +71,10 @@ export function upNextOrder(shelf: Pick<Shelf, 'texts'>): number[] {
 /**
  * The shelf's reading order, for Next and for downloads: the story's next episode, then the shelf,
  * then the learner's own texts (a long one's parts in order). Play all keeps to the shelf (`upNextOrder`).
+ * A video's text is left out: it opens on Watch, with the video as its sound, and has no recordings.
  */
 export function playOrder(shelf: Pick<Shelf, 'story' | 'texts' | 'own'>): number[] {
-  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id), ...(shelf.own ?? []).map((t) => t.id)];
+  return [...(shelf.story?.next ? [shelf.story.next.id] : []), ...shelf.texts.map((t) => t.id), ...(shelf.own ?? []).filter((t) => !t.video).map((t) => t.id)];
 }
 
 /** How long Play all takes, in minutes: the shelf's texts, without the story's episode. */

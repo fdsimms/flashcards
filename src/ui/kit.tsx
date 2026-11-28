@@ -235,7 +235,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
+export function NavRow({ label, detail, badge, facts, loading, making, working, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -246,6 +246,8 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
   loading?: boolean;
   /** Something is being made in the background: the step under way and a bar of its steps stand in for `detail`, and a turning mark for the chevron. The row should be `disabled`. */
   making?: StageStep[];
+  /** Something is being made for it in the background, with no steps to show (a series' next episode): a turning mark for the chevron, `detail` saying what. The row stays tappable. */
+  working?: boolean;
   onPress: () => void;
   /** A menu of more things to do with it (Up Next's Play Next and Play Later). */
   onLongPress?: () => void;
@@ -307,7 +309,7 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
           <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
-      {making ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
+      {making || working ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
     </Pressable>
     </Hoverable>
   );
@@ -355,7 +357,7 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
 }
 
 /** A row in a `Group` with an on/off switch. The whole row is labelled for VoiceOver, which flips it. */
-export function SwitchRow({ label, hint, value, onValueChange, first }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean }) {
+export function SwitchRow({ label, hint, value, onValueChange, first, style }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean; /** For a switch inside a `Card` rather than a `Group`: `{ paddingVertical: 0, paddingHorizontal: 0, minHeight: 0 }` keeps the card's own padding. */ style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
   return (
     <View
@@ -365,7 +367,7 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
       accessibilityState={{ checked: value }}
       accessibilityActions={[{ name: 'activate' }]}
       onAccessibilityAction={() => { haptic.select(); onValueChange(!value); }}
-      style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
+      style={[{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }, style]}
     >
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: space.xs }}>
