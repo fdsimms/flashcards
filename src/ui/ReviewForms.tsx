@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { studyDayStart } from '../core/day';
 import {
   formsOf, formsSettings, formsSuggestion, headword, introductions, NEW_WORD_DAYS,
@@ -10,8 +10,7 @@ import { heldCards, lookalikeIndex, lookalikeSettings, seenEvents, soonerOffer, 
 import { heldReverseCards } from '../core/reverseHold';
 import type { Card, DeckSettings, Note, ReviewLogEntry } from '../core/types';
 import type { Repo } from '../db/repo';
-import { haptic } from './haptics';
-import { Button, Card as Box, Help } from './kit';
+import { Button, Card as Box, Help, SwitchRow } from './kit';
 import { MIN_TAP, space, type, useTheme } from './theme';
 
 /**
@@ -157,13 +156,14 @@ export function AnswerExtras(props: {
             </Text>
             <Help>{`It looks a lot like ${props.word}, which may have given the answer away.`}</Help>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
-            <View style={{ flex: 1, gap: space.xs }}>
-              <Text style={{ ...type.body, color: c.text }}>Show this card again sooner</Text>
-              <Text style={{ ...type.footnote, color: c.textSecondary }}>{`Good brings it back in ${offer.soonerGood}, not ${offer.plainGood}`}</Text>
-            </View>
-            <Switch value={offer.on} onValueChange={(on) => { haptic.select(); props.onSooner(on); }} trackColor={{ true: c.accent, false: c.border }} ios_backgroundColor={c.border} accessibilityLabel="Show this card again sooner" />
-          </View>
+          <SwitchRow
+            first
+            label="Show this card again sooner"
+            hint={`Good brings it back in ${offer.soonerGood}, not ${offer.plainGood}`}
+            value={offer.on}
+            onValueChange={props.onSooner}
+            style={{ paddingVertical: 0, paddingHorizontal: 0, minHeight: 0 }}
+          />
         </Box>
       ) : null}
       {suggestion ? (
