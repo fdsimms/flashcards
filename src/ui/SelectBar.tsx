@@ -7,13 +7,15 @@ import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 /**
  * The bar at the bottom of a list in Select mode (the screen's `footer`): how many rows are picked,
  * Select all or Deselect all, and what to do with them. An action does nothing until a row is picked.
+ * `status` is a line saying what the last action did, with Undo for it when it can be taken back.
  */
-export function SelectBar({ count, total, onSelectAll, onClear, actions }: {
+export function SelectBar({ count, total, onSelectAll, onClear, actions, status }: {
   count: number;
   total: number;
   onSelectAll: () => void;
   onClear: () => void;
   actions: { label: string; hint?: string; destructive?: boolean; onPress: () => void }[];
+  status?: { text: string; onUndo?: () => void };
 }) {
   const c = useTheme();
   const all = count > 0 && count === total;
@@ -23,6 +25,12 @@ export function SelectBar({ count, total, onSelectAll, onClear, actions }: {
         <Text style={{ ...type.subhead, color: c.textSecondary, fontWeight: '600' }}>{selectedText(count)}</Text>
         <TextButton label={all ? 'Deselect all' : 'Select all'} onPress={all ? onClear : onSelectAll} />
       </View>
+      {status ? (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.s }}>
+          <Text accessibilityLiveRegion="polite" style={{ ...type.subhead, color: c.goodInk, flex: 1 }}>{status.text}</Text>
+          {status.onUndo ? <TextButton label="Undo" onPress={status.onUndo} /> : null}
+        </View>
+      ) : null}
       <View style={{ flexDirection: 'row', gap: space.s }}>
         {actions.map((a) => (
           <Tappable
