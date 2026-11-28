@@ -20,6 +20,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { useHearingAudio, type HeardIn } from './useHearingAudio';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
+import { RoundScore } from '../RoundScore';
 
 /** An answer: the word picked (its index in the set), the tone picked, or null for I don't know. */
 type Picked = { choice: number | Tone | null };
@@ -308,8 +309,7 @@ function RoundResults({ results, right, asked, weakest }: { results: SoundResult
   return (
     <View style={{ padding: space.l, gap: space.m }}>
       <Card>
-        <Text style={{ ...type.overline, color: c.textSecondary }}>Round done</Text>
-        <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked} right`}</Text>
+        <RoundScore heading="Round done" right={right} asked={asked} what="heard right" />
       </Card>
       <Card>
         <Text style={{ ...type.overline, color: c.textSecondary }}>By sound</Text>

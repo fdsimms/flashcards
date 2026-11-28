@@ -16,6 +16,7 @@ import { useKeyboardScroll } from './useKeyboardScroll';
 import { TranslationRow } from './TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 import { READABLE_WIDTH } from '../core/wide';
+import { RoundScore } from './RoundScore';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -175,7 +176,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   if (done) {
     return (
       <Screen
-        title={`${answered.filter(isRight).length} of ${answered.length} right`}
+        title="Round done"
         footer={
           <>
             {missed.length ? <Button label={missed.length === 1 ? 'Practice the missed one again' : 'Practice the missed ones again'} variant="secondary" onPress={again} /> : null}
@@ -432,6 +433,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
   const c = useTheme();
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <RoundScore right={answered.filter(isRight).length} asked={answered.length} what="right" />
       {summarySections(answered).map(({ title, rows }) => (
         <View key={title} style={{ gap: space.xs }}>
           {title ? <Text accessibilityRole="header" style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary, paddingHorizontal: space.xs }}>{title}</Text> : null}

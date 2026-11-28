@@ -20,6 +20,7 @@ import { TranslationRow } from '../TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from '../usePhoneSpeech';
 import { Status } from './ToolScreen';
 import { READABLE_WIDTH } from '../../core/wide';
+import { RoundScore } from '../RoundScore';
 
 type AnswerMode = 'pick' | 'type';
 
@@ -113,8 +114,9 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
       return { id, right: mine.filter((a) => a.right).length, total: mine.length };
     });
     return (
-      <Screen title={`${right} of ${answered.length} right`} footer={<Button label="Done" onPress={onDone} />}>
+      <Screen title="Round done" footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+          <RoundScore right={right} asked={answered.length} what="right" />
           <Card style={{ gap: space.s }}>
             {byPoint.map((p) => (
               <Text key={p.id} style={{ ...type.body, color: c.text }}>

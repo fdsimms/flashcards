@@ -19,6 +19,7 @@ import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
 import { PlayCircle } from '../PlayCircle';
+import { RoundScore } from '../RoundScore';
 
 /**
  * The check after reading (reader/check.ts), one question at a time, in place of the reader's end
@@ -280,9 +281,8 @@ export function CheckCard({ text, questions, picks, onStart }: {
   const unanswered = questions.length - asked;
   return (
     <Card style={{ gap: space.s }}>
-      <View style={{ alignItems: 'center', gap: 2, paddingVertical: space.xs }}>
-        <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked}`}</Text>
-        <Text style={{ ...type.subhead, color: c.textSecondary }}>right on this text</Text>
+      <View style={{ paddingVertical: space.xs }}>
+        <RoundScore right={right} asked={asked} what="right on this text" />
       </View>
       {questions.filter((q) => q.key in picks).map((q) => {
         const ok = isRight(q, picks);
