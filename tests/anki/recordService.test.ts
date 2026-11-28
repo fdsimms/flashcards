@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordNote, recordNotes, replaceWithNative, type RecordDeps } from '../../src/anki/recordService';
+import { keepLineClip, recordNote, recordNotes, replaceWithNative, type RecordDeps } from '../../src/anki/recordService';
 import { sha1Hex } from '../../src/anki/sha1';
 import type { NoteStore } from '../../src/anki/noteService';
 import { makeCards } from '../../src/core/cards';
@@ -111,7 +111,9 @@ describe('a native recording first', () => {
     down.deps.native = async () => { throw new Error('offline'); };
     expect((await recordNote(down.deps, 'n1', VOICE))!.fields.Audio).toMatch(/franki-tts-/);
 
-    const noField = await franki([omniNote()]);
+    const bare = omniNote();
+    delete bare.fields.AudioCredit;
+    const noField = await franki([bare]);
     let asked = false;
     noField.deps.native = async () => { asked = true; return FOUND; };
     expect((await recordNote(noField.deps, 'n1', VOICE))!.fields.Audio).toMatch(/franki-tts-/);
@@ -133,5 +135,37 @@ describe('replacing a recording with a native one', () => {
     const f = await franki([omniNote({ Audio: '[sound:mine.mp3]', AudioCredit: '' })]);
     expect(await replaceWithNative(f.deps, 'n1', { audio: '[sound:franki-tts-a.mp3]', credit: '' }, FOUND)).toBeNull();
     expect((await f.store.getNote('n1'))!.fields.Audio).toBe('[sound:mine.mp3]');
+  });
+});
+
+describe("keeping the clip of the line a word was heard in", () => {
+  const clip = new TextEncoder().encode('ID3 line');
+
+  it('keeps the file, puts it on the list to send, and points SourceAudio at it', async () => {
+    const f = await franki();
+    const saved = await keepLineClip(f.deps, 'n1', clip);
+    const name = saved!.fields.SourceAudio.match(/\[sound:(.+)\]/)![1];
+    expect(f.files.get(name)).toEqual(clip);
+    expect(f.pending.get(name)).toBe(sha1Hex(clip));
+    expect((await f.store.getNote('n1'))!.fields.Audio).toBe('');
+  });
+
+  it('leaves a note alone that has a clip already, or whose type has no SourceAudio field', async () => {
+    const f = await franki([omniNote({ SourceAudio: '[sound:mine.mp3]' })]);
+    expect(await keepLineClip(f.deps, 'n1', clip)).toBeNull();
+    const bare = omniNote();
+    delete bare.fields.SourceAudio;
+    const g = await franki([bare]);
+    expect(await keepLineClip(g.deps, 'n1', clip)).toBeNull();
+    expect(g.pending.size).toBe(0);
+  });
+
+  it("and a recording kept at the same time doesn't write over it", async () => {
+    const f = await franki();
+    const [recorded, kept] = await Promise.all([recordNote(f.deps, 'n1', VOICE), keepLineClip(f.deps, 'n1', clip)]);
+    expect(recorded && kept).toBeTruthy();
+    const note = (await f.store.getNote('n1'))!;
+    expect(note.fields.Audio).toMatch(/^\[sound:/);
+    expect(note.fields.SourceAudio).toMatch(/^\[sound:franki-line-/);
   });
 });

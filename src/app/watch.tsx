@@ -25,7 +25,7 @@ export default function WatchRoute() {
       api={reader.api}
       textId={textId}
       onPlayWord={playWord}
-      mining={language && deck ? { language, onAdd: (entry, meaning, pronunciation) => addWord({ word: entry, meaning, deck, language, pronunciation }) } : undefined}
+      mining={language && deck ? { language, onAdd: (entry, meaning, pronunciation, heard) => addWord({ word: entry, meaning, deck, language, pronunciation, heard }) } : undefined}
       onDone={() => leaveScreen(router, READ_PATH)}
     />
   );

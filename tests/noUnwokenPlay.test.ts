@@ -24,6 +24,7 @@ const WAKES = /\buseOutputWake\(\)/;
 const EXEMPT: Record<string, string> = {
   'src/ui/useLessonLoop.ts': 'starts a looped lesson again as it ends, straight on from the sound before',
   'src/ui/reader/ReadWatch.tsx': "its play() is the pane's (VideoPane, EpisodePane), which waits for the wake itself",
+  'src/ui/reader/useShadowing.ts': "its play() is Watch's pane's (VideoPane, EpisodePane), which waits for the wake itself",
   'src/core/template.ts': "the card page's own script, which runs in the WebView: its autoplay (START_AUTOPLAY) and its play buttons (soundTapped) wait for CardWebView's wake",
 };
 

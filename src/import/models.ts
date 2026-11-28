@@ -1,14 +1,15 @@
 /**
- * Live Omnilanguage note-type field order (37 fields), used to map a TSV export's columns when it
+ * Live Omnilanguage note-type field order (39 fields), used to map a TSV export's columns when it
  * has no #columns header. It must match Anki exactly, or every field after a missing one lands a
  * column off: SuppressFrontCard was added after GenerateAudioCard and this list hadn't followed.
+ * AudioCredit and SourceAudio were added at the end with the MCP's add_field.
  */
 export const omnilanguageFieldNames = [
   'Entry', 'Meaning', 'Audio', 'Context', 'ContextRomanized', 'ContextTranslation', 'Register', 'Dialect',
   'Notes', 'Etymology', 'Mnemonic', 'LeechHint', 'GenerateReverse', 'Language', 'GenerateAudioCard',
   'SuppressFrontCard', 'PartOfSpeech', 'Gender', 'Plural', 'Genitive', 'Classifier', 'Transliteration', 'KanaReading', 'Hanzi',
   'KeyForms', 'VerbClass', 'Auxiliary', 'AspectPartner', 'Forms', 'Pronunciation', 'Sense', 'ContextLabels', 'SenseContrast',
-  'ContextLiteral', 'Stress', 'Source', 'Icon',
+  'ContextLiteral', 'Stress', 'Source', 'Icon', 'AudioCredit', 'SourceAudio',
 ];
 
 /**

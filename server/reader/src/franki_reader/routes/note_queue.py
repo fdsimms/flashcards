@@ -15,9 +15,21 @@ from franki_reader.languages import Code
 from franki_reader.routes.context import AppContext
 
 
+class HeardIn(BaseModel):
+    """Where a word added from a text was heard (store.QueuedHeard): its note's Source, and the
+    text and line its clip is cut from (both left out when the line has none, as a video's)."""
+
+    source: str = Field(min_length=1, max_length=2000)
+    text_id: int | None = None
+    line: int | None = Field(default=None, ge=0)
+    # The note's tag for where it was heard (source::<show>), left out when there's none.
+    tag: str = Field(default="", max_length=200, pattern=r"^\S*$")
+
+
 class QueuedEntry(BaseModel):
     entry: str = Field(min_length=1, max_length=200)
     meaning: str = Field(default="", max_length=300)
+    heard: HeardIn | None = None
 
 
 class NoteQueueIn(BaseModel):
@@ -90,6 +102,14 @@ def router(ctx: AppContext) -> APIRouter:
                     "retrying": note_queue.retrying(n),
                     "spelling": n.spelling,
                     "alternatives": n.alternatives,
+                    "heard": {
+                        "source": n.heard.source,
+                        "text_id": n.heard.text_id,
+                        "line": n.heard.line,
+                        "tag": n.heard.tag,
+                    }
+                    if n.heard
+                    else None,
                 }
                 for n in store.queued_notes(engine.conn)
             ],
@@ -110,11 +130,21 @@ def router(ctx: AppContext) -> APIRouter:
             )
         seen: set[str] = set()
         entries: list[tuple[str, str]] = []
+        heard: list[store.QueuedHeard | None] = []
         for e in body.entries:
             entry = " ".join(e.entry.split())
             if entry and entry not in seen:
                 seen.add(entry)
                 entries.append((entry, " ".join(e.meaning.split())))
+                h = e.heard
+                clip = h is not None and h.text_id is not None and h.line is not None
+                heard.append(
+                    store.QueuedHeard(
+                        h.source, h.text_id if clip else None, h.line if clip else None, h.tag
+                    )
+                    if h
+                    else None
+                )
         if not entries:
             raise HTTPException(422, "Type at least one word.")
         store.add_queued(
@@ -124,6 +154,7 @@ def router(ctx: AppContext) -> APIRouter:
             entries,
             engine.clock(),
             "female" if body.language == "th" and body.particle == "kha" else "male",
+            heard,
         )
         start_filling(background)
         return queue_view()

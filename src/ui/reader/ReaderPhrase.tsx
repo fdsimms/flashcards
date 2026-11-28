@@ -5,6 +5,7 @@ import { failureText } from '../../core/failure';
 import { columnInsets } from '../../core/wide';
 import type { Api, GlossLanguage, PhraseExplanation as Explained } from '../../reader/api';
 import type { Pronunciation } from '../../reader/mining';
+import type { Heard } from '../../reader/heardLine';
 import { popupSpace, roomIsBelow } from '../../reader/phrase';
 import { Icon, Tappable, ErrorNote } from '../kit';
 import { MakingBody } from '../MakingCard';
@@ -24,7 +25,8 @@ export type PhraseMining = {
   deck: string;
   /** Opens the note editor; true once the note is saved. */
   /** The word's IPA and where it's from when it has some (a phrase has none), for the note's Pronunciation field. */
-  onAdd: (entry: string, meaning: string, pronunciation?: Pronunciation) => Promise<boolean>;
+  /** And, for a word, the line it was read in (src/reader/heardLine.ts). */
+  onAdd: (entry: string, meaning: string, pronunciation?: Pronunciation, heard?: Heard | null) => Promise<boolean>;
 };
 
 /** Where the selected phrase is on screen (window coordinates): the top of its first word and the bottom of its last. */
@@ -50,12 +52,14 @@ const POPUP_MAX_SHARE = 0.6;
  * While the field is open the popup moves to the top and takes what the keyboard leaves, so the
  * phrase's heading and the latest answer aren't behind the keyboard.
  */
-export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, mining, dock = 0, onClose }: {
+export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, mining, heard = null, dock = 0, onClose }: {
   api: Api;
   textId: number;
   /** The phrase's first line and its last (the same line unless it runs on). */
   line: number;
   toLine: number;
+  /** The line it was read in, for Add to deck: null for a phrase running across lines, which has no one line. */
+  heard?: Heard | null;
   phrase: string;
   anchor: PhraseAnchor;
   mining?: PhraseMining;
@@ -111,7 +115,7 @@ export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, m
     // The popup is a modal, so it closes before the note editor opens over the reader.
     onClose();
     try {
-      await mining.onAdd(phrase, answer.meaning);
+      await mining.onAdd(phrase, answer.meaning, undefined, heard);
     } finally {
       adding.current = false;
     }

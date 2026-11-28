@@ -179,7 +179,9 @@ export function renderCard(note: Note, kind: CardKind, wanted?: string): Rendere
   if (!isOmnilanguage(note)) return renderGeneric(note);
   const card = renderOmnilanguage(note, kind, wanted);
   const audioFile = soundFiles(note.fields.Audio)[0];
-  return audioFile ? { ...card, audioFile, audioSide: kind === 'audio' ? 'front' : 'back' } : card;
+  const sourceAudioFile = soundFiles(note.fields.SourceAudio)[0];
+  const heard = sourceAudioFile ? { ...card, sourceAudioFile } : card;
+  return audioFile ? { ...heard, audioFile, audioSide: kind === 'audio' ? 'front' : 'back' } : heard;
 }
 
 /** What to play for a card: its recording when allowed, and the text to speak when there isn't one. */

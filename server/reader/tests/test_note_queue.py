@@ -674,6 +674,26 @@ def test_queueing_a_word_returns_it_waiting_and_the_next_ask_has_it_ready() -> N
     assert got[1]["fields"]["Meaning"] == "to sulk"
 
 
+def test_a_word_heard_in_a_text_keeps_its_line_as_source_and_says_where_its_clip_is() -> None:
+    c = queue_client(Writer())
+    source = "Il <b>ricane</b> encore.<br>He sniggers again.<br>Le Podcast: Épisode 3"
+    where = {"source": source, "text_id": 7, "line": 2, "tag": "source::le-podcast"}
+    heard = {"entry": "ricane", "heard": where}
+    video = {"entry": "bouder", "heard": {"source": "Il boude.<br>Une vidéo", "text_id": 9}}
+    assert add(c, heard, video, {"entry": "hibou"}).status_code == 202  # type: ignore[arg-type]
+    got = items(c)
+    assert got[0]["heard"] == where
+    assert got[0]["fields"]["Source"] == source
+    # No line, no clip: the source is kept on its own.
+    assert got[1]["heard"] == {
+        "source": "Il boude.<br>Une vidéo",
+        "text_id": None,
+        "line": None,
+        "tag": "",
+    }
+    assert got[2]["heard"] is None and "Source" not in got[2]["fields"]
+
+
 def test_entries_are_trimmed_and_repeats_in_one_request_are_dropped() -> None:
     c = queue_client(Writer())
     r = add(c, {"entry": "  ricane  "}, {"entry": "ricane"}, {"entry": "   "})

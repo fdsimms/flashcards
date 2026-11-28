@@ -53,6 +53,12 @@ describe('the queue', () => {
     expect(reviewTarget(note()).tags).toBeUndefined();
   });
 
+  it('tags a word heard in a show with where it was heard', () => {
+    const heard = { source: 'Il <b>ricane</b>.<br>Le Podcast', text_id: 3, line: 0, tag: 'source::le-podcast' };
+    expect(reviewTarget(note({ fields: { PartOfSpeech: 'verb' }, heard })).tags).toEqual(['verb', 'source::le-podcast']);
+    expect(reviewTarget(note({ heard: { ...heard, tag: '' } })).tags).toBeUndefined();
+  });
+
   it('never lets a written field replace the entry', () => {
     expect(reviewTarget(note({ fields: { Entry: 'other' } })).fields.Entry).toBe('other');
   });

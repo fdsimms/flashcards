@@ -50,7 +50,7 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "AudioCredit", "Forms", "Pronunciation", "Stress", "Icon", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "AudioCredit", "SourceAudio", "Forms", "Pronunciation", "Stress", "Icon", *SWITCHES})
 
 # What an emoji is made of: the pictographs, with the joiner, variation selector, skin tones and
 # flag letters that build one out of several code points. Read & Listen's note queue checks an
@@ -960,6 +960,8 @@ Source: only for a word met somewhere in particular (a game, a show, a book, a s
   line exactly as it was shown or said, with the word in <b></b> as the line spells it; that line in natural
   American English; and where it was met, the title with the chapter or episode when known (The Last Train,
   chapter 4). Empty for any other word. Context is still an example sentence of its own, written as above.
+SourceAudio: the line in Source as it was said, a [sound:] clip cut from the podcast (or a Read & Listen text's
+  recording), written by Franki when a word is added from one. Never written by hand; empty otherwise.
 Register: neutral, casual, formal, literary, technical, slang, vulgar or dated. Always filled.
 Dialect: only when the word or sense is regional.
 PartOfSpeech: one of noun, proper noun, verb, adjective, adverb, pronoun, determiner, numeral, preposition,

@@ -12,6 +12,7 @@ the routes not converted yet, and a route changed is a good time to convert it.
 from franki_reader.routes import (
     audit,
     cards,
+    clips,
     cram_say,
     cram_themes,
     cram_words,
@@ -63,6 +64,7 @@ AREAS = (
     progress,
     grammar,
     podcasts,
+    clips,
     videos,
     vocab,
     note_queue,

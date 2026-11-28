@@ -88,7 +88,8 @@ function MarkedText({ text, segments, style, c, tones }: { text: string; segment
  */
 export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE, gloss, speakSentence, speechLang, furigana, wordRuns, onEditField, onEditing, contrast, senseMarking }: {
   side: RenderedSide; which: 'front' | 'back'; showHints: boolean; thaiSize?: ThaiTextSize; gloss?: SentenceGloss[] | null;
-  speakSentence?: (text: string) => void;
+  /** `fromSource`: the "From" box's line, which plays its clip where the note has one (`RenderedCard.sourceAudioFile`). */
+  speakSentence?: (text: string, fromSource?: boolean) => void;
   /** The card's language, so Japanese text takes Japanese's face (script.ts). */
   speechLang?: string;
   /** The furigana setting, given once the answer shows (furigana.ts). */
@@ -221,8 +222,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
                 {sentence && speakSentence ? (
                   <Tappable
                     accessibilityRole="button"
-                    accessibilityLabel={sentenceBlock?.source !== undefined ? 'Read the line aloud' : 'Read the example sentence aloud'}
-                    onPress={() => { haptic.tap(); speakSentence(sentence); }}
+                    accessibilityLabel={sentenceBlock?.source !== undefined ? 'Play the line' : 'Read the example sentence aloud'}
+                    onPress={() => { haptic.tap(); speakSentence(sentence, sentenceBlock?.source !== undefined); }}
                     hitSlop={(MIN_TAP - 18) / 2}
                     scaleTo={0.9}
                   >

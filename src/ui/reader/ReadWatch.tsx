@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
 import { failureText } from '../../core/failure';
 import { type Api, type GlossLanguage, type ReaderText, type Word } from '../../reader/api';
+import { heardIn, type Heard } from '../../reader/heardLine';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { glossInfo, spokenLanguage } from '../../reader/languages';
 import { prefs } from '../../reader/storage';
@@ -16,6 +17,8 @@ import { WordView, type ReadTextStyle } from './ReadWord';
 import { useReadingFont } from './useReadingFont';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { EpisodePane } from './EpisodePane';
+import { ShadowPanel } from './ShadowPanel';
+import { useShadowing } from './useShadowing';
 import { VideoPane, type Media } from './VideoPane';
 import { recordExtraRead } from '../../tools/extrasStorage';
 
@@ -25,7 +28,8 @@ import { recordExtraRead } from '../../tools/extrasStorage';
  * video.py, podcast.py). The video plays in YouTube's own embedded player (VideoPane), the episode
  * from its show's site (EpisodePane); whatever Up Next was playing stops. The line being said is
  * shaded and kept in view, a tap on a line's time jumps there, Loop line plays it again and again,
- * 0.75× slows the video, and Hide text keeps the lines out of sight to listen first. A word's tap
+ * 0.75× slows the video, and Hide text keeps the lines out of sight to listen first. Shadow plays
+ * each line once and stops for you to say it back (useShadowing, ShadowPanel). A word's tap
  * opens its gloss, with Add to deck as the reader has it. Finished logs it as read, as the reader
  * does, which takes it off the shelf. Nothing here grades a card.
  */
@@ -34,7 +38,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   textId: number;
   onPlayWord: (word: string, language: GlossLanguage, say?: string) => void;
   /** Add to deck, for the reader's language; undefined without a deck. */
-  mining?: { language: GlossLanguage; onAdd: (entry: string, meaning: string, pronunciation?: Partial<Pick<Word, 'translit' | 'ipa' | 'ipa_source'>>) => void };
+  mining?: { language: GlossLanguage; onAdd: (entry: string, meaning: string, pronunciation?: Partial<Pick<Word, 'translit' | 'ipa' | 'ipa_source'>>, heard?: Heard | null) => void };
   onDone: () => void;
 }) {
   const c = useTheme();
@@ -75,8 +79,14 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   const timesNow = useRef(times);
   timesNow.current = times;
 
-  // The player's time: a looped line goes back to its start, and otherwise the line it's in is shaded.
+  const shadow = useShadowing({ api, text, media, current: line });
+  const shadowNow = useRef(shadow);
+  shadowNow.current = shadow;
+
+  // The player's time: a shadowed line stops at its end, a looped line goes back to its start, and
+  // otherwise the line it's in is shaded.
   const onTime = useCallback((ms: number) => {
+    shadowNow.current.onTime(ms);
     const loop = looped.current;
     if (loop !== null) {
       const back = loopBack(timesNow.current, loop, ms);
@@ -100,6 +110,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   };
   const jump = (i: number) => {
     haptic.select();
+    if (shadow.on) { shadow.playLine(i); return; }
     setLooping((l) => (l === null ? null : i));
     const t = times[i];
     if (!t) return;
@@ -158,8 +169,9 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
       {video ? <VideoPane id={video.id} bind={bind} onTime={onTime} onPlaying={setPlaying} onError={setPlayerError} /> : null}
       {text.podcast ? <EpisodePane episode={text.podcast} title={text.title} bind={bind} onTime={onTime} onPlaying={setPlaying} /> : null}
       <View style={{ ...readable, flex: 1, width: '100%' }}>
-        <View style={{ flexDirection: 'row', gap: space.s, paddingHorizontal: space.l, paddingVertical: space.s }}>
-          <Chip label="Loop line" on={looping !== null} disabled={looping === null && line < 0} onPress={toggleLoop} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingHorizontal: space.l, paddingVertical: space.s }}>
+          <Chip label="Loop line" on={looping !== null} disabled={shadow.on || (looping === null && line < 0)} onPress={toggleLoop} />
+          <Chip label="Shadow" on={shadow.on} disabled={!times.length} onPress={() => { setLooping(null); shadow.toggle(); }} />
           {VIDEO_RATES.filter((r) => r !== 1).map((r) => <Chip key={r} label={`${r}×`} on={rate === r} onPress={() => chooseRate(rate === r ? 1 : r)} />)}
           <Chip label="Hide text" on={hidden} onPress={() => { haptic.select(); setHidden((h) => !h); }} />
         </View>
@@ -170,6 +182,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
           </View>
         ) : null}
         {error ? <View style={{ paddingHorizontal: space.l }}><ErrorNote message={error} /></View> : null}
+        <ShadowPanel shadow={shadow} count={text.lines.length} video={!!video} />
         {hidden ? (
           <View style={{ padding: space.l }}><Help>The text is hidden so you can listen first. Tap Hide text again to read along.</Help></View>
         ) : (
@@ -218,7 +231,9 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
         onAddToDeck={canAdd ? () => {
           const word = tapped!.word;
           setTapped(null);
-          mining!.onAdd(word.text, word.gloss ?? '', word);
+          // The line it was heard in goes with it, with the line's clip where there is one (src/reader/heardLine.ts).
+          const line = tappedLine ? text.lines.indexOf(tappedLine) : -1;
+          mining!.onAdd(word.text, word.gloss ?? '', word, line >= 0 ? heardIn(text, line, tappedLine!.words.indexOf(word)) : null);
         } : null}
         onClose={() => setTapped(null)}
       />

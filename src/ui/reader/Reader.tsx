@@ -5,6 +5,7 @@ import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError, type Api, type GlossLanguage, type GrammarChoice, type Language, type Length, type PastText, type ReaderText, type Settings, type StoryCharacter, type TextGrammar, type TextStage, type Word } from '../../reader/api';
+import { heardIn, type Heard } from '../../reader/heardLine';
 import { countOutsideDeck, isName, isOutsideDeck, underFloor } from '../../reader/deckWords';
 import { marksIn, withMark, type HideableMark, type Mark } from '../../reader/marks';
 import { lineSide, scrollTarget, type Box } from '../../reader/follow';
@@ -1112,7 +1113,10 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           // The popover is a modal, so it closes before the note editor opens over the reader.
           const word = tapped.word.text;
           setTapped(null);
-          void mining.onAdd(word, tapped.word.gloss ?? "", tapped.word).then((saved) => {
+          // The line it was read in goes with it, with the line's recording (src/reader/heardLine.ts).
+          const line = text ? text.lines.findIndex((l) => l.words.includes(tapped.word)) : -1;
+          const heard = text && line >= 0 ? heardIn(text, line, text.lines[line].words.indexOf(tapped.word)) : null;
+          void mining.onAdd(word, tapped.word.gloss ?? "", tapped.word, heard).then((saved) => {
             // In the deck now, so no longer marked unknown.
             if (saved) setSession((s) => (s && isFlagged(s, word) ? toggleFlag(s, word) : s));
           });
@@ -1131,6 +1135,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
           line={phraseRange(phrase).from.line}
           toLine={phraseRange(phrase).to.line}
           phrase={phraseText(text.lines, phrase)}
+          heard={phraseHeard(text, phrase)}
           anchor={phraseAnchor}
           // Only into the deck of the language being read.
           mining={mining?.language === text.language ? mining : undefined}
@@ -1140,6 +1145,12 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
       ) : null}
     </Screen>
   );
+}
+
+/** The line a selected phrase was read in, with the phrase in bold; null when it runs across lines. */
+function phraseHeard(text: ReaderText, pick: PhrasePick): Heard | null {
+  const { from, to } = phraseRange(pick);
+  return from.line === to.line ? heardIn(text, from.line, [from.index, to.index]) : null;
 }
 
 /** The reading size for a text's language. */

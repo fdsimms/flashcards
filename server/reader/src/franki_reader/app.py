@@ -583,6 +583,8 @@ def create_app(
     podcasts: podcast.Podcasts | None = None,
     transcribe: podcast.Transcribe | None = None,
     native_dir: Path | None = None,
+    clip_episode: podcast.ClipEpisode | None = None,
+    clips_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
@@ -695,6 +697,8 @@ def create_app(
         podcasts=podcasts,
         transcribe=transcribe,
         native_dir=native_dir,
+        clip_episode=clip_episode,
+        clips_dir=clips_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
@@ -907,6 +911,10 @@ def production_app() -> FastAPI:
         # Transcribe and agrees to its price (podcast.py).
         transcribe=transcribe,
         native_dir=settings.audio_dir / "native",
+        # A podcast line's clip is cut from the episode on the show's own site, only when the
+        # learner adds a word from it or shadows it (routes/clips.py).
+        clip_episode=podcast.episode_clipper(httpx.AsyncClient(), "franki-reader-podcasts/1.0"),
+        clips_dir=settings.audio_dir / "clips",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
