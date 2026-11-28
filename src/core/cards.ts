@@ -348,7 +348,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // The word is on the front unmarked, so its stress is a line of its own here.
     pushIf(back, stressed, undefined);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
-    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap, { role: 'pronunciation' });
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     back.push(...detail());
     // The word is on the front already: Play may say it there, but it plays by itself only with the answer.
@@ -369,7 +369,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
     // The word is the answer, so it's shown with its stress mark where the note has one.
     pushEntry(back, stressed || entry);
     pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
-    pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
+    pushIf(back, pronunciation, undefined, undefined, pronunciationTap, { role: 'pronunciation' });
     pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
     pushContrast(back);
     back.push(...detail());
@@ -392,7 +392,7 @@ function renderOmnilanguage(note: Note, kind: CardKind, wanted?: string): Render
   pushIf(back, t(note, 'Sense'), undefined, undefined, undefined, { role: 'sense' });
   pushContrast(back);
   pushIf(back, translit, undefined, undefined, 'Show transliteration', { role: 'transliteration', tones: isThai });
-  pushIf(back, pronunciation, undefined, undefined, pronunciationTap);
+  pushIf(back, pronunciation, undefined, undefined, pronunciationTap, { role: 'pronunciation' });
   pushIf(back, kana, undefined, undefined, 'Show reading', { role: 'reading' });
   back.push(...detail());
   return { front: { blocks: front, speak: say }, back: { blocks: back }, speechLang };
