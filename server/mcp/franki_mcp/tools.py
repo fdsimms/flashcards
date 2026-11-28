@@ -21,6 +21,7 @@ from typing import Any, Literal
 from anki.collection import Collection  # first: the anki package's modules import each other
 from anki.cards import Card
 from anki.consts import QUEUE_TYPE_DAY_LEARN_RELEARN, QUEUE_TYPE_LRN, QUEUE_TYPE_NEW, QUEUE_TYPE_REV
+from anki import deck_config_pb2
 from anki.decks_pb2 import Deck as DeckProto
 from anki.errors import InvalidInput
 from anki.notes import Note
@@ -985,34 +986,56 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         new_per_day: int | None = None,
         reviews_per_day: int | None = None,
         params: list[float] | None = None,
+        reschedule: bool = False,
     ) -> dict[str, Any]:
         """Changes a deck's options preset, which every deck sharing it uses (get_fsrs_settings
-        lists them; tell the user first). desired_retention is 0.7 to 0.99."""
+        lists them; tell the user first). desired_retention is 0.7 to 0.99. Saved as Anki's deck
+        options save it: a new retention or new params reach the cards' memory states, and with
+        reschedule (Anki's "Reschedule cards on change") every review card on the preset also gets
+        a new due date for them; ask the user before turning it on, and say how many
+        cards_rescheduled moved."""
 
         def run(col: Collection) -> dict[str, Any]:
             conf, sharing = _preset(col, deck)
+            did = _deck_id(col, deck)
+            if desired_retention is not None and not 0.7 <= desired_retention <= 0.99:
+                raise ToolError("desired_retention must be between 0.7 and 0.99.")
+            if params is not None and len(params) not in (19, 21):
+                raise ToolError("params must be FSRS's 19 or 21 numbers.")
+            current = col.decks.get_deck_configs_for_update(did)
+            chosen = next(c.config for c in current.all_config if c.config.id == conf["id"])
+            inner = chosen.config
             if desired_retention is not None:
-                if not 0.7 <= desired_retention <= 0.99:
-                    raise ToolError("desired_retention must be between 0.7 and 0.99.")
-                conf["desiredRetention"] = desired_retention
+                inner.desired_retention = desired_retention
             if new_per_day is not None:
-                conf["new"]["perDay"] = new_per_day
+                inner.new_per_day = new_per_day
             if reviews_per_day is not None:
-                conf["rev"]["perDay"] = reviews_per_day
+                inner.reviews_per_day = reviews_per_day
             if params is not None:
-                if len(params) not in (19, 21):
-                    raise ToolError("params must be FSRS's 19 or 21 numbers.")
-                if len(params) == 21:
-                    conf["fsrsParams6"] = params
-                else:
-                    # Anki schedules with the 21 FSRS-6 numbers whenever there are any, so 19 take
-                    # effect only once those are cleared.
-                    conf["fsrsParams5"], conf["fsrsParams6"] = params, []
-            col.decks.update_config(conf)
+                # Anki's deck options keep the parameters in the FSRS-6 field whatever their count
+                # (19 are FSRS-5's), and schedule with that field over the older ones.
+                inner.fsrs_params_6[:] = params
+                del inner.fsrs_params_5[:]
+            rescheduled_before = col.db.scalar("select count() from revlog where type = 5")
+            # Anki's deck options save (rslib deckconfig/update.rs), not the legacy update_config: it
+            # writes a new retention into the cards and reschedules them when asked, as the app does.
+            col.decks.update_deck_configs(deck_config_pb2.UpdateDeckConfigsRequest(
+                target_deck_id=did,
+                configs=[chosen],
+                mode=deck_config_pb2.UpdateDeckConfigsMode.UPDATE_DECK_CONFIGS_MODE_NORMAL,
+                card_state_customizer=current.card_state_customizer,
+                limits=current.current_deck.limits,
+                new_cards_ignore_review_limit=current.new_cards_ignore_review_limit,
+                apply_all_parent_limits=current.apply_all_parent_limits,
+                fsrs=current.fsrs,
+                fsrs_reschedule=reschedule,
+            ))
             # A deck filed into frequency tiers (tiers.py): its tiers' presets keep these parameters.
             if params is not None:
-                share_params(col, conf)
+                share_params(col, col.decks.get_config(conf["id"]))
             out: dict[str, Any] = {"preset": conf["name"], "decks_affected": sharing}
+            if reschedule:
+                out["cards_rescheduled"] = col.db.scalar("select count() from revlog where type = 5") - rescheduled_before
             # A deck kept to a daily goal sets its own new cards per day, which wins over the preset's.
             if new_per_day is not None and (kept := _goal_set_limits(col, sharing)):
                 out["new_per_day_set_by_daily_goal"] = kept
