@@ -95,6 +95,24 @@ async function matchOrCreateParents(db: SyncDb, native: string, now: Date): Prom
   return native;
 }
 
+/**
+ * The id of the normal deck called `name`, found as Anki finds one (case aside), else made with any
+ * parent it lacks, as Anki's import makes a deck it names (`get_or_create_normal_deck`). For a caller
+ * holding a transaction; it doesn't stamp the collection modified.
+ */
+export async function ankiDeckIdOrCreate(db: SyncDb, name: string, now: Date): Promise<number> {
+  await requireCollation(db, 'add a deck');
+  const native = nativeDeckName(cleaned(name));
+  const existing = await deckNamed(db, native);
+  if (existing) {
+    if (isFiltered(existing.kind)) throw new DeckRefused(`"${humanName(existing.name)}" is a filtered deck, so notes can't be added to it.`);
+    return Number(existing.id);
+  }
+  const made = await matchOrCreateParents(db, native, now);
+  await insertNormalDeck(db, made, now);
+  return Number((await deckExactly(db, made))!.id);
+}
+
 /** Makes a normal deck called `name` ("A::B"), and any parent it lacks. Returns its name as stored. */
 export async function addAnkiDeck(db: SyncDb, name: string, now: Date): Promise<string> {
   let made = '';

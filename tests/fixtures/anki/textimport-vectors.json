@@ -1,0 +1,2056 @@
+[
+ {
+  "name": "new notes go into the deck, in file order",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\nCapital of France?\tParis\nCapital of Spain?\tMadrid\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "q`?t:$jd6z",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of France?",
+     "Paris"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   },
+   {
+    "guid": "xjwt~[;fih",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Spain?",
+     "Madrid"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 9
+     }
+    ]
+   }
+  ],
+  "nextPos": 10
+ },
+ {
+  "name": "a deck Anki doesn't have is made, with its parents",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\n#deck:Geography::Europe\nCapital of Italy?\tRome\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "nNTs$+%6W>",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Italy?",
+     "Rome"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Geography::Europe",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ },
+ {
+  "name": "a row matching a note's first field updates it, keeping its deck and progress",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\nCapital of Peru?\tLima, on the coast\nCapital of Chile?\tSantiago\nCapital of Laos?\tVientiane\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima, on the coast"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "KP)>8AngxH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Laos?",
+     "Vientiane"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ },
+ {
+  "name": "a match is found with the HTML taken off the first field",
+  "deck": "👅 Languages::🐘 ภาษาไทย",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic (and reversed card)\nน้ำ\twater, drink\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "น้ำ",
+     "water, drink"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   }
+  ],
+  "nextPos": 8
+ },
+ {
+  "name": "a tags column replaces a note's tags, and #tags are added either way",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\n#tags:geo\n#tags column:3\nCapital of Bolivia?\tSucre\tsouth-america\nCapital of Peru?\tLima\t\nCapital of Chad?\tN'Djamena\tafrica\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": " geo south-america ",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "zC_6nDb*)q",
+    "notetype": "Basic",
+    "tags": " africa geo ",
+    "fields": [
+     "Capital of Chad?",
+     "N'Djamena"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ },
+ {
+  "name": "without a tags column a note keeps its tags, and #tags are added",
+  "deck": "👅 Languages::🐘 ภาษาไทย",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic (and reversed card)\n#tags:checked\nหนังสือ\tbook\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   }
+  ],
+  "nextPos": 8
+ },
+ {
+  "name": "a row with a GUID updates that note, whatever its first field",
+  "deck": "👅 Languages::🐘 ภาษาไทย",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic (and reversed card)\n#guid column:1\nd6w&~zeqG5\tหนังสือเล่ม\ta book\nnewguid01\tแมว\tcat\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือเล่ม",
+     "a book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "newguid01",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "แมว",
+     "cat"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ },
+ {
+  "name": "a GUID of a note of another type leaves that note alone",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Cloze\n#guid column:1\ntBUe5qNZSp\t{{c1::Lima}}\t\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   }
+  ],
+  "nextPos": 8
+ },
+ {
+  "name": "two rows with one first field are both added",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\nBank\tbench\nBank\tbank (money)\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "GhoX)Y}}WD",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Bank",
+     "bench"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   },
+   {
+    "guid": "j^bLHWRp>b",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Bank",
+     "bank (money)"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 9
+     }
+    ]
+   }
+  ],
+  "nextPos": 10
+ },
+ {
+  "name": "a row that changes nothing leaves the note as it is",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Basic\nCapital of Peru?\tLima\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   }
+  ],
+  "nextPos": 8
+ },
+ {
+  "name": "a plain text file is escaped, line breaks and all",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:false\n#notetype:Basic\n\"1 < 2\"\t\"yes &\nno\"\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "eV:]ZwIP42",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "1 &lt; 2",
+     "yes &amp;<br>no"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ },
+ {
+  "name": "a cloze row makes a card for each cloze",
+  "deck": "🧠 Trivia",
+  "text": "#separator:tab\n#html:true\n#notetype:Cloze\n{{c1::Paris}} is in {{c2::France}}\textra\n",
+  "notes": [
+   {
+    "guid": "d6w&~zeqG5",
+    "notetype": "Basic (and reversed card)",
+    "tags": " a1 noun ",
+    "fields": [
+     "หนังสือ",
+     "book"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 3
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 2,
+      "queue": 2,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "NlOFjJ.F]~",
+    "notetype": "Basic (and reversed card)",
+    "tags": "",
+    "fields": [
+     "<b>น้ำ</b>",
+     "water"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 1,
+      "queue": 1,
+      "due": 1794408924
+     },
+     {
+      "ord": 1,
+      "deck": "👅 Languages::🐘 ภาษาไทย",
+      "type": 0,
+      "queue": 0,
+      "due": 2
+     }
+    ]
+   },
+   {
+    "guid": "tBUe5qNZSp",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Peru?",
+     "Lima"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "Filtered Deck 1",
+      "type": 2,
+      "queue": 2,
+      "due": -100000
+     }
+    ]
+   },
+   {
+    "guid": "I(wCiN#QiH",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Chile?",
+     "Santiago"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": -1,
+      "due": 4
+     }
+    ]
+   },
+   {
+    "guid": "DZL+%Ofb+M",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Capital of Bolivia?",
+     "Sucre"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 5
+     }
+    ]
+   },
+   {
+    "guid": "v/if?2:_%n",
+    "notetype": "Basic",
+    "tags": "",
+    "fields": [
+     "Flag of Peru?<br><img src=\"flag.svg\">",
+     "Peru [sound:hello.mp3]"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 6
+     }
+    ]
+   },
+   {
+    "guid": "DOEBJVQ0:X",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Lima}} is the capital of {{c2::Peru::country}}",
+     ""
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 7
+     }
+    ]
+   },
+   {
+    "guid": "Op30jmkGED",
+    "notetype": "Cloze",
+    "tags": "",
+    "fields": [
+     "{{c1::Paris}} is in {{c2::France}}",
+     "extra"
+    ],
+    "cards": [
+     {
+      "ord": 0,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     },
+     {
+      "ord": 1,
+      "deck": "🧠 Trivia",
+      "type": 0,
+      "queue": 0,
+      "due": 8
+     }
+    ]
+   }
+  ],
+  "nextPos": 9
+ }
+]

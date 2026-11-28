@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text } from 'react-native';
 import { deckPackagePreviewText, deckPackageResultLines } from '../anki/apkgMerge';
-import { buildPackageForAnki, importCollectionPackage, openDeckPackage, type OpenedDeckPackage } from '../anki/transfer';
+import { buildPackageForAnki, importCollectionPackage, openDeckPackage, refreshFromKeptCollection, type OpenedDeckPackage } from '../anki/transfer';
 import { failureText } from '../core/failure';
 import { reviewWrites } from '../core/writeQueue';
 import type { AnkiLink, AnkiStatus } from '../db/ankiLink';
@@ -12,7 +12,7 @@ import { fileUriToPath } from '../db/backup';
 import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen, SECTION_GAP } from './kit';
-import { importWordList } from './wordListImport';
+import { importWordList, wordListSummary } from '../anki/wordListService';
 import { space, type, useTheme, readable } from './theme';
 
 /** Warnings listed per import. Past this the rest are counted, never dropped silently. */
@@ -114,10 +114,10 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 
   const importTsvFile = (picked: File, name: string) => run('import', async () => {
     try {
-      const result = await importWordList(repo, await picked.text(), name);
+      const result = await importWordList(repo, await picked.text(), name, { refresh: () => refreshFromKeptCollection(repo) });
       const shown = result.warnings.slice(0, MAX_WARNINGS);
       setLog((l) => [
-        `Imported ${name}: ${plural(result.notes.length, 'note', 'notes')}. These cards aren't in Anki, so they stay in Franki only.`,
+        wordListSummary(name, result),
         ...shown,
         ...(result.warnings.length > shown.length ? [`and ${plural(result.warnings.length - shown.length, 'more warning', 'more warnings')}`] : []),
         ...l,

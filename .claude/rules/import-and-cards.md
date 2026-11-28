@@ -40,6 +40,12 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
 - **`omnilanguageFieldNames` must match the live note type exactly** (check with AnkiMCP's
   `model_field_names`): a TSV without `#columns` is mapped by position, so a field added in Anki
   and missing here shifts every field after it.
+- **A text file goes into the kept collection as Anki's own CSV import puts it there**
+  (`importWordList`, `src/anki/wordListService.ts`; `importTextRows`): matched by GUID, else by the
+  stripped first field within the note type, a match updated with only the fields the row gives
+  (`RowGiven`), a row that changes nothing left alone, #tags included, and a missing deck made. A row
+  matching a word an earlier import left in Franki only, or of a note type Anki lacks, stays in
+  Franki. `make-textimport-vectors.py` holds it to what Anki writes.
 - **An unreadable file is refused with the reason and what to export instead**, never parsed as
   something else and left to fail with an unrelated message (a package exported for older Anki
   versions, and a backup `.db`, on the Import screen).
