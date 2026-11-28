@@ -8,11 +8,13 @@ there are no accounts. After that, Claude holds an access token (an hour) and a 
 
 Only Claude's own callback addresses (and a loopback address on any port, which Claude Code
 uses) can register, so a code can't be sent anywhere else even if someone else starts the flow.
-Tokens are kept as hashes in a small SQLite file next to the collection.
+Tokens, codes and client secrets are kept only as hashes, in a small SQLite file next to the collection,
+so a copy of it signs nobody in.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import html
@@ -24,9 +26,11 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import anyio
+from mcp.server.auth import routes as sdk_routes
+from mcp.server.auth.middleware.client_auth import ClientAuthenticator
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
@@ -37,7 +41,7 @@ from mcp.server.auth.provider import (
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
-from pydantic import AnyUrl
+from pydantic import AnyUrl, PrivateAttr
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
@@ -99,13 +103,67 @@ def _minutes(seconds: float) -> str:
 
 
 class Client(OAuthClientInformationFull):
-    """A registered client, matching loopback redirects on any port."""
+    """A registered client, matching loopback redirects on any port. Its client_secret is None as
+    get_client returns it: only the secret's hash is stored, and HashedSecretAuthenticator checks it."""
+
+    _secret_hash: str | None = PrivateAttr(default=None)
 
     def validate_redirect_uri(self, redirect_uri: AnyUrl | None) -> AnyUrl:
         if redirect_uri is not None and self.redirect_uris:
             if any(_same_but_port(str(redirect_uri), str(r)) for r in self.redirect_uris):
                 return redirect_uri
         return super().validate_redirect_uri(redirect_uri)
+
+
+async def _presented_secret(request: Request, method: str | None) -> str | None:
+    """The client secret a /token or /revoke request carries, read where the SDK's ClientAuthenticator
+    reads it for the client's method. A malformed header gives None; the SDK then refuses it itself."""
+    if method == "client_secret_basic":
+        header = request.headers.get("Authorization", "")
+        if not header.startswith("Basic "):
+            return None
+        try:
+            decoded = base64.b64decode(header[6:]).decode()
+        except (ValueError, UnicodeDecodeError):
+            return None
+        return unquote(decoded.split(":", 1)[1]) if ":" in decoded else None
+    if method == "client_secret_post":
+        secret = (await request.form()).get("client_secret")
+        return secret if isinstance(secret, str) else None
+    return None
+
+
+class _CheckedClients:
+    """The provider as one request's ClientAuthenticator sees it: a client comes back holding the
+    secret the request presented when its hash matches the stored one, and an unguessable secret when
+    it doesn't, so the SDK's own comparison passes only for the right secret (never for the hash)."""
+
+    def __init__(self, provider, request: Request):
+        self.provider, self.request = provider, request
+
+    async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
+        client = await self.provider.get_client(client_id)
+        if not isinstance(client, Client) or client._secret_hash is None:
+            return client
+        presented = await _presented_secret(self.request, client.token_endpoint_auth_method)
+        matched = presented is not None and hmac.compare_digest(_hash(presented).encode(), client._secret_hash.encode())
+        return client.model_copy(update={"client_secret": presented if matched else secrets.token_hex(32)})
+
+
+class HashedSecretAuthenticator(ClientAuthenticator):
+    """The SDK's client check at /token and /revoke, against a stored hash. The SDK compares the secret
+    a request sends with get_client's client_secret, which can't work when only a hash is kept, so the
+    hash is checked first (_CheckedClients) and everything else (the method, Basic auth's client id,
+    expiry) is still the SDK's own check."""
+
+    async def authenticate_request(self, request: Request) -> OAuthClientInformationFull:
+        return await ClientAuthenticator(_CheckedClients(self.provider, request)).authenticate_request(request)
+
+
+# create_auth_routes builds the authenticator for /token and /revoke by this module-level name and has
+# no parameter for another, so it's replaced here. If an SDK upgrade stops reading it, a client with a
+# secret is refused (get_client gives it none), never let in, and test_http's secret sign-ins fail.
+sdk_routes.ClientAuthenticator = HashedSecretAuthenticator
 
 
 class SingleUserAuth:
@@ -121,6 +179,14 @@ class SingleUserAuth:
         self._db.execute("pragma journal_mode = wal")
         for table in ("clients", "pending", "codes", "access", "refresh"):
             self._db.execute(f"create table if not exists {table} (id text primary key, data text not null, expires real)")
+        # Before secrets were hashed, a client's was stored as it was issued: hash those, so a client
+        # registered then still signs in. Codes were stored under themselves; they last 5 minutes, so
+        # they're dropped, and a sign-in caught by a restart starts again from Claude.
+        for key, raw in self._db.execute("select id, data from clients where json_extract(data, '$.client_secret') is not null").fetchall():
+            data = json.loads(raw)
+            data["client_secret_hash"], data["client_secret"] = _hash(data["client_secret"]), None
+            self._db.execute("update clients set data = ? where id = ?", (json.dumps(data), key))
+        self._db.execute("delete from codes where json_extract(data, '$.code') is not null")
         self._lock = threading.Lock()
         self._failures: dict[str, list[float]] = {}
         self._all_failures: list[float] = []
@@ -150,7 +216,12 @@ class SingleUserAuth:
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         data = self._get("clients", client_id)
-        return Client.model_validate(data) if data else None
+        if not data:
+            return None
+        secret_hash = data.pop("client_secret_hash", None)
+        client = Client.model_validate(data)
+        client._secret_hash = secret_hash
+        return client
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         for uri in client_info.redirect_uris or []:
@@ -159,7 +230,11 @@ class SingleUserAuth:
                     error="invalid_redirect_uri",
                     error_description=f"{uri} can't be used here: this server only signs in Claude's apps and local clients.",
                 )
-        self._put("clients", client_info.client_id, client_info.model_dump(mode="json"), None)
+        # Only the secret's hash is kept; the client is sent the secret itself (client_info is unchanged).
+        data = client_info.model_dump(mode="json")
+        if data.get("client_secret"):
+            data["client_secret_hash"], data["client_secret"] = _hash(data["client_secret"]), None
+        self._put("clients", client_info.client_id, data, None)
         with self._lock:
             self._db.execute(
                 """delete from clients where id in (
@@ -246,8 +321,8 @@ After you connect, it returns to {e(redirect)}.</p>
             return self._page(request_id, client.client_name or "Claude", redirect_host, "That password isn't right.")
         self._take("pending", request_id)
         code = secrets.token_urlsafe(32)
-        self._put("codes", code, {
-            "code": code, "scopes": params.get("scopes") or [], "expires_at": now + CODE_SECONDS,
+        self._put("codes", _hash(code), {
+            "scopes": params.get("scopes") or [], "expires_at": now + CODE_SECONDS,
             "client_id": client.client_id, "code_challenge": params["code_challenge"],
             "redirect_uri": params["redirect_uri"], "redirect_uri_provided_explicitly": params["redirect_uri_provided_explicitly"],
             "resource": params.get("resource"), "subject": "owner",
@@ -257,13 +332,13 @@ After you connect, it returns to {e(redirect)}.</p>
     # ---- tokens ----
 
     async def load_authorization_code(self, client: OAuthClientInformationFull, authorization_code: str) -> AuthorizationCode | None:
-        data = self._get("codes", authorization_code)
+        data = self._get("codes", _hash(authorization_code))
         if not data or data["client_id"] != client.client_id:
             return None
-        return AuthorizationCode.model_validate(data)
+        return AuthorizationCode.model_validate({**data, "code": authorization_code})
 
     async def exchange_authorization_code(self, client: OAuthClientInformationFull, authorization_code: AuthorizationCode) -> OAuthToken:
-        if not self._take("codes", authorization_code.code):
+        if not self._take("codes", _hash(authorization_code.code)):
             raise TokenError(error="invalid_grant", error_description="This code was already used.")
         return self._issue(client.client_id, authorization_code.scopes, authorization_code.resource)
 

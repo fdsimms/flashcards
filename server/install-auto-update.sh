@@ -14,6 +14,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# update.sh limits its own fetch (5 minutes) and build (an hour); this stops it if anything else hangs.
+TimeoutStartSec=75min
 ExecStart=$here/update.sh
 UNIT
 

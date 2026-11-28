@@ -24,7 +24,6 @@ import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { HoverPressable } from './hover';
-import { haptic } from './haptics';
 import { BrowseNotePanel } from './BrowseNotePanel';
 import { useBrowseActions } from './BrowseActions';
 import { SIDE_PANEL_WIDTH, sidePanelFits } from '../core/wide';

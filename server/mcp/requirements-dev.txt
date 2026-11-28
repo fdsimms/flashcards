@@ -1,2 +1,3 @@
--r requirements.txt
+# The tests' own packages, installed after requirements.txt (which is hashed, so it's installed on its
+# own: pip -r requirements.txt, then this, then the speech package with --no-deps).
 pytest==9.2.0

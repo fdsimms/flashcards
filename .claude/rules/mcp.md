@@ -26,11 +26,13 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   checks that first, and the server instructions tell Claude to show the answer and get the user's
   rating before calling it.
 - **Sign-in is OAuth for one person** (`auth.py`): registration only for Claude's callback
-  addresses and loopback (any port, RFC 8252), a password page, rotating refresh tokens, tokens
-  stored hashed.
+  addresses and loopback (any port, RFC 8252), a password page, rotating refresh tokens. Tokens,
+  codes and client secrets are stored only as hashes (a secret checked by `HashedSecretAuthenticator`,
+  which replaces the SDK's), so a copy of `signins.sqlite` signs nobody in.
 - **Tests run against a real `anki.syncserver`** with Anki itself as the other device
   (`tests/conftest.py`), and Azure faked (`FakeAzure`): `cd server/mcp && python -m pytest`, after
-  `pip install -r requirements-dev.txt ../speech`. CI runs them in their own job.
+  `pip install --require-hashes -r requirements.txt`, `pip install -r requirements-dev.txt` and
+  `pip install --no-deps ../speech`. CI runs them in their own job.
 - **Read & Listen's figures come from its server's API, never its database**
   (`franki_mcp/reader.py`: `read_and_listen_costs` asks `/api/costs` with `READER_PASSPHRASE`).
 - **Azure is called through one client shared with Read & Listen** (`server/speech`, the
@@ -76,7 +78,10 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   `audit_findings`. A rule that needs no judgment belongs in `omnilanguage.py`, not in an audit.
 - **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
   did): what applies to every tool goes there, and a tool's own rules go in its description.
-- Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
-  `tests/test_anki_version.py` checks).
+- **Its packages are pinned with hashes**: `requirements.in` names the direct ones, and
+  `requirements.txt` is made from it with `pip-compile` (its header gives the command), every package
+  pinned and hashed, which the image installs with `--require-hashes`. Dependabot proposes updates. Keep
+  `anki` in `requirements.in` at the version the sync server runs (`ANKI_VERSION`;
+  `tests/test_anki_version.py` checks both files).
 - **A merge to `main` that touches `server/` deploys itself**: the rule is in `CLAUDE.md`, since it
   holds for every server.
