@@ -37,6 +37,10 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   `franki_speech` package), so a fix to how Azure is called reaches both. Both images are built from
   `server/` to copy it (`server/.dockerignore` keeps `.env` out of the build). Azure's request
   shapes are unverified against a live key (its docstring says which parts were checked).
+  Both test environments install it as a copy, not a link, so after changing `server/speech`
+  reinstall it before running either suite (`uv sync --reinstall-package franki-speech` in
+  `server/reader`, `pip install --force-reinstall --no-deps ../speech` in the MCP's venv), or the
+  tests run the old code and pass or fail for the wrong reason.
 - **Omnilanguage's house style is one module** (`omnilanguage.py`): the rules `add_notes` and
   `update_notes` hold a note to (tidied where a fix needs no judgment, refused with what to change
   otherwise), the ones `lint_notes` reports and fixes, and the prose `note_guide` returns. A rule
