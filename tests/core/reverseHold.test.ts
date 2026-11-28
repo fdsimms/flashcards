@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { GURU_INTERVAL_DAYS } from '../../src/core/progress';
-import { heldReverseCards } from '../../src/core/reverseHold';
+import { heldReverseCards, waitingForWord } from '../../src/core/reverseHold';
 import type { Card, Note, SchedState } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
 
@@ -42,5 +42,16 @@ describe('heldReverseCards', () => {
     const basic: Note = { id: 'b', deck: 'Trivia', model: 'Basic', fields: { Front: 'a', Back: 'b' }, tags: [] };
     const cards: Card[] = cardsOf(note).map((c) => ({ ...c, id: `b:${c.kind}`, noteId: 'b' }));
     expect(held(cards, [basic])).toEqual([]);
+  });
+});
+
+describe('waitingForWord', () => {
+  it("counts a deck's held cards with its subdecks, and leaves out other decks and suspended cards", () => {
+    const polish = { ...note, id: 'p', deck: 'Languages::Polski' };
+    const german = { ...note, id: 'g', deck: 'Languages::Deutsch' };
+    const cards = [...cardsOf(polish), ...cardsOf(german, { reverse: { suspended: true } })];
+    expect(waitingForWord('Languages', cards, [polish, german])).toEqual({ notes: 1, cards: held(cards, [polish, german]).filter((id) => id.startsWith('p')).length });
+    expect(waitingForWord('Languages::Deutsch', cards, [polish, german]).cards).toBe(held(cards, [polish, german]).filter((id) => id.startsWith('g')).length - 1);
+    expect(waitingForWord('Trivia', cards, [polish, german])).toEqual({ notes: 0, cards: 0 });
   });
 });
