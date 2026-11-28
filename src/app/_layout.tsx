@@ -48,6 +48,7 @@ function RootStack() {
       <Stack.Screen name="deck-new" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       {/* The header's Offline button opens what's waiting for the connection as a short sheet. */}
       <Stack.Screen name="offline" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
+      <Stack.Screen name="ipa" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />
       {/* The tab bar's player opens Now Playing as a sheet, and its Up Next button the queue over it. */}
       <Stack.Screen name="now-playing" options={{ presentation: 'formSheet', sheetAllowedDetents: [1], sheetGrabberVisible: true }} />
       <Stack.Screen name="up-next" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.65, 1], sheetInitialDetentIndex: 0, sheetGrabberVisible: true }} />

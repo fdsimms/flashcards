@@ -91,6 +91,38 @@ def test_a_point_is_dropped_when_it_finds_a_lookalike_too_few_examples_or_repeat
     assert check_point(will, checker, "th", "th.c1", 11) == (None, "the same as th.future")
 
 
+def test_a_point_isnt_the_same_as_case_or_aspect_found_elsewhere_in_its_lines() -> None:
+    # Every one of these lines has an accusative (книгу, газету) and a perfective verb, but on
+    # other words than чтобы, so the point is new.
+    from franki_reader.lexicon import lexicon_from
+
+    lines = [
+        "Я взял книгу, чтобы прочитать её.",
+        "Он купил газету, чтобы почитать.",
+        "Мы открыли окно, чтобы проветрить комнату.",
+    ]
+    so_that = {
+        **LET,
+        "name": "чтобы (so that)",
+        "note": "Saying what something is for",
+        "example": "чтобы прочитать, to read",
+        "explanation": "**Чтобы** says what something is for.",
+        "markers": ["чтобы"],
+        "not_before": [],
+        "examples": [{"line": line, "english": "x", "words": ["чтобы"]} for line in lines],
+        "lookalikes": [],
+    }
+    checker = lexicon_from(
+        [
+            Entry(i, w, w, "mature")
+            for i, w in enumerate(" ".join(lines).replace(",", "").replace(".", "").split(), 1)
+        ],
+        "ru",
+    )
+    data, why = check_point(so_that, checker, "ru", "ru.c1", 14)
+    assert data is not None, why
+
+
 def test_only_a_language_short_of_points_to_learn_needs_one_and_never_japanese() -> None:
     thai = [p.id for p in grammar.points_for("th")]
     known = {pid: "normal" for pid in thai[1:]}

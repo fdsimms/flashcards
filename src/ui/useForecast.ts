@@ -45,7 +45,8 @@ export async function loadForecastBase(repo: Repo & AnkiLink, data: { notes: Not
   const ankiCounters = ankiDay === undefined ? undefined : await repo.ankiDeckStudied(ankiDay);
   const studied = studiedToday({ notes: data.notes, cards: data.cards, reviews, revlog, now: data.now, dayStartsAtHour: collection.dayStartsAtHour, ankiCounters: ankiCounters?.length ? ankiCounters : undefined });
   // Today's lookalike holds, as the deck list reads them, so today's count is the one the deck opens with.
-  const held = await loadHeld(repo, { notes: data.notes, cards: data.cards, settings, now: data.now, dayStartsAtHour: collection.dayStartsAtHour });
+  // Not Quiet mode: it ends within hours, and a forecast of what's due follows the schedule, not where you are.
+  const held = await loadHeld(repo, { notes: data.notes, cards: data.cards, settings, now: data.now, dayStartsAtHour: collection.dayStartsAtHour, quiet: false });
   return { notes: data.notes, cards: data.cards, params: data.params, now: data.now, collection, studied, settings, vacation, held };
 }
 

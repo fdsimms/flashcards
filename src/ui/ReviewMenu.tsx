@@ -16,7 +16,7 @@ import { textRows, type TextFont } from './textMenu';
  * its own Button, Menu, Spacer and View children and silently drops any other element, so `<ReviewMenu />`
  * left the whole menu off the header.
  */
-export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, timingOn, onTiming, onSettings }: {
+export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, onMnemonic, onLinkConfused, onFlag, onAgentFlag, onBuryCard, onBuryNote, onSuspend, onSuspendNote, onDueDate, onForget, onCardInfo, onBrowse, quietOn, onQuiet, timingOn, onTiming, onSettings }: {
   /** The Text submenu's font rows, for the card's language; none when `code` is missing (a deck with its own card font). */
   text: TextFont;
   /** The Text size shared with Read & Listen, which scales the card's text. */
@@ -46,6 +46,9 @@ export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, 
   onCardInfo: () => void;
   /** Opens Browse on this deck; missing for a filtered deck, which has no notes of its own. */
   onBrowse?: () => void;
+  /** Whether Quiet mode is on (src/core/quietMode.ts), and the choices for its length (or turning it off). */
+  quietOn: boolean;
+  onQuiet: () => void;
   /** Whether Review shows how long each answer took to bring up the next card. */
   timingOn: boolean;
   onTiming: () => void;
@@ -53,7 +56,7 @@ export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, 
   onSettings: () => void;
 }) {
   return (
-    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, reschedule, card info, browse the deck or card settings">
+    <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More for this card: bury, suspend, ask Claude, cram, mnemonic, a confusing word to link, flag, quiet mode, reschedule, card info, browse the deck or card settings">
       {/* Bury holds a card back until the next study day; Bury note does it to every card of the note; Suspend until it's unsuspended, and Suspend note every card of the note. First, since they're the most used. */}
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="eye.slash" onPress={onBuryCard}>Bury card</Stack.Toolbar.MenuAction>
@@ -64,6 +67,8 @@ export function reviewMenu({ text, textSize, flag, cramOn, onCram, onAskClaude, 
       <Stack.Toolbar.Menu inline>
         <Stack.Toolbar.MenuAction icon="sparkles" onPress={onAskClaude}>Ask Claude</Stack.Toolbar.MenuAction>
         {onCram ? <Stack.Toolbar.MenuAction icon="repeat" isOn={cramOn} onPress={onCram}>Cram this card</Stack.Toolbar.MenuAction> : null}
+        {/* Quiet mode is also started from a listening card's own chip; here it can be started before one comes up. */}
+        <Stack.Toolbar.MenuAction icon="speaker.slash" isOn={quietOn} onPress={onQuiet}>Quiet mode</Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
       {/* Offered for the hard words, not every card, so it lives here and not in the header, which stays at four buttons. */}
       {onMnemonic || onLinkConfused ? (

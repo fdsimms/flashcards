@@ -15,6 +15,9 @@ given a line's words, it returns the spans that use the point.
   neither), and a rare irregular form can be missed.
 - German, French, Russian, Greek, Polish and Norwegian are found the same way, in
   grammar_europe.py.
+- Case and aspect: German's and Greek's from the articles and pronouns that show a case
+  (grammar_europe.py); Russian's and Polish's from a morphological analyzer, claimed only when
+  every reading of a word agrees (grammar_morph.py).
 - Japanese points are found from Sudachi's morphemes (the auxiliary ます, the volitional form), in
   grammar_japanese.py.
 """
@@ -26,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast, get_args
 
-from franki_reader import grammar_europe, grammar_japanese
+from franki_reader import grammar_europe, grammar_japanese, grammar_morph
 from franki_reader.coverage import Checker, is_word, parse_line
 from franki_reader.languages import Code
 
@@ -463,6 +466,8 @@ _FINDERS: dict[str, Finder] = {
 # German, French, Russian, Greek, Polish and Norwegian (grammar_europe.py).
 _FINDERS.update(grammar_europe.FINDERS)
 _FINDERS.update(grammar_japanese.FINDERS)
+# Case and aspect in Russian and Polish, from a morphological analyzer (grammar_morph.py).
+_FINDERS.update(grammar_morph.FINDERS)
 
 CATALOG = Path(__file__).with_name("grammar_points.json")
 

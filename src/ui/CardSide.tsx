@@ -16,6 +16,8 @@ import { useFont } from './AppFont';
 import { Ruby } from './Ruby';
 import type { FuriganaSetting, Run } from '../core/furigana';
 import { CardSentence } from './CardSentence';
+import { IpaPill } from './IpaPill';
+import { ipaLanguageFor } from '../tools/ipaGuide';
 import { TranslationRow } from './TranslationRow';
 import { EDIT_ICON_ROOM, EditableField } from './EditableField';
 import type { EditableField as FieldName } from '../core/editField';
@@ -108,6 +110,8 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
   const thai = thaiTextStyle(thaiSize);
   const font = useFont();
   const ja = (text: string) => japaneseFont(text, speechLang, font);
+  // The card's IPA opens what its symbols mean, in a language with a guide (IpaPill.tsx).
+  const ipaLanguage = ipaLanguageFor(speechLang);
   // Blocks with a tapLabel (Anki's {{hint:Field}}) stay hidden until tapped; each Side is keyed by card,
   // so what was tapped open is closed again on the next card.
   const [shownHints, setShownHints] = useState<ReadonlySet<number>>(new Set());
@@ -247,6 +251,7 @@ export function Side({ side, which, showHints, thaiSize = DEFAULT_THAI_TEXT_SIZE
         if (hidden(first)) return null;
 
         const { b, i } = first;
+        if (b.role === 'pronunciation' && ipaLanguage && !b.text.includes('\n')) return <IpaPill key={i} ipa={b.text} language={ipaLanguage} />;
         if (b.role === 'chips') {
           return (
             <View key={i} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs + 2 }}>
