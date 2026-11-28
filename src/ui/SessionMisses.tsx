@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import type { ConfusedPair } from '../core/confusedPairs';
 import { headword } from '../core/forms';
@@ -12,12 +12,10 @@ import { hearingFromMisses, hearingPracticeLabel } from '../tools/hearing';
 import { missedPracticeLabel, mixupLanguage, mixupSet, practiceFromMisses, type MixupMode } from '../tools/mixups';
 import { drillOfTags } from '../tools/skills';
 import { haptic } from './haptics';
-import { Divider, Icon, Tag } from './kit';
-import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { Icon, Tag } from './kit';
+import { space, type, useTheme } from './theme';
 import { HoverPressable } from './hover';
-
-/** How many missed words the list shows before "Show all". */
-const SHOWN = 5;
+import { MISSED_ROW, MissedDivider, MissedList } from './MissedList';
 
 /** The first field with text in it, for a note whose first field is only a picture. */
 function firstText(note: Note): string {
@@ -103,58 +101,38 @@ export type SessionMissRow = ReturnType<typeof useSessionMisses>['rows'][number]
 /** The list of words missed this session. */
 export function SessionMissList({ rows, onOpen }: { rows: SessionMissRow[]; /** Opens a row's note to read or fix it; rows aren't tappable without it. */ onOpen?: (noteId: string) => void }) {
   const c = useTheme();
-  const [all, setAll] = useState(false);
-  if (!rows.length) return null;
-  const shown = all ? rows : rows.slice(0, SHOWN);
   return (
-    <View style={{ alignSelf: 'stretch', gap: space.s, marginTop: space.l }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: space.xs }}>
-        <Text style={{ ...type.overline, color: c.textSecondary }}>Missed this session</Text>
-        <Text style={{ ...type.overline, color: c.textSecondary }}>{rows.length}</Text>
-      </View>
-      <View style={{ backgroundColor: c.surface, borderRadius: radius.m, ...smooth, borderWidth: hairline, borderColor: c.border, overflow: 'hidden' }}>
-        {shown.map((r, i) => {
-          const spoken = `${r.card ? `${r.card.question}, ${r.card.answer}` : `${r.word}, ${r.meaning}`}${r.reason ? `, missed on ${r.reason.toLowerCase()}` : ''}`;
-          const cardName = r.card?.cardName;
-          return (
-            <HoverPressable
-              key={r.key}
-              disabled={!onOpen}
-              onPress={() => { haptic.tap(); onOpen?.(r.noteId); }}
-              accessibilityRole={onOpen ? 'button' : undefined}
-              accessibilityLabel={spoken}
-              accessibilityHint={onOpen ? 'Opens the note' : undefined}
-              style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', gap: space.m, paddingHorizontal: space.m, paddingVertical: space.m, minHeight: 44,
-                backgroundColor: pressed ? c.fill : 'transparent',
-              })}
-            >
-              {i ? <Divider inset={space.m} /> : null}
-              <View style={{ flex: 1, gap: space.xs }}>
-                {r.card ? <Text numberOfLines={2} style={{ ...type.footnote, color: c.textSecondary }}>{r.card.question}</Text> : null}
-                <Text style={{ ...type.headline, color: c.text }}>{r.card ? r.card.answer : r.word}</Text>
-                {!r.card && r.meaning ? <Text numberOfLines={2} style={{ ...type.subhead, color: c.textSecondary }}>{r.meaning}</Text> : null}
-                {cardName || r.reason ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s, marginTop: space.xs }}>
-                    {cardName ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{cardName}</Text> : null}
-                    {r.reason ? <Tag text={r.reason} color={c.danger} fill={c.dangerFill} /> : null}
-                  </View>
-                ) : null}
-              </View>
-              {onOpen ? <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" /> : null}
-            </HoverPressable>
-          );
-        })}
-        {rows.length > SHOWN ? (
+    <MissedList
+      rows={rows}
+      row={(r, first) => {
+        const spoken = `${r.card ? `${r.card.question}, ${r.card.answer}` : `${r.word}, ${r.meaning}`}${r.reason ? `, missed on ${r.reason.toLowerCase()}` : ''}`;
+        const cardName = r.card?.cardName;
+        return (
           <HoverPressable
-            onPress={() => { haptic.select(); setAll((v) => !v); }}
-            accessibilityRole="button"
-            style={({ pressed }) => ({ minHeight: 44, alignItems: 'center', justifyContent: 'center', borderTopWidth: hairline, borderTopColor: c.border, backgroundColor: pressed ? c.fill : 'transparent' })}
+            key={r.key}
+            disabled={!onOpen}
+            onPress={() => { haptic.tap(); onOpen?.(r.noteId); }}
+            accessibilityRole={onOpen ? 'button' : undefined}
+            accessibilityLabel={spoken}
+            accessibilityHint={onOpen ? 'Opens the note' : undefined}
+            style={({ pressed }) => ({ ...MISSED_ROW, backgroundColor: pressed ? c.fill : 'transparent' })}
           >
-            <Text style={{ ...type.body, color: c.accentInk }}>{all ? 'Show fewer' : `Show all ${rows.length}`}</Text>
+            <MissedDivider first={first} />
+            <View style={{ flex: 1, gap: space.xs }}>
+              {r.card ? <Text numberOfLines={2} style={{ ...type.footnote, color: c.textSecondary }}>{r.card.question}</Text> : null}
+              <Text style={{ ...type.headline, color: c.text }}>{r.card ? r.card.answer : r.word}</Text>
+              {!r.card && r.meaning ? <Text numberOfLines={2} style={{ ...type.subhead, color: c.textSecondary }}>{r.meaning}</Text> : null}
+              {cardName || r.reason ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.s, marginTop: space.xs }}>
+                  {cardName ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{cardName}</Text> : null}
+                  {r.reason ? <Tag text={r.reason} color={c.danger} fill={c.dangerFill} /> : null}
+                </View>
+              ) : null}
+            </View>
+            {onOpen ? <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" /> : null}
           </HoverPressable>
-        ) : null}
-      </View>
-    </View>
+        );
+      }}
+    />
   );
 }
