@@ -6,7 +6,7 @@ import { todayProgress } from '../core/todaySummary';
 import { EmptyDeckCard } from './EmptyDeckCard';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Loading, Screen } from './kit';
-import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
+import { Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { FromZeroCards } from './FromZeroCards';
@@ -20,6 +20,7 @@ import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { TodayColumns } from './TodayColumns';
 import { TWO_COLUMNS_WIDTH } from '../core/wide';
+import { Figure } from './Figure';
 
 /** What's waiting across every deck, or that nothing is: the first thing Today says. */
 function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
@@ -27,10 +28,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
   const caughtUp = due + fresh === 0;
   // The figures tick to a new value (back from studying, after a sync) rather than jumping.
   const figure = (value: number, label: string, color: string) => (
-    <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
+    <Figure large centered value={value} label={label} color={value ? color : c.textDim} style={{ flex: 1 }} />
   );
   return (
     <View
@@ -112,6 +110,8 @@ export function Today(props: {
   /** Crams due soon (CramCards), under the day's count: they have a date. */
   crams?: React.ReactNode;
   /** Today's extras (DailyExtras.tsx), under the decks. */
+  /** Today's plan (TodayPlanCard), at the top. */
+  plan?: React.ReactNode;
   extrasStrip?: React.ReactNode;
   /** When the last backup was made, and whether another is due (`backupStatus`); warned about only when overdue, and not while sync is on. */
   backup?: { text: string; overdue: boolean };
@@ -183,6 +183,7 @@ export function Today(props: {
             lead={(
               <>
                 {/* Today's count first; what needs doing sits under it, so a few banners never push it off the screen. */}
+                {props.plan}
                 {anyDecks && !firstEmpty ? <TodaySummary due={totals.due} fresh={totals.fresh} studied={props.studied} /> : null}
                 {firstEmpty ? <EmptyDeckCard deck={firstEmpty} /> : null}
                 {backup?.overdue ? (

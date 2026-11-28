@@ -13,7 +13,7 @@ import { CandidateChips } from './CramBits';
 import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { useWordInDeck } from '../useWordInDeck';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { withThaiLineHeight } from '../../core/script';
 
 type Lookup = { state: 'finding' } | { state: 'found'; list: LessonWordCandidate[] } | { state: 'failed'; why: string };
@@ -145,10 +145,7 @@ export function CramMakeCards({ repo, id, deckFor, findWords, queue }: {
                 ) : null}
               </View>
               {!l || l.state === 'finding' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                  <WorkingMark />
-                  <Text style={{ ...type.subhead, color: c.textSecondary }}>{`Finding the ${LANGUAGES[language].name}`}</Text>
-                </View>
+                <WorkingLine text={`Finding the ${LANGUAGES[language].name}`} />
               ) : l.state === 'failed' ? (
                 <Text style={{ ...type.subhead, color: c.textSecondary }}>{l.why}</Text>
               ) : allHave ? (

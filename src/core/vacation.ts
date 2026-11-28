@@ -7,8 +7,8 @@ import type { DeckLimits } from './deckTree';
  * card's schedule, so FSRS still sees the real time since each review.
  *
  * - **Light** shows at most `newPerDeck` new cards per deck and `reviewPercent` of each deck's own
- *   review limit, weakest cards first (relative overdueness), so the fewer reviews go to the cards
- *   closest to being forgotten.
+ *   review limit, the reviews likeliest to be remembered first, as catching up afterwards does (the
+ *   owner's choice, 28 November 2026): the fewer reviews go where they still keep a card.
  * - **Paused** shows nothing.
  * - **After it ends** nothing of its own applies: catching up is the queue's, as after any days
  *   away (`isBehind`, order.ts), which puts the reviews likeliest to be remembered first.
@@ -114,16 +114,16 @@ export interface VacationPlan {
   newPerDeck?: number;
   /** Light: the share of each deck's review limit, 0 to 1. */
   reviewShare?: number;
-  /** Reviews come weakest first, whatever the deck's own review order is. */
-  weakestFirst: boolean;
+  /** Reviews come likeliest-remembered first, whatever the deck's own review order is. */
+  likeliestFirst: boolean;
 }
 
 export function vacationPlan(prefs: VacationPrefs | undefined, now: Date, dayStartsAtHour: number): VacationPlan | undefined {
   if (!prefs) return undefined;
   const today = studyDayKey(now, dayStartsAtHour);
   const mode = activeMode(prefs, today);
-  if (mode === 'paused') return { paused: true, weakestFirst: true };
-  if (mode === 'light') return { paused: false, newPerDeck: prefs.newPerDeck, reviewShare: prefs.reviewPercent / 100, weakestFirst: true };
+  if (mode === 'paused') return { paused: true, likeliestFirst: true };
+  if (mode === 'light') return { paused: false, newPerDeck: prefs.newPerDeck, reviewShare: prefs.reviewPercent / 100, likeliestFirst: true };
   return undefined;
 }
 

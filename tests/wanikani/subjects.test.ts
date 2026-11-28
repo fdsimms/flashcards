@@ -23,9 +23,12 @@ describe('reading subjects', () => {
   it("groups a kanji's readings by type, the type WaniKani teaches first", () => {
     const s = parseSubject(kanjiResource)!;
     expect(readingGroups(s)).toEqual([
-      { type: 'onyomi', readings: ['りょく', 'りき'], primary: true },
-      { type: 'kunyomi', readings: ['ちから'], primary: false },
+      { type: 'onyomi', readings: ['りょく', 'りき'], asked: true },
+      { type: 'kunyomi', readings: ['ちから'], asked: false },
     ]);
+    // With only one type of reading there's nothing to tell it from, so nothing is marked.
+    const onlyOnyomi = { ...s, readings: s.readings.filter((r) => r.type === 'onyomi') };
+    expect(readingGroups(onlyOnyomi)).toEqual([{ type: 'onyomi', readings: ['りょく', 'りき'], asked: false }]);
     expect(s.meaningHint).toBe('Strong.');
     expect(s.readingHint).toBeUndefined();
   });

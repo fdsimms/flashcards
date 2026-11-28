@@ -21,7 +21,7 @@ import { HoverPressable } from './hover';
 export type ShownRow = DeckRow & { hasSubdecks: boolean; collapsed: boolean };
 
 /** What a deck's long-press menu and its ⋯ button offer besides studying it. */
-export type DeckAction = 'quick' | 'note' | 'rename' | 'options' | 'export' | 'counts' | 'suspend' | 'unsuspend' | 'delete';
+export type DeckAction = 'quick' | 'note' | 'rename' | 'options' | 'export' | 'counts' | 'suspend' | 'unsuspend' | 'delete' | 'rebuild' | 'empty';
 
 /** Rows grouped under their top-level deck, so each family of decks sits in one card. */
 export function groupByTopLevel(rows: ShownRow[]): ShownRow[][] {
@@ -309,17 +309,28 @@ export function DeckRowLink({ row, first, toggleSlot, open, picked, onPick, onOp
             onStep={onStep}
           />
         </Link.Trigger>
-        <Link.Menu title={row.name}>
-          <Link.MenuAction icon="text.badge.plus" onPress={() => onAction('quick')}>{`Quick add to ${row.name}`}</Link.MenuAction>
-      <Link.MenuAction icon="plus" onPress={() => onAction('note')}>Add note</Link.MenuAction>
-          <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
-          <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
-          <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
-          <Link.MenuAction icon="chart.bar" onPress={() => onAction('counts')}>Deck counts</Link.MenuAction>
-          <Link.MenuAction icon="pause.circle" onPress={() => onAction('suspend')}>Suspend all</Link.MenuAction>
-          <Link.MenuAction icon="play.circle" onPress={() => onAction('unsuspend')}>Unsuspend all</Link.MenuAction>
-          <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
-        </Link.Menu>
+        {row.filtered ? (
+          // A filtered deck borrows cards from other decks: no notes of its own to add or export.
+          <Link.Menu title={row.name}>
+            <Link.MenuAction icon="arrow.clockwise" onPress={() => onAction('rebuild')}>Rebuild</Link.MenuAction>
+            <Link.MenuAction icon="tray.and.arrow.up" onPress={() => onAction('empty')}>Empty</Link.MenuAction>
+            <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Options</Link.MenuAction>
+            <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
+            <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
+          </Link.Menu>
+        ) : (
+          <Link.Menu title={row.name}>
+            <Link.MenuAction icon="text.badge.plus" onPress={() => onAction('quick')}>{`Quick add to ${row.name}`}</Link.MenuAction>
+            <Link.MenuAction icon="plus" onPress={() => onAction('note')}>Add note</Link.MenuAction>
+            <Link.MenuAction icon="pencil" onPress={() => onAction('rename')}>Rename</Link.MenuAction>
+            <Link.MenuAction icon="gearshape" onPress={() => onAction('options')}>Deck options</Link.MenuAction>
+            <Link.MenuAction icon="square.and.arrow.up" onPress={() => onAction('export')}>Export notes</Link.MenuAction>
+            <Link.MenuAction icon="chart.bar" onPress={() => onAction('counts')}>Deck counts</Link.MenuAction>
+            <Link.MenuAction icon="pause.circle" onPress={() => onAction('suspend')}>Suspend all</Link.MenuAction>
+            <Link.MenuAction icon="play.circle" onPress={() => onAction('unsuspend')}>Unsuspend all</Link.MenuAction>
+            <Link.MenuAction icon="trash" destructive onPress={() => onAction('delete')}>Delete</Link.MenuAction>
+          </Link.Menu>
+        )}
       </Link>
     </SwipeToReveal>
   );
@@ -362,6 +373,8 @@ export function DeckList(props: {
   onOptions: (deck: string) => void;
   /** Makes a deck (DeckActions.tsx). */
   onNewDeck: () => void;
+  /** Opens the New filtered deck screen. */
+  onNewFilteredDeck: () => void;
   /** Quick add (QuickAdd.tsx), from the header's + button. */
   onQuickAdd: () => void;
   /** The ⋯ button on a deck's row: add a note, rename, options, export, counts, suspend or unsuspend all, delete (DeckActions.tsx). */
@@ -426,6 +439,7 @@ export function DeckList(props: {
           {/* What's used less often than adding to or opening a deck, so the bar stays at five buttons. */}
           {!editing ? <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More: new deck, edit decks, stats or look up a word">
             <Stack.Toolbar.MenuAction icon="rectangle.stack.badge.plus" onPress={props.onNewDeck}>New deck</Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction icon="line.3.horizontal.decrease.circle" onPress={props.onNewFilteredDeck}>New filtered deck</Stack.Toolbar.MenuAction>
             {groups.length ? <Stack.Toolbar.MenuAction icon="arrow.up.arrow.down" onPress={() => { setOpenDeck(null); setEditing(true); }}>Edit decks</Stack.Toolbar.MenuAction> : null}
                 <Stack.Toolbar.MenuAction icon="chart.bar" onPress={props.onStats}>Stats</Stack.Toolbar.MenuAction>
             <Stack.Toolbar.MenuAction icon="character.magnify" onPress={props.onLookUp}>Look up a word</Stack.Toolbar.MenuAction>

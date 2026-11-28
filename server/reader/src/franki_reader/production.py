@@ -213,11 +213,29 @@ def _gives_away(hint: str, fixes: set[str], corrected: set[str], language: Code)
     return bool(named & fixes)
 
 
+def _unspaced_words(text: str, language: Code) -> set[str]:
+    """The words of a language written without spaces, split as the reader splits it: Thai by
+    PyThaiNLP's dictionary, Japanese by Sudachi."""
+    if language == "ja":
+        from franki_reader.japanese import morphemes
+
+        pieces = [m.surface for m in morphemes(text)]
+    else:
+        from pythainlp.tokenize import word_tokenize
+
+        pieces = word_tokenize(text, engine="newmm")
+    return {p.strip() for p in pieces if any(c.isalpha() for c in p)}
+
+
 def _hints(raw: object, most: int, attempt: str, corrected: str, language: Code) -> list[str]:
     """The hints shown before the correction, each kept only if it doesn't give a fix away: none
-    names a word that is in `corrected` and not in the learner's `attempt` (`_gives_away`). (A
-    language written without spaces has its fix inside a longer run, which this can't see: the
-    prompt is all that keeps those.) One that does is dropped, never trimmed."""
+    names a word that is in `corrected` and not in the learner's `attempt` (`_gives_away`). In a
+    language written without spaces the words are split first, and a hint holding a fix's word
+    anywhere gives it away, since the English around it never writes that script. One that does is
+    dropped, never trimmed."""
+    if not LANGUAGES[language].spaced:
+        fixes = _unspaced_words(corrected, language) - _unspaced_words(attempt, language)
+        return [hint for hint in _notes(raw, most) if not any(f in hint for f in fixes)][:most]
     wrote = {w.casefold() for w in _WORD.findall(attempt)}
     fixed = {w.casefold() for w in _WORD.findall(corrected)}
     fixes = fixed - wrote

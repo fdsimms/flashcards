@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Image, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { JAPANESE_FONT } from '../core/script';
-import { chooseTier, fitShape, TIER_LAYOUT, type FitTier, type TierLayout } from '../wanikani/cardFit';
+import { chooseTier, fitShape, TIER_LAYOUT, WELL_PAD_X, WELL_PAD_Y, type FitTier, type TierLayout } from '../wanikani/cardFit';
 import { mnemonicParts, mnemonicSections, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, shownSentences, SUBJECT_TYPE_NAMES, type Part, type Subject, type SubjectType } from '../wanikani/subjects';
 import { Icon, Tappable, TextButton } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
@@ -243,9 +243,13 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
   const others = otherMeanings(subject);
   const groups = readingGroups(subject);
   const readings = groups.map((g) => (
-    <View key={g.type ?? 'reading'} style={{ alignItems: 'center', gap: 2 }}>
+    // The reading WaniKani asks for sits in a well; every reading is the same size and weight.
+    <View
+      key={g.type ?? 'reading'}
+      style={{ alignItems: 'center', gap: 2, ...(g.asked && { backgroundColor: c.wkWell, borderRadius: radius.m, ...smooth, paddingHorizontal: WELL_PAD_X, paddingVertical: WELL_PAD_Y }) }}
+    >
       <FieldLabel>{g.type ? READING_TYPE_NAMES[g.type] : 'Reading'}</FieldLabel>
-      <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.cardBack, fontSize: g.primary ? t.readingPrimary : t.readingOther, fontWeight: g.primary ? '600' : '400', color: g.primary ? c.onWk : c.onWkSoft, textAlign: 'center' }}>
+      <Text accessibilityLanguage="ja-JP" style={{ ...JA, ...type.cardBack, fontSize: t.reading, color: c.onWk, textAlign: 'center' }}>
         {g.readings.join('、')}
       </Text>
     </View>
@@ -263,8 +267,8 @@ export function SubjectDetails({ subject, parts, showMeaning, showReading, synon
       ) : null}
       {showReading && readings.length ? (
         t.readingsInRow
-          ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: space.l, rowGap: space.s }}>{readings}</View>
-          : readings
+          ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', columnGap: space.l, rowGap: space.s }}>{readings}</View>
+          : <View style={{ alignItems: 'center', gap: t.blockGap }}>{readings}</View>
       ) : null}
       {lesson ? mnemonicSections(subject, showMeaning, showReading).map((m, i) => <Mnemonic key={i} title={m.title} markup={m.markup} onCard />) : null}
       {lesson && shownSentences(subject, showMeaning, showReading).length ? (

@@ -36,7 +36,6 @@ import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
-import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { cardFontsBase } from '../media/cardFonts';
@@ -61,7 +60,7 @@ import { stateChip } from '../core/stateChip';
 import { isLiveLeech } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useReadingLines } from './useReadingLines';
-import { withReadingLine } from '../reader/readingLines';
+import { lineWord, withReadingLine } from '../reader/readingLines';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
 import { useCrams } from './useCrams';
@@ -91,7 +90,7 @@ import { useSheetQueue } from './useSheetQueue';
 import { cardForClaude, withNotesAnswer, type AskTurn, type CardForClaude } from '../core/askCard';
 import { addPendingHint, removePendingHint, removePendingHintForCard, type PendingHint } from '../core/pendingHints';
 import { asksEarlyHint, canAddMnemonic, hasMnemonic, mnemonicQuestion, type MnemonicQuestion } from '../core/leechHint';
-import { PLAY_BUTTON_CLEARANCE, PlayButton } from './PlayButton';
+import { PLAY_BUTTON_CLEARANCE, PlayButton, playButtonScrollInsets } from './PlayButton';
 import { useOutputWake } from './useOutputWake';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 import { trackPlayer } from './useSoundingButton';
@@ -121,12 +120,12 @@ import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
 import { useMiniCram } from './useMiniCram';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { asksOwnHook, spokenMiss, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
 import { compareTyped, compareTypedAnswer } from '../core/typedCompare';
 import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
-import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
+import { Pop, Reveal } from './motion';
 import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { MissMnemonicCover, useMissMnemonic } from './MissMnemonic';
@@ -145,6 +144,7 @@ import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 import { MissingKeyboardNote } from './useMissingKeyboard';
 import { READABLE_WIDTH } from '../core/wide';
+import { Figure } from './Figure';
 export { CardSurface };
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
@@ -169,12 +169,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
   const [counting, setCounting] = useState(false);
   useEffect(() => { const t = setTimeout(() => setCounting(true), delay + 80); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const tile = (value: string | number, label: string) => (
-    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      {typeof value === 'number'
-        ? <CountingText value={counting ? value : 0} style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }} />
-        : <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>}
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
-    </View>
+    <Figure centered value={typeof value === 'number' && !counting ? 0 : value} label={label} style={{ flex: 1 }} />
   );
   return (
     <View
@@ -547,7 +542,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The card as drawn, its answer side with a line from a text read under the note's own example (reader/readingLines.ts).
   const rendered = useMemo(() => {
     const drawn = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
-    return drawn ? { ...drawn, back: { ...drawn.back, blocks: withReadingLine(drawn.back.blocks, readingLineFor(current!, note!)) } } : undefined;
+    return drawn ? { ...drawn, back: { ...drawn.back, blocks: withReadingLine(drawn.back.blocks, readingLineFor(current!, note!), lineWord(note!)) } } : undefined;
   }, [current, note, page, wanted, readingLineFor]);
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
   const senseMarks = useSenseMarks(showing, rendered, current ? misses.log.get(current.id) : undefined);
@@ -1387,10 +1382,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     { r: 4, label: 'Easy', color: c.easy },
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
-  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`). Not a spoken one.
-  const typedWrong = revealed && !spokenIn && !!typed.trim() && (
-    typing && typeItWord ? typedMiss(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
-      : typeInExpected ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
+  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`); a
+  // spoken one only when it was nothing like the word (`spokenMiss`), since the recognizer mishears.
+  const typedWrong = revealed && !!typed.trim() && (
+    typing && typeItWord ? (spokenIn ? spokenMiss : typedMiss)(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
+      : typeInExpected && !spokenIn ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
   // With a sense marked as missed, or the word typed wrong, Again is outlined as the rating that fits; the tap still decides.
   const suggested = suggestedRating ?? (senseMarks.miss || typedWrong ? 1 : undefined);
   const footer = revealed && returned ? (
@@ -1728,7 +1724,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView {...cardScroll.scrollProps} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
+          <ScrollView {...cardScroll.scrollProps} scrollIndicatorInsets={playButtonScrollInsets(!!playbackFor(rendered, revealed))} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />

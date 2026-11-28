@@ -813,6 +813,17 @@ def test_the_request_asks_for_the_spelling_and_the_other_words_it_could_be() -> 
     assert "the spelling alone in Latin letters" in message
 
 
+def test_the_request_asks_for_the_word_in_its_dictionary_form() -> None:
+    # A Greek verb is noted in the first person singular of the present, not the form typed or met.
+    greek = request_message("el", [("ταξιδέψουμε", "travel")])
+    assert "dictionary form: a verb in the first person singular of the present" in greek
+    assert "ταξιδεύω, not ταξιδέψουμε" in greek
+    assert "a verb in the infinitive (hablar" in request_message("es", [("hablé", "")])
+    # A language that doesn't inflect still asks for the dictionary form, with no rules to follow.
+    thai = request_message("th", [("วิ่ง", "")])
+    assert "its dictionary form." in thai
+
+
 def test_a_filled_word_keeps_its_spelling_and_alternatives_unless_the_owner_gave_a_meaning() -> (
     None
 ):

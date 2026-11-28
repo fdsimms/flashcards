@@ -1,8 +1,14 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { deleteNote, deleteNotes, type NoteStore } from '../anki/noteService';
-import { parseSearch } from '../core/ankiSearch';
+import { browseProblem, parseSearch, readsAnswers } from '../core/ankiSearch';
+import { cardHomeDeck } from '../core/deckTree';
+import { browseSearch } from '../core/filteredDeck';
+import { retrievability } from '../core/order';
+import { paramsForDeck } from '../core/scheduler';
+import { answersFrom } from '../core/stats';
+import type { AnkiLink } from '../db/ankiLink';
 import { failureText } from '../core/failure';
 import { deckChipRows, deleteNotesWarning, deleteNoteWarning, matchesNoteFilter, NOTE_FILTERS, notePreview, notesStillThere, searchNotes, type NoteFilter } from '../core/noteEditing';
 import { deleteNotesTitle } from '../core/selection';
@@ -11,7 +17,6 @@ import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, EmptyState, ErrorNote, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
-import { haptic } from './haptics';
 import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -37,11 +42,14 @@ const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:ver
  * On a window wide enough for a panel beside the list (`sidePanelFits`), a tap picks the note and
  * shows it there instead (BrowseNotePanel.tsx), with Edit note to open the editor.
  */
-export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: NoteStore; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; /** Opens Card info on one of the picked note's cards (the wide window's panel). */ onCardInfo: (cardId: string) => void; initialDeck: string | null }) {
+export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: NoteStore & Pick<AnkiLink, 'ankiReviewLog'>; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; /** Opens Card info on one of the picked note's cards (the wide window's panel). */ onCardInfo: (cardId: string) => void; initialDeck: string | null }) {
   const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
-  const [cards, setCards] = useState<{ byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number } | null>(null);
+  const router = useRouter();
+  const [cards, setCards] = useState<{ byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number; retrievabilityOf: (card: Card) => number | undefined } | null>(null);
+  // Every card's answers, read only once a search asks for them (`rated:`): Anki's review log and Franki's own.
+  const [answers, setAnswers] = useState<Map<string, { at: number; ease: number }[]> | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string | null>(initialDeck);
   const [filter, setFilter] = useState<NoteFilter | null>(null);
@@ -52,10 +60,15 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
     try {
       // After the answers Review has shown but not yet written (src/core/writeQueue.ts).
       await reviewWrites.idle();
-      const [loaded, all, { dayStartsAtHour }] = await Promise.all([repo.listNotes(), repo.listCards(), repo.collectionSettings()]);
+      const [loaded, all, { dayStartsAtHour }, params] = await Promise.all([repo.listNotes(), repo.listCards(), repo.collectionSettings(), repo.listDeckParams()]);
       const byNote = new Map<string, Card[]>();
       for (const card of all) byNote.set(card.noteId, [...(byNote.get(card.noteId) ?? []), card]);
-      setCards({ byNote, now: new Date(), dayStartsAtHour });
+      const now = new Date();
+      const deckOfNote = new Map(loaded.map((n) => [n.id, n.deck]));
+      // `prop:r`: by FSRS with the weights of the card's own deck.
+      const retrievabilityOf = (card: Card) => retrievability(card, now, paramsForDeck(cardHomeDeck(card, deckOfNote.get(card.noteId) ?? ''), params)?.weights ?? []);
+      setCards({ byNote, now, dayStartsAtHour, retrievabilityOf });
+      setAnswers(null);
       setNotes(notesStillThere(loaded, all));
     } catch (e) {
       setError(failureText(e, { what: "Couldn't load your notes.", next: 'Try again.' }));
@@ -63,14 +76,27 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   }, [repo]);
   useEffect(() => { load(); }, [load]);
 
+  const parsedQuery = useMemo(() => parseSearch(query), [query]);
+  const wantsAnswers = parsedQuery.ok && readsAnswers(parsedQuery.node);
+  useEffect(() => {
+    if (!wantsAnswers || answers) return;
+    let live = true;
+    (async () => {
+      const [reviews, revlog, all] = await Promise.all([repo.listReviews(new Date(0)), repo.ankiReviewLog(new Date(0)), repo.listCards()]);
+      const byCard = new Map<string, { at: number; ease: number }[]>();
+      for (const a of answersFrom({ revlog, reviews, cards: all })) (byCard.get(a.cardId) ?? byCard.set(a.cardId, []).get(a.cardId)!).push({ at: a.at.getTime(), ease: a.rating });
+      if (live) setAnswers(byCard);
+    })().catch((e) => { if (live) setError(failureText(e, { what: "Couldn't load your answers for rated:.", next: 'Try again.' })); });
+    return () => { live = false; };
+  }, [wantsAnswers, answers, repo]);
   const chipRows = useMemo(() => deckChipRows(notes ?? [], scope), [notes, scope]);
   const found = useMemo(() => {
-    if (!notes || !cards) return [];
-    const matched = searchNotes(notes, query, scope, cards);
+    if (!notes || !cards || (wantsAnswers && !answers)) return [];
+    const matched = searchNotes(notes, query, scope, { ...cards, answersOf: answers ? (card) => answers.get(card.id) ?? [] : undefined });
     if (!filter) return matched;
     return matched.filter((n) => matchesNoteFilter(filter, n, cards.byNote.get(n.id) ?? [], cards.now, cards.dayStartsAtHour));
-  }, [notes, cards, query, scope, filter]);
-  const searchProblem = useMemo(() => { const p = parseSearch(query); return p.ok ? null : p.error; }, [query]);
+  }, [notes, cards, query, scope, filter, wantsAnswers, answers]);
+  const searchProblem = useMemo(() => (parsedQuery.ok ? browseProblem(parsedQuery.node) ?? null : parsedQuery.error), [parsedQuery]);
   // The editor is a sheet over this screen; a saved or deleted note means the list is out of date.
   // The row slid open on its Delete action; one at a time.
   const [openNote, setOpenNote] = useState<string | null>(null);
@@ -91,7 +117,6 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   const foundIds = useMemo(() => found.map((n) => n.id), [found]);
   const sel = useSelection(foundIds);
   const deleteSelected = () => {
-    haptic.tap();
     const picked = [...sel.selected];
     const cardCount = picked.reduce((n, id) => n + (cards?.byNote.get(id)?.length ?? 0), 0);
     Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [
@@ -124,6 +149,13 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
         <Stack.Toolbar placement="right">
           {sel.selecting ? <Stack.Toolbar.Button accessibilityLabel="Done selecting" onPress={sel.stop}>Done</Stack.Toolbar.Button> : null}
           {!sel.selecting && found.length ? <Stack.Toolbar.Button accessibilityLabel="Select notes" onPress={sel.start}>Select</Stack.Toolbar.Button> : null}
+          {!sel.selecting && !searchProblem && (query.trim() || scope || filter) ? (
+            <Stack.Toolbar.Button
+              icon="line.3.horizontal.decrease.circle"
+              accessibilityLabel="Make a filtered deck from this search"
+              onPress={() => { haptic.tap(); router.push({ pathname: '/filtered-deck', params: { search: browseSearch(query, scope, filter) } }); }}
+            />
+          ) : null}
           {!sel.selecting ? <Stack.Toolbar.Button icon="plus" accessibilityLabel="Add a note" onPress={() => edit({ deck: scope })} /> : null}
         </Stack.Toolbar>
       }

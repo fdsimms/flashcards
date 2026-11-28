@@ -174,15 +174,16 @@ collection beside the goal (`frankiGoalReplaced`) so whichever device turns it o
 the goal, not one another device's tuning set.
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
-each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
-(`relativeOverdueness`); Paused offers nothing. It enters through `queueInput`, so the deck list and
+each deck's daily limits (new cards to a count, reviews to a share) and puts reviews likeliest-remembered first
+(`retrievabilityDescending`, as catching up after one does; the owner's choice, 28 November 2026); Paused offers nothing. It enters through `queueInput`, so the deck list and
 the review screen agree, and the setting is the phone's own (Keychain), never written to Anki. Nothing
 shifts a due date or adds a review: FSRS must see the real time since each review. After it ends nothing
 of its own applies. **While a review from an earlier study day waits, reviews come likeliest-remembered first**
 (`isBehind`, `src/core/order.ts`; the owner's choice, 21 November 2026), after a vacation or any days away, so what a
 session doesn't reach is what was already slipping; the preset's review order returns once nothing older than today waits.
 **A new reverse or audio card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
-the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it.
+the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it,
+and Deck counts says how many wait (`waitingForWord`).
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
 Cram): until a running cram's day, a review of one of its words (or a day-long learning step) isn't
@@ -223,7 +224,9 @@ Sentences, Retell it, Situations: `server/reader/.../production.py`, `situations
 but the answer button pressed. A spoken answer is compared as typing is, the recognizer's guess closest
 to the answer taken (`bestHeard`), since telling homophones apart is the recognizer's job; the phone
 hears what was said, not how. A word typed with letters wrong outlines Again (`typedMiss`), as a skill
-drill outlines its rating: Hard on a word that wasn't produced counts as remembered. A spoken one never does.
+drill outlines its rating: Hard on a word that wasn't produced counts as remembered. A spoken one does only when
+even the closest guess shares under a third of the word's letters (`spokenMiss`; the owner's choice, 28 November 2026),
+since the recognizer mishears a word said right.
 
 **A miss reason is a reminder, never an input to scheduling.** Again's menu (`src/core/misses.ts`)
 saves what went wrong in the answer's own review row (`ReviewLogEntry.miss`), which is why undo

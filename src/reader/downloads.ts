@@ -207,7 +207,7 @@ export type HeldReaderAction =
   | { kind: 'language'; language: GlossLanguage }
   | { kind: 'choice'; textId: number; choice: number }
   | { kind: 'reading'; textId: number; log: ReadingLog }
-  | { kind: 'listen'; textId: number; key?: string }
+  | { kind: 'listen'; textId: number; key?: string; seconds?: number }
   | { kind: 'lessonHeard'; lessonId: number };
 
 export function parseHeldReader(raw: unknown): HeldReaderAction[] {

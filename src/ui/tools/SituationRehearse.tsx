@@ -4,9 +4,8 @@ import type { RegisterLevel } from '../../reader/registerLevel';
 import { LANGUAGES } from '../../reader/languages';
 import type { Partner, Rehearsal } from '../../reader/situations';
 import { haptic } from '../haptics';
-import { Button, Card, Help, Screen, Segments } from '../kit';
+import { Button, Card, Help, Screen, Segments, Tag } from '../kit';
 import { RegisterPicker } from '../reader/RegisterPicker';
-import { Chip } from '../cram/CramThemes';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { HandsFreeStart } from './HandsFreeBar';
 
@@ -38,8 +37,8 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
           <Text style={{ ...type.overline, color: c.textSecondary }}>Your scene</Text>
           <Text style={{ ...type.title, color: c.text, textAlign: 'center' }}>{rehearsal.scene}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>Claude plays the other person using words from your deck, and tells you at the end what to fix.</Text>
-          {n ? <Chip label={`Leaning on ${n} ${n === 1 ? 'word' : 'words'} from this cram`} ink={c.accentInk} fill={c.accentFill} /> : null}
-          {rehearsal.prepared.length && partner === 'tutor' ? <Chip label="Asks about your talking points" ink={c.accentInk} fill={c.accentFill} /> : null}
+          {n ? <Tag text={`Leaning on ${n} ${n === 1 ? 'word' : 'words'} from this cram`} color={c.accentInk} fill={c.accentFill} /> : null}
+          {rehearsal.prepared.length && partner === 'tutor' ? <Tag text="Asks about your talking points" color={c.accentInk} fill={c.accentFill} /> : null}
         </View>
         <Card>
           <Segments<Partner>

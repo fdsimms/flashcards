@@ -45,10 +45,9 @@ export interface TierLayout {
   partChar: number;
   /** Between parts. */
   partGap: number;
-  /** The meaning's size, and a reading's: the first one shown, then any others. */
+  /** The meaning's size, and every reading's. */
   meaning: number;
-  readingPrimary: number;
-  readingOther: number;
+  reading: number;
   /** A kanji's on'yomi, kun'yomi and nanori side by side. */
   readingsInRow: boolean;
 }
@@ -56,15 +55,15 @@ export interface TierLayout {
 export const TIER_LAYOUT: Record<FitTier, TierLayout> = {
   full: {
     padTop: 32, padBottom: 24, padX: 24, gap: 24, divider: true, frontGap: 12, frontShort: 64, frontLong: 44, frontImage: 72, headerFront: false,
-    blockGap: 16, fieldGap: 8, meaningLead: 8, inlineParts: false, partChar: 22, partGap: 8, meaning: 26, readingPrimary: 26, readingOther: 16, readingsInRow: false,
+    blockGap: 16, fieldGap: 8, meaningLead: 8, inlineParts: false, partChar: 22, partGap: 8, meaning: 26, reading: 26, readingsInRow: false,
   },
   tight: {
     padTop: 10, padBottom: 10, padX: 14, gap: 8, divider: false, frontGap: 4, frontShort: 44, frontLong: 34, frontImage: 56, headerFront: false,
-    blockGap: 6, fieldGap: 4, meaningLead: 8, inlineParts: true, partChar: 18, partGap: 6, meaning: 24, readingPrimary: 24, readingOther: 16, readingsInRow: true,
+    blockGap: 6, fieldGap: 4, meaningLead: 8, inlineParts: true, partChar: 18, partGap: 6, meaning: 24, reading: 24, readingsInRow: true,
   },
   collapsed: {
     padTop: 12, padBottom: 12, padX: 14, gap: 8, divider: false, frontGap: 4, frontShort: 26, frontLong: 26, frontImage: 28, headerFront: true,
-    blockGap: 8, fieldGap: 4, meaningLead: 4, inlineParts: true, partChar: 18, partGap: 6, meaning: 20, readingPrimary: 20, readingOther: 15, readingsInRow: true,
+    blockGap: 8, fieldGap: 4, meaningLead: 4, inlineParts: true, partChar: 18, partGap: 6, meaning: 20, reading: 20, readingsInRow: true,
   },
 };
 
@@ -78,8 +77,8 @@ export interface FitShape {
   parts: { chars: number; meaningChars: number }[];
   /** The meaning block: the primary meaning's length, the others' (joined), and the learner's synonyms'. Null when it isn't shown. */
   meaning: { primary: number; others: number; synonyms: number } | null;
-  /** Each reading group: its label's length (0 for vocabulary's) and its readings' joined length. Empty when readings aren't shown. */
-  readings: { label: number; chars: number; primary: boolean }[];
+  /** Each reading group: its label's length (0 for vocabulary's), its readings' joined length, and whether it sits in the asked reading's well. Empty when readings aren't shown. */
+  readings: { label: number; chars: number; asked: boolean }[];
 }
 
 export function fitShape(subject: Subject, parts: Part[], opts: { showMeaning: boolean; showReading: boolean; synonyms: string[] }): FitShape {
@@ -90,7 +89,7 @@ export function fitShape(subject: Subject, parts: Part[], opts: { showMeaning: b
     details: opts.showMeaning || opts.showReading,
     parts: opts.showMeaning ? parts.map((p) => ({ chars: p.characters?.length ?? (p.image ? 1 : 0), meaningChars: p.meaning.length })) : [],
     meaning: opts.showMeaning ? { primary: primaryMeaning(subject).length, others: others.length, synonyms: synonyms.length } : null,
-    readings: opts.showReading ? readingGroups(subject).map((g) => ({ label: g.type ? 4 + g.type.length : 7, chars: g.readings.join('、').length, primary: g.primary })) : [],
+    readings: opts.showReading ? readingGroups(subject).map((g) => ({ label: g.type ? 4 + g.type.length : 7, chars: g.readings.join('、').length, asked: g.asked })) : [],
   };
 }
 
@@ -98,6 +97,10 @@ export function fitShape(subject: Subject, parts: Part[], opts: { showMeaning: b
 const EM = 0.52;
 const LINE = 1.2;
 const JA_LINE = 1.25;
+
+/** The padding of the well the asked reading sits in (`WaniKaniCard`'s `SubjectDetails`). */
+export const WELL_PAD_X = 12;
+export const WELL_PAD_Y = 4;
 
 function lines(chars: number, size: number, scale: number, width: number): number {
   return Math.max(1, Math.ceil((chars * size * scale * EM) / Math.max(1, width)));
@@ -150,8 +153,9 @@ export function tierHeight(shape: FitShape, tier: FitTier, width: number, fontSc
   }
   if (shape.readings.length) {
     const group = (g: FitShape['readings'][number]) => {
-      const size = g.primary ? t.readingPrimary : t.readingOther;
-      return { w: Math.max(g.label * 7.5 * s, g.chars * size * s), h: label + 2 + size * JA_LINE * s };
+      const w = Math.max(g.label * 7.5 * s, g.chars * t.reading * s);
+      const h = label + 2 + Math.ceil(w / inner) * t.reading * JA_LINE * s;
+      return g.asked ? { w: w + 2 * WELL_PAD_X, h: h + 2 * WELL_PAD_Y } : { w, h };
     };
     const groups = shape.readings.map(group);
     if (t.readingsInRow) {
