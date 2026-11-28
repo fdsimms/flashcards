@@ -108,9 +108,15 @@ class NativeRecorder:
                 if not language:
                     row["skipped"] = "Its Language isn't one Franki knows."
                     continue
-                if only_wanted and not wanted(config, language):
+                off = not wanted(config, language)
+                if only_wanted and off:
                     row["skipped"] = "Native recordings are off for this language (Franki, Settings, Voices)."
                     continue
+                if off:
+                    row["off"] = (
+                        "Native recordings are off for this language (Franki, Settings, Voices): this shows what "
+                        "they'd give, and keeping one needs them turned on."
+                    )
                 if only_silent and SOUND.search(note["Audio"]):
                     row["skipped"] = "Its Audio has a recording already."
                     continue
@@ -208,12 +214,15 @@ def register(server: MCPServer, cm: CollectionManager, recorder: NativeRecorder)
         note's AudioCredit field. Up to 20 notes a call (find them with find_notes).
         - Previews by default: show the user what was found, then call again with preview=false.
         - Any Azure recording in Audio is replaced; a note with none found keeps what it has.
-        - Only for languages where Franki's Settings, Voices has native recordings on, and only on a
-          note type with an AudioCredit field (add_field adds one; every device syncs first).
+        - Keeps one only for languages where Franki's Settings, Voices has native recordings on, and
+          only on a note type with an AudioCredit field (add_field adds one; every device syncs first).
+          A preview looks up any language: a result with `off` is one the setting leaves off, to show
+          the user what turning it on would give.
         - A note with a native recording already is skipped unless `overwrite`."""
         if len(note_ids) > MAX_NOTES:
             raise ToolError(f"Up to {MAX_NOTES} notes a call; send the rest in another.")
-        results = await recorder.keep(note_ids, overwrite=overwrite, preview=preview)
+        # A preview looks up whatever the setting, so the user can see what turning it on would give.
+        results = await recorder.keep(note_ids, overwrite=overwrite, preview=preview, only_wanted=not preview)
         kept = sum(1 for r in results if "audio" in r)
         found = sum(1 for r in results if "recording" in r)
         return {"preview": preview, "found": found, "kept": kept, "results": results}
