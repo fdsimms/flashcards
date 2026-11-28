@@ -82,6 +82,9 @@ def test_the_request_names_the_point_and_how_to_write_it() -> None:
     assert "spaces included" in spanish
     assert "no spaces between words" in request_message("th", POINTS["th.ever"], 3)
     assert "the way an ordinary person talks, not the way a textbook puts it" in spanish
+    # The English shows only after answering, so the sentence itself must rule the rivals out.
+    assert "answers before seeing the English" in spanish
+    assert "must not make a grammatical sentence with another meaning" in spanish
 
 
 class Writer:

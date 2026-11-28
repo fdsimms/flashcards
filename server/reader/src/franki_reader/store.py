@@ -796,6 +796,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # How many times a pasted text's lines have been sent to be translated (own_text.py), so a
         # part that never translates stops being retried (Engine.retry_own_translations).
         ("own_tries", "own_tries INTEGER NOT NULL DEFAULT 0"),
+        # Why a dropped draft was dropped (JSON list of sentences, generator.drop_reasons, or the
+        # reason the model's answer was unusable); empty for any other text and for one dropped
+        # before 28 November 2026.
+        ("dropped_for", "dropped_for TEXT NOT NULL DEFAULT '[]'"),
     ):
         if column not in texts_columns:
             conn.execute(f"ALTER TABLE texts ADD COLUMN {sql}")
@@ -1068,9 +1072,10 @@ def save_text(
     story_id: int | None = None,
     episode: int = 0,
     stretch_count: int | None = None,
+    dropped_for: list[str] | None = None,
 ) -> int:
     """Stores a generated text. `status` is "pending" while its audio is made, "ready" once it can
-    be served, "dropped" for a text that missed the floor (kept only for its cost), "read" once
+    be served, "dropped" for a draft that was never shown (kept only for its cost, with `dropped_for`, why), "read" once
     it's been read, or "skipped" for one taken off the shelf unread (Not this). `floor` and
     `stretch_count` are the difficulty it was written at."""
     u = generated.usage
@@ -1080,9 +1085,9 @@ def save_text(
                    coverage, token_count, floor, attempts, model, input_tokens, output_tokens,
                    cache_read_tokens, cache_write_tokens, cost_usd, roles, form, language, grammar,
                    focus, translits, reason, story_id, episode, recap, genders, characters,
-                   choices, stretch_count, recap_line, recap_english, title_english)
+                   choices, stretch_count, recap_line, recap_english, title_english, dropped_for)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 topic_id,
                 now.isoformat(),
@@ -1118,6 +1123,7 @@ def save_text(
                 generated.recap_line,
                 generated.recap_english,
                 generated.title_english,
+                json.dumps(dropped_for or [], ensure_ascii=False),
             ),
         )
     assert cur.lastrowid is not None

@@ -144,6 +144,13 @@ def test_a_tie_between_two_cuts_goes_to_the_one_made_of_deck_entries() -> None:
     assert lexicon.segment("แหวนสองวงเหมือนกัน") == ["แหวน", "สอง", "วง", "เหมือนกัน"]
 
 
+def test_a_mans_khrap_before_his_phom_stays_two_words() -> None:
+    # newmm reads ครับผม ("yes, sir") as one word, even across a clause's space.
+    lexicon = Lexicon(["ครับ", "ผม", "อยาก", "กิน"])
+    assert lexicon.segment("กินครับ ผมอยากกิน") == ["กิน", "ครับ", " ", "ผม", "อยาก", "กิน"]
+    assert check(["กิน|ครับ|ผม|อยาก|กิน"], lexicon).ratio == 1
+
+
 @pytest.mark.parametrize(
     ("line", "expected"),
     [

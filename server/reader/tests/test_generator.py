@@ -22,6 +22,7 @@ from franki_reader.generator import (
     TextRequest,
     Usage,
     claude_ask,
+    drop_reasons,
     generate,
     request_message,
     system_prompt,
@@ -38,6 +39,7 @@ ENTRIES = [
     Entry(5, "ครับ", "polite particle (male)", "mature"),
     Entry(6, "รับอะไรดี", "what would you like?", "mature"),
     Entry(7, "ทอน", "give change", "unreviewed"),
+    Entry(8, "ผม", "I (a man)", "mature"),
 ]
 LEXICON = Lexicon(e.text for e in ENTRIES if e.tier != "unreviewed")
 MANGO = ENTRIES[3]
@@ -56,7 +58,7 @@ def draft(*texts: str, glosses: dict[str, str] | None = None) -> dict[str, Any]:
     }
 
 
-GOOD = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+GOOD = draft("ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
 
 
 class ScriptedModel:
@@ -93,7 +95,7 @@ def test_the_models_roles_for_the_speakers_are_kept() -> None:
 
 
 def test_a_draft_under_the_floor_goes_back_with_the_words_named() -> None:
-    bad = draft("ฉัน|อยาก|ทอน|ครับ", "*ข้าวเหนียวมะม่วง*|*ข้าวเหนียวมะม่วง*")
+    bad = draft("ผม|อยาก|ทอน|ครับ", "*ข้าวเหนียวมะม่วง*|*ข้าวเหนียวมะม่วง*")
     model = ScriptedModel(bad, GOOD)
     result = run(model, TextRequest("food", (MANGO,)))
 
@@ -105,7 +107,7 @@ def test_a_draft_under_the_floor_goes_back_with_the_words_named() -> None:
 
 
 def test_partial_words_are_named_separately() -> None:
-    bad = draft("ฉัน|รับ|ครับ", "*ข้าวเหนียวมะม่วง*|*ข้าวเหนียวมะม่วง*")
+    bad = draft("ผม|รับ|ครับ", "*ข้าวเหนียวมะม่วง*|*ข้าวเหนียวมะม่วง*")
     model = ScriptedModel(bad, GOOD)
     run(model, TextRequest("food", (MANGO,)))
     assert "only appear inside longer list entries" in model.sent[1][2]["content"]
@@ -113,14 +115,14 @@ def test_partial_words_are_named_separately() -> None:
 
 
 def test_a_stretch_word_used_once_is_enough() -> None:
-    once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
+    once = draft("ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
     result = run(ScriptedModel(once, GOOD), TextRequest("food", (MANGO,)))
     assert result.attempts == 1
     assert result.stretch == ("ข้าวเหนียวมะม่วง",)
 
 
 def test_a_listed_stretch_word_missing_from_the_text_is_sent_back() -> None:
-    missing = draft("ฉัน|อยาก|กิน|ครับ")
+    missing = draft("ผม|อยาก|กิน|ครับ")
     model = ScriptedModel(missing, GOOD)
     result = run(model, TextRequest("food", (MANGO,)))
     assert result.attempts == 2
@@ -146,11 +148,11 @@ def test_the_conversation_is_append_only() -> None:
 
 
 def test_missing_glosses_are_reported() -> None:
-    almost = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน")
+    almost = draft(*["ผม|อยาก|กิน|ครับ"] * 6, "ทอน")
     result = run(ScriptedModel(almost), TextRequest("food"))
     assert result.passed
     assert result.missing_glosses == ("ทอน",)
-    glossed = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน", glosses={"ทอน": "change"})
+    glossed = draft(*["ผม|อยาก|กิน|ครับ"] * 6, "ทอน", glosses={"ทอน": "change"})
     assert run(ScriptedModel(glossed), TextRequest("food")).missing_glosses == ()
 
 
@@ -299,7 +301,7 @@ def test_the_model_is_offered_words_to_choose_from() -> None:
 
 
 def test_a_draft_that_chooses_no_stretch_word_goes_back() -> None:
-    model = ScriptedModel(draft("ฉัน|อยาก|กิน|ครับ"), GOOD)
+    model = ScriptedModel(draft("ผม|อยาก|กิน|ครับ"), GOOD)
     result = run(model, TextRequest("food", (MANGO, ORDER), choose=1))
 
     assert result.passed and result.attempts == 2
@@ -317,7 +319,7 @@ def test_a_draft_that_chooses_too_many_goes_back() -> None:
 
 
 def test_a_chosen_word_used_once_is_enough() -> None:
-    once = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
+    once = draft("ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ")
     result = run(ScriptedModel(once, GOOD), TextRequest("food", (MANGO, ORDER), choose=2))
     assert result.attempts == 1
     assert result.stretch == ("ข้าวเหนียวมะม่วง",)
@@ -347,7 +349,7 @@ def test_what_really_happened_is_given_to_write_from_and_left_out_when_empty() -
 
 
 def _marked(*marks: bool) -> dict[str, Any]:
-    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * len(marks))
+    d = draft(*["ผม|อยาก|กิน|ครับ"] * len(marks))
     for line, mark in zip(d["lines"], marks, strict=True):
         line["paragraph"] = mark
     return d
@@ -371,7 +373,7 @@ def test_a_dialogue_has_no_paragraphs_even_if_the_model_marks_them() -> None:
 
 
 def test_each_line_keeps_the_register_the_model_gave_it() -> None:
-    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4)
+    d = draft(*["ผม|อยาก|กิน|ครับ"] * 4)
     for line, register in zip(d["lines"], ("casual", "formal", "gibberish"), strict=False):
         line["register"] = register
     result = run(ScriptedModel(d), TextRequest("food"))
@@ -404,8 +406,8 @@ def test_the_system_prompt_is_the_same_for_stories_and_dialogues() -> None:
 
 
 # 12 of 13 words known (92.3%), and 10 of 11 (90.9%): under the floor, over the minimum.
-NEAR = draft(*["ฉัน|อยาก|กิน|ครับ"] * 3, "ทอน")
-NEARER_MISS = draft(*["ฉัน|อยาก|กิน|ครับ"] * 2, "ฉัน|กิน", "ทอน")
+NEAR = draft(*["ผม|อยาก|กิน|ครับ"] * 3, "ทอน")
+NEARER_MISS = draft(*["ผม|อยาก|กิน|ครับ"] * 2, "ผม|กิน", "ทอน")
 
 
 def test_when_every_attempt_misses_the_closest_one_over_the_minimum_is_kept() -> None:
@@ -461,8 +463,18 @@ def test_a_text_under_90_still_fails() -> None:
     assert not run(ScriptedModel(bad, bad, bad), TextRequest("food")).passed
 
 
+def test_a_dropped_draft_says_how_far_under_the_floor_it_fell() -> None:
+    bad = draft("ทอน|ทอน|ฉัน")
+    request = TextRequest("food")
+    result = run(ScriptedModel(bad, bad, bad), request)
+    assert not result.passed
+    reasons = drop_reasons(result, request)
+    assert reasons[0].startswith("Below the floor: 33.3% known, the floor is")
+    assert list(result.problems) == reasons[1:]
+
+
 # 19 of 20 words known (95%): inside the range of a 92% target with its 96% ceiling.
-IN_BAND = draft(*["ฉัน|อยาก|กิน|ครับ"] * 4, "ฉัน|อยาก|กิน|ทอน")
+IN_BAND = draft(*["ผม|อยาก|กิน|ครับ"] * 4, "ผม|อยาก|กิน|ทอน")
 
 
 def test_a_draft_over_the_ceiling_is_too_easy_and_goes_back() -> None:
@@ -486,7 +498,7 @@ def test_when_every_attempt_is_too_easy_the_text_is_still_kept() -> None:
 
 
 def test_the_models_transliterations_are_kept_for_the_words_it_gave_them_for() -> None:
-    d = draft(*["ฉัน|อยาก|กิน|ครับ"] * 6, "ทอน")
+    d = draft(*["ผม|อยาก|กิน|ครับ"] * 6, "ทอน")
     d["glosses"] = [
         {"word": "ทอน", "english": "change", "translit": " thɔɔn "},
         {"word": "ฉัน", "english": "I", "translit": ""},
@@ -677,7 +689,7 @@ def test_a_recap_line_missing_half_or_outside_a_story_is_dropped() -> None:
 
 
 def test_a_draft_with_a_line_that_does_not_fit_its_speaker_is_sent_back() -> None:
-    wrong = draft("ฉัน|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
+    wrong = draft("ผม|อยาก|กิน|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ")
     wrong["genders"] = {"A": "male", "B": "female"}  # B says ครับ
     model = ScriptedModel(wrong, GOOD)
     result = run(model, TextRequest("food", (MANGO,)))
@@ -759,7 +771,7 @@ def test_a_draft_hiding_words_as_names_is_never_kept_as_the_closest() -> None:
 
 
 def test_a_closest_draft_counts_only_the_stretch_words_it_used() -> None:
-    missing = draft("ฉัน|อยาก|กิน|ครับ")
+    missing = draft("ผม|อยาก|กิน|ครับ")
     result = run(ScriptedModel(missing, missing, missing), TextRequest("food", (MANGO,)))
     assert result.passed and result.stretch == ()
     assert result.glosses["ข้าวเหนียวมะม่วง"] == MANGO.meaning  # still glossed, from the deck
@@ -787,7 +799,7 @@ def _quoted_episode(
 
 
 NOI = {"name": "Noi", "gender": "male", "age": "adult"}
-SAY = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ”"
+SAY = "“ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ”"
 
 
 def test_a_story_episode_asks_who_speaks_and_lists_the_voices_the_story_has() -> None:
@@ -845,11 +857,11 @@ def test_a_speaker_nobody_listed_is_sent_back_and_a_known_one_needs_no_listing()
 
 def test_a_thai_quotation_with_the_other_genders_word_is_never_kept() -> None:
     woman = {"name": "Ploy", "gender": "female", "age": "adult"}
-    d = _quoted_episode(["Ploy"], [woman], SAY)  # ครับ in a woman's mouth
+    d = _quoted_episode(["Ploy"], [woman], SAY)  # ผม and ครับ in a woman's mouth
     model = ScriptedModel(d, d, d)
     result = run(model, _episode())
     assert not result.passed and not result.gender_ok
-    assert "Ploy is a woman, but says ครับ" in model.sent[1][-1]["content"]
+    assert "Ploy is a woman, but says ผม" in model.sent[1][-1]["content"]
 
 
 def test_who_speaks_is_not_asked_of_a_dialogue_and_is_ignored_there() -> None:

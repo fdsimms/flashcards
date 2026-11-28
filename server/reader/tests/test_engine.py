@@ -705,8 +705,8 @@ def test_a_new_text_gets_audio_for_each_line_in_its_speakers_voice(tmp_path: Pat
 
     assert voice.calls == [
         # The scripted text is two men: the second speaker reads in the second man's voice.
-        ("ฉันอยากกินข้าวเหนียวมะม่วงครับฉันอยากกินทอนครับ", "voice-a"),
-        ("ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ", "voice-b"),
+        ("ผมอยากกินข้าวเหนียวมะม่วงครับผมอยากกินทอนครับ", "voice-a"),
+        ("ข้าวเหนียวมะม่วงครับ!ผมอยากกินครับผมอยากกินครับ", "voice-b"),
     ]
     # Each line says the text's language, for a Multilingual voice.
     assert voice.languages == ["th-TH", "th-TH"]
@@ -743,7 +743,7 @@ def test_a_pending_text_left_by_a_restart_becomes_ready(tmp_path: Path) -> None:
 
 
 def test_a_failed_line_stays_silent_and_the_text_is_still_served(tmp_path: Path) -> None:
-    e = speaking_engine(tmp_path, FakeVoice(fail_on="ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"))
+    e = speaking_engine(tmp_path, FakeVoice(fail_on="ข้าวเหนียวมะม่วงครับ!ผมอยากกินครับผมอยากกินครับ"))
     topic = store.add_topic(e.conn, "Food stall", NOW)
 
     text = run(lambda: fetch(e, topic.id))
@@ -892,7 +892,7 @@ def test_a_slow_line_azure_refused_has_no_slow_audio_and_isnt_counted(tmp_path: 
 
 
 def test_a_line_azure_refused_is_not_counted(tmp_path: Path) -> None:
-    refused = "ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"
+    refused = "ข้าวเหนียวมะม่วงครับ!ผมอยากกินครับผมอยากกินครับ"
     voice = FakeVoice(fail_on=refused)
     e = speaking_engine(tmp_path, voice)
     topic = store.add_topic(e.conn, "Food stall", NOW)
@@ -1026,7 +1026,7 @@ def test_a_word_looked_up_outside_the_deck_is_offered_to_a_later_days_text() -> 
     e = engine(ScriptedModel(IN_RANGE), clock=clock)
     topic = store.add_topic(e.conn, "Food stall", NOW)
     text = run(lambda: fetch(e, topic.id))
-    e.record_reading(text.id, Reading(None, True, ("ทอน", "ฉัน"), (), 1.0, False, 120))
+    e.record_reading(text.id, Reading(None, True, ("ทอน", "ผม"), (), 1.0, False, 120))
 
     # The same day it was met: not again. The next day: offered, with its gloss; the known word never.
     assert e._request("Food stall", ENTRIES, Difficulty()).met == ()
@@ -1162,7 +1162,7 @@ def test_the_length_setting_sets_the_number_of_lines_asked_for() -> None:
 def test_the_form_setting_asks_for_a_story_and_the_text_keeps_it() -> None:
     from scripted import draft
 
-    story = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ!")
+    story = draft("ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ!")
     for line in story["lines"]:
         line["speaker"] = "N"
     model = ScriptedModel(story)
@@ -1222,7 +1222,7 @@ def test_a_text_for_chosen_words_is_its_own_and_not_the_queues() -> None:
 
 def test_chosen_words_read_the_deck_again_first() -> None:
     reads: list[str] = []
-    fresh = [*ENTRIES[:6], Entry(7, "ทอน", "give change", "young")]
+    fresh = [*ENTRIES[:6], Entry(7, "ทอน", "give change", "young"), *ENTRIES[7:]]
 
     async def read(language: Any) -> list[Entry]:
         reads.append(language.deck)
@@ -1321,7 +1321,7 @@ def test_a_story_characters_voice_is_given_once_and_kept_in_every_episode(tmp_pa
 
     from franki_reader.tts import AudioCache
 
-    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    say = "“ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ผม|อยาก|กิน|ทอน|ครับ”"
     noi = {"name": "Noi", "gender": "male", "age": "adult"}
     ploy = {"name": "Ploy", "gender": "female", "age": "child"}
     first = _story_episode(_quoted("N", ["Noi"], say), speakers=[noi])
@@ -1358,7 +1358,7 @@ def test_a_story_characters_voice_is_given_once_and_kept_in_every_episode(tmp_pa
     assert {n: (v.voice, v.pitch) for n, v in story.voices.items()} == {"Noi": ("voice-b", 0)}
     # The quoted line is one recording in Noi's voice, the plain one the narrator's.
     assert parts.calls == [[Part(say.replace("|", "").replace("*", ""), "voice-b", 0)]]
-    assert [t for t, _ in narrator.calls] == ["ข้าวเหนียวมะม่วงครับ!ฉันอยากกินครับฉันอยากกินครับ"]
+    assert [t for t, _ in narrator.calls] == ["ข้าวเหนียวมะม่วงครับ!ผมอยากกินครับผมอยากกินครับ"]
     assert "No character has a voice yet" in model.messages_seen[0][0]["content"]
 
     episode = store.waiting_episode(e.conn, story_id)
@@ -1379,7 +1379,7 @@ def test_a_story_characters_voice_is_given_once_and_kept_in_every_episode(tmp_pa
 
 
 def test_without_a_parts_voice_a_quoted_line_is_read_whole_by_the_narrator(tmp_path: Path) -> None:
-    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    say = "“ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ผม|อยาก|กิน|ทอน|ครับ”"
     noi = {"name": "Noi", "gender": "male", "age": "adult"}
     model = ScriptedModel(_story_episode(_quoted("N", ["Noi"], say), speakers=[noi]))
     narrator = FakeVoice()
@@ -1399,7 +1399,7 @@ def test_a_line_azure_wont_record_in_several_voices_is_read_whole_by_the_narrato
 ) -> None:
     from franki_reader.tts import TtsFailed
 
-    say = "“ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ”"
+    say = "“ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ผม|อยาก|กิน|ทอน|ครับ”"
     noi = {"name": "Noi", "gender": "male", "age": "adult"}
     model = ScriptedModel(_story_episode(_quoted("N", ["Noi"], say), speakers=[noi]))
     narrator = FakeVoice()

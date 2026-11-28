@@ -259,7 +259,7 @@ def test_retells_a_text_with_its_lines() -> None:
     app, text_id = client(check_retell=check)
     got = app.post(f"/api/texts/{text_id}/retell", json={"attempt": "ฉันอยากกิน"}, headers=AUTH)
     assert got.status_code == 200
-    assert seen[0].lines[0] == ("ฉันอยากกินข้าวเหนียวมะม่วงครับ", "line 0")
+    assert seen[0].lines[0] == ("ผมอยากกินข้าวเหนียวมะม่วงครับ", "line 0")
     assert app.post("/api/texts/999/retell", json={"attempt": "x"}, headers=AUTH).status_code == 404
 
 

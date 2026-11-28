@@ -646,6 +646,9 @@ def script_of(plan: Plan, placed: list[Placed]) -> dict[str, Any]:
                 {
                     "kind": "say",
                     "voice": "native" if native else "narrator",
+                    # Which native voice: speaker A and every phrase taught are in the learner's
+                    # gender, B in the other (`Learner`). None for the narrator.
+                    "gender": step.voice if native else None,
                     "text": step.text,
                     "english": meanings.get(step.text) if native else None,
                     "start": here.start,

@@ -642,3 +642,12 @@ def test_the_given_request_lists_the_phrases_and_asks_for_them_unchanged() -> No
     assert "letter for letter" in request
     assert "Thai lesson" in request
     assert "end every phrase taught with ครับ" not in request
+
+
+def test_a_given_lesson_may_use_the_words_its_situation_names() -> None:
+    given = lesson.given_phrases([("พูดอีกครั้งได้ไหม", "Can you say that again?")])
+    request = lesson_writer.given_request_message(
+        "th", "My violin recital last night", given, "male"
+    )
+    assert "up to three words the situation itself names" in request
+    assert "Put those in B's lines, at most two in a line" in request

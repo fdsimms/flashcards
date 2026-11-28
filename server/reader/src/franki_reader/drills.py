@@ -66,6 +66,12 @@ one gap where the {name} goes. Give:
   tenses or moods, or for a particle, other particles), each wrong in this sentence{rivals}
 - hint: for a verb, its infinitive and person, like "ir, nosotros"; empty otherwise
 
+The learner answers before seeing the English, so the {language} sentence alone must make the
+answer the only right one. Give each sentence a word that rules the wrong choices out (a time word,
+"before", "yet", "right now", a marker the {name} goes with), and check each wrong choice as a native
+speaker would: put in the gap, it must not make a grammatical sentence with another meaning. When a
+wrong choice would fit the sentence as written, change the sentence or the choice.
+
 Write the sentences the way an ordinary person talks, not the way a textbook puts it, and not
 slangy or very casual either, unless the {name} is itself a formal or written form.
 

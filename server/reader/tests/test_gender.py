@@ -1,4 +1,4 @@
-from franki_reader.gender import full_voices, gender_problems, voice_for
+from franki_reader.gender import full_voices, gender_problems, polite_i_problems, voice_for
 from franki_reader.languages import (
     LANGUAGES,
     SPEAKING_LANGUAGES,
@@ -101,3 +101,21 @@ def test_only_the_first_few_problems_are_named_and_the_rest_counted() -> None:
     lines = [("A", "ค่ะ")] * 7
     problems = gender_problems("th", lines, {"A": "male", "B": "female"})
     assert len(problems) == 5 and problems[-1] == "3 more lines have the same problem."
+
+
+def test_a_man_who_ends_with_khrap_is_sent_back_for_saying_chan() -> None:
+    [problem] = polite_i_problems("th", [("Speaker A", "male", "ฉัน|ดีใจ|มาก|ครับ")])
+    assert "Speaker A is a man" in problem and "ผม" in problem
+    # ฉัน without ครับ, ผม with it, and a woman's ฉัน are all fine.
+    assert (
+        polite_i_problems(
+            "th",
+            [
+                ("Speaker A", "male", "ฉัน|ไป|ก่อน|นะ"),
+                ("Speaker A", "male", "ผม|ดีใจ|มาก|ครับ"),
+                ("Speaker B", "female", "ฉัน|ดีใจ|มาก|ค่ะ"),
+            ],
+        )
+        == []
+    )
+    assert polite_i_problems("fr", [("Speaker A", "male", "ฉัน|ครับ")]) == []

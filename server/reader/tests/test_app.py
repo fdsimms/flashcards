@@ -122,7 +122,7 @@ def test_next_text_returns_the_server_split_lines() -> None:
     assert text["title"] == "At the stall"
     first_line = text["lines"][0]
     assert first_line["speaker"] == "A"
-    assert [w["text"] for w in first_line["words"]][:3] == ["ฉัน", "อยาก", "กิน"]
+    assert [w["text"] for w in first_line["words"]][:3] == ["ผม", "อยาก", "กิน"]
     assert text["stretch"] == ["ข้าวเหนียวมะม่วง"]
 
 
@@ -567,8 +567,8 @@ def test_input_time_lists_each_language_read_with_its_week() -> None:
 def test_progress_reports_how_well_the_known_words_were_recognized() -> None:
     c = client()
     assert c.get("/api/progress", headers=AUTH).json()["recognition"] is None
-    # ฉัน is known and in the text; ทอน isn't known, so looking it up doesn't count.
-    read(c, "about_right", [], glossed=["ฉัน", "ทอน"])
+    # ผม is known and in the text; ทอน isn't known, so looking it up doesn't count.
+    read(c, "about_right", [], glossed=["ผม", "ทอน"])
     r = c.get("/api/progress", headers=AUTH).json()["recognition"]
     assert r["texts"] == 1
     assert r["looked_up_types"] == 1 and r["known_types"] > 1
@@ -674,7 +674,7 @@ def test_past_texts_lists_texts_read_to_the_end_and_serves_them_again() -> None:
 
     again = c.get(f"/api/texts/{past['id']}", headers=AUTH).json()
     assert again["title"] == "At the stall"
-    assert [w["text"] for w in again["lines"][0]["words"]][:3] == ["ฉัน", "อยาก", "กิน"]
+    assert [w["text"] for w in again["lines"][0]["words"]][:3] == ["ผม", "อยาก", "กิน"]
     assert c.get("/api/texts/999", headers=AUTH).status_code == 404
     assert c.get("/api/texts").status_code == 401
 
@@ -2105,7 +2105,7 @@ def test_audit_lists_and_reads_a_shown_text_for_review() -> None:
     assert detail["title"] == "At the stall"
     assert detail["practice_words"] == ["ข้าวเหนียวมะม่วง"]
     first = detail["lines"][0]
-    assert first["speaker"] == "A" and first["text"].startswith("ฉันอยากกิน")
+    assert first["speaker"] == "A" and first["text"].startswith("ผมอยากกิน")
     assert first["english"] and isinstance(first["unknown"], list)
     assert first["quotes"] == []
     assert detail["readings"] == []
