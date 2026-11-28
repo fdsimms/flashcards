@@ -6,7 +6,7 @@ import {
 } from '../../reader/api';
 import { LEVEL_HELP, LEVEL_OPTIONS, levelOf } from '../../reader/difficulty';
 import { grammarSummary } from '../../reader/grammar';
-import { deckOf, glossInfo, spokenLanguage } from '../../reader/languages';
+import { deckOf, glossInfo, splitDecks, spokenLanguage } from '../../reader/languages';
 import { DEFAULT_REGISTER, REGISTER_LEVELS, type RegisterLevel } from '../../reader/registerLevel';
 import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
@@ -63,7 +63,14 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
     if (!settings) return;
     const before = settings;
     const mine = ++settingSeq.current;
-    setSettings({ ...settings, ...update, decks: { ...settings.decks, ...update.decks }, voices: settings.voices, cast: settings.cast, common: { ...settings.common, ...update.common } });
+    // A Toki Pona deck is kept apart from the spoken languages' (`glossOnlyDecks`), as the server's answer will have it.
+    const picked = update.decks ? splitDecks(update.decks as Record<string, string>) : undefined;
+    setSettings({
+      ...settings, ...update,
+      decks: { ...settings.decks, ...picked?.decks },
+      ...(picked?.glossOnlyDecks ? { glossOnlyDecks: { ...settings.glossOnlyDecks, ...picked.glossOnlyDecks } } : {}),
+      voices: settings.voices, cast: settings.cast, common: { ...settings.common, ...update.common },
+    });
     setFailed(null);
     try {
       const saved = await api.updateSettings(update);

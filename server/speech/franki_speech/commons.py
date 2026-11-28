@@ -11,13 +11,16 @@ none given) is left out. `Recording.credit` is the line a shared deck needs (CC 
 who, the license and its link, the file's page, and that it was changed (trimmed and leveled).
 
 Commons limits how fast a client may ask, so every request goes through one client, at most one a
-`MIN_INTERVAL`, and a 429 is waited out (its Retry-After honored) and tried again a few times.
+`MIN_INTERVAL`, and a 429 is waited out (its Retry-After honored) and tried again a few times. So
+`find_many` asks for many words at once: one Lingua Libre query and one Commons request cover a
+batch of words, and only each recording's download is one request per word.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
+import sys
 import time
 import urllib.parse
 from collections.abc import Awaitable, Callable
@@ -35,6 +38,14 @@ MIN_INTERVAL = 1.0  # seconds between two requests
 MAX_AUDIO_BYTES = 5 * 1024 * 1024
 TIMEOUT_SECONDS = 30.0
 RETRIES = 3
+# Words in one Lingua Libre query, each asked in up to three spellings. The query service
+# documents no limit on VALUES; 20 German words (40 spellings) answered in under 2 seconds in
+# November 2026, so 50 keeps a query far from its timeout.
+WORDS_PER_QUERY = 50
+# Titles in one Commons API request: the API's limit for a client without the apihighlimits right
+# (MediaWiki's multi-value limit, the same 50 `find` always sent for one word). Not rechecked
+# against the live API's paraminfo in November 2026: Commons answered 429 to the check.
+TITLES_PER_REQUEST = 50
 
 # Lingua Libre's item for each language (lingualibre.org, the language a record's P4 names).
 LINGUA_LIBRE: dict[str, str] = {
@@ -140,6 +151,43 @@ def _speaker(title: str, meta: dict[str, Any], source: Source) -> str:
     return "speaker not named"
 
 
+def _record_number(uri: str) -> int:
+    """ "https://lingualibre.org/entity/Q1234" -> 1234; anything else sorts last."""
+    m = re.search(r"Q(\d+)$", uri)
+    return int(m.group(1)) if m else sys.maxsize
+
+
+def _recordings(
+    titles: list[str], ll: set[str], pages: dict[str, dict[str, Any]]
+) -> list[Recording]:
+    """The usable recordings among `titles`, in their order: a free license, not Lingua Libre's
+    test account, and the file on Wikimedia's servers. `ll` is which titles are Lingua Libre's."""
+    found: list[Recording] = []
+    for title in titles:
+        page = pages.get(title)
+        if page is None:
+            continue
+        info = page["imageinfo"][0]
+        meta = info.get("extmetadata") or {}
+        license = _plain(str((meta.get("LicenseShortName") or {}).get("value") or ""))
+        if not _FREE.match(license):
+            continue
+        source: Source = "lingualibre" if title in ll else "wiktionary"
+        if _TEST_RECORDING.search(page["title"]):
+            continue
+        found.append(
+            Recording(
+                title=page["title"],
+                source=source,
+                speaker=_speaker(page["title"], meta, source),
+                license=license,
+                license_url=_plain(str((meta.get("LicenseUrl") or {}).get("value") or "")),
+                audio_url=str(info.get("url") or ""),
+            )
+        )
+    return [r for r in found if r.audio_url.startswith("https://upload.wikimedia.org/")]
+
+
 class Commons:
     """Asks Lingua Libre and Commons, one request at a time and no faster than `MIN_INTERVAL`."""
 
@@ -191,79 +239,99 @@ class Commons:
             f"{urllib.parse.urlsplit(url).netloc} kept refusing: too many requests. Try again later."
         )
 
-    async def _lingua_libre_titles(self, language: str, word: str) -> list[str]:
+    async def _lingua_libre_titles(self, language: str, words: list[str]) -> dict[str, list[str]]:
+        """Each word's Lingua Libre files, from one query for every `WORDS_PER_QUERY` words."""
+        out: dict[str, list[str]] = {w: [] for w in words}
         item = LINGUA_LIBRE.get(language)
         if item is None:
-            return []
-        values = " ".join(_quote_sparql(w) for w in spellings(word))
-        query = (
-            "SELECT ?file WHERE { ?r <https://lingualibre.org/prop/direct/P4> "
-            f"<https://lingualibre.org/entity/{item}> ; "
-            "<https://lingualibre.org/prop/direct/P7> ?t ; "
-            "<https://lingualibre.org/prop/direct/P3> ?file . "
-            f"VALUES ?t {{ {values} }} }}"
-        )
-        response = await self._request(
-            "POST",
-            SPARQL,
-            data={"query": query},
-            headers={"Accept": "application/sparql-results+json"},
-        )
-        rows = response.json().get("results", {}).get("bindings", [])
-        titles = [_title_from_filepath(str(r["file"]["value"])) for r in rows if "file" in r]
-        return list(dict.fromkeys(titles))
+            return out
+        for start in range(0, len(words), WORDS_PER_QUERY):
+            # A spelling can be two words' ("Hund" and "hund" share both of theirs).
+            owners: dict[str, list[str]] = {}
+            for word in words[start : start + WORDS_PER_QUERY]:
+                for w in spellings(word):
+                    owners.setdefault(w, []).append(word)
+            if not owners:
+                continue
+            values = " ".join(_quote_sparql(w) for w in owners)
+            # ?t says which spelling a row matched, so one query answers for all its words.
+            query = (
+                "SELECT ?r ?t ?file WHERE { ?r <https://lingualibre.org/prop/direct/P4> "
+                f"<https://lingualibre.org/entity/{item}> ; "
+                "<https://lingualibre.org/prop/direct/P7> ?t ; "
+                "<https://lingualibre.org/prop/direct/P3> ?file . "
+                f"VALUES ?t {{ {values} }} }}"
+            )
+            response = await self._request(
+                "POST",
+                SPARQL,
+                data={"query": query},
+                headers={"Accept": "application/sparql-results+json"},
+            )
+            bindings = response.json().get("results", {}).get("bindings", [])
+            rows = [r for r in bindings if "file" in r and "t" in r]
+            # SPARQL promises no order without ORDER BY, and the service's changes with the query:
+            # a query for one word answered in record order (checked against lingualibre.org for
+            # 24 words in German, Polish, French and Russian, November 2026), one for several words
+            # didn't always ("rot" and "Rot" came back in another order). Sorting by record keeps
+            # the recording chosen for a word the one a query for it alone chose.
+            rows.sort(key=lambda r: _record_number(str((r.get("r") or {}).get("value") or "")))
+            for r in rows:
+                title = _title_from_filepath(str(r["file"]["value"]))
+                for word in owners.get(str(r["t"]["value"]), []):
+                    out[word].append(title)
+        return {w: list(dict.fromkeys(titles)) for w, titles in out.items()}
+
+    async def _pages(self, titles: list[str]) -> dict[str, dict[str, Any]]:
+        """Each file's page from Commons' API (its imageinfo), `TITLES_PER_REQUEST` titles a
+        request, keyed by the title as asked. A missing file has no entry."""
+        out: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(titles), TITLES_PER_REQUEST):
+            chunk = titles[start : start + TITLES_PER_REQUEST]
+            response = await self._request(
+                "GET",
+                COMMONS_API,
+                params={
+                    "action": "query",
+                    "format": "json",
+                    "prop": "imageinfo",
+                    "iiprop": "url|extmetadata",
+                    "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
+                    "titles": "|".join(chunk),
+                },
+            )
+            query = response.json().get("query", {})
+            renamed = {n["from"]: n["to"] for n in query.get("normalized", [])}
+            pages = {p.get("title"): p for p in query.get("pages", {}).values()}
+            for title in chunk:
+                page = pages.get(renamed.get(title, title))
+                if page and "missing" not in page and page.get("imageinfo"):
+                    out[title] = page
+        return out
+
+    async def find_many(self, language: str, words: list[str]) -> dict[str, list[Recording]]:
+        """`find` for several words of one language, keyed by the word as given, with one Lingua
+        Libre query per `WORDS_PER_QUERY` words and one Commons request per `TITLES_PER_REQUEST`
+        files rather than both for each word. Each word gets what `find` gives it alone."""
+        words = list(dict.fromkeys(words))
+        ll = await self._lingua_libre_titles(language, words)
+        titles: dict[str, list[str]] = {}
+        for word in words:
+            older = [
+                f"File:{prefix}-{w}.ogg"
+                for prefix in OLDER_PREFIXES.get(language, ())
+                for w in spellings(word)
+            ]
+            # "|" separates the API's titles and is never in one: a word holding it would split
+            # into stray titles that push other words' files past the request's limit.
+            titles[word] = [t for t in dict.fromkeys(ll[word] + older) if "|" not in t][:50]
+        pages = await self._pages(list(dict.fromkeys(t for ts in titles.values() for t in ts)))
+        return {w: _recordings(titles[w], set(ll[w]), pages) for w in words}
 
     async def find(self, language: str, word: str) -> list[Recording]:
         """Every usable recording of `word` in `language`: Lingua Libre's first, then the older
         Wiktionary files, each with its author and license as Commons has them."""
-        ll = await self._lingua_libre_titles(language, word)
-        older = [
-            f"File:{prefix}-{w}.ogg"
-            for prefix in OLDER_PREFIXES.get(language, ())
-            for w in spellings(word)
-        ]
-        titles = list(dict.fromkeys(ll + older))[:50]
-        if not titles:
-            return []
-        response = await self._request(
-            "GET",
-            COMMONS_API,
-            params={
-                "action": "query",
-                "format": "json",
-                "prop": "imageinfo",
-                "iiprop": "url|extmetadata",
-                "iiextmetadatafilter": "Artist|LicenseShortName|LicenseUrl",
-                "titles": "|".join(titles),
-            },
-        )
-        query = response.json().get("query", {})
-        renamed = {n["from"]: n["to"] for n in query.get("normalized", [])}
-        pages = {p.get("title"): p for p in query.get("pages", {}).values()}
-        found: list[Recording] = []
-        for title in titles:
-            page = pages.get(renamed.get(title, title))
-            if not page or "missing" in page or not page.get("imageinfo"):
-                continue
-            info = page["imageinfo"][0]
-            meta = info.get("extmetadata") or {}
-            license = _plain(str((meta.get("LicenseShortName") or {}).get("value") or ""))
-            if not _FREE.match(license):
-                continue
-            source: Source = "lingualibre" if title in ll else "wiktionary"
-            if _TEST_RECORDING.search(page["title"]):
-                continue
-            found.append(
-                Recording(
-                    title=page["title"],
-                    source=source,
-                    speaker=_speaker(page["title"], meta, source),
-                    license=license,
-                    license_url=_plain(str((meta.get("LicenseUrl") or {}).get("value") or "")),
-                    audio_url=str(info.get("url") or ""),
-                )
-            )
-        return [r for r in found if r.audio_url.startswith("https://upload.wikimedia.org/")]
+        return (await self.find_many(language, [word]))[word]
 
     async def audio(self, recording: Recording) -> bytes:
         """The recording's original file, as Commons has it (at most `MAX_AUDIO_BYTES`)."""

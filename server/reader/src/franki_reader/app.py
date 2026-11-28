@@ -423,7 +423,8 @@ import hmac
 import ipaddress
 import math
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -584,7 +585,15 @@ def create_app(
 ) -> FastAPI:
     # No /docs, /redoc or /openapi.json: FastAPI serves those without the passphrase. The schema the
     # app's types are generated from comes from app.openapi() (openapi.py), which needs no route.
-    app = FastAPI(title="franki-reader", docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        # Pasted texts' parts a restart left without English are translated once it's started.
+        engine.start_own_retry()
+        yield
+
+    app = FastAPI(
+        title="franki-reader", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+    )
 
     def given_key(authorization: str | None) -> bytes:
         # Header values arrive decoded as latin-1, so turn them back into the bytes that were sent
@@ -698,6 +707,7 @@ def production_app() -> FastAPI:
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     store.fail_interrupted_lessons(conn)
+    store.fail_interrupted_grammar_lessons(conn, grammar_lessons.FAILED)
     ask_for: Callable[..., Ask] | None = None
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { cramLanguageOf, cramNotes, lessonPhrases, practiceOrder, withRequest, type CramPhrase } from '../../core/cram';
-import { withPhrases } from '../../core/cramPhrases';
+import { addPhrases, phraseKey, phrasesNotAddedText } from '../../core/cramPhrases';
 import { addSummary, cramPhrasesRequest, cramWordsRequest, SUGGEST_FOCUS_CHARS, suggestedWords, wordsToLeaveOut } from '../../core/cramWords';
 import { failureText } from '../../core/failure';
 import type { LessonWordCandidate } from '../../core/lessonWords';
@@ -70,8 +70,9 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
   const inDeck = words.filter((w) => w.note);
   const fresh = words.filter((w) => !w.note);
   const pickedWords = words.filter((w) => checked.has(w.candidate.text));
-  // A phrase already on the cram (added meanwhile, or from another list) isn't offered again.
-  const phrases = shownPhrases.filter((p) => !(cram?.phrases ?? []).some((x) => x.text === p.text));
+  // A phrase already on the cram (added meanwhile, or from another list) isn't offered again: matched by
+  // `phraseKey`, as `addPhrases` matches it, so one written with other capitals isn't offered and then dropped.
+  const phrases = shownPhrases.filter((p) => !(cram?.phrases ?? []).some((x) => phraseKey(x) === phraseKey(p)));
   const pickedPhrases = phrases.filter((p) => checkedPhrases.has(p.text));
   const phraseMode = mode === 'phrases';
   const busy = asking === mode;
@@ -130,8 +131,11 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
     else setChecked(flip);
   };
 
+  // A ref as well as the state: two taps in one frame both see `adding` false and would queue every word twice.
+  const addingNow = useRef(false);
   const add = async () => {
-    if (!cram || !language || adding) return;
+    if (!cram || !language || addingNow.current) return;
+    addingNow.current = true;
     setAdding(true);
     setProblem(undefined);
     haptic.tap();
@@ -139,7 +143,11 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
       if (phraseMode) {
         // The cram as it is now, so a phrase added while another save was in flight isn't lost.
         const now = cramsNow().find((x) => x.id === cram.id) ?? cram;
-        await saveCram(repo, withPhrases(now, pickedPhrases));
+        const result = addPhrases(now, pickedPhrases);
+        await saveCram(repo, result.cram);
+        // One already on the cram, or past its limit, is said so here rather than leaving as if added.
+        const note = phrasesNotAddedText(result);
+        if (note) { haptic.answer(); setCheckedPhrases(new Set()); setProblem(note); return; }
         haptic.success();
         onDone();
         return;
@@ -168,6 +176,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
     } catch (e) {
       setProblem(failureText(e, { what: phraseMode ? "Couldn't add the phrases." : "Couldn't add the words.", next: 'Try again.' }));
     } finally {
+      addingNow.current = false;
       setAdding(false);
     }
   };

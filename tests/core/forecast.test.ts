@@ -52,6 +52,15 @@ describe('forecast', () => {
     expect(total(f, 'scheduled')).toBe(0);
   });
 
+  it("runs a new card's learning steps inside the day it starts, so the next day doesn't count it again", () => {
+    const notes = notesIn('Polski', 200);
+    const settings = new Map([['Polski', { newPerDay: 5, reviewsPerDay: 200 }]]);
+    const f = forecast(inputFor(notes, newCardsOf(notes), { settings, passRate: 1 }));
+    // Every card passes: a day holds its 5 new cards, plus today's 5 back for their first review on
+    // day 2, and nothing left over still learning from the day before (that was 5, 5, 15, 10, 10, 10).
+    expect(f.days.slice(0, 6).map((d) => d.expected)).toEqual([5, 5, 10, 5, 5, 5]);
+  });
+
   it('stops at the cards a deck has: no more new cards than exist', () => {
     const notes = notesIn('Polski', 12);
     const settings = new Map([['Polski', { newPerDay: 5, reviewsPerDay: 200 }]]);

@@ -113,7 +113,7 @@ export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, on
             {over ? `${charCount(text.trim().length)}. Add a shorter part, and the rest in another go.` : `${charCount(text.trim().length)}. Paste from Safari, an email or a book.`}
           </Text>
         </View>
-        {current ? <PreviewCards preview={current} /> : preview ? <Help>You changed the text or its language. Check it again before adding it.</Help> : null}
+        {current ? <PreviewCards preview={current} spoken={!isGlossOnly(language)} /> : preview ? <Help>You changed the text or its language. Check it again before adding it.</Help> : null}
         {error ? <ErrorNote message={error} /> : null}
       </ScrollView>
     </Screen>
@@ -121,7 +121,7 @@ export function ReadOwnText({ api, language: readerLanguage, shared, toolbar, on
 }
 
 /** What adding it would give: how much is known, the new words, and its size and cost. */
-function PreviewCards({ preview }: { preview: OwnTextPreview }) {
+function PreviewCards({ preview, spoken }: { preview: OwnTextPreview; spoken: boolean }) {
   const c = useTheme();
   const note = coverageNote(preview);
   const more = moreNewWords(preview);
@@ -151,8 +151,8 @@ function PreviewCards({ preview }: { preview: OwnTextPreview }) {
       </Card>
       <Card style={{ gap: space.xs }}>
         <Row label="Lines" value={String(preview.lines)} />
-        <Row label="Read aloud" value={listenTime(preview.seconds)} />
-        <Row label="Translating and recording" value={costText(preview.cost_usd)} />
+        {spoken ? <Row label="Read aloud" value={listenTime(preview.seconds)} /> : null}
+        <Row label={spoken ? 'Translating and recording' : 'Translating'} value={costText(preview.cost_usd)} />
         {parts ? <Help>{parts}</Help> : null}
       </Card>
     </>

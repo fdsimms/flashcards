@@ -48,7 +48,7 @@ export function LinesDrillCard({ api, language, offer, narrator, particle, onMad
       </View>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{linesDetail(offer)}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
-        {offer.texts.map((t) => <Chip key={t.title} label={`${t.title} · ${t.count}`} />)}
+        {offer.texts.map((t, i) => <Chip key={`${i}:${t.title}`} label={`${t.title} · ${t.count}`} />)}
       </View>
       <Segments<'normal' | 'slow'>
         options={[{ value: 'normal', label: 'Lines at normal speed' }, { value: 'slow', label: 'Slow lines' }]}

@@ -1016,16 +1016,63 @@ def test_calls_with_no_section_of_their_own_are_counted_in_other_calls() -> None
     store.save_call_cost(conn, "word_lookup", "es", NOW, 0.25)
     store.save_call_cost(conn, "rare_words", "en", NOW, 1.0)
     store.save_call_cost(conn, "cram_themes", "de", NOW, 9.0)  # has its own section
+    # A grammar lesson: Claude writes it (one call), then each example is recorded as a clip with
+    # no Claude call, which is Azure's audio and not another call.
+    store.save_call_cost(conn, "grammar_lessons", "th", NOW, 0.125)
+    store.save_call_cost(conn, "grammar_lessons", "th", NOW, 0.0, 300_000)
+    store.save_call_cost(conn, "grammar_lessons", "th", NOW, 0.0, 100_000)
     costs = c.get("/api/costs", headers=AUTH).json()
     assert costs["other_calls"] == {
-        "asked": 3,
-        "cost_usd": 1.5,
+        "asked": 4,
+        "cost_usd": 1.625,
+        "audio_chars": 400_000,
+        "azure_usd": 6.0,  # $15 per million characters
         "features": [
-            {"feature": "rare_words", "asked": 1, "cost_usd": 1.0},
-            {"feature": "word_lookup", "asked": 2, "cost_usd": 0.5},
+            # Most expensive first, Azure included: 0.125 + 6.0.
+            {
+                "feature": "grammar_lessons",
+                "asked": 1,
+                "cost_usd": 0.125,
+                "audio_chars": 400_000,
+                "azure_usd": 6.0,
+            },
+            {
+                "feature": "rare_words",
+                "asked": 1,
+                "cost_usd": 1.0,
+                "audio_chars": 0,
+                "azure_usd": 0,
+            },
+            {
+                "feature": "word_lookup",
+                "asked": 2,
+                "cost_usd": 0.5,
+                "audio_chars": 0,
+                "azure_usd": 0,
+            },
         ],
     }
     assert costs["cram_themes"] == {"asked": 1, "cost_usd": 9.0}
+
+
+def test_a_feature_with_only_clips_in_other_calls_shows_their_audio_and_no_calls() -> None:
+    conn = store.connect(":memory:")
+    engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
+    c = started(create_app(engine, "open sesame"))
+    # The lesson was written before the window; only its examples were recorded in it.
+    store.save_call_cost(conn, "grammar_lessons", "th", NOW - timedelta(days=60), 0.125)
+    store.save_call_cost(conn, "grammar_lessons", "th", NOW, 0.0, 2_000)
+    other = c.get("/api/costs", headers=AUTH).json()["other_calls"]
+    assert other["asked"] == 0 and other["audio_chars"] == 2_000 and other["azure_usd"] == 0.03
+    assert other["features"] == [
+        {
+            "feature": "grammar_lessons",
+            "asked": 0,
+            "cost_usd": 0.0,
+            "audio_chars": 2_000,
+            "azure_usd": 0.03,
+        }
+    ]
 
 
 def test_says_what_to_set_when_there_is_no_azure_key() -> None:

@@ -187,12 +187,17 @@ _CHARS_PER_TOKEN = {"th": 1.5, "ja": 1.2}
 
 
 def estimate_cost(lines: list[OwnLine], language: Code, recorded: bool = True) -> float:
-    """Recording every line (unless `recorded` is False: a video's lines are its own sound), and
-    translating it (the prompt, the lines in, about as much English out)."""
+    """Recording every line, and translating it (the prompt, the lines in, about as much English out).
+    A language with no voices (Toki Pona) is never recorded, nor is a video's text (`recorded` False:
+    the video is its sound), so either costs the translating only."""
     chars = sum(len(line.text) for line in lines)
     tokens = int(chars / _CHARS_PER_TOKEN.get(language, 3.5))
     translating = Usage(input_tokens=tokens + 400, output_tokens=tokens, model=CHEAP_MODEL)
-    audio = azure_usd(sum(billed_chars(line.text) for line in lines)) if recorded else 0.0
+    audio = (
+        azure_usd(sum(billed_chars(line.text) for line in lines))
+        if recorded and LANGUAGES[language].speaks
+        else 0.0
+    )
     return round(translating.cost_usd() + audio, 3)
 
 

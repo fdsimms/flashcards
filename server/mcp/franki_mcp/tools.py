@@ -552,7 +552,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         # (native.py); the rest are recorded with Azure as before.
         if native is not None and native.commons is not None:
             try:
-                kept = await native.keep([r["note_id"] for r in rows][: native_module.MAX_NOTES])
+                kept = await native.keep([r["note_id"] for r in rows][: native_module.MAX_NOTES], only_silent=True)
             except Exception as e:  # noqa: BLE001 - Commons out of reach: Azure records them instead
                 kept = [{"note_id": r["note_id"], "error": str(e)} for r in rows]
             by_id = {k["note_id"]: k for k in kept}

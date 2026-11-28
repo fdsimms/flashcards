@@ -443,7 +443,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return { ...found, months: knownMonths(found.language, known), days: knownDays(found.language, known) };
   }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2), H);
-  useSkillRelease(repo, cards, notes, H);
+  // What releasing wrote, taken into the open session: a step set aside leaves it, and a drill card brought into the week can come up.
+  useSkillRelease(repo, cards, notes, H, useCallback((saved: Card[], savedNotes: Note[]) => {
+    if (savedNotes.length) setNotes((prev) => { const next = new Map(prev); for (const n of savedNotes) next.set(n.id, n); return next; });
+    const byId = new Map(saved.map((cd) => [cd.id, cd]));
+    setCards((prev) => prev && prev.map((cd) => byId.get(cd.id) ?? cd));
+  }, []));
   // After a drill card's sixth clean week, an offer to stop practicing its step (SkillStopStrip.tsx).
   const stopSuggestion = useStopSuggestion(repo, H, useCallback((n: Note, ids: string[]) => {
     setNotes((prev) => new Map(prev).set(n.id, n));
@@ -828,7 +833,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The last answer stays on the line above the buttons until the next one, to undo or change. A
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      if (!redo && !preview) stopSuggestion.answered(cur, nt, rating, when);
+      if (redo) stopSuggestion.withdraw(nt.id);
+      else if (!preview) stopSuggestion.answered(cur, nt, rating, when);
       missCover.show(missMnemonic(nt, rating, !!preview) ?? null);
       lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
@@ -1007,6 +1013,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
       skill.undone(String(last.before.id));
+      stopSuggestion.withdraw(last.before.noteId);
       setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
       undone.current.add(last);

@@ -3498,7 +3498,7 @@
     "/api/journal/check": {
       "post": {
         "summary": "Journal Check",
-        "description": "Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.\nA new entry whose `key` was already checked comes back as it was, with no call.",
+        "description": "Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.\nA new entry whose `key` was already checked (or is being checked) comes back as it was, with\nno call.",
         "operationId": "journal_check_api_journal_check_post",
         "parameters": [
           {

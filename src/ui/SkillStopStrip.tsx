@@ -33,8 +33,11 @@ type Store = NoteStore & Pick<AnkiLink, 'setAnkiCardStates'>;
 export function useStopSuggestion(repo: Store, dayStartsAtHour: number, onStopped: (note: Note, cardIds: string[]) => void) {
   const [offer, setOffer] = useState<StopOffer | null>(null);
   const busy = useRef(false);
+  // Bumped by each answer and each withdrawal, so an offer worked out for an answer since undone or changed never shows.
+  const seq = useRef(0);
 
   const answered = useCallback((card: Card, note: Note, rating: number, when: Date) => {
+    const mine = ++seq.current;
     // Only a review answered Good or Easy can be the sixth clean week.
     const drill = drillOfTags(note.tags);
     if (!drill || !isDrillNote(note) || rating < 3 || card.sched.state !== 2) return;
@@ -42,9 +45,15 @@ export function useStopSuggestion(repo: Store, dayStartsAtHour: number, onStoppe
       // The answers before this one: this one's revlog row may or may not be written yet, so it's left out and added here.
       const history = (await cardHistory(repo, card).catch(() => [])).filter((h) => h.at.getTime() < when.getTime() - 60_000);
       const answer = { at: when, kind: 'Review', rating };
-      if (cleanWeeks([answer, ...history]) === STOP_SUGGESTED_AFTER) setOffer({ noteId: note.id, step: drill.step.title });
+      if (mine === seq.current && cleanWeeks([answer, ...history], dayStartsAtHour) === STOP_SUGGESTED_AFTER) setOffer({ noteId: note.id, step: drill.step.title });
     })();
-  }, [repo]);
+  }, [repo, dayStartsAtHour]);
+
+  /** The answer behind an offer for this note was undone or its rating changed: the offer goes with it. */
+  const withdraw = useCallback((noteId: string) => {
+    seq.current++;
+    setOffer((o) => (o?.noteId === noteId ? null : o));
+  }, []);
 
   const stop = useCallback(async () => {
     if (!offer || busy.current) return;
@@ -62,7 +71,7 @@ export function useStopSuggestion(repo: Store, dayStartsAtHour: number, onStoppe
     }
   }, [offer, repo, dayStartsAtHour, onStopped]);
 
-  return { offer, answered, stop, dismiss: useCallback(() => setOffer(null), []) };
+  return { offer, answered, withdraw, stop, dismiss: useCallback(() => setOffer(null), []) };
 }
 
 /** Passed to Screen's `floating`, as the hold strip is: over the card's lower edge, above the footer. */

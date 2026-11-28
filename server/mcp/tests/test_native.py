@@ -4,8 +4,10 @@ an Omnilanguage note's Audio, with its credit in AudioCredit; and add_notes usin
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
+import urllib.parse
 
 import httpx
 import pytest
@@ -39,8 +41,11 @@ class Wikimedia:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.asked.append(request.url.host)
         if request.url.host == "lingualibre.org":
-            body = request.content.decode()
-            rows = [{"file": {"value": LL}}] if any(f"%22{w}%22" in body for w in self.words) else []
+            # Answers for every word the query asks about, naming the spelling each row matched.
+            query = urllib.parse.parse_qs(request.content.decode())["query"][0]
+            asked = re.findall(r'"([^"]*)"', query.split("VALUES ?t {", 1)[1])
+            rows = [{"r": {"value": f"https://lingualibre.org/entity/Q{i}"}, "t": {"value": w},
+                     "file": {"value": LL}} for i, w in enumerate(asked) if w in self.words]
             return httpx.Response(200, json={"results": {"bindings": rows}})
         if request.url.host == "upload.wikimedia.org":
             return httpx.Response(200, content=tone())
@@ -147,3 +152,38 @@ async def test_add_notes_keeps_a_native_recording_before_recording_with_azure(na
     # None found for Katze: recorded with Azure as before.
     assert katze_result["audio"].startswith("franki-tts-")
     assert len(azure.requests) == 1
+
+
+async def test_add_notes_keeps_the_recording_it_was_given(native_client, cm, azure, wiki, german_deck):
+    await set_native(cm, {"on": True})
+    wiki.words = {"Vogel"}
+    new = {"deck": "Deutsch", "note_type": "Omnilanguage", "fields": {
+        "Entry": "Vogel", "Meaning": "bird", "Context": "<b>Vogel</b>", "ContextTranslation": "bird",
+        "Register": "neutral", "Language": "german", "PartOfSpeech": "noun", "Audio": "[sound:vogel-mine.mp3]"}}
+    out = await call(native_client, "add_notes", notes=[new], allow_nonstandard=True)
+    (result,) = out["results"]
+    assert "audio" not in result and "native_error" not in result
+
+    def read(col):
+        return col.get_note(result["note_id"])["Audio"]
+
+    assert await cm.read(read) == "[sound:vogel-mine.mp3]"
+    assert not azure.requests
+
+
+async def test_add_notes_looks_up_all_its_words_in_one_query(native_client, cm, azure, wiki, german_deck):
+    await set_native(cm, {"on": True})
+    await call(native_client, "set_audio_voice", language="german", voice="de-DE-KatjaNeural")
+    wiki.words = {"Vogel", "Maus"}
+
+    def noun(entry: str, meaning: str) -> dict:
+        return {"deck": "Deutsch", "note_type": "Omnilanguage", "fields": {
+            "Entry": entry, "Meaning": meaning, "Context": f"<b>{entry}</b>", "ContextTranslation": meaning,
+            "Register": "neutral", "Language": "german", "PartOfSpeech": "noun"}}
+
+    out = await call(native_client, "add_notes", notes=[noun("Vogel", "bird"), noun("Katze", "cat"),
+                                                         noun("Maus", "mouse")], allow_nonstandard=True)
+    assert [r["audio"].split("-")[1] for r in out["results"]] == ["native", "tts", "native"]
+    # One Lingua Libre query and one Commons request for the three words; a download for each found.
+    assert wiki.asked.count("lingualibre.org") == 1 and wiki.asked.count("commons.wikimedia.org") == 1
+    assert wiki.asked.count("upload.wikimedia.org") == 2

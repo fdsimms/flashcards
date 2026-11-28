@@ -11,7 +11,7 @@ const ALL = ['th', 'es', 'el', 'nb', 'ru'] as const;
 
 function input(over: Partial<Omit<PlanInput, 'prefs'>> & { prefs?: Partial<ExtraPrefs> } = {}): PlanInput {
   const { prefs, ...rest } = over;
-  return { prefs: { ...DEFAULT_EXTRA_PREFS, ...prefs }, state: EMPTY_EXTRA_STATE, languages: [...ALL], readerOn: true, marks: {}, now: NOW, dayStartsAtHour: 4, ...rest };
+  return { prefs: { ...DEFAULT_EXTRA_PREFS, ...prefs }, state: EMPTY_EXTRA_STATE, languages: [...ALL], readerOn: true, marks: {}, noCounters: [], now: NOW, dayStartsAtHour: 4, ...rest };
 }
 
 describe('planExtras', () => {
@@ -20,6 +20,12 @@ describe('planExtras', () => {
     expect(plan.extras.filter((e) => e.language === 'th')).toHaveLength(2);
     expect(plan.extras.filter((e) => e.why === 'turn')).toHaveLength(1);
     expect(plan.extras.every((e) => e.why === 'focus' || e.language !== 'th')).toBe(true);
+  });
+
+  it("doesn't plan Counting things for a language whose deck knows no counter yet", () => {
+    const counting = (noCounters: ('th')[]) => [0, 1, 2, 3, 4, 5, 6].flatMap((d) => planExtras(input({ prefs: { modes: { th: 'always' }, read: false }, noCounters, now: new Date(2026, 10, 14 + d, 12) })).extras).filter((e) => e.language === 'th' && e.kind === 'counting');
+    expect(counting([]).length).toBeGreaterThan(0);
+    expect(counting(['th'])).toEqual([]);
   });
 
   it('offers a drill and then a text for a focus language', () => {

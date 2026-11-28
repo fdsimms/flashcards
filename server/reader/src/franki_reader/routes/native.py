@@ -18,8 +18,8 @@ from franki_reader.routes.context import AppContext
 log = logging.getLogger(__name__)
 
 MAX_WORDS = 50
-# Words looked up while the request waits; any more are looked up in the background and come back
-# as `pending`, for the app to ask again (each takes a second or two: Commons is asked slowly).
+# Words looked up while the request waits; any more are looked up in the background, together, and
+# come back as `pending`, for the app to ask again (Commons is asked slowly, a request a second).
 INLINE_WORDS = 3
 
 
@@ -73,23 +73,23 @@ def router(ctx: AppContext) -> APIRouter:
 
     NOT_SET_UP = "Native recordings aren't set up on this server."
 
-    async def look_up(language: str, word: str) -> list[Recording]:
+    async def look_up(language: str, words: list[str]) -> dict[str, list[Recording]]:
+        """The words' recordings, looked up together (`find_many`: one query for all of them), and kept."""
         assert commons is not None
-        found = await commons.find(language, word)
-        native_store.keep(engine.conn, language, word, found, engine.clock())
+        found = await commons.find_many(language, words)
+        now = engine.clock()
+        for word in words:
+            native_store.keep(engine.conn, language, word, found[word], now)
         return found
 
     async def look_up_all(language: str, words: list[str]) -> None:
-        for word in words:
-            try:
-                await look_up(language, word)
-            except CommonsUnavailable as e:
-                log.warning("Native recordings: %s left for later (%s)", word, e)
-                break
-            finally:
+        try:
+            await look_up(language, words)
+        except CommonsUnavailable as e:
+            log.warning("Native recordings: %d words left for later (%s)", len(words), e)
+        finally:
+            for word in words:
                 looking.discard((language, word))
-        for word in words:
-            looking.discard((language, word))
 
     @routes.post("/api/native/find", dependencies=authed, response_model=NativeFindOut)
     async def native_find(body: NativeFindIn, background: BackgroundTasks) -> NativeFindOut:
@@ -107,12 +107,14 @@ def router(ctx: AppContext) -> APIRouter:
             else:
                 results.append(NativeWordOut(word=word, recordings=[_out(r) for r in kept]))
         inline, later = missing[:INLINE_WORDS], missing[INLINE_WORDS:]
-        for word in inline:
+        if inline:
             try:
-                found = await look_up(body.language, word)
+                found = await look_up(body.language, inline)
             except CommonsUnavailable as e:
                 raise HTTPException(503, f"Couldn't look up native recordings. {e}") from e
-            results.append(NativeWordOut(word=word, recordings=[_out(r) for r in found]))
+            results.extend(
+                NativeWordOut(word=w, recordings=[_out(r) for r in found[w]]) for w in inline
+            )
         fresh_later = [w for w in later if (body.language, w) not in looking]
         looking.update((body.language, w) for w in fresh_later)
         if fresh_later:

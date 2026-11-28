@@ -23,6 +23,8 @@ describe('Which word fits', () => {
 
   it('offers only sets whose every word is studied', () => {
     expect(missingWords(A, ['Por', 'ser'])).toEqual(['para']);
+    // As the skill card matches: a word of a longer headword counts ("por favor" has "por").
+    expect(missingWords(A, ['por favor', 'para, for'])).toEqual([]);
     expect(setsKnown([A, B], ['por', 'para', 'ser']).map((s) => s.id)).toEqual(['es-a']);
   });
 

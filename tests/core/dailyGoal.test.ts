@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCards } from '../../src/core/cards';
 import { DEFAULT_COLLECTION_SETTINGS } from '../../src/core/config';
-import { GOAL_DAYS, goalTarget, MAX_DAILY_GOAL, parseDailyGoal, tune, tunedToday, withTuning, type GoalInput, type GoalResult } from '../../src/core/dailyGoal';
+import { GOAL_DAYS, goalTarget, MAX_DAILY_GOAL, parseDailyGoal, tune, tunedToday, goalTurnedOff, withTuning, type GoalInput, type GoalResult } from '../../src/core/dailyGoal';
 import { forecast } from '../../src/core/forecast';
 import type { Card, DeckParams, DeckSettings, Note } from '../../src/core/types';
 import { NOW, omniNote } from '../support/fixtures';
@@ -117,9 +117,24 @@ describe('tunedToday and withTuning', () => {
   });
 
   it('sets a gate’s cap, a preset-less deck’s own new limit, and leaves an Anki deck’s limit to the collection', () => {
-    expect(withTuning({ gateCap: 10 }, result({ lever: 'gate', value: 45 }), 'gate')).toMatchObject({ gateCap: 45 });
-    expect(withTuning({ newPerDay: 10 }, result(), 'own')).toMatchObject({ newPerDay: 6 });
-    expect(withTuning({ newPerDay: 10 }, result(), 'anki')).toEqual({ newPerDay: 10, goalTuned: result() });
+    expect(withTuning({ gateCap: 10 }, result({ lever: 'gate', value: 45 }), 'gate', 10)).toMatchObject({ gateCap: 45 });
+    expect(withTuning({ newPerDay: 10 }, result(), 'own', 10)).toMatchObject({ newPerDay: 6 });
+    expect(withTuning({ newPerDay: 10 }, result(), 'anki', null)).toEqual({ newPerDay: 10, goalTuned: result(), goalReplaced: { target: 'anki', value: null } });
+  });
+
+  it('keeps the value the first tuning replaced and puts it back when the goal is turned off', () => {
+    const first = withTuning({ gateCap: 10, dailyGoal: 50 }, result({ lever: 'gate', value: 45 }), 'gate', 10);
+    const second = withTuning(first, result({ lever: 'gate', value: 0, over: true }), 'gate', 45);
+    expect(second.goalReplaced).toEqual({ target: 'gate', value: 10 });
+    expect(goalTurnedOff(second, 'gate')).toEqual({ settings: { gateCap: 10, dailyGoal: undefined, goalTuned: undefined } });
+    // A preset-less deck that had no limit of its own goes back to none; an Anki deck's is put back in the collection.
+    const own = withTuning({ dailyGoal: 50 }, result({ value: 0 }), 'own', null);
+    expect(goalTurnedOff(own, 'own').settings.newPerDay).toBeUndefined();
+    expect(goalTurnedOff(withTuning({ dailyGoal: 50 }, result(), 'anki', 8), 'anki').ankiLimit).toBe(8);
+    expect(goalTurnedOff(withTuning({ dailyGoal: 50 }, result(), 'anki', null), 'anki').ankiLimit).toBeNull();
+    // Never tuned, or tuned for what the deck no longer has: nothing is put back.
+    expect(goalTurnedOff({ dailyGoal: 50, newPerDay: 4 }, 'own')).toEqual({ settings: { newPerDay: 4, dailyGoal: undefined, goalTuned: undefined } });
+    expect(goalTurnedOff(own, 'gate').ankiLimit).toBeUndefined();
   });
 });
 
