@@ -10,7 +10,14 @@
 	header Strict-Transport-Security "max-age=31536000"
 	@anki path /sync/* /msync/* /health
 	handle @anki {
-		reverse_proxy anki:8080
+		# A larger read buffer, as Anki's manual says for Caddy (sync-server.md, "Reverse Proxies"):
+		# with Caddy's default, downloading media can fail mid-stream, which AnkiMobile shows as
+		# "stream failure (code=303)" (#156).
+		reverse_proxy anki:8080 {
+			transport http {
+				read_buffer 512k
+			}
+		}
 	}
 	handle /reader/* {
 		request_body {
