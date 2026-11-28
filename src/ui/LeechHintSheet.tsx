@@ -132,7 +132,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
         ))}
         {error ? <ErrorNote message={error} /> : null}
         {step && step.n < step.of && onSkipRest ? (
-          <Tappable onPress={onSkipRest} disabled={saving} accessibilityRole="button" accessibilityLabel="Skip the rest" style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, justifyContent: 'center' }}>
+          <Tappable onPress={() => { haptic.tap(); onSkipRest(); }} disabled={saving} accessibilityRole="button" accessibilityLabel="Skip the rest" style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, justifyContent: 'center' }}>
             <Text style={{ ...type.callout, color: c.textSecondary }}>Skip the rest</Text>
           </Tappable>
         ) : null}

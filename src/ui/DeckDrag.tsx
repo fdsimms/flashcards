@@ -260,7 +260,7 @@ export function useDeckDrag(opts: {
           flexDirection: 'row', alignItems: 'center', transform: [{ translateY: lineY }],
         }}
       >
-        <View style={{ width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: 2, borderColor: c.accent, backgroundColor: c.bg, ...halo(c.bg) }} />
+        <View style={{ width: DOT, height: DOT, borderRadius: radius.pill, borderWidth: 2, borderColor: c.accent, backgroundColor: c.bg, ...halo(c.bg) }} />
         <View style={{ flex: 1, height: 3, borderRadius: 1.5, backgroundColor: c.accent, ...halo(c.bg) }} />
       </Animated.View>
       <Animated.View

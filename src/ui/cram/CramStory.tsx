@@ -27,7 +27,7 @@ export function CramStory({ repo, api, id, title, onDone }: { repo: AppRepo; api
   if (!cram || !story || !language) {
     return (
       <Screen title="Your story" largeTitle={false}>
-        <ScrollView contentContainerStyle={{ ...readable, padding: space.l }}><Help>{!language && story ? "Choose the cram's language first (Edit, on its page)." : 'This talking point has no story anymore.'}</Help></ScrollView>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}><Help>{!language && story ? "Choose the cram's language first (Edit, on its page)." : 'This talking point has no story anymore.'}</Help></ScrollView>
       </Screen>
     );
   }

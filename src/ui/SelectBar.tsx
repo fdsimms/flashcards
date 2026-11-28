@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { selectedText } from '../core/selection';
 import { haptic } from './haptics';
 import { Tappable } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
  * The bar at the bottom of a list in Select mode (the screen's `footer`): how many rows are picked,
@@ -39,7 +39,7 @@ export function SelectBar({ count, total, onSelectAll, onClear, actions }: {
             onPress={a.onPress}
             accessibilityRole="button"
             accessibilityLabel={a.label}
-            style={{ flex: 1, minHeight: MIN_TAP, borderRadius: radius.m, paddingVertical: space.s, paddingHorizontal: space.s, alignItems: 'center', justifyContent: 'center', backgroundColor: a.destructive ? c.dangerFill : c.fill }}
+            style={{ flex: 1, minHeight: MIN_TAP, borderRadius: radius.m, ...smooth, paddingVertical: space.s, paddingHorizontal: space.s, alignItems: 'center', justifyContent: 'center', backgroundColor: a.destructive ? c.dangerFill : c.fill }}
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: a.destructive ? c.danger : c.text, textAlign: 'center' }}>{a.label}</Text>
             {a.hint ? <Text style={{ ...type.caption, color: a.destructive ? c.danger : c.textSecondary, textAlign: 'center' }}>{a.hint}</Text> : null}

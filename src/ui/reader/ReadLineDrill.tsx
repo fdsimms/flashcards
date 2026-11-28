@@ -27,6 +27,7 @@ import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
 import { PlayCircle } from '../PlayCircle';
+import { RoundScore } from '../RoundScore';
 
 const AUDIO_MODE = LISTENING_MODE;
 
@@ -122,9 +123,8 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
     const { right, asked } = roundScore(round);
     return (
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
-        <Card style={{ alignItems: 'center', gap: space.xs, paddingVertical: space.xl }}>
-          <Text accessibilityRole="header" style={{ ...type.largeTitle, color: c.accent, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked}`}</Text>
-          <Text style={{ ...type.subhead, color: c.textSecondary }}>right the first time</Text>
+        <Card style={{ paddingVertical: space.xl }}>
+          <RoundScore right={right} asked={asked} what="right the first time" />
         </Card>
         <Button label="Done" onPress={onDone} />
       </ScrollView>

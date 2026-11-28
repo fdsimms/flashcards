@@ -5,7 +5,7 @@ import { ApiError, type Api, type StoryListItem } from '../../reader/api';
 import { WorkingMark } from '../WorkingMark';
 import { storyNext, storyPlace, storyWriting } from '../../reader/stories';
 import { haptic } from '../haptics';
-import { Divider, ErrorNote, Group, Help, Icon, Screen, SectionTitle } from '../kit';
+import { Divider, EmptyState, ErrorNote, Group, Icon, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
 import { readable, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
@@ -79,7 +79,7 @@ export function ReadStories({ api, onStory, onNew }: {
               <Group>
                 {running.map((s, i) => <StoryRow key={s.id} story={s} first={i === 0} onPress={() => onStory(s.id)} />)}
               </Group>
-            ) : <Help>No series is running. Tap + to start one.</Help>}
+            ) : <EmptyState icon="books.vertical" title="No series is running" body="Tap + to start one." />}
             {ended.length > 0 ? (
               <View style={{ gap: space.s, paddingTop: space.m }}>
                 <SectionTitle>Ended</SectionTitle>

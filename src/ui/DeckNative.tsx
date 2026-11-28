@@ -10,6 +10,7 @@ import { mediaFileUri } from '../media/mediaFiles';
 import type { Api, NativeRecordingFound } from '../reader/api';
 import { useApp } from './AppContext';
 import { Button, ErrorNote, Group, Help, Icon, Loading, Screen, SwitchRow, Tappable } from './kit';
+import { haptic } from './haptics';
 import { radius, readable, space, type, useTheme } from './theme';
 import { useOutputWake } from './useOutputWake';
 
@@ -139,9 +140,10 @@ export function DeckNative({ deck, api, recorder }: { deck: string; api: Api; re
                 {state.rows.map((row, i) => (
                   <View key={row.noteId} style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: space.l }}>
                     <Tappable
-                      onPress={() => void play(row)}
+                      onPress={() => { haptic.tap(); void play(row); }}
                       accessibilityRole="button"
                       accessibilityLabel={`Play ${row.word}`}
+                      hitSlop={space.xs}
                       style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Icon name="play.fill" size={13} color={c.accent} />

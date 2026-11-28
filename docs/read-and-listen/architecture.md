@@ -1994,6 +1994,17 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
   the app can show as is.
 - The production app is built by `uvicorn --factory franki_reader.app:production_app`, so importing the
   module opens no database.
+- **What Claude wrote is reviewed through `/api/audit/*`, never through the app's own routes**
+  (28 November 2026, the owner: everything stored that Claude writes should be readable by the MCP).
+  The audit routes cover texts of any status (dropped drafts and skipped texts included) with every
+  answer asked about their lines, audio lessons with their script and marks, grammar pages (Your
+  topics and the points' lessons), and the practice caches (drills, sentences, the vocabulary check,
+  meanings). They only read, because the app's routes for the same things don't:
+  `GET /api/grammar/{id}/lesson` writes a lesson that's missing and records its examples, and
+  `GET /api/lessons` listens to old lessons for their pauses. `audit.py` holds them; the MCP's
+  `reader.py` has a tool for each. What the phone alone keeps (crams, Situations' conversations,
+  Ask Claude about a card) and what nobody keeps (the production checks, Fix with Claude) stay out
+  of reach.
 
 ## Status
 

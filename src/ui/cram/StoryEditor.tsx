@@ -6,7 +6,7 @@ import type { Language, WritingCheck } from '../../reader/api';
 import { talkTextStyle, type TextSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Help } from '../kit';
+import { Button, Card, ErrorNote, Field, Help } from '../kit';
 import { space, type, useTheme } from '../theme';
 
 /**
@@ -85,7 +85,7 @@ export function StoryEditor({ story, language, size, check, onSave, onCancel }: 
       )}
       {problem ? (
         <>
-          <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text>
+          <ErrorNote message={problem} />
           <Button variant="secondary" label="Save without checking" disabled={busy || !text} onPress={() => void keep({ text, english: '' })} />
         </>
       ) : null}

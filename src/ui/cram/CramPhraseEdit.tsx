@@ -7,7 +7,7 @@ import { failureText } from '../../core/failure';
 import { ROMANIZED_LESSON_LANGUAGES } from '../../core/lessonWords';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Field, Help, Loading, Screen } from '../kit';
+import { Button, ErrorNote, Field, Help, Loading, Screen } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -30,6 +30,8 @@ export function CramPhraseEdit({ repo, id, text, onDone }: { repo: NoteStore; id
   const [english, setEnglish] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string>();
+  /** A failure, shown as an ErrorNote; `problem` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
 
   if (!cram || !collection.loaded) return <Screen title="Edit phrase" largeTitle={false}><Loading /></Screen>;
   if (!phrase) {
@@ -49,14 +51,14 @@ export function CramPhraseEdit({ repo, id, text, onDone }: { repo: NoteStore; id
       return;
     }
     setSaving(true);
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
     haptic.tap();
     try {
       await saveCram(repo, withPhraseEdited(now, phrase.text, next));
       haptic.success();
       onDone();
     } catch (e) {
-      setProblem(failureText(e, { what: "Couldn't save the phrase.", next: 'Try again.' }));
+      setFailed(failureText(e, { what: "Couldn't save the phrase.", next: 'Try again.' }));
     } finally {
       setSaving(false);
     }
@@ -71,6 +73,7 @@ export function CramPhraseEdit({ repo, id, text, onDone }: { repo: NoteStore; id
         ) : null}
         <Field label="English" value={nextEnglish} onChangeText={setEnglish} multiline />
         {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+        {failed ? <ErrorNote message={failed} /> : null}
       </ScrollView>
     </Screen>
   );

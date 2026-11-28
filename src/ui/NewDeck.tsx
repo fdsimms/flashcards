@@ -7,7 +7,7 @@ import { NOTE_LANGUAGES, noteLanguageOfDeck } from '../core/cards';
 import { failureText } from '../core/failure';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Field, Help, Screen, Select, SwitchRow } from './kit';
+import { Button, Card, ErrorNote, Field, Help, Screen, Select, SwitchRow } from './kit';
 import { backToDecks } from './leaveScreen';
 import { readable, space, type, useTheme } from './theme';
 
@@ -29,13 +29,15 @@ export function NewDeck() {
   const [picked, setPicked] = useState<string>();
   const [bothWays, setBothWays] = useState(false);
   const [problem, setProblem] = useState<string>();
+  /** A failure, shown as an ErrorNote; `problem` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
   const [busy, setBusy] = useState(false);
   const language = picked ?? noteLanguageOfDeck(name) ?? '';
 
   const make = async () => {
     if (busy) return;
     setBusy(true);
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
     try {
       const deck = await createDeck(repo, name, () => refreshFromKeptCollection(repo));
       const settings = (await repo.listDeckSettings()).get(deck) ?? {};
@@ -44,7 +46,8 @@ export function NewDeck() {
       await refresh();
       backToDecks(router);
     } catch (e) {
-      setProblem(e instanceof DeckRefused ? e.message : failureText(e, { what: "Couldn't create the deck.", next: 'Try again.' }));
+      if (e instanceof DeckRefused) setProblem(e.message);
+      else setFailed(failureText(e, { what: "Couldn't create the deck.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
@@ -62,13 +65,14 @@ export function NewDeck() {
       footer={(
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {failed ? <ErrorNote message={failed} /> : null}
           <Button label="Make deck" onPress={() => void make()} busy={busy} disabled={!name.trim()} />
         </>
       )}
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={{ ...readable, padding: space.l, gap: space.l }}>
         <Card>
-          <Field label="Name" value={name} onChangeText={(v) => { setName(v); setProblem(undefined); }} placeholder="e.g. Spanish" autoFocus returnKeyType="done" error={!!problem} />
+          <Field label="Name" value={name} onChangeText={(v) => { setName(v); setProblem(undefined); setFailed(undefined); }} placeholder="e.g. Spanish" autoFocus returnKeyType="done" error={!!problem} />
           <Help>To put it inside another deck, use "::", e.g. Spanish::Verbs.</Help>
         </Card>
         <Card>

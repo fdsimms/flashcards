@@ -181,7 +181,7 @@ docs/        Read & Listen's design
 tests/       vitest, mirroring src/; tests/fixtures/anki holds a collection and package Anki wrote
 ```
 
-The study day starts at 4 AM, as in Anki, so a late-night session counts toward the day before. Rules for working in the repo are in `CLAUDE.md`.
+The study day starts at 4 AM, as in Anki, so a late-night session counts toward the day before. Settings, Decks and cards, **Scheduling** changes that hour and the rest of Anki's collection-wide scheduling preferences: the learn ahead limit, the session time limit, whether new cards count toward the review limit, whether parent decks' limits apply, and the load balancer. They're written into the Anki collection, so every device follows after a sync. In a deck's **Anki options**, saving a new desired retention asks whether to reschedule the cards it reaches, as Anki's "Reschedule cards on change" does. Rules for working in the repo are in `CLAUDE.md`.
 
 ## Not built yet
 

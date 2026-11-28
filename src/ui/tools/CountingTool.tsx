@@ -9,16 +9,16 @@ import type { Phrase } from '../../tools/phrase';
 import { toolPrefs } from '../../tools/storage';
 import { COUNTING, toolLanguage } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable } from '../kit';
+import { answerLook, Button, Icon, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
 import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
 import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
-import { withThaiLineHeight } from '../../core/script';
+import { romanLanguage, withThaiLineHeight } from '../../core/script';
 
 const MODES: { value: CountMode; label: string }[] = [{ value: 'say', label: 'Say it' }, { value: 'pick', label: 'Pick' }];
 
@@ -125,7 +125,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 48, fontVariant: ['tabular-nums'], color: c.text }}>{question?.n}</Text>
         {noun ? <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
       </View>
-      {noun?.cue.roman ? <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
+      {noun?.cue.roman ? <Text accessibilityLanguage={romanLanguage(noun.cue.roman, LANGUAGES[language].speech)} style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
       {noun ? <Text style={{ ...type.subhead, color: c.text }}>{nounGloss(noun)}</Text> : null}
     </View>
   );
@@ -224,13 +224,13 @@ function Choices({ speech, choices, correct, picked, byReading, onChoose }: {
             accessibilityState={{ selected: picked?.index === i, disabled: answered }}
             scaleTo={0.98}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s, backgroundColor: isRight ? c.goodFill : isWrong ? c.dangerFill : c.surface,
-              borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
+              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s,
+              ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
             }}
           >
             <View style={{ flex: 1, gap: space.xs }}>
               <Text accessibilityLanguage={speech} style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
-              {answered && p.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
+              {answered && p.roman ? <Text accessibilityLanguage={byReading ? speech : romanLanguage(p.roman, speech)} style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
             </View>
             {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}

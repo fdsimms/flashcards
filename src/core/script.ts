@@ -6,6 +6,14 @@ export const hasThai = (text: string): boolean => /[\u0E00-\u0E7F]/.test(text);
 /** True when `text` contains Cyrillic script, whose letters run wide enough that an example sentence takes a smaller size. */
 export const hasCyrillic = (text: string): boolean => /[Ѐ-ӿ]/.test(text);
 
+/**
+ * The language tag for a word's `roman` line: the language's own (`speech`) when the line is in its
+ * script (Japanese's reading in kana), and none when it is a romanization in Latin letters, which
+ * VoiceOver should read as English and which takes the app's font rather than the language's.
+ */
+export const romanLanguage = (roman: string, speech: string | undefined): string | undefined =>
+  /[^\p{Script=Latin}\p{M}\p{N}\p{P}\p{S}\s]/u.test(roman) ? speech : undefined;
+
 /** How large Thai text is drawn on a card: one setting for every deck, this phone's own. */
 export type ThaiTextSize = 'normal' | 'large' | 'larger' | 'largest';
 

@@ -67,6 +67,7 @@ export function PhraseAskField({ asking, followUp, onSend }: { asking: boolean; 
         disabled={!ready}
         accessibilityRole="button"
         accessibilityLabel="Send question"
+        hitSlop={space.xs}
         scaleTo={0.92}
         style={{ width: MIN_TAP - space.s, height: MIN_TAP - space.s, borderRadius: radius.pill, backgroundColor: ready ? c.accent : c.fill, alignItems: 'center', justifyContent: 'center' }}
       >

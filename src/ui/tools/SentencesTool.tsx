@@ -17,7 +17,7 @@ import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import type { ToolScreenProps } from './index';
 import { MarkButtons, PracticeCard, useSwipeSetting } from './PracticeCard';
-import { RoundRing } from './RoundRing';
+import { RoundScore } from '../RoundScore';
 import { ToolScreen, useAnswer, useToolLanguage } from './ToolScreen';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
 
@@ -132,11 +132,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
         onMark={() => {}}
         front={(
           <View style={{ gap: space.l, width: '100%' }}>
-            <View style={{ alignItems: 'center', gap: space.s }}>
-              <Text style={{ ...type.overline, color: c.textSecondary }}>End of the round</Text>
-              <RoundRing right={score.right} asked={score.asked} />
-              <Text style={{ ...type.body, color: c.text }}>right the first time</Text>
-            </View>
+            <RoundScore heading="End of the round" right={score.right} asked={score.asked} what="right the first time" />
             <RoundSegments total={total} round={round} />
             {missed.length ? (
               <View style={{ gap: space.s, borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.m }}>
@@ -187,7 +183,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                 <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, fontWeight: '600', color: c.accentInk }}>{parts ? prompt.word : `${prompt.word} · ${prompt.meaning}`}</Text>
               </View>
             ) : (
-              <Tappable onPress={() => { haptic.tap(); setHint(true); }} accessibilityRole="button" accessibilityLabel="Hint: the word in the sentence" scaleTo={0.96} style={{ minHeight: 34, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, borderWidth: 1, borderColor: c.accent }}>
+              <Tappable onPress={() => { haptic.tap(); setHint(true); }} accessibilityRole="button" accessibilityLabel="Hint: the word in the sentence" hitSlop={{ top: 5, bottom: 5 }} scaleTo={0.96} style={{ minHeight: 34, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, borderWidth: 1, borderColor: c.accent }}>
                 <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Hint</Text>
               </Tappable>
             )}

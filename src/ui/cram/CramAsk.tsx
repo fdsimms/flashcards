@@ -5,8 +5,8 @@ import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../.
 import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Icon, Tappable } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Button, Card, ErrorNote, Icon, Tappable } from '../kit';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { CandidateChips } from './CramBits';
 import { withThaiLineHeight } from '../../core/script';
 
@@ -133,7 +133,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
           <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sentText(sent.words, sent.held, approved, ready.length)}</Text>
         </View>
         {approve ? ready.map((n) => <Button key={n.entry} label={ready.length === 1 ? 'Review and add' : `Review and add ${n.entry}`} onPress={() => void review(n)} disabled={busy} />) : null}
-        {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
+        {wrong ? <ErrorNote message={wrong} /> : null}
       </Card>
     );
   }
@@ -163,7 +163,8 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
                 accessibilityState={{ checked: on, disabled: busy }}
                 accessibilityLabel={[cand.text, cand.reading, cand.english, ...candidateChips(cand).map((x) => x.label)].filter(Boolean).join(', ')}
                 scaleTo={0.98}
-                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+                // The border is always there, clear when not picked, so picking a card doesn't shift its text.
+                style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, ...smooth, borderWidth: 2, borderColor: on ? c.accent : 'transparent', padding: space.m - 2 }}
               >
                 <View style={{ paddingTop: 4 }}>
                   <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
@@ -180,8 +181,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
           <Text style={{ ...type.footnote, color: c.textSecondary }}>How common a word is and how it is said are Claude's judgment, not a dictionary's.</Text>
         </>
       )}
-      {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
-      {wrong && !list ? <Button variant="secondary" label="Try again" onPress={() => void find()} /> : null}
+      {wrong ? <ErrorNote message={wrong} onRetry={list ? undefined : () => void find()} /> : null}
     </Card>
   );
 }
