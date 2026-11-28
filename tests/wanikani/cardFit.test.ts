@@ -6,11 +6,11 @@ const part = (chars: number, meaningChars: number) => ({ chars, meaningChars });
 const six = [part(1, 6), part(1, 7), part(1, 6), part(1, 5), part(1, 4), part(1, 7)];
 
 /** A vocabulary word's reading answer, as in the keyboard-up screenshot (市, し). */
-const reading: FitShape = { frontChars: 1, details: true, parts: [], meaning: null, readings: [{ label: 7, chars: 1, primary: true }] };
+const reading: FitShape = { frontChars: 1, details: true, parts: [], meaning: null, readings: [{ label: 7, chars: 1, asked: false }] };
 /** A kanji's reading answer with all three reading types. */
 const threeReadings: FitShape = {
   frontChars: 1, details: true, parts: [], meaning: null,
-  readings: [{ label: 8, chars: 2, primary: true }, { label: 8, chars: 1, primary: false }, { label: 6, chars: 2, primary: false }],
+  readings: [{ label: 8, chars: 2, asked: true }, { label: 8, chars: 1, asked: false }, { label: 6, chars: 2, asked: false }],
 };
 /** The largest meaning answer: six parts, other meanings and the learner's synonyms. */
 const worst: FitShape = { frontChars: 6, details: true, parts: six, meaning: { primary: 22, others: 20, synonyms: 21 }, readings: [] };
@@ -97,7 +97,7 @@ describe('fitShape', () => {
     const read = fitShape(subject, parts, { showMeaning: false, showReading: true, synonyms: [] });
     expect(read.parts).toEqual([]);
     expect(read.meaning).toBeNull();
-    expect(read.readings).toEqual([{ label: 7, chars: 2, primary: true }]);
+    expect(read.readings).toEqual([{ label: 7, chars: 2, asked: false }]);
   });
 
   it('is front-only before the answer shows', () => {
