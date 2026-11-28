@@ -10,7 +10,7 @@ import { hasSlow } from '../../reader/prefs';
 import { prefs, savePrefs } from '../../reader/storage';
 import { saidAs } from '../../reader/wordAudio';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
+import { answerLook, Button, Card, Chip, Help, Icon, ProgressBar, Segments, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import { PlayPill } from '../PlayButton';
 import { useSoundingButton, useTrackedPlayer } from '../useSoundingButton';
@@ -149,9 +149,7 @@ export function ReaderCheck({ api, text, questions, picks, textStyle, onPick, on
                 scaleTo={0.98}
                 style={{
                   minHeight: MIN_TAP, justifyContent: 'center', gap: space.xs, paddingHorizontal: space.l, paddingVertical: under === null ? space.m : space.s,
-                  borderRadius: radius.m, ...smooth,
-                  backgroundColor: right ? c.goodFill : wrongPick ? c.dangerFill : c.surface,
-                  borderColor: mark ?? c.border, borderWidth: mark ? 1 : hairline,
+                  ...answerLook(c, right ? 'right' : wrongPick ? 'wrong' : 'open'),
                   opacity: answered && !mark ? 0.5 : 1,
                 }}
               >

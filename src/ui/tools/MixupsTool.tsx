@@ -7,9 +7,9 @@ import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { MIXUP_MODES, mixupQuestion, mixupSet, nextMixup, type MixupMode, type MixupQuestion, type MixupSet, type MixupWord } from '../../tools/mixups';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
+import { answerLook, type AnswerState, Button, Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { MIN_TAP, space, type, useTheme } from '../theme';
 import { useLanguageFont } from '../AppFont';
 import { useWordAudio } from '../useWordAudio';
 import type { ToolScreenProps } from './index';
@@ -195,13 +195,11 @@ export function MixupsTool({ tool, repo, params }: ToolScreenProps) {
 /** One choice: the word, and once answered its romanization and meaning, marked right or wrong, with a play button. */
 function Choice({ word, state, onPress, onPlay }: {
   word: MixupWord;
-  state: 'open' | 'right' | 'wrong' | 'other';
+  state: AnswerState;
   onPress: () => void;
   onPlay?: () => void;
 }) {
   const c = useTheme();
-  const marked = state === 'right' || state === 'wrong';
-  const tint = state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border;
   const font = useLanguageFont(word.language);
   const wordStyle = { ...(hasThai(word.word) ? { ...thaiTextStyle('large'), fontSize: 26 } : { ...type.title, fontWeight: '400' as const }), ...japaneseFont(word.word, word.language, font) };
   return (
@@ -214,8 +212,7 @@ function Choice({ word, state, onPress, onPlay }: {
       scaleTo={0.98}
       style={{
         flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + 16, paddingHorizontal: space.l, paddingVertical: space.s,
-        backgroundColor: state === 'right' ? c.goodFill : state === 'wrong' ? c.dangerFill : c.surface,
-        borderRadius: radius.m + 2, ...smooth, borderWidth: marked ? 1.5 : hairline, borderColor: tint,
+        ...answerLook(c, state),
       }}
     >
       {state === 'right' ? <Icon name="checkmark.circle.fill" size={20} color={c.countDue} /> : null}

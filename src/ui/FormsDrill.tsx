@@ -9,9 +9,9 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
+import { answerLook, Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
 import { Reveal } from './motion';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { TranslationRow } from './TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
@@ -337,7 +337,6 @@ function choiceState(choice: string, prompt: FormPrompt, current?: Answered): Ch
 
 export function ChoiceButton({ label, state, onPress, speech }: { label: string; state: ChoiceState; onPress: () => void; /** The language's speech tag, so the choice draws in its font. */ speech?: string }) {
   const c = useTheme();
-  const border = state === 'right' ? c.good : state === 'wrongPick' ? c.danger : c.border;
   return (
     <Tappable
       onPress={onPress}
@@ -347,8 +346,8 @@ export function ChoiceButton({ label, state, onPress, speech }: { label: string;
       restOpacity={state === 'other' ? 0.6 : 1}
       style={{
         flexBasis: '48%', flexGrow: 1, minHeight: 64, paddingHorizontal: space.m, paddingVertical: space.m,
-        flexDirection: 'row', gap: space.s, alignItems: 'center', justifyContent: 'center', borderRadius: radius.m, ...smooth,
-        borderWidth: state === 'open' || state === 'other' ? hairline : 2, borderColor: border, backgroundColor: c.surface,
+        flexDirection: 'row', gap: space.s, alignItems: 'center', justifyContent: 'center',
+        ...answerLook(c, state === 'right' ? 'right' : state === 'wrongPick' ? 'wrong' : 'open'),
       }}
     >
       {state === 'right' ? <Icon name="checkmark" size={18} color={c.good} weight="bold" /> : null}

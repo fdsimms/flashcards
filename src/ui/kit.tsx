@@ -22,7 +22,7 @@ import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
 import { Hoverable } from './hover';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The shared pieces every screen is built from, so a header, a button or a card looks the same
@@ -857,6 +857,22 @@ export function ProgressBar({ value, label = 'Progress through this session', st
       <Animated.View style={{ height: '100%', borderRadius: radius.pill, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
     </View>
   );
+}
+
+/** Where an answer choice stands: not answered yet, the right one, the one picked wrongly, or another after answering. */
+export type AnswerState = 'open' | 'right' | 'wrong' | 'other';
+
+/**
+ * The box of a quiz's answer choice, spread into its style: the same in every quiz, a pill grid or
+ * a list of rows. The right answer is tinted green and the wrong pick red. The border is the same
+ * width in every state, so answering doesn't shift the choice's text.
+ */
+export function answerLook(c: Colors, state: AnswerState) {
+  return {
+    borderRadius: radius.m + 2, ...smooth, borderWidth: 1.5,
+    backgroundColor: state === 'right' ? c.goodFill : state === 'wrong' ? c.dangerFill : c.surface,
+    borderColor: state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border,
+  } as const;
 }
 
 /**

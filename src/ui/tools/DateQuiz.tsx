@@ -7,8 +7,8 @@ import type { CalendarDate, DateParts, DateSaying } from '../../tools/date';
 import { acceptedForms, dateOptions, quizCalendarStart, sameDate, usualSpelling, type DateMode, type DateOption } from '../../tools/dateQuiz';
 import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
-import { Field, Icon, Tappable } from '../kit';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { answerLook, Field, Icon, Tappable } from '../kit';
+import { space, type, useTheme } from '../theme';
 import { CalendarMonth, dateLabel, dateWords } from './CalendarMonth';
 import { RuleLine, Status, Ways } from './ToolScreen';
 import { withThaiLineHeight } from '../../core/script';
@@ -238,7 +238,6 @@ export function PickChoices({ quiz }: { quiz: DateQuiz }) {
       {quiz.options.map((o, i) => {
         const isRight = answered && i === quiz.correct;
         const isWrong = quiz.picked === i && i !== quiz.correct;
-        const border = isRight ? c.countDue : isWrong ? c.danger : c.border;
         return (
           <Tappable
             key={o.phrase.text}
@@ -249,8 +248,8 @@ export function PickChoices({ quiz }: { quiz: DateQuiz }) {
             accessibilityState={{ selected: quiz.picked === i, disabled: answered }}
             scaleTo={0.98}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s, backgroundColor: isRight ? c.goodFill : isWrong ? c.dangerFill : c.surface,
-              borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: border,
+              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s,
+              ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
             }}
           >
             <View style={{ flex: 1, gap: space.xs }}>

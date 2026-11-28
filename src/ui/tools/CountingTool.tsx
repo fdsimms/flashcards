@@ -9,9 +9,9 @@ import type { Phrase } from '../../tools/phrase';
 import { toolPrefs } from '../../tools/storage';
 import { COUNTING, toolLanguage } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable } from '../kit';
+import { answerLook, Button, Icon, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
-import { hairline, radius, smooth, space, type, useTheme } from '../theme';
+import { space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
 import { PracticeCard, SayFooter, useSwipeSetting } from './PracticeCard';
 import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage, useToolPref } from './ToolScreen';
@@ -224,8 +224,8 @@ function Choices({ speech, choices, correct, picked, byReading, onChoose }: {
             accessibilityState={{ selected: picked?.index === i, disabled: answered }}
             scaleTo={0.98}
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s, backgroundColor: isRight ? c.goodFill : isWrong ? c.dangerFill : c.surface,
-              borderRadius: radius.m + 2, ...smooth, borderWidth: isRight || isWrong ? 1.5 : hairline, borderColor: isRight ? c.countDue : isWrong ? c.danger : c.border,
+              flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 52, paddingHorizontal: space.m, paddingVertical: space.s,
+              ...answerLook(c, isRight ? 'right' : isWrong ? 'wrong' : 'open'),
             }}
           >
             <View style={{ flex: 1, gap: space.xs }}>
