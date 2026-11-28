@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WritingCheck } from '../../src/reader/api';
-import { asksAnotherTry, verdictLine, wordsToUse } from '../../src/reader/production';
+import { asksAnotherTry, checksBeforeShowing, verdictLine, wordsToUse } from '../../src/reader/production';
+import { compareTyped } from '../../src/core/typedCompare';
 
 const check = (over: Partial<WritingCheck>): WritingCheck => ({ verdict: 'almost', corrected: 'x', english: 'x', notes: ['one'], ...over });
 
@@ -32,6 +33,17 @@ describe('wordsToUse', () => {
       { noteId: 'gone', wasNew: true },
     ];
     expect(wordsToUse(answers, (id) => words[id]).map((w) => w.word)).toEqual(['kot', 'narzędzie']);
+  });
+});
+
+describe('checksBeforeShowing', () => {
+  const sentence = 'Die Verletzung ist schnell geheilt.';
+  it('asks first when the words differ, which can still be right', () => {
+    expect(checksBeforeShowing('Die Verletzung heilte schnell.', compareTyped(sentence, 'Die Verletzung heilte schnell.'))).toBe(true);
+  });
+  it('shows the sentence at once for nothing typed, or its own words', () => {
+    expect(checksBeforeShowing('  ', compareTyped(sentence, '  '))).toBe(false);
+    expect(checksBeforeShowing('die verletzung ist schnell geheilt', compareTyped(sentence, 'die verletzung ist schnell geheilt'))).toBe(false);
   });
 });
 
