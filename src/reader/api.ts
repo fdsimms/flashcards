@@ -566,7 +566,8 @@ export type DifficultyLevel = 'harder' | 'standard' | 'easier';
 export type InputTime = { days: number; languages: { language: Language; reading_seconds: number; listening_seconds: number; last_read_at: string | null }[] };
 
 // A line from a text read that uses a card's word (server reading_lines.py), for the card's answer side.
-export type ReadingLine = { text_id: number; title: string; line: string; english: string };
+/** `word`: the word as the line has it, to mark there; missing from a server older than it. */
+export type ReadingLine = { text_id: number; title: string; line: string; english: string; word?: string };
 
 export type Progress = {
   days: number;
@@ -921,7 +922,10 @@ export function createApi(
     relisten: (listens: 0 | 1 | 3 = 3) => call<PastText[]>('GET', `/api/relisten?listens=${listens}`),
     // A finished text was heard again, through to its last line. Only counted: no reading, no difficulty change.
     // `key` is this listen's own id (`listenKey`), sent again with it if it's held and resent, so the server counts it once.
-    logListen: (textId: number, key?: string) => call<void>('POST', `/api/texts/${textId}/listen`, key ? { key } : undefined),
+    // `seconds` is how long it played, for the week's listening time (undefined for one held before it was kept).
+    logListen: (textId: number, seconds: number | undefined, key?: string) => call<void>('POST', `/api/texts/${textId}/listen`, {
+      ...(seconds === undefined ? {} : { seconds: Math.min(86_400, Math.max(0, Math.round(seconds))) }), ...(key ? { key } : {}),
+    }),
     // The text difficulty for the current language, from the next text written (reader/difficulty.ts); answers with `next` as progress does.
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
@@ -951,6 +955,12 @@ export function createApi(
     podcastSearch: (language: GlossLanguage, term: string) =>
       call<Schemas['SearchOut']>('GET', `/api/podcasts/search?language=${language}&term=${encodeURIComponent(term)}`),
     podcastEpisodes: (link: string) => call<PodcastEpisodes>('POST', '/api/podcasts/episodes', { link }),
+    // An episode with no transcript, transcribed by Azure in the background (its price is the episode's `transcribe_usd`),
+    // then asked about until it's ready.
+    transcribePodcast: (language: GlossLanguage, feed: string, guid: string) =>
+      call<Schemas['TranscriptStateOut']>('POST', '/api/podcasts/transcribe', { language, feed, guid }),
+    podcastTranscript: (feed: string, guid: string) =>
+      call<Schemas['TranscriptStateOut']>('GET', `/api/podcasts/transcript?feed=${encodeURIComponent(feed)}&guid=${encodeURIComponent(guid)}`),
     podcastPreview: (language: GlossLanguage, feed: string, guid: string) => call<PodcastPreview>('POST', '/api/podcasts/preview', { language, feed, guid }),
     addPodcast: (language: GlossLanguage, feed: string, guid: string) => call<Schemas['PodcastAddedOut']>('POST', '/api/podcasts', { language, feed, guid }),
     // The reader's language's stories, running first, then ended.

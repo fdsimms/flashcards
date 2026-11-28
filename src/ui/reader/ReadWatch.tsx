@@ -17,6 +17,7 @@ import { useReadingFont } from './useReadingFont';
 import { useReaderPlayerHost } from '../useReaderPlayer';
 import { EpisodePane } from './EpisodePane';
 import { VideoPane, type Media } from './VideoPane';
+import { recordExtraRead } from '../../tools/extrasStorage';
 
 /**
  * Watch (docs/read-and-listen/architecture.md, "Videos" and "Podcasts"): a text made from a YouTube
@@ -118,6 +119,9 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
         listen_only: false,
         seconds: Math.round((Date.now() - opened.current) / 1000),
       });
+      // Today's plan's Watch item and Daily extras' read: a video or an episode finished counts as a text read.
+      const read = spokenLanguage(text.language);
+      if (read) recordExtraRead(read);
       haptic.success();
       onDone();
     } catch (e) {

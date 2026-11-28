@@ -11,9 +11,10 @@ saves the note, as it does for any note (src/core/recording.ts). Nothing here cr
 grades a card. A word that has been filled in waits in `ready` until the owner opens it in the note
 editor in the app, where saving is the approval.
 
-The owner can type a word the way it sounds (in Latin letters for Russian or Thai, or misspelled):
-Claude gives the word it most likely stands for as its `spelling`, which the fields are written for, and
-the other words it could be as `alternatives`, so the app can ask which one was meant (`Spelled`).
+The owner can type a word the way it sounds (in Latin letters for Russian or Thai, or misspelled), or
+in an inflected form (ταξιδέψουμε): Claude gives the word it most likely stands for, in its dictionary
+form (`languages.citation_form`), as its `spelling`, which the fields are written for, and the other
+words it could be as `alternatives`, so the app can ask which one was meant (`Spelled`).
 
 Generate, then verify: a word is kept only if it was asked for and its fields pass the checks below.
 Anything else is marked failed with the reason, never repaired. Words go to Claude a batch at a time,
@@ -37,7 +38,7 @@ from franki_speech.thai_romanization import THAI_SCHEME, is_toneless, letters_wr
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import MODEL, Usage, usage_of
-from franki_reader.languages import LANGUAGES, Code, Gender
+from franki_reader.languages import LANGUAGES, Code, Gender, citation_form
 
 log = logging.getLogger(__name__)
 
@@ -312,8 +313,9 @@ For each entry below, give:
 - entry: the entry exactly as listed
 - spelling: the word as it's written in {language}, in its own alphabet or script. The learner may type \
 a word the way it sounds: in Latin letters, romanized loosely, or misspelled. Then give the word it most \
-likely stands for (the one that matches the learner's meaning, when there is one). Otherwise the entry \
-exactly as listed
+likely stands for (the one that matches the learner's meaning, when there is one). Write it in \
+{citation}. An entry that is a form of a word is given as that word, and a phrase stays a phrase. \
+Otherwise the entry exactly as listed
 - alternatives: when the entry is romanized or misspelled and could stand for more than one word, the \
 other words it could be, most likely first, at most three, each with its spelling and its most common \
 meaning in English. An empty list otherwise, and always when the entry came with a meaning from the \
@@ -452,6 +454,7 @@ def request_message(language: Code, asked: list[tuple[str, str]]) -> str:
         transliteration = "an empty string"
     return _REQUEST.format(
         language=name,
+        citation=citation_form(language),
         romanization=(
             "the sentence in the scheme below, with its tone marks on every syllable that has one\n"
             f"{_THAI_SCHEME}"
@@ -609,7 +612,7 @@ def checked(
 @dataclass(frozen=True)
 class Spelled:
     """What a typed entry stands for: its spelling when that isn't the entry as typed (a word typed in
-    Latin letters, romanized or misspelled), else empty, and the other words it could be, as
+    Latin letters, romanized, misspelled or inflected), else empty, and the other words it could be, as
     {"spelling", "meaning"}. The app shows both when the note opens, and asks which word was meant."""
 
     spelling: str

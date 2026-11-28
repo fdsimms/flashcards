@@ -20,6 +20,7 @@ import { LoopTextIcon, StartOverIcon } from './PlayerIcons';
 import { LessonTurnPanel } from './LessonTurnPanel';
 import { LessonTurnSettings } from './LessonTurnSettings';
 import { PlayCircle } from '../PlayCircle';
+import { recordPlanItem } from '../../tools/planStorage';
 
 /**
  * A lesson, playing (docs/read-and-listen/architecture.md, Audio lessons): play or pause, skip back
@@ -135,6 +136,8 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     if (!mine || !live.didJustFinish || heardSent.current === lesson.id) return;
     heardSent.current = lesson.id;
     api.lessonHeard(lesson.id).catch(() => undefined);
+    // Today's plan's Listen item (src/tools/plan.ts).
+    recordPlanItem('listen', lesson.language);
   }, [mine, live.didJustFinish, lesson.id]); // eslint-disable-line react-hooks/exhaustive-deps -- `api` is the reader's, stable
   const duration = status.duration > 0 ? status.duration : lesson.duration_ms / 1000;
   const progress = progressOf(status.currentTime, duration);

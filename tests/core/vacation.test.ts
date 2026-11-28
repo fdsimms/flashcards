@@ -82,7 +82,7 @@ describe('the vacation setting', () => {
 
 describe('what a plan does to limits', () => {
   const base = { newPerDay: 20, reviewsPerDay: 200 };
-  const plan = { paused: false, newPerDeck: 1, reviewShare: 0.5, weakestFirst: true };
+  const plan = { paused: false, newPerDeck: 1, reviewShare: 0.5, likeliestFirst: true };
   it('cuts new cards to the count and reviews to the share, never raising a limit', () => {
     expect(scaleLimits(base, plan, { new: false, review: false })).toEqual({ newPerDay: 1, reviewsPerDay: 100 });
     expect(scaleLimits({ newPerDay: 0, reviewsPerDay: 1 }, plan, { new: false, review: false })).toEqual({ newPerDay: 0, reviewsPerDay: 1 });
@@ -91,14 +91,14 @@ describe('what a plan does to limits', () => {
   it("leaves a limit alone that Custom Study set for today, and does nothing without a plan", () => {
     expect(scaleLimits(base, plan, { new: true, review: true })).toEqual(base);
     expect(scaleLimits(base, undefined, { new: false, review: false })).toBe(base);
-    expect(scaleLimits(base, { paused: false, weakestFirst: true }, { new: false, review: false })).toEqual(base);
+    expect(scaleLimits(base, { paused: false, likeliestFirst: true }, { new: false, review: false })).toEqual(base);
   });
 });
 
 describe('the plan from the setting and the cards', () => {
   it('is light or paused while it applies', () => {
-    expect(vacationPlan(light, NOW, H)).toEqual({ paused: false, newPerDeck: 1, reviewShare: 0.5, weakestFirst: true });
-    expect(vacationPlan({ ...light, mode: 'paused' }, NOW, H)).toEqual({ paused: true, weakestFirst: true });
+    expect(vacationPlan(light, NOW, H)).toEqual({ paused: false, newPerDeck: 1, reviewShare: 0.5, likeliestFirst: true });
+    expect(vacationPlan({ ...light, mode: 'paused' }, NOW, H)).toEqual({ paused: true, likeliestFirst: true });
     expect(vacationPlan(undefined, NOW, H)).toBeUndefined();
   });
 
@@ -114,7 +114,7 @@ describe('the plan from the setting and the cards', () => {
 });
 
 describe('a deck under vacation mode', () => {
-  it('offers one new card and half the reviews, weakest first', () => {
+  it('offers one new card and half the reviews', () => {
     const items = [...Array.from({ length: 12 }, (_, i) => review(1 + (i % 10))), ...Array.from({ length: 5 }, fresh)];
     const normal = queueFor(items, undefined, params({ reviewsPerDay: 12 }));
     expect(normal.due).toHaveLength(12);
@@ -124,15 +124,14 @@ describe('a deck under vacation mode', () => {
     expect(q.fresh).toHaveLength(1);
   });
 
-  it('puts the most overdue first, not the oldest due date', () => {
+  it('puts the review likeliest to be remembered first, as catching up afterwards does', () => {
     // Due a day apart, but one was last answered 300 days ago for a 300-day interval and the other
-    // 3 days ago for 2: the second is further past the interval FSRS gives it.
+    // 3 days ago for 2: the first is barely past its interval, the second well past.
     const long = review(9);
     long.card = { ...long.card, sched: { ...long.card.sched, scheduledDays: 300, stability: 300, lastReview: new Date(2026, 10, 9 - 300).toISOString() } };
     const short = review(10);
     short.card = { ...short.card, sched: { ...short.card.sched, scheduledDays: 2, stability: 2, lastReview: new Date(2026, 10, 8).toISOString() } };
-    const q = queueFor([long, short], light, params({ reviewsPerDay: 1 }));
-    expect(q.due.map((c) => c.id)).toEqual([short.card.id]);
+    expect(queueFor([short, long], light, params({ reviewsPerDay: 1 })).due.map((c) => c.id)).toEqual([long.card.id]);
   });
 
   it('with no vacation, catching up puts the review likeliest to be remembered first', () => {

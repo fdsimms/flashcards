@@ -48,6 +48,7 @@ import { ReadRetell } from './ReadRetell';
 import type { LineDrillKind } from '../../reader/lineDrill';
 import { usePhraseDrag } from './usePhraseDrag';
 import { ReadGrammarDial } from './ReadGrammarDial';
+import { ReadNewWordsDial } from './ReadNewWordsDial';
 import { ReadGrammarNote } from './ReadGrammarNote';
 import { ReadFormChip, ReadFormSheet } from './ReadFormSheet';
 import { ReaderFormQuiz } from './ReaderFormQuiz';
@@ -425,7 +426,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text || source.kind !== 'past' || listenLogged.current) return;
     listenLogged.current = true;
     try {
-      await api.logListen(text.id);
+      await api.logListen(text.id, session ? (Date.now() - session.startedAt) / 1000 : undefined);
     } catch {
       // Not counted: it's offered again, which is the better way to be wrong.
     }
@@ -1071,6 +1072,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     onChange={chooseLength}
                   />
                 </View>
+                <ReadNewWordsDial api={api} />
                 <ReadGrammarDial api={api} />
                 {steerError ? <ErrorNote message={steerError} /> : null}
               </Card>

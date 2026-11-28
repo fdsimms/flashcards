@@ -59,3 +59,26 @@ export const hasNewEpisode = (show: RememberedShow, newest: string | undefined):
 
 /** Whether what was typed is a link (a feed or an Apple Podcasts link) rather than words to search for. */
 export const isLink = (text: string): boolean => /^https?:\/\/\S+$/i.test(text.trim());
+
+type ListedEpisode = { published?: string | null; seconds?: number | null; transcript: boolean; transcribe_usd?: number | null };
+
+/** How an episode's price to transcribe is said: "$0.52". */
+export const transcribePrice = (usd: number): string => `$${usd.toFixed(2)}`;
+
+/** An episode's line in the list: when and how long, and, without a transcript, its price to transcribe or that it has none. */
+export function episodeRowDetail(e: ListedEpisode, now: Date): string {
+  const detail = episodeDetail(e, now);
+  if (e.transcript) return detail;
+  const lead = e.transcribe_usd != null ? `Transcribe · ${transcribePrice(e.transcribe_usd)}` : 'No transcript';
+  return detail ? `${lead} · ${detail}` : lead;
+}
+
+/** Whether an episode can be picked: it has a transcript, or it can be transcribed. */
+export const canPick = (e: ListedEpisode): boolean => e.transcript || e.transcribe_usd != null;
+
+/** What the confirmation says before Azure is paid to transcribe an episode. */
+export function transcribeAsk(e: ListedEpisode): string {
+  const price = transcribePrice(e.transcribe_usd ?? 0);
+  const lead = e.seconds ? `${Math.max(1, Math.round(e.seconds / 60))} minutes of audio, about ${price}` : `About ${price}`;
+  return `${lead} with Azure. Then you'll see how much of it you'd understand before adding it. A transcript is made once and kept.`;
+}
