@@ -3037,6 +3037,8 @@ export interface components {
         ListenIn: {
             /** Key */
             key?: string | null;
+            /** Seconds */
+            seconds?: number | null;
         };
         /** MarkIn */
         MarkIn: {

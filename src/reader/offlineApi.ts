@@ -122,7 +122,7 @@ export function withOffline(api: Api, deps: OfflineDeps): Api {
     },
     logReading: (id, log) => sendOrHold({ kind: 'reading', textId: id, log }, () => api.logReading(id, log)),
     // One id for the listen, whether it's sent now or held and sent later (and then maybe twice).
-    logListen: (id, key = listenKey()) => sendOrHold({ kind: 'listen', textId: id, key }, () => api.logListen(id, key)),
+    logListen: (id, seconds, key = listenKey()) => sendOrHold({ kind: 'listen', textId: id, key, seconds }, () => api.logListen(id, seconds, key)),
     // A lesson kept on the phone can be played with no connection: that it was heard waits to be sent.
     lessonHeard: async (id) => {
       const action = { kind: 'lessonHeard' as const, lessonId: id };

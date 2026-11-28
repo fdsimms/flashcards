@@ -44,9 +44,9 @@ export function Vacation() {
               footer={(
                 <Help>
                   {mode === 'off'
-                    ? "For when you're away. Light shows fewer cards, weakest first. Paused shows none. Card schedules don't change, and it only applies in Franki."
+                    ? "For when you're away. Light shows fewer cards, the ones you're likeliest to remember first. Paused shows none. Card schedules don't change, and it only applies in Franki."
                     : mode === 'light'
-                      ? "Each deck shows a few new cards and part of its review limit, weakest first. Cards you're still learning today aren't held back."
+                      ? "Each deck shows a few new cards and part of its review limit, the reviews you're likeliest to remember first. Cards you're still learning today aren't held back."
                       : 'No cards are offered, new or review.'}
                 </Help>
               )}

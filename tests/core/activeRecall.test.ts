@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
+import { asksOwnHook, spokenMiss, typedMiss, typeItAnswer, typeItAnswers } from '../../src/core/activeRecall';
 import { compareTyped, compareTypedAnswer, comparisonLine } from '../../src/core/typedCompare';
 import { newSchedState } from '../../src/core/scheduler';
 import type { Card, Note } from '../../src/core/types';
@@ -49,6 +49,21 @@ describe('typeItAnswers', () => {
   it('takes only the word in another language, and nothing without Type it', () => {
     expect(typeItAnswers(omniNote({ Transliteration: '' }), card('reverse'))).toEqual(['หนังสือ']);
     expect(typeItAnswers(japanese(), card('forward'))).toEqual([]);
+  });
+});
+
+describe('spokenMiss', () => {
+  it('outlines Again only for a spoken answer nothing like the word, never for a mishearing', () => {
+    // Misheard, but most of the word is there: not a miss.
+    expect(spokenMiss(compareTyped('verletzung', 'verletzungen'))).toBe(false);
+    expect(spokenMiss(compareTyped('schmetterling', 'schmetterlinge'))).toBe(false);
+    expect(spokenMiss(compareTyped('pies', 'piec'))).toBe(false);
+    // Another word altogether.
+    expect(spokenMiss(compareTyped('verletzung', 'hund'))).toBe(true);
+    expect(spokenMiss(compareTyped('kot', 'mysz'))).toBe(true);
+    // Right, or nothing heard.
+    expect(spokenMiss(compareTyped('kot', 'Kot'))).toBe(false);
+    expect(spokenMiss(compareTyped('kot', ''))).toBe(false);
   });
 });
 
