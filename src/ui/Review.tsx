@@ -684,14 +684,21 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   }, [quiet.active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The Example sentence's speaker button: the phone's voice for the note's language, at the speed chosen
-  // for it (Settings, Voices). Never the note's recording, which is of the word and not the sentence.
+  // for it (Settings, Voices). Never the note's recording, which is of the word and not the sentence. The
+  // "From" box's line plays its own clip instead, where the note keeps one (SourceAudio) and it's on the phone.
   const speechLang = rendered?.speechLang;
-  const speakSentence = useCallback((text: string) => {
-    if (!speechLang || quiet.active) return;
+  const sourceAudio = rendered?.sourceAudioFile;
+  const speakSentence = useCallback((text: string, fromSource?: boolean) => {
+    if (quiet.active) return;
+    if (fromSource && sourceAudio && mediaFileUri(sourceAudio)) {
+      void speak({ file: sourceAudio });
+      return;
+    }
+    if (!speechLang) return;
     self.stopTake();
     player.current?.pause();
     phoneSpeech.sayLine(text, speechLang, false);
-  }, [speechLang, phoneSpeech, self.stopTake, quiet.active]);
+  }, [speechLang, sourceAudio, speak, phoneSpeech, self.stopTake, quiet.active]);
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown and the preset autoplays (a recording plays instead, in the page), and

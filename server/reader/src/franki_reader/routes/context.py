@@ -84,6 +84,8 @@ class AppContext:
     podcasts: podcast.Podcasts | None
     transcribe: podcast.Transcribe | None
     native_dir: Path | None
+    clip_episode: podcast.ClipEpisode | None
+    clips_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None
     fix_flagged_card: fix_card.FixCard | None

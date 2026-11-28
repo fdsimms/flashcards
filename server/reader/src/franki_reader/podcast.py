@@ -16,6 +16,7 @@ import asyncio
 import ipaddress
 import json
 import re
+import shutil
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -73,6 +74,82 @@ def cues_of(found: Transcription) -> list[Cue]:
 
 class PodcastRefused(ValueError):
     """What can't be done, and why, written for the learner."""
+
+
+# A line of an episode cut out as its own clip (a card's SourceAudio, a shadowed line's pitch line):
+# the episode's address and the line's start and end in milliseconds, giving MP3.
+ClipEpisode = Callable[[str, int, int], Awaitable[bytes]]
+
+# A clip starts and ends a little outside its line, since a cue's times are a transcript's guess.
+CLIP_MARGIN_MS = 150
+# A longer line is cut at this length: a card's clip is one sentence, and the pitch line reads 8 s.
+MAX_CLIP_MS = 20_000
+CLIP_TIMEOUT_SECONDS = 60
+
+
+async def _final_url(client: httpx.AsyncClient, url: str, user_agent: str) -> str:
+    """Where the episode's audio really is, following redirects only to public addresses (as
+    `_read`), so ffmpeg is handed an address already checked."""
+    target = public_url(url)
+    for _ in range(8):
+        async with client.stream(
+            "GET",
+            target,
+            headers={"User-Agent": user_agent, "Range": "bytes=0-0"},
+            timeout=TIMEOUT,
+        ) as r:
+            if r.is_redirect and "location" in r.headers:
+                target = public_url(str(r.url.join(r.headers["location"])))
+                continue
+            if r.status_code not in (200, 206):
+                raise PodcastRefused(
+                    f"The episode's site answered {r.status_code}. Try again later."
+                )
+            return target
+    raise PodcastRefused("The episode's address redirects too many times.")
+
+
+def clip_window(start_ms: int, end_ms: int) -> tuple[float, float]:
+    """Where a line's clip starts in the episode and how long it is, in seconds."""
+    begin = max(0, start_ms - CLIP_MARGIN_MS)
+    stop = min(max(end_ms, start_ms), start_ms + MAX_CLIP_MS) + CLIP_MARGIN_MS
+    return begin / 1000, (stop - begin) / 1000
+
+
+def episode_clipper(client: httpx.AsyncClient, user_agent: str) -> ClipEpisode:
+    """Cuts a line out of an episode with ffmpeg, which seeks into the remote file with range
+    requests rather than downloading the whole episode. The clip comes back as it is in the
+    episode; the route levels it."""
+
+    async def clip(url: str, start_ms: int, end_ms: int) -> bytes:
+        try:
+            final = await _final_url(client, url, user_agent)
+        except httpx.HTTPError as e:
+            raise PodcastRefused("Couldn't reach the episode's site. Try again later.") from e
+        exe = shutil.which("ffmpeg")
+        if exe is None:
+            raise PodcastRefused("ffmpeg isn't installed on the server, so a line can't be cut.")
+        begin, length = clip_window(start_ms, end_ms)
+        proc = await asyncio.create_subprocess_exec(
+            exe,
+            *("-hide_banner", "-nostats", "-loglevel", "error"),
+            *("-user_agent", user_agent, "-ss", f"{begin:.3f}", "-i", final),
+            *("-t", f"{length:.3f}", "-vn", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k"),
+            *("-f", "mp3", "pipe:1"),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            out, err = await asyncio.wait_for(proc.communicate(), CLIP_TIMEOUT_SECONDS)
+        except TimeoutError as e:
+            proc.kill()
+            raise PodcastRefused("Cutting the line from the episode took too long.") from e
+        if proc.returncode != 0 or not out:
+            tail = err.decode(errors="replace").strip().splitlines()[-1:] or ["no message"]
+            raise PodcastRefused(f"Couldn't cut the line from the episode ({tail[0]}).")
+        return out
+
+    return clip
 
 
 @dataclass(frozen=True)

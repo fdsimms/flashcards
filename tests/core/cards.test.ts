@@ -452,6 +452,14 @@ describe('cards', () => {
     expect(renderCard(omniNote(), 'forward').audioFile).toBeUndefined();
   });
 
+  it("names the clip of the line in Source, which isn't the word's recording", () => {
+    const heard = omniNote({ Source: 'Poproszę <b>mleko</b>.<br>Milk, please.<br>Polski z Anią', SourceAudio: '[sound:franki-line-1.mp3]' });
+    const r = renderCard(heard, 'forward');
+    expect(r.sourceAudioFile).toBe('franki-line-1.mp3');
+    expect(r.audioFile).toBeUndefined();
+    expect(renderCard(omniNote(), 'forward').sourceAudioFile).toBeUndefined();
+  });
+
   describe('where the recording plays, as the Omnilanguage templates put {{Audio}}', () => {
     const note = omniNote({ Audio: '[sound:a.mp3]', GenerateReverse: 'y', GenerateAudioCard: 'y' });
     const FILE = 'a.mp3';

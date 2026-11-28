@@ -7677,6 +7677,69 @@
         }
       }
     },
+    "/api/texts/{text_id}/lines/{line}/clip": {
+      "get": {
+        "summary": "Line Clip",
+        "description": "A podcast's line is cut from the episode, leveled, and kept on disk after the first\ntime. A line of a text Read & Listen wrote is its own recording. A video's line has none:\nYouTube's player doesn't let its sound be taken.",
+        "operationId": "line_clip_api_texts__text_id__lines__line__clip_get",
+        "parameters": [
+          {
+            "name": "text_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Text Id"
+            }
+          },
+          {
+            "name": "line",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Line"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/videos/preview": {
       "post": {
         "summary": "Preview",
@@ -9312,6 +9375,52 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HeardIn": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "text_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Id"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^\\S*$",
+            "title": "Tag",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "HeardIn",
+        "description": "Where a word added from a text was heard (store.QueuedHeard): its note's Source, and the\ntext and line its clip is cut from (both left out when the line has none, as a video's)."
       },
       "JournalCheckIn": {
         "properties": {
@@ -11065,6 +11174,16 @@
             "maxLength": 300,
             "title": "Meaning",
             "default": ""
+          },
+          "heard": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeardIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

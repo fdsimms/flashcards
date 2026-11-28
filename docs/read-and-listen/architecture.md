@@ -831,8 +831,19 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   level around the speaker's middle. It compares the take with the recording, not with a textbook shape,
   since real speech bends tones, and says "Pitch not clear enough to say" for a syllable with under
   60 ms of voice in either rather than guessing. Unlike Score it, it names a shape the learner can hear
-  and fix, but it's still a guide: never a score and never a rating. Thai only: Japanese pitch accent and
+  and fix, but it's still a guide: never a score and never a rating. Japanese has its own check (below);
   Norwegian's word tones work differently and would be their own step.
+- **Pitch accent check** (28 November 2026, the owner, from a mock with each recommendation picked;
+  `src/core/pitchAccent.ts`, `src/ui/AccentCheck.tsx`): under a Japanese card's pitch line, the word's
+  kana reading (KanaReading, or a kana Entry) split into morae, small kana joining the one before, for
+  the recording and for the take: a line over each high mora and ꜜ where the pitch drops, then Same or
+  Different. The line is cut into equal stretches, one a mora; the drop is the biggest fall of at least
+  2.5 semitones from one heard mora to the next, and a mora with no voice (っ, a vowel said without
+  voice) is passed over. The highs and lows are drawn from the drop as Tokyo Japanese pairs them. It
+  compares with the recording, as the tone check does, not with an accent dictionary (adding one, e.g.
+  Kanjium's, was offered and left for later). Words of 2 to 8 morae only: longer ones are read too
+  unreliably. The screen says that a word with no drop inside it sounds the same flat or dropping on the
+  particle after it, since the card has only the word. A guide, never a score or a rating.
 
 ## Hosting
 
@@ -1925,6 +1936,51 @@ video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
 - **Playing**: `expo-audio`, with the lock screen's controls (back 15, forward 30) and playing on
   with the screen locked while Watch is open; leaving Watch stops it, and opening Watch stops
   whatever Up Next was playing (`claim`), for videos too.
+
+## The speaker's voice
+
+Decided 28 November 2026, the owner choosing from a mock (a new field, over keeping the clip in
+Source; the rest as recommended). A word added to the deck from a text keeps the line it was met in,
+and the line as it was said (`src/reader/heardLine.ts`).
+
+- **Source holds the line**, as the house style already writes it for a word met somewhere: the
+  line with the tapped word in bold, its translation, and where it's from (a podcast's show and
+  episode, a video's channel and title, a Read & Listen text's title), with a `source::` tag for a
+  show or a channel (`heardTag`, spelled as the MCP's `source_tag`). Watch and the reader both send it,
+  for a phrase selected in the reader too (the owner's choice), as one bold run, when it's within one
+  line: one running across lines has no one line to keep.
+- **SourceAudio holds the clip**, a field of its own added at the end of Omnilanguage with the MCP's
+  `add_field` (the Audio field is the word's own recording). A note type without it keeps the line and
+  no clip, and the note editor says so under Source. The Anki templates don't show it, so Anki and
+  AnkiMobile don't play it on the back; Review's "From" box plays it from its speaker button, in place
+  of the phone's voice (`RenderedCard.sourceAudioFile`).
+- **The clip** (`/api/texts/{id}/lines/{line}/clip`, `routes/clips.py`): a podcast's line is cut from
+  the episode on the show's own site by ffmpeg, which seeks with range requests rather than downloading
+  it (`podcast.episode_clipper`, from a public address only, redirects included), from 150 ms before
+  the line to 150 ms after, at most 20 seconds, leveled, and kept on disk. A Read & Listen text's line
+  is its own recording. A video's line has none: YouTube's player doesn't let its sound be taken.
+- **Fetched once the note is saved**, in the background, so nothing is fetched for a word that isn't
+  (`useLineClip`, `keepLineClip`): Add to deck, a queued word opened from the queue, and Approve all
+  alike. A word sent to the note queue carries where it was heard (`heard`, kept in `note_queue`), and
+  the server puts its Source on the note Claude writes. A clip that can't be had leaves the line, with
+  one alert. Saving a recording and a clip at once take turns (`audioEdits`), since each saves the
+  whole note.
+
+## Shadowing
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. Shadow in
+Watch (`useShadowing.ts`, `ShadowPanel.tsx`, `src/reader/shadow.ts`): each line plays once and stops,
+for the learner to say it back.
+
+- **Tap to record**, Record yourself's own button: the microphone is on only while a take is made, so
+  Bluetooth headphones keep their quality between takes. Line again replays it, Next line goes on, and
+  a line's time plays that line. Loop line is off while it's on.
+- **A podcast's line gets the pitch line**, the take over the speaker's (PitchLine), from the same
+  clip as above, which Compare plays too. A video's line is compared by ear (Both: the line, then the
+  take), since YouTube's player doesn't let its sound be read. The tone and accent checks stay on
+  cards: a single word's can be read reliably, a sentence's not.
+- **A line stops a little past its end** (250 ms), and only once the player has been seen inside it,
+  so the position before a seek isn't taken for the line ending (`shadowTick`). Never a rating.
 
 ## Stories
 

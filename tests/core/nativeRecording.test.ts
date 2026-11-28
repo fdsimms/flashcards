@@ -2,10 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { canKeepNative, hasNative, nativeCandidates, nativeName, nextSpeaker, withNative, withoutNative } from '../../src/core/nativeRecording';
 import { omniNote } from '../support/fixtures';
 
+/** A note of a type made before AudioCredit was added. */
+function withoutCredit(over: Record<string, string> = {}) {
+  const note = omniNote(over);
+  delete note.fields.AudioCredit;
+  return note;
+}
+
 describe('a native recording on a note', () => {
   it('needs an Omnilanguage note with the credit field', () => {
     expect(canKeepNative(omniNote({ AudioCredit: '' }))).toBe(true);
-    expect(canKeepNative(omniNote())).toBe(false);
+    expect(canKeepNative(withoutCredit())).toBe(false);
     expect(canKeepNative({ model: 'Basic', fields: { Front: 'x', AudioCredit: '' } })).toBe(false);
   });
 
@@ -40,7 +47,7 @@ describe("a deck's words to look up", () => {
     const notes = [
       { ...omniNote({ Entry: 'หนังสือ', AudioCredit: '' }), id: 'a' },
       { ...omniNote({ Entry: 'แมว', AudioCredit: 'X (Lingua Libre), CC0' }), id: 'b' },
-      { ...omniNote({ Entry: 'หมา' }), id: 'c' },
+      { ...withoutCredit({ Entry: 'หมา' }), id: 'c' },
     ];
     const got = nativeCandidates(notes, () => true);
     expect(got.candidates.map((c) => [c.noteId, c.word, c.language])).toEqual([['a', 'หนังสือ', 'th']]);

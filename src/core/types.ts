@@ -270,6 +270,11 @@ export interface RenderedCard {
   audioFile?: string;
   audioSide?: 'front' | 'back';
   /**
+   * The clip of the line in Source as it was said (the media file named in SourceAudio,
+   * src/reader/heardLine.ts): the "From" box's speaker button plays it in place of the phone's voice.
+   */
+  sourceAudioFile?: string;
+  /**
    * The front shows the word itself (an Omnilanguage forward card, which asks for the meaning).
    * Play there may play the recording, which gives nothing away, but nothing plays by itself:
    * hearing the word as it comes up would make a reading card a listening one.

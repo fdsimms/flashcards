@@ -2202,6 +2202,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/texts/{text_id}/lines/{line}/clip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Line Clip
+         * @description A podcast's line is cut from the episode, leveled, and kept on disk after the first
+         *     time. A line of a text Read & Listen wrote is its own recording. A video's line has none:
+         *     YouTube's player doesn't let its sound be taken.
+         */
+        get: operations["line_clip_api_texts__text_id__lines__line__clip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/videos/preview": {
         parameters: {
             query?: never;
@@ -2765,6 +2787,24 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HeardIn
+         * @description Where a word added from a text was heard (store.QueuedHeard): its note's Source, and the
+         *     text and line its clip is cut from (both left out when the line has none, as a video's).
+         */
+        HeardIn: {
+            /** Source */
+            source: string;
+            /** Text Id */
+            text_id?: number | null;
+            /** Line */
+            line?: number | null;
+            /**
+             * Tag
+             * @default
+             */
+            tag: string;
         };
         /** JournalCheckIn */
         JournalCheckIn: {
@@ -3366,6 +3406,7 @@ export interface components {
              * @default
              */
             meaning: string;
+            heard?: components["schemas"]["HeardIn"] | null;
         };
         /** RanksIn */
         RanksIn: {
@@ -8507,6 +8548,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PodcastAddedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    line_clip_api_texts__text_id__lines__line__clip_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                text_id: number;
+                line: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

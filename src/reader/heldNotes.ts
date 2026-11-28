@@ -2,12 +2,9 @@
 // (src/ui/held.ts) and sent to the note queue when it can be (src/ui/HeldWork.tsx). Like the queue
 // itself, nothing here adds a note: each word still waits to be reviewed in the note editor once
 // Claude has filled it in. Pure, so it's tested.
-import type { GlossLanguage } from './api';
+import type { GlossLanguage, QueueEntry } from './api';
 
-export interface HeldEntry {
-  entry: string;
-  meaning: string;
-}
+export type HeldEntry = QueueEntry;
 
 /** One deck's words, sent to the queue together, as Quick add sends them. */
 export interface HeldWords {
@@ -74,5 +71,5 @@ export function heldCounts(list: readonly HeldWords[]): { waiting: number; refus
 export function parseHeldWords(raw: unknown): HeldWords[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((g): g is HeldWords => typeof g?.language === 'string' && typeof g?.deck === 'string' && Array.isArray(g?.entries)
-    && g.entries.every((e: HeldEntry) => typeof e?.entry === 'string' && typeof e?.meaning === 'string'));
+    && g.entries.every((e: HeldEntry) => typeof e?.entry === 'string' && typeof e?.meaning === 'string' && (e.heard === undefined || typeof e.heard?.source === 'string')));
 }

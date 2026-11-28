@@ -1,6 +1,8 @@
 import { needsRecording, recordingName, recordingRequest, recordingText, RECORDING_RATE, withRecording, type RecordingRequest } from '../core/recording';
 import { canKeepNative, nativeName, withNative } from '../core/nativeRecording';
 import type { Note } from '../core/types';
+import { WriteQueue } from '../core/writeQueue';
+import { SOURCE_AUDIO_FIELD, canKeepClip, lineClipName, withClip } from '../reader/heardLine';
 import { sha1Hex } from './sha1';
 import { saveNote, type NoteStore } from './noteService';
 
@@ -39,6 +41,12 @@ export interface NativeFound {
   bytes: Uint8Array;
 }
 
+/**
+ * Each edit below reads the note again and saves it whole, so two at once (a new note's recording and
+ * its line's clip, kept as soon as it's saved) would each write over the other's field. They take turns.
+ */
+const audioEdits = new WriteQueue();
+
 /** A recording kept in the media folder: its name, and its SHA-1 for the list of files to send. */
 export interface Recording {
   name: string;
@@ -62,7 +70,7 @@ export async function makeRecording(deps: RecordDeps, request: RecordingRequest,
 }
 
 /** Puts a recording on the list the next sync sends, unless the server already has it. */
-export async function sendRecording(deps: RecordDeps, r: Recording): Promise<void> {
+export async function sendRecording(deps: Pick<RecordDeps, 'media'>, r: Recording): Promise<void> {
   if ((await deps.media.recorded(r.name)) !== r.sha1) await deps.media.setPending(r.name, r.sha1);
 }
 
@@ -87,10 +95,12 @@ export async function recordNote(deps: RecordDeps, noteId: string, voice: string
   }
   const recording = await makeRecording(deps, request, voice);
 
-  const note = await deps.store.getNote(noteId);
-  if (!note || !needsRecording(note) || recordingText(note) !== text) return undefined;
-  const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withRecording(note, recording.name), tags: note.tags });
-  await sendRecording(deps, recording);
+  const saved = await audioEdits.add(async () => {
+    const note = await deps.store.getNote(noteId);
+    if (!note || !needsRecording(note) || recordingText(note) !== text) return undefined;
+    return saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withRecording(note, recording.name), tags: note.tags });
+  });
+  if (saved) await sendRecording(deps, recording);
   return saved;
 }
 
@@ -102,10 +112,12 @@ export async function recordNote(deps: RecordDeps, noteId: string, voice: string
 export async function keepNative(deps: RecordDeps, noteId: string, text: string, found: NativeFound): Promise<Note | null> {
   const name = nativeName(found.title);
   if (!deps.media.exists(name)) await deps.media.write(name, found.bytes);
-  const note = await deps.store.getNote(noteId);
-  if (!note || !needsRecording(note) || recordingText(note) !== text || !canKeepNative(note)) return null;
-  const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
-  await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
+  const saved = await audioEdits.add(async () => {
+    const note = await deps.store.getNote(noteId);
+    if (!note || !needsRecording(note) || recordingText(note) !== text || !canKeepNative(note)) return null;
+    return saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
+  });
+  if (saved) await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
   return saved;
 }
 
@@ -117,10 +129,30 @@ export async function keepNative(deps: RecordDeps, noteId: string, text: string,
 export async function replaceWithNative(deps: RecordDeps, noteId: string, was: { audio: string; credit: string }, found: NativeFound): Promise<Note | null> {
   const name = nativeName(found.title);
   if (!deps.media.exists(name)) await deps.media.write(name, found.bytes);
-  const note = await deps.store.getNote(noteId);
-  if (!note || !canKeepNative(note) || (note.fields.Audio ?? '') !== was.audio || (note.fields.AudioCredit ?? '') !== was.credit) return null;
-  const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
-  await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
+  const saved = await audioEdits.add(async () => {
+    const note = await deps.store.getNote(noteId);
+    if (!note || !canKeepNative(note) || (note.fields.Audio ?? '') !== was.audio || (note.fields.AudioCredit ?? '') !== was.credit) return null;
+    return saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
+  });
+  if (saved) await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
+  return saved;
+}
+
+/**
+ * Keeps the clip of the line a saved note's word was heard in (src/reader/heardLine.ts): the file in
+ * the media folder and the note's SourceAudio pointed at it, the way any edit is saved. Read again
+ * first, and left alone (null) when the note was deleted, its type has no SourceAudio, or it was given a
+ * clip meanwhile.
+ */
+export async function keepLineClip(deps: Pick<RecordDeps, 'store' | 'media'>, noteId: string, bytes: Uint8Array): Promise<Note | null> {
+  const name = lineClipName(bytes);
+  if (!deps.media.exists(name)) await deps.media.write(name, bytes);
+  const saved = await audioEdits.add(async () => {
+    const note = await deps.store.getNote(noteId);
+    if (!note || !canKeepClip(Object.keys(note.fields)) || note.fields[SOURCE_AUDIO_FIELD]?.trim()) return null;
+    return saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withClip(note.fields, name), tags: note.tags });
+  });
+  if (saved) await sendRecording(deps, { name, sha1: sha1Hex(bytes) });
   return saved;
 }
 

@@ -694,7 +694,19 @@ export type QueuedNote = {
   spelling?: string;
   /** The other words a romanized or misspelled entry could be, for the owner to choose from. */
   alternatives?: { spelling: string; meaning: string }[];
+  /** Where a word added from a text was heard (src/reader/heardLine.ts); null for one typed in, absent from a server before it. */
+  heard?: QueuedHeard | null;
 };
+
+/**
+ * Where a word added from a text was heard, as the note queue keeps it (server/reader store.QueuedHeard):
+ * the note's Source, the text and line its clip is cut from (null for a line with none, a video's), and
+ * its `source::` tag ('' for none).
+ */
+export type QueuedHeard = { source: string; text_id: number | null; line: number | null; tag: string };
+
+/** A word sent to the note queue: the owner's own meaning ('' to leave it to Claude), and where it was heard. */
+export type QueueEntry = { entry: string; meaning: string; heard?: QueuedHeard };
 
 /** A word for a meaning typed in English (Quick add's "Don't know the word?"). */
 export type FoundWord = Schemas['FoundWordOut'];
@@ -770,7 +782,7 @@ export function createApi(
     noteQueue: () => call<NoteQueue>('GET', '/api/note-queue'),
     // These answer 202 with the queue, which `call` would drop.
     // `particle`: the learner's Thai polite ending, so a card's sentence is written as a man or a woman says it; ignored in other languages.
-    queueNotes: async (language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[], particle?: 'khrap' | 'kha') =>
+    queueNotes: async (language: GlossLanguage, deck: string, entries: QueueEntry[], particle?: 'khrap' | 'kha') =>
       (await send('POST', '/api/note-queue', { language, deck, entries, ...(language === 'th' && particle ? { particle } : {}) })).json() as Promise<NoteQueue>,
     retryQueuedNote: async (id: number) => (await send('POST', `/api/note-queue/${id}/retry`)).json() as Promise<NoteQueue>,
     // After the note is saved in the editor, or when the owner removes the word.
@@ -908,6 +920,12 @@ export function createApi(
       };
       const response = await send('POST', '/api/lessons/your-words', body);
       return ((await response.json()) as { id: number }).id;
+    },
+    // A text's line as it was said: a podcast's cut from its episode, a Read & Listen text's own recording
+    // (server/reader routes/clips.py). A video's line has none (404).
+    lineClip: async (textId: number, line: number): Promise<Uint8Array> => {
+      const response = await send('GET', `/api/texts/${textId}/lines/${line}/clip`);
+      return new Uint8Array(await response.arrayBuffer());
     },
     // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.
     lessonPhraseAudio: async (id: number, index: number): Promise<Uint8Array> => {

@@ -4,10 +4,12 @@ import { saveNote } from '../anki/noteService';
 import { failureText } from '../core/failure';
 import type { Note } from '../core/types';
 import type { AspectPair, GlossLanguage } from '../reader/api';
+import type { Heard } from '../reader/heardLine';
 import { hasAspectPairs, hasAspectPartner, minedNote, pairFollowUp, type MinedNote, type PairFollowUp, type Pronunciation } from '../reader/mining';
 import { useApp } from './AppContext';
 import { connection } from './connection';
 import { haptic } from './haptics';
+import { useLineClip } from './useLineClip';
 import { useNoteQueue } from './useNoteQueue';
 
 /** What to add to the deck: a word from a text, the marked words, the vocabulary check or a card's example sentence. */
@@ -18,6 +20,8 @@ export type AddWord = {
   /** The word's own language, which decides whether a verb's aspect pair is looked up (Russian and Polish). */
   language?: GlossLanguage;
   pronunciation?: Pronunciation;
+  /** Where it was heard, for a word from a text (src/reader/heardLine.ts): the note keeps the line in Source and its clip in SourceAudio. */
+  heard?: Heard | null;
 };
 
 /**
@@ -33,6 +37,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
   const { repo, reader, openNoteEditor } = useApp();
   const api = reader.api;
   const queue = useNoteQueue(api);
+  const clip = useLineClip();
 
   const edit = useCallback((target: MinedNote) => new Promise<Note | null>((resolve) => {
     openNoteEditor(target, (result) => resolve(result && 'saved' in result ? result.saved : null));
@@ -74,7 +79,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
     }
   }, [repo, edit, link]);
 
-  return useCallback(async ({ word, meaning, deck, language, pronunciation }: AddWord) => {
+  return useCallback(async ({ word, meaning, deck, language, pronunciation, heard }: AddWord) => {
     let pair: AspectPair | null = null;
     // A phrase has no aspect. A failed lookup, or an answer with no partner (not a verb), goes to the queue like any other word.
     // Offline there's no lookup to wait on: the word is held for Claude below.
@@ -83,7 +88,7 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
     }
     if (!hasAspectPartner(pair) && api && language) {
       try {
-        const added = await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '' }]);
+        const added = await queue.add(language, deck, [{ entry: word, meaning: meaning ?? '', ...(heard ? { heard } : {}) }]);
         haptic.success();
         if (added === 'held') Alert.alert(`Added ${word}`, `${connection.offline() ? "You're offline. Claude fills it in when you're back online" : "Couldn't reach your server. Claude fills it in once the server answers"}. Then it'll be ready to review on Today.`);
         else Alert.alert(`Added ${word} to your queue`, "Claude is writing an example sentence and translation. In a few minutes it will be ready to review on Today.");
@@ -92,9 +97,10 @@ export function useAddMinedWord(): (add: AddWord) => Promise<boolean> {
         // The server refused it (no Claude key): the editor still works by hand. Offline it was held instead.
       }
     }
-    const saved = await edit(minedNote(word, meaning, deck, pronunciation, pair, language));
+    const saved = await edit(await clip.note(minedNote(word, meaning, deck, pronunciation, pair, language), heard));
     if (!saved) return false;
+    clip.keep(saved, heard);
     if (hasAspectPartner(pair)) void offer(saved, pair);
     return true;
-  }, [api, queue.add, edit, offer]);
+  }, [api, queue.add, edit, offer, clip]);
 }

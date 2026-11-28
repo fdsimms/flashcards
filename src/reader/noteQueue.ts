@@ -81,7 +81,10 @@ export function reviewTarget(note: QueuedNote): { deck: string; model: string; f
   const word = note.spelling || note.entry;
   const fields = { Entry: bareVerb(note.language, note.fields.PartOfSpeech ?? '', bareNoun(note.language, genderOf(note.fields.Gender ?? ''), word)), ...note.fields };
   const part = note.fields.PartOfSpeech;
-  const target = { deck: note.deck, model: QUEUED_MODEL, fields, ...(part ? { tags: [part] } : {}) };
+  // A word added from a text carries where it was heard (src/reader/heardLine.ts): Source is among the
+  // fields the server kept, and its source:: tag goes beside the part of speech.
+  const tags = [part, note.heard?.tag].filter((t): t is string => !!t);
+  const target = { deck: note.deck, model: QUEUED_MODEL, fields, ...(tags.length ? { tags } : {}) };
   if (needsChoice(note)) {
     const words = [{ entry: word, meaning: note.fields.Meaning ?? note.meaning }, ...(note.alternatives ?? []).map((a) => ({ entry: a.spelling, meaning: a.meaning }))];
     return { ...target, choice: { typed: note.entry, words } };

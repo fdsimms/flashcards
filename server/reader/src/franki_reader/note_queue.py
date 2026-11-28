@@ -714,6 +714,9 @@ async def fill_pending(
                 fields, found = result
                 # The owner's meaning for this copy of the word, when two were queued with different ones.
                 fields = {**fields, "Meaning": n.meaning or fields["Meaning"]}
+                # A word added from a text keeps the line it was heard in, as the app wrote it.
+                if n.heard is not None:
+                    fields["Source"] = n.heard.source
                 # A meaning of the owner's says which word they meant, so there's nothing to choose.
                 others = [] if n.meaning else found.alternatives
                 store.save_queue_result(

@@ -271,7 +271,8 @@ CREATE TABLE IF NOT EXISTS note_queue (
     created_at TEXT NOT NULL,
     tried_at TEXT,
     cost_usd REAL NOT NULL DEFAULT 0,
-    learner TEXT NOT NULL DEFAULT 'male'
+    learner TEXT NOT NULL DEFAULT 'male',
+    heard TEXT NOT NULL DEFAULT ''
 );
 -- English meanings for words in texts that have no gloss from the deck or the text (meanings.py):
 -- common words are known without being in the deck, so the model isn't asked to gloss them. Each text
@@ -766,6 +767,10 @@ def connect(path: Path | str) -> sqlite3.Connection:
         # Whose Thai the Context sentence is written as, "male" or "female" (the app's polite
         # ending when the word was queued); "male" before 22 November 2026, and for any other language.
         conn.execute("ALTER TABLE note_queue ADD COLUMN learner TEXT NOT NULL DEFAULT 'male'")
+    if "heard" not in queue_columns:
+        # Where a word added from a text was heard (QueuedHeard, as JSON), empty for a typed one and
+        # before 28 November 2026.
+        conn.execute("ALTER TABLE note_queue ADD COLUMN heard TEXT NOT NULL DEFAULT ''")
     if "plan" not in {r[1] for r in conn.execute("PRAGMA table_info(stories)")}:
         # Where a story's season is heading, in a few sentences; empty until an episode gives one.
         conn.execute("ALTER TABLE stories ADD COLUMN plan TEXT NOT NULL DEFAULT ''")
@@ -3490,6 +3495,47 @@ def vocab_spending(conn: sqlite3.Connection, since: datetime) -> dict[Code, tupl
 
 
 @dataclass(frozen=True)
+class QueuedHeard:
+    """Where a queued word was heard: the note's Source as the app wrote it (the line with the word
+    in bold, its translation, where it's from), and the text and line a clip of it can be cut from
+    (`/api/texts/{text_id}/lines/{line}/clip`), both None for a line with no clip (a video's)."""
+
+    source: str
+    text_id: int | None = None
+    line: int | None = None
+    # The note's tag for where it was heard (source::<show>), empty when there's none.
+    tag: str = ""
+
+
+def _heard_json(heard: QueuedHeard | None) -> str:
+    if heard is None:
+        return ""
+    return json.dumps(
+        {"source": heard.source, "text_id": heard.text_id, "line": heard.line, "tag": heard.tag}
+    )
+
+
+def _heard_of(raw: str) -> QueuedHeard | None:
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("source"), str):
+        return None
+    text_id, line = data.get("text_id"), data.get("line")
+    clip = isinstance(text_id, int) and isinstance(line, int)
+    tag = data.get("tag")
+    return QueuedHeard(
+        data["source"],
+        text_id if clip else None,
+        line if clip else None,
+        tag if isinstance(tag, str) else "",
+    )
+
+
+@dataclass(frozen=True)
 class QueuedNote:
     id: int
     language: Code
@@ -3507,11 +3553,13 @@ class QueuedNote:
     alternatives: list[dict[str, str]] = field(default_factory=list)
     # Whose Thai the Context sentence is written as; "male" for any other language.
     learner: Gender = "male"
+    # Where it was heard, for a word added from a text; None for one typed in.
+    heard: QueuedHeard | None = None
 
 
 _QUEUE_COLUMNS = (
     "id, language, deck, entry, meaning, state, fields, error, attempts, tried_at, spelling,"
-    " alternatives, learner"
+    " alternatives, learner, heard"
 )
 
 
@@ -3530,6 +3578,7 @@ def _queued(row: tuple[Any, ...]) -> QueuedNote:
         row[10],
         json.loads(row[11]),
         "female" if row[12] == "female" else "male",
+        _heard_of(row[13]),
     )
 
 
@@ -3540,9 +3589,11 @@ def add_queued(
     entries: list[tuple[str, str]],
     now: datetime,
     learner: Gender = "male",
+    heard: Sequence[QueuedHeard | None] = (),
 ) -> list[int]:
     """Words to be filled in, as (entry, the owner's own meaning or ""), in the order given.
-    `learner` is whose Thai the sentences are written as (Thai only).
+    `learner` is whose Thai the sentences are written as (Thai only), and `heard` where each was
+    heard, entry for entry (shorter, or empty, for words typed in).
 
     A word already in the queue for that deck with the same meaning isn't added again, and its
     row's id is returned: the app sends words it held while offline until it hears they arrived, so
@@ -3550,7 +3601,7 @@ def add_queued(
     review. The same word with another meaning is a row of its own."""
     ids: list[int] = []
     with conn:
-        for entry, meaning in entries:
+        for i, (entry, meaning) in enumerate(entries):
             there = conn.execute(
                 "SELECT id FROM note_queue WHERE language = ? AND deck = ? AND entry = ?"
                 " AND meaning = ? ORDER BY id LIMIT 1",
@@ -3560,9 +3611,17 @@ def add_queued(
                 ids.append(there[0])
                 continue
             cursor = conn.execute(
-                "INSERT INTO note_queue (language, deck, entry, meaning, created_at, learner)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
-                (language, deck, entry, meaning, now.isoformat(), learner),
+                "INSERT INTO note_queue (language, deck, entry, meaning, created_at, learner, heard)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    language,
+                    deck,
+                    entry,
+                    meaning,
+                    now.isoformat(),
+                    learner,
+                    _heard_json(heard[i] if i < len(heard) else None),
+                ),
             )
             assert cursor.lastrowid is not None
             ids.append(cursor.lastrowid)

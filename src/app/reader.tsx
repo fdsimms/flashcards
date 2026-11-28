@@ -43,7 +43,7 @@ export default function ReaderRoute() {
       mining={language && deck ? {
         language,
         deck,
-        onAdd: (entry, meaning, pronunciation) => addWord({ word: entry, meaning, deck, language, pronunciation }),
+        onAdd: (entry, meaning, pronunciation, heard) => addWord({ word: entry, meaning, deck, language, pronunciation, heard }),
       } : undefined}
     />
   );

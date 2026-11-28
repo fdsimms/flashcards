@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
-import { ApiError, type Api, type GlossLanguage, type NoteQueue } from '../reader/api';
+import { ApiError, type Api, type GlossLanguage, type NoteQueue, type QueueEntry } from '../reader/api';
 import { OfflineError } from '../core/connection';
 import { isOffline } from '../core/held';
 import { notesStillThere } from '../core/noteEditing';
@@ -39,7 +39,7 @@ function supersede() {
  * Sends words to the queue and shows the server's answer: for `add`, and for words held offline
  * (HeldWork.tsx), so both make a look on its way out of date.
  */
-export async function queueWords(api: Api, language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[]): Promise<void> {
+export async function queueWords(api: Api, language: GlossLanguage, deck: string, entries: QueueEntry[]): Promise<void> {
   const queue = await api.queueNotes(language, deck, entries, language === 'th' ? await loadParticle() : undefined);
   supersede();
   noteQueueStore.set({ queue, error: null });
@@ -135,7 +135,7 @@ export function useNoteQueue(api: Api | null) {
    * Queues words for Claude. Offline they're held on the phone instead ('held') and sent when the
    * connection comes back (HeldWork.tsx); a refusal from the server is thrown as before.
    */
-  const add = useCallback(async (language: GlossLanguage, deck: string, entries: { entry: string; meaning: string }[]): Promise<'queued' | 'held' | undefined> => {
+  const add = useCallback(async (language: GlossLanguage, deck: string, entries: QueueEntry[]): Promise<'queued' | 'held' | undefined> => {
     if (!api) return undefined;
     const hold = async () => {
       await heldWords.update((list) => holdWords(list, language, deck, entries));
