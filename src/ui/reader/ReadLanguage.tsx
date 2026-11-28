@@ -12,6 +12,7 @@ import { describeProgress } from '../../reader/progress';
 import { voicesSummary } from '../../reader/voiceSlots';
 import { Card, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, Select } from '../kit';
 import { CommonWords } from './ReadCommonWords';
+import { LevelCard } from './ReadLevel';
 import { space, type, useTheme, readable } from '../theme';
 
 /** The card a change was made in, where its failure is shown. */
@@ -20,10 +21,10 @@ type FailureArea = 'words' | 'stretch' | 'difficulty' | 'register';
 /**
  * One language's Read & Listen settings, the ones set once and rarely changed
  * (docs/read-and-listen/architecture.md, Shelf): its deck, common words, voices and grammar,
- * practice words, text difficulty, and how reading is going.
+ * practice words, text difficulty, and how reading is going, under the card for Your level.
  * Opened from the shelf's gear button; the language is the one the shelf is showing.
  */
-export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck }: {
+export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, onVocabCheck, onLevel }: {
   api: Api;
   /** Franki's decks, to choose the language's deck from. */
   deckNames: string[];
@@ -33,6 +34,8 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
   onGrammar: () => void;
   /** The vocabulary check, which suggests the common-words setting. */
   onVocabCheck: () => void;
+  /** Your level, from the card at the top. */
+  onLevel: () => void;
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -108,6 +111,7 @@ export function ReadLanguage({ api, deckNames, onSettings, onVoices, onGrammar, 
 
         {settings && language ? (
           <>
+            <LevelCard api={api} language={language} onOpen={onLevel} />
             <Section
               title={spoken ? 'Words and voices' : 'Words'}
             >

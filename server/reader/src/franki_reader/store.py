@@ -416,6 +416,16 @@ CREATE TABLE IF NOT EXISTS native_lookups (
     PRIMARY KEY (language, word)
 );
 
+-- Your level's figure for each study day (level.py, level_store.py), for its trend: how many of
+-- the 2,000 most common words are known and the share of everyday speech they make up.
+CREATE TABLE IF NOT EXISTS level_days (
+    language TEXT NOT NULL,
+    day TEXT NOT NULL,
+    known_top INTEGER NOT NULL,
+    speech REAL,
+    PRIMARY KEY (language, day)
+);
+
 -- The writing journal (journal.py, journal_store.py): each entry as last written and checked, and
 -- the mistakes its first check found, one row each, which the home counts by kind and rotation.py
 -- reads for a practiced point. `client_key` is the phone's own id for the entry, so an entry held

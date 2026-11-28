@@ -4666,6 +4666,75 @@
         }
       }
     },
+    "/api/level": {
+      "get": {
+        "summary": "Get Level",
+        "description": "The language's level from its last snapshot of the deck: known words by frequency band\n(`bands`, each `start` to `end` places in the list), how many of the `top` most common are\nknown, the share of everyday speech they make up (`speech`, 0 to 1, null without\nfrequencies), and `history`, one figure a study day, oldest first, today's included. 404 for\na language with no frequency list (Toki Pona), 409 before its deck has been read.",
+        "operationId": "get_level_api_level_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en",
+                "tok"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LevelOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cram/say/ask": {
       "post": {
         "summary": "Cram Say Ask",
@@ -8674,6 +8743,110 @@
           "scene"
         ],
         "title": "LessonIn"
+      },
+      "LevelBand": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "known": {
+            "type": "integer",
+            "title": "Known"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "known"
+        ],
+        "title": "LevelBand"
+      },
+      "LevelDayOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "known_top": {
+            "type": "integer",
+            "title": "Known Top"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "known_top",
+          "speech"
+        ],
+        "title": "LevelDayOut"
+      },
+      "LevelOut": {
+        "properties": {
+          "top": {
+            "type": "integer",
+            "title": "Top"
+          },
+          "known_top": {
+            "type": "integer",
+            "title": "Known Top"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech"
+          },
+          "studied": {
+            "type": "integer",
+            "title": "Studied"
+          },
+          "bands": {
+            "items": {
+              "$ref": "#/components/schemas/LevelBand"
+            },
+            "type": "array",
+            "title": "Bands"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/LevelDayOut"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "top",
+          "known_top",
+          "speech",
+          "studied",
+          "bands",
+          "history"
+        ],
+        "title": "LevelOut"
       },
       "LineOut": {
         "properties": {
