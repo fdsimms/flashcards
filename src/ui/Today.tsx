@@ -99,6 +99,8 @@ function ProgressTrack({ value }: { value: number }) {
  */
 export function Today(props: {
   decks: DeckRow[];
+  /** Decks that are Anki filtered decks: they hold no notes of their own, so "Add your first words" never applies to one. */
+  filteredDecks?: ReadonlySet<string>;
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
   /**
@@ -152,7 +154,8 @@ export function Today(props: {
   const backup = props.sync ? undefined : props.backup;
   const anyDecks = props.decks.length > 0 || !!props.extra;
   // Decks made in Franki with nothing in them yet: what to do next, in place of "All caught up".
-  const firstEmpty = !props.extra && props.decks.length && props.decks.every((r) => r.cards === 0) ? props.decks[0].deck : undefined;
+  const ownDecks = props.decks.filter((r) => !props.filteredDecks?.has(r.deck));
+  const firstEmpty = !props.extra && ownDecks.length && ownDecks.every((r) => r.cards === 0) ? ownDecks[0].deck : undefined;
   const ready = props.ready !== false;
   return (
     <Screen
