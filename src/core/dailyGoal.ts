@@ -183,7 +183,7 @@ export function goalTarget(deck: string, settings: DeckSettings | undefined, par
  * back when the goal is turned off.
  */
 export function withTuning(settings: DeckSettings, r: GoalResult, target: GoalTarget, replaced: number | null): DeckSettings {
-  const goalReplaced = settings.goalReplaced?.target === target ? settings.goalReplaced : { target, value: replaced };
+  const goalReplaced = settings.goalReplaced !== undefined ? settings.goalReplaced : replaced;
   if (target === 'gate') return { ...settings, gateCap: r.value, goalTuned: r, goalReplaced };
   return target === 'own' ? { ...settings, newPerDay: r.value, goalTuned: r, goalReplaced } : { ...settings, goalTuned: r, goalReplaced };
 }
@@ -197,13 +197,13 @@ export function leverValue(settings: DeckSettings, target: 'gate' | 'own'): numb
  * The deck's settings with its goal turned off, and what the goal replaced put back: the gate's cap,
  * or Deck options' own limit. For an `anki` target, `ankiLimit` is the deck's own limit to put back in
  * the collection (null: take it off, so the deck follows its preset again); undefined when there's
- * nothing to put back (never tuned, or tuned for a target the deck no longer has).
+ * nothing to put back (never tuned).
  */
 export function goalTurnedOff(settings: DeckSettings, target: GoalTarget | undefined): { settings: DeckSettings; ankiLimit?: number | null } {
   const { goalReplaced, ...rest } = settings;
   const off: DeckSettings = { ...rest, dailyGoal: undefined, goalTuned: undefined };
-  if (!goalReplaced || goalReplaced.target !== target) return { settings: off };
-  if (target === 'gate') return { settings: goalReplaced.value === null ? off : { ...off, gateCap: goalReplaced.value } };
-  if (target === 'own') return { settings: { ...off, newPerDay: goalReplaced.value ?? undefined } };
-  return { settings: off, ankiLimit: goalReplaced.value };
+  if (goalReplaced === undefined || !target) return { settings: off };
+  if (target === 'gate') return { settings: goalReplaced === null ? off : { ...off, gateCap: goalReplaced } };
+  if (target === 'own') return { settings: { ...off, newPerDay: goalReplaced ?? undefined } };
+  return { settings: off, ankiLimit: goalReplaced };
 }

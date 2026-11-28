@@ -25,6 +25,10 @@ outside the server's own dependencies:
 
 Rebuild every list after upgrading simplemma, and Japanese's after upgrading Sudachi or its
 dictionary, so the lemmas here match the ones they give at runtime.
+
+Each list also gets data/<code>_shares.txt: how often each family is used, per million words, in
+the list's order, for Your level's share of everyday speech (level.py). It's the family's summed
+wordfreq frequency, and for Thai its frequency in the subtitles alone, since they're the speech.
 """
 
 import gzip
@@ -67,7 +71,7 @@ _REPEATED = re.compile(r"(.)\1\1")
 _BROKEN = re.compile(r"[\u0e40-\u0e44].")
 
 
-def build_japanese() -> list[str]:
+def build_japanese() -> list[tuple[str, float]]:
     from franki_reader.japanese import morphemes
 
     frequency = wordfreq.get_frequency_dict("ja")  # top_n_list's order, without tokenizing
@@ -84,7 +88,9 @@ def build_japanese() -> list[str]:
         forms = shown.setdefault(family, {})
         forms[words[0].dictionary] = forms.get(words[0].dictionary, 0.0) + frequency[form]
     ranked = sorted(totals, key=lambda w: -totals[w])[:KEEP]
-    return [max(shown[family], key=lambda f: shown[family][f]) for family in ranked]
+    return [
+        (max(shown[family], key=lambda f: shown[family][f]), totals[family]) for family in ranked
+    ]
 
 
 SUBTITLES_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2018/mono/th.txt.gz"
@@ -148,7 +154,7 @@ def subtitle_counts(known: frozenset[str]) -> Counter[str]:
     return total
 
 
-def build_thai() -> list[str]:
+def build_thai() -> list[tuple[str, float]]:
     from pythainlp.corpus import thai_words, tnc
 
     written = Counter({w: c for w, c in tnc.word_freqs() if _thai_word(w)})
@@ -164,10 +170,11 @@ def build_thai() -> list[str]:
         for word in written.keys() | spoken.keys()
     }
     # Ties are common in the tail, so order them by word to make a rebuild give the same file.
-    return sorted(score, key=lambda w: (-score[w], w))[:KEEP]
+    ranked = sorted(score, key=lambda w: (-score[w], w))[:KEEP]
+    return [(w, spoken[w] / spoken_total) for w in ranked]
 
 
-def build(code: str) -> list[str]:
+def build(code: str) -> list[tuple[str, float]]:
     if code == "ja":
         return build_japanese()
     if code == "th":
@@ -181,7 +188,21 @@ def build(code: str) -> list[str]:
             form = re.sub(r"σ\b", "ς", form)
         lemma = str(simplemma.lemmatize(form, lang=code)).lower()
         totals[lemma] = totals.get(lemma, 0.0) + wordfreq.word_frequency(form, code)
-    return sorted(totals, key=lambda w: -totals[w])[:KEEP]
+    return [(w, totals[w]) for w in sorted(totals, key=lambda w: -totals[w])[:KEEP]]
+
+
+def shares_header(code: str) -> str:
+    source = (
+        "OpenSubtitles' Thai subtitles (as for th_common.txt)"
+        if code == "th"
+        else (f"wordfreq {version('wordfreq')}, each family's forms summed")
+    )
+    return (
+        f"# How often each word of {code}_common.txt is used, per million words, in its order (line"
+        " for line),\n"
+        f"# from {source}. Built by scripts/build_common.py with the list;"
+        " level.py reads it.\n"
+    )
 
 
 def header(code: str) -> str:
@@ -233,6 +254,11 @@ def header(code: str) -> str:
 
 if __name__ == "__main__":
     for code in sys.argv[1:]:
-        words = build(code)
+        built = build(code)
+        words = [w for w, _ in built]
         (DATA / f"{code}_common.txt").write_text(header(code) + "\n".join(words) + "\n", "utf-8")
+        shares = [f"{f * 1e6:.4g}" for _, f in built]
+        (DATA / f"{code}_shares.txt").write_text(
+            shares_header(code) + "\n".join(shares) + "\n", "utf-8"
+        )
         print(code, len(words), words[:10])

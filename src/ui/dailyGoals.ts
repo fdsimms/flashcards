@@ -63,7 +63,8 @@ async function applyTuning(repo: Repo & AnkiLink, deck: string, r: GoalResult): 
   const target = goalTarget(deck, settings, params);
   if (settings.dailyGoal !== r.goal || !target || (target === 'gate') !== (r.lever === 'gate')) return undefined;
   // What's there before the first tuning is kept, to put back when the goal is turned off (`goalTurnedOff`).
-  const replaced = target === 'anki' ? (settings.goalReplaced?.target === 'anki' ? null : await deckNewLimitOf(repo, deck)) : leverValue(settings, target);
+  // Already kept (an earlier tuning here, or on another device): `withTuning` keeps it, so the collection isn't read again.
+  const replaced = settings.goalReplaced !== undefined ? settings.goalReplaced : target === 'anki' ? await deckNewLimitOf(repo, deck) : leverValue(settings, target);
   if (target === 'anki') await saveDeckNewLimit(repo, deck, r.value);
   await repo.saveDeckSettings(deck, withTuning(settings, r, target, replaced));
   return r;

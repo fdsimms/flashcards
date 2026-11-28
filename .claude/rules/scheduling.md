@@ -169,6 +169,9 @@ day at or under the goal is set: a gated deck's cap, else the deck's own daily n
 preset (`goalTarget`). A goal the scheduled reviews already exceed sets new cards to none (`over`). The goal is
 kept in the collection like the gate (`frankiDailyGoals`, `src/anki/dailyGoals.ts`); the day's result is the
 phone's own (`goalTuned`). While a goal is on, Deck options shows the value it sets rather than offering it.
+Turning it off puts back the value its first tuning replaced (`goalReplaced`, `goalTurnedOff`), kept in the
+collection beside the goal (`frankiGoalReplaced`) so whichever device turns it off has the value from before
+the goal, not one another device's tuning set.
 
 **Vacation mode changes what's offered, never a schedule** (`src/core/vacation.ts`, Settings, Vacation mode): Light scales
 each deck's daily limits (new cards to a count, reviews to a share) and puts reviews weakest first
@@ -235,3 +238,9 @@ With a sense marked Again is outlined, and the rating is still the learner's tap
 (`src/core/confusedPairs.ts`, the `confused_pairs` table) are shown on the answer side and asked in
 Similar words. Nothing in `src/core/scheduler.ts`, the queue or the lookalike hold may read them, and
 they aren't written into the Anki collection.
+
+## WaniKani offline
+
+Moved out of `CLAUDE.md`'s Data flow, verbatim. WaniKani keeps an offline copy of what's up (`offline.ts`: reviews, lessons,
+subjects, synonyms, and recordings as files), made each time WaniKani is reached, so a session can be studied with no
+connection: its answers go to the outbox and are sent later, and the copy leaves out items answered since it was made.

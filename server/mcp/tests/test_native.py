@@ -128,6 +128,14 @@ async def test_nothing_happens_while_the_setting_is_off(native_client, cm, wiki,
     assert wiki.asked == []
 
 
+async def test_a_preview_looks_up_a_language_the_setting_leaves_off(native_client, cm, wiki, german_deck):
+    note = await hund(native_client)
+    preview = await call(native_client, "add_native_recordings", note_ids=[note["note_id"]])
+    assert preview["found"] == 1 and preview["kept"] == 0
+    assert preview["results"][0]["recording"]["speaker"] == "Natschi" and "off" in preview["results"][0]
+    assert (await hund(native_client))["fields"]["Audio"] == "[sound:azure.mp3]"
+
+
 async def test_a_note_type_without_the_credit_field_gets_none(native_client, cm, wiki, desktop):
     desktop.run("add-notetype", "Omnilanguage", FIELDS.replace(",AudioCredit", ""),
                 "+", "add-fields-note", "Omnilanguage", "Deutsch",

@@ -21,6 +21,7 @@ dependencies = [
     # (japanese.py). The core dictionary is about 70 MB on disk.
     "sudachipy>=0.7",
     "sudachidict-core>=20250825",
+    "youtube-transcript-api>=1.2",
 ]
 
 [tool.uv.sources]
