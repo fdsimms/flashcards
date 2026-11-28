@@ -317,7 +317,7 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
             );
           })}
           <Help>Claude fills in each word you add. Save each one in the note editor.</Help>
-          {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {problem ? <ErrorNote message={problem} /> : null}
         </Card>
       ) : null}
       <Button variant="secondary" label={kept ? 'Saved for Talking points' : 'Use this for Talking points'} disabled={kept || saving || !result.summary.trim()} onPress={onKeep} />

@@ -8,7 +8,7 @@ import { headword } from '../../core/forms';
 import { talkTextStyle } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -113,7 +113,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
       footerStyle={keyboard ? { marginBottom: Math.max(0, keyboard - insets.bottom) } : undefined}
       footer={(
         <>
-          {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {problem ? <ErrorNote message={problem} /> : null}
           <Field
             label="Jot down a word your tutor used"
             value={draft}

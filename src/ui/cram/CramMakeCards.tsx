@@ -8,7 +8,7 @@ import { noCandidatesText, type LessonWordCandidate } from '../../core/lessonWor
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Help, Icon, Loading, Screen, Tappable } from '../kit';
 import { CandidateChips } from './CramBits';
 import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
@@ -122,7 +122,7 @@ export function CramMakeCards({ repo, id, deckFor, findWords, queue }: {
       largeTitle={false}
       footer={(
         <>
-          {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {problem ? <ErrorNote message={problem} /> : null}
           <Button label={chosen.length === 1 ? 'Make 1 card' : `Make ${chosen.length} cards`} onPress={make} busy={busy} disabled={!chosen.length || looking} />
           <Text style={{ ...type.footnote, color: c.textSecondary, textAlign: 'center' }}>Claude writes them. Approve them on the cram's page and they join it.</Text>
         </>

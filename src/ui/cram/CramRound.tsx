@@ -20,7 +20,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { Side } from '../CardSide';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Field, Help, Loading, ProgressBar, Screen } from '../kit';
+import { Button, Card as Box, ErrorNote, Field, Help, Loading, ProgressBar, Screen } from '../kit';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { readable, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
@@ -168,10 +168,7 @@ export function CramRound({ repo, id, onDone }: { repo: NoteStore; id: string; o
           </Help>
           {missedCount ? <Help>{[...missedNotes.map(headword), ...missedPhrases.map((p) => p.text)].join(', ')}</Help> : null}
           {problem ? (
-            <>
-              <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text>
-              <Button variant="secondary" label="Try again" onPress={() => { setProblem(undefined); setSaved(false); }} />
-            </>
+            <ErrorNote message={problem} onRetry={() => { setProblem(undefined); setSaved(false); }} />
           ) : null}
         </ScrollView>
       </Screen>

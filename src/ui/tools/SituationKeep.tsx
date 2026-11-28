@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { Button, Help } from '../kit';
+import { Button, ErrorNote, Help } from '../kit';
 import { radius, smooth, space, type, useTheme } from '../theme';
 
 export type KeepState = 'idle' | 'saving' | 'kept' | 'failed';
@@ -24,7 +24,7 @@ export function SituationKeep({ count, state, onKeep }: { count: number; state: 
     <View style={{ gap: space.s }}>
       <Text style={{ ...type.headline, color: c.text }}>Keep these mistakes?</Text>
       <Help>Franki uses them when it suggests your next themes. They aren't added to your deck.</Help>
-      {state === 'failed' ? <Text style={{ ...type.subhead, color: c.danger }}>{"Couldn't keep them. Try again."}</Text> : null}
+      {state === 'failed' ? <ErrorNote message="Couldn't keep them. Try again." /> : null}
       <Button label="Keep these" variant="secondary" onPress={onKeep} busy={state === 'saving'} />
     </View>
   );

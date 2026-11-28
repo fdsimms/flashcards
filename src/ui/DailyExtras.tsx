@@ -5,7 +5,7 @@ import { LANGUAGES } from '../reader/languages';
 import { saveToolPrefs } from '../tools/storage';
 import { toolById } from '../tools/tools';
 import { haptic } from './haptics';
-import { Button, Card, Divider, Help, Icon, Meter, Tag, Tappable } from './kit';
+import { Button, Card, Divider, ErrorNote, Help, Icon, Meter, Tag, Tappable } from './kit';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { TOOL_SCREENS } from './tools';
 import type { GrammarDue } from './useGrammarDue';
@@ -77,7 +77,7 @@ export function ExtrasStrip({ extras, grammarDue }: { extras: Extras; grammarDue
           </ExtraRows>
         </>
       ) : null}
-      {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
+      {problem ? <ErrorNote message={problem} /> : null}
     </Card>
   );
 }
@@ -158,7 +158,7 @@ export function ExtraCard({ extras, language }: { extras: Extras; language: keyo
         <Help>{about}</Help>
       </View>
       <Button label={kind === 'read' ? 'Read a text' : 'Practice'} onPress={go} busy={busy} />
-      {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
+      {problem ? <ErrorNote message={problem} /> : null}
     </Card>
   );
 }

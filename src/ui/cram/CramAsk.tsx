@@ -5,7 +5,7 @@ import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../.
 import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Icon, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Icon, Tappable } from '../kit';
 import { radius, smooth, space, type, useTheme } from '../theme';
 import { CandidateChips } from './CramBits';
 import { withThaiLineHeight } from '../../core/script';
@@ -133,7 +133,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
           <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sentText(sent.words, sent.held, approved, ready.length)}</Text>
         </View>
         {approve ? ready.map((n) => <Button key={n.entry} label={ready.length === 1 ? 'Review and add' : `Review and add ${n.entry}`} onPress={() => void review(n)} disabled={busy} />) : null}
-        {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
+        {wrong ? <ErrorNote message={wrong} /> : null}
       </Card>
     );
   }
@@ -181,8 +181,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
           <Text style={{ ...type.footnote, color: c.textSecondary }}>How common a word is and how it is said are Claude's judgment, not a dictionary's.</Text>
         </>
       )}
-      {wrong ? <Text style={{ ...type.subhead, color: c.danger }}>{wrong}</Text> : null}
-      {wrong && !list ? <Button variant="secondary" label="Try again" onPress={() => void find()} /> : null}
+      {wrong ? <ErrorNote message={wrong} onRetry={list ? undefined : () => void find()} /> : null}
     </Card>
   );
 }

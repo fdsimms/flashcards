@@ -10,7 +10,7 @@ import { markerText, noteMarkers, type NoteMarker } from '../core/noteMarkers';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { Chip, Divider, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
+import { Chip, Divider, ErrorNote, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
 import { haptic } from './haptics';
 import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
@@ -157,7 +157,7 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
           </View>
         }
         ListEmptyComponent={!notes ? <Loading error={error} onRetry={load} /> : searchProblem ? (
-          <Text style={{ ...type.subhead, color: c.danger, paddingTop: space.xl }}>{`Couldn't read the search. ${searchProblem}`}</Text>
+          <View style={{ paddingTop: space.xl }}><ErrorNote message={`Couldn't read the search. ${searchProblem}`} /></View>
         ) : (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>
             {query.trim() ? `No notes match "${query.trim()}".\n${SYNTAX_HINT}` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}

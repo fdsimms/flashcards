@@ -6,7 +6,7 @@ import type { Api, FormExplanation, Language, Word } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { checkForm, formReason, markDecider, type FormCheck, type Settled } from '../../reader/formQuiz';
 import { usePrimers } from './ReadFormSheet';
-import { Button, HeaderAction, Icon, Tappable } from '../kit';
+import { Button, ErrorNote, HeaderAction, Icon, Tappable } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
@@ -161,7 +161,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
                 <Text style={{ ...type.headline, color: c.accent }}>{why?.state === 'loading' ? 'Explaining...' : why?.state === 'failed' ? 'Try explaining again' : 'Explain why'}</Text>
               </Tappable>
             ) : null}
-            {why?.state === 'failed' ? <Text style={{ ...type.subhead, color: c.danger }}>{why.message}</Text> : null}
+            {why?.state === 'failed' ? <ErrorNote message={why.message} /> : null}
             {why?.state === 'done' ? <FormWhy word={word} before={before} after={after} explanation={why.explanation} /> : null}
           </View>
         ) : null}

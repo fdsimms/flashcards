@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, type ViewInstance } from 'react-native';
+import { StyleSheet, View, type ViewInstance } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { failureText } from '../core/failure';
 import { pageFont } from '../core/cardFonts';
@@ -8,7 +8,8 @@ import { pageUsesMathJax } from '../core/mathjax';
 import { playSoundScript, soundTapped, START_AUTOPLAY } from '../core/template';
 import { installCardFont } from '../media/cardFonts';
 import { installMathJax } from '../media/mathjax';
-import { space, type, useTheme } from './theme';
+import { ErrorNote } from './kit';
+import { space } from './theme';
 import { useOutputWake } from './useOutputWake';
 
 let pageCount = 0;
@@ -124,7 +125,6 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap, o
    */
   onLookUp?: (word: PageWord) => void;
 }) {
-  const c = useTheme();
   const [uri, setUri] = useState<string>();
   const [error, setError] = useState<string>();
   const seq = useRef(0);
@@ -196,8 +196,8 @@ export function CardWebView({ html, hidden = false, onShown, onMessage, onTap, o
       importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
     >
       {error ? (
-        <View style={{ flex: 1, justifyContent: 'center', padding: space.xl }}>
-          <Text style={{ ...type.subhead, color: c.danger, textAlign: 'center' }}>{error}</Text>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: space.xl }}>
+          <ErrorNote centered message={error} />
         </View>
       ) : uri ? (
         <WebView

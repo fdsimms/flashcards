@@ -9,7 +9,7 @@ import type { CramTheme, Language, WritingCheck } from '../../reader/api';
 import { scaledFontSize, talkTextStyle, type TextSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordInDeck } from '../useWordInDeck';
@@ -155,7 +155,7 @@ function Theme({ repo, theme, language, words, size, deck, add, onStory, onRehea
               );
             })}
             <Help>Claude fills in each word you add. Save each one in the note editor.</Help>
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+            {problem ? <ErrorNote message={problem} /> : null}
           </Card>
         ) : null}
         <Card>
