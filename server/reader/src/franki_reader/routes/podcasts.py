@@ -1,16 +1,22 @@
 """Podcasts (podcast.py): finding a show, its episodes, and adding one with a transcript as a text."""
 
+import asyncio
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
+from franki_speech.transcribe import TranscribeFailed
+from franki_speech.transcribe import cost_usd as transcribe_cost
 from pydantic import BaseModel, Field
 
-from franki_reader import podcast
+from franki_reader import podcast, podcast_store, store
 from franki_reader.engine import NotAvailable
-from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code
+from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, Code, speech_locale
 from franki_reader.routes.context import AppContext
 from franki_reader.routes.views import instant
 from franki_reader.video import Cue
+
+log = logging.getLogger(__name__)
 
 # The longest episode added at once, in seconds of transcript: a long interview.
 MAX_SECONDS = 2 * 60 * 60
@@ -39,7 +45,18 @@ class EpisodeOut(BaseModel):
     title: str
     published: str | None
     seconds: int | None
+    # A transcript to read along with: the show's own, or one Azure made (`transcribed`).
     transcript: bool
+    transcribed: bool = False
+    # About what transcribing it would cost; null when it has a transcript, its length isn't
+    # known, or Azure isn't set up.
+    transcribe_usd: float | None = None
+
+
+class TranscriptStateOut(BaseModel):
+    # "ready" (made and kept), "transcribing", "failed" with `error`, or "none" (never asked for).
+    state: str
+    error: str | None = None
 
 
 class EpisodesOut(BaseModel):
@@ -83,6 +100,11 @@ def router(ctx: AppContext) -> APIRouter:
     authed = ctx.authed
     engine = ctx.engine
     podcasts = ctx.podcasts
+    transcribe = ctx.transcribe
+    # Episodes being transcribed, and why one last failed, by (feed, guid).
+    transcribing: set[tuple[str, str]] = set()
+    failed: dict[tuple[str, str], str] = {}
+    tasks: set[asyncio.Task[None]] = set()
 
     def ready() -> podcast.Podcasts:
         if podcasts is None:
@@ -106,11 +128,16 @@ def router(ctx: AppContext) -> APIRouter:
             episode = feed.episode(body.guid)
             if episode is None:
                 raise podcast.PodcastRefused("That episode isn't in the show's feed any more.")
-            if episode.transcript is None:
+            kept = podcast_store.transcript(engine.conn, feed.url, episode.guid)
+            if kept is not None:
+                cues = kept
+            elif episode.transcript is None:
                 raise podcast.PodcastRefused(
                     "This episode has no transcript, so there's nothing to read along with."
+                    " Transcribe it first."
                 )
-            cues = await source.cues(episode.transcript)
+            else:
+                cues = await source.cues(episode.transcript)
         except podcast.PodcastRefused as e:
             raise HTTPException(422, str(e)) from e
         seconds = round(cues[-1].end_ms / 1000)
@@ -140,6 +167,7 @@ def router(ctx: AppContext) -> APIRouter:
             feed, picked = await ready().from_link(body.link)
         except podcast.PodcastRefused as e:
             raise HTTPException(422, str(e)) from e
+        made = podcast_store.transcribed(engine.conn, feed.url)
         return EpisodesOut(
             show=show_of(feed),
             episodes=[
@@ -148,12 +176,95 @@ def router(ctx: AppContext) -> APIRouter:
                     title=e.title,
                     published=_published(e.published),
                     seconds=e.seconds,
-                    transcript=e.transcript is not None,
+                    transcript=e.transcript is not None or e.guid in made,
+                    transcribed=e.guid in made,
+                    transcribe_usd=(
+                        transcribe_cost(e.seconds)
+                        if transcribe is not None
+                        and e.transcript is None
+                        and e.guid not in made
+                        and e.seconds
+                        and e.seconds <= MAX_SECONDS
+                        else None
+                    ),
                 )
                 for e in feed.episodes
             ],
             picked=picked,
         )
+
+    async def make_transcript(language: Code, feed: podcast.Feed, episode: podcast.Episode) -> None:
+        assert transcribe is not None
+        key = (feed.url, episode.guid)
+        locale = speech_locale(language) or language
+        try:
+            found = await transcribe(episode.audio, locale)
+            cues = podcast.cues_of(found)
+            if not cues:
+                raise TranscribeFailed("Azure heard no words in this episode in that language.")
+            cost = transcribe_cost(found.duration_ms / 1000)
+            podcast_store.keep_transcript(
+                engine.conn, feed.url, episode.guid, cues, cost, engine.clock()
+            )
+            store.save_call_cost(engine.conn, "transcribe", language, engine.clock(), cost)
+            failed.pop(key, None)
+        except TranscribeFailed as e:
+            failed[key] = str(e)
+        except Exception:
+            log.exception("Transcribing %s failed", episode.audio)
+            failed[key] = "Couldn't transcribe the episode. Try again."
+        finally:
+            transcribing.discard(key)
+
+    @routes.post(
+        "/api/podcasts/transcribe",
+        status_code=202,
+        dependencies=authed,
+        response_model=TranscriptStateOut,
+    )
+    async def start_transcribe(body: EpisodeIn) -> TranscriptStateOut:
+        """Has Azure transcribe an episode with no transcript, in the background; ask
+        /api/podcasts/transcript until it's ready. Its cost is kept in `call_costs` ("transcribe")."""
+        if transcribe is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't transcribe an episode"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        language = language_of(body.language)
+        try:
+            feed = await ready().feed(podcast.public_url(body.feed))
+        except podcast.PodcastRefused as e:
+            raise HTTPException(422, str(e)) from e
+        episode = feed.episode(body.guid)
+        if episode is None:
+            raise HTTPException(422, "That episode isn't in the show's feed any more.")
+        if episode.seconds and episode.seconds > MAX_SECONDS:
+            raise HTTPException(
+                422,
+                f"Episodes up to {MAX_SECONDS // 60} minutes can be transcribed. Try a shorter one.",
+            )
+        key = (feed.url, episode.guid)
+        if podcast_store.transcript(engine.conn, *key) is not None:
+            return TranscriptStateOut(state="ready")
+        if key not in transcribing:
+            transcribing.add(key)
+            failed.pop(key, None)
+            task = asyncio.create_task(make_transcript(language, feed, episode))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+        return TranscriptStateOut(state="transcribing")
+
+    @routes.get("/api/podcasts/transcript", dependencies=authed, response_model=TranscriptStateOut)
+    async def transcript_state(feed: str, guid: str) -> TranscriptStateOut:
+        key = (feed, guid)
+        if podcast_store.transcript(engine.conn, feed, guid) is not None:
+            return TranscriptStateOut(state="ready")
+        if key in transcribing:
+            return TranscriptStateOut(state="transcribing")
+        if key in failed:
+            return TranscriptStateOut(state="failed", error=failed[key])
+        return TranscriptStateOut(state="none")
 
     @routes.post("/api/podcasts/preview", dependencies=authed, response_model=PodcastPreviewOut)
     async def preview(body: EpisodeIn) -> PodcastPreviewOut:

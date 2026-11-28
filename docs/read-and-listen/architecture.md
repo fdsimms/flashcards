@@ -1864,9 +1864,17 @@ video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
   kept on the phone (`podcastStorage.ts`, at most eight) and listed first, with a note when one has a
   newer episode with a transcript than when it was last used.
 - **Only an episode with a transcript with times can be added**: `<podcast:transcript>` as JSON,
-  WebVTT or SRT, the best kind first (HTML has no times). Every episode is listed, the others greyed
-  with No transcript. Transcribing those with Azure was left to be asked about with its price.
+  WebVTT or SRT, the best kind first (HTML has no times), or one Azure made. Every episode is listed.
   Episodes up to two hours.
+- **Transcribe** (28 November 2026, the owner, from a mock with each recommendation picked): an
+  episode with no transcript of its own shows its price to transcribe (`transcribe_usd`, at
+  `franki_speech.transcribe.USD_PER_HOUR`, an estimate of about $1 an hour that Azure's pricing page
+  didn't confirm), and a tap asks first with the length and the price. The server has Azure's fast
+  transcription fetch the episode's audio itself (`audioUrl`, so nothing is downloaded), in the
+  background, and the app asks `/api/podcasts/transcript` until it's ready; the phrases become cues,
+  kept in `podcast_transcripts` so an episode is never paid for twice, and the cost goes in
+  `call_costs` ("transcribe"). Then it's checked and added as any episode. Podcasts only: a video
+  without subtitles would need its audio taken from YouTube, which its terms don't allow.
 - **Feeds are untrusted.** Read with defusedxml (no entity expansion), size-capped (15 MB a feed, 5 MB
   a transcript), and only from a public web address, redirects included (`public_url`), so a feed
   can't be pointed at the server's own network.

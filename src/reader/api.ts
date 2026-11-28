@@ -955,6 +955,12 @@ export function createApi(
     podcastSearch: (language: GlossLanguage, term: string) =>
       call<Schemas['SearchOut']>('GET', `/api/podcasts/search?language=${language}&term=${encodeURIComponent(term)}`),
     podcastEpisodes: (link: string) => call<PodcastEpisodes>('POST', '/api/podcasts/episodes', { link }),
+    // An episode with no transcript, transcribed by Azure in the background (its price is the episode's `transcribe_usd`),
+    // then asked about until it's ready.
+    transcribePodcast: (language: GlossLanguage, feed: string, guid: string) =>
+      call<Schemas['TranscriptStateOut']>('POST', '/api/podcasts/transcribe', { language, feed, guid }),
+    podcastTranscript: (feed: string, guid: string) =>
+      call<Schemas['TranscriptStateOut']>('GET', `/api/podcasts/transcript?feed=${encodeURIComponent(feed)}&guid=${encodeURIComponent(guid)}`),
     podcastPreview: (language: GlossLanguage, feed: string, guid: string) => call<PodcastPreview>('POST', '/api/podcasts/preview', { language, feed, guid }),
     addPodcast: (language: GlossLanguage, feed: string, guid: string) => call<Schemas['PodcastAddedOut']>('POST', '/api/podcasts', { language, feed, guid }),
     // The reader's language's stories, running first, then ended.

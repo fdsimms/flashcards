@@ -17,6 +17,7 @@ import ipaddress
 import json
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -25,6 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 from defusedxml import ElementTree
+from franki_speech.transcribe import Transcription
 
 from franki_reader.languages import Code
 from franki_reader.video import Cue, clean_cue
@@ -57,6 +59,16 @@ _KINDS = {
 _TIMESTAMP = re.compile(r"(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})")
 _ARROW = re.compile(rf"({_TIMESTAMP.pattern})\s*-->\s*({_TIMESTAMP.pattern})")
 _TAG = re.compile(r"<[^>]+>")
+
+
+# Azure's speech-to-text for an episode with no transcript (Transcribe): its audio's address and
+# the language's locale (pl-PL), giving the words heard with their times.
+Transcribe = Callable[[str, str], Awaitable[Transcription]]
+
+
+def cues_of(found: Transcription) -> list[Cue]:
+    """Azure's phrases as cues, cleaned as a transcript's are."""
+    return [Cue(p.start_ms, p.end_ms, t) for p in found.phrases if (t := clean_cue(p.text))]
 
 
 class PodcastRefused(ValueError):

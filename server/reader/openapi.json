@@ -7444,6 +7444,127 @@
         }
       }
     },
+    "/api/podcasts/transcribe": {
+      "post": {
+        "summary": "Start Transcribe",
+        "description": "Has Azure transcribe an episode with no transcript, in the background; ask\n/api/podcasts/transcript until it's ready. Its cost is kept in `call_costs` (\"transcribe\").",
+        "operationId": "start_transcribe_api_podcasts_transcribe_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/podcasts/transcript": {
+      "get": {
+        "summary": "Transcript State",
+        "operationId": "transcript_state_api_podcasts_transcript_get",
+        "parameters": [
+          {
+            "name": "feed",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Feed"
+            }
+          },
+          {
+            "name": "guid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guid"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/podcasts/preview": {
       "post": {
         "summary": "Preview",
@@ -8651,6 +8772,22 @@
           "transcript": {
             "type": "boolean",
             "title": "Transcript"
+          },
+          "transcribed": {
+            "type": "boolean",
+            "title": "Transcribed",
+            "default": false
+          },
+          "transcribe_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcribe Usd"
           }
         },
         "type": "object",
@@ -12499,6 +12636,30 @@
           "language"
         ],
         "title": "TopicsIn"
+      },
+      "TranscriptStateOut": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "TranscriptStateOut"
       },
       "TurnIn": {
         "properties": {
