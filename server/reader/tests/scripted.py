@@ -14,6 +14,7 @@ ENTRIES = [
     Entry(5, "ครับ", "polite particle (male)", "mature"),
     Entry(6, "รับอะไรดี", "what would you like?", "mature"),
     Entry(7, "ทอน", "give change", "unreviewed"),
+    Entry(8, "ผม", "I (a man)", "mature"),
 ]
 
 
@@ -29,28 +30,28 @@ def draft(*texts: str, glosses: dict[str, str] | None = None) -> dict[str, Any]:
     }
 
 
-GOOD = draft("ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ!")
+GOOD = draft("ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ", "*ข้าวเหนียวมะม่วง*|ครับ!")
 # The same text with one word off the list in 20: 95%, inside the range the engine asks for (the
 # default target is 92%, so nothing above 96% passes). GOOD is all known words, for tests with no
 # ceiling.
 IN_RANGE = draft(
-    "ฉัน|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ",
-    "*ข้าวเหนียวมะม่วง*|ครับ!|ฉัน|อยาก|กิน|ครับ|ฉัน|อยาก|กิน|ครับ",
+    "ผม|อยาก|กิน|*ข้าวเหนียวมะม่วง*|ครับ|ผม|อยาก|กิน|ทอน|ครับ",
+    "*ข้าวเหนียวมะม่วง*|ครับ!|ผม|อยาก|กิน|ครับ|ผม|อยาก|กิน|ครับ",
     glosses={"ทอน": "give change"},
 )
 BAD = draft("ทอน|ทอน|ฉัน")
 # In range like IN_RANGE (19 counted words, one off the list) with no practice word, for a text
 # written while ข้าวเหนียวมะม่วง is withheld.
 PLAIN = draft(
-    "ฉัน|อยาก|กิน|ครับ|ฉัน|อยาก|กิน|ทอน|ครับ|รับอะไรดี",
-    "ฉัน|อยาก|กิน|ครับ|ฉัน|อยาก|กิน|ครับ|ฉัน|ครับ",
+    "ผม|อยาก|กิน|ครับ|ผม|อยาก|กิน|ทอน|ครับ|รับอะไรดี",
+    "ผม|อยาก|กิน|ครับ|ผม|อยาก|กิน|ครับ|ผม|ครับ",
     glosses={"ทอน": "give change"},
 )
 # In range with ข้าวเหนียวมะม่วง as its practice word and no กิน, for a text written while กิน is
 # withheld.
 WITHOUT_KIN = draft(
-    "ฉัน|อยาก|*ข้าวเหนียวมะม่วง*|ครับ|ฉัน|อยาก|ทอน|ครับ|รับอะไรดี|ครับ",
-    "*ข้าวเหนียวมะม่วง*|ครับ!|ฉัน|อยาก|ครับ|ฉัน|อยาก|ครับ|ฉัน|ครับ",
+    "ผม|อยาก|*ข้าวเหนียวมะม่วง*|ครับ|ผม|อยาก|ทอน|ครับ|รับอะไรดี|ครับ",
+    "*ข้าวเหนียวมะม่วง*|ครับ!|ผม|อยาก|ครับ|ผม|อยาก|ครับ|ผม|ครับ",
     glosses={"ทอน": "give change"},
 )
 

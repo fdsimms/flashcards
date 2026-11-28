@@ -109,7 +109,7 @@ def register(server: MCPServer, client: ReaderClient) -> None:
     async def read_and_listen_costs(days: int = 30) -> dict[str, Any]:
         """What Read & Listen's texts cost over the last `days` days (1 to 3650), per language and
         in total: texts written, how many were read, are still waiting, were dropped (they
-        missed the known-words floor and were never shown, but were paid for) or skipped (taken
+        were never shown, but were paid for: list_read_and_listen_texts says why) or skipped (taken
         off the shelf unread), attempts per text, and dollars. `cost_usd`, `per_text_usd` and
         `per_read_text_usd` are Claude's alone (per text read is everything spent divided by the
         texts actually read). `audio_chars`, `azure_usd`, `total_usd`, `total_per_text_usd` and
@@ -140,13 +140,16 @@ def register(server: MCPServer, client: ReaderClient) -> None:
     ) -> dict[str, Any]:
         """Read & Listen's past texts (dialogues and story episodes), newest first, for review, as
         `texts`. `status` picks which: "shown" (the default: put on the shelf, read or still
-        waiting), "skipped" (taken off the shelf unread, Not this), "dropped" (drafts that missed
-        the known-words floor and were never shown, but were paid for; one with no lines got no
-        usable answer at all) or "all". `language` is a code ("th", "de", "pl"...), `story_id`
+        waiting), "skipped" (taken off the shelf unread, Not this), "dropped" (drafts never shown
+        but paid for: outside the known-words target, a problem the checks found, or no usable
+        answer at all) or "all". `language` is a code ("th", "de", "pl"...), `story_id`
         lists one story's episodes first to last, `days` keeps those written in the last that
         many days, `limit` is 1 to 200. Each has `id`, `title`, `topic`, `form`, `status`,
         `coverage` (the share of its words known when it was written) against `floor` (the share
-        it had to reach), `reads` and `last_rating`. Read one with get_read_and_listen_text."""
+        it had to reach), `reads`, `last_rating`, and `dropped_for`: why a dropped draft was
+        dropped, as sentences (below the floor, over the ceiling, no usable answer and why, or the
+        problems its last attempt still had); empty for any other text. Read one with
+        get_read_and_listen_text."""
         _check_window(days, limit)
         params = {"language": language, "story": story_id, "days": days, "limit": limit, "status": status}
         return {"texts": await get("/api/audit/texts", _given(params))}
@@ -157,7 +160,8 @@ def register(server: MCPServer, client: ReaderClient) -> None:
         language with its English, speaker and register, who the model named for each quotation in a
         story episode (`quotes`, in order), and the words in it the deck doesn't
         cover as of now (`unknown`, `partial`: the deck may have changed since it was written);
-        its practice words and grammar targets, the glosses the model wrote, the comprehension
+        its practice words and grammar targets, the glosses the model wrote, `meanings` (what
+        Claude gave the words nothing else glossed, in their sense here), the comprehension
         questions with the right answer's index, a story's premise, cast, plan, the voices its characters were given, episode recap and
         choices, the model that wrote it, and every reading (rating, words the reader flagged,
         time). `asked` is everything Claude answered when the owner asked about a line, by line
@@ -165,7 +169,8 @@ def register(server: MCPServer, client: ReaderClient) -> None:
         `points`), "natural" (Does this sound natural?, `answer`), "phrase" (a selected phrase's
         explanation, `phrase`, `answer`), "phrase_chat" (the questions asked about a phrase and
         the answers, `turns`, kept only for a couple of hours) and "form" (why a word has its form,
-        `word`, `answer`). Works for skipped texts and dropped drafts too. Read-only: nothing here
+        `word`, `answer`). Works for skipped texts and dropped drafts too (`dropped_for`, as in
+        list_read_and_listen_texts). Read-only: nothing here
         changes a text or the deck."""
         return await get(f"/api/audit/texts/{text_id}")
 
@@ -213,7 +218,9 @@ def register(server: MCPServer, client: ReaderClient) -> None:
         """One audio lesson in full, for auditing what Claude wrote: `phrases` taught and the
         `dialogue` (each with its English), `script` (everything said, narrator and native voice,
         and each of the learner's turns, with times in milliseconds; null for a lesson made before
-        scripts were kept), and `marks`, the phrases the owner marked while listening with the
+        scripts were kept; a native line's `gender` is the voice's, "male" or "female": speaker A
+        and every phrase taught are in the learner's gender, B in the other; absent before 28
+        November 2026), and `marks`, the phrases the owner marked while listening with the
         `reason` ("again": didn't know it, "slow": too fast) and whether a review lesson has used
         it. The audio itself isn't here. Read-only."""
         return await get(f"/api/audit/lessons/{lesson_id}")
@@ -255,13 +262,18 @@ def register(server: MCPServer, client: ReaderClient) -> None:
           `answer`, `wrong` choices, `english` and `hint`; filter by `point` (a grammar point's id,
           from list_grammar_pages or a text's `grammar`).
         - "sentence": sentences to say, one deck word each (`word`, its `note_id`).
-        - "vocab": the vocabulary check's words, with `meaning`, `wrong` choices and frequency `rank`.
-        - "meaning": glosses for words with none in the deck (an empty one is a word Claude gave
-          nothing usable for).
+        - "vocab": the vocabulary check's words, with `meaning`, `wrong` choices and frequency `rank`
+          (one per language and `word`, which is its key).
+        - "meaning": the first gloss each word with none in the deck was given, by lower-cased
+          `word` (an empty one is a word Claude gave nothing usable for). It was written for the
+          word's sense in one line, so a bare gloss can be that line's sense, and it's only the
+          fallback: a text's own `meanings` (get_read_and_listen_text) are what the reader shows.
         - "sentence_meaning": each word's meaning in a card's example sentence (not dated, so
           `days` doesn't apply).
-        `served_at` (drill, sentence) is when the owner was last shown it, null for never.
-        `batches` is how the calls in the same window went: `calls`, items `asked` for, items
+        `served_at` (drill, sentence) is when the owner was last shown it, null for never; a
+        drill's `english` shows only after it's answered, or on Show translation.
+        `batches` is how every call of the kind matching `language`, `point` and `days` went, not
+        only the items listed (without `days`, every one ever): `calls`, items `asked` for, items
         `kept` (passed the checks in code) and `cost_usd`; null for "sentence_meaning".
         `days` keeps items written in the last that many days, `limit` is 1 to 200. Read-only."""
         _check_window(days, limit)

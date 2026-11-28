@@ -122,6 +122,11 @@ _GLUED = {
     "มมาก": "มาก",
 }
 
+# Dictionary words newmm reads in place of two words a text keeps putting side by side: a man's
+# polite ครับ ending one sentence and ผม ("I") starting the next is ครับผม ("yes, sir") to newmm, an
+# unknown word. Always read as the two words, which is harmless where it does mean "yes, sir".
+_TWO_WORDS = {"ครับผม": ("ครับ", "ผม")}
+
 
 class Lexicon:
     """Thai: the deck's entries are the dictionary, and only they count as known."""
@@ -161,7 +166,7 @@ class Lexicon:
         word before it plus that letter is itself a word, take that reading. A genuine X + กว่า
         with Xก also a word (ปีกว่า, just over a year) loses, which is the rarer case."""
         out: list[str] = []
-        for token in tokens:
+        for token in [piece for t in tokens for piece in _TWO_WORDS.get(t, (t,))]:
             particle = _GLUED.get(token)
             if particle and out and out[-1] + token[0] in self._segmenter:
                 out[-1] += token[0]

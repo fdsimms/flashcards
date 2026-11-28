@@ -60,6 +60,7 @@ from franki_reader.generator import (
     TextModel,
     TextRequest,
     Usage,
+    drop_reasons,
     generate,
     name_spellings,
 )
@@ -505,6 +506,7 @@ class Engine:
                         _grammar_record(request),
                         focus,
                         stretch_count=difficulty.stretch,
+                        dropped_for=[f"No usable answer: {e}"],
                         **extra,  # type: ignore[arg-type]
                     )
                 raise
@@ -524,6 +526,7 @@ class Engine:
                     _grammar_record(request),
                     focus,
                     stretch_count=difficulty.stretch,
+                    dropped_for=drop_reasons(result, request),
                     **extra,  # type: ignore[arg-type]
                 )
                 log.warning(

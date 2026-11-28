@@ -106,8 +106,10 @@ learner to say each phrase aloud. Give:
 - dialogue: {low} to {high} lines of natural, spoken conversation in {language} in that situation,
   between A ({a}) and B ({b}). A speaks first. Each line: speaker (A or B), text ({language}),
   english. Use every one of the words and phrases above that fits naturally, in A's lines, and
-  otherwise only very basic everyday words. The learner acts out A's part at the end, so keep A's
-  lines short and made mostly of those words and phrases.
+  otherwise only very basic everyday words, plus up to three words the situation itself names (an
+  instrument, a place, an event: what makes it this situation), so the conversation is about what
+  was asked for. Put those in B's lines, at most two in a line. The learner acts out A's part at the
+  end, so keep A's lines short and made mostly of those words and phrases.
 - phrases: every one of the words and phrases above, written exactly as given (the same text,
   letter for letter: don't correct, complete or add to one, even a single word), in the order they
   come up in the dialogue, any that don't come up last. Each: text, english (as given), and parts.

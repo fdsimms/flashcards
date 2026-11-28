@@ -20,8 +20,8 @@ from . import grammar, store
 
 # Which texts `list_texts` lists, by `status`: "shown" is every text that reached the shelf and
 # wasn't taken off it ("ready" waiting or "read"), "skipped" one taken off unread (Not this),
-# "dropped" a draft that missed the known-words floor and was never shown (or got no usable answer
-# at all, kept with no lines), only for its cost. "pending" (audio still being made) is never listed.
+# "dropped" a draft that was never shown (outside its known-words target, a problem the checks
+# found, or no usable answer at all, kept with no lines), only for its cost; `dropped_for` says which. "pending" (audio still being made) is never listed.
 TEXT_STATUSES: dict[str, tuple[str, ...]] = {
     "shown": ("ready", "read"),
     "skipped": ("skipped",),
@@ -51,7 +51,8 @@ def list_texts(
 ) -> list[dict[str, Any]]:
     """Texts of a `status` in TEXT_STATUSES (shown ones unless asked), newest first; a story's
     episodes, first to last. `reads` counts finished readings; `floor` is the share of known words
-    it was written to reach, which a dropped draft's `coverage` fell short of."""
+    it was written to reach; `dropped_for` says why a dropped draft was dropped (below the floor,
+    over the ceiling, no usable answer, or the problems its last attempt had)."""
     statuses = TEXT_STATUSES[status]
     where: list[str] = [f"x.status IN ({', '.join('?' for _ in statuses)})"]
     args: list[Any] = list(statuses)
@@ -70,7 +71,8 @@ def list_texts(
                    x.episode, x.story_id, COALESCE(NULLIF(s.title, ''), t.name),
                    (SELECT COUNT(*) FROM readings r WHERE r.text_id = x.id AND r.finished = 1),
                    (SELECT r.rating FROM readings r WHERE r.text_id = x.id AND r.finished = 1
-                    ORDER BY r.id DESC LIMIT 1)
+                    ORDER BY r.id DESC LIMIT 1),
+                   x.dropped_for, x.lines = '[]'
             FROM texts x JOIN topics t ON t.id = x.topic_id LEFT JOIN stories s ON s.id = x.story_id
             WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?""",
         (*args, limit),
@@ -89,11 +91,41 @@ def list_texts(
         "topic",
         "reads",
         "last_rating",
+        "dropped_for",
+        "no_lines",
     )
     listed = [dict(zip(keys, row, strict=True)) for row in rows]
     for text in listed:
         text["created_at"] = _instant(text["created_at"])
+        no_lines = bool(text.pop("no_lines"))
+        text["dropped_for"] = _dropped_for(
+            text["status"], text["dropped_for"], no_lines, text["coverage"], text["floor"]
+        )
     return listed
+
+
+def _dropped_for(
+    status: str, stored: str, no_lines: bool, coverage: float, floor: float
+) -> list[str]:
+    """Why a dropped draft was dropped (store.py's `dropped_for`), and for one dropped before that
+    was kept, what its row still shows; empty for a text that wasn't dropped."""
+    if status != "dropped":
+        return []
+    if reasons := json.loads(stored or "[]"):
+        return [str(r) for r in reasons]
+    if no_lines:
+        return ["No usable answer (the reason wasn't kept before 28 November 2026)."]
+    if coverage < floor:
+        return [f"Below the floor: {coverage:.1%} known, the floor is {floor:.0%}."]
+    return ["Not recorded: dropped before 28 November 2026, at or above its floor."]
+
+
+def dropped_for(conn: sqlite3.Connection, text_id: int) -> list[str]:
+    row = conn.execute(
+        "SELECT status, dropped_for, lines = '[]', coverage, floor FROM texts WHERE id = ?",
+        (text_id,),
+    ).fetchone()
+    return _dropped_for(row[0], row[1], bool(row[2]), row[3], row[4]) if row else []
 
 
 def readings(conn: sqlite3.Connection, text_id: int) -> list[dict[str, Any]]:
@@ -124,6 +156,7 @@ def compact(
     reads: list[dict[str, Any]],
     floor: float | None,
     questions_asked: list[dict[str, Any]],
+    dropped: list[str] | None = None,
 ) -> dict[str, Any]:
     """One text for a reviewer, with what Claude answered when its lines were asked about
     (`asked`, see `asked`). `rendered` is the app's rendering (reader.render), which already
@@ -157,11 +190,15 @@ def compact(
         "created_at": _instant(text.created_at),
         "coverage": text.coverage,
         "floor": floor,
+        "dropped_for": dropped or [],
         "practice_words": list(text.stretch),
         "grammar": [
             {"id": g["id"], "name": g["name"], "role": g["role"]} for g in rendered["grammar"]
         ],
         "glosses": text.own_glosses,
+        # What Claude gave each word nothing else glossed, in the sense it has in its line here
+        # (meanings.py), by lower-case word; "" for one it gave nothing usable for.
+        "meanings": text.meanings,
         "characters": text.characters,
         "story": (
             {
@@ -455,10 +492,14 @@ def practice(
     - `drill`: grammar drills' fill-the-gap questions (drills.py), by `point`.
     - `sentence`: sentences to say, one deck word each (sentences.py), by `word`.
     - `vocab`: the vocabulary check's words with the meaning and wrong answers (vocab_check.py).
-    - `meaning`: glosses for words with none in the deck (meanings.py), by `word`.
+    - `meaning`: the first gloss each word with none in the deck was given (meanings.py), by
+      `word`, lower-cased: only the fallback for a text with none of its own, written for the sense
+      in one line, so a bare gloss can be that line's sense (a text's own are its `meanings`).
     - `sentence_meaning`: each word's meaning in a card's example sentence (meanings.py), by `word`.
 
-    `served_at` (drill, sentence) is when the owner was last shown it, null for never."""
+    `served_at` (drill, sentence) is when the owner was last shown it, null for never. `batches`
+    covers every batch of the kind matching `language`, `point` and `days`, not only the items
+    listed: without `days`, it's every batch ever written."""
     since = (now - timedelta(days=days)).isoformat() if days is not None else None
     where: list[str] = ["1 = 1"]
     args: list[Any] = []

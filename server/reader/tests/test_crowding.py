@@ -4,13 +4,13 @@ from franki_reader.coverage import check
 from franki_reader.crowding import CROWD_MAX, CROWD_MAX_HARDER, CROWD_WINDOW, crowding
 from franki_reader.generator import MAX_ATTEMPTS, TextRequest, system_prompt
 
-KNOWN = "ฉัน|อยาก|กิน|ครับ"  # 4 known words
+KNOWN = "ผม|อยาก|กิน|ครับ"  # 4 known words
 FILLER = [KNOWN] * 15  # 60 known words
 # Three words the deck lacks (ทอน, กลิ่น, แรง) in 3 of the first 7 words, 95.5% known overall.
 CROWDED = draft("ทอน|กลิ่น|แรง|" + KNOWN, *FILLER)
 # The same three, a full window of known words apart.
 SPREAD = draft(
-    "ฉัน|ทอน|" + KNOWN + "|" + KNOWN,
+    "ผม|ทอน|" + KNOWN + "|" + KNOWN,
     KNOWN,
     "กลิ่น|" + KNOWN + "|" + KNOWN,
     KNOWN,

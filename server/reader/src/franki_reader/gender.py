@@ -100,6 +100,29 @@ def gender_problems(
     return problems
 
 
+def polite_i_problems(language: Code, said: Sequence[tuple[str, str, str]]) -> list[str]:
+    """A Thai man who ends a line politely with ครับ says ผม for "I", not ฉัน: men do say ฉัน, but
+    with friends, not in the same line as ครับ. `said` is (who, their gender, the line or quotation
+    as the model wrote it). Only sent back for a rewrite, never a reason to drop a draft, since it
+    isn't the other gender's word (`gender_problems`). Only Thai is checked."""
+    if language != "th":
+        return []
+    problems = []
+    for who, gender, text in said:
+        if gender != "male":
+            continue
+        tokens = [t.strip(_PUNCTUATION) for t in _SPLIT.split(text.replace("*", "").replace("~", ""))]
+        if "ฉัน" in tokens and any("ครับ" in t for t in tokens):
+            problems.append(
+                f"{who} is a man and ends with ครับ, so he says ผม, not ฉัน, in: {text}. "
+                "Rewrite it with ผม."
+            )
+    if len(problems) > MAX_PROBLEMS:
+        extra = len(problems) - MAX_PROBLEMS
+        problems = [*problems[:MAX_PROBLEMS], f"{extra} more lines have the same problem."]
+    return problems
+
+
 def wrong_gender_words(language: Code, text: str, gender: str) -> list[str]:
     """The words in one line that belong to the other gender in Thai, for a speaker of `gender`
     (empty for another language, which isn't checked, or when the line fits)."""

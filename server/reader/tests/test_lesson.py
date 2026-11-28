@@ -679,6 +679,7 @@ class TestScriptOf:
         assert entries[2] == {
             "kind": "say",
             "voice": "native",
+            "gender": "male",
             "text": phrase.text,
             "english": phrase.english,
             "start": placed[2].start,

@@ -78,10 +78,35 @@ def test_dropped_drafts_are_listed_and_read_only_when_asked_for() -> None:
     dropped = c.get("/api/audit/texts?status=dropped", headers=AUTH).json()
     assert dropped and {t["status"] for t in dropped} == {"dropped"}
     assert all(t["coverage"] < t["floor"] for t in dropped)
+    assert all(t["dropped_for"][0].startswith("Below the floor") for t in dropped)
     assert c.get("/api/audit/texts?status=all", headers=AUTH).json() == dropped
     detail = c.get(f"/api/audit/texts/{dropped[0]['id']}", headers=AUTH).json()
     assert detail["status"] == "dropped"
+    assert detail["dropped_for"] == dropped[0]["dropped_for"]
     assert c.get("/api/audit/texts?status=lost", headers=AUTH).status_code == 422
+
+
+def test_a_draft_dropped_before_its_reason_was_kept_says_what_its_row_shows() -> None:
+    conn = store.connect(":memory:")
+    c = client_with(conn)
+    text_id = shown_text(c)
+    conn.execute("UPDATE texts SET status = 'dropped', dropped_for = '[]' WHERE id = ?", (text_id,))
+    [kept] = c.get("/api/audit/texts?status=dropped", headers=AUTH).json()
+    assert kept["dropped_for"] == [
+        "Not recorded: dropped before 28 November 2026, at or above its floor."
+    ]
+    conn.execute("UPDATE texts SET lines = '[]' WHERE id = ?", (text_id,))
+    [empty] = c.get("/api/audit/texts?status=dropped", headers=AUTH).json()
+    assert empty["dropped_for"][0].startswith("No usable answer")
+
+
+def test_a_shown_text_has_no_drop_reason_and_carries_its_own_meanings() -> None:
+    c = client_with(store.connect(":memory:"))
+    text_id = shown_text(c)
+    [listed] = c.get("/api/audit/texts", headers=AUTH).json()
+    assert listed["dropped_for"] == []
+    detail = c.get(f"/api/audit/texts/{text_id}", headers=AUTH).json()
+    assert detail["dropped_for"] == [] and isinstance(detail["meanings"], dict)
 
 
 def test_a_skipped_text_is_listed_apart_from_the_shown_ones() -> None:

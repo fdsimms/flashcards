@@ -46,7 +46,12 @@ from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import MINIMUM, Checker, Coverage, check, line_names, parse_line
 from franki_reader.crowding import crowding
 from franki_reader.difficulty import DEFAULT_FLOOR
-from franki_reader.gender import GENDERS, gender_problems, quote_gender_problems
+from franki_reader.gender import (
+    GENDERS,
+    gender_problems,
+    polite_i_problems,
+    quote_gender_problems,
+)
 from franki_reader.genre import DEFAULT as DEFAULT_GENRE
 from franki_reader.genre import Genre
 from franki_reader.genre import instruction as genre_instruction
@@ -327,6 +332,9 @@ class Generated:
     grammar_problems: int = 0
     # Crowded stretches of new words (crowding.py): the closest attempt is kept if no attempt has none.
     crowded: int = 0
+    # What was wrong with this draft besides its coverage, as the sentences a revision is sent
+    # (stretch words, gender, names, grammar, crowding); `drop_reasons` adds the coverage.
+    problems: tuple[str, ...] = ()
     # The model's transliteration of the words it glossed (Thai only), by word. Absent for a word
     # it gave none for; the reader then shows none rather than a guess.
     translits: dict[str, str] = field(default_factory=dict)
@@ -1183,6 +1191,20 @@ async def generate(ask: Ask, lexicon: Checker, request: TextRequest) -> Generate
     return result
 
 
+def drop_reasons(result: Generated, request: TextRequest) -> list[str]:
+    """Why a draft that wasn't passed was dropped, for review after the fact (audit.py): where its
+    coverage fell against the target, then the problems the last attempt still had."""
+    ratio = result.coverage.ratio
+    reasons = []
+    if ratio < request.floor:
+        reasons.append(f"Below the floor: {ratio:.1%} known, the floor is {request.floor:.0%}.")
+    elif request.ceiling is not None and ratio > request.ceiling:
+        reasons.append(
+            f"Over the ceiling: {ratio:.1%} known, the ceiling is {request.ceiling:.0%}."
+        )
+    return reasons + list(result.problems)
+
+
 def _paragraphs(lines: tuple[Line, ...], form: Form) -> tuple[Line, ...]:
     """A story's paragraph marks, made consistent: the first line opens a paragraph whenever any
     line does, and a dialogue has none."""
@@ -1272,11 +1294,18 @@ def _assess(
         gender_issues = gender_problems(
             request.language, [(ln.speaker, ln.text) for ln in lines], genders
         )
+    polite_said = [
+        (f"Speaker {ln.speaker}", genders[ln.speaker], ln.text)
+        for ln in lines
+        if ln.speaker in genders
+    ]
     if request.story is not None:
-        quote_issues, quote_gender_issues = _quote_issues(lines, request, speakers)
+        quote_issues, quote_gender_issues, quotations = _quote_issues(lines, request, speakers)
         problems += quote_issues
         gender_issues += quote_gender_issues
+        polite_said += quotations
     problems += gender_issues
+    problems += polite_i_problems(request.language, polite_said)
     name_issues = name_problems(coverage, lexicon.spaced)
     problems += name_issues
     grammar_issues, grammar_misses = grammar_problems([ln.text for ln in lines], lexicon, request)
@@ -1310,6 +1339,7 @@ def _assess(
         names_ok=not name_issues,
         grammar_problems=grammar_misses,
         crowded=crowded,
+        problems=tuple(problems),
         translits=translits,
         recap=recap,
         series=series,
@@ -1327,10 +1357,11 @@ def _assess(
 
 def _quote_issues(
     lines: tuple[Line, ...], request: TextRequest, speakers: tuple[Speaker, ...]
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[tuple[str, str, str]]]:
     """What's wrong with who speaks the quotations in a story episode (cast.py): the attributions
     that don't match the quotations, and, in Thai, a quotation with a word of the other gender than
-    its speaker's, which like a dialogue's is never kept."""
+    its speaker's, which like a dialogue's is never kept; then each quotation as (who, their
+    gender, the quotation), for the checks that only send it back (`polite_i_problems`)."""
     assert request.story is not None
     cast = {s.name: s for s in (*request.story.speakers, *speakers)}
     problems = quote_problems([(ln.text, ln.quotes) for ln in lines], cast)
@@ -1339,7 +1370,7 @@ def _quote_issues(
         for name, text in quotation_texts(ln.text, ln.quotes):
             if (key := find(cast, name)) is not None:
                 quotations.append((name, cast[key].gender, text))
-    return problems, quote_gender_problems(request.language, quotations)
+    return problems, quote_gender_problems(request.language, quotations), quotations
 
 
 def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:

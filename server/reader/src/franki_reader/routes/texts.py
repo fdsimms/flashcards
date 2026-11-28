@@ -135,6 +135,7 @@ def router(ctx: AppContext) -> APIRouter:
             audit.readings(engine.conn, text_id),
             audit.floor_of(engine.conn, text_id),
             audit.asked(engine.conn, text_id),
+            audit.dropped_for(engine.conn, text_id),
         )
 
     @routes.get("/api/relisten", dependencies=authed)

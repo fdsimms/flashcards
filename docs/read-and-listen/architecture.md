@@ -570,7 +570,10 @@ aloud is never heard by the phone.
   taught (`lesson.clean_given_plan`): every given phrase, as the learner has it and with their
   meaning, with Claude's parts only where it wrote the phrase back exactly, and any it left out or
   changed taught whole at the end; phrases Claude added are dropped. A Thai phrase isn't sent back for
-  lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. The app
+  lacking ครับ or ค่ะ, since it's the learner's own word; the speakers' lines still are. Around
+  the learner's phrases the dialogue uses very basic words plus up to three the situation itself
+  names (an instrument, a place, an event), in B's lines (28 November 2026, the owner: a lesson asked
+  for "my violin recital last night" came out as "I played music yesterday"). The app
   keeps the lesson's id in the cram (`Cram.lesson`) and offers to make it again once the words change.
   The Lessons tab asks the same way (18 November 2026, the owner's request): the New lesson card's
   "Words to teach (optional)" row takes up to 15 words, chosen from the decks (`LessonWordPicker.tsx`: the
@@ -1219,7 +1222,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   the app reads every language's (`GET /api/grammar/choices`; docs/grammar.md, step 2). Each point has a
   page (`GET /api/grammar/{id}`; docs/grammar.md, step 4), opened from its name here. Points set to
   Practice or Know it are drilled from the Practice tab, with questions from texts read and ones
-  Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5).
+  Claude writes ahead (`POST /api/drills`, `drills.py`; docs/grammar.md, step 5). A gap question's
+  English shows only once it's answered (or on Show translation), so the sentence alone must make
+  the answer the only right one: the prompt asks for a word in it that rules the wrong choices out,
+  and for no wrong choice that makes a grammatical sentence with another meaning (28 November 2026,
+  the owner: Thai's เคย drills had จะ and กำลัง as wrong choices that were right Thai). Only the
+  prompt carries it; questions already written stay.
 - **The Grammar dial** (owner's request, 13 November 2026). The end view's "For the next ones"
   card has a Grammar row beside Length: Simpler, Same or Harder, stepped from where it was when the
   view opened. It sets how many times a text may use points not set (`Difficulty.unset_uses`, per
@@ -2001,7 +2009,10 @@ are listed at the top of `server/reader/src/franki_reader/app.py`.
   meanings). They only read, because the app's routes for the same things don't:
   `GET /api/grammar/{id}/lesson` writes a lesson that's missing and records its examples, and
   `GET /api/lessons` listens to old lessons for their pauses. `audit.py` holds them; the MCP's
-  `reader.py` has a tool for each. What the phone alone keeps (crams, Situations' conversations,
+  `reader.py` has a tool for each. A dropped draft says why it was dropped (`texts.dropped_for`:
+  below the floor, over the ceiling, no usable answer and its reason, or the problems its last
+  attempt still had; one dropped earlier says what its row still shows), a text carries its own
+  `meanings`, and a lesson's script names each native line's voice (`gender`). What the phone alone keeps (crams, Situations' conversations,
   Ask Claude about a card) and what nobody keeps (the production checks, Fix with Claude) stay out
   of reach.
 
@@ -2127,8 +2138,11 @@ in the current language, with when one was last read to the end. Nothing else le
     (`gender.quote_gender_problems`), and a draft that fails it is never kept.
 - **Thai's lines are checked against it in code** (`gender.gender_problems`): a man's line with
   ค่ะ, คะ or ดิฉัน, or a woman's with ครับ or ผม, goes back to the model with the line named, like the
-  vocabulary check. ฉัน isn't checked (men say it too), and ผม counts only as a whole word, since it
-  also means "hair". A draft that fails is never kept, however good its coverage: if every attempt
+  vocabulary check. ฉัน alone isn't checked (men say it too), and ผม counts only as a whole word,
+  since it also means "hair". A man's line with both ฉัน and ครับ goes back to be rewritten with
+  ผม (`gender.polite_i_problems`, 28 November 2026, the owner), but isn't a reason to drop a draft.
+  So that ครับ ending one sentence and ผม starting the next count as two known words, the segmenter
+  always splits ครับผม ("yes, sir" to newmm) into them (`coverage._TWO_WORDS`). A draft that fails is never kept, however good its coverage: if every attempt
   fails, the text is stored as dropped. The other languages mark gender in verb endings and
   adjectives, which code can't check reliably, so they rest on the prompt.
 - **Voices**: four slots per language (`male`, `male2`, `female`, `female2`), defaults in
