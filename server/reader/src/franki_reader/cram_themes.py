@@ -31,7 +31,7 @@ from franki_reader.claude_errors import didnt_answer
 from franki_reader.coverage import Checker, is_word
 from franki_reader.gender import thai_fits
 from franki_reader.generator import CHEAP_MODEL, Usage, usage_of
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, Code, citation_form
 from franki_reader.lesson import MAX_CHARS, Learner, tokens
 from franki_reader.lesson_words import is_written
 from franki_reader.lexicon import Entry
@@ -232,7 +232,7 @@ not used at the last lesson, or added lately.
 - deck_words: the D numbers of other studied words, from the full list, that the theme needs. \
 Together words and deck_words name at most {max_words}. Use only numbers that are in the lists.
 - new_words: up to {max_new} words the learner doesn't have yet and the theme really needs, each \
-in {language}'s own writing as a flashcard would show it, with its meaning in a few plain English \
+in {language}'s own writing as a flashcard would show it, in {citation}, with its meaning in a few plain English \
 words. Prefer one from the message's list of common words they lack when it fits. None when the \
 theme doesn't need any.
 - why: one short English sentence on why the theme suits this learner, using only what the \
@@ -355,6 +355,7 @@ def system_message(
 ) -> str:
     return SYSTEM.format(
         language=LANGUAGES[language].name,
+        citation=citation_form(language),
         count=COUNT,
         max_words=MAX_WORDS,
         max_new=MAX_NEW,
