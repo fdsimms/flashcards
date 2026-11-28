@@ -505,7 +505,7 @@ export function HeaderAction({ label, onPress, accessibilityLabel, busy }: { lab
         backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
       }}
     >
-      {busy ? <ActivityIndicator color={c.accentInk} /> : <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>}
+      {busy ? <ActivityIndicator color={c.accentInk} /> : <Text style={{ ...type.headline, color: c.accentInk }}>{label}</Text>}
     </Tappable>
   );
 }
@@ -707,7 +707,7 @@ export function Select({ label, options, value, onChange }: { label: string; opt
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
       <Hoverable effect="highlight">
       <Pressable
-        onPress={() => toggle(!open)}
+        onPress={() => { haptic.select(); toggle(!open); }}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value || 'none'}`}
         accessibilityState={{ expanded: open }}
@@ -812,7 +812,7 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
 }) {
   const c = useTheme();
   return (
-    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, padding: 2 }, style]}>
+    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, ...smooth, padding: 2 }, style]}>
       {options.map((o) => {
         const selected = o.value === value;
         return (
@@ -824,7 +824,7 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
             accessibilityState={{ selected, disabled: o.disabled }}
             accessibilityLabel={o.accessibilityLabel ?? o.label}
             hitSlop={{ top: 4, bottom: 4 }}
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, ...smooth, backgroundColor: selected ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
           </Pressable>

@@ -22,7 +22,7 @@ export function XrayCard({ character }: { character: StoryCharacter }) {
       accessibilityLabel={`${character.name}. ${character.description}. ${firstSeen(character)}.`}
       style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.m, backgroundColor: c.fill, borderRadius: radius.m, ...smooth, padding: space.m, borderColor: c.border, borderWidth: hairline }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ minWidth: 38, minHeight: 38, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ ...type.headline, color: c.accentInk }}>{badgeLetter(character.name)}</Text>
       </View>
       <View style={{ flex: 1, gap: space.xs }}>

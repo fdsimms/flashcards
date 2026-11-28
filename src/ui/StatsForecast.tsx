@@ -102,6 +102,7 @@ export function ForecastBox({ repo, data, answers, scope, decks, fallback, days 
             onPress={() => { haptic.select(); setOpen((o) => !o); }}
             accessibilityRole="button"
             accessibilityState={{ expanded: open }}
+            hitSlop={{ top: space.m / 2, bottom: space.m / 2 }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: MIN_TAP - space.m }}
           >
             <Text style={{ ...type.headline, color: c.text, flex: 1 }}>What if I change my limits?</Text>
@@ -230,6 +231,7 @@ function StepButton({ icon, label, disabled, onPress }: { icon: 'minus' | 'plus'
     <Tappable
       onPress={() => { haptic.select(); onPress(); }}
       disabled={disabled}
+      hitSlop={space.xs / 2}
       accessibilityRole="button"
       accessibilityLabel={label}
       scaleTo={0.92}

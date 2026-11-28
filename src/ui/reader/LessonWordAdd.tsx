@@ -8,7 +8,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Field, Help, Icon, Screen, Tappable } from '../kit';
 import { CandidateChips } from '../cram/CramBits';
-import { radius, readable, space, type, useTheme } from '../theme';
+import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { leaveScreen } from '../leaveScreen';
@@ -103,7 +103,8 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={[cand.text, cand.reading, cand.english].filter(Boolean).join(', ')}
                     scaleTo={0.98}
-                    style={{ gap: space.xs, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+                    // The border is always there, clear when not picked, so picking a card doesn't shift its text.
+                    style={{ gap: space.xs, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, ...smooth, borderWidth: 2, borderColor: on ? c.accent : 'transparent', padding: space.m - 2 }}
                   >
                     <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{[cand.reading, cand.english].filter(Boolean).join(' · ')}</Text>

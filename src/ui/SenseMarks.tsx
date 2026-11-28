@@ -95,7 +95,7 @@ export function SenseCount({ text }: { text: string }) {
 export function SenseReminder({ text, title, detail, got, missed }: { text: string; title: string; detail: string; got: string[]; missed: number }) {
   const c = useTheme();
   const [open, setOpen] = useState(false);
-  const dot = { width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' } as const;
+  const dot = { minWidth: 24, minHeight: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' } as const;
   return (
     <View style={{ alignSelf: 'stretch', borderRadius: radius.l, ...smooth, backgroundColor: c.warningFill, paddingHorizontal: space.l, paddingVertical: space.m, gap: space.s }}>
       <View accessible accessibilityLabel={text} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>

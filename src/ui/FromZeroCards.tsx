@@ -116,13 +116,13 @@ function StepMark({ state, n }: { state: PathStep['state']; n: number }) {
   const size = 22;
   if (state === 'done') {
     return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.goodInk, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radius.pill, backgroundColor: c.goodInk, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="checkmark" size={12} color={c.onAccent} />
       </View>
     );
   }
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'now' ? c.accent : undefined, borderWidth: state === 'now' ? 0 : 1.5, borderColor: c.border }}>
+    <View style={{ minWidth: size, minHeight: size, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'now' ? c.accent : undefined, borderWidth: state === 'now' ? 0 : 1.5, borderColor: c.border }}>
       <Text style={{ ...type.caption, fontWeight: '700', color: state === 'now' ? c.onAccent : c.textDim }}>{n}</Text>
     </View>
   );

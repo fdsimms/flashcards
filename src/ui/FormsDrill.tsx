@@ -264,13 +264,14 @@ function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: str
       {prompt.gap ? (
         <Text
           accessibilityLabel={`${reveal ? reveal : 'blank'} ${prompt.headword}`}
+          accessibilityLanguage={prompt.say?.lang}
           style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}
         >
           <Text style={{ color: c.accent, textDecorationLine: 'underline' }}>{reveal ?? '___'}</Text>
           {` ${prompt.headword}`}
         </Text>
       ) : (
-        <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
+        <Text accessibilityLanguage={prompt.say?.lang} style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
       )}
       {prompt.meaning ? (
         showMeaning ? (
@@ -306,6 +307,7 @@ function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: str
           <Text
             // VoiceOver reads the underscores of the gap badly: it says "blank" until the answer fills it.
             accessibilityLabel={reveal ? undefined : `${prompt.sentence.before} blank ${prompt.sentence.after}`}
+            accessibilityLanguage={prompt.say?.lang}
             style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}
           >
             {prompt.sentence.before}

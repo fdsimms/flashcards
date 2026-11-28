@@ -41,7 +41,7 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
     Animated.timing(turn, { toValue: open ? 1 : 0, duration: reduce ? 0 : 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [open, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <View style={{ width: DISCLOSURE, height: DISCLOSURE, borderRadius: DISCLOSURE / 2, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: DISCLOSURE, height: DISCLOSURE, borderRadius: radius.pill, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['-90deg', '0deg'] }) }] }}>
         <Icon name="chevron.down" size={12} color={color} weight="semibold" />
       </Animated.View>

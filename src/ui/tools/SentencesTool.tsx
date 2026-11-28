@@ -187,7 +187,7 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
                 <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, fontWeight: '600', color: c.accentInk }}>{parts ? prompt.word : `${prompt.word} · ${prompt.meaning}`}</Text>
               </View>
             ) : (
-              <Tappable onPress={() => { haptic.tap(); setHint(true); }} accessibilityRole="button" accessibilityLabel="Hint: the word in the sentence" scaleTo={0.96} style={{ minHeight: 34, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, borderWidth: 1, borderColor: c.accent }}>
+              <Tappable onPress={() => { haptic.tap(); setHint(true); }} accessibilityRole="button" accessibilityLabel="Hint: the word in the sentence" hitSlop={{ top: 5, bottom: 5 }} scaleTo={0.96} style={{ minHeight: 34, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, borderWidth: 1, borderColor: c.accent }}>
                 <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Hint</Text>
               </Tappable>
             )}

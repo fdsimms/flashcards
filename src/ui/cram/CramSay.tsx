@@ -11,7 +11,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { talkTextStyle } from '../../reader/fonts';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
-import { MIN_TAP, radius, readable, space, type, useTheme } from '../theme';
+import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { SpeakButton } from '../SpeakButton';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -208,7 +208,7 @@ function Chat({ turns, draft, onDraft, onSend, asking, spoken }: {
       <Help>Answer in English, as loosely as you like.</Help>
       <View style={{ gap: space.s }}>
         {turns.map((t, i) => (
-          <View key={i} style={{ maxWidth: '85%', alignSelf: t.asker === 'claude' ? 'flex-start' : 'flex-end', borderRadius: radius.l, paddingVertical: space.s + 1, paddingHorizontal: space.m, backgroundColor: t.asker === 'claude' ? c.surface : c.accentFill, borderWidth: t.asker === 'claude' ? 1 : 0, borderColor: c.border }}>
+          <View key={i} style={{ maxWidth: '85%', alignSelf: t.asker === 'claude' ? 'flex-start' : 'flex-end', borderRadius: radius.l, ...smooth, paddingVertical: space.s + 1, paddingHorizontal: space.m, backgroundColor: t.asker === 'claude' ? c.surface : c.accentFill, borderWidth: t.asker === 'claude' ? 1 : 0, borderColor: c.border }}>
             <Text style={{ ...withThaiLineHeight(type.callout, t.text), color: c.text }}>{t.text}</Text>
           </View>
         ))}

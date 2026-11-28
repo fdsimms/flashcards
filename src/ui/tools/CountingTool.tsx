@@ -230,7 +230,7 @@ function Choices({ speech, choices, correct, picked, byReading, onChoose }: {
           >
             <View style={{ flex: 1, gap: space.xs }}>
               <Text accessibilityLanguage={speech} style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
-              {answered && p.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
+              {answered && p.roman ? <Text accessibilityLanguage={byReading ? speech : undefined} style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
             </View>
             {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}

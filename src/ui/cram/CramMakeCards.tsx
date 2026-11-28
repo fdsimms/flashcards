@@ -10,7 +10,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Button, Card, Help, Icon, Loading, Screen, Tappable } from '../kit';
 import { CandidateChips } from './CramBits';
-import { radius, readable, space, type, useTheme } from '../theme';
+import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { cramsNow, saveCram, useCollection, useCrams } from '../useCrams';
 import { useWordInDeck } from '../useWordInDeck';
 import { WorkingMark } from '../WorkingMark';
@@ -77,7 +77,7 @@ export function CramMakeCards({ repo, id, deckFor, findWords, queue }: {
   if (!language) {
     return (
       <Screen title="Make cards" largeTitle={false}>
-        <ScrollView contentContainerStyle={{ ...readable, padding: space.l }}><Help>Choose the cram's language first (Edit, on its page).</Help></ScrollView>
+        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l }}><Help>Choose the cram's language first (Edit, on its page).</Help></ScrollView>
       </Screen>
     );
   }
@@ -168,7 +168,8 @@ export function CramMakeCards({ repo, id, deckFor, findWords, queue }: {
                       accessibilityState={{ selected: on, disabled: there }}
                       accessibilityLabel={[cand.text, cand.reading, cand.english, there ? 'already in your deck' : ''].filter(Boolean).join(', ')}
                       scaleTo={0.98}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, borderWidth: on ? 2 : 0, borderColor: c.accent, padding: space.m }}
+                      // The border is always there, clear when not picked, so picking a card doesn't shift its text.
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, backgroundColor: on ? c.accentFill : c.fill, borderRadius: radius.m, ...smooth, borderWidth: 2, borderColor: on ? c.accent : 'transparent', padding: space.m - 2 }}
                     >
                       <View style={{ flex: 1, gap: space.xs }}>
                         <Text style={{ ...withThaiLineHeight(type.title, cand.text), color: c.text }}>{cand.text}</Text>
