@@ -1,5 +1,5 @@
 import { STRIP_UNICASE_SQL } from './collection';
-import { DAILY_GOALS_KEY } from './dailyGoals';
+import { DAILY_GOALS_KEY, GOAL_REPLACED_KEY } from './dailyGoals';
 import { PROGRESS_GATES_KEY } from './progressGates';
 import { NATIVE_RECORDINGS_KEY } from './nativeRecordings';
 import { SKILL_CARDS_KEY } from './skillSettings';
@@ -49,6 +49,8 @@ export const keptSql = (schema = 'anki') => ({
   gates: `SELECT val FROM ${schema}.config WHERE KEY = '${PROGRESS_GATES_KEY}'`,
   // Each deck's daily goal (dailyGoals.ts), kept the same way.
   dailyGoals: `SELECT val FROM ${schema}.config WHERE KEY = '${DAILY_GOALS_KEY}'`,
+  // What each deck's goal replaced, to put back when it's turned off (dailyGoals.ts), kept the same way.
+  goalReplaced: `SELECT val FROM ${schema}.config WHERE KEY = '${GOAL_REPLACED_KEY}'`,
   // Each deck's skill card settings (skillSettings.ts), kept the same way.
   skillSettings: `SELECT val FROM ${schema}.config WHERE KEY = '${SKILL_CARDS_KEY}'`,
   // Whether words get native speakers' recordings (nativeRecordings.ts), kept the same way.

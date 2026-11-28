@@ -3,7 +3,7 @@ import { inSchema, keptSql, stripUnicaseIn } from '../anki/attachedSql';
 import { deckAndParents, studiedDelta, studiedOn, withStudied, type DeckStatsRow } from '../anki/deckStats';
 import type { AnkiDeckStudied } from '../core/queue';
 import { queryCollectionRows, type CollectionRows } from '../anki/collection';
-import { dailyGoalsByName, setAnkiDailyGoal } from '../anki/dailyGoals';
+import { dailyGoalsByName, goalReplacedByName, setAnkiDailyGoal, setAnkiGoalReplaced } from '../anki/dailyGoals';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { setAnkiAudioVoice, type AudioVoice } from '../anki/audioVoices';
 import { NATIVE_OFF, nativeConfigFromValue, setAnkiNativeRecordings, type NativeRecordingsConfig } from '../anki/nativeRecordings';
@@ -112,6 +112,10 @@ export interface AnkiLink {
   ankiDailyGoals(): Promise<Map<string, number>>;
   /** Sets or, with none, removes a deck's daily goal in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
   setAnkiDailyGoal(deck: string, goal: number | undefined, now?: Date): Promise<boolean>;
+  /** What each deck's goal replaced, kept in the collection (`src/anki/dailyGoals.ts`), by deck name (null: none of its own). Read without the lock. */
+  ankiGoalReplaced(): Promise<Map<string, number | null>>;
+  /** Sets or, with undefined, removes what a deck's goal replaced, which a sync carries. False when Anki has no such deck. Waits for the lock. */
+  setAnkiGoalReplaced(deck: string, value: number | null | undefined, now?: Date): Promise<boolean>;
   /** Each deck's skill card settings kept in the collection (`src/anki/skillSettings.ts`), by deck name; a deck with none has the defaults. Read without a sync. */
   ankiSkillSettings(): Promise<Map<string, SkillSettings>>;
   /** Saves a deck's skill card settings in the collection, which a sync carries. False when Anki has no such deck. Waits for the lock. */
@@ -437,6 +441,16 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     },
 
     setAnkiDailyGoal: (deck, goal, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiDailyGoal(c, deck, goal, now))),
+
+    async ankiGoalReplaced() {
+      await attach();
+      if (!attached) return new Map();
+      const decks = (await db.getAllAsync<{ id: number; name: string }>(SQL.decks)).map((r) => ({ id: Number(r.id), name: r.name.split('\x1f').join('::') }));
+      const row = await db.getFirstAsync<{ val: Uint8Array | string }>(SQL.goalReplaced);
+      return goalReplacedByName(decks, row?.val);
+    },
+
+    setAnkiGoalReplaced: (deck, value, now = new Date()) => lockAnki(() => link.withSyncConnection((c) => setAnkiGoalReplaced(c, deck, value, now))),
 
     async ankiSkillSettings() {
       await attach();

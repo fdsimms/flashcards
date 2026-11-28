@@ -37,10 +37,13 @@ from franki_reader import (
     forms,
     grammar,
     journal_store,
+    level_store,
     meanings,
     own_text,
     rotation,
     store,
+    video,
+    video_store,
     written_points,
 )
 from franki_reader.coverage import Checker, Coverage, check, parse_line
@@ -66,6 +69,7 @@ from franki_reader.generator import (
 )
 from franki_reader.genre import Genre
 from franki_reader.languages import LANGUAGES, SPEAKING_LANGUAGES, Code
+from franki_reader.level import Level, known_words, level
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
@@ -304,6 +308,27 @@ class Engine:
         """Japanese's words learned in WaniKani, as the model's word list shows them; none for
         another language. They aren't deck words, so they're kept out of `snapshot`'s entries."""
         return as_entries(store.load_wanikani(self.conn)) if language == "ja" else []
+
+    def level(self, language: Code) -> Level | None:
+        """Your level from the language's snapshot (level.py), None for a language with no frequency
+        list, or before its deck has been read."""
+        if store.load_snapshot(self.conn, language)[1] is None:
+            return None
+        entries, lexicon = self.snapshot(language)
+        words = known_words(entries, [e.text for e in self.wanikani_entries(language)])
+        return level(language, words, lexicon)
+
+    def note_level(self, language: Code) -> Level | None:
+        """Your level, with today's figure kept for its trend (level_store.py) the first time it's
+        worked out on a study day: by the page, or by the top-up pass, so the trend fills in on days
+        the page isn't opened."""
+        day = study_day(self.clock(), self.rollover(), self.zone)
+        if level_store.has_day(self.conn, language, day):
+            return None
+        figure = self.level(language)
+        if figure is not None:
+            level_store.keep(self.conn, language, day, figure)
+        return figure
 
     async def refresh_lexicon(
         self,
@@ -1213,6 +1238,7 @@ class Engine:
         await self.time_waiting_texts()
         language = self.language()
         await self.refresh_lexicon(language)
+        self.note_level(language)
         # Texts written before their common words were glossed, newest first, a batch a pass.
         recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
         await self.fill_meanings(recent, language)
@@ -1334,6 +1360,60 @@ class Engine:
         task.add_done_callback(self._tasks.discard)
         return ids
 
+    def video_preview(self, language: Code, captions: video.Captions) -> own_text.Preview:
+        """What adding a video's subtitles would give, as `own_preview` does for a pasted text, its
+        length the video's and nothing recorded. Raises `video.VideoRefused` for one that can't be
+        added, and NotAvailable while the deck can't be read."""
+        captions = video.checked(captions)
+        lines = [own_text.OwnLine(c.text) for c in video.lines_of(captions.cues, language)]
+        return own_text.preview_lines(
+            lines, captions.title, language, self.snapshot(language)[1], seconds=captions.seconds
+        )
+
+    def add_video(self, language: Code, captions: video.Captions) -> int:
+        """Adds a video's subtitles as one text on the own row (video.py), pending until its lines
+        are translated and glossed in the background. It isn't recorded: the video is its sound.
+        Returns the text's id. Raises as `video_preview` does, and NotAvailable with no Claude key."""
+        preview = self.video_preview(language, captions)
+        if self.write_translation is None:
+            raise NotAvailable("The server has no Claude API key yet.")
+        cues = video.lines_of(captions.cues, language)
+        lexicon = self.snapshot(language)[1]
+        lines = tuple(Line("N", c.text, "") for c in cues)
+        generated = Generated(
+            preview.title, lines, {}, check((ln.text for ln in lines), lexicon), 0, True, ()
+        )
+        topic_id = store.add_own_topic(self.conn, preview.title, self.clock())
+        text_id = store.save_text(
+            self.conn,
+            topic_id,
+            generated,
+            [],
+            0.0,
+            self.clock(),
+            "pending",
+            "story",
+            language,
+            reason="own",
+        )
+        video_store.keep(
+            self.conn,
+            text_id,
+            video_store.VideoText(
+                captions.video_id,
+                captions.channel,
+                captions.generated,
+                tuple((c.start_ms, c.end_ms) for c in cues),
+            ),
+        )
+        job = Job(topic_id, language, reason="own", form="story")
+        self._writing.add(job.key)
+        self._jobs[job.key] = job
+        task = asyncio.create_task(self._make_own(job, [text_id]))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return text_id
+
     async def _make_own(self, job: Job, ids: list[int]) -> None:
         """Translates, glosses and records a pasted text's parts in order, so the first can be read
         while the rest are made. Never raises: this runs unattended. Each part is served once its
@@ -1364,20 +1444,28 @@ class Engine:
             self._stage(job, "translating")
         assert self.write_translation is not None
         store.count_own_try(self.conn, text_id)
+        # A long text (a video's subtitles are one text however long) is translated a part's worth
+        # at a time; the runs translated before a failure keep their English.
+        english: list[str] = []
+        cost = 0.0
         try:
-            english, used = await self.write_translation(
-                text.language, [line.text for line in text.lines]
-            )
-            store.set_own_translation(self.conn, text_id, english, used.cost_usd())
+            for chunk in own_text.chunks([line.text for line in text.lines]):
+                got, used = await self.write_translation(text.language, chunk)
+                english += got
+                cost += used.cost_usd()
+            store.set_own_translation(self.conn, text_id, english, cost)
         except own_text.TranslationFailed as e:
             log.warning("Couldn't translate pasted text %d: %s", text_id, e)
-            store.set_own_translation(self.conn, text_id, [], e.usage.cost_usd())
+            store.set_own_translation(self.conn, text_id, english, cost + e.usage.cost_usd())
         text = store.get_text(self.conn, text_id)
         if text is None:
             return
         await self.fill_meanings([text], text.language)
         await self.fill_ipa([text], text.language)
         await self.fill_forms([text])
+        # A video's text isn't recorded: the video is its sound (video.py).
+        if video_store.of(self.conn, text_id) is not None:
+            return
         if job is not None:
             self._stage(job, "recording")
         await self.make_audio(text)

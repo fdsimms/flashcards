@@ -767,3 +767,71 @@ def build_lines(plan: Plan, recordings: tuple[str, ...], learner: Learner = "mal
             steps += _ask_line(phrase, recording, learner)
     steps.append(Say("narrator", "That's the end of the drill."))
     return steps
+
+
+# Your words (lesson_service.make_words): words the app picked from the deck (due today, then
+# started lately), each said, a pause to recall its meaning, the meaning, and an example; or with
+# `meaning_first`, the meaning, a pause to say the word, then the word. No Claude call: the words,
+# meanings and examples are the deck's own. Never grades a card.
+WORDS_TITLE = "Your words"
+WORDS_MIN = 3
+WORDS_MAX = 60
+# The least time to recall a word or a meaning, however short it is.
+RECALL_MS = 3000
+
+
+@dataclass(frozen=True)
+class Example:
+    text: str
+    english: str
+
+
+def words_plan(phrases: tuple[Phrase, ...]) -> Plan:
+    n = len(phrases)
+    return Plan(WORDS_TITLE, f"{n} {'word' if n == 1 else 'words'} from your deck", (), phrases)
+
+
+def _recall(text: str) -> Silence:
+    return Silence(max(answer(text).ms, RECALL_MS), answer=True)
+
+
+def build_words(
+    plan: Plan,
+    examples: tuple[Example | None, ...],
+    meaning_first: bool = False,
+    learner: Learner = "male",
+) -> list[Step]:
+    """Each word with a pause to recall it, then its example (`examples`, one for each of the plan's
+    phrases, in order; None for a word with none). Played once through: the deck brings them back."""
+    steps: list[Step] = [
+        Say(
+            "narrator",
+            "Your words. Each meaning in English, then a pause to say the word."
+            if meaning_first
+            else "Your words. Each word, then a pause to recall what it means.",
+        ),
+        Silence(BEAT_MS),
+    ]
+    for phrase, example in zip(plan.phrases, examples, strict=True):
+        if meaning_first:
+            steps += [
+                Say("narrator", phrase.english),
+                _recall(phrase.text),
+                Say(learner, phrase.text),
+                Silence(AFTER_NATIVE_MS),
+            ]
+        else:
+            steps += [
+                Say(learner, phrase.text),
+                _recall(phrase.english),
+                Say("narrator", phrase.english),
+                Silence(BEAT_MS),
+            ]
+        if example is not None:
+            steps.append(Say(learner, example.text))
+            steps.append(Silence(BEAT_MS))
+            if example.english:
+                steps.append(Say("narrator", example.english))
+            steps.append(Silence(AFTER_NATIVE_MS))
+    steps.append(Say("narrator", "That's the end of your words."))
+    return steps

@@ -13,7 +13,8 @@ import { setFromZeroNewPerDay } from './fromZeroDeck';
 import { useFromZero } from './fromZeroStorage';
 import { haptic } from './haptics';
 import { Button, EmptyState, Help } from './kit';
-import { importWordList } from './wordListImport';
+import { importWordList, wordListCount, wordListSummary } from '../anki/wordListService';
+import { refreshFromKeptCollection } from '../anki/transfer';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -83,12 +84,15 @@ export function EmptyDeckCard({ deck }: { deck: string }) {
         return;
       }
       const own = (await repo.listDeckSettings()).get(deck);
-      const result = await importWordList(repo, await new File(res.assets[0].uri).text(), name, { name: deck, noteLanguage: own?.noteLanguage, askBothWays: own?.askBothWays });
+      const result = await importWordList(repo, await new File(res.assets[0].uri).text(), name, {
+        deck: { name: deck, noteLanguage: own?.noteLanguage, askBothWays: own?.askBothWays },
+        refresh: () => refreshFromKeptCollection(repo),
+      });
       haptic.success();
       await refresh();
       const shown = result.warnings.slice(0, 5);
       const more = result.warnings.length - shown.length;
-      Alert.alert(`Imported ${plural(result.notes.length, 'word', 'words')}`, [...shown, ...(more > 0 ? [`and ${plural(more, 'more warning', 'more warnings')}`] : [])].join('\n\n') || undefined);
+      Alert.alert(`Imported ${plural(wordListCount(result), 'word', 'words')}`, [wordListSummary(name, result), ...shown, ...(more > 0 ? [`and ${plural(more, 'more warning', 'more warnings')}`] : [])].join('\n\n'));
     } catch (e) {
       Alert.alert(`Couldn't import ${name}`, failureText(e, { next: 'Try again.' }));
     } finally {

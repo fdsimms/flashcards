@@ -7,6 +7,7 @@ from franki_reader import (
     exposure,
     store,
     timing,
+    video_store,
     xray,
 )
 from franki_reader.engine import Engine, Job
@@ -48,8 +49,11 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
         ai_ipa=engine.ai_ipa(text.language),
         deck_registers={e.text: e.register for e in entries if e.register},
     )
+    video = video_store.of(engine.conn, text.id)
+    # A video's lines are heard in the video, so none is recorded (video.py).
     speaks = (
-        LANGUAGES[text.language].speaks
+        video is None
+        and LANGUAGES[text.language].speaks
         and engine.audio is not None
         and engine.synthesize is not None
     )
@@ -62,6 +66,8 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
     out["topic"] = (story.title or "Your story") if story else (topic.name if topic else "")
     out["reason"] = text.reason
     out["episode"] = text.episode
+    if video is not None:
+        out["video"] = video_json(video) | {"times": [list(t) for t in video.times]}
     # Which story an episode is from, so the reader can wait for that story's next one.
     out["story_id"] = text.story_id
     if story:
@@ -118,6 +124,12 @@ def practice_words(text: StoredText, engine: Engine) -> list[dict[str, Any]]:
     return [first[w] for w in text.stretch if w in first]
 
 
+def video_json(video: video_store.VideoText) -> dict[str, Any]:
+    """The video a text plays with (video.py): its YouTube id, channel, and whether its subtitles
+    were YouTube's automatic ones. The reader's copy also has each line's times."""
+    return {"id": video.video_id, "channel": video.channel, "generated": video.generated}
+
+
 def shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
     """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
     `practice` adds its practice words' meanings, for the card that lists them."""
@@ -137,6 +149,7 @@ def shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict
         "episode": text.episode,
         "model": text.model,
         "created_at": instant(text.created_at) if text.created_at else None,
+        **({"video": video_json(v)} if (v := video_store.of(engine.conn, text.id)) else {}),
     }
 
 

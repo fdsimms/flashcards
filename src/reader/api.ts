@@ -236,6 +236,8 @@ export type WritingRequest =
 // A native speaker's recording of a word, found on Wikimedia Commons (server/reader routes/native.py).
 export type NativeRecordingFound = Schemas['NativeRecordingOut'];
 export type NativeFind = Schemas['NativeFindOut'];
+export type VideoPreview = Schemas['VideoPreviewOut'];
+export type Level = Schemas['LevelOut'];
 // The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
 // the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
 // `governor` say which case a case ending should be and the word that decides it. Never graded.
@@ -325,6 +327,10 @@ export type TextQuestion = {
   answer: number;
 };
 
+// The YouTube video a text was made from (server/reader video.py): its id, its channel, and whether its
+// subtitles were YouTube's automatic ones. The reader's copy adds each line's start and end, in ms.
+export type VideoRef = { id: string; channel: string; generated: boolean };
+
 export type ReaderText = {
   id: number;
   topicId: number;
@@ -348,6 +354,8 @@ export type ReaderText = {
   // Which story an episode is from; null for any other text, and missing from a server older than
   // several stories running at once.
   story_id?: number | null;
+  /** A text made from a video's subtitles: the video, and each line's [start, end] in ms. Missing for any other text. */
+  video?: VideoRef & { times: [number, number][] };
   // A story episode's options for what happens next, and the index of the one picked (null until
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
@@ -390,6 +398,8 @@ export type ShelfText = {
   model?: string;
   /** When it was written, with its UTC offset; missing from a server older than the story card's date. */
   created_at?: string | null;
+  /** A text made from a video's subtitles, which opens on Watch; missing for any other text. */
+  video?: VideoRef;
 };
 
 // A series' "Story so far": one English sentence per episode told, oldest first, and the whole days since the learner last finished an episode (null when none was), and the characters as of the episode before the one it's shown for.
@@ -843,6 +853,19 @@ export function createApi(
       const response = await send('POST', '/api/lessons/lines', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(slow ? { slow } : {}) });
       return ((await response.json()) as { id: number }).id;
     },
+    // Makes Your words: words picked from the deck on the phone (src/core/listenWords.ts), each said with a pause to recall
+    // it, then its meaning and an example; with `meaningFirst`, the meaning then a pause to say the word (no Claude call).
+    makeYourWords: async (language: Language, words: { text: string; english: string; example?: string; exampleEnglish?: string }[], meaningFirst: boolean, narrator?: string, particle?: 'khrap' | 'kha') => {
+      const body = {
+        language,
+        words: words.map((w) => ({ text: w.text, english: w.english, ...(w.example ? { example: w.example, example_english: w.exampleEnglish ?? '' } : {}) })),
+        meaning_first: meaningFirst,
+        ...(narrator ? { narrator } : {}),
+        ...(particle ? { particle } : {}),
+      };
+      const response = await send('POST', '/api/lessons/your-words', body);
+      return ((await response.json()) as { id: number }).id;
+    },
     // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.
     lessonPhraseAudio: async (id: number, index: number): Promise<Uint8Array> => {
       const response = await send('GET', `/api/lessons/${id}/phrases/${index}/audio`);
@@ -874,6 +897,10 @@ export function createApi(
       call<OwnTextPreview>('POST', '/api/own-texts/preview', { language, text, title }),
     addOwnText: (language: GlossLanguage, text: string, title: string) =>
       call<Schemas['OwnAddedOut']>('POST', '/api/own-texts', { language, text, title }),
+    // A YouTube video's subtitles as a text (server/reader video.py): what adding it would give (its length,
+    // coverage, new words and cost), then adding it to the Your texts row, translated and glossed in the background.
+    videoPreview: (language: GlossLanguage, link: string) => call<VideoPreview>('POST', '/api/videos/preview', { language, link }),
+    addVideo: (language: GlossLanguage, link: string) => call<Schemas['VideoAddedOut']>('POST', '/api/videos', { language, link }),
     // The reader's language's stories, running first, then ended.
     stories: () => call<{ language: GlossLanguage; stories: StoryListItem[] }>('GET', '/api/stories'),
     // One story for its own page: as the card has it (Last time, the next episode's practice words).
@@ -905,6 +932,10 @@ export function createApi(
     // recordings, Lingua Libre's first, with the credit to keep; words beyond the first few come back
     // `pending`, to ask again. Then one recording's audio, trimmed and leveled, as MP3 bytes.
     nativeFind: (language: Language, words: string[]) => call<NativeFind>('POST', '/api/native/find', { language, words }),
+    // Your level (server/reader level.py): the language's studied words by frequency band, the share of
+    // everyday speech they make up, and one figure a study day for the trend. 404 for Toki Pona, 409
+    // before the language's deck has been read.
+    level: (language: GlossLanguage) => call<Level>('GET', `/api/level?language=${language}`),
     nativeAudio: async (title: string) =>
       new Uint8Array(await (await send('GET', `/api/native/audio?title=${encodeURIComponent(title)}`)).arrayBuffer()),
     speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string, ipa?: string) =>

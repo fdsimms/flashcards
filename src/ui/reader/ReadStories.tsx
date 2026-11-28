@@ -1,14 +1,11 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { ApiError, type Api, type StoryListItem } from '../../reader/api';
-import { WorkingMark } from '../WorkingMark';
 import { storyNext, storyPlace, storyWriting } from '../../reader/stories';
-import { haptic } from '../haptics';
-import { Divider, EmptyState, ErrorNote, Group, Icon, Screen, SectionTitle } from '../kit';
+import { EmptyState, ErrorNote, Group, NavRow, Screen, SectionTitle } from '../kit';
 import { SkeletonList } from '../Skeleton';
-import { readable, space, type, useTheme } from '../theme';
-import { HoverPressable } from '../hover';
+import { readable, space, type } from '../theme';
 
 // While an episode is being written, check back this often.
 const POLL_MS = 10_000;
@@ -96,30 +93,9 @@ export function ReadStories({ api, onStory, onNew }: {
 }
 
 function StoryRow({ story, first, onPress }: { story: StoryListItem; first: boolean; onPress: () => void }) {
-  const c = useTheme();
   const name = story.title || 'Your series';
   const next = storyNext(story);
-  const place = storyPlace(story);
   const writing = storyWriting(story);
-  return (
-    <HoverPressable
-      onPress={() => { haptic.tap(); onPress(); }}
-      accessibilityRole="button"
-      accessibilityLabel={[name, place, writing ?? next?.text].filter(Boolean).join('. ')}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent' })}
-    >
-      {first ? null : <Divider inset={space.l} />}
-      <View style={{ flex: 1, gap: space.xs }}>
-        <Text style={{ ...type.headline, color: c.text }}>{name}</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{place}</Text>
-        {writing ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-            <WorkingMark />
-            <Text style={{ ...type.footnote, color: c.textSecondary, flexShrink: 1 }}>{writing}</Text>
-          </View>
-        ) : next ? <Text style={{ ...type.footnote, color: next.ready ? c.countDue : c.textSecondary }}>{next.text}</Text> : null}
-      </View>
-      <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-    </HoverPressable>
-  );
+  const detail = [storyPlace(story), writing ?? next?.text].filter(Boolean).join(' · ');
+  return <NavRow first={first} label={name} detail={detail} working={!!writing} onPress={onPress} />;
 }

@@ -3,6 +3,7 @@ import { useHeaderHeight } from 'expo-router/react-navigation';
 import { Alert, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
 import { ApiError, type Api, type AudioLesson, type Language, type LessonReview, type LinesDrillOffer } from '../../reader/api';
 import { LinesDrillCard } from './LinesDrillCard';
+import { YourWordsCard } from './YourWordsCard';
 import { LANGUAGES } from '../../reader/languages';
 import { anyMaking, lessonDetail, POLL_MS, type Particle } from '../../reader/lessons';
 import { lessonRequestWords } from '../../core/lessonWords';
@@ -13,6 +14,7 @@ import { LessonTopics } from './LessonTopics';
 import { LessonWords } from './LessonWords';
 import { useLessonWords } from './useLessonWords';
 import { useConnectionProblem } from '../connection';
+import { useApp } from '../AppContext';
 import { useLessonDownloads } from './useLessonDownloads';
 import { lessonItem } from '../../reader/audioQueue';
 import { useQueueMenu } from '../useQueueMenu';
@@ -50,6 +52,8 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
   // The row slid open on its Delete action; one at a time.
   const [openLesson, setOpenLesson] = useState<number | null>(null);
   const chosen = useLessonWords(language);
+  // The language's deck, which Your words picks from; missing from a server older than the deck setting.
+  const deck = useApp().reader.settings?.decks?.[language];
   const downloadButton = useLessonDownloads(api);
   const queueMenu = useQueueMenu();
   const problem = useConnectionProblem();
@@ -153,6 +157,7 @@ export function ReadLessons({ api, language, toolbar, narrator, particle, onOpen
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
         {review ? <LessonReviewCard review={review} onMake={makeReview} busy={reviewing} error={reviewError} /> : null}
+        {deck ? <YourWordsCard api={api} language={language} deck={deck} narrator={narrator || undefined} particle={language === 'th' ? particle : undefined} onMade={load} /> : null}
         {lines ? <LinesDrillCard api={api} language={language} offer={lines} narrator={narrator || undefined} particle={language === 'th' ? particle : undefined} onMade={load} /> : null}
         <Card>
           <Field

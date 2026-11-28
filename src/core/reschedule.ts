@@ -3,7 +3,7 @@ import { daysSinceLastReview, newSchedState } from './scheduler';
 import type { Card } from './types';
 
 /**
- * Anki's Forget and Set Due Date, for a card that lives in Franki only (a TSV import's). A card
+ * Anki's Forget and Set Due Date, for a card that lives in Franki only (a word list imported before imports went into Anki). A card
  * from the kept Anki collection is changed there instead, as Anki changes it
  * (src/anki/rescheduleWrites.ts), and read back the way an import reads it, so the two agree.
  */

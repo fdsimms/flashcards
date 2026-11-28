@@ -131,20 +131,26 @@ export interface NoteWrite {
 
 /** Adds a note and its cards to a deck. */
 export async function addAnkiNote(db: SyncDb, w: NoteWrite & { deckId: number; random?: () => number }): Promise<{ nid: number; cards: { ord: number; id: number }[] }> {
-  const collated = await hasUnicase(db);
   let result!: { nid: number; cards: { ord: number; id: number }[] };
-  await db.transaction(async () => {
-    const nid = await nextId(db, 'notes', w.now.getTime());
-    const { flds, sfld, csum } = noteRow(w.noteType, w.fields);
-    await db.run(
-      "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data) VALUES (?, ?, ?, ?, -1, ?, ?, ?, ?, 0, '')",
-      nid, newGuid(w.random), w.noteType.id, Math.floor(w.now.getTime() / 1000), await canonicalTags(db, w.tags, collated), flds, sfld, csum,
-    );
-    const cards = await addCards(db, nid, w.deckId, w.ords, w.now);
-    await db.run('UPDATE col SET mod = ?', w.now.getTime());
-    result = { nid, cards };
-  });
+  await db.transaction(async () => { result = await insertAnkiNote(db, w); });
   return result;
+}
+
+/**
+ * `addAnkiNote` inside a transaction the caller holds: an import adds many notes in one. `guid` is
+ * the note's own when the file gave one (Anki keeps it), else a new one.
+ */
+export async function insertAnkiNote(db: SyncDb, w: NoteWrite & { deckId: number; guid?: string; random?: () => number }): Promise<{ nid: number; cards: { ord: number; id: number }[] }> {
+  const collated = await hasUnicase(db);
+  const nid = await nextId(db, 'notes', w.now.getTime());
+  const { flds, sfld, csum } = noteRow(w.noteType, w.fields);
+  await db.run(
+    "INSERT INTO notes (id, guid, mid, mod, usn, tags, flds, sfld, csum, flags, data) VALUES (?, ?, ?, ?, -1, ?, ?, ?, ?, 0, '')",
+    nid, w.guid ?? newGuid(w.random), w.noteType.id, Math.floor(w.now.getTime() / 1000), await canonicalTags(db, w.tags, collated), flds, sfld, csum,
+  );
+  const cards = await addCards(db, nid, w.deckId, w.ords, w.now);
+  await db.run('UPDATE col SET mod = ?', w.now.getTime());
+  return { nid, cards };
 }
 
 /**
@@ -153,24 +159,29 @@ export async function addAnkiNote(db: SyncDb, w: NoteWrite & { deckId: number; r
  * stays, as in Anki (its "empty cards"). Returns the cards added.
  */
 export async function editAnkiNote(db: SyncDb, w: NoteWrite & { nid: number }): Promise<{ ord: number; id: number }[]> {
-  const collated = await hasUnicase(db);
   let added: { ord: number; id: number }[] = [];
-  await db.transaction(async () => {
-    const { flds, sfld, csum } = noteRow(w.noteType, w.fields);
-    const tags = await canonicalTags(db, w.tags, collated);
-    const current = await db.first<{ flds: string; tags: string }>('SELECT flds, tags FROM notes WHERE id = ?', w.nid);
-    if (!current) throw new Error(`Note ${w.nid} isn't in the Anki collection.`);
-    if (current.flds !== flds || current.tags !== tags) {
-      await db.run('UPDATE notes SET flds = ?, sfld = ?, csum = ?, tags = ?, mod = ?, usn = -1 WHERE id = ?', flds, sfld, csum, tags, Math.floor(w.now.getTime() / 1000), w.nid);
-    }
-    // A card in a filtered deck has its home in odid: Anki generates a new card there, never into a filtered deck.
-    const existing = await db.all<{ ord: number; did: number }>('SELECT ord, CASE odid WHEN 0 THEN did ELSE odid END AS did FROM cards WHERE nid = ? ORDER BY ord', w.nid);
-    const have = new Set(existing.map((c) => c.ord));
-    const missing = w.ords.filter((o) => !have.has(o));
-    if (missing.length) added = await addCards(db, w.nid, existing[0]?.did ?? 1, missing, w.now);
-    if (current.flds !== flds || current.tags !== tags || missing.length) await db.run('UPDATE col SET mod = ?', w.now.getTime());
-  });
+  await db.transaction(async () => { added = (await updateAnkiNote(db, w)).added; });
   return added;
+}
+
+/** `editAnkiNote` inside a transaction the caller holds, saying too whether the fields or tags changed. */
+export async function updateAnkiNote(db: SyncDb, w: NoteWrite & { nid: number }): Promise<{ added: { ord: number; id: number }[]; changed: boolean }> {
+  const collated = await hasUnicase(db);
+  const { flds, sfld, csum } = noteRow(w.noteType, w.fields);
+  const tags = await canonicalTags(db, w.tags, collated);
+  const current = await db.first<{ flds: string; tags: string }>('SELECT flds, tags FROM notes WHERE id = ?', w.nid);
+  if (!current) throw new Error(`Note ${w.nid} isn't in the Anki collection.`);
+  const changed = current.flds !== flds || current.tags !== tags;
+  if (changed) {
+    await db.run('UPDATE notes SET flds = ?, sfld = ?, csum = ?, tags = ?, mod = ?, usn = -1 WHERE id = ?', flds, sfld, csum, tags, Math.floor(w.now.getTime() / 1000), w.nid);
+  }
+  // A card in a filtered deck has its home in odid: Anki generates a new card there, never into a filtered deck.
+  const existing = await db.all<{ ord: number; did: number }>('SELECT ord, CASE odid WHEN 0 THEN did ELSE odid END AS did FROM cards WHERE nid = ? ORDER BY ord', w.nid);
+  const have = new Set(existing.map((c) => c.ord));
+  const missing = w.ords.filter((o) => !have.has(o));
+  const added = missing.length ? await addCards(db, w.nid, existing[0]?.did ?? 1, missing, w.now) : [];
+  if (changed || missing.length) await db.run('UPDATE col SET mod = ?', w.now.getTime());
+  return { added, changed };
 }
 
 /**

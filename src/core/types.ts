@@ -2,7 +2,7 @@ import type { Picture } from './noteIcon';
 import type { AppFont } from './fonts';
 import type { Segment } from './highlight';
 import type { GrammarCell } from './wordGrammar';
-import type { GoalResult, GoalTarget } from './dailyGoal';
+import type { GoalResult } from './dailyGoal';
 
 /**
  * forward / reverse / audio are Omnilanguage's cards (native renderer). `t<ord>` is a card of any
@@ -304,11 +304,13 @@ export interface DeckSettings {
   /** The latest day's tuning for `dailyGoal`, this phone's own, for Deck options to show. */
   goalTuned?: GoalResult;
   /**
-   * What the goal's first tuning replaced, put back when the goal is turned off (`goalTurnedOff`):
-   * the gate's cap, the deck's own daily new limit in Anki, or Deck options' own limit (`target`), with
-   * `value` null where the deck had none of its own. This phone's own, like `goalTuned`.
+   * What the goal's first tuning replaced, put back when the goal is turned off (`goalTurnedOff`): the
+   * gate's cap, the deck's own daily new limit in Anki, or Deck options' own limit, whichever the goal
+   * sets (`goalTarget`, which can't change while the goal is on: Deck options hides the gate then);
+   * null where the deck had none of its own. Kept in the collection for a deck Anki has, so whichever
+   * device turns the goal off puts it back (src/anki/dailyGoals.ts), and on the phone otherwise.
    */
-  goalReplaced?: { target: GoalTarget; value: number | null };
+  goalReplaced?: number | null;
   /**
    * Subdecks hidden on the deck list, for a deck Anki doesn't have. A deck in the kept collection
    * keeps this in Anki's own `study_collapsed` instead (src/anki/deckWrites.ts).

@@ -13,6 +13,21 @@ export interface ImportResult {
   noteTypes?: NoteType[];
   /** The Anki collection's own scheduling settings, when the import was a collection. */
   collectionSettings?: CollectionSettings;
+  /** For a text file, what each row gave, by the id `importTsv` gave its note: what updating a note Anki has keeps. */
+  rows?: Map<string, RowGiven>;
+}
+
+/**
+ * What a text file's row gave, as Anki's import reads one (`ForeignNote`): the fields it has a
+ * column for (the rest are kept when it updates a note), its GUID, its own tags when the file has a
+ * tags column (they replace a note's tags; without one the note keeps its own), and the file's #tags,
+ * which are added either way.
+ */
+export interface RowGiven {
+  fields: string[];
+  guid?: string;
+  rowTags?: string[];
+  fileTags: string[];
 }
 
 /** Split TSV text into rows, honoring Anki-style "quoted" fields that may contain tabs/newlines. */
@@ -182,6 +197,7 @@ export function importTsv(
   }
   const notes: Note[] = [];
   const cards: Card[] = [];
+  const given = new Map<string, RowGiven>();
   const usedIds = new Set<string>();
   /** The row that first derived each id, for the warning when a later row derives it again. */
   const firstRow = new Map<string, number>();
@@ -194,16 +210,22 @@ export function importTsv(
       return;
     }
     const fields: Record<string, string> = {};
+    const filled: string[] = [];
     if (columns) {
       columns.forEach((name, i) => {
         // Skip the metadata columns when #columns lists them (Tags, Deck, GUID, Note Type…).
         if (meta.has(i) || /^(tags|deck|guid|note ?type)$/i.test(name)) return;
         fields[name] = html ? row[i] ?? '' : plainToHtml(row[i] ?? '');
+        if (i < row.length) filled.push(name);
       });
     } else {
       // As Anki's map_field_columns_by_index: fields fill the columns that aren't metadata, in order.
       const fieldColumns = row.map((_, i) => i).filter((i) => !meta.has(i));
-      names.forEach((name, k) => { const v = row[fieldColumns[k]] ?? ''; fields[name] = html ? v : plainToHtml(v); });
+      names.forEach((name, k) => {
+        const v = row[fieldColumns[k]] ?? '';
+        fields[name] = html ? v : plainToHtml(v);
+        if (fieldColumns[k] !== undefined) filled.push(name);
+      });
     }
     const rowTags = tagsCol >= 0 && row[tagsCol] ? row[tagsCol].split(/\s+/).filter(Boolean) : [];
     const tags = [...new Set([...fileTags, ...rowTags])];
@@ -238,9 +260,10 @@ export function importTsv(
     }
     const note: Note = { id, deck, model, fields, tags };
     notes.push(note);
+    given.set(id, { fields: filled, ...(guid ? { guid } : {}), ...(tagsCol >= 0 ? { rowTags } : {}), fileTags });
     const made = makeCards(note, opts.now, noteType).map((c) => (opts.firstPosition !== undefined ? { ...c, position: opts.firstPosition + idx } : c));
     if (!made.length) warnings.push(`Row ${idx + 1}: "${entry}" makes no cards: every card type's front would be blank. Fill in the field its front shows.`);
     cards.push(...made);
   });
-  return { notes, cards, warnings };
+  return { notes, cards, warnings, rows: given };
 }

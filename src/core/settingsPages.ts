@@ -89,6 +89,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
 
   { id: 'readerOn', page: 'read', label: 'Server', keywords: ['read & listen', 'passphrase', 'sign in', 'turn on', 'turn off', 'texts', 'stories', 'server', 'share counts', 'crams', 'dundundun'], route: '/read-settings' },
   { id: 'readListening', page: 'read', label: 'Reading and listening', keywords: ['read & listen', 'voices', 'highlight', 'slow', 'meanings', 'word forms', 'explain', 'lock screen', 'dynamic island', 'offline', 'download'], route: '/read-listening' },
+  { id: 'videos', page: 'read', label: 'Videos', keywords: ['youtube', 'subtitles', 'captions', 'watch', 'video'], route: '/read-listening' },
   { id: 'keepPlaying', page: 'read', label: 'Keep playing the shelf', keywords: ['up next', 'queue', 'autoplay', 'continuous', 'listening'], route: '/read-listening' },
   { id: 'readDaily', page: 'read', label: 'Daily reading tasks', keywords: ['dundundun', 'rotate', 'every day', 'tasks', 'languages', 'today'], route: '/read-daily-tasks' },
   { id: 'register', page: 'read', label: 'Register', keywords: ['formal', 'casual', 'everyday', 'polite', 'informal', 'how people talk', 'style', 'tone'], route: '/read-language' },
