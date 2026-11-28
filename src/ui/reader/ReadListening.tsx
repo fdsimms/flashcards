@@ -31,6 +31,7 @@ export function ReadListening({ voices, onVoices }: {
   const [situationsAzure, setSituationsAzure] = useState(prefs().situationsAzure);
   const [topicImages, setTopicImages] = useState(prefs().topicImages);
   const [videos, setVideos] = useState(prefs().videos);
+  const [podcasts, setPodcasts] = useState(prefs().podcasts);
   const [slowLanguages, setSlowLanguages] = useState(prefs().slowLanguages);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
@@ -199,6 +200,29 @@ export function ReadListening({ voices, onVoices }: {
               onValueChange={(on) => {
                 savePrefs({ videos: on });
                 setVideos(on);
+              }}
+            />
+          </Group>
+        </Section>
+        <Section
+          title="Podcasts"
+          footer={(
+            <Help>
+              Adds A podcast to New text: find a show in Apple's podcast directory, paste its feed or an Apple Podcasts
+              link, or share an episode to Franki, and read its transcript as it plays. Only episodes that publish a
+              transcript can be added. Your server asks Apple's directory and the show's feed, and this iPhone plays the
+              episode from the show's own site.
+            </Help>
+          )}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Listen to podcasts with their transcripts"
+              value={podcasts}
+              onValueChange={(on) => {
+                savePrefs({ podcasts: on });
+                setPodcasts(on);
               }}
             />
           </Group>

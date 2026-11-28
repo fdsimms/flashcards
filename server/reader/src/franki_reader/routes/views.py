@@ -5,6 +5,7 @@ from typing import Any
 
 from franki_reader import (
     exposure,
+    podcast_store,
     store,
     timing,
     video_store,
@@ -50,9 +51,11 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
         deck_registers={e.text: e.register for e in entries if e.register},
     )
     video = video_store.of(engine.conn, text.id)
-    # A video's lines are heard in the video, so none is recorded (video.py).
+    episode = podcast_store.of(engine.conn, text.id)
+    # A video's or an episode's lines are heard in it, so none is recorded (video.py, podcast.py).
     speaks = (
         video is None
+        and episode is None
         and LANGUAGES[text.language].speaks
         and engine.audio is not None
         and engine.synthesize is not None
@@ -68,6 +71,11 @@ def rendered_text(text: StoredText, engine: Engine) -> dict[str, Any]:
     out["episode"] = text.episode
     if video is not None:
         out["video"] = video_json(video) | {"times": [list(t) for t in video.times]}
+    if episode is not None:
+        out["podcast"] = podcast_json(episode) | {
+            "audio": episode.audio,
+            "times": [list(t) for t in episode.times],
+        }
     # Which story an episode is from, so the reader can wait for that story's next one.
     out["story_id"] = text.story_id
     if story:
@@ -130,6 +138,12 @@ def video_json(video: video_store.VideoText) -> dict[str, Any]:
     return {"id": video.video_id, "channel": video.channel, "generated": video.generated}
 
 
+def podcast_json(episode: podcast_store.PodcastText) -> dict[str, Any]:
+    """The podcast episode a text plays with (podcast.py): its show and artwork. The reader's copy
+    also has the episode's audio and each line's times."""
+    return {"show": episode.show, "artwork": episode.artwork}
+
+
 def shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict[str, Any]:
     """A text on the shelf as a card shows it, without its words (they come with /api/texts/{id}).
     `practice` adds its practice words' meanings, for the card that lists them."""
@@ -150,6 +164,7 @@ def shelf_text(text: StoredText, engine: Engine, practice: bool = False) -> dict
         "model": text.model,
         "created_at": instant(text.created_at) if text.created_at else None,
         **({"video": video_json(v)} if (v := video_store.of(engine.conn, text.id)) else {}),
+        **({"podcast": podcast_json(p)} if (p := podcast_store.of(engine.conn, text.id)) else {}),
     }
 
 

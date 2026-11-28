@@ -5,9 +5,10 @@ import { shareToOpen, type SharedItem } from '../core/shareInbox';
 import { useApp } from './AppContext';
 import { shareInbox } from './shareInbox';
 
-/** The screen a share opens: Your own text to read it, Add a video for a video's link, Look up for its words' meanings, or Quick add for its words. */
+/** The screen a share opens: Your own text to read it, Add a video for a video's link, Add a podcast for an Apple Podcasts link, Look up for its words' meanings, or Quick add for its words. */
 export function openShare(router: ReturnType<typeof useRouter>, item: SharedItem): void {
   if (item.kind === 'video') router.push({ pathname: '/read-write', params: { kind: 'video', shared: item.id } });
+  else if (item.kind === 'podcast') router.push({ pathname: '/read-write', params: { kind: 'podcast', shared: item.id } });
   else if (item.kind === 'read') router.push({ pathname: '/read-write', params: { kind: 'own', shared: item.id } });
   else if (item.kind === 'lookup') router.push({ pathname: '/look-up', params: { shared: item.id } });
   else router.push({ pathname: '/quick-add', params: { shared: item.id } });
