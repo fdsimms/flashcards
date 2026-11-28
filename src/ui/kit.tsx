@@ -642,6 +642,28 @@ export function TextButton({ label, onPress, icon, chevron, disabled, busy, busy
 }
 
 /**
+ * A small × that closes or removes the thing beside it (a notice, a queued word, a suggestion): a
+ * 44pt target around a 14pt mark in the quiet gray. `label` says what it closes ("Remove kot").
+ * The round gray button that closes a sheet is `SheetHeader`'s.
+ */
+export function CloseButton({ label, onPress, disabled, busy, style }: { label: string; onPress: () => void; disabled?: boolean; /** A spinner in place of the ×, while what it started runs. */ busy?: boolean; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      disabled={disabled || busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }}
+      scaleTo={0.9}
+      style={[{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }, style]}
+    >
+      {busy ? <ActivityIndicator size="small" color={c.textSecondary} /> : <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />}
+    </Tappable>
+  );
+}
+
+/**
  * A lifted card that says something has happened and opens it: a deck shared to Franki, new words
  * running low, notes ready from Claude, vacation, reviews to do first. An icon, the news, a line
  * on what a tap does, then a close button when it can be dismissed or a chevron when it can't.
@@ -681,14 +703,7 @@ export function Banner({ icon, iconColor, title, hint, onPress, onDismiss, dismi
         {onDismiss ? null : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
       </Tappable>
       {onDismiss ? (
-        <Tappable
-          onPress={() => { haptic.tap(); onDismiss(); }}
-          accessibilityRole="button"
-          accessibilityLabel={dismissLabel}
-          style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginRight: space.xs }}
-        >
-          <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />
-        </Tappable>
+        <CloseButton label={dismissLabel} onPress={onDismiss} style={{ marginRight: space.xs }} />
       ) : null}
     </View>
   );
