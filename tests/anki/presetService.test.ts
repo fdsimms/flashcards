@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildExport } from '../../src/anki/collection';
 import type { NoteStore } from '../../src/anki/noteService';
-import { loadPreset, PresetRefused, savePreset } from '../../src/anki/presetService';
+import { countRescheduled, loadPreset, PresetRefused, savePreset } from '../../src/anki/presetService';
 import { studyDayKey } from '../../src/core/day';
 import { MemoryRepo } from '../../src/db/repo';
 import { importAnkiJson } from '../../src/import/ankiJson';
@@ -26,6 +26,7 @@ async function franki(opts: { kept?: boolean } = {}) {
   await repo.saveNoteTypes(data.noteTypes ?? []);
   await repo.applyAnkiCollection(data.notes, data.cards);
   if (data.deckParams?.size) await repo.saveDeckParams(data.deckParams);
+  if (data.collectionSettings) await repo.saveCollectionSettings(data.collectionSettings);
   const store = Object.assign(repo, {
     keptCollection: async () => (opts.kept === false ? null : {}),
     lockAnki: <T,>(fn: () => Promise<T>) => fn(),
@@ -38,6 +39,7 @@ async function franki(opts: { kept?: boolean } = {}) {
 }
 
 const OPTIONS = { newPerDay: 15, reviewsPerDay: 150, learnSteps: [1, 10, 60], relearnSteps: [5], maxInterval: 365, desiredRetention: 0.85 };
+const KEEP = { reschedule: false, refresh: async () => {} };
 
 describe("a deck's Anki preset options", () => {
   it('lists every deck the preset applies to, and what each keeps for itself', async () => {
@@ -65,7 +67,7 @@ describe("a deck's Anki preset options", () => {
     const { store } = await franki();
     const v = await loadPreset(store, TRIVIA, NOW);
     const thaiBefore = (await store.listDeckParams()).get(THAI)!;
-    await savePreset(store, TRIVIA, v.presetId, OPTIONS, NOW);
+    await savePreset(store, TRIVIA, v.presetId, OPTIONS, KEEP, NOW);
     expect((await loadPreset(store, TRIVIA, NOW)).options).toEqual(OPTIONS);
     const params = await store.listDeckParams();
     expect(params.get(LANGUAGES)).toMatchObject(OPTIONS);
@@ -80,7 +82,54 @@ describe("a deck's Anki preset options", () => {
     const none = await franki({ kept: false });
     await expect(loadPreset(none.store, TRIVIA, NOW)).rejects.toThrow('Anki collection');
     const thai = await loadPreset(store, THAI, NOW);
-    await expect(savePreset(store, TRIVIA, thai.presetId, OPTIONS, NOW)).rejects.toThrow('changed while you were editing');
+    await expect(savePreset(store, TRIVIA, thai.presetId, OPTIONS, KEEP, NOW)).rejects.toThrow('changed while you were editing');
     expect((await loadPreset(store, THAI, NOW)).options).toEqual(thai.options);
+  });
+
+  it('reschedules the review cards of the decks a new retention reaches, the number Save asked about', async () => {
+    const { store, kept } = await franki();
+    const thai = await loadPreset(store, THAI, NOW);
+    // The Thai deck's two review cards: its learning card keeps its date.
+    expect(await countRescheduled(store, THAI, thai.presetId)).toBe(2);
+    let refreshed = 0;
+    const result = await savePreset(store, THAI, thai.presetId, { ...thai.options, desiredRetention: 0.95 }, { reschedule: true, refresh: async () => { refreshed++; } }, NOW);
+    expect(result.rescheduled).toBe(2);
+    expect(refreshed).toBe(1);
+    const db = await nodeSyncDb(kept, { unicase: true });
+    expect((await db.all<{ n: number }>('SELECT COUNT() AS n FROM revlog WHERE type = 5'))[0].n).toBe(2);
+    db.close();
+  });
+
+  it('writes the new retention into the cards, and moves none, when Save keeps their dates', async () => {
+    const { store, kept } = await franki();
+    const thai = await loadPreset(store, THAI, NOW);
+    let refreshed = 0;
+    const result = await savePreset(store, THAI, thai.presetId, { ...thai.options, desiredRetention: 0.95 }, { reschedule: false, refresh: async () => { refreshed++; } }, NOW);
+    expect(result.rescheduled).toBe(0);
+    expect(refreshed).toBe(1);
+    const db = await nodeSyncDb(kept, { unicase: true });
+    expect((await db.all<{ n: number }>('SELECT COUNT() AS n FROM revlog WHERE type = 5'))[0].n).toBe(0);
+    expect((await db.all<{ data: string }>("SELECT data FROM cards WHERE type != 0 AND did = 1794408857990")).every((r) => JSON.parse(r.data).dr === 0.95)).toBe(true);
+    db.close();
+  });
+
+  it('changes no card when the retention stays the same', async () => {
+    const { store } = await franki();
+    const thai = await loadPreset(store, THAI, NOW);
+    let refreshed = 0;
+    await savePreset(store, THAI, thai.presetId, { ...thai.options, newPerDay: 7 }, { reschedule: true, refresh: async () => { refreshed++; } }, NOW);
+    expect(refreshed).toBe(0);
+  });
+
+  it("reschedules a card of Franki's own in a deck the change reaches", async () => {
+    const { store } = await franki();
+    const thai = await loadPreset(store, THAI, NOW);
+    const anki = (await store.listCards()).find((c) => c.ankiId === '1794408858014')!;
+    await store.saveCard({ ...anki, id: 'mine', ankiId: undefined, sched: { ...anki.sched, stability: 40, scheduledDays: 40 } });
+    expect(await countRescheduled(store, THAI, thai.presetId)).toBe(3);
+    const result = await savePreset(store, THAI, thai.presetId, { ...thai.options, desiredRetention: 0.95 }, { reschedule: true, refresh: async () => {} }, NOW);
+    expect(result.rescheduled).toBe(3);
+    const mine = (await store.listCards()).find((c) => c.id === 'mine')!;
+    expect(mine.sched.scheduledDays).toBeLessThan(40);
   });
 });

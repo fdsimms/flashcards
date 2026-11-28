@@ -30,6 +30,8 @@ export interface RescheduleRow {
 
 /** Anki's review log kind for a card scheduled by hand. */
 const REVLOG_MANUAL = 4;
+/** Anki's review log kind for a card moved by a change of its deck options ("Reschedule cards on change"). */
+export const REVLOG_RESCHEDULED = 5;
 const DAY_SECS = 86400;
 /** Anki's due values from here up are unix timestamps (an intraday learning step), below are day numbers. */
 const TIMESTAMP_DUE = 1_000_000_000;
@@ -125,12 +127,15 @@ export function setDueRow(
   };
 }
 
-/** The "Manual" review log row Anki adds for a card scheduled by hand (`log_scheduled_review`). */
-export function manualRevlog(after: RescheduleRow, originalIvl: number, id: number, cid: number): AnkiRevlogRow {
+/**
+ * The "Manual" review log row Anki adds for a card scheduled by hand (`log_scheduled_review`), or with
+ * `type` REVLOG_RESCHEDULED the row a deck options change adds (`log_rescheduled_review`).
+ */
+export function manualRevlog(after: RescheduleRow, originalIvl: number, id: number, cid: number, type: number = REVLOG_MANUAL): AnkiRevlogRow {
   const memory = memoryOf(readData(after.data));
   // FSRS difficulty shifted to 0.1-1.1, times 1000, cut to a whole number (Rust's `as u16`).
   const factor = memory ? Math.trunc(Math.fround((Math.fround(memory.difficulty) - 1) / 9 + 0.1) * 1000) : after.factor;
-  return { id, cid, usn: -1, ease: 0, ivl: after.ivl, lastIvl: originalIvl, factor, time: 0, type: REVLOG_MANUAL };
+  return { id, cid, usn: -1, ease: 0, ivl: after.ivl, lastIvl: originalIvl, factor, time: 0, type };
 }
 
 const ROW_SQL = 'SELECT did, odid, odue, type, queue, due, ivl, factor, reps, lapses, data FROM cards WHERE id = ?';

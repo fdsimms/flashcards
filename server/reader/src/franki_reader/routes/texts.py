@@ -104,17 +104,25 @@ def router(ctx: AppContext) -> APIRouter:
         story: int | None = None,
         days: Annotated[int | None, Query(ge=1, le=3650)] = None,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
+        status: Literal["shown", "skipped", "dropped", "all"] = "shown",
     ) -> list[dict[str, Any]]:
-        """Every language's shown texts, for review (audit.py); `/api/texts` is the app's."""
+        """Every language's texts, for review (audit.py): the shown ones unless `status` asks for
+        those taken off the shelf unread, the dropped drafts, or all; `/api/texts` is the app's."""
         return audit.list_texts(
-            engine.conn, engine.clock(), language=language, story_id=story, days=days, limit=limit
+            engine.conn,
+            engine.clock(),
+            language=language,
+            story_id=story,
+            days=days,
+            limit=limit,
+            status=status,
         )
 
     @routes.get("/api/audit/texts/{text_id}", dependencies=authed)
     async def audit_text(text_id: int) -> dict[str, Any]:
         text = store.get_text(engine.conn, text_id)
         status = store.text_status(engine.conn, text_id)
-        if text is None or status not in ("ready", "read"):
+        if text is None or status not in audit.AUDITED:
             raise HTTPException(404, "No such text.")
         topic = store.get_topic(engine.conn, text.topic_id, text.language, include_removed=True)
         story = store.get_story(engine.conn, text.story_id) if text.story_id else None
@@ -125,6 +133,8 @@ def router(ctx: AppContext) -> APIRouter:
             story,
             (story.title or "Your story") if story else (topic.name if topic else ""),
             audit.readings(engine.conn, text_id),
+            audit.floor_of(engine.conn, text_id),
+            audit.asked(engine.conn, text_id),
         )
 
     @routes.get("/api/relisten", dependencies=authed)

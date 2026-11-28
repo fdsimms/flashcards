@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatSteps, ownValuesNote, parsePresetForm, parseSteps, presetForm, sameOptions, type PresetOptions } from '../../src/core/presetOptions';
+import { formatSteps, ownValuesNote, parsePresetForm, parseSteps, presetForm, rescheduleQuestion, sameOptions, type PresetOptions } from '../../src/core/presetOptions';
 
 const OPTIONS: PresetOptions = { newPerDay: 20, reviewsPerDay: 200, learnSteps: [1, 10], relearnSteps: [10], maxInterval: 36500, desiredRetention: 0.9 };
 
@@ -62,5 +62,16 @@ describe("a deck's own values", () => {
     expect(ownValuesNote({ newPerDay: 3 })).toBe("Uses its own new card limit from Anki, so changing it here doesn't affect this deck.");
     expect(ownValuesNote({ newPerDay: 3, reviewsPerDay: 50, desiredRetention: 0.8 })).toBe("Uses its own new card limit, review limit and desired retention from Anki, so changing them here doesn't affect this deck.");
     expect(ownValuesNote({ newToday: true })).toBe('Has a new card limit for today only, so a new limit here starts tomorrow.');
+  });
+});
+
+describe('rescheduleQuestion', () => {
+  it('names the count and the new retention', () => {
+    expect(rescheduleQuestion(412, 0.85)).toEqual({
+      title: 'Reschedule 412 cards?',
+      message: 'Their due dates would change to match 0.85 retention, as Anki\'s "Reschedule cards on change" does. If you keep their dates, each card follows the new retention from its next review.',
+    });
+    expect(rescheduleQuestion(1, 0.9).title).toBe('Reschedule 1 card?');
+    expect(rescheduleQuestion(1, 0.9).message).toContain('If you keep its date, it follows');
   });
 });

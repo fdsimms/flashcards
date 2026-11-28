@@ -1,10 +1,15 @@
-import { studyDayKey } from '../core/day';
+import { nextStudyDayStart, studyDayKey } from '../core/day';
+import { cardHomeDeck } from '../core/deckTree';
 import { Refusal } from '../core/failure';
 import { newCardOrderOf } from '../core/newCardOrder';
+import { ankiToday } from '../core/order';
 import type { DeckOwnValues, PresetOptions } from '../core/presetOptions';
-import type { DeckParams } from '../core/types';
+import { frankiCardReschedules, rescheduleFrankiCard } from '../core/retentionReschedule';
+import { paramsForDeck } from '../core/scheduler';
+import type { Card, DeckParams } from '../core/types';
 import { NO_COLLECTION, type NoteStore } from './noteService';
 import { readAnkiPreset, setAnkiDeckNewLimit, setAnkiPresetOptions, type AnkiPreset } from './presetWrites';
+import { applyRetentionChange, countRetentionReschedule, retentionDecks, type RetentionResult } from './retentionWrites';
 
 /** Why a preset's options can't be read or changed, with what to do, to show as it is. */
 export class PresetRefused extends Refusal {}
@@ -59,16 +64,63 @@ export async function loadPreset(store: NoteStore, deck: string, now: Date = new
   return view(preset, params, studyDayKey(now, settings.dayStartsAtHour));
 }
 
+/** The cards of Franki's own (none from Anki) in `decks` that rescheduling would move. */
+async function frankiCardsIn(store: NoteStore, decks: Set<string>): Promise<Card[]> {
+  const notes = new Map((await store.listNotes()).map((n) => [n.id, n]));
+  return (await store.listCards()).filter((c) => {
+    const note = notes.get(c.noteId);
+    return !c.ankiId && !!note && decks.has(cardHomeDeck(c, note.deck)) && frankiCardReschedules(c);
+  });
+}
+
+/**
+ * How many cards rescheduling would move if this deck's preset changed its desired retention: the
+ * review cards, not suspended and answered at least once, of every deck on the preset with no
+ * retention of its own. What Save asks about, counted the way `savePreset` then moves them.
+ */
+export async function countRescheduled(store: NoteStore, deck: string, presetId: number): Promise<number> {
+  if ((await presetIdOf(store, deck)) !== presetId) throw new PresetRefused(CHANGED);
+  const { decks, anki } = await store.withSyncConnection(async (db) => ({
+    decks: (await retentionDecks(db))(presetId).map((d) => d.name),
+    anki: await countRetentionReschedule(db, presetId),
+  }));
+  return anki + (await frankiCardsIn(store, new Set(decks))).length;
+}
+
+const CHANGED = "This deck's Anki options changed while you were editing them, e.g. in a sync. Open them again to see the current ones.";
+
 /**
  * Sets a deck's preset options: in the kept Anki collection, so sync carries them to every
  * device, and in Franki's copy of each deck using the preset (a deck's own limits and retention
  * still winning, as `buildExport` reads them), so the next session and the deck list follow at
  * once. `presetId` is the preset the screen showed: a deck moved to another preset since (a sync)
  * is refused rather than changing a preset the learner didn't see.
+ *
+ * A new desired retention reaches the preset's cards as Anki's deck options write it
+ * (`applyRetentionChange`, in the same transaction): each studied card takes the new retention,
+ * and with `reschedule` every review card is given a new due date for it, Franki's own cards too
+ * (`rescheduleFrankiCard`). `refresh` then reads Franki's decks from the kept collection again
+ * (`refreshFromKeptCollection`), so the cards it changed show their new dates.
  */
-export async function savePreset(store: NoteStore, deck: string, presetId: number, options: PresetOptions, now: Date = new Date()): Promise<void> {
-  if ((await presetIdOf(store, deck)) !== presetId) throw new PresetRefused("This deck's Anki options changed while you were editing them, e.g. in a sync. Open them again to see the current ones.");
-  const preset = await store.lockAnki(() => store.withSyncConnection(async (db) => (await setAnkiPresetOptions(db, presetId, options, now)) ? readAnkiPreset(db, presetId) : null));
+export async function savePreset(
+  store: NoteStore, deck: string, presetId: number, options: PresetOptions,
+  opts: { reschedule: boolean; refresh: () => Promise<void> }, now: Date = new Date(),
+): Promise<{ rescheduled: number }> {
+  if ((await presetIdOf(store, deck)) !== presetId) throw new PresetRefused(CHANGED);
+  const cs = await store.collectionSettings();
+  const H = cs.dayStartsAtHour;
+  const today = ankiToday(now, H, cs.collectionCreated, cs.creationOffset);
+  if (opts.reschedule && today === undefined) throw new PresetRefused("Franki doesn't know when your Anki collection was created. Sync once, then try again.");
+  let reached: RetentionResult | undefined;
+  const preset = await store.lockAnki(() => store.withSyncConnection(async (db) => {
+    const saved = await setAnkiPresetOptions(db, presetId, options, now, async () => {
+      reached = await applyRetentionChange(db, {
+        presetId, retention: options.desiredRetention, reschedule: opts.reschedule,
+        today: today ?? 0, nextDayStartSecs: Math.floor(nextStudyDayStart(now, H).getTime() / 1000),
+      }, now);
+    });
+    return saved ? readAnkiPreset(db, presetId) : null;
+  }));
   if (!preset) throw new PresetRefused(GONE);
   const params = await store.listDeckParams();
   const changed = new Map<string, DeckParams>();
@@ -88,6 +140,17 @@ export async function savePreset(store: NoteStore, deck: string, presetId: numbe
     });
   }
   await store.saveDeckParams(changed);
+  if (!reached) return { rescheduled: 0 };
+  let franki = 0;
+  if (opts.reschedule) {
+    const weights = paramsForDeck(deck, params)?.weights ?? [];
+    for (const card of await frankiCardsIn(store, new Set(reached.decks))) {
+      const moved = rescheduleFrankiCard(card, { desiredRetention: options.desiredRetention, weights, maxInterval: options.maxInterval, now, dayStartsAtHour: H });
+      if (moved) { await store.saveCard(moved); franki++; }
+    }
+  }
+  if (reached.changed > 0) await opts.refresh();
+  return { rescheduled: reached.rescheduled + franki };
 }
 
 /**

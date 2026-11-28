@@ -172,6 +172,22 @@ async def test_stats_and_fsrs(client):
     assert opt["applied"] is False
 
 
+async def test_retention_reaches_the_cards_as_anki_saves_it(client, desktop):
+    # Keeping dates: the Thai deck's studied cards take the new retention, and none moves.
+    out = await call(client, "set_fsrs_settings", deck=THAI, desired_retention=0.8)
+    assert "cards_rescheduled" not in out
+    desktop.run("sync")
+    dump = desktop.run("dump")["dump"]
+    thai = [c for c in dump["cards"] if c[2] == 1794408857990 and c[6] != 0]
+    assert thai and all(json.loads(c[-1])["dr"] == 0.8 for c in thai)
+    assert not [r for r in dump["revlog"] if r[-1] == 5]
+    # Rescheduling: its two review cards get new due dates, each with a Rescheduled review log row.
+    out = await call(client, "set_fsrs_settings", deck=THAI, desired_retention=0.95, reschedule=True)
+    assert out["cards_rescheduled"] == 2
+    desktop.run("sync")
+    assert len([r for r in desktop.run("dump")["dump"]["revlog"] if r[-1] == 5]) == 2
+
+
 async def test_finds_a_deck_without_its_emoji_or_parents(client):
     # The name as the deck list says it, without the emoji and the deck above, finds the one deck it means.
     assert (await call(client, "get_stats", deck="ภาษาไทย"))["deck"] == THAI
