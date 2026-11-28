@@ -72,7 +72,7 @@ import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, useReviewForms } from './ReviewForms';
 import { SkillBackButton, SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
-import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
+import { AspectQuestion, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
 import { drillOfTags, knownHeadwords, skillLanguageDeck, skillOffer } from '../tools/skills';
@@ -1410,8 +1410,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ))}
     </Reveal>
   ) : revealed ? (
-    <>
-    <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {drill ? <SkillBackButton skill={skill} onBack={() => setRevealedAt(undefined)} /> : null}
       {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
@@ -1439,12 +1437,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Tappable>
       ))}
     </Reveal>
-    </>
   ) : drill && skill.question ? (
     <SkillDrillFooter skill={skill} onFinished={reveal} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />
   ) : (
     <>
-      {typing ? null : <AspectQuestion check={aspectCheck} />}
       {page?.typeAnswer || (typing && typeItWord) ? (
         <TextInput
           key={current.id}
@@ -1738,6 +1734,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               {reminder ? <MissReminder text={reminder} /> : null}
               {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
               {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} {...senseMarks.reminder} /> : null}
+              {/* On the card, not in the footer: the footer holds the tallest height it has shown (ReviewFooter.tsx). */}
+              {typing ? null : <AspectQuestion check={aspectCheck} revealed={revealed} />}
               {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
