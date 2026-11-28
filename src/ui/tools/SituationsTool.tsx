@@ -1,5 +1,5 @@
 import { useAudioPlayer } from 'expo-audio';
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +40,8 @@ import { SituationRehearse } from './SituationRehearse';
 import { ToolScreen, useToolLanguage } from './ToolScreen';
 import { CardSurface } from '../SwipeCard';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
+import { HandsFreeBar, HandsFreeStart } from './HandsFreeBar';
+import { useHandsFree } from './useHandsFree';
 
 /**
  * Situations (server/reader situations.py), as Review's card (PracticeCard.tsx): a scene on a card, Another for the next
@@ -55,6 +57,8 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
   const [language, setLanguage] = useToolLanguage(tool);
   const [chat, setChat] = useState<Chat | null>(null);
   const [heardOnly, setHeardOnly] = useState(false);
+  // Talk hands-free (src/reader/handsFree.ts): the microphone opens by itself after each of their lines.
+  const [handsFree, setHandsFree] = useState(false);
   const [feedback, setFeedback] = useState<SituationFeedback | null>(null);
   // Opened from a grammar topic's page (Your topics): the scene practices that topic.
   const focus = focusOf(params.focus);
@@ -85,7 +89,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
         onRegister={setSceneRegister}
         partner={partner}
         onPartner={setPartner}
-        onStart={() => { setFeedback(null); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words, sceneRegister, partner, rehearsal.prepared)); }}
+        onStart={(hands) => { setFeedback(null); setHandsFree(hands); setChat(startChat(rehearsal.language, rehearsal.scene, focus, rehearsal.words, sceneRegister, partner, rehearsal.prepared)); }}
         onPickOther={() => setOther(true)}
       />
     );
@@ -100,7 +104,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
         heardOnly={heardOnly}
         onHeardOnly={setHeardOnly}
         focus={focus}
-        onStart={(scene) => { setFeedback(null); setChat(startChat(language, scene, focus)); }}
+        onStart={(scene, hands) => { setFeedback(null); setHandsFree(hands); setChat(startChat(language, scene, focus)); }}
       />
     );
   }
@@ -111,6 +115,7 @@ export function SituationsTool({ tool, repo, readerApi, params, onClose }: ToolS
       chat={chat}
       onChat={setChat}
       heardOnly={heardOnly}
+      handsFree={handsFree}
       feedback={feedback}
       onFeedback={setFeedback}
       onAgain={() => { setFeedback(null); setChat(startChat(chat.language, chat.scene, chat.focus, chat.words, chat.register, chat.partner, chat.prepared)); }}
@@ -139,7 +144,8 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   heardOnly: boolean;
   onHeardOnly: (on: boolean) => void;
   focus?: SituationFocus;
-  onStart: (scene: string) => void;
+  /** `handsFree`: Talk hands-free was tapped rather than Start. */
+  onStart: (scene: string, handsFree: boolean) => void;
 }) {
   const c = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -170,7 +176,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
     <View style={{ gap: space.m, width: '100%' }}>
       <Text style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>Pick a scene</Text>
       <Group>
-        {names.map((name, i) => <NavRow key={name} first={i === 0} label={name} onPress={() => onStart(name)} />)}
+        {names.map((name, i) => <NavRow key={name} first={i === 0} label={name} onPress={() => onStart(name, false)} />)}
       </Group>
     </View>
   ) : writing ? (
@@ -179,7 +185,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       <TextInput
         value={own}
         onChangeText={setOwn}
-        onSubmitEditing={() => own.trim() && onStart(own)}
+        onSubmitEditing={() => own.trim() && onStart(own, false)}
         returnKeyType="go"
         placeholder="In English, e.g. returning a shirt that's too small"
         accessibilityLabel="A situation of your own, in English"
@@ -222,11 +228,17 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   const footer = browsing && names?.length ? (
     <Button variant="secondary" label="Back to one scene" onPress={() => setBrowsing(false)} />
   ) : writing ? (
-    <Button label="Start" onPress={() => onStart(own)} disabled={!own.trim()} />
+    <View style={{ gap: space.s }}>
+      <Button label="Start" onPress={() => onStart(own, false)} disabled={!own.trim()} />
+      <HandsFreeStart speech={LANGUAGES[language].speech} disabled={!own.trim()} onStart={() => onStart(own, true)} />
+    </View>
   ) : (
-    <View style={{ flexDirection: 'row', gap: space.s }}>
-      <Button variant="secondary" label="Another" style={{ flex: 1 }} onPress={() => names && setAt((i) => (i + 1) % names.length)} disabled={!names || names.length < 2} />
-      <Button label="Start" style={{ flex: 1 }} onPress={() => scene && onStart(scene)} disabled={!scene} />
+    <View style={{ gap: space.s }}>
+      <View style={{ flexDirection: 'row', gap: space.s }}>
+        <Button variant="secondary" label="Another" style={{ flex: 1 }} onPress={() => names && setAt((i) => (i + 1) % names.length)} disabled={!names || names.length < 2} />
+        <Button label="Start" style={{ flex: 1 }} onPress={() => scene && onStart(scene, false)} disabled={!scene} />
+      </View>
+      <HandsFreeStart speech={LANGUAGES[language].speech} disabled={!scene} onStart={() => scene && onStart(scene, true)} />
     </View>
   );
 
@@ -255,12 +267,13 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
   );
 }
 
-function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgain, onDone }: {
+function Talk({ api, repo, chat, onChat, heardOnly, handsFree, feedback, onFeedback, onAgain, onDone }: {
   api: Api;
   repo: ToolScreenProps['repo'];
   chat: Chat;
   onChat: (chat: Chat) => void;
   heardOnly: boolean;
+  handsFree: boolean;
   feedback: SituationFeedback | null;
   onFeedback: (f: SituationFeedback | null) => void;
   onAgain: () => void;
@@ -288,6 +301,13 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   const holding = spoken.available && !typingMode;
   const [waiting, setWaiting] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  // Talk hands-free: their line plays, the microphone opens, a pause ends the owner's line and it's sent.
+  const hands = useHandsFree({
+    on: handsFree && !feedback && !chat.done && !finishing,
+    speech: info.speech,
+    onSend: (line) => sendText(line),
+    onFix: (line) => setDraft(line),
+  });
   // What went wrong, and what Try again does: none when the owner's line went back in the box to send again.
   const [problem, setProblem] = useState<{ message: string; retry?: () => void } | null>(null);
   const [added, setAdded] = useState<Record<string, 'adding' | 'added' | 'failed'>>({});
@@ -346,6 +366,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
       if (asking.current !== mine) return;
       onChat(withTheirs(from, got));
       void say(got);
+      hands.replied();
       setTimeout(() => { if (sizes.current.content > sizes.current.view) scrollProps.ref.current?.scrollToEnd({ animated: true }); }, 50);
     } catch (e) {
       if (asking.current !== mine) return;
@@ -355,7 +376,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
         onChat(back.chat);
         setDraft(back.text);
         setProblem({ message: failureText(e, { what: "Couldn't get the next line.", next: 'Your line is back in the box: send it again.' }) });
+        hands.failed();
       } else {
+        hands.pause();
         setProblem({ message: failureText(e, { what: "Couldn't start the conversation.", next: 'Try again.' }), retry: () => void turn(from) });
       }
     } finally {
@@ -371,14 +394,17 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
     sendWhenHeard.current = false;
     sendText(draftRef.current);
   }, [spoken.listening]); // eslint-disable-line react-hooks/exhaustive-deps
-  const send = () => sendText(draft);
-  const sendText = (text: string) => {
-    if (!canSend(chat, text) || waiting) return;
+  const send = () => { sendText(draft); };
+  // Whether it was sent: hands-free puts a line that wasn't in the box to fix.
+  const sendText = (text: string): boolean => {
+    if (!canSend(chat, text) || waiting) return false;
     haptic.tap();
     const next = withMine(chat, text);
     setDraft('');
+    hands.sent();
     onChat(next);
     void turn(next);
+    return true;
   };
   const finish = async () => {
     if (!canFinish(chat)) { onDone(); return; }
@@ -417,6 +443,53 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
   };
 
   const name = chat.roles?.name ?? 'Them';
+  // The box to type a line in, with Send: the footer when not holding to talk, and hands-free's while a line is fixed.
+  const typingBox = (
+            <>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.s }}>
+              <TextInput
+                {...keyboardLang}
+                value={draft}
+                onChangeText={setDraft}
+                multiline
+                autoCorrect={false}
+                spellCheck={false}
+                placeholder={`Your reply, in ${info.name}`}
+                accessibilityLabel={`Your reply, in ${info.name}`}
+                placeholderTextColor={c.textTertiary}
+                selectionColor={c.accent}
+                keyboardAppearance={dark ? 'dark' : 'light'}
+                autoFocus={handsFree}
+                style={{
+                  ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.xl, flex: 1,
+                  borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.l, paddingVertical: space.s + 2, minHeight: MIN_TAP, maxHeight: 140,
+                }}
+              />
+              <Tappable
+                onPress={send}
+                disabled={!canSend(chat, draft) || waiting}
+                accessibilityRole="button"
+                accessibilityLabel="Send"
+                restOpacity={!canSend(chat, draft) || waiting ? 0.45 : 1}
+                style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Icon name="arrow.up" size={18} color={c.onAccent} weight="bold" />
+              </Tappable>
+              {spoken.available && !handsFree ? (
+                <Tappable
+                  onPress={() => { haptic.select(); setTypingMode(false); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Speak instead"
+                  style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Icon name="mic.fill" size={17} color={c.text} />
+                </Tappable>
+              ) : null}
+            </View>
+            <MissingKeyboardNote speechTag={info.speech} />
+            <Text style={{ ...type.caption, color: c.textSecondary }}>{"Don't know a word? Write it in English in [brackets]. Tap a highlighted word for its meaning."}</Text>
+            </>
+  );
   if (feedback) {
     const mine = new Map(chat.lines.flatMap((l, i) => (l.speaker === 'you' ? [[i, l.text] as const] : [])));
     const keepable_ = keepable(feedback, mine);
@@ -469,7 +542,9 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
           <Button label="See how it went" busy={waiting} onPress={() => void finish()} />
         ) : (
           <View style={{ gap: space.xs }}>
-            {holding ? (
+            {handsFree ? (
+              <HandsFreeBar run={hands} name={name} lang={info.speech} look={look} typing={typingBox} />
+            ) : holding ? (
               <>
                 {draft ? <Text accessibilityLanguage={info.speech} style={{ ...type.body, color: c.text }}>{draft}</Text> : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
@@ -488,51 +563,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, feedback, onFeedback, onAgai
                 <ListeningNote spoken={spoken} language={info.name} />
                 <Text style={{ ...type.caption, color: c.textSecondary }}>Hold to talk, let go to send. To write a word in [brackets], type instead.</Text>
               </>
-            ) : (
-            <>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.s }}>
-              <TextInput
-                {...keyboardLang}
-                value={draft}
-                onChangeText={setDraft}
-                multiline
-                autoCorrect={false}
-                spellCheck={false}
-                placeholder={`Your reply, in ${info.name}`}
-                accessibilityLabel={`Your reply, in ${info.name}`}
-                placeholderTextColor={c.textTertiary}
-                selectionColor={c.accent}
-                keyboardAppearance={dark ? 'dark' : 'light'}
-                style={{
-                  ...type.body, color: c.text, backgroundColor: c.surface, ...smooth, borderRadius: radius.xl, flex: 1,
-                  borderWidth: hairline, borderColor: c.border, paddingHorizontal: space.l, paddingVertical: space.s + 2, minHeight: MIN_TAP, maxHeight: 140,
-                }}
-              />
-              <Tappable
-                onPress={send}
-                disabled={!canSend(chat, draft) || waiting}
-                accessibilityRole="button"
-                accessibilityLabel="Send"
-                restOpacity={!canSend(chat, draft) || waiting ? 0.45 : 1}
-                style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Icon name="arrow.up" size={18} color={c.onAccent} weight="bold" />
-              </Tappable>
-              {spoken.available ? (
-                <Tappable
-                  onPress={() => { haptic.select(); setTypingMode(false); }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Speak instead"
-                  style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.fill, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Icon name="mic.fill" size={17} color={c.text} />
-                </Tappable>
-              ) : null}
-            </View>
-            <MissingKeyboardNote speechTag={info.speech} />
-            <Text style={{ ...type.caption, color: c.textSecondary }}>{"Don't know a word? Write it in English in [brackets]. Tap a highlighted word for its meaning."}</Text>
-            </>
-            )}
+            ) : typingBox}
           </View>
         )}
       >
