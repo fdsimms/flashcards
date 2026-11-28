@@ -17,6 +17,7 @@ export const SHEET_ROUTES: readonly string[] = [
   'cram-edit',
   'deck-new',
   'offline',
+  'ipa',
   'now-playing',
   'up-next',
 ];

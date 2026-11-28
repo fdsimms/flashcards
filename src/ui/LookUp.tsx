@@ -10,6 +10,8 @@ import { Button, Card, ErrorNote, Field, Help, Icon, Screen, Select, Tappable } 
 import { glossText } from './lookUpCache';
 import { radius, readable, smooth, space, type, useTheme } from './theme';
 import type { CardGlossing } from './useCardGlosses';
+import { IpaPill } from './IpaPill';
+import { ipaGuideFor } from '../tools/ipaGuide';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
 /** The language last looked up in, for the next time the screen opens. */
@@ -140,7 +142,8 @@ function WordCard({ word, language, glossing }: { word: Word; language: GlossLan
     <Card style={{ gap: space.s }}>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.s }}>
         <Text selectable style={{ ...type.title, color: c.text, flexShrink: 1 }}>{word.lemma && form ? word.lemma : word.text}</Text>
-        {pronunciation ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{pronunciation}</Text> : null}
+        {pronunciation && !word.translit && ipaGuideFor(language) ? <IpaPill ipa={pronunciation} language={ipaGuideFor(language)!} />
+          : pronunciation ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{pronunciation}</Text> : null}
       </View>
       <Text style={{ ...type.body, color: meaning === null ? c.textSecondary : c.text }}>
         {meaning === undefined ? 'Looking up the meaning' : meaning ?? "Couldn't find a meaning for it."}
