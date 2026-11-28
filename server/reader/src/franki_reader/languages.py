@@ -301,6 +301,35 @@ LANGUAGES: dict[Code, Language] = {
 }
 
 
+# The form a word is written in as a deck Entry, which a dictionary lists it under, for a prompt that
+# asks Claude for a word to note: a typed or suggested form (ταξιδέψουμε, hablé) is noted as the word
+# it's a form of. Greek has no infinitive, so a verb's is the first person singular of the present.
+# Thai and Toki Pona don't inflect, so their words are noted as written.
+_INFINITIVE = "a verb in the infinitive, a noun in the nominative singular, an adjective in the masculine singular"
+CITATION_FORMS: dict[Code, str] = {
+    "es": "a verb in the infinitive (hablar, not hablé), a noun in the singular, an adjective in the masculine singular",
+    "fr": "a verb in the infinitive (parler, not parlons), a noun in the singular, an adjective in the masculine singular",
+    "de": "a verb in the infinitive with a separable prefix attached (abwerfen, not warf ab), a noun in the "
+    "nominative singular, an adjective uninflected",
+    "ru": _INFINITIVE + " (говорить, not говорю)",
+    "pl": _INFINITIVE + " (mówić, not mówię)",
+    "el": "a verb in the first person singular of the present, since Greek has no infinitive (ταξιδεύω, "
+    "not ταξιδέψουμε or ταξίδεψα), a noun in the nominative singular, an adjective in the masculine "
+    "nominative singular",
+    "nb": "a verb in the infinitive without å (snakke, not snakket), a noun in the indefinite singular, an "
+    "adjective in its basic form",
+    "ja": "a verb or adjective in its dictionary form (食べる, not 食べました)",
+    "en": "a verb in its base form (run, not ran), a noun in the singular",
+}
+
+
+def citation_form(code: Code) -> str:
+    """How a prompt asks for a word in `code` as a deck Entry is written: in its dictionary form, the
+    way CITATION_FORMS spells out for a language that inflects."""
+    forms = CITATION_FORMS.get(code)
+    return f"its dictionary form: {forms}" if forms else "its dictionary form"
+
+
 # The languages with voices: where voices, casts and recordings apply.
 SPEAKING_LANGUAGES: dict[Code, Language] = {
     code: info for code, info in LANGUAGES.items() if info.speaks

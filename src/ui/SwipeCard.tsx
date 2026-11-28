@@ -52,9 +52,10 @@ const FILL = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as c
 /**
  * A card that washes over in an answer's color (1 Again to 4 Easy, the buttons' colors) and fades
  * back: put `overlay` last inside the card's surface and call `flash` as the answer is given. It
- * runs on the UI thread, so it starts with the answer, not after the next card has rendered.
+ * runs on the UI thread, so it starts with the answer, not after the next card has rendered. `peak`
+ * is how opaque the wash starts: a card with a color of its own needs more than the neutral card.
  */
-export function useAnswerFlash() {
+export function useAnswerFlash(peak: number = FLASH_PEAK) {
   const c = useTheme();
   const amount = useSharedValue(0);
   const rating = useSharedValue<number>(3);
@@ -62,7 +63,7 @@ export function useAnswerFlash() {
   const style = useAnimatedStyle(() => ({ opacity: amount.value, backgroundColor: colors[rating.value - 1] }));
   const flash = useCallback((r: RatingValue) => {
     rating.value = r;
-    amount.value = FLASH_PEAK;
+    amount.value = peak;
     amount.value = withTiming(0, { duration: FLASH_MS, easing: Easing.out(Easing.quad) });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return { flash, overlay: <Animated.View pointerEvents="none" style={[FILL, style]} /> };
