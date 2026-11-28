@@ -93,6 +93,21 @@ marked words, ideas) is in the current language, the `language` setting.
                                       the check after reading's answers over them, how well the
                                       known words were recognized (recognition.py), and the
                                       difficulty the next text is written at
+    GET   /api/audit/texts            every language's texts for review, newest first (audit.py,
+                                      the MCP's list_read_and_listen_texts): ?language, story, days,
+                                      limit, status (shown, the default; skipped; dropped; all)
+    GET   /api/audit/texts/{id}       one of them in full, with `asked`: what Claude answered when
+                                      its lines were asked about (Explain, natural, phrase, form)
+    GET   /api/audit/lessons          audio lessons of every state with their marks' count
+                                      (?language, days, limit); /api/audit/lessons/{id} one in full:
+                                      phrases, dialogue, script and the phrases marked
+    GET   /api/audit/grammar          ?language every grammar page Claude wrote: Your topics
+                                      ("topic") and the points' lessons ("point");
+                                      /api/audit/grammar/{kind}/{id} one in full
+    GET   /api/audit/practice         ?kind (drill, sentence, vocab, meaning, sentence_meaning),
+                                      language, point, word, days, limit: the practice items Claude
+                                      wrote, newest first, with what their batches asked and kept.
+                                      Every /api/audit route only reads: it never starts a write
     GET   /api/exposure-effect?days=90  whether stretch words were remembered better at their
                                       next review than similar words (exposure_effect.py)
     GET   /api/costs?days=30          what Claude cost over the last `days` days, per language:

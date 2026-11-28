@@ -10,6 +10,7 @@ the routes not converted yet, and a route changed is a good time to convert it.
 """
 
 from franki_reader.routes import (
+    audit,
     cards,
     cram_say,
     cram_themes,
@@ -41,6 +42,7 @@ AREAS = (
     topics,
     own_texts,
     texts,
+    audit,
     explain,
     settings,
     voices,
