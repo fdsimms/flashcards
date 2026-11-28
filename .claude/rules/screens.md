@@ -30,6 +30,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   holding text gets padding or a `minHeight`, never a fixed `height`. Words take the ink tokens,
   not the fills: `goodInk`, `danger` or `warningInk` rather than a rating color
   (`tests/noRatingColorText.test.ts`), and `accentInk` for gold text on `accentFill`.
+- **A border that marks a state keeps one width in every state**, clear when off, so picking or answering doesn't shift the box's text. A quiz's answer choice spreads `answerLook` (`kit.tsx`), which does this.
 - **Mock up a proposed UI change before building it, so the owner can see it.** There are no
   screen tests and no renderer, so a description in prose isn't something they can react to. For a
   new screen, a layout change or a change to how a card or row is presented, publish a small HTML

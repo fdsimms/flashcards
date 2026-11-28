@@ -145,3 +145,14 @@ export function ownValuesNote(own: DeckOwnValues): string | undefined {
 export function presetIntro(presetName: string): string {
   return `These are the options of the Anki preset "${presetName}". A change applies to every deck that uses it, and syncs to your other devices.`;
 }
+
+/**
+ * What Save asks when the desired retention changed and `count` cards would move: Anki's
+ * "Reschedule cards on change", asked once instead of kept as a switch.
+ */
+export function rescheduleQuestion(count: number, retention: number): { title: string; message: string } {
+  return {
+    title: `Reschedule ${count} ${count === 1 ? 'card' : 'cards'}?`,
+    message: `${count === 1 ? 'Its due date' : 'Their due dates'} would change to match ${retention.toFixed(2)} retention, as Anki's "Reschedule cards on change" does. If you keep ${count === 1 ? 'its date' : 'their dates'}, ${count === 1 ? 'it follows' : 'each card follows'} the new retention from its next review.`,
+  };
+}

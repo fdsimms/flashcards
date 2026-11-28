@@ -12,10 +12,12 @@ import { COL_MODIFIED_SQL } from './writeback';
  * the kept collection (`withSyncConnection`), inside `lockAnki`.
  */
 
-async function writeConfig(db: SyncDb, presetId: number, config: Uint8Array, now: Date) {
+/** `then` runs in the same transaction, after the preset is written: a change it makes to cards rolls back with the preset. */
+async function writeConfig(db: SyncDb, presetId: number, config: Uint8Array, now: Date, then?: () => Promise<void>) {
   await db.transaction(async () => {
     await db.run('UPDATE deck_config SET config = ?, mtime_secs = ?, usn = -1 WHERE id = ?', config, Math.floor(now.getTime() / 1000), presetId);
     await db.run(COL_MODIFIED_SQL, now.getTime());
+    if (then) await then();
   });
 }
 
@@ -124,8 +126,11 @@ export async function readAnkiPreset(db: SyncDb, presetId: number): Promise<Anki
  * Sets a preset's daily limits, steps, maximum interval and desired retention. Only the options
  * that changed are rewritten, so a value Franki reads rounded (a step of a few seconds) keeps
  * Anki's own bits when it wasn't touched. False when Anki has no such preset.
+ *
+ * `onRetentionChange` runs when the retention changed, in the same transaction after the preset is
+ * written, for what Anki writes into the cards then (`applyRetentionChange`, retentionWrites.ts).
  */
-export async function setAnkiPresetOptions(db: SyncDb, presetId: number, options: PresetOptions, now: Date): Promise<boolean> {
+export async function setAnkiPresetOptions(db: SyncDb, presetId: number, options: PresetOptions, now: Date, onRetentionChange?: () => Promise<void>): Promise<boolean> {
   const current = await readAnkiPreset(db, presetId);
   if (!current) return false;
   const row = (await db.first<{ config: Uint8Array }>('SELECT config FROM deck_config WHERE id = ?', presetId))!;
@@ -140,6 +145,6 @@ export async function setAnkiPresetOptions(db: SyncDb, presetId: number, options
   if (!sameSteps(options.learnSteps, was.learnSteps)) set[F.learnSteps] = options.learnSteps.length ? [packedFloatsField(options.learnSteps)] : [];
   if (!sameSteps(options.relearnSteps, was.relearnSteps)) set[F.relearnSteps] = options.relearnSteps.length ? [packedFloatsField(options.relearnSteps)] : [];
   if (Object.keys(set).length === 0) return true;
-  await writeConfig(db, presetId, withFields(row.config, set), now);
+  await writeConfig(db, presetId, withFields(row.config, set), now, set[F.desiredRetention] ? onRetentionChange : undefined);
   return true;
 }

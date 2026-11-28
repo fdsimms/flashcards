@@ -5,7 +5,7 @@ import { LANGUAGES } from '../reader/languages';
 import { extraDrillNames, LANGUAGE_MODES, modeOf, TURNS_PER_DAY, FOCUS_EXTRAS, type ExtraPrefs, type LanguageMode } from '../tools/extras';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, SwitchRow } from './kit';
+import { ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments, SwitchRow } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useDailyExtras } from './useDailyExtras';
 
@@ -133,7 +133,7 @@ export function DailyExtrasSettings() {
                   ) : (
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>Nothing is planned for today.</Text>
                   )}
-                  {problem ? <Text style={{ ...type.footnote, color: c.danger }}>{problem}</Text> : null}
+                  {problem ? <ErrorNote message={problem} /> : null}
                 </Section>
               </>
             ) : null}

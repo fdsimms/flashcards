@@ -9,9 +9,9 @@ import {
 import { toneOfRoman, TONE_NAMES, type Tone } from '../../tools/thai/script';
 import { useLanguageFont } from '../AppFont';
 import { haptic } from '../haptics';
-import { Button, Card, Help, Icon, Tappable } from '../kit';
+import { answerLook, type AnswerState, Button, Card, Help, Icon, Meter, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { hairline, MIN_TAP, space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
 import { ListenPrompt, PracticeCard } from './PracticeCard';
 import { ToneContour, ToneContours } from './ToneContour';
@@ -20,6 +20,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { useHearingAudio, type HeardIn } from './useHearingAudio';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
+import { RoundScore } from '../RoundScore';
 
 /** An answer: the word picked (its index in the set), the tone picked, or null for I don't know. */
 type Picked = { choice: number | Tone | null };
@@ -277,12 +278,11 @@ function WordLines({ word, centered }: { word: HearingWord; centered?: boolean }
 /** One word to choose: its romanization and meaning are shown before answering too, since telling the sounds apart is the question, not reading. */
 function Choice({ word, state, onPress, onPlay }: {
   word: HearingWord;
-  state: 'open' | 'right' | 'wrong' | 'other';
+  state: AnswerState;
   onPress: () => void;
   onPlay?: () => void;
 }) {
   const c = useTheme();
-  const marked = state === 'right' || state === 'wrong';
   return (
     <Tappable
       onPress={onPress}
@@ -293,8 +293,7 @@ function Choice({ word, state, onPress, onPlay }: {
       scaleTo={0.98}
       style={{
         flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + 16, paddingHorizontal: space.l, paddingVertical: space.s,
-        backgroundColor: state === 'right' ? c.goodFill : state === 'wrong' ? c.dangerFill : c.surface,
-        borderRadius: radius.m + 2, ...smooth, borderWidth: marked ? 1.5 : hairline, borderColor: state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border,
+        ...answerLook(c, state),
       }}
     >
       {state === 'right' ? <Icon name="checkmark.circle.fill" size={20} color={c.countDue} /> : null}
@@ -311,8 +310,7 @@ function RoundResults({ results, right, asked, weakest }: { results: SoundResult
   return (
     <View style={{ padding: space.l, gap: space.m }}>
       <Card>
-        <Text style={{ ...type.overline, color: c.textSecondary }}>Round done</Text>
-        <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{`${right} of ${asked} right`}</Text>
+        <RoundScore heading="Round done" right={right} asked={asked} what="heard right" />
       </Card>
       <Card>
         <Text style={{ ...type.overline, color: c.textSecondary }}>By sound</Text>
@@ -323,9 +321,7 @@ function RoundResults({ results, right, asked, weakest }: { results: SoundResult
                 <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{r.label}</Text>
                 <Text style={{ ...type.subhead, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`${r.right} / ${r.asked}`}</Text>
               </View>
-              <View style={{ height: 8, borderRadius: 4, backgroundColor: c.fill, overflow: 'hidden' }}>
-                <View style={{ width: `${Math.round((r.right / r.asked) * 100)}%`, height: '100%', backgroundColor: r === weakest ? c.danger : c.countDue }} />
-              </View>
+              <Meter value={r.right / r.asked} color={r === weakest ? c.danger : c.countDue} />
             </View>
           ))}
         </View>

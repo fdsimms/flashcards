@@ -5,9 +5,9 @@ import type { GlossLanguage } from '../../reader/api';
 import { glossInfo } from '../../reader/languages';
 import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../../reader/marks';
 import { haptic } from '../haptics';
-import { HeaderAction } from '../kit';
+import { SheetHeader } from '../kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
-import { hairline, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * What the marks on the words mean, with a switch for each, in a sheet the reader's header button
@@ -31,10 +31,9 @@ export function ReaderKey({ examples, language, textStyle, shown, onChange, onCl
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.l, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-          <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary }}>Key to the marks on words</Text>
-          <HeaderAction label="Close" onPress={onClose} />
-        </View>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Key to the marks on words</Text>
+        </SheetHeader>
         <View>
           {examples.map((e, i) => {
             const title = e.mark === 'highlight' ? glossInfo(language).highlightLabel : MARK_INFO[e.mark].title;

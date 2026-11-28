@@ -138,7 +138,8 @@ function DeckRows({ repo, onOpen }: { repo: Repo; onOpen: (route: string) => voi
         </Group>
       </Section>
       <Group>
-        <NavRow first label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
+        <NavRow first label="Scheduling" detail="When the next day starts, learn ahead, time limit, daily limits, load balancer" onPress={() => onOpen('/scheduling')} />
+        <NavRow label="Note types" detail="How each note type's cards look: templates and styling" onPress={() => onOpen('/note-types')} />
         <NavRow label="Deck options" detail="Skill cards, cards in progress, new cards, fonts and more, for each deck" onPress={() => onOpen(DECK_OPTIONS_LIST)} />
       </Group>
     </>

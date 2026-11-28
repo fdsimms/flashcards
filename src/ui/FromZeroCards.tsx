@@ -10,7 +10,7 @@ import { LANGUAGES } from '../reader/languages';
 import { useApp } from './AppContext';
 import { endFromZero, hidePath, makePathLesson, openFirstWords } from './fromZeroActions';
 import { useFromZero } from './fromZeroStorage';
-import { Card, Icon, Tappable } from './kit';
+import { Card, Icon, Meter, Tappable } from './kit';
 import { LESSONS_PATH } from './tabPaths';
 import { radius, space, type, useTheme } from './theme';
 import { useCollection } from './useCrams';
@@ -95,9 +95,7 @@ function FromZeroCard({ path }: { path: FromZero }) {
               </Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>{step.detail}</Text>
               {step.progress !== undefined ? (
-                <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden', marginTop: space.xs }}>
-                  <View style={{ width: `${Math.round(step.progress * 100)}%`, height: '100%', backgroundColor: step.state === 'later' ? c.textDim : c.accent }} />
-                </View>
+                <Meter value={step.progress} color={step.state === 'later' ? c.textDim : c.accent} style={{ marginTop: space.xs }} />
               ) : null}
             </View>
             {onPress ? <Icon name="chevron.right" size={13} color={c.textDim} /> : null}
@@ -116,13 +114,13 @@ function StepMark({ state, n }: { state: PathStep['state']; n: number }) {
   const size = 22;
   if (state === 'done') {
     return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.goodInk, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size, height: size, borderRadius: radius.pill, backgroundColor: c.goodInk, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="checkmark" size={12} color={c.onAccent} />
       </View>
     );
   }
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'now' ? c.accent : undefined, borderWidth: state === 'now' ? 0 : 1.5, borderColor: c.border }}>
+    <View style={{ minWidth: size, minHeight: size, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'now' ? c.accent : undefined, borderWidth: state === 'now' ? 0 : 1.5, borderColor: c.border }}>
       <Text style={{ ...type.caption, fontWeight: '700', color: state === 'now' ? c.onAccent : c.textDim }}>{n}</Text>
     </View>
   );

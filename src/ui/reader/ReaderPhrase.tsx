@@ -167,7 +167,7 @@ export function PhraseExplanation({ api, textId, line, toLine, phrase, anchor, m
               <MakingBody title="Asking Claude" detail="Working out what this phrase means." />
             ) : (
               <>
-                <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{answer.meaning}</Text>
+                <Text style={{ ...type.headline, color: c.text }}>{answer.meaning}</Text>
                 {answer.literal ? (
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>
                     <Text style={{ fontWeight: '600', color: c.text }}>Literal meaning: </Text>

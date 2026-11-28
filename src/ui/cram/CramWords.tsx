@@ -13,7 +13,7 @@ import type { Note } from '../../core/types';
 import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Field, Group, Help, Loading, NavRow, Screen } from '../kit';
+import { ErrorNote, Field, Group, Help, Loading, NavRow, Screen } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -186,7 +186,7 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
                 <NavRow first icon={{ name: 'plus', color: c.accent }} label={`Add all ${unchecked.length} shown`} onPress={() => void addMany(unchecked)} />
               </Group>
             ) : null}
-            {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+            {problem ? <ErrorNote message={problem} /> : null}
             {rows.length ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{typed ? 'In your deck' : 'Added most recently'}</Text> : null}
           </View>
         )}

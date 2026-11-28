@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { ASPECT_MISS_RATING, aspectVerdict, type Aspect } from '../core/aspectCheck';
 import { haptic } from './haptics';
-import { Tappable } from './kit';
-import { radius, smooth, space, type, useTheme } from './theme';
+import { answerLook, Tappable } from './kit';
+import { MIN_TAP, space, type, useTheme } from './theme';
 
 /**
  * Review's aspect check (src/core/aspectCheck.ts): the question above Show answer on a verb's
@@ -42,7 +42,6 @@ export function AspectQuestion({ check }: { check: ReturnType<typeof useAspectCh
       <View style={{ flexDirection: 'row', gap: space.s }}>
         {CHOICES.map((o) => {
           const mark = pick === o.value ? (o.value === aspect ? 'right' : 'wrong') : undefined;
-          const color = mark === 'right' ? c.goodInk : mark === 'wrong' ? c.warningInk : c.text;
           return (
             <Tappable
               key={o.value}
@@ -51,17 +50,14 @@ export function AspectQuestion({ check }: { check: ReturnType<typeof useAspectCh
               accessibilityRole="button"
               accessibilityLabel={o.label}
               accessibilityState={{ selected: pick === o.value, disabled: !!pick }}
-              style={{
-                flex: 1, minHeight: 44, borderRadius: radius.m, ...smooth, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: c.fill, borderWidth: mark ? 2 : 1, borderColor: mark ? color : c.controlEdge,
-              }}
+              style={{ flex: 1, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', ...answerLook(c, mark ?? 'open') }}
             >
-              <Text style={{ ...type.body, color }}>{o.label}</Text>
+              <Text style={{ ...type.body, color: c.text, fontWeight: mark === 'right' ? '600' : '400' }}>{o.label}</Text>
             </Tappable>
           );
         })}
       </View>
-      {verdict ? <Text style={{ ...type.footnote, color: verdict.right ? c.goodInk : c.warningInk, textAlign: 'center' }}>{verdict.text}</Text> : null}
+      {verdict ? <Text style={{ ...type.footnote, color: verdict.right ? c.goodInk : c.danger, textAlign: 'center' }}>{verdict.text}</Text> : null}
     </View>
   );
 }
@@ -70,5 +66,5 @@ export function AspectQuestion({ check }: { check: ReturnType<typeof useAspectCh
 export function AspectResult({ check }: { check: ReturnType<typeof useAspectCheck> }) {
   const c = useTheme();
   if (!check.verdict) return null;
-  return <Text style={{ ...type.footnote, color: check.verdict.right ? c.goodInk : c.warningInk, textAlign: 'center' }}>{check.verdict.text}</Text>;
+  return <Text style={{ ...type.footnote, color: check.verdict.right ? c.goodInk : c.danger, textAlign: 'center' }}>{check.verdict.text}</Text>;
 }

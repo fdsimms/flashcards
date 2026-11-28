@@ -8,7 +8,7 @@ import { counts, droppedNotice, firstReady, isRetrying, isWorking, needsChoice }
 import type { DroppedWord } from '../../reader/noteQueueStore';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
-import { Button, ErrorNote, Group, Help, HeaderAction, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, EmptyState, ErrorNote, Group, HeaderAction, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
@@ -297,7 +297,7 @@ export function ReadNoteQueue({ queue, error, dropped, held, getItems, onReview,
             </Group>
           </View>
         ))}
-        {queue && !items.length && !held.length ? <Help>Nothing is queued. Use Quick add on the deck list to add words, and Claude fills in the rest.</Help> : null}
+        {queue && !items.length && !held.length ? <EmptyState icon="tray" title="Nothing is queued" body="Use Quick add on the deck list to add words, and Claude fills in the rest." /> : null}
         {sections.map((section) => (
           <View key={section.key} style={{ gap: space.s }}>
             <SectionTitle>{`${section.title} (${section.rows.length})`}</SectionTitle>

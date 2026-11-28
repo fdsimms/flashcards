@@ -5,7 +5,7 @@ import { syncErrorText, syncStatusText } from '../anki/sync/runSync';
 import { signIn, turnOffSync } from '../anki/syncService';
 import { failureText } from '../core/failure';
 import type { AnkiLink, SyncSettings as Settings } from '../db/ankiLink';
-import { Button, Card, Field, Help, MessageList, ProgressBar, Screen, SECTION_GAP } from './kit';
+import { Button, Card, ErrorNote, Field, Help, MessageList, ProgressBar, Screen, SECTION_GAP } from './kit';
 import { space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { useSyncProgress } from './useSyncProgress';
@@ -32,6 +32,8 @@ export function SyncSettings(props: {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  /** A failure, shown as an ErrorNote; `error` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
   const [log, setLog] = useState<string[]>([]);
   const userField = useRef<TextInputInstance>(null);
   const passwordField = useRef<TextInputInstance>(null);
@@ -46,7 +48,7 @@ export function SyncSettings(props: {
     }
     signingIn.current = true;
     setBusy(true);
-    setError(undefined);
+    setError(undefined); setFailed(undefined);
     try {
       await signIn(props.repo, server, user.trim(), password);
       setPassword('');
@@ -54,7 +56,7 @@ export function SyncSettings(props: {
       const line = await props.sync();
       if (line) setLog((l) => [line, ...l]);
     } catch (e) {
-      setError(syncErrorText(e));
+      setFailed(syncErrorText(e));
     } finally {
       signingIn.current = false;
       setBusy(false);
@@ -123,6 +125,7 @@ export function SyncSettings(props: {
             <Field ref={passwordField} label="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password"
               onSubmitEditing={submit} returnKeyType="go" error={!!error && !password} />
             {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
+            {failed ? <ErrorNote message={failed} /> : null}
             <Help>Franki doesn't store your password. It keeps a sign-in key in the iPhone's Keychain.</Help>
             <Button label="Sign in and sync" onPress={submit} busy={busy || props.syncing} />
           </Card>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
 import type { DeckNode } from '../core/deckTree';
-import { Group, Help, Loading, NavRow, Screen, Section } from './kit';
+import { EmptyState, Group, Help, Loading, NavRow, Screen, Section } from './kit';
 import { space, readable } from './theme';
 
 /**
@@ -24,7 +24,7 @@ export function DeckOptionsList({ decks, loaded, onOpen }: {
               <Group>
                 {decks.map((d, i) => <NavRow key={d.deck} first={i === 0} indent={d.depth} label={d.name} onPress={() => onOpen(d.deck)} />)}
               </Group>
-            ) : <Help>No decks yet. Import a deck or sync with Anki, and its options will be here.</Help>}
+            ) : <EmptyState icon="rectangle.stack" title="No decks yet" body="Import a deck or sync with Anki, and its options will be here." />}
           </Section>
         </ScrollView>
       )}

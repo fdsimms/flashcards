@@ -8,7 +8,7 @@ import { scriptOf } from '../../reader/lessonScript';
 import { CardSentence } from '../CardSentence';
 import { haptic } from '../haptics';
 import { useOutputWake } from '../useOutputWake';
-import { Button, Divider, ErrorNote, Group, Icon, NavRow, Screen, Tappable } from '../kit';
+import { Button, Divider, ErrorNote, Group, Icon, Meter, NavRow, Screen, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
 import type { CardGlossing, SentenceGloss } from '../useCardGlosses';
 import { lessonAudioMode } from '../useLessonTurns';
@@ -219,9 +219,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     <Screen title={lesson.title}>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
         <View style={{ gap: space.xs }}>
-          <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-            <View style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: c.accent }} />
-          </View>
+          <Meter value={progress} color={c.accent} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{clock(status.currentTime)}</Text>
             <Text style={{ ...type.footnote, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{clock(duration)}</Text>

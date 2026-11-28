@@ -18,7 +18,7 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
+import { Button, Card as Box, ErrorNote, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
 import { CheckRow, Pill } from './CramBits';
@@ -310,7 +310,7 @@ export function CramPage(props: {
             </>
           )}
         </Box>
-        {capProblem ? <Text style={{ ...type.subhead, color: c.danger }}>{capProblem}</Text> : null}
+        {capProblem ? <ErrorNote message={capProblem} /> : null}
 
         {!cram.finishedAt ? (
           <>
@@ -487,7 +487,7 @@ export function CramPage(props: {
           </>
         ) : null}
 
-        {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+        {problem ? <ErrorNote message={problem} /> : null}
         {running ? <Help>{`These words come up for review by ${fullDate(cram).split(',')[0]}. After that, they go back to their usual schedule.`}</Help> : null}
         {!cram.finishedAt ? <Help>{`These words have the tag ${cramTag(cram)} in Anki, so Claude can find them too.`}</Help> : null}
       </ScrollView>

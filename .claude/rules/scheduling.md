@@ -142,6 +142,16 @@ preset's own option: `setNewCardOrder` writes it into the kept collection first,
 preset and every device must agree, and sync sends it (`deckConfigJson`). **Anki options** (Deck options; `presetService.ts`) do the same for the
 preset's daily limits, steps, maximum interval and desired retention, and list every deck the change
 reaches first; a deck's own Anki limits and retention (Deck.Normal) still win over the preset's.
+**A new retention reaches the cards as Anki's deck options write it** (`applyRetentionChange`,
+`src/anki/retentionWrites.ts`, in the preset's own transaction): every studied card of a deck without
+its own retention takes the new `dr`, and Save asks, with the count, whether to reschedule ("Reschedule
+cards on change"): review cards then get FSRS's interval at the new retention, counted from the last
+answer, fuzzed or placed by the rescheduling load balancer (`rescheduleBalancedInterval`, which differs
+from an answer's), with a Rescheduled review log row (`src/core/retentionReschedule.ts`). It reads the
+card's stored memory state where Anki recomputes it from the review log; with the weights unchanged
+they agree. **Collection-wide preferences** (Settings, Decks and cards, Scheduling: the day start, learn
+ahead, the time limit, how limits add up, the load balancer) are written into the collection's config
+(`saveCollectionPrefs`, `src/anki/collectionPrefsService.ts`) and into `CollectionSettings` at once.
 
 **A Russian or Polish aspect pair starts on the same day** (`aspectPartners`, `groupPartners`, `src/core/aspectPairs.ts`): two
 verb notes that name each other in AspectPartner are partners, and in `treeQueue` a new card whose partner's card of the same

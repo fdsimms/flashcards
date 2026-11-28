@@ -22,7 +22,7 @@ export interface SettingsPageInfo {
 /** In the order Settings lists them: the tab bar's. */
 export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
   { id: 'today', title: 'Today', summary: 'Study reminder, vacation mode' },
-  { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana, deck options' },
+  { id: 'decks', title: 'Decks and cards', summary: 'Answer buttons, swiping, Thai text size, furigana, scheduling, deck options' },
   { id: 'read', title: 'Read & Listen', summary: 'Turn it on or off, language' },
   { id: 'lessons', title: 'Lessons', summary: 'Narrator, waiting for and hearing your answers, Thai polite ending' },
   { id: 'practice', title: 'Practice', summary: 'Daily extras, stroke order' },
@@ -84,6 +84,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'hook', page: 'decks', label: 'Ask for your own mnemonic', keywords: ['hook', 'memory hint'] },
   { id: 'thaiSize', page: 'decks', label: 'Thai text size', keywords: ['script', 'larger', 'bigger'], route: '/thai-text-size' },
   { id: 'furigana', page: 'decks', label: 'Furigana', keywords: ['kanji', 'reading', 'japanese', 'ruby'], route: '/furigana' },
+  { id: 'scheduling', page: 'decks', label: 'Scheduling', keywords: ['next day starts', 'day start', 'rollover', 'learn ahead', 'time limit', 'timebox', 'review limit', 'parent limits', 'load balancer'], route: '/scheduling' },
   { id: 'noteTypes', page: 'decks', label: 'Note types', keywords: ['card types', 'templates', 'styling', 'css', 'front', 'back', 'models', 'layout'], route: '/note-types' },
 
   { id: 'readerOn', page: 'read', label: 'Server', keywords: ['read & listen', 'passphrase', 'sign in', 'turn on', 'turn off', 'texts', 'stories', 'server', 'share counts', 'crams', 'dundundun'], route: '/read-settings' },
