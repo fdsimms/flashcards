@@ -41,19 +41,27 @@ const NORMAL_NEW_LIMIT = 7;
  * theirs. The deck's bytes are edited in place, so everything else in it survives; the field is
  * optional, so 0 is written as 0 (no new cards), not left out. False when Anki has no such normal deck.
  */
-export async function setAnkiDeckNewLimit(db: SyncDb, deck: string, limit: number, now: Date): Promise<boolean> {
+export async function setAnkiDeckNewLimit(db: SyncDb, deck: string, limit: number | null, now: Date): Promise<boolean> {
   const native = deck.split('::').join('\x1f');
   const row = (await db.all<{ id: number; name: string; kind: Uint8Array }>('SELECT id, name, kind FROM decks NOT INDEXED')).find((r) => r.name === native);
   const normal = row ? decodeMessage(row.kind).get(KIND_NORMAL)?.[0] : undefined;
   if (!row || normal?.wire !== 2) return false;
-  if (readDeckKind(row.kind)?.newLimit === limit) return true;
-  const bytes = withFields(normal.value, { [NORMAL_NEW_LIMIT]: [{ wire: 0, value: BigInt(limit) }] });
+  if ((readDeckKind(row.kind)?.newLimit ?? null) === limit) return true;
+  // null takes the deck's own limit off (the field is optional in Anki's Deck.Normal), so its preset's applies again.
+  const bytes = withFields(normal.value, { [NORMAL_NEW_LIMIT]: limit === null ? [] : [{ wire: 0, value: BigInt(limit) }] });
   const kind = withField(row.kind, KIND_NORMAL, bytes);
   await db.transaction(async () => {
     await db.run('UPDATE decks SET kind = ?, mtime_secs = ?, usn = -1 WHERE id = ?', kind, Math.floor(now.getTime() / 1000), row.id);
     await db.run(COL_MODIFIED_SQL, now.getTime());
   });
   return true;
+}
+
+/** A deck's own daily new card limit in the collection (Anki's "This deck"): null when it has none, undefined when Anki has no such deck. */
+export async function readAnkiDeckNewLimit(db: SyncDb, deck: string): Promise<number | null | undefined> {
+  const native = deck.split('::').join('\x1f');
+  const row = (await db.all<{ name: string; kind: Uint8Array }>('SELECT name, kind FROM decks NOT INDEXED')).find((r) => r.name === native);
+  return row ? (readDeckKind(row.kind)?.newLimit ?? null) : undefined;
 }
 
 /** One deck on a preset, and the values it sets for itself (Deck.Normal), which the preset's don't reach. */

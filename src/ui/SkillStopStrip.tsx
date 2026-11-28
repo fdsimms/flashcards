@@ -45,9 +45,9 @@ export function useStopSuggestion(repo: Store, dayStartsAtHour: number, onStoppe
       // The answers before this one: this one's revlog row may or may not be written yet, so it's left out and added here.
       const history = (await cardHistory(repo, card).catch(() => [])).filter((h) => h.at.getTime() < when.getTime() - 60_000);
       const answer = { at: when, kind: 'Review', rating };
-      if (mine === seq.current && cleanWeeks([answer, ...history]) === STOP_SUGGESTED_AFTER) setOffer({ noteId: note.id, step: drill.step.title });
+      if (mine === seq.current && cleanWeeks([answer, ...history], dayStartsAtHour) === STOP_SUGGESTED_AFTER) setOffer({ noteId: note.id, step: drill.step.title });
     })();
-  }, [repo]);
+  }, [repo, dayStartsAtHour]);
 
   /** The answer behind an offer for this note was undone or its rating changed: the offer goes with it. */
   const withdraw = useCallback((noteId: string) => {

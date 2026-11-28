@@ -443,7 +443,12 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     return { ...found, months: knownMonths(found.language, known), days: knownDays(found.language, known) };
   }, [note, notes, cards]);
   const skill = useSkillDrill(showing, drill, current ? String(current.id) : undefined, ratingsShown(answerButtons).includes(2), H);
-  useSkillRelease(repo, cards, notes, H);
+  // What releasing wrote, taken into the open session: a step set aside leaves it, and a drill card brought into the week can come up.
+  useSkillRelease(repo, cards, notes, H, useCallback((saved: Card[], savedNotes: Note[]) => {
+    if (savedNotes.length) setNotes((prev) => { const next = new Map(prev); for (const n of savedNotes) next.set(n.id, n); return next; });
+    const byId = new Map(saved.map((cd) => [cd.id, cd]));
+    setCards((prev) => prev && prev.map((cd) => byId.get(cd.id) ?? cd));
+  }, []));
   // After a drill card's sixth clean week, an offer to stop practicing its step (SkillStopStrip.tsx).
   const stopSuggestion = useStopSuggestion(repo, H, useCallback((n: Note, ids: string[]) => {
     setNotes((prev) => new Map(prev).set(n.id, n));

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { saveDeckNewLimit } from '../anki/presetService';
+import { deckNewLimitOf, saveDeckNewLimit } from '../anki/presetService';
 import { addCalendarDays, studyDayStart } from '../core/day';
-import { goalTarget, tunedToday, tuneSteps, withTuning, type GoalResult } from '../core/dailyGoal';
+import { goalTarget, goalTurnedOff, leverValue, tunedToday, tuneSteps, withTuning, type GoalResult } from '../core/dailyGoal';
 import type { DeckRow } from '../core/deckTree';
 import { PASS_RATE_DAYS } from '../core/forecast';
 import { answersFrom } from '../core/stats';
@@ -62,9 +62,30 @@ async function applyTuning(repo: Repo & AnkiLink, deck: string, r: GoalResult): 
   const settings = all.get(deck) ?? {};
   const target = goalTarget(deck, settings, params);
   if (settings.dailyGoal !== r.goal || !target || (target === 'gate') !== (r.lever === 'gate')) return undefined;
+  // What's there before the first tuning is kept, to put back when the goal is turned off (`goalTurnedOff`).
+  const replaced = target === 'anki' ? (settings.goalReplaced?.target === 'anki' ? null : await deckNewLimitOf(repo, deck)) : leverValue(settings, target);
   if (target === 'anki') await saveDeckNewLimit(repo, deck, r.value);
-  await repo.saveDeckSettings(deck, withTuning(settings, r, target));
+  await repo.saveDeckSettings(deck, withTuning(settings, r, target, replaced));
   return r;
+}
+
+/**
+ * Turns a deck's goal off and puts back what its tuning replaced (`goalTurnedOff`): in the queue with
+ * the tunings, so one still running can't set its value after, and read against the settings as they
+ * are now.
+ */
+export function turnGoalOff(repo: Repo & AnkiLink, deck: string): Promise<void> {
+  const run = running.then(() => turnOffOnce(repo, deck), () => turnOffOnce(repo, deck));
+  running = run.catch(() => undefined);
+  return run;
+}
+
+async function turnOffOnce(repo: Repo & AnkiLink, deck: string): Promise<void> {
+  const [all, params] = await Promise.all([repo.listDeckSettings(), repo.listDeckParams()]);
+  const settings = all.get(deck) ?? {};
+  const { settings: off, ankiLimit } = goalTurnedOff(settings, goalTarget(deck, settings, params));
+  if (ankiLimit !== undefined) await saveDeckNewLimit(repo, deck, ankiLimit);
+  await repo.saveDeckSettings(deck, off);
 }
 
 /**

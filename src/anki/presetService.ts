@@ -4,7 +4,7 @@ import { newCardOrderOf } from '../core/newCardOrder';
 import type { DeckOwnValues, PresetOptions } from '../core/presetOptions';
 import type { DeckParams } from '../core/types';
 import { NO_COLLECTION, type NoteStore } from './noteService';
-import { readAnkiPreset, setAnkiDeckNewLimit, setAnkiPresetOptions, type AnkiPreset } from './presetWrites';
+import { readAnkiDeckNewLimit, readAnkiPreset, setAnkiDeckNewLimit, setAnkiPresetOptions, type AnkiPreset } from './presetWrites';
 
 /** Why a preset's options can't be read or changed, with what to do, to show as it is. */
 export class PresetRefused extends Refusal {}
@@ -96,10 +96,21 @@ export async function savePreset(store: NoteStore, deck: string, presetId: numbe
  * alone, so the deck list and the next session follow at once. The deck's preset, and the other
  * decks on it, keep theirs.
  */
-export async function saveDeckNewLimit(store: NoteStore, deck: string, limit: number, now: Date = new Date()): Promise<void> {
+export async function saveDeckNewLimit(store: NoteStore, deck: string, limit: number | null, now: Date = new Date()): Promise<void> {
   if (!(await store.keptCollection())) throw new PresetRefused(NO_COLLECTION);
-  const done = await store.lockAnki(() => store.withSyncConnection((db) => setAnkiDeckNewLimit(db, deck, limit, now)));
-  if (!done) throw new PresetRefused(`Anki doesn't have a deck called ${deck} yet. Sync with your Anki server, then try again.`);
   const p = (await store.listDeckParams()).get(deck);
-  if (p && p.newPerDay !== limit) await store.saveDeckParams(new Map([[deck, { ...p, newPerDay: limit }]]));
+  // null takes the deck's own limit off: it studies with its preset's again, read from the collection.
+  const done = await store.lockAnki(() => store.withSyncConnection(async (db) => {
+    if (!(await setAnkiDeckNewLimit(db, deck, limit, now))) return false;
+    if (limit !== null) return { newPerDay: limit };
+    return { newPerDay: p?.presetId === undefined ? undefined : (await readAnkiPreset(db, p.presetId))?.options.newPerDay };
+  }));
+  if (!done) throw new PresetRefused(`Anki doesn't have a deck called ${deck} yet. Sync with your Anki server, then try again.`);
+  if (p && done.newPerDay !== undefined && p.newPerDay !== done.newPerDay) await store.saveDeckParams(new Map([[deck, { ...p, newPerDay: done.newPerDay }]]));
+}
+
+/** A deck's own daily new card limit in the collection, as the goal finds it before its first tuning: null for none of its own. */
+export async function deckNewLimitOf(store: NoteStore, deck: string): Promise<number | null> {
+  if (!(await store.keptCollection())) return null;
+  return (await store.withSyncConnection((db) => readAnkiDeckNewLimit(db, deck))) ?? null;
 }

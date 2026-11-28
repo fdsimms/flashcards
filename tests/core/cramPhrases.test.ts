@@ -1,24 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { cramLessonPhrases, parseCram, phraseLessonLines, phrasesSummary, practiceLabel, preparedLines, type Cram } from '../../src/core/cram';
-import { isPhraseRoundId, MAX_PHRASES, phraseIsUsed, phraseOfRoundId, phraseRoundId, withPhraseEdited, withPhraseUsed, withPhrases, withoutPhrase } from '../../src/core/cramPhrases';
+import { addPhrases, isPhraseRoundId, MAX_PHRASES, phrasesNotAddedText, phraseIsUsed, phraseOfRoundId, phraseRoundId, withPhraseEdited, withPhraseUsed, withoutPhrase } from '../../src/core/cramPhrases';
 
 const cram = (over: Partial<Cram> = {}): Cram => ({
   id: 'race-2026-11-22', name: 'Race', date: '2026-11-22', createdAt: new Date(2026, 10, 20).toISOString(), addNew: true, rounds: [], ...over,
 });
 const run = { text: 'ฉันวิ่งแข่ง', english: 'I ran a race', reading: 'chǎn wîng kàeng' };
 
-describe('withPhrases', () => {
+describe('addPhrases', () => {
   it('adds phrases in order, tidied, with the reading kept only when there is one', () => {
-    const out = withPhrases(cram(), [{ text: ' ฉันวิ่ง  แข่ง ', english: ' I ran\n a race ', reading: '  ' }]);
+    const out = addPhrases(cram(), [{ text: ' ฉันวิ่ง  แข่ง ', english: ' I ran\n a race ', reading: '  ' }]).cram;
     expect(out.phrases).toEqual([{ text: 'ฉันวิ่ง แข่ง', english: 'I ran a race' }]);
   });
   it('leaves out one already there, one repeated, and one with no meaning', () => {
-    const out = withPhrases(cram({ phrases: [run] }), [run, { text: 'ซ้อม', english: 'train' }, { text: 'ซ้อม', english: 'practice' }, { text: 'x', english: ' ' }]);
+    const out = addPhrases(cram({ phrases: [run] }), [run, { text: 'ซ้อม', english: 'train' }, { text: 'ซ้อม', english: 'practice' }, { text: 'x', english: ' ' }]).cram;
     expect(out.phrases?.map((p) => p.text)).toEqual(['ฉันวิ่งแข่ง', 'ซ้อม']);
   });
   it('keeps no more than the limit', () => {
     const many = Array.from({ length: MAX_PHRASES + 3 }, (_, i) => ({ text: `ก${i}`, english: 'x' }));
-    expect(withPhrases(cram(), many).phrases).toHaveLength(MAX_PHRASES);
+    expect(addPhrases(cram(), many).cram.phrases).toHaveLength(MAX_PHRASES);
+  });
+  it('says what it did, so a phrase left out is never reported as added', () => {
+    const almost = cram({ phrases: Array.from({ length: MAX_PHRASES - 1 }, (_, i) => ({ text: `ก${i}`, english: 'x' })) });
+    const out = addPhrases(almost, [{ text: 'ก0', english: 'x' }, { text: 'ใหม่', english: 'new' }, { text: 'อีก', english: 'more' }]);
+    expect(out).toMatchObject({ added: 1, already: 1, full: 1 });
+    expect(out.cram.phrases).toHaveLength(MAX_PHRASES);
+    expect(phrasesNotAddedText(out)).toBe(`Added 1 phrase. 1 was already on the cram. 1 didn't fit: a cram holds ${MAX_PHRASES} phrases.`);
+    expect(phrasesNotAddedText(addPhrases(out.cram, [{ text: 'อีก', english: 'more' }]))).toBe(`Nothing was added. 1 didn't fit: a cram holds ${MAX_PHRASES} phrases.`);
+    expect(phrasesNotAddedText(addPhrases(cram(), [run]))).toBeUndefined();
   });
 });
 

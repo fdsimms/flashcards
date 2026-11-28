@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { choiceText, COUNT_MAXES, countChoices, countKey, knownCountNouns, missingCounters, nounGloss, randomCount, type CountMode, type CountQuestion } from '../../tools/counting';
-import { knownHeadwords, languageOfDeck } from '../../tools/skills';
+import { languageHeadwords } from '../../tools/skills';
 import type { Phrase } from '../../tools/phrase';
 import { toolPrefs } from '../../tools/storage';
 import { COUNTING, toolLanguage } from '../../tools/tools';
@@ -45,7 +45,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
   useEffect(() => {
     let live = true;
     void Promise.all([repo.listNotes(), repo.listCards()]).then(([notes, cards]) => {
-      if (live) setKnownWords({ language, words: knownHeadwords(notes.filter((n) => languageOfDeck(n.deck)?.language === language), cards) });
+      if (live) setKnownWords({ language, words: languageHeadwords(language, notes, cards) });
     });
     return () => { live = false; };
   }, [repo, language]);
