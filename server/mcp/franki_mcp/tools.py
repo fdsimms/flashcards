@@ -355,9 +355,10 @@ instructions off, so each tool's own description holds its details.
   the voice and text for a re-record) before calling update_notes or add_tts_audio. Only after they
   approve, and once the fix is made, call resolve_flag. Leave a flag in place when the user declines
   or you're unsure.
-- Content audits check what needs judgment (does Meaning gloss the right sense?) a batch at a
-  time: list_audits says what each has covered and when it last ran, next_audit_batch gives the
-  notes due, and record_audit saves what you checked and flags what you found, for flagged_cards.
+- Content audits check what needs judgment (does Meaning gloss the right sense? is a Read & Listen
+  text natural?) a batch at a time: list_audits says what each has covered and when it last ran,
+  next_audit_batch gives the items due, and record_audit saves what you checked. A note's findings
+  are flagged for flagged_cards; a page's or text's wait in audit_findings.
 - Find notes with find_notes, using Anki's search syntax: words, "deck:Polski", "tag:travel",
   "note:Basic", "Front:kot", "is:due", "is:new", "added:7", "rated:1", combined with spaces (and),
   "or", "-" (not) and parentheses. Read them in full with get_notes.
@@ -793,8 +794,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
             page = ids[: max(1, min(limit, 100))]
             findings: dict[int, list[dict[str, Any]]] = {}
             if audits is not None and page:
-                for f in audits.open_findings(sorted({col.get_card(cid).nid for cid in page})):
-                    findings.setdefault(f.pop("note_id"), []).append(f)
+                for f in audits.open_findings(sorted({str(col.get_card(cid).nid) for cid in page})):
+                    findings.setdefault(int(f.pop("item_id")), []).append(f)
             out = []
             for cid in page:
                 card = col.get_card(cid)
@@ -839,7 +840,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
 
         result, unflagged = await cm.write(run)
         if audits is not None:
-            closed = {nid: audits.close_findings(nid, fields, "resolved") for nid, fields in unflagged.items()}
+            closed = {nid: audits.close_findings(str(nid), fields, "resolved") for nid, fields in unflagged.items()}
             result["audit_findings_closed"] = sorted(nid for nid, found in closed.items() if found)
         return result
 

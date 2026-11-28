@@ -30,7 +30,7 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     # Content audits: their definitions, and what's been checked and found, kept beside the collection's folder.
     store = audits or AuditStore(cm.path.parent.parent / "audits.sqlite")
     tools.register(server, cm, speech, client, downloads, recorder, store)
-    audits_module.register(server, cm, store)
+    audits_module.register(server, cm, store, client)
     native.register(server, cm, recorder)
     # Wiktionary's inflection tables, kept beside the collection's folder.
     tables = unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph")

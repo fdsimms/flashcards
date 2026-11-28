@@ -22,6 +22,7 @@ import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { HoverPressable } from './hover';
+import { haptic } from './haptics';
 import { BrowseNotePanel } from './BrowseNotePanel';
 import { SIDE_PANEL_WIDTH, sidePanelFits } from '../core/wide';
 import { withThaiLineHeight } from '../core/script';

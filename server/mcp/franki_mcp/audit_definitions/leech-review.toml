@@ -1,0 +1,39 @@
+# Why a card keeps being forgotten: the notes with a card Anki tagged a leech or that has lapsed four
+# times or more. A card that hard is more often a badly made card than a hard word. The format is
+# card-content.toml's, which explains each part.
+
+title = "Leech review"
+about = """Whether a note whose card keeps being forgotten is a bad card rather than a hard word. \
+Read note_guide for the note's language first. A finding says what makes the card hard to answer \
+and suggests the change (a narrower Meaning, a Sense, a better Context, a Mnemonic, a split into two \
+notes). A note that's a fine card for a hard word passes."""
+
+scope = "note:Omnilanguage -tag:skill (tag:leech or prop:lapses>=4)"
+
+fields = [
+    "Entry", "Meaning", "Sense", "SenseContrast", "Context", "ContextTranslation", "ContextLabels",
+    "Register", "PartOfSpeech", "Language", "KeyForms", "Notes", "Etymology", "Mnemonic",
+]
+
+[[checks]]
+id = "one-answer"
+version = 1
+flag_reason = "translation"
+ask = """Each side of the card has one right answer: the Meaning couldn't be answered just as well with \
+another common word in the language, and where it could, a Sense or the Context says which word is \
+meant."""
+
+[[checks]]
+id = "load"
+version = 1
+flag_reason = "other"
+ask = """The card asks for no more than can be recalled at once: no more than three numbered senses, \
+each worth being tested on, and no line of glosses that has to be recalled whole. A note that holds \
+two words or two unrelated senses is better as two notes."""
+
+[[checks]]
+id = "hook"
+version = 1
+flag_reason = "other"
+ask = """Something on the card helps it stick: the Context is clearly about this word and easy to \
+picture. Where nothing does, a finding suggests a Mnemonic, an Etymology or a better Context."""

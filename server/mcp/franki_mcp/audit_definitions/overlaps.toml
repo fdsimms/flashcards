@@ -1,0 +1,27 @@
+# Notes that teach the same thing twice, or two words that will be confused. Unlike the other audits,
+# a check here depends on the rest of the collection, so a note checked before a near-synonym was added
+# isn't due again until it's edited. The format is card-content.toml's, which explains each part.
+
+title = "Overlaps"
+about = """Whether a language note repeats another or will be mixed up with one. For each note, look \
+up its Entry with check_words and its Meaning's glosses with find_notes (in the same language) before \
+judging. A finding names the other note's id and suggests what tells the two apart, or which one to \
+delete; the user decides."""
+
+scope = "note:Omnilanguage -tag:skill"
+
+fields = ["Entry", "Meaning", "Sense", "PartOfSpeech", "Language", "Notes"]
+
+[[checks]]
+id = "duplicate"
+version = 1
+flag_reason = "other"
+ask = """No other note in the language is the same word: another spelling, the word with or without \
+its article, or a phrase note that teaches nothing the word's own note doesn't."""
+
+[[checks]]
+id = "near-synonym"
+version = 1
+flag_reason = "translation"
+ask = """Where another note in the language has the same or a nearly identical Meaning, this note's \
+Sense or Notes says how the two differ, so either card's answer can't be given for the other."""
