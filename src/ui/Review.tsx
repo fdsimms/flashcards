@@ -61,7 +61,7 @@ import { stateChip } from '../core/stateChip';
 import { isLiveLeech } from '../core/leechRecovery';
 import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useReadingLines } from './useReadingLines';
-import { withReadingLine } from '../reader/readingLines';
+import { lineWord, withReadingLine } from '../reader/readingLines';
 import { capDays } from '../core/cram';
 import { useVacationPrefs } from './vacationPrefs';
 import { useCrams } from './useCrams';
@@ -121,7 +121,7 @@ import { useNewWordsStep } from './useNewWords';
 import { reviewMenu } from './ReviewMenu';
 import { useMiniCram } from './useMiniCram';
 import { NextSteps, type NextStep } from './ReviewNextSteps';
-import { asksOwnHook, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
+import { asksOwnHook, spokenMiss, typedMiss, typeItAnswer, typeItAnswers } from '../core/activeRecall';
 import { compareTyped, compareTypedAnswer } from '../core/typedCompare';
 import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
@@ -547,7 +547,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The card as drawn, its answer side with a line from a text read under the note's own example (reader/readingLines.ts).
   const rendered = useMemo(() => {
     const drawn = current && note && !page ? renderCard(note, current.kind, wanted.get(note.id)) : undefined;
-    return drawn ? { ...drawn, back: { ...drawn.back, blocks: withReadingLine(drawn.back.blocks, readingLineFor(current!, note!)) } } : undefined;
+    return drawn ? { ...drawn, back: { ...drawn.back, blocks: withReadingLine(drawn.back.blocks, readingLineFor(current!, note!), lineWord(note!)) } } : undefined;
   }, [current, note, page, wanted, readingLineFor]);
   // A numbered Meaning's senses, tapped as missed on the answer and reminded about next time (src/core/senseMarks.ts).
   const senseMarks = useSenseMarks(showing, rendered, current ? misses.log.get(current.id) : undefined);
@@ -1387,10 +1387,11 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     { r: 4, label: 'Easy', color: c.easy },
   ] as { r: RatingValue; label: string; color: string; on?: string }[]).filter((b) => shown.includes(b.r));
 
-  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`). Not a spoken one.
-  const typedWrong = revealed && !spokenIn && !!typed.trim() && (
-    typing && typeItWord ? typedMiss(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
-      : typeInExpected ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
+  // A word typed wrong (Type it, or a template card's type-in box) is a miss, whatever it felt like (`typedMiss`); a
+  // spoken one only when it was nothing like the word (`spokenMiss`), since the recognizer mishears.
+  const typedWrong = revealed && !!typed.trim() && (
+    typing && typeItWord ? (spokenIn ? spokenMiss : typedMiss)(compareTypedAnswer(typeItAnswers(note, current), typed, rendered?.speechLang))
+      : typeInExpected && !spokenIn ? typedMiss(compareTyped(stripExpected(typeInExpected), typed)) : false);
   // With a sense marked as missed, or the word typed wrong, Again is outlined as the rating that fits; the tap still decides.
   const suggested = suggestedRating ?? (senseMarks.miss || typedWrong ? 1 : undefined);
   const footer = revealed && returned ? (

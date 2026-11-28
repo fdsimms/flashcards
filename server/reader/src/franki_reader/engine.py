@@ -20,7 +20,7 @@ import asyncio
 import logging
 import random
 import sqlite3
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
@@ -40,6 +40,8 @@ from franki_reader import (
     level_store,
     meanings,
     own_text,
+    podcast,
+    podcast_store,
     rotation,
     store,
     video,
@@ -1360,30 +1362,82 @@ class Engine:
         task.add_done_callback(self._tasks.discard)
         return ids
 
-    def video_preview(self, language: Code, captions: video.Captions) -> own_text.Preview:
-        """What adding a video's subtitles would give, as `own_preview` does for a pasted text, its
-        length the video's and nothing recorded. Raises `video.VideoRefused` for one that can't be
-        added, and NotAvailable while the deck can't be read."""
-        captions = video.checked(captions)
-        lines = [own_text.OwnLine(c.text) for c in video.lines_of(captions.cues, language)]
+    def timed_preview(
+        self, language: Code, title: str, cues: Sequence[video.Cue], seconds: int
+    ) -> own_text.Preview:
+        """What adding a timed text (a video's subtitles, a podcast episode's transcript) would
+        give, as `own_preview` does for a pasted text, its length the recording's and nothing
+        recorded. Raises NotAvailable while the deck can't be read."""
+        lines = [own_text.OwnLine(c.text) for c in video.lines_of(cues, language)]
         return own_text.preview_lines(
-            lines, captions.title, language, self.snapshot(language)[1], seconds=captions.seconds
+            lines, title, language, self.snapshot(language)[1], seconds=seconds
         )
 
+    def video_preview(self, language: Code, captions: video.Captions) -> own_text.Preview:
+        """`timed_preview` for a video's subtitles. Raises `video.VideoRefused` for one that can't
+        be added."""
+        captions = video.checked(captions)
+        return self.timed_preview(language, captions.title, captions.cues, captions.seconds)
+
     def add_video(self, language: Code, captions: video.Captions) -> int:
-        """Adds a video's subtitles as one text on the own row (video.py), pending until its lines
-        are translated and glossed in the background. It isn't recorded: the video is its sound.
-        Returns the text's id. Raises as `video_preview` does, and NotAvailable with no Claude key."""
+        """Adds a video's subtitles as one text on the own row (video.py). Raises as
+        `video_preview` does, and NotAvailable with no Claude key."""
         preview = self.video_preview(language, captions)
+        return self._add_timed(
+            language,
+            preview.title,
+            captions.cues,
+            lambda text_id, times: video_store.keep(
+                self.conn,
+                text_id,
+                video_store.VideoText(
+                    captions.video_id, captions.channel, captions.generated, times
+                ),
+            ),
+        )
+
+    def add_podcast(
+        self,
+        language: Code,
+        feed: podcast.Feed,
+        episode: podcast.Episode,
+        cues: Sequence[video.Cue],
+    ) -> int:
+        """Adds a podcast episode's transcript as one text on the own row (podcast.py). Raises
+        NotAvailable with no Claude key, or while the deck can't be read."""
+        self.timed_preview(language, episode.title, cues, 0)
+        return self._add_timed(
+            language,
+            episode.title,
+            cues,
+            lambda text_id, times: podcast_store.keep(
+                self.conn,
+                text_id,
+                podcast_store.PodcastText(
+                    feed.url, episode.guid, feed.title, feed.artwork, episode.audio, times
+                ),
+            ),
+        )
+
+    def _add_timed(
+        self,
+        language: Code,
+        title: str,
+        cues: Sequence[video.Cue],
+        keep: Callable[[int, tuple[tuple[int, int], ...]], None],
+    ) -> int:
+        """Adds a timed text as one text on the own row, pending until its lines are translated
+        and glossed in the background, with what it plays with kept by `keep` (its id and each
+        line's times) before that starts. It isn't recorded: the video or the episode is its sound."""
         if self.write_translation is None:
             raise NotAvailable("The server has no Claude API key yet.")
-        cues = video.lines_of(captions.cues, language)
+        lines_of = video.lines_of(cues, language)
         lexicon = self.snapshot(language)[1]
-        lines = tuple(Line("N", c.text, "") for c in cues)
+        lines = tuple(Line("N", c.text, "") for c in lines_of)
         generated = Generated(
-            preview.title, lines, {}, check((ln.text for ln in lines), lexicon), 0, True, ()
+            title, lines, {}, check((ln.text for ln in lines), lexicon), 0, True, ()
         )
-        topic_id = store.add_own_topic(self.conn, preview.title, self.clock())
+        topic_id = store.add_own_topic(self.conn, title, self.clock())
         text_id = store.save_text(
             self.conn,
             topic_id,
@@ -1396,16 +1450,7 @@ class Engine:
             language,
             reason="own",
         )
-        video_store.keep(
-            self.conn,
-            text_id,
-            video_store.VideoText(
-                captions.video_id,
-                captions.channel,
-                captions.generated,
-                tuple((c.start_ms, c.end_ms) for c in cues),
-            ),
-        )
+        keep(text_id, tuple((c.start_ms, c.end_ms) for c in lines_of))
         job = Job(topic_id, language, reason="own", form="story")
         self._writing.add(job.key)
         self._jobs[job.key] = job
@@ -1463,8 +1508,8 @@ class Engine:
         await self.fill_meanings([text], text.language)
         await self.fill_ipa([text], text.language)
         await self.fill_forms([text])
-        # A video's text isn't recorded: the video is its sound (video.py).
-        if video_store.of(self.conn, text_id) is not None:
+        # A video's or an episode's text isn't recorded: the video or the episode is its sound.
+        if video_store.of(self.conn, text_id) or podcast_store.of(self.conn, text_id):
             return
         if job is not None:
             self._stage(job, "recording")

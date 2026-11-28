@@ -42,13 +42,24 @@ describe('withReadingLine', () => {
     { text: 'to eat', emphasis: true }, { text: 'ฉันกินข้าว', role: 'example' }, { text: 'I eat rice.', role: 'exampleTranslation', tapLabel: 'Show translation' },
     { text: 'from Pali', label: 'Etymology' },
   ];
-  it("puts the line in a labeled box right after the note's example", () => {
-    const out = withReadingLine(blocks, line(7));
-    expect(out.map((b) => b.text)).toEqual(['to eat', 'ฉันกินข้าว', 'I eat rice.', 'line 7', 'from Pali']);
-    expect(out[3]).toEqual({ label: 'From your reading: Text 7', text: 'line 7' });
+  const read = { text_id: 7, title: 'At the market', line: 'เขากินข้าวที่ตลาด', english: 'He eats at the market.', word: 'กิน' };
+  it("puts the line in its own example box right after the note's example, the word marked and its English behind a tap", () => {
+    const out = withReadingLine(blocks, read, 'กิน');
+    expect(out.map((b) => b.text)).toEqual(['to eat', 'ฉันกินข้าว', 'I eat rice.', 'เขากินข้าวที่ตลาด', 'He eats at the market.', 'from Pali']);
+    expect(out[3]).toMatchObject({ role: 'example', source: 'your reading, At the market' });
+    expect(out[3].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['กิน']);
+    expect(out[4]).toEqual({ text: 'He eats at the market.', role: 'exampleTranslation', tapLabel: 'Show translation' });
+  });
+  it("marks the word as the line has it, and the card's word from an older server", () => {
+    const formed = { ...read, line: 'Wir haben Hunde.', english: 'We have dogs.', word: 'Hunde' };
+    expect(withReadingLine([], formed, 'Hund')[0].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['Hunde']);
+    const older = { text_id: 7, title: 'A', line: 'Der Hund schläft.', english: '' };
+    const out = withReadingLine([], older, 'Hund');
+    expect(out).toHaveLength(1);
+    expect(out[0].segments?.filter((s) => s.marked).map((s) => s.text)).toEqual(['Hund']);
   });
   it('goes last on a card with no example, and changes nothing with no line', () => {
-    expect(withReadingLine([blocks[0]], line(7)).map((b) => b.text)).toEqual(['to eat', 'line 7']);
-    expect(withReadingLine(blocks, undefined)).toEqual(blocks);
+    expect(withReadingLine([blocks[0]], line(7), 'x').map((b) => b.text)).toEqual(['to eat', 'line 7', ...(line(7).english ? [line(7).english] : [])]);
+    expect(withReadingLine(blocks, undefined, 'x')).toEqual(blocks);
   });
 });

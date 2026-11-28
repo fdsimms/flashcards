@@ -360,7 +360,7 @@ answers aren't kept.
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
 - **A picture of the word, first on the meaning-to-word card** (21 November 2026, the owner, after a trial of drawn icons and two mocks; the Icon field, `src/core/noteIcon.ts`, `renderOmnilanguage` in `src/core/cards.ts`). A note for a thing that can be pictured may hold a picture in `Icon`: one emoji where an emoji shows exactly the thing, else a Tabler icon (MIT) whose own name is exactly the thing, kept as its SVG path data joined by `|` for a 24 by 24 box (24 November 2026, the owner: a drawing Claude made up is never a picture, since an approximate one such as a stadium for a running track teaches the wrong thing, so a thing with neither stays without one; `server/speech/franki_speech/icons.py`, the set built by `scripts/build_tabler_icons.py`, `note_queue.py`'s `icon_name` and the MCP's `tabler:` names). It shows in two places. With the meaning on the forward and listening cards' answer sides, where the learner meets the picture with what it stands for. And as the headline of the reverse card's front, with the English behind a Show meaning tap, so the word is recalled from the thing itself and not by translating. Never on a front that asks for the meaning. Beside the English on a prompt it would only be decoration (the owner's own question, and what studies of pictures added to a translation find). Of twelve icons drawn in the trial, four could be read as something else; the owner judged them clear enough once the meaning has been seen with them, which is why the answer side shows the picture too, and a reverse card waits for the forward card to settle anyway (`heldReverseCards`). Only path data is kept, never markup, so nothing needs sanitizing: the app (`parsePicture`), the note queue and the MCP's lint (`is_emoji`, `is_drawing`) each take one emoji or path data and nothing else.
 - **A card's answer side shows a line from the learner's reading** (21 November 2026, the owner, from a mock: under the note's sentence, not in place of it; `reading_lines.py`, `POST /api/reading-lines`, `src/reader/readingLines.ts`, `useReadingLines`). A card showed the one example sentence saved on its note, the same at every review, and a word is learned from meeting it in several contexts. Review asks once a session, one call a language, for lines from texts read to the end that use each card's word (up to 5 a word, one a text, the latest read first; a line uses a word when a token is its deck entry, `Checker.entry_of`). The answer side shows one in a box labeled "From your reading: <text's title>", right after the note's own example, and they take turns by the card's answer count, so each review shows the next. No translation is shown with it: the line is from a text written at the learner's level, and the word's meaning is on the card. It's read-only on the server and never a rating, kept only for the session, and absent when Read & Listen is signed out or out of reach.
-- **The home shows the week's time in each language** (21 November 2026, the owner, from a mock of two versions; `ReadInputTime.tsx`, `src/reader/inputTime.ts`, `GET /api/input-time`). With several languages on rotation, one can go a week or more with almost no input and nothing said so. The This week card has one bar a language for the last 7 days, split into reading and listening, most time first, and "Last read N days ago" under a language with none. Reading is the time logged on texts read; listening is the time on texts played with their words hidden plus the length of each lesson played to the end. A text heard again (`listens`) keeps no time, so it isn't counted. It reports only and sets no goal, as the progress card does, and nothing reads it to steer a text. Hidden with fewer than two languages read, and when the server can't be reached.
+- **The home shows the week's time in each language** (21 November 2026, the owner, from a mock of two versions; `ReadInputTime.tsx`, `src/reader/inputTime.ts`, `GET /api/input-time`). With several languages on rotation, one can go a week or more with almost no input and nothing said so. The This week card has one bar a language for the last 7 days, split into reading and listening, most time first, and "Last read N days ago" under a language with none. Reading is the time logged on texts read; listening is the time on texts played with their words hidden plus the length of each lesson played to the end, plus each text heard again for as long as it played (`listens.seconds`, sent by the app with the listen; 28 November 2026, from #837). It reports only and sets no goal, as the progress card does, and nothing reads it to steer a text. Hidden with fewer than two languages read, and when the server can't be reached.
 - **Sentences work in the grammar being practiced** (21 November 2026, the owner; `sentences.py`). A grammar point was only ever recognized: its drills are multiple choice, and Forms practice is typed forms. The request for a batch of sentences now names the points set to Practice and asks for about a third of the sentences to be built on one, where the word allows it. Prompt only: no sentence is dropped for using none. Which point a sentence uses is found in code when it's served (`grammar_of`, the texts' finders), so the tool can say "Grammar you're practicing: ..." on the answer side, and a sentence written before the point was chosen counts too. A point the finders can't see (docs/grammar.md lists what they skip) is asked for but never named.
 - **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
   English sentence built around a word, to say or type, then compared with the sentence written for
@@ -1838,8 +1838,40 @@ the YouTube app. A YouTube video's subtitles, read under the video as it plays (
   0.75× slows the video, Hide text listens first. A word's tap opens the reader's gloss popover with
   Add to deck. Finished logs it as read. A video its owner won't let play embedded says so, with Open
   in YouTube. The embed's own ads and tracking come with it, which the owner accepted in the mock.
-- Podcasts with a published transcript were picked to come next, in the same player; podcasts with
-  none would need Azure's transcription, a cost to ask about first.
+- Podcasts came next (below).
+
+## Podcasts
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A podcast
+episode's published transcript, read under the episode as it plays, on the same Watch screen as a
+video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
+
+- **Off until turned on** (Settings, Reading and listening, Podcasts; `prefs.podcasts`), a switch of
+  its own since it reaches other places than Videos: the server asks Apple's directory and a show's
+  feed, and the phone plays the episode from the show's own site. With it on, New text has A podcast
+  (`ReadPodcast.tsx`), and an Apple Podcasts link shared to Franki opens it (`kind: 'podcast'`,
+  `ShareViewController.isPodcast`).
+- **Finding a show** (`podcast.py`): Apple's directory (the iTunes Search API, no key) searched in
+  the language's own storefront, the first eight results' feeds read to say whether their latest
+  episodes have transcripts; a feed's link; or an Apple Podcasts link, looked up to its feed, and to
+  its episode when the link names one. Feeds are kept 30 minutes in memory. Shows used before are
+  kept on the phone (`podcastStorage.ts`, at most eight) and listed first, with a note when one has a
+  newer episode with a transcript than when it was last used.
+- **Only an episode with a transcript with times can be added**: `<podcast:transcript>` as JSON,
+  WebVTT or SRT, the best kind first (HTML has no times). Every episode is listed, the others greyed
+  with No transcript. Transcribing those with Azure was left to be asked about with its price.
+  Episodes up to two hours.
+- **Feeds are untrusted.** Read with defusedxml (no entity expansion), size-capped (15 MB a feed, 5 MB
+  a transcript), and only from a public web address, redirects included (`public_url`), so a feed
+  can't be pointed at the server's own network.
+- **It's an own text** as a video's is (`Engine.add_podcast`, sharing `_add_timed` and
+  `timed_preview` with videos): cues joined into lines with their times (`video.lines_of`), kept in
+  `podcast_texts`, translated and glossed, not recorded (`_make_own_part` skips a text with a video or
+  an episode, retries included). Its cover says Podcast and the show; it opens on Watch and is left
+  out of the shelf's reading order and Up Next (`isWatched`).
+- **Playing**: `expo-audio`, with the lock screen's controls (back 15, forward 30) and playing on
+  with the screen locked while Watch is open; leaving Watch stops it, and opening Watch stops
+  whatever Up Next was playing (`claim`), for videos too.
 
 ## Stories
 

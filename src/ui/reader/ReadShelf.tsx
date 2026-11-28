@@ -12,7 +12,7 @@ import { ReadListenAgain } from './ReadListenAgain';
 import { ReadGrammarRotation } from './ReadGrammarRotation';
 import { ReadFromZero } from './ReadFromZero';
 import { ReadReviewFirst } from './ReadReviewFirst';
-import { cardDetail, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
+import { cardDetail, isWatched, playMinutes, playOrder, reasonLabel, upNextOrder, upNextSummary } from '../../reader/shelf';
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
@@ -46,8 +46,8 @@ import { useQueueMenu } from '../useQueueMenu';
 // While something is being written, check back this often.
 const POLL_MS = 10_000;
 
-/** `video`: a video's text, which opens on Watch rather than in the reader. */
-export type OpenText = { textId: number; order: number[]; playAll?: boolean; video?: boolean };
+/** `watch`: a video's or a podcast episode's text, which opens on Watch rather than in the reader. */
+export type OpenText = { textId: number; order: number[]; playAll?: boolean; watch?: boolean };
 
 export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLesson, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
@@ -299,9 +299,9 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
 
             {(shelf.own?.length ?? 0) > 0 || making(shelf).length > 0 ? (
               <CoverRow title="Your texts">
-                {(shelf.own ?? []).map((t) => (t.video
-                  // A video's text has no recordings to queue in Up Next: it's watched.
-                  ? <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => onOpen({ textId: t.id, order: [], video: true })} />
+                {(shelf.own ?? []).map((t) => (isWatched(t)
+                  // A video's or an episode's text has no recordings to queue in Up Next: it's watched.
+                  ? <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => onOpen({ textId: t.id, order: [], watch: true })} />
                   : <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />))}
                 {making(shelf).map((w, i) => <WritingCover key={`${w.topic}:${i}`} title={w.topic} kind="Your text" stage={w.stage} />)}
               </CoverRow>
