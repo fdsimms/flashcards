@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { syncLine } from '../../../anki/sync/runSync';
 import { useConnectionProblem } from '../../../ui/connection';
 import { answersFromLog } from '../../../wanikani/log';
@@ -39,10 +39,18 @@ export default function TodayRoute() {
   const plan = useTodayPlan(extras);
   const grammarDue = useGrammarDueState(reader.api, repo);
   const crams = useCrams(repo);
+  // Filtered decks (Custom Study Session) hold no notes, so an empty one isn't "a deck with no words yet".
+  const [filteredDecks, setFilteredDecks] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    let live = true;
+    repo.listDeckParams().then((all) => { if (live) setFilteredDecks(new Set([...all].filter(([, p]) => p.filtered).map(([d]) => d))); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [repo, decks]);
   const ready = useTodayReady([loaded, studiedSettled, extras.ready, plan.ready, grammarDue.settled, crams.loaded]);
   return (
     <Today
       decks={decks}
+      filteredDecks={filteredDecks}
       loaded={loaded}
       ready={ready}
       studied={studied}
