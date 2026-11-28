@@ -228,6 +228,78 @@ _DE_CONJUNCTIONS = _words("weil dass obwohl ob nachdem bevor")
 # "Es wird dunkel, und wir gehen" is a present tense.
 _DE_NEW_CLAUSE = _DE_CONJUNCTIONS | _words("und aber oder denn sondern wenn als während damit")
 
+
+# Case, from the words that show it (docs/grammar.md, "Case and aspect"). A noun's own ending
+# rarely does, and a lowercased noun can't be told from other words for sure, so a case is found
+# from a determiner or pronoun that has only that case (dem, einem, ihm: dative; des: genitive;
+# einen, ihn: accusative), with the noun after it marked too where it can be picked out. den,
+# meinen, diesen and the rest are the accusative singular or the dative plural, so they count only
+# before a singular noun that doesn't end in -en (den Mann, not den Garten, which is also a plural).
+_DE_DATIVE = _words(
+    "dem einem meinem deinem seinem ihrem unserem unserm eurem keinem diesem jedem welchem jenem",
+    "mir dir ihm ihnen zum zur im vom beim am",
+)
+_DE_ACCUSATIVE = _words("einen ihn mich dich ins ans aufs durchs fürs ums")
+# Pronouns stand for a noun, so no word after them is marked with them.
+_DE_PRONOUNS = _words("mir dir ihm ihnen ihn mich dich")
+_DE_EN = _words("den diesen jeden jenen welchen meinen deinen seinen ihren unseren euren keinen")
+_DE_GENITIVE = _words("des")
+_DE_ES = _words("eines meines deines seines ihres unseres eures keines dieses jedes jenes")
+_DE_DATIVE_ONLY = _words("mit von zu aus bei nach seit gegenüber")
+
+
+def _de_adjective(word: str) -> bool:
+    """An adjective with an ending (großen, alten, kleine): its lemma plus the ending, and not a
+    noun's own form (Tages is Tag's, and Tag is a noun)."""
+    lem = _lemma(word, "de")
+    if lem == word or not any(word == lem + e for e in ("e", "en", "em", "er", "es")):
+        return False
+    return _raw_lemma(word.capitalize(), "de") != lem.capitalize()
+
+
+def _de_noun_after(ws: list[str], i: int) -> int | None:
+    """The index of the noun a determiner at `i` goes with: the next word, or the one after one
+    or two adjectives; None when there's none."""
+    j = i + 1
+    while j < len(ws) and j <= i + 2 and _de_adjective(ws[j]) and j + 1 < len(ws):
+        j += 1
+    return j if j < len(ws) and _de_noun(ws[j]) and not _de_adjective(ws[j]) else None
+
+
+def _de_singular(word: str) -> bool:
+    cap = word.capitalize()
+    return _raw_lemma(cap, "de") == cap
+
+
+def _de_case(markers: frozenset[str], *, en: bool = False, es: bool = False) -> Finder:
+    """Each of `markers` (with its noun when there is one), and with `en` the den-like words
+    before a singular noun not in -en, with `es` the eines-like words before a genitive noun
+    (eines Tages, meines Vaters; not dieses Haus, which is nominative or accusative)."""
+
+    def find(ws: list[str]) -> list[Span]:
+        out: list[Span] = []
+        for i, w in enumerate(ws):
+            if w == "am" and i + 1 < len(ws) and ws[i + 1].endswith("sten"):
+                continue  # am besten, am liebsten: a superlative, not a place or a day
+            noun = None if w in _DE_PRONOUNS else _de_noun_after(ws, i)
+            if w in markers:
+                out.append((i, noun + 1 if noun is not None else i + 1))
+            elif en and w in _DE_EN and noun is not None:
+                if i > 0 and ws[i - 1] in _DE_DATIVE_ONLY:
+                    continue
+                n = ws[noun]
+                if _de_singular(n) and not n.endswith("en"):
+                    out.append((i, noun + 1))
+            elif es and w in _DE_ES and noun is not None:
+                n = ws[noun]
+                lem = _raw_lemma(n.capitalize(), "de").lower()
+                if n in (lem + "s", lem + "es"):
+                    out.append((i, noun + 1))
+        return out
+
+    return find
+
+
 _GERMAN: dict[str, Finder] = {
     "de.perfect": _either(
         _aux_then(_DE_HABEN, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
@@ -243,6 +315,9 @@ _GERMAN: dict[str, Finder] = {
     "de.passive": _aux_then(_DE_PASSIVE, _de_participle, 8, mark="target", stop=_DE_NEW_CLAUSE),
     "de.modals": _each(lambda ws, i: _lemma(ws[i], "de") in _DE_MODALS),
     "de.subordinate": _marker(_DE_CONJUNCTIONS),
+    "de.accusative": _de_case(_DE_ACCUSATIVE, en=True),
+    "de.dative": _de_case(_DE_DATIVE),
+    "de.genitive": _de_case(_DE_GENITIVE, es=True),
 }
 
 
@@ -582,6 +657,63 @@ _EL_PRONOUNS = _words("το τα τον την τους μου σου του τ�
 _EL_BETWEEN = _EL_PRONOUNS | _words("ήδη μόλις ακόμα πια")
 _EL_NEW_CLAUSE = _words("και αλλά ή ότι που αν όταν επειδή")
 
+
+# Case, from the article or pronoun, which shows it where the noun's ending often doesn't
+# (docs/grammar.md, "Case and aspect"). του, της and των are genitive whether they're the article
+# or a pronoun (του είπα, "I told him", is a genitive too); τον, την, τις and σε's contractions
+# (στο, στην) are accusative. τους is the accusative article and pronoun but also the genitive
+# pronoun (το σπίτι τους), so it counts only before a word ending like an accusative plural. το and
+# τα are nominative or accusative and aren't counted. The noun after it is marked too when it ends
+# as that case does.
+_EL_GENITIVE = _words("του της των ενός μιας στου")
+_EL_ACCUSATIVE = _words("τον την τη τις έναν στον στην στη στο στους στις στα")
+_EL_FUNCTION = (
+    _EL_PRONOUNS
+    | _EL_GENITIVE
+    | _EL_ACCUSATIVE
+    | _words(
+        "ο η οι το τα ένας μια μία ένα σε στα",
+        "θα να δεν μην και αλλά ή ότι που αν όταν επειδή πολύ πάντα ποτέ εδώ εκεί τώρα μετά πριν",
+        "ήδη μόλις ακόμα πια είναι",
+    )
+)
+_EL_GENITIVE_ENDINGS = ("ου", "ού", "ων", "ών", "ας", "άς", "ης", "ής", "ους", "ούς", "εως")
+_EL_ACCUSATIVE_PLURAL = ("ους", "ούς", "ες", "ές", "εις", "είς")
+
+
+def _el_nominal(word: str, endings: tuple[str, ...] | None) -> bool:
+    """A word that can be the noun or adjective after an article: not a verb or a function word,
+    and, when `endings` are given, ending in one of them."""
+    if word in _EL_FUNCTION or not word.isalpha() or _el_verb(word) is not None:
+        return False
+    return endings is None or word.endswith(endings)
+
+
+def _el_case(
+    markers: frozenset[str], endings: tuple[str, ...] | None, tous: bool = False
+) -> Finder:
+    """Each of `markers`, and with `tous` τους before an accusative plural, with up to two words
+    after it that `_el_nominal` accepts."""
+
+    def find(ws: list[str]) -> list[Span]:
+        out: list[Span] = []
+        for i, w in enumerate(ws):
+            if w in markers:
+                pass
+            elif w == "τους" and tous:
+                if not (i + 1 < len(ws) and _el_nominal(ws[i + 1], _EL_ACCUSATIVE_PLURAL)):
+                    continue
+            else:
+                continue
+            end = i + 1
+            while end < len(ws) and end <= i + 2 and _el_nominal(ws[end], endings):
+                end += 1
+            out.append((i, end))
+        return out
+
+    return find
+
+
 _GREEK: dict[str, Finder] = {
     "el.tha": _marker(_words("θα")),
     "el.na": _marker(_words("να")),
@@ -603,6 +735,8 @@ _GREEK: dict[str, Finder] = {
         stop=_EL_NEW_CLAUSE,
         strict=True,
     ),
+    "el.genitive": _el_case(_EL_GENITIVE, _EL_GENITIVE_ENDINGS),
+    "el.accusative": _el_case(_EL_ACCUSATIVE, None, tous=True),
 }
 
 

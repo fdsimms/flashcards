@@ -271,12 +271,14 @@ def test_every_group_a_grammar_point_links_to_is_one_the_fill_writes():
     # The app finds a form's grammar point by its group's name (src/core/grammar.ts), so a group
     # renamed here would quietly unlink it. Languages the fill doesn't cover are written by hand.
     catalog = Path(__file__).resolve().parents[2] / "reader" / "src" / "franki_reader" / "grammar_points.json"
-    tables = {"es": forms.TABLES["spanish"], "pl": forms.TABLES["polish"], "ru": forms.TABLES["russian"]}
+    tables = {"es": "spanish", "pl": "polish", "ru": "russian", "de": "german", "el": "greek"}
     linked = [(p["language"], g) for p in json.loads(catalog.read_text(encoding="utf-8"))["points"] for g in p.get("forms", [])]
     assert linked
     for language, group in linked:
         if language in tables:
-            assert group in {t.group for t in tables[language].tables}, (language, group)
+            written = forms.TABLES[tables[language]]
+            # A tense's group is a verb table's, a case's a noun table's (ru.genitive links "genitive").
+            assert group in {t.group for t in written.tables + written.noun_tables}, (language, group)
 
 
 def test_downloads_each_file_once(tmp_path):

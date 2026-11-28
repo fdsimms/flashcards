@@ -361,6 +361,57 @@
       ]
     },
     {
+      "id": "de.accusative",
+      "language": "de",
+      "name": "Accusative",
+      "level": 9,
+      "note": "The direct object, and after für, durch, ohne",
+      "example": "ich sehe den Mann, ich habe einen Hund",
+      "forms": [
+        "accusative"
+      ],
+      "explanation": "The accusative marks the direct object: **ich sehe den Mann**, \"I see the man\"; **ich habe einen Hund**, \"I have a dog\". Only masculine words change: **der** becomes **den**, **ein** becomes **einen**, **er** becomes **ihn**. Feminine, neuter and plural words look the same as the subject.\n\nSome prepositions always take it: **für**, **durch**, **ohne**, **gegen**, **um**: **für meinen Vater**. Others take it for where to: **ich gehe in den Garten**, \"I'm going into the garden\".\n\n**Den** is also the dative plural (**mit den Kindern**), so it's only counted before a singular noun that can't be a plural.",
+      "related": [
+        "de.dative",
+        "de.genitive"
+      ],
+      "known": true
+    },
+    {
+      "id": "de.dative",
+      "language": "de",
+      "name": "Dative",
+      "level": 10,
+      "note": "To or for someone, and after mit, von, zu, bei, aus",
+      "example": "ich gebe dem Kind ein Buch, mit meinem Freund",
+      "forms": [
+        "dative"
+      ],
+      "explanation": "The dative marks who something is given, said or shown to: **ich gebe dem Kind ein Buch**, \"I'm giving the child a book\"; **sie hilft mir**, \"she's helping me\". Some verbs always take it: **helfen**, **danken**, **gefallen**, **gehören**.\n\nThe articles: **dem** (masculine and neuter), **der** (feminine), **den** plus **-n** on the noun (plural). The pronouns: **mir**, **dir**, **ihm**, **ihr**, **uns**, **euch**, **ihnen**.\n\nSome prepositions always take it: **mit**, **von**, **zu**, **bei**, **aus**, **nach**, **seit**. Others take it for where something is: **im Garten**, \"in the garden\". **Zum**, **zur**, **im**, **am**, **vom** and **beim** have the dative article built in.",
+      "related": [
+        "de.accusative",
+        "de.genitive"
+      ],
+      "known": true
+    },
+    {
+      "id": "de.genitive",
+      "language": "de",
+      "name": "Genitive",
+      "level": 11,
+      "note": "Of, and after wegen, trotz, während",
+      "example": "das Auto des Vaters, wegen des Wetters",
+      "forms": [
+        "genitive"
+      ],
+      "explanation": "The genitive says \"of\": **das Auto des Vaters**, \"my father's car\"; **am Ende des Tages**, \"at the end of the day\". Masculine and neuter nouns add **-s** or **-es**, and the article is **des** or **eines**; feminine and plural ones take **der**.\n\nSome prepositions take it, mostly in writing: **wegen**, **trotz**, **während**, **statt**: **wegen des Wetters**, \"because of the weather\". In speech many people use the dative after them instead.\n\nSpoken German often says **von** plus the dative instead of the genitive: **das Auto von meinem Vater**. With names, it's just **-s**: **Peters Auto**.",
+      "related": [
+        "de.dative",
+        "de.accusative"
+      ],
+      "known": true
+    },
+    {
       "id": "fr.passe_compose",
       "language": "fr",
       "name": "Passé composé",
@@ -508,6 +559,119 @@
       "related": []
     },
     {
+      "id": "ru.accusative",
+      "language": "ru",
+      "name": "Accusative",
+      "level": 7,
+      "note": "The direct object, and where to after в and на",
+      "example": "я читаю книгу, иду в школу",
+      "forms": [
+        "accusative"
+      ],
+      "explanation": "The accusative marks the direct object, the thing a verb acts on: **я читаю книгу**, \"I'm reading a book\". After **в** and **на** it says where to: **иду в школу**, \"I'm going to school\".\n\nFeminine nouns in **-а** and **-я** change to **-у** and **-ю**: **книга, книгу**; **неделя, неделю**. Inanimate masculine and neuter nouns look like the nominative: **я вижу дом**. Animate masculine ones look like the genitive: **я вижу брата**.\n\nOnly a form that can't be another case is counted: **книгу** is, **дом** isn't.",
+      "related": [
+        "ru.genitive",
+        "ru.prepositional"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.prepositional",
+      "language": "ru",
+      "name": "Prepositional",
+      "level": 8,
+      "note": "Where something is, and what it's about",
+      "example": "в школе, на столе, о брате",
+      "forms": [
+        "prepositional"
+      ],
+      "explanation": "The prepositional only comes after a preposition. After **в** and **на** it says where something is: **в школе**, \"at school\"; **на столе**, \"on the table\". After **о** it says what something is about: **мы говорим о брате**, \"we're talking about my brother\".\n\nMost nouns end in **-е**: **школа, в школе**; **стол, на столе**. Feminine nouns in **-ь** and nouns in **-ия** take **-и**: **в тетради**, **в России**. A few masculine nouns take a stressed **-у** after в and на: **в лесу**, **на полу**.\n\nCompare the accusative, for where to: **я иду в школу** (accusative), **я в школе** (prepositional).",
+      "related": [
+        "ru.accusative",
+        "ru.dative"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.genitive",
+      "language": "ru",
+      "name": "Genitive",
+      "level": 9,
+      "note": "Of, none of, and after numbers and many prepositions",
+      "example": "книга брата, нет времени, пять рублей",
+      "forms": [
+        "genitive"
+      ],
+      "explanation": "The genitive says \"of\": **книга брата**, \"my brother's book\". It's used for what there isn't, after **нет**: **у меня нет времени**, \"I don't have time\". After numbers from five up and words for amounts: **пять рублей**, **много людей**.\n\nMany prepositions take it: **у**, **из**, **от**, **без**, **для**, **до**, **после**: **у брата**, \"at my brother's\"; **без сахара**, \"without sugar\".\n\nMasculine and neuter nouns take **-а** or **-я** (**брата**, **моря**); feminine ones **-ы** or **-и** (**мамы**, **недели**). In the plural there are several endings: **-ов** (**домов**), **-ей** (**рублей**), or none (**книг**).",
+      "related": [
+        "ru.accusative",
+        "ru.dative"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.perfective",
+      "language": "ru",
+      "name": "Perfective verbs",
+      "level": 10,
+      "note": "A whole action, done or to be done",
+      "example": "я прочитал книгу, я позвоню завтра",
+      "explanation": "Most Russian verbs come in pairs: an imperfective one for the action itself, and a perfective one for the action as a whole, done to the end. **Я прочитал книгу**, \"I read the book (all of it)\"; **я позвоню завтра**, \"I'll call tomorrow\".\n\nA perfective verb has no present tense: its present forms mean the future (**прочитаю**, \"I'll read\"). It's used for a single finished action, a result, or one action after another in a story.\n\nMany perfectives add a prefix (**читать, прочитать**; **писать, написать**); others change the stem (**давать, дать**; **покупать, купить**). The deck lists each verb's partner.",
+      "related": [
+        "ru.imperfective",
+        "ru.past"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.imperfective",
+      "language": "ru",
+      "name": "Imperfective verbs",
+      "level": 11,
+      "note": "An action in progress, repeated, or in general",
+      "example": "я читал весь вечер, я буду звонить каждый день",
+      "explanation": "An imperfective verb is about the action itself rather than its result: going on (**я читал весь вечер**, \"I was reading all evening\"), repeated (**я буду звонить каждый день**, \"I'll call every day\"), or just whether it happened (**ты читал эту книгу?**, \"have you read this book?\").\n\nThe present tense is always imperfective, so only the past, the future, the infinitive and the imperative show a choice. That's where it's counted here.\n\nAfter verbs of starting and stopping, only the imperfective is used: **я начал читать**, \"I started reading\". A negative command usually takes it too: **не звони**, \"don't call\".",
+      "related": [
+        "ru.perfective",
+        "ru.future"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.dative",
+      "language": "ru",
+      "name": "Dative",
+      "level": 12,
+      "note": "To or for someone, and how they feel",
+      "example": "я дал брату книгу, мне холодно",
+      "forms": [
+        "dative"
+      ],
+      "explanation": "The dative marks who something is given, said or shown to: **я дал брату книгу**, \"I gave my brother the book\"; **позвони маме**, \"call Mom\".\n\nIt's the person who feels or needs something: **мне холодно**, \"I'm cold\"; **мне нравится**, \"I like it\"; **ему надо идти**, \"he has to go\". It also gives an age: **ей двадцать лет**, \"she's twenty\".\n\nAfter **к** (toward, to someone's) and **по** (along, by): **к врачу**, \"to the doctor's\"; **по телефону**, \"by phone\".\n\nMasculine and neuter nouns take **-у** or **-ю** (**брату**); feminine ones **-е** (**маме**); the plural **-ам** or **-ям**.",
+      "related": [
+        "ru.genitive",
+        "ru.instrumental"
+      ],
+      "known": true
+    },
+    {
+      "id": "ru.instrumental",
+      "language": "ru",
+      "name": "Instrumental",
+      "level": 13,
+      "note": "With, by means of, and what someone becomes",
+      "example": "пишу ручкой, с другом, он стал врачом",
+      "forms": [
+        "instrumental"
+      ],
+      "explanation": "The instrumental says what something is done with: **пишу ручкой**, \"I write with a pen\". After **с** it means together with: **с другом**, \"with a friend\"; **кофе с молоком**.\n\nIt's used for what someone is or becomes after **стать**, **быть** in the past and future, and **работать**: **он стал врачом**, \"he became a doctor\"; **она работает учителем**.\n\nAfter **за**, **под**, **над**, **перед** and **между** for where something is: **под столом**, \"under the table\".\n\nMasculine and neuter nouns take **-ом** or **-ем** (**другом**); feminine ones **-ой** or **-ей** (**ручкой**); the plural **-ами** or **-ями**.",
+      "related": [
+        "ru.dative",
+        "ru.prepositional"
+      ],
+      "known": true
+    },
+    {
       "id": "el.tha",
       "word_named": true,
       "language": "el",
@@ -569,6 +733,38 @@
       "related": [
         "el.perfect"
       ]
+    },
+    {
+      "id": "el.accusative",
+      "language": "el",
+      "name": "Accusative",
+      "level": 6,
+      "note": "The direct object, and after σε, για, με, από",
+      "example": "βλέπω τον φίλο μου, πάω στην Αθήνα",
+      "forms": [
+        "accusative"
+      ],
+      "explanation": "The accusative marks the direct object: **βλέπω τον φίλο μου**, \"I see my friend\". Almost every preposition takes it: **σε**, **για**, **με**, **από**, **χωρίς**: **για την Άννα**, \"for Anna\"; **με τον Νίκο**, \"with Nikos\".\n\n**Σε** joins the article: **στο σπίτι**, \"at home\"; **στην Αθήνα**, \"to Athens\" or \"in Athens\"; **στον κήπο**.\n\nThe articles: **τον** (masculine), **την** (feminine), **το** (neuter); plural **τους**, **τις**, **τα**. Masculine nouns drop their **-ς**: **ο φίλος, τον φίλο**. The object pronouns are the same words: **τον ξέρω**, \"I know him\".",
+      "related": [
+        "el.genitive"
+      ],
+      "known": true
+    },
+    {
+      "id": "el.genitive",
+      "language": "el",
+      "name": "Genitive",
+      "level": 7,
+      "note": "Of, whose, and to whom",
+      "example": "το σπίτι του φίλου μου, η μητέρα της Άννας",
+      "forms": [
+        "genitive"
+      ],
+      "explanation": "The genitive says \"of\" or whose: **το σπίτι του φίλου μου**, \"my friend's house\"; **η μητέρα της Άννας**, \"Anna's mother\". The articles are **του** (masculine and neuter), **της** (feminine) and **των** (plural).\n\nThe short pronouns **μου**, **σου**, **του**, **της** are genitives too. After a noun they mean whose: **το σπίτι της**, \"her house\". Before a verb they say to whom: **του είπα**, \"I told him\"; **της έδωσα το βιβλίο**, \"I gave her the book\".\n\nMasculine nouns in **-ος** take **-ου** (**φίλου**); in **-ας** and **-ης** they drop the **-ς** (**του πατέρα**). Feminine nouns add **-ς** (**της μητέρας**).",
+      "related": [
+        "el.accusative"
+      ],
+      "known": true
     },
     {
       "id": "pl.past",
@@ -633,6 +829,119 @@
       "related": [
         "pl.conditional"
       ]
+    },
+    {
+      "id": "pl.accusative",
+      "language": "pl",
+      "name": "Accusative",
+      "level": 6,
+      "note": "The direct object, and where to after w and na",
+      "example": "czytam książkę, idę na pocztę",
+      "forms": [
+        "accusative"
+      ],
+      "explanation": "The accusative marks the direct object: **czytam książkę**, \"I'm reading a book\". After **w** and **na** it says where to: **idę na pocztę**, \"I'm going to the post office\". Also after **przez** and **za** (for): **dziękuję za kawę**.\n\nFeminine nouns in **-a** change to **-ę**: **książka, książkę**. Masculine nouns for people and animals look like the genitive: **widzę brata**, **mam psa**. Other masculine nouns and neuter ones look like the nominative: **mam dom**.\n\nAfter a negative, the direct object is in the genitive instead: **nie mam czasu**.",
+      "related": [
+        "pl.genitive",
+        "pl.locative"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.locative",
+      "language": "pl",
+      "name": "Locative",
+      "level": 7,
+      "note": "Where something is, and what it's about",
+      "example": "w domu, na stole, o bracie",
+      "forms": [
+        "locative"
+      ],
+      "explanation": "The locative only comes after a preposition. After **w** and **na** it says where something is: **w szkole**, \"at school\"; **na stole**, \"on the table\". After **o** it says what something is about: **mówimy o bracie**, \"we're talking about my brother\". Also after **przy** and **po** (after, around).\n\nMany nouns take **-e** and soften the consonant before it: **stół, na stole**; **brat, o bracie**; **szkoła, w szkole**. Others take **-u**: **w domu**, **w parku**. The plural is **-ach**: **w sklepach**.\n\nOnly a form that can't be another case is counted: **parku** is also the genitive, so it isn't.",
+      "related": [
+        "pl.accusative",
+        "pl.genitive"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.genitive",
+      "language": "pl",
+      "name": "Genitive",
+      "level": 8,
+      "note": "Of, after a negative, after numbers and many prepositions",
+      "example": "dom brata, nie mam czasu, pięć minut",
+      "forms": [
+        "genitive"
+      ],
+      "explanation": "The genitive says \"of\": **dom brata**, \"my brother's house\"; **filiżanka kawy**, \"a cup of coffee\".\n\nAfter a negative verb, the object is in the genitive: **mam czas**, but **nie mam czasu**, \"I don't have time\". After numbers from five up and words for amounts: **pięć minut**, **dużo ludzi**.\n\nMany prepositions take it: **do**, **z** (out of, from), **od**, **bez**, **dla**, **u**: **idę do sklepu**, \"I'm going to the store\"; **kawa bez cukru**.\n\nMasculine nouns take **-a** or **-u** (**brata**, **czasu**); feminine ones **-y** or **-i** (**kawy**); neuter ones **-a**.",
+      "related": [
+        "pl.accusative",
+        "pl.dative"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.perfective",
+      "language": "pl",
+      "name": "Perfective verbs",
+      "level": 9,
+      "note": "A whole action, done or to be done",
+      "example": "przeczytałem książkę, zadzwonię jutro",
+      "explanation": "Most Polish verbs come in pairs: an imperfective one for the action itself, and a perfective one for the action as a whole, done to the end. **Przeczytałem książkę**, \"I read the book (all of it)\"; **zadzwonię jutro**, \"I'll call tomorrow\".\n\nA perfective verb has no present tense: its present forms mean the future (**przeczytam**, \"I'll read\"). It's used for a single finished action, a result, or one action after another in a story.\n\nMany perfectives add a prefix (**czytać, przeczytać**; **pisać, napisać**); others change the stem (**kupować, kupić**; **dawać, dać**). The deck lists each verb's partner.",
+      "related": [
+        "pl.imperfective",
+        "pl.past"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.imperfective",
+      "language": "pl",
+      "name": "Imperfective verbs",
+      "level": 10,
+      "note": "An action in progress, repeated, or in general",
+      "example": "czytałem cały wieczór, będę dzwonić codziennie",
+      "explanation": "An imperfective verb is about the action itself rather than its result: going on (**czytałem cały wieczór**, \"I was reading all evening\"), repeated (**będę dzwonić codziennie**, \"I'll call every day\"), or just whether it happened (**czytałeś tę książkę?**, \"have you read this book?\").\n\nThe present tense is always imperfective, so only the past, the future, the infinitive and the imperative show a choice. That's where it's counted here.\n\nThe compound future (**będę** plus a verb) is only for imperfective verbs: **będę czytać**, but **przeczytam**. A negative command usually takes the imperfective: **nie dzwoń**, \"don't call\".",
+      "related": [
+        "pl.perfective",
+        "pl.future"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.dative",
+      "language": "pl",
+      "name": "Dative",
+      "level": 11,
+      "note": "To or for someone, and how they feel",
+      "example": "daję bratu książkę, jest mi zimno",
+      "forms": [
+        "dative"
+      ],
+      "explanation": "The dative marks who something is given, said or shown to: **daję bratu książkę**, \"I'm giving my brother the book\"; **powiedz mamie**, \"tell Mom\".\n\nIt's the person who feels something: **jest mi zimno**, \"I'm cold\"; **podoba mi się**, \"I like it\". Some verbs take it: **pomagać**, **dziękować**: **dziękuję ci**, \"thank you\".\n\nAfter **dzięki** (thanks to), **ku** (toward) and **przeciw** (against).\n\nMasculine nouns take **-owi** (**bratu** is irregular); feminine ones **-e** or **-i** (**mamie**); neuter ones **-u**; the plural **-om**.",
+      "related": [
+        "pl.genitive",
+        "pl.instrumental"
+      ],
+      "known": true
+    },
+    {
+      "id": "pl.instrumental",
+      "language": "pl",
+      "name": "Instrumental",
+      "level": 12,
+      "note": "With, by means of, and what someone is",
+      "example": "piszę długopisem, z bratem, jestem lekarzem",
+      "forms": [
+        "instrumental"
+      ],
+      "explanation": "The instrumental says what something is done with: **piszę długopisem**, \"I write with a pen\"; **jadę autobusem**, \"I'm going by bus\". After **z** it means together with: **z bratem**, \"with my brother\"; **kawa z mlekiem**.\n\nIt's used for what someone is after **być** and **zostać**: **jestem lekarzem**, \"I'm a doctor\"; **została nauczycielką**, \"she became a teacher\".\n\nAfter **za**, **pod**, **nad**, **przed** and **między** for where something is: **pod stołem**, \"under the table\".\n\nMasculine and neuter nouns take **-em** (**bratem**); feminine ones **-ą** (**mamą**); the plural **-ami**.",
+      "related": [
+        "pl.dative",
+        "pl.locative"
+      ],
+      "known": true
     },
     {
       "id": "nb.past",

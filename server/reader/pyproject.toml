@@ -22,6 +22,13 @@ dependencies = [
     "sudachipy>=0.7",
     "sudachidict-core>=20250825",
     "youtube-transcript-api>=1.2",
+    # Case and aspect (grammar_morph.py): Russian's analyzer and dictionary, about 27 MB of memory,
+    # and Polish's, about 47 MB, each loaded only when a line in its language is first checked.
+    # Morfeusz has no source package and no ARM Linux wheel, so on an ARM server it isn't
+    # installed and Polish case and aspect are simply never found.
+    "pymorphy3>=2.0",
+    "pymorphy3-dicts-ru>=2.4",
+    "morfeusz2>=1.99; platform_machine == 'x86_64' or sys_platform != 'linux'",
     "defusedxml>=0.7",
 ]
 

@@ -2657,10 +2657,22 @@ def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
     Grammar). Before 12 November 2026 normal ("Know it") wasn't stored either, so a point the owner
     set to it then reads as not set. A point the catalog marks `known` reads as Know it until the
     owner chooses otherwise."""
-    raw = _get_meta(conn, "grammar")
-    chosen: dict[str, GrammarState] = json.loads(raw) if raw else {}
     defaults: dict[str, GrammarState] = {p.id: "normal" for p in grammar.POINTS.values() if p.known}
-    return {**defaults, **chosen}
+    return {**defaults, **_chosen_grammar(conn)}
+
+
+def _chosen_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
+    """The choices the owner made, without the catalog's `known` defaults."""
+    raw = _get_meta(conn, "grammar")
+    return json.loads(raw) if raw else {}
+
+
+def default_grammar(conn: sqlite3.Connection) -> frozenset[str]:
+    """The points that read as Know it only because the catalog marks them `known`: the owner
+    hasn't chosen. They aren't drilled on a schedule until the owner sets them (docs/grammar.md,
+    "Case and aspect")."""
+    chosen = _chosen_grammar(conn)
+    return frozenset(p.id for p in grammar.POINTS.values() if p.known and p.id not in chosen)
 
 
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:
@@ -2673,11 +2685,13 @@ def set_grammar_many(
     """Several points' choices in one write, so a level that sets ten of them never half applies.
     None takes a point back to not set. A point that starts being practiced is stamped with `at`
     (now when not given), so rotation counts only the texts written since (`practice_since`)."""
-    choices = load_grammar(conn)
+    # Only what the owner chose is stored, so a `known` default stays a default (default_grammar).
+    merged = load_grammar(conn)
+    choices = _chosen_grammar(conn)
     since = practice_since(conn)
     stamp = (at or datetime.now(UTC).replace(tzinfo=None)).isoformat()
     for pid, state in changes.items():
-        if state == "practice" and choices.get(pid) != "practice":
+        if state == "practice" and merged.get(pid) != "practice":
             since[pid] = stamp
         elif state != "practice":
             since.pop(pid, None)
