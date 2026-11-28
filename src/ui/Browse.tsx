@@ -17,6 +17,7 @@ import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, EmptyState, ErrorNote, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
+import { haptic } from './haptics';
 import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
