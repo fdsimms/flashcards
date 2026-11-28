@@ -306,7 +306,8 @@ export function NavRow({ label, detail, badge, facts, loading, making, working, 
           scaleTo={0.92}
           style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
+          {/* The same mark as PlayDot (PlayCircle.tsx), which kit can't import. */}
+          <Icon name={action.icon} size={16} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
       {making || working ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}

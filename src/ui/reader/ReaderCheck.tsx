@@ -18,7 +18,7 @@ import { useOutputWake } from '../useOutputWake';
 import type { ReadTextStyle } from './ReadWord';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { TranslationRow } from '../TranslationRow';
-import { PlayCircle } from '../PlayCircle';
+import { PlayCircle, PlayDot } from '../PlayCircle';
 import { RoundScore } from '../RoundScore';
 
 /**
@@ -225,15 +225,7 @@ function Evidence({ line, index, word, textStyle, onPlay }: { line: TextLine; in
           <TranslationRow><Text style={{ ...type.footnote, color: c.textSecondary }}>{line.english}</Text></TranslationRow>
         </View>
         {onPlay ? (
-          <Tappable
-            onPress={() => { haptic.tap(); onPlay(); }}
-            accessibilityRole="button"
-            accessibilityLabel={`Play line ${index + 1}`}
-            hitSlop={space.xs}
-            style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="speaker.wave.2.fill" size={15} color={c.accent} />
-          </Tappable>
+          <PlayDot speaker label={`Play line ${index + 1}`} onPress={() => { haptic.tap(); onPlay(); }} />
         ) : null}
       </View>
     </View>
