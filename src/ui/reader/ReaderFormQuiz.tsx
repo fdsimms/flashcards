@@ -6,7 +6,7 @@ import type { Api, FormExplanation, Language, Word } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { checkForm, formReason, markDecider, type FormCheck, type Settled } from '../../reader/formQuiz';
 import { usePrimers } from './ReadFormSheet';
-import { Button, ErrorNote, HeaderAction, Icon, Tappable } from '../kit';
+import { Button, ErrorNote, Icon, SheetHeader, Tappable } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
@@ -87,10 +87,9 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-          <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary }}>Practice the form</Text>
-          <HeaderAction label="Close" onPress={onClose} />
-        </View>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Practice the form</Text>
+        </SheetHeader>
 
         <Text style={sentence}>
           {before}

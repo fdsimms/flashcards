@@ -5,7 +5,7 @@ import type { Api, FormPrimer, Language, Word } from '../../reader/api';
 import { aboutWord, pieces } from '../../reader/formPrimer';
 import { haptic } from '../haptics';
 import { MakingBody } from '../MakingCard';
-import { ErrorNote, HeaderAction, Icon, Tappable } from '../kit';
+import { ErrorNote, Icon, SheetHeader, Tappable } from '../kit';
 import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 import { failureText } from '../../core/failure';
 
@@ -100,10 +100,9 @@ export function ReadFormSheet({ api, language, word, onClose }: { api: Api; lang
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.l, paddingBottom: Math.max(insets.bottom, space.l), gap: space.l }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-          <Text accessibilityRole="header" style={{ ...type.title, color: c.text, flexShrink: 1 }}>{form.name.charAt(0).toUpperCase() + form.name.slice(1)}</Text>
-          <HeaderAction label="Done" onPress={onClose} />
-        </View>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>{form.name.charAt(0).toUpperCase() + form.name.slice(1)}</Text>
+        </SheetHeader>
         {primer ? (
           <>
             <Text style={{ ...type.body, color: c.text }}>{primer.summary}</Text>

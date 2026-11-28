@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SoFar } from '../../reader/api';
 import { awayText, recapsShown, RECENT_EPISODES, WELCOME_BACK_DAYS } from '../../reader/welcomeBack';
 import { haptic } from '../haptics';
-import { Button, Card, HeaderAction, Icon, SectionTitle, Tappable } from '../kit';
+import { Button, Card, Icon, SectionTitle, SheetHeader, Tappable } from '../kit';
 import { MIN_TAP, space, type, useTheme } from '../theme';
 import { XrayCard } from './ReaderXray';
 
@@ -89,13 +89,12 @@ export function WelcomeBack({ soFar, episode, onPlay, onClose }: {
         style={{ flex: 1, backgroundColor: c.surface }}
         contentContainerStyle={{ paddingHorizontal: space.l, paddingTop: space.l, paddingBottom: Math.max(insets.bottom, space.l), gap: space.s }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
-          <Text accessibilityRole="header" style={{ ...type.title, color: c.text, flex: 1 }}>Welcome back</Text>
-          <HeaderAction label="Skip" accessibilityLabel="Skip recap" onPress={onClose} />
-        </View>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>
-          {soFar.away_days !== null ? `You last finished an episode ${awayText(soFar.away_days)} ago. ` : ''}Here is the story up to episode {episode - 1}.
-        </Text>
+        <SheetHeader onClose={onClose}>
+          <Text accessibilityRole="header" style={{ ...type.headline, color: c.text }}>Welcome back</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>
+            {soFar.away_days !== null ? `You last finished an episode ${awayText(soFar.away_days)} ago. ` : ''}Here is the story up to episode {episode - 1}.
+          </Text>
+        </SheetHeader>
         <SectionTitle>Story so far</SectionTitle>
         <EpisodeRecaps recaps={soFar.recaps} />
         {soFar.characters.length > 0 ? <SectionTitle>Who's who</SectionTitle> : null}
