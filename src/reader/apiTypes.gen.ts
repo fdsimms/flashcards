@@ -871,7 +871,8 @@ export interface paths {
         /**
          * Journal Check
          * @description Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.
-         *     A new entry whose `key` was already checked comes back as it was, with no call.
+         *     A new entry whose `key` was already checked (or is being checked) comes back as it was, with
+         *     no call.
          */
         post: operations["journal_check_api_journal_check_post"];
         delete?: never;

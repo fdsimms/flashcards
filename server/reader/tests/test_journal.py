@@ -290,7 +290,8 @@ def test_an_entry_resent_while_its_check_runs_is_checked_once() -> None:
 
     async def slow(request: CheckRequest) -> tuple[dict[str, Any], Usage]:
         await asyncio.sleep(0.3)  # longer than the phone waits before sending a held entry again
-        return await first_check(request)
+        checked: tuple[dict[str, Any], Usage] = await first_check(request)
+        return checked
 
     app, _ = client(slow)
     body = {"language": "pl", "text": TEXT, "key": "held-2"}
