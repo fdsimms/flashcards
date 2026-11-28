@@ -9657,6 +9657,19 @@
               }
             ],
             "title": "Key"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 86400.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
           }
         },
         "type": "object",

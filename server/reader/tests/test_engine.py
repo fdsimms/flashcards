@@ -1053,9 +1053,12 @@ def test_input_time_totals_reading_and_listening_by_language() -> None:
             e.conn.execute("UPDATE lessons SET duration_ms = 90500 WHERE id = ?", (lesson_id,))
         if heard:
             store.mark_lesson_heard(e.conn, lesson_id, NOW)
+    # A text heard again counts by how long it played; one from an older app, with no time, doesn't.
+    store.log_listen(e.conn, first.id, NOW, "a", 45)
+    store.log_listen(e.conn, first.id, NOW, "b")
 
     assert store.input_time(e.conn, NOW - timedelta(days=7)) == [
-        store.InputTime("th", 120, 150, NOW)
+        store.InputTime("th", 120, 195, NOW)
     ]
     # Past the window nothing is counted, and the last reading is still known.
     assert store.input_time(e.conn, NOW + timedelta(days=1)) == [store.InputTime("th", 0, 0, NOW)]

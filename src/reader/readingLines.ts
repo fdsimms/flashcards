@@ -3,6 +3,7 @@
 // there are several. A word is learned from meeting it in several contexts, and the note's sentence is the same
 // every time. Pure, so it's tested; src/ui/useReadingLines.ts asks the server. Nothing here grades a card.
 import { isOmnilanguage } from '../core/cards';
+import { markSegments } from '../core/highlight';
 import { htmlToText } from '../core/html';
 import type { Card, Note, RenderedSide } from '../core/types';
 import type { Language, ReadingLine } from './api';
@@ -52,11 +53,17 @@ export function lineFor(lines: readonly ReadingLine[] | undefined, reps: number,
 
 const isExample = (b: Block) => b.role === 'example' || b.role === 'exampleRomanized' || b.role === 'exampleTranslation';
 
-/** An answer side's blocks with the line in its own labeled box, right after the note's example sentences (at the end with none). */
-export function withReadingLine(blocks: readonly Block[], line: ReadingLine | undefined): Block[] {
+/**
+ * An answer side's blocks with the line in its own box, right after the note's example sentences (at the
+ * end with none). It's laid out as a line the word was met in is: "From" and where (your reading, the
+ * text's title), the word marked in the line (as the line has it, else the card's `word`), and its English
+ * behind Show translation.
+ */
+export function withReadingLine(blocks: readonly Block[], line: ReadingLine | undefined, word: string): Block[] {
   if (!line) return [...blocks];
-  const box: Block = { label: `From your reading: ${line.title}`, text: line.line };
+  const box: Block[] = [{ text: line.line, role: 'example', segments: markSegments(line.line, line.word || word), source: `your reading, ${line.title}` }];
+  if (line.english) box.push({ text: line.english, role: 'exampleTranslation', tapLabel: 'Show translation' });
   let at = -1;
   blocks.forEach((b, i) => { if (isExample(b)) at = i; });
-  return at < 0 ? [...blocks, box] : [...blocks.slice(0, at + 1), box, ...blocks.slice(at + 1)];
+  return at < 0 ? [...blocks, ...box] : [...blocks.slice(0, at + 1), ...box, ...blocks.slice(at + 1)];
 }

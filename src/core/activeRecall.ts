@@ -58,9 +58,25 @@ export function asksOwnHook(note: Note, card: Card, noteCards: readonly Card[]):
  * Whether what was typed was a miss: something typed, and letters wrong (a missing accent or mark
  * is a near miss, as the comparison's own line says it). Review outlines Again then, since Hard on
  * a word that wasn't produced tells FSRS it was remembered and stretches its interval; the tap
- * still decides. Not asked of a spoken answer: the recognizer mishears, and a word said right
- * mustn't be outlined as missed.
+ * still decides. Not asked of a spoken answer, which `spokenMiss` judges: the recognizer mishears,
+ * and a word said right mustn't be outlined as missed.
  */
 export function typedMiss(comparison: TypedComparison): boolean {
   return comparison.typed.length > 0 && !comparison.sameLetters;
+}
+
+/** A spoken answer shares less than this share of the word's letters before it counts as far off. */
+export const SPOKEN_MISS_SHARE = 1 / 3;
+
+/**
+ * Whether a spoken answer was clearly a different word: even the recognizer's guess closest to the
+ * answer (`bestHeard`) matches under a third of its letters. A mishearing of the right word keeps
+ * most of them, so only an answer nothing like the word outlines Again (the owner's choice,
+ * 28 November 2026); the tap still decides.
+ */
+export function spokenMiss(comparison: TypedComparison): boolean {
+  if (!comparison.typed.length || comparison.sameLetters) return false;
+  const letters = (parts: TypedComparison['expected']) => parts.reduce((n, p) => n + (p.text.match(/[\p{L}\p{N}]/gu)?.length ?? 0), 0);
+  const all = letters(comparison.expected);
+  return all > 0 && letters(comparison.expected.filter((p) => p.kind === 'same')) < all * SPOKEN_MISS_SHARE;
 }
